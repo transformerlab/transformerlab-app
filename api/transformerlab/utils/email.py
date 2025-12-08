@@ -12,12 +12,11 @@ Requires SMTP configuration in environment variables:
 - EMAIL_FROM: Sender email address
 """
 
-import smtplib
 import re
-from os import getenv
-from email.mime.text import MIMEText
+import smtplib
 from email.mime.multipart import MIMEMultipart
-from typing import Optional
+from email.mime.text import MIMEText
+from os import getenv
 
 
 def validate_email(email: str) -> None:
@@ -85,7 +84,9 @@ def get_smtp_config() -> dict:
     }
 
 
-def send_verification_email(to_email: str, subject: str, body: str, from_email: Optional[str] = None) -> None:
+def send_verification_email(
+    to_email: str, subject: str, body: str, from_email: str | None = None
+) -> None:
     """
     Send an email using SMTP or log to console in dev mode.
 
@@ -124,22 +125,29 @@ def send_verification_email(to_email: str, subject: str, body: str, from_email: 
             try:
                 server.login(config["username"], config["password"])
             except smtplib.SMTPAuthenticationError as e:
-                raise RuntimeError(f"SMTP authentication failed: {str(e)}")
+                raise RuntimeError(f"SMTP authentication failed: {e!s}")
 
             server.send_message(msg)
 
     except RuntimeError:
         # Re-raise authentication errors
         raise
-    except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, ConnectionRefusedError, TimeoutError) as e:
-        raise ConnectionError(f"Failed to connect to SMTP server: {str(e)}")
+    except (
+        smtplib.SMTPConnectError,
+        smtplib.SMTPServerDisconnected,
+        ConnectionRefusedError,
+        TimeoutError,
+    ) as e:
+        raise ConnectionError(f"Failed to connect to SMTP server: {e!s}")
     except smtplib.SMTPException as e:
-        raise RuntimeError(f"Failed to send email: {str(e)}")
+        raise RuntimeError(f"Failed to send email: {e!s}")
     except Exception as e:
-        raise RuntimeError(f"Unexpected error while sending email: {str(e)}")
+        raise RuntimeError(f"Unexpected error while sending email: {e!s}")
 
 
-def send_email_verification_link(to_email: str, verification_url: str, from_email: Optional[str] = None) -> None:
+def send_email_verification_link(
+    to_email: str, verification_url: str, from_email: str | None = None
+) -> None:
     """
     Send an email verification link to confirm user's email address.
 
@@ -169,7 +177,7 @@ Transformer Lab Team
     send_verification_email(to_email, subject, body, from_email)
 
 
-def send_password_reset_email(to_email: str, reset_url: str, from_email: Optional[str] = None) -> None:
+def send_password_reset_email(to_email: str, reset_url: str, from_email: str | None = None) -> None:
     """
     Send a password reset email with a secure reset link.
 
@@ -200,7 +208,11 @@ Transformer Lab Team
 
 
 def send_team_invitation_email(
-    to_email: str, team_name: str, inviter_email: str, invitation_url: str, from_email: Optional[str] = None
+    to_email: str,
+    team_name: str,
+    inviter_email: str,
+    invitation_url: str,
+    from_email: str | None = None,
 ) -> None:
     """
     Send a team invitation verification email.

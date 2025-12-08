@@ -1,15 +1,19 @@
 import hashlib
 import json
+import posixpath
 import time
 import traceback
-import posixpath
 
 try:
     from transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
     from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 
 except ModuleNotFoundError:
-    from transformerlab.plugin_sdk.transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
+    from transformerlab.plugin_sdk.transformerlab.plugin import (
+        WORKSPACE_DIR,
+        generate_model_json,
+        test_wandb_login,
+    )
     from transformerlab.plugin_sdk.transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 from lab import storage
 
@@ -29,7 +33,9 @@ class TrainerTLabPlugin(TLabPlugin):
         super().__init__()
         self.tlab_plugin_type = "trainer"
         # Add training-specific default arguments
-        self._parser.add_argument("--input_file", default=None, type=str, help="Path to configuration file")
+        self._parser.add_argument(
+            "--input_file", default=None, type=str, help="Path to configuration file"
+        )
 
         # Training state tracking
         self._config_parsed = False
@@ -44,7 +50,7 @@ class TrainerTLabPlugin(TLabPlugin):
             self._args_parsed = True
 
         if self._args_parsed and not self._config_parsed:
-            if getattr(self.params, "input_file") is not None:
+            if self.params.input_file is not None:
                 self.load_config()
                 self._config_parsed = True
 
@@ -66,7 +72,9 @@ class TrainerTLabPlugin(TLabPlugin):
             try:
                 from transformers import TrainerCallback
             except ImportError:
-                raise ImportError("Could not create HuggingFace callback. Please install transformers package.")
+                raise ImportError(
+                    "Could not create HuggingFace callback. Please install transformers package."
+                )
 
             class TLabProgressCallback(TrainerCallback):
                 """Callback that updates progress and logs metrics to metrics.json"""
@@ -104,7 +112,9 @@ class TrainerTLabPlugin(TLabPlugin):
                                 avg_time_per_step = elapsed_time / steps_completed
                                 estimated_time_remaining = avg_time_per_step * steps_remaining
                                 # Store estimated time remaining in seconds
-                                self.tlab.add_job_data("estimated_time_remaining", int(estimated_time_remaining))
+                                self.tlab.add_job_data(
+                                    "estimated_time_remaining", int(estimated_time_remaining)
+                                )
 
                         if self.tlab.job.should_stop:
                             control.should_training_stop = True
@@ -146,14 +156,18 @@ class TrainerTLabPlugin(TLabPlugin):
                     if self.writer is None:
                         return  # Safety check
 
-                    import torch
                     import psutil
+                    import torch
 
                     step = state.global_step
 
                     if torch.cuda.is_available():
-                        self.writer.add_scalar("system/vram_allocated_gb", torch.cuda.memory_allocated() / 1e9, step)
-                        self.writer.add_scalar("system/vram_reserved_gb", torch.cuda.memory_reserved() / 1e9, step)
+                        self.writer.add_scalar(
+                            "system/vram_allocated_gb", torch.cuda.memory_allocated() / 1e9, step
+                        )
+                        self.writer.add_scalar(
+                            "system/vram_reserved_gb", torch.cuda.memory_reserved() / 1e9, step
+                        )
                         # self.writer.flush()
                     else:
                         mem = psutil.virtual_memory()
@@ -165,7 +179,9 @@ class TrainerTLabPlugin(TLabPlugin):
             return TLabProgressCallback(self)
 
         else:
-            raise ValueError(f"Unsupported framework: {framework}. Supported frameworks: huggingface")
+            raise ValueError(
+                f"Unsupported framework: {framework}. Supported frameworks: huggingface"
+            )
 
     def load_config(self):
         """Decorator for loading configuration from input file"""
@@ -188,14 +204,16 @@ class TrainerTLabPlugin(TLabPlugin):
                     self.params[key] = value
 
         except Exception as e:
-            error_msg = f"Error loading configuration: {str(e)}\n{traceback.format_exc()}"
+            error_msg = f"Error loading configuration: {e!s}\n{traceback.format_exc()}"
             print(error_msg)
             self.job.update_job_data_field("completion_status", "failed")
             self.job.update_job_data_field("completion_details", "Error loading configuration")
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
-    def setup_train_logging(self, wandb_project_name: str = "TLab_Training", manual_logging=False, output_dir=None):
+    def setup_train_logging(
+        self, wandb_project_name: str = "TLab_Training", manual_logging=False, output_dir=None
+    ):
         """Setup Weights and Biases and TensorBoard logging
 
         Args:
@@ -230,9 +248,9 @@ class TrainerTLabPlugin(TLabPlugin):
 
         # Check config or direct attribute for wandb logging preference
         log_to_wandb = False
-        if getattr(self.params, "_config") is not None:
+        if self.params._config is not None:
             log_to_wandb = self.params._config.get("log_to_wandb", False)
-        elif getattr(self.params, "log_to_wandb") is not None:
+        elif self.params.log_to_wandb is not None:
             log_to_wandb = self.params.log_to_wandb
 
         report_to = ["tensorboard"]
@@ -255,7 +273,7 @@ class TrainerTLabPlugin(TLabPlugin):
                     self.add_job_data("wandb_logging", False)
 
             except Exception as e:
-                print(f"Error setting up W&B: {str(e)}. Continuing without W&B.")
+                print(f"Error setting up W&B: {e!s}. Continuing without W&B.")
                 self.add_job_data("wandb_logging", False)
                 report_to = ["tensorboard"]
 
@@ -353,12 +371,18 @@ class TrainerTLabPlugin(TLabPlugin):
     #             metrics["system/gpu_utilization"] = -1
     #     return metrics
 
-    def log_metric(self, metric_name: str, metric_value: float, step: int = None, logging_platforms: bool = True):
+    def log_metric(
+        self,
+        metric_name: str,
+        metric_value: float,
+        step: int = None,
+        logging_platforms: bool = True,
+    ):
         """Log a metric to all reporting targets"""
         if logging_platforms:
             if "tensorboard" in self.report_to:
                 self.writer.add_scalar(metric_name, metric_value, step)
-            if "wandb" in self.report_to and getattr(self, "wandb_run") is not None:
+            if "wandb" in self.report_to and self.wandb_run is not None:
                 self.wandb_run.log({metric_name: metric_value}, step=step)
 
             # # Log system metrics
@@ -386,7 +410,7 @@ class TrainerTLabPlugin(TLabPlugin):
             else:
                 print(f"Output directory not found or not specified: {output_dir}")
         except Exception as e:
-            print(f"Error saving metrics to file: {str(e)}")
+            print(f"Error saving metrics to file: {e!s}")
 
     def create_transformerlab_model(
         self,
@@ -409,7 +433,9 @@ class TrainerTLabPlugin(TLabPlugin):
                 pipeline_tag = model_info.pipeline_tag
                 print(f"Fetched pipeline tag '{pipeline_tag}' from parent model '{parent_model}'")
             except Exception as e:
-                print(f"Error fetching pipeline tag from parent model '{parent_model}': {type(e).__name__}: {e}")
+                print(
+                    f"Error fetching pipeline tag from parent model '{parent_model}': {type(e).__name__}: {e}"
+                )
                 pipeline_tag = None  # Default fallback
 
         # Add pipeline tag to json_data if provided

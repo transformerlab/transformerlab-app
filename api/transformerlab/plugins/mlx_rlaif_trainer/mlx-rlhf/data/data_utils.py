@@ -1,9 +1,10 @@
+import argparse
+import json
 import random
 from pathlib import Path
-import json
-from data.imessage_chat_data import get_all_txts
 from random import shuffle
-import argparse
+
+from data.imessage_chat_data import get_all_txts
 
 try:
     from datasets import load_dataset
@@ -21,7 +22,7 @@ class TuningDataset:
         if not path.exists():
             self._data = None
         else:
-            with open(path, "r") as fid:
+            with open(path) as fid:
                 self._data = [json.loads(l) for l in fid]  # noqa: E741
         self._key = key
 
@@ -42,7 +43,7 @@ class PrefDataset:
         if not path.exists():
             self._data = None
         else:
-            with open(path, "r") as fid:
+            with open(path) as fid:
                 self._data = [json.loads(l) for l in fid]  # noqa: E741
         self._key = key
         self._reward_key = reward_key
@@ -68,12 +69,14 @@ class CustomHFDataset:
         self._data = []
         path_obj = Path(path)
         if path_obj.exists():
-            with open(path, "r") as fid:
+            with open(path) as fid:
                 self._data = [json.loads(line) for line in fid]
 
         else:
             if load_dataset is None:
-                raise ImportError("Please install the 'datasets' library to load from HuggingFace Hub.")
+                raise ImportError(
+                    "Please install the 'datasets' library to load from HuggingFace Hub."
+                )
             # Try loading from HuggingFace Hub
             ds = load_dataset(path, split="train")
             for item in ds:
@@ -122,7 +125,9 @@ def load_datasets(train_args, tokenizer=None):
     if "reward" in ds_base:  # Load a PrefDataset if learning a reward model
         train_data, valid, _ = (PrefDataset(Path(train_args.data) / f"{n}.jsonl") for n in ds_names)
     else:  # Otherwise, load a SFT dataset
-        train_data, valid, test = (TuningDataset(Path(train_args.data) / f"{n}.jsonl") for n in ds_names)
+        train_data, valid, test = (
+            TuningDataset(Path(train_args.data) / f"{n}.jsonl") for n in ds_names
+        )
     return train_data, valid, test
 
 
@@ -166,7 +171,9 @@ def build_parser():
         action="store_true",
         help="Do training",
     )
-    arg_parse.add_argument("--reward-model", action="store_true", help="Train a reward model instead of a SFT model")
+    arg_parse.add_argument(
+        "--reward-model", action="store_true", help="Train a reward model instead of a SFT model"
+    )
     arg_parse.add_argument(
         "--prompt-tuning",
         action="store_true",

@@ -1,25 +1,24 @@
 import argparse
 import asyncio
 import functools
+import json
 import os
 import time
 import traceback
-import requests
-import json
-from pydantic import BaseModel
-from typing import Any, List
+from typing import Any
 
-from datasets import get_dataset_split_names, get_dataset_config_names, load_dataset
+import requests
+from datasets import get_dataset_config_names, get_dataset_split_names, load_dataset
+from pydantic import BaseModel
 
 try:
-    from transformerlab.plugin import get_dataset_path
     import transformerlab.plugin as tlab_core
+    from transformerlab.plugin import get_dataset_path
 except ModuleNotFoundError:
-    from transformerlab.plugin_sdk.transformerlab.plugin import get_dataset_path
     import transformerlab.plugin_sdk.transformerlab.plugin as tlab_core
+    from transformerlab.plugin_sdk.transformerlab.plugin import get_dataset_path
 
-from lab import Job
-from lab import storage
+from lab import Job, storage
 
 
 class DotDict(dict):
@@ -97,9 +96,13 @@ class TLabPlugin:
                 try:
                     # Setup logging
                     if self.tlab_plugin_type == "trainer":
-                        self.setup_train_logging(wandb_project_name=wandb_project_name, manual_logging=manual_logging)
+                        self.setup_train_logging(
+                            wandb_project_name=wandb_project_name, manual_logging=manual_logging
+                        )
                     elif self.tlab_plugin_type == "evals":
-                        self.setup_eval_logging(wandb_project_name=wandb_project_name, manual_logging=manual_logging)
+                        self.setup_eval_logging(
+                            wandb_project_name=wandb_project_name, manual_logging=manual_logging
+                        )
 
                     # Call the wrapped function
                     result = func(*args, **kwargs)
@@ -112,8 +115,13 @@ class TLabPlugin:
                         self.job.update_job_data_field("completion_status", "success")
 
                     job_data = self.job.get_json_data()
-                    if job_data.get("job_data", {}).get("completion_status", "") != "Job completed successfully":
-                        self.job.update_job_data_field("completion_details", "Job completed successfully")
+                    if (
+                        job_data.get("job_data", {}).get("completion_status", "")
+                        != "Job completed successfully"
+                    ):
+                        self.job.update_job_data_field(
+                            "completion_details", "Job completed successfully"
+                        )
 
                     job_data = self.job.get_json_data()
                     if (
@@ -122,7 +130,7 @@ class TLabPlugin:
                     ):
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
 
-                    if manual_logging and getattr(self.params, "wandb_run") is not None:
+                    if manual_logging and self.params.wandb_run is not None:
                         self.wandb_run.finish()
 
                     # Stop worker if it was started by this SDK instance
@@ -133,14 +141,16 @@ class TLabPlugin:
 
                 except Exception as e:
                     # Capture the full error
-                    error_msg = f"Error in Job: {str(e)}\n{traceback.format_exc()}"
+                    error_msg = f"Error in Job: {e!s}\n{traceback.format_exc()}"
                     print(error_msg)
 
                     # Update job with failure status
                     self.job.update_job_data_field("completion_status", "failed")
-                    self.job.update_job_data_field("completion_details", "Error occurred while executing job")
+                    self.job.update_job_data_field(
+                        "completion_details", "Error occurred while executing job"
+                    )
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
-                    if manual_logging and getattr(self.params, "wandb_run") is not None:
+                    if manual_logging and self.params.wandb_run is not None:
                         self.wandb_run.finish()
 
                     # Stop worker if it was started by this SDK instance
@@ -170,7 +180,7 @@ class TLabPlugin:
                 try:
                     self._ensure_args_parsed()
                 except Exception as e:
-                    print(f"Error parsing arguments: {str(e)}")
+                    print(f"Error parsing arguments: {e!s}")
                     raise
 
                 self.add_job_data("start_time", time.strftime("%Y-%m-%d %H:%M:%S"))
@@ -198,9 +208,11 @@ class TLabPlugin:
                         # Update final progress and success status
                         self.progress_update(progress_end)
                         self.job.update_job_data_field("completion_status", "success")
-                        self.job.update_job_data_field("completion_details", "Job completed successfully")
+                        self.job.update_job_data_field(
+                            "completion_details", "Job completed successfully"
+                        )
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
-                        if manual_logging and getattr(self, "wandb_run") is not None:
+                        if manual_logging and self.wandb_run is not None:
                             self.wandb_run.finish()
 
                         # Stop worker if it was started by this SDK instance
@@ -211,14 +223,16 @@ class TLabPlugin:
 
                     except Exception as e:
                         # Capture the full error
-                        error_msg = f"Error in Async Job: {str(e)}\n{traceback.format_exc()}"
+                        error_msg = f"Error in Async Job: {e!s}\n{traceback.format_exc()}"
                         print(error_msg)
 
                         # Update job with failure status
                         self.job.update_job_data_field("completion_status", "failed")
-                        self.job.update_job_data_field("completion_details", "Error occurred while executing job")
+                        self.job.update_job_data_field(
+                            "completion_details", "Error occurred while executing job"
+                        )
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
-                        if manual_logging and getattr(self, "wandb_run") is not None:
+                        if manual_logging and self.wandb_run is not None:
                             self.wandb_run.finish()
 
                         # Stop worker if it was started by this SDK instance
@@ -258,7 +272,7 @@ class TLabPlugin:
         """Add data to job using SDK directly"""
         self.job.update_job_data_field(key, value)
 
-    def load_dataset(self, dataset_types: List[str] = ["train"], config_name: str = None):
+    def load_dataset(self, dataset_types: list[str] = ["train"], config_name: str = None):
         """Decorator for loading datasets with error handling"""
 
         self._ensure_args_parsed()
@@ -275,7 +289,9 @@ class TLabPlugin:
 
             # If this is a directory, prepare data_files excluding index.json and hidden files
             is_dir = isinstance(dataset_target, str) and (
-                storage.isdir(dataset_target) if storage.exists(dataset_target) else os.path.isdir(dataset_target)
+                storage.isdir(dataset_target)
+                if storage.exists(dataset_target)
+                else os.path.isdir(dataset_target)
             )
             data_files_map = None
             if is_dir:
@@ -295,7 +311,11 @@ class TLabPlugin:
                     if name in ["index.json"] or name.startswith("."):
                         continue
                     lower = name.lower()
-                    if not (lower.endswith(".json") or lower.endswith(".jsonl") or lower.endswith(".csv")):
+                    if not (
+                        lower.endswith(".json")
+                        or lower.endswith(".jsonl")
+                        or lower.endswith(".csv")
+                    ):
                         continue
                     full_path = (
                         storage.join(dataset_target, name)
@@ -344,7 +364,9 @@ class TLabPlugin:
             if "validation" in available_splits and "valid" in dataset_splits:
                 dataset_splits["valid"] = "validation"
             elif "valid" in dataset_types and "valid" not in available_splits:
-                print("No validation slice found in dataset, using train split as 80-20 for training and validation")
+                print(
+                    "No validation slice found in dataset, using train split as 80-20 for training and validation"
+                )
                 dataset_splits["valid"] = dataset_splits["train"] + "[-20%:]"
                 dataset_splits["train"] = dataset_splits["train"] + "[:80%]"
 
@@ -377,7 +399,9 @@ class TLabPlugin:
             if "train" in dataset_types:
                 print(f"Loaded train dataset with {len(datasets['train'])} examples.")
             else:
-                print("WARNING: No train dataset loaded, ensure you have a train split in your dataset.")
+                print(
+                    "WARNING: No train dataset loaded, ensure you have a train split in your dataset."
+                )
 
             if "valid" in dataset_types:
                 print(f"Loaded valid dataset with {len(datasets['valid'])} examples.")
@@ -388,14 +412,16 @@ class TLabPlugin:
             return datasets
 
         except Exception as e:
-            error_msg = f"Error loading dataset: {str(e)}\n{traceback.format_exc()}"
+            error_msg = f"Error loading dataset: {e!s}\n{traceback.format_exc()}"
             print(error_msg)
             self.job.update_job_data_field("completion_status", "failed")
             self.job.update_job_data_field("completion_details", "Failed to load dataset")
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
-    def load_evaluation_model(self, field_name="generation_model", model_type=None, model_name=None):
+    def load_evaluation_model(
+        self, field_name="generation_model", model_type=None, model_name=None
+    ):
         """
         Load an appropriate model for evaluation based on configuration
 
@@ -407,7 +433,7 @@ class TLabPlugin:
         Returns:
             A model object wrapped for evaluation use
         """
-        from langchain_openai import ChatOpenAI  # noqa
+        from langchain_openai import ChatOpenAI
 
         # Use provided values or class attributes
         model_name = model_name or self.params.model_name
@@ -506,17 +532,21 @@ class TLabPlugin:
                 return None
 
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching model names from local server: {str(e)}")
+            print(f"Error fetching model names from local server: {e!s}")
             return None
         except (KeyError, ValueError) as e:
-            print(f"Error parsing response from local server: {str(e)}")
+            print(f"Error parsing response from local server: {e!s}")
             return None
 
     def check_local_server(self, model_server=None):
         """Check if the local model server is running, and start it if not"""
         try:
             response = requests.get("http://localhost:8338/server/worker_healthz", timeout=5)
-            if response.status_code == 200 and isinstance(response.json(), list) and len(response.json()) > 0:
+            if (
+                response.status_code == 200
+                and isinstance(response.json(), list)
+                and len(response.json()) > 0
+            ):
                 print("Local model server is already running")
                 return
         except requests.exceptions.RequestException:
@@ -559,7 +589,9 @@ class TLabPlugin:
 
         try:
             # Start the worker
-            response = requests.get("http://localhost:8338/server/worker_start", params=params, timeout=60)
+            response = requests.get(
+                "http://localhost:8338/server/worker_start", params=params, timeout=60
+            )
             print(f"Worker start response: {response.status_code}, {response.text}")
 
             if response.status_code == 200:
@@ -571,7 +603,9 @@ class TLabPlugin:
                 for attempt in range(max_retries):
                     try:
                         time.sleep(6)  # Wait 6 seconds between checks
-                        health_response = requests.get("http://localhost:8338/server/worker_healthz", timeout=5)
+                        health_response = requests.get(
+                            "http://localhost:8338/server/worker_healthz", timeout=5
+                        )
                         if (
                             health_response.status_code == 200
                             and isinstance(health_response.json(), list)
@@ -592,7 +626,7 @@ class TLabPlugin:
                 raise RuntimeError(error_msg)
 
         except requests.exceptions.RequestException as e:
-            error_msg = f"Failed to connect to server to start worker: {str(e)}"
+            error_msg = f"Failed to connect to server to start worker: {e!s}"
             print(error_msg)
             raise RuntimeError(error_msg)
 
@@ -606,18 +640,20 @@ class TLabPlugin:
                 print("Worker stopped successfully")
                 self.WORKER_STARTED = False
             else:
-                print(f"Failed to stop worker. Status: {response.status_code}, Response: {response.text}")
+                print(
+                    f"Failed to stop worker. Status: {response.status_code}, Response: {response.text}"
+                )
 
         except requests.exceptions.RequestException as e:
-            print(f"Error stopping worker: {str(e)}")
+            print(f"Error stopping worker: {e!s}")
             # Don't raise an exception here as this is cleanup code
             # and we don't want to mask the original error if this is called from an exception handler
 
     def _create_local_model_wrapper(self, model, model_name=None):
         """Create a wrapper for local models"""
         # Import here to avoid circular imports
-        from deepeval.models.base_model import DeepEvalBaseLLM  # noqa
-        from langchain.schema import HumanMessage, SystemMessage  # noqa
+        from deepeval.models.base_model import DeepEvalBaseLLM
+        from langchain.schema import HumanMessage, SystemMessage
 
         if model_name is None:
             plugin_model_name = self.params.model_name
@@ -643,7 +679,7 @@ class TLabPlugin:
                 res = await chat_model.ainvoke(prompt)
                 return res.content
 
-            def generate_without_instructor(self, messages: List[dict]) -> BaseModel:
+            def generate_without_instructor(self, messages: list[dict]) -> BaseModel:
                 chat_model = self.load_model()
                 modified_messages = []
                 for message in messages:
@@ -662,7 +698,7 @@ class TLabPlugin:
         """Create a wrapper for commercial models"""
         from anthropic import Anthropic
         from deepeval.models.base_model import DeepEvalBaseLLM
-        from openai import OpenAI, AzureOpenAI
+        from openai import AzureOpenAI, OpenAI
 
         class CustomCommercialModel(DeepEvalBaseLLM):
             def __init__(self, model_type="claude", model_name="claude-3-7-sonnet-latest"):
@@ -721,7 +757,9 @@ class TLabPlugin:
                             api_key=custom_api_details["customApiKey"],
                             base_url=custom_api_details["customBaseURL"],
                         )
-                        self.chat_completions_url = f"{custom_api_details['customBaseURL']}/chat/completions"
+                        self.chat_completions_url = (
+                            f"{custom_api_details['customBaseURL']}/chat/completions"
+                        )
                         self.base_url = f"{custom_api_details['customBaseURL']}"
                         self.api_key = custom_api_details["customApiKey"]
                         self.generation_model_name = custom_api_details["customModelName"]
@@ -733,7 +771,9 @@ class TLabPlugin:
             def generate(self, prompt: str, schema=None):
                 client = self.load_model()
                 if isinstance(self.generation_model_name, dict):
-                    self.generation_model_name = self.generation_model_name.get("provider", self.generation_model_name)
+                    self.generation_model_name = self.generation_model_name.get(
+                        "provider", self.generation_model_name
+                    )
                 if schema:
                     import instructor
 
@@ -760,7 +800,7 @@ class TLabPlugin:
             async def a_generate(self, prompt: str, schema=None):
                 return self.generate(prompt, schema)
 
-            def generate_without_instructor(self, messages: List[dict]):
+            def generate_without_instructor(self, messages: list[dict]):
                 client = self.load_model()
                 response = client.chat.completions.create(
                     model=self.model_name,

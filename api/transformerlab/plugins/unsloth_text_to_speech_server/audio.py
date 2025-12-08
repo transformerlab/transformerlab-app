@@ -1,9 +1,10 @@
-from unsloth import FastModel
 from abc import ABC, abstractmethod
-from transformers import AutoProcessor, CsmForConditionalGeneration
-from snac import SNAC
-import torch
+
 import librosa
+import torch
+from snac import SNAC
+from transformers import AutoProcessor, CsmForConditionalGeneration
+from unsloth import FastModel
 
 
 class AudioModelBase(ABC):
@@ -314,15 +315,20 @@ class OrpheusAudioModel(AudioModelBase):
             torch.Tensor: Input tensor ready for generation
         """
         # Tokenize voice prompt
-        voice_prompt_tokens = self.tokenizer(voice_prompt, return_tensors="pt")["input_ids"].to(self.device)
+        voice_prompt_tokens = self.tokenizer(voice_prompt, return_tensors="pt")["input_ids"].to(
+            self.device
+        )
 
         # Create token sequences
         header_start = torch.tensor([[self.START_OF_HEADER]], dtype=torch.int64).to(self.device)
         header_end = torch.tensor(
-            [[self.END_OF_TEXT, self.END_OF_HEADER, self.SPEECH_DELIMITER, self.START_OF_SPEECH]], dtype=torch.int64
+            [[self.END_OF_TEXT, self.END_OF_HEADER, self.SPEECH_DELIMITER, self.START_OF_SPEECH]],
+            dtype=torch.int64,
         ).to(self.device)
 
-        voice_end = torch.tensor([[self.END_OF_SPEECH, self.SPEECH_SEPARATOR]], dtype=torch.int64).to(self.device)
+        voice_end = torch.tensor(
+            [[self.END_OF_SPEECH, self.SPEECH_SEPARATOR]], dtype=torch.int64
+        ).to(self.device)
 
         target_end = torch.tensor(
             [[self.END_OF_TEXT, self.END_OF_HEADER, self.SPEECH_DELIMITER]], dtype=torch.int64

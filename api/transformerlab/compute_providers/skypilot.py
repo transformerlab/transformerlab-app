@@ -1,19 +1,20 @@
 """SkyPilot provider implementation."""
 
-import requests
 import json
 import re
-from typing import Dict, Any, Optional, Union, List
+from typing import Any
+
+import requests
 
 from .base import ComputeProvider
 from .models import (
     ClusterConfig,
-    JobConfig,
-    ClusterStatus,
-    JobInfo,
-    ResourceInfo,
     ClusterState,
+    ClusterStatus,
+    JobConfig,
+    JobInfo,
     JobState,
+    ResourceInfo,
 )
 
 # SkyPilot SDK imports - try to import, but allow graceful failure if not available
@@ -23,11 +24,11 @@ SKYPILOT_IMPORT_ERROR = None
 try:
     import sky
     from sky import resources as sky_resources
-    from sky.utils import dag_utils
-    from sky.server.requests import payloads
     from sky.backends import backend_utils
     from sky.server import common as server_common
+    from sky.server.requests import payloads
     from sky.utils import common as sky_common
+    from sky.utils import dag_utils
 
     SKYPILOT_AVAILABLE = True
 except ImportError:
@@ -42,10 +43,10 @@ class SkyPilotProvider(ComputeProvider):
     def __init__(
         self,
         server_url: str,
-        api_token: Optional[str] = None,
-        default_env_vars: Optional[Dict[str, str]] = None,
-        default_entrypoint_command: Optional[str] = None,
-        extra_config: Optional[Dict[str, Any]] = None,
+        api_token: str | None = None,
+        default_env_vars: dict[str, str] | None = None,
+        default_entrypoint_command: str | None = None,
+        extra_config: dict[str, Any] | None = None,
     ):
         """
         Initialize SkyPilot provider.
@@ -74,8 +75,12 @@ class SkyPilotProvider(ComputeProvider):
             import shutil
 
             if shutil.which("sky"):
-                error_msg += "\nNote: 'sky' command is available, but Python package imports are failing."
-                error_msg += "\nThis may indicate a mismatch between CLI and Python package installations."
+                error_msg += (
+                    "\nNote: 'sky' command is available, but Python package imports are failing."
+                )
+                error_msg += (
+                    "\nThis may indicate a mismatch between CLI and Python package installations."
+                )
                 error_msg += "\nTry: pip install --upgrade skypilot"
             raise ImportError(error_msg)
 
@@ -83,8 +88,8 @@ class SkyPilotProvider(ComputeProvider):
         self,
         method: str,
         endpoint: str,
-        json_data: Optional[Dict[str, Any]] = None,
-        timeout: Union[int, tuple] = 5,
+        json_data: dict[str, Any] | None = None,
+        timeout: int | tuple = 5,
         stream: bool = False,
     ):
         """
@@ -109,7 +114,9 @@ class SkyPilotProvider(ComputeProvider):
                     if "server_url" in sig.parameters:
                         kwargs["server_url"] = self.server_url
 
-                response = self._server_common.make_authenticated_request(method, endpoint, **kwargs)
+                response = self._server_common.make_authenticated_request(
+                    method, endpoint, **kwargs
+                )
                 return response
             except Exception:
                 # Fall back to manual request if SkyPilot's method fails
@@ -164,7 +171,9 @@ class SkyPilotProvider(ComputeProvider):
                     try:
                         from sky.server import requests_lib
 
-                        request_task = requests_lib.Request.decode(payloads.RequestPayload(**response_json))
+                        request_task = requests_lib.Request.decode(
+                            payloads.RequestPayload(**response_json)
+                        )
                     except (ImportError, AttributeError, Exception):
                         # Fallback: try to extract return_value directly
                         if isinstance(response_json, dict):
@@ -215,8 +224,12 @@ class SkyPilotProvider(ComputeProvider):
                     try:
                         from sky.server import requests_lib
 
-                        request_task = requests_lib.Request.decode(payloads.RequestPayload(**detail))
-                        error = request_task.get_error() if hasattr(request_task, "get_error") else None
+                        request_task = requests_lib.Request.decode(
+                            payloads.RequestPayload(**detail)
+                        )
+                        error = (
+                            request_task.get_error() if hasattr(request_task, "get_error") else None
+                        )
                         if error:
                             error_obj = error.get("object") if isinstance(error, dict) else error
                             raise RuntimeError(f"Request failed with error: {error_obj}")
@@ -224,13 +237,17 @@ class SkyPilotProvider(ComputeProvider):
                         pass
                 except Exception:
                     pass
-                raise RuntimeError(f"Failed to get request {request_id}: {response.status_code} {response.text}")
+                raise RuntimeError(
+                    f"Failed to get request {request_id}: {response.status_code} {response.text}"
+                )
             else:
-                raise RuntimeError(f"Failed to get request {request_id}: {response.status_code} {response.text}")
+                raise RuntimeError(
+                    f"Failed to get request {request_id}: {response.status_code} {response.text}"
+                )
         else:
             raise RuntimeError(f"Invalid response for request {request_id}")
 
-    def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
+    def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> dict[str, Any]:
         """Launch a cluster using SkyPilot."""
 
         # Build sky.Task object from ClusterConfig
@@ -337,7 +354,9 @@ class SkyPilotProvider(ComputeProvider):
             clone_disk_from=config.provider_config.get("clone_disk_from"),
             fast=config.provider_config.get("fast", False),
             quiet_optimizer=config.provider_config.get("quiet_optimizer", False),
-            is_launched_by_jobs_controller=config.provider_config.get("is_launched_by_jobs_controller", False),
+            is_launched_by_jobs_controller=config.provider_config.get(
+                "is_launched_by_jobs_controller", False
+            ),
             is_launched_by_sky_serve_controller=config.provider_config.get(
                 "is_launched_by_sky_serve_controller", False
             ),
@@ -367,7 +386,9 @@ class SkyPilotProvider(ComputeProvider):
 
         # Use SkyPilot's make_authenticated_request (matches SDK exactly)
         # This matches: server_common.make_authenticated_request('POST', '/launch', json=json.loads(body.model_dump_json()), timeout=5)
-        response = self._make_authenticated_request("POST", "/launch", json_data=body_json, timeout=5)
+        response = self._make_authenticated_request(
+            "POST", "/launch", json_data=body_json, timeout=5
+        )
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         if self._server_common:
@@ -387,7 +408,7 @@ class SkyPilotProvider(ComputeProvider):
         except Exception:
             return {}
 
-    def stop_cluster(self, cluster_name: str) -> Dict[str, Any]:
+    def stop_cluster(self, cluster_name: str) -> dict[str, Any]:
         """Stop a cluster."""
 
         # Build StopOrDownBody using SkyPilot's payload class (matches SDK exactly)
@@ -457,7 +478,9 @@ class SkyPilotProvider(ComputeProvider):
         body_json.setdefault("using_remote_api_server", False)
         body_json.setdefault("override_skypilot_config", {})
         # Use SkyPilot's make_authenticated_request (matches SDK exactly)
-        response = self._make_authenticated_request("POST", "/status", json_data=body_json, timeout=10)
+        response = self._make_authenticated_request(
+            "POST", "/status", json_data=body_json, timeout=10
+        )
 
         # Check response status
         if hasattr(response, "status_code"):
@@ -547,7 +570,9 @@ class SkyPilotProvider(ComputeProvider):
                         )
                     elif hasattr(response, "json"):
                         result = response.json()
-                        clusters = result if isinstance(result, list) else result.get("clusters", [])
+                        clusters = (
+                            result if isinstance(result, list) else result.get("clusters", [])
+                        )
                 except Exception as parse_error:
                     print(f"Warning: Could not parse response: {parse_error}")
                     clusters = []
@@ -556,7 +581,9 @@ class SkyPilotProvider(ComputeProvider):
             try:
                 if response_content:
                     clusters = (
-                        response_content if isinstance(response_content, list) else response_content.get("clusters", [])
+                        response_content
+                        if isinstance(response_content, list)
+                        else response_content.get("clusters", [])
                     )
                 elif hasattr(response, "json"):
                     result = response.json()
@@ -606,7 +633,9 @@ class SkyPilotProvider(ComputeProvider):
             cluster_name=cluster_name,
             state=state,
             status_message=str(status_value) if status_value else "",
-            launched_at=str(cluster_data.get("launched_at")) if cluster_data.get("launched_at") else None,
+            launched_at=str(cluster_data.get("launched_at"))
+            if cluster_data.get("launched_at")
+            else None,
             last_use=cluster_data.get("last_use"),
             autostop=cluster_data.get("autostop"),
             num_nodes=cluster_data.get("num_nodes"),
@@ -697,7 +726,7 @@ class SkyPilotProvider(ComputeProvider):
             provider_data={"resources_str": resources_str, **provider_data},
         )
 
-    def submit_job(self, cluster_name: str, job_config: JobConfig) -> Dict[str, Any]:
+    def submit_job(self, cluster_name: str, job_config: JobConfig) -> dict[str, Any]:
         """Submit a job to an existing cluster."""
         # Build sky.Task object from JobConfig
         task = sky.Task()
@@ -798,10 +827,10 @@ class SkyPilotProvider(ComputeProvider):
     def get_job_logs(
         self,
         cluster_name: str,
-        job_id: Union[str, int],
-        tail_lines: Optional[int] = None,
+        job_id: str | int,
+        tail_lines: int | None = None,
         follow: bool = False,
-    ) -> Union[str, Any]:
+    ) -> str | Any:
         """Get job logs."""
         # Convert job_id to int if it's a string
         job_id_int = int(job_id) if isinstance(job_id, str) and job_id.isdigit() else job_id
@@ -837,7 +866,9 @@ class SkyPilotProvider(ComputeProvider):
             timeout = (5, None)
 
         # Use SkyPilot's make_authenticated_request with streaming (matches SDK exactly)
-        response = self._make_authenticated_request("POST", "/logs", json_data=body_json, timeout=timeout, stream=True)
+        response = self._make_authenticated_request(
+            "POST", "/logs", json_data=body_json, timeout=timeout, stream=True
+        )
 
         # # Get request ID using SkyPilot's method (matches SDK exactly)
         # request_id = None
@@ -884,10 +915,10 @@ class SkyPilotProvider(ComputeProvider):
                 else:
                     return ""
             except Exception as e:
-                print(f"Error reading logs: {str(e)}")
+                print(f"Error reading logs: {e!s}")
                 return "Error reading logs"
 
-    def cancel_job(self, cluster_name: str, job_id: Union[str, int]) -> Dict[str, Any]:
+    def cancel_job(self, cluster_name: str, job_id: str | int) -> dict[str, Any]:
         """Cancel a job."""
         # Convert job_id to int if it's a string
         job_id_int = int(job_id) if isinstance(job_id, str) and job_id.isdigit() else job_id
@@ -913,7 +944,9 @@ class SkyPilotProvider(ComputeProvider):
         body_json.setdefault("override_skypilot_config", {})
 
         # Use SkyPilot's make_authenticated_request (matches SDK exactly)
-        response = self._make_authenticated_request("POST", "/cancel", json_data=body_json, timeout=5)
+        response = self._make_authenticated_request(
+            "POST", "/cancel", json_data=body_json, timeout=5
+        )
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         if self._server_common:
@@ -933,7 +966,7 @@ class SkyPilotProvider(ComputeProvider):
         except Exception:
             return {}
 
-    def list_jobs(self, cluster_name: str) -> List[JobInfo]:
+    def list_jobs(self, cluster_name: str) -> list[JobInfo]:
         """List jobs for a cluster."""
         # Build QueueBody using SkyPilot's payload class (matches SDK exactly)
         body = payloads.QueueBody(
@@ -954,7 +987,9 @@ class SkyPilotProvider(ComputeProvider):
         body_json.setdefault("override_skypilot_config", {})
 
         # Use SkyPilot's make_authenticated_request (matches SDK exactly)
-        response = self._make_authenticated_request("POST", "/queue", json_data=body_json, timeout=5)
+        response = self._make_authenticated_request(
+            "POST", "/queue", json_data=body_json, timeout=5
+        )
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         request_id = None
@@ -1040,7 +1075,9 @@ class SkyPilotProvider(ComputeProvider):
             # Convert timestamps to strings if they're integers
             submitted_at = job_data.get("submitted_at")
             if submitted_at is not None:
-                submitted_at = str(submitted_at) if isinstance(submitted_at, (int, float)) else submitted_at
+                submitted_at = (
+                    str(submitted_at) if isinstance(submitted_at, (int, float)) else submitted_at
+                )
 
             start_at = job_data.get("start_at")
             if start_at is not None:
@@ -1072,7 +1109,9 @@ class SkyPilotProvider(ComputeProvider):
         """Check if the SkyPilot provider is active and accessible."""
         try:
             # Use the /api/health endpoint to check if the server is healthy
-            response = self._make_authenticated_request("GET", "/api/health", json_data=None, timeout=5)
+            response = self._make_authenticated_request(
+                "GET", "/api/health", json_data=None, timeout=5
+            )
 
             # Parse the JSON response
             if hasattr(response, "json"):

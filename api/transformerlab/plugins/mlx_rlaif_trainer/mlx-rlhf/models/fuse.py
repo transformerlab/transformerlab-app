@@ -18,6 +18,7 @@ import mlx.core as mx
 import mlx.nn as nn
 import utils
 from mlx.utils import tree_flatten, tree_unflatten
+
 from models.lora import LoRALinear
 
 if __name__ == "__main__":
@@ -40,7 +41,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--hf-path",
-        help=("Path to the original Hugging Face model. This is required for upload if --model is a local directory."),
+        help=(
+            "Path to the original Hugging Face model. This is required for upload if --model is a local directory."
+        ),
         type=str,
         default=None,
     )
@@ -75,7 +78,9 @@ if __name__ == "__main__":
             l.block_sparse_moe.gate = LoRALinear.from_linear(l.block_sparse_moe.gate)
 
     model.update(tree_unflatten(adapters))
-    fused_linears = [(n, m.to_linear()) for n, m in model.named_modules() if isinstance(m, LoRALinear)]
+    fused_linears = [
+        (n, m.to_linear()) for n, m in model.named_modules() if isinstance(m, LoRALinear)
+    ]
 
     model.update_modules(tree_unflatten(fused_linears))
 

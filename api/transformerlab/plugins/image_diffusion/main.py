@@ -1,52 +1,52 @@
-from fastapi import HTTPException
-from pydantic import BaseModel, ValidationError
-from huggingface_hub import model_info
-import base64
-from io import BytesIO
-import torch
 import asyncio
-import threading
+import base64
 import gc
-from lab.dirs import get_workspace_dir
-from lab import storage
+import json
+import os
+import random
+import subprocess
+import sys
+import threading
+import time
+from datetime import datetime
+from io import BytesIO
+
+import numpy as np
+import torch
 from diffusers import (
-    StableDiffusionUpscalePipeline,
-    StableDiffusionLatentUpscalePipeline,
-    AutoPipelineForText2Image,
     AutoPipelineForImage2Image,
     AutoPipelineForInpainting,
-    EulerDiscreteScheduler,
-    LMSDiscreteScheduler,
-    EulerAncestralDiscreteScheduler,
-    DPMSolverMultistepScheduler,
+    AutoPipelineForText2Image,
     ControlNetModel,
-    StableDiffusionControlNetPAGPipeline,
-    StableDiffusionXLControlNetPAGPipeline,
+    DPMSolverMultistepScheduler,
+    EulerAncestralDiscreteScheduler,
+    EulerDiscreteScheduler,
+    FluxControlNetImg2ImgPipeline,
     FluxControlNetPipeline,
-    StableDiffusionControlNetPipeline,
-    StableDiffusionXLControlNetPipeline,
-    StableDiffusionXLControlNetUnionPipeline,
+    LMSDiscreteScheduler,
     StableDiffusion3ControlNetPipeline,
     StableDiffusionControlNetImg2ImgPipeline,
-    StableDiffusionXLControlNetImg2ImgPipeline,
-    StableDiffusionXLControlNetUnionImg2ImgPipeline,
-    StableDiffusionXLControlNetPAGImg2ImgPipeline,
-    FluxControlNetImg2ImgPipeline,
     StableDiffusionControlNetInpaintPipeline,
+    StableDiffusionControlNetPAGPipeline,
+    StableDiffusionControlNetPipeline,
+    StableDiffusionLatentUpscalePipeline,
+    StableDiffusionUpscalePipeline,
+    StableDiffusionXLControlNetImg2ImgPipeline,
     StableDiffusionXLControlNetInpaintPipeline,
+    StableDiffusionXLControlNetPAGImg2ImgPipeline,
+    StableDiffusionXLControlNetPAGPipeline,
+    StableDiffusionXLControlNetPipeline,
+    StableDiffusionXLControlNetUnionImg2ImgPipeline,
+    StableDiffusionXLControlNetUnionPipeline,
 )
-import os
-import sys
-import random
-from werkzeug.utils import secure_filename
-import json
-from datetime import datetime
-import time
+from fastapi import HTTPException
+from huggingface_hub import model_info
+from lab import storage
+from lab.dirs import get_workspace_dir
 from PIL import Image
-
+from pydantic import BaseModel, ValidationError
 from transformerlab.sdk.v1.diffusion import tlab_diffusion
-import numpy as np
-import subprocess
+from werkzeug.utils import secure_filename
 
 scheduler_map = {
     "EulerDiscreteScheduler": EulerDiscreteScheduler,
@@ -69,16 +69,16 @@ def preprocess_for_controlnet(input_pil: Image.Image, process_type: str) -> Imag
     Returns a PIL image suitable as ControlNet reference.
     Releases memory aggressively after detector use.
     """
+    import cv2
     from controlnet_aux import (
-        OpenposeDetector,
         HEDdetector,
-        MidasDetector,
         LineartDetector,
+        MidasDetector,
         NormalBaeDetector,
+        OpenposeDetector,
         SamDetector,
         ZoeDetector,
     )
-    import cv2
 
     name = process_type.lower()
 
@@ -241,9 +241,9 @@ def latents_to_rgb(latents):
 
     weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(latents.device))
     biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(latents.device)
-    rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(
-        -1
-    )
+    rgb_tensor = torch.einsum(
+        "...lxy,lr -> ...rxy", latents, weights_tensor
+    ) + biases_tensor.unsqueeze(-1).unsqueeze(-1)
     image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
 
     return Image.fromarray(image_array)
@@ -260,7 +260,7 @@ def create_decode_callback(images_folder):
             step_image_path = os.path.join(images_folder, "step.png")
             image.save(step_image_path)
         except Exception as e:
-            print(f"Warning: Failed to save intermediate image for step {step}: {str(e)}")
+            print(f"Warning: Failed to save intermediate image for step {step}: {e!s}")
 
         return callback_kwargs
 
@@ -300,7 +300,7 @@ def cleanup_pipeline(pipe=None):
             torch.cuda.empty_cache()  # Second empty_cache call
 
     except Exception as e:
-        print(f"Warning: Failed to cleanup pipeline: {str(e)}")
+        print(f"Warning: Failed to cleanup pipeline: {e!s}")
 
 
 def get_pipeline(
@@ -346,7 +346,7 @@ def get_pipeline(
                 diffusers_config = config.get("diffusers", {})
                 architecture = diffusers_config.get("_class_name", "")
             except Exception as e:
-                raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+                raise HTTPException(status_code=404, detail=f"Model not found or error: {e!s}")
 
             controlnet_model = load_controlnet_model(controlnet_id, device)
             if controlnet_model is None:
@@ -443,7 +443,7 @@ def get_pipeline(
                 print(
                     "Try checking if the adaptor and model are compatible in terms of shapes. Some adaptors may not work with all models even if it is the same architecture."
                 )
-                print(f"Error: {str(e)}")
+                print(f"Error: {e!s}")
                 # Continue without LoRA rather than failing
         print(f"[DEBUG] Received scheduler value: {scheduler}")
 
@@ -657,7 +657,9 @@ async def run_multi_gpu_generation(
 
     # Save config to temporary file
     ensure_directories(experiment_name)
-    config_path = storage.join(get_diffusion_dir(experiment_name), secure_filename(f"config_{generation_id}.json"))
+    config_path = storage.join(
+        get_diffusion_dir(experiment_name), secure_filename(f"config_{generation_id}.json")
+    )
     with storage.open(config_path, "w") as f:
         json.dump(config, f, indent=2)
 
@@ -665,7 +667,9 @@ async def run_multi_gpu_generation(
     # current_dir = os.path.dirname(os.path.abspath(__file__))
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    worker_script = os.path.join(os.path.dirname(current_dir), "image_diffusion", "diffusion_worker.py")
+    worker_script = os.path.join(
+        os.path.dirname(current_dir), "image_diffusion", "diffusion_worker.py"
+    )
 
     try:
         # Setup environment for accelerate
@@ -720,7 +724,11 @@ async def run_multi_gpu_generation(
             print(f"Combined output: {combined_output}")
 
             # Check if it's an OOM error (exitcode -9 indicates process was killed)
-            if return_code == -9 or "CUDA out of memory" in combined_output or "OutOfMemoryError" in combined_output:
+            if (
+                return_code == -9
+                or "CUDA out of memory" in combined_output
+                or "OutOfMemoryError" in combined_output
+            ):
                 # Try to load any partial result to get OOM details
                 result_path = os.path.join(images_folder, "result.json")
                 if storage.exists(result_path):
@@ -756,7 +764,9 @@ async def run_multi_gpu_generation(
             if error_type == "OOM":
                 suggestions = worker_result.get("suggestions", [])
                 suggestion_text = "\n".join([f"  • {s}" for s in suggestions])
-                raise RuntimeError(f"CUDA Out of Memory: {error_msg}\n\nSuggestions:\n{suggestion_text}")
+                raise RuntimeError(
+                    f"CUDA Out of Memory: {error_msg}\n\nSuggestions:\n{suggestion_text}"
+                )
             else:
                 raise RuntimeError(f"Worker reported failure: {error_msg}")
 
@@ -805,7 +815,7 @@ async def diffusion_generate_job():
 
     # Convert image paths to base64 and remove original keys
     for path_key, base64_key in image_path_keys.items():
-        if path_key in job_config and job_config[path_key]:
+        if job_config.get(path_key):
             try:
                 with open(job_config[path_key], "rb") as f:
                     encoded = base64.b64encode(f.read()).decode("utf-8")
@@ -844,7 +854,9 @@ async def diffusion_generate_job():
 
         # Create folder for images
         ensure_directories(experiment_name)
-        images_folder = os.path.normpath(os.path.join(get_images_dir(experiment_name), generation_id))
+        images_folder = os.path.normpath(
+            os.path.join(get_images_dir(experiment_name), generation_id)
+        )
         if not images_folder.startswith(get_images_dir(experiment_name)):
             raise HTTPException(status_code=400, detail="Invalid path for images_folder")
         storage.makedirs(images_folder, exist_ok=True)
@@ -861,7 +873,9 @@ async def diffusion_generate_job():
             is_inpainting = request.is_inpainting or (
                 bool(request.input_image.strip()) and bool(request.mask_image.strip())
             )
-            is_img2img = request.is_img2img or (bool(request.input_image.strip()) and not is_inpainting)
+            is_img2img = request.is_img2img or (
+                bool(request.input_image.strip()) and not is_inpainting
+            )
 
         # Process input image and mask if needed
         input_image_obj = None
@@ -880,7 +894,9 @@ async def diffusion_generate_job():
                 # Save input image for history
                 ensure_directories(experiment_name)
                 input_image_filename = f"input_{uuid_suffix}.png"
-                input_image_path = os.path.join(get_images_dir(experiment_name), input_image_filename)
+                input_image_path = os.path.join(
+                    get_images_dir(experiment_name), input_image_filename
+                )
                 input_image_obj.save(input_image_path, format="PNG")
                 print(f"Input image saved: {input_image_path}")
 
@@ -888,7 +904,9 @@ async def diffusion_generate_job():
                     print(f"Running preprocessing for controlnet_id={controlnet_id}")
                     try:
                         if process_type is not None:
-                            input_image_obj = preprocess_for_controlnet(input_image_obj, process_type)
+                            input_image_obj = preprocess_for_controlnet(
+                                input_image_obj, process_type
+                            )
                         else:
                             print("You must select a image preprocessing type for the ControlNet.")
 
@@ -900,9 +918,9 @@ async def diffusion_generate_job():
                         input_image_obj.save(preprocessed_image_path, format="PNG")
                         print(f"Preprocessed image saved: {preprocessed_image_path}")
                     except Exception as e:
-                        raise HTTPException(status_code=400, detail=f"Preprocessing failed: {str(e)}")
+                        raise HTTPException(status_code=400, detail=f"Preprocessing failed: {e!s}")
             except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Invalid input image: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Invalid input image: {e!s}")
 
         if is_inpainting:
             try:
@@ -917,7 +935,7 @@ async def diffusion_generate_job():
                 mask_image_obj.save(mask_image_path, format="PNG")
                 print(f"Mask image saved: {mask_image_path}")
             except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Invalid mask image: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Invalid mask image: {e!s}")
 
         tlab_diffusion.progress_update(10)
 
@@ -955,7 +973,7 @@ async def diffusion_generate_job():
                 tlab_diffusion.progress_update(70)
 
             except Exception as e:
-                print(f"Multi-GPU generation failed, falling back to single GPU: {str(e)}")
+                print(f"Multi-GPU generation failed, falling back to single GPU: {e!s}")
                 # Fall back to single GPU approach
                 use_single_gpu = True
 
@@ -999,15 +1017,17 @@ async def diffusion_generate_job():
                     image_data = base64.b64decode(request.input_image)
                     input_image_obj = Image.open(BytesIO(image_data)).convert("RGB")
                 except Exception as e:
-                    raise HTTPException(status_code=400, detail=f"Invalid input image: {str(e)}")
+                    raise HTTPException(status_code=400, detail=f"Invalid input image: {e!s}")
 
             if is_inpainting:
                 try:
                     # Decode base64 mask image
                     mask_data = base64.b64decode(request.mask_image)
-                    mask_image_obj = Image.open(BytesIO(mask_data)).convert("L")  # Convert to grayscale
+                    mask_image_obj = Image.open(BytesIO(mask_data)).convert(
+                        "L"
+                    )  # Convert to grayscale
                 except Exception as e:
-                    raise HTTPException(status_code=400, detail=f"Invalid mask image: {str(e)}")
+                    raise HTTPException(status_code=400, detail=f"Invalid mask image: {e!s}")
 
             # Run in thread to avoid blocking event loop
             def run_pipe():
@@ -1058,7 +1078,9 @@ async def diffusion_generate_job():
 
                     # Add LoRA scale if adaptor is being used
                     if request.adaptor and request.adaptor.strip():
-                        generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
+                        generation_kwargs["cross_attention_kwargs"] = {
+                            "scale": request.adaptor_scale
+                        }
 
                     # Add intermediate image saving callback if enabled
                     if request.save_intermediate_images:
@@ -1104,7 +1126,7 @@ async def diffusion_generate_job():
                     return images
                 except Exception as e:
                     # Ensure cleanup even if generation fails
-                    print(f"Error during image generation: {str(e)}")
+                    print(f"Error during image generation: {e!s}")
                     import gc
 
                     gc.collect()
@@ -1168,7 +1190,9 @@ async def diffusion_generate_job():
                     device = "mps" if torch.backends.mps.is_available() else "cpu"
                 for i, image in enumerate(images):
                     print(f"Upscaling image {i + 1}/{len(images)}")
-                    upscaled_image = upscale_image(image, request.prompt, request.upscale_factor, device)
+                    upscaled_image = upscale_image(
+                        image, request.prompt, request.upscale_factor, device
+                    )
                     upscaled_images.append(upscaled_image)
                 return upscaled_images
 
@@ -1253,8 +1277,8 @@ async def diffusion_generate_job():
         tlab_diffusion.progress_update(100)
 
     except Exception as e:
-        print(f"Error during image generation: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
+        print(f"Error during image generation: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Image generation failed: {e!s}")
 
 
 diffusion_generate_job()

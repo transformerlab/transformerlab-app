@@ -1,0 +1,16 @@
+pyright:
+  runs-on: ubuntu-latest
+  continue-on-error: true # <-- THIS makes Pyright non-blocking
+  steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Install Pyright
+      run: npm install -g pyright
+
+    - name: Run Pyright
+      run: pyright ./api ./lab-sdk

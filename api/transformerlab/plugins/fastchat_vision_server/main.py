@@ -9,9 +9,9 @@ import gc
 import json
 import sys
 import uuid
+from collections.abc import Iterable
 from contextlib import asynccontextmanager
 from io import BytesIO
-from typing import Dict, Iterable, List, Optional
 
 import requests
 import torch
@@ -34,7 +34,6 @@ from transformers.generation.logits_process import (
     TopKLogitsWarper,
     TopPLogitsWarper,
 )
-
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -102,7 +101,7 @@ def load_model(model_path, from_pretrained_kwargs: dict = {}):
 def generate_stream(
     model,
     tokenizer,
-    params: Dict,
+    params: dict,
     device: str,
     context_len: int,
     processor=None,
@@ -285,10 +284,12 @@ def generate_stream(
                 ret_logprobs = {
                     "text_offset": [],
                     "tokens": [
-                        tokenizer.decode(token) for token in (output_ids if echo else output_ids[input_echo_len:])
+                        tokenizer.decode(token)
+                        for token in (output_ids if echo else output_ids[input_echo_len:])
                     ],
                     "token_logprobs": token_logprobs if echo else token_logprobs[input_echo_len:],
-                    "top_logprobs": [{}] * len(token_logprobs if echo else token_logprobs[input_echo_len:]),
+                    "top_logprobs": [{}]
+                    * len(token_logprobs if echo else token_logprobs[input_echo_len:]),
                 }
                 # Compute text_offset
                 curr_pos = 0
@@ -381,23 +382,23 @@ class ModelWorker(BaseModelWorker):
         worker_addr: str,
         worker_id: str,
         model_path: str,
-        model_names: List[str],
+        model_names: list[str],
         limit_worker_concurrency: int,
         no_register: bool,
         device: str,
         num_gpus: int,
         revision: str = None,
-        dtype: Optional[torch.dtype] = None,
+        dtype: torch.dtype | None = None,
         load_8bit: bool = False,
         cpu_offloading: bool = False,
-        gptq_config: Optional[GptqConfig] = None,
-        awq_config: Optional[AWQConfig] = None,
-        exllama_config: Optional[ExllamaConfig] = None,
-        xft_config: Optional[XftConfig] = None,
+        gptq_config: GptqConfig | None = None,
+        awq_config: AWQConfig | None = None,
+        exllama_config: ExllamaConfig | None = None,
+        xft_config: XftConfig | None = None,
         stream_interval: int = 2,
-        conv_template: Optional[str] = None,
+        conv_template: str | None = None,
         embed_in_truncate: bool = False,
-        seed: Optional[int] = None,
+        seed: int | None = None,
         debug: bool = False,
         **kwargs,
     ):
@@ -512,7 +513,7 @@ class ModelWorker(BaseModelWorker):
 
         return sum_embeddings, token_num
 
-    def __encode_base64(self, embeddings: torch.Tensor) -> List[str]:
+    def __encode_base64(self, embeddings: torch.Tensor) -> list[str]:
         embeddings = embeddings.cpu()
         return [base64.b64encode(e.numpy().tobytes()).decode("utf-8") for e in embeddings]
 
@@ -541,14 +542,18 @@ class ModelWorker(BaseModelWorker):
                     max_length=self.context_len,
                 )
             else:
-                encoding = tokenizer.batch_encode_plus(params["input"], padding=True, return_tensors="pt")
+                encoding = tokenizer.batch_encode_plus(
+                    params["input"], padding=True, return_tensors="pt"
+                )
             input_ids = encoding["input_ids"].to(self.device)
             attention_mask = input_ids != tokenizer.pad_token_id
 
             base64_encode = params.get("encoding_format", None)
 
             if self.embed_in_truncate:
-                embedding, token_num = self.__process_embed_chunk(input_ids, attention_mask, **model_type_dict)
+                embedding, token_num = self.__process_embed_chunk(
+                    input_ids, attention_mask, **model_type_dict
+                )
                 if not hasattr(self.model, "use_cls_pooling") or not self.model.use_cls_pooling:
                     embedding = embedding / token_num
                 normalized_embeddings = F.normalize(embedding, p=2, dim=1)

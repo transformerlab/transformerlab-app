@@ -5,9 +5,8 @@ import argparse
 import codecs
 
 import mlx.core as mx
-from transformers import AutoProcessor
-
 from llava import LlavaModel
+from transformers import AutoProcessor
 
 
 def parse_arguments():

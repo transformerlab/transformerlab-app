@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple, Union
 
 import mlx.core as mx
 import mlx.nn as nn
@@ -19,7 +18,7 @@ class ModelArgs(BaseModelArgs):
     rope_theta: float = 10000
     rope_traditional: bool = False
     model_type: str = None
-    rope_scaling: Optional[Dict[str, Union[float, str]]] = None
+    rope_scaling: dict[str, float | str] | None = None
 
     def __post_init__(self):
         if self.num_key_value_heads is None:
@@ -69,8 +68,8 @@ class Attention(nn.Module):
     def __call__(
         self,
         x: mx.array,
-        mask: Optional[mx.array] = None,
-        cache: Optional[Tuple[mx.array, mx.array]] = None,
+        mask: mx.array | None = None,
+        cache: tuple[mx.array, mx.array] | None = None,
     ) -> mx.array:
         B, L, D = x.shape
 
@@ -131,8 +130,8 @@ class TransformerBlock(nn.Module):
     def __call__(
         self,
         x: mx.array,
-        mask: Optional[mx.array] = None,
-        cache: Optional[Tuple[mx.array, mx.array]] = None,
+        mask: mx.array | None = None,
+        cache: tuple[mx.array, mx.array] | None = None,
     ) -> mx.array:
         r, cache = self.self_attn(self.input_layernorm(x), mask, cache)
         h = x + r
@@ -155,8 +154,8 @@ class LlamaModel(nn.Module):
     def __call__(
         self,
         inputs: mx.array,
-        input_embeds: Optional[mx.array] = None,
-        attention_mask: Optional[mx.array] = None,
+        input_embeds: mx.array | None = None,
+        attention_mask: mx.array | None = None,
         cache=None,
     ):
         if input_embeds is None:
@@ -205,8 +204,8 @@ class Model(nn.Module):
     def __call__(
         self,
         input_ids: mx.array,
-        input_embeds: Optional[mx.array] = None,
-        attention_mask: Optional[mx.array] = None,
+        input_embeds: mx.array | None = None,
+        attention_mask: mx.array | None = None,
         cache=None,
     ):
         out, cache = self.model(input_ids, input_embeds, attention_mask, cache)

@@ -1,17 +1,16 @@
-from lab import Experiment, Job
-from lab.dirs import get_jobs_dir
-from lab import storage
-from lab import HOME_DIR
-from lab import dirs as lab_dirs
-
-from sqlalchemy import select
-from transformerlab.shared.models.user_model import AsyncSessionLocal, create_personal_team
-from transformerlab.shared.models.models import User, UserTeam, TeamRole
-from transformerlab.models.users import UserManager, UserCreate
-from fastapi_users.db import SQLAlchemyUserDatabase
+import json
 import os
 import shutil
-import json
+
+from fastapi_users.db import SQLAlchemyUserDatabase
+from lab import HOME_DIR, Experiment, Job, storage
+from lab import dirs as lab_dirs
+from lab.dirs import get_jobs_dir
+from sqlalchemy import select
+
+from transformerlab.models.users import UserCreate, UserManager
+from transformerlab.shared.models.models import TeamRole, User, UserTeam
+from transformerlab.shared.models.user_model import AsyncSessionLocal, create_personal_team
 
 
 async def seed_default_admin_user():
@@ -44,13 +43,17 @@ async def seed_default_admin_user():
                     # Create personal team for existing admin user
                     personal_team = await create_personal_team(session, admin_user)
                     user_team = UserTeam(
-                        user_id=str(admin_user_id), team_id=personal_team.id, role=TeamRole.OWNER.value
+                        user_id=str(admin_user_id),
+                        team_id=personal_team.id,
+                        role=TeamRole.OWNER.value,
                     )
                     session.add(user_team)
                     await session.commit()
                     await session.refresh(personal_team)
                     team_id = personal_team.id
-                    print(f"✅ Created personal team '{personal_team.name}' (id={team_id}) for existing admin user")
+                    print(
+                        f"✅ Created personal team '{personal_team.name}' (id={team_id}) for existing admin user"
+                    )
                 else:
                     # Get the team ID from existing user_team
                     team_id = user_team.team_id
@@ -96,12 +99,16 @@ async def seed_default_admin_user():
             if not user_team:
                 # Create personal team for admin user
                 personal_team = await create_personal_team(session, admin_user)
-                user_team = UserTeam(user_id=str(admin_user_id), team_id=personal_team.id, role=TeamRole.OWNER.value)
+                user_team = UserTeam(
+                    user_id=str(admin_user_id), team_id=personal_team.id, role=TeamRole.OWNER.value
+                )
                 session.add(user_team)
                 await session.commit()
                 await session.refresh(personal_team)
                 team_id = personal_team.id
-                print(f"✅ Created personal team '{personal_team.name}' (id={team_id}) for admin user")
+                print(
+                    f"✅ Created personal team '{personal_team.name}' (id={team_id}) for admin user"
+                )
             else:
                 # Get the team ID from existing user_team
                 team_id = user_team.team_id
@@ -192,7 +199,9 @@ async def migrate_workspace_to_org(team_id: str):
                         print(f"   Merging directory: {item}")
                         for root, dirs, files in os.walk(old_path):
                             rel_root = os.path.relpath(root, old_path)
-                            dest_root = os.path.join(new_path, rel_root) if rel_root != "." else new_path
+                            dest_root = (
+                                os.path.join(new_path, rel_root) if rel_root != "." else new_path
+                            )
                             os.makedirs(dest_root, exist_ok=True)
                             for file in files:
                                 src_file = os.path.join(root, file)
@@ -281,7 +290,7 @@ def update_diffusion_history_paths(old_workspace: str, new_workspace: str):
         updated_count = 0
         for history_file in history_files:
             try:
-                with open(history_file, "r") as f:
+                with open(history_file) as f:
                     history_data = json.load(f)
 
                 # Check if this is a list of items
@@ -295,7 +304,7 @@ def update_diffusion_history_paths(old_workspace: str, new_workspace: str):
 
                     # Update each path field
                     for field in path_fields:
-                        if field in item and item[field]:
+                        if item.get(field):
                             old_path = item[field]
                             # Only update if the path starts with the old workspace
                             # Use os.path.normpath to handle path separators correctly
@@ -310,7 +319,8 @@ def update_diffusion_history_paths(old_workspace: str, new_workspace: str):
                             ):
                                 # Replace old workspace path with new one
                                 new_path = (
-                                    normalized_new_workspace + normalized_old_path[len(normalized_old_workspace) :]
+                                    normalized_new_workspace
+                                    + normalized_old_path[len(normalized_old_workspace) :]
                                 )
                                 item[field] = new_path
                                 updated = True
@@ -322,7 +332,7 @@ def update_diffusion_history_paths(old_workspace: str, new_workspace: str):
                     updated_count += 1
                     print(f"   Updated paths in: {history_file}")
 
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 print(f"⚠️  Error updating history file {history_file}: {e}")
                 continue
 
@@ -367,7 +377,9 @@ def cancel_in_progress_jobs():
     try:
         home_dir = HOME_DIR
     except AttributeError:
-        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
+        home_dir = os.environ.get(
+            "TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab")
+        )
 
     # Check all org directories
     orgs_dir = storage.join(home_dir, "orgs")
@@ -393,7 +405,9 @@ def cancel_in_progress_jobs():
                                         job = Job.get(job_id)
                                         if job.get_status() == "RUNNING":
                                             job.update_status("CANCELLED")
-                                            print(f"Cancelled running job: {job_id} (org: {org_id})")
+                                            print(
+                                                f"Cancelled running job: {job_id} (org: {org_id})"
+                                            )
                                     except Exception:
                                         # If we can't access the job, continue to the next one
                                         pass

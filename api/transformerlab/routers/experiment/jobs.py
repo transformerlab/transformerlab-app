@@ -1,36 +1,30 @@
 import asyncio
-from fnmatch import fnmatch
+import csv
 import json
 import os
-import csv
-from typing import List, Optional
-import pandas as pd
-from fastapi import APIRouter, Response, Request, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse, FileResponse
-from lab import storage
-
-from transformerlab.shared import shared
+from datetime import datetime
+from fnmatch import fnmatch
 from json import JSONDecodeError
 
+import pandas as pd
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.responses import FileResponse, StreamingResponse
+from lab import Job, storage
+from lab.dirs import get_workspace_dir
+from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.utils import secure_filename
 
-from transformerlab.routers.serverinfo import watch_file
-
-from datetime import datetime
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
 import transformerlab.services.job_service as job_service
+from transformerlab.compute_providers.models import JobState
+from transformerlab.routers.auth import get_user_and_team
+from transformerlab.routers.serverinfo import watch_file
 from transformerlab.services.job_service import job_update_status
 from transformerlab.services.provider_service import (
-    get_team_provider,
     get_provider_instance,
+    get_team_provider,
 )
-from transformerlab.routers.auth import get_user_and_team
+from transformerlab.shared import shared
 from transformerlab.shared.models.user_model import get_async_session
-from transformerlab.compute_providers.models import JobState
-from lab import Job
-from lab.dirs import get_workspace_dir
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -69,12 +63,16 @@ async def job_create(
     status: str = "CREATED",
     data: str = "{}",
 ):
-    jobid = job_service.job_create(type=type, status=status, job_data=data, experiment_id=experimentId)
+    jobid = job_service.job_create(
+        type=type, status=status, job_data=data, experiment_id=experimentId
+    )
     return jobid
 
 
 async def job_create_task(script: str, job_data: str = "{}", experimentId: str = None):
-    jobid = job_service.job_create(type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experimentId)
+    jobid = job_service.job_create(
+        type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experimentId
+    )
     return jobid
 
 
@@ -115,9 +113,14 @@ async def start_next_job():
                 job_config = json.loads(nextjob["job_data"])
             else:
                 job_config = nextjob_data
-            experiment_name = nextjob["experiment_id"]  # Note: experiment_id and experiment_name are the same
+            experiment_name = nextjob[
+                "experiment_id"
+            ]  # Note: experiment_id and experiment_name are the same
             await shared.run_job(
-                job_id=nextjob["id"], job_config=job_config, experiment_name=experiment_name, job_details=nextjob
+                job_id=nextjob["id"],
+                job_config=job_config,
+                experiment_name=experiment_name,
+                job_details=nextjob,
             )
             return nextjob
         finally:
@@ -213,12 +216,18 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                     return ["Output file not found after retry"]
             except Exception as retry_e:
                 # If still no file after retry, create an empty one in the jobs directory
-                print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
+                print(
+                    f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}"
+                )
                 # Use the Job class to get the proper directory and create the file
                 job_obj = Job(job_id)
                 output_file_name = job_obj.get_log_path()
                 # Get directory by removing filename from path using storage.join
-                output_dir = storage.join(*output_file_name.split("/")[:-1]) if "/" in output_file_name else "."
+                output_dir = (
+                    storage.join(*output_file_name.split("/")[:-1])
+                    if "/" in output_file_name
+                    else "."
+                )
                 storage.makedirs(output_dir, exist_ok=True)
                 with storage.open(output_file_name, "w") as f:
                     f.write("")
@@ -259,7 +268,8 @@ async def get_provider_job_logs(
     cluster_name = job_data.get("cluster_name")
     if not provider_id or not cluster_name:
         raise HTTPException(
-            status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
+            status_code=400,
+            detail="Job does not contain provider metadata (provider_id/cluster_name missing)",
         )
 
     provider = await get_team_provider(session, user_and_team["team_id"], provider_id)
@@ -269,12 +279,14 @@ async def get_provider_job_logs(
     try:
         provider_instance = get_provider_instance(provider)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Failed to initialize provider: {exc}"
+        ) from exc
 
     # Figure out which provider-side job_id to query logs for
-    provider_job_id: Optional[str | int] = job_data.get("provider_job_id")
+    provider_job_id: str | int | None = job_data.get("provider_job_id")
 
-    provider_job_candidates: List[dict] = []
+    provider_job_candidates: list[dict] = []
     if provider_job_id is None:
         provider_job_ids = job_data.get("provider_job_ids")
         if isinstance(provider_job_ids, list) and provider_job_ids:
@@ -284,11 +296,15 @@ async def get_provider_job_logs(
         try:
             provider_jobs = provider_instance.list_jobs(cluster_name)
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Failed to enumerate provider jobs: {exc}") from exc
+            raise HTTPException(
+                status_code=502, detail=f"Failed to enumerate provider jobs: {exc}"
+            ) from exc
 
         if provider_jobs:
             running_states = {JobState.RUNNING, JobState.PENDING}
-            chosen_job = next((job for job in provider_jobs if job.state in running_states), provider_jobs[-1])
+            chosen_job = next(
+                (job for job in provider_jobs if job.state in running_states), provider_jobs[-1]
+            )
             provider_job_id = chosen_job.job_id
             provider_job_candidates = [
                 {
@@ -302,7 +318,9 @@ async def get_provider_job_logs(
             ]
 
     if provider_job_id is None:
-        raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
+        raise HTTPException(
+            status_code=404, detail="Unable to determine provider job id for this job"
+        )
 
     try:
         raw_logs = provider_instance.get_job_logs(
@@ -312,7 +330,9 @@ async def get_provider_job_logs(
             follow=False,
         )
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
+        raise HTTPException(
+            status_code=502, detail=f"Failed to fetch provider logs: {exc}"
+        ) from exc
 
     if isinstance(raw_logs, (bytes, bytearray)):
         logs_text = raw_logs.decode("utf-8", errors="replace")
@@ -405,12 +425,18 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 output_file_name = await shared.get_job_output_file_name(job_id)
             except Exception as retry_e:
                 # If still no file after retry, create an empty one in the jobs directory
-                print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
+                print(
+                    f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}"
+                )
                 # Use the Job class to get the proper directory and create the file
                 job_obj = Job(job_id)
                 output_file_name = job_obj.get_log_path()
                 # Get directory by removing filename from path using storage.join
-                output_dir = storage.join(*output_file_name.split("/")[:-1]) if "/" in output_file_name else "."
+                output_dir = (
+                    storage.join(*output_file_name.split("/")[:-1])
+                    if "/" in output_file_name
+                    else "."
+                )
                 storage.makedirs(output_dir, exist_ok=True)
                 with storage.open(output_file_name, "w") as f:
                     f.write("")
@@ -419,7 +445,11 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
             return StreamingResponse(
                 iter(["data: Error: An internal error has occurred!\n\n"]),
                 media_type="text/event-stream",
-                headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "Access-Control-Allow-Origin": "*",
+                },
             )
     except Exception as e:
         # Handle general error
@@ -427,14 +457,22 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
         return StreamingResponse(
             iter(["data: Error: An internal error has occurred!\n\n"]),
             media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+            },
         )
 
     return StreamingResponse(
         # we force polling because i can't get this to work otherwise -- changes aren't detected
         watch_file(output_file_name, start_from_beginning=True, force_polling=True),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+        },
     )
 
 
@@ -448,7 +486,11 @@ async def stream_detailed_json_report(job_id: str, file_name: str):
         # we force polling because i can't get this to work otherwise -- changes aren't detected
         watch_file(file_name, start_from_beginning=True, force_polling=False),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+        },
     )
 
 
@@ -570,7 +612,7 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
 
     # For view, convert CSV to JSON format
     if file_path.endswith(".csv"):
-        with open(file_path, "r") as csvfile:
+        with open(file_path) as csvfile:
             contents = csv.reader(csvfile, delimiter=",", quotechar='"')
             csv_content = {"header": [], "body": []}
             for i, row in enumerate(contents):
@@ -580,7 +622,7 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
                     csv_content["body"].append(row)
             return csv_content
     elif file_path.endswith(".json"):
-        with open(file_path, "r") as jsonfile:
+        with open(file_path) as jsonfile:
             content = json.load(jsonfile)
             # If it's a list of records, convert to header/body format
             if isinstance(content, list) and len(content) > 0:
@@ -591,7 +633,7 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
             return content
     else:
         # For other file types, just return as text
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             return f.read()
 
 
@@ -652,7 +694,9 @@ async def get_eval_images(job_id: str):
                                         "filename": filename,
                                         "path": f"/jobs/{job_id}/image/{filename}",
                                         "size": file_info.get("size", 0),
-                                        "modified": file_info.get("mtime", 0) if "mtime" in file_info else None,
+                                        "modified": file_info.get("mtime", 0)
+                                        if "mtime" in file_info
+                                        else None,
                                     }
                                 )
                             else:
@@ -734,7 +778,11 @@ async def get_eval_image(job_id: str, filename: str):
     return FileResponse(
         file_path,
         media_type=media_type,
-        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"},
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
     )
 
 
@@ -778,8 +826,14 @@ async def get_checkpoints(job_id: str, request: Request):
                                     formatted_time = datetime.fromtimestamp(mtime).isoformat()
                                 else:
                                     formatted_time = None
-                            elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
-                                file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
+                            elif (
+                                file_info_list
+                                and isinstance(file_info_list, list)
+                                and len(file_info_list) > 0
+                            ):
+                                file_info = (
+                                    file_info_list[0] if isinstance(file_info_list[0], dict) else {}
+                                )
                                 filesize = file_info.get("size", 0)
                                 mtime = file_info.get("mtime", None)
                                 if mtime:
@@ -792,7 +846,9 @@ async def get_checkpoints(job_id: str, request: Request):
                                     stat = os.stat(checkpoint_path)
                                     modified_time = stat.st_mtime
                                     filesize = stat.st_size
-                                    formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                                    formatted_time = datetime.fromtimestamp(
+                                        modified_time
+                                    ).isoformat()
                                 except (OSError, AttributeError):
                                     # Remote storage or stat not available
                                     formatted_time = None
@@ -809,8 +865,14 @@ async def get_checkpoints(job_id: str, request: Request):
                                 filesize = None
 
                     # Get filename from path
-                    filename = checkpoint_path.split("/")[-1] if "/" in checkpoint_path else checkpoint_path
-                    checkpoints.append({"filename": filename, "date": formatted_time, "size": filesize})
+                    filename = (
+                        checkpoint_path.split("/")[-1]
+                        if "/" in checkpoint_path
+                        else checkpoint_path
+                    )
+                    checkpoints.append(
+                        {"filename": filename, "date": formatted_time, "size": filesize}
+                    )
                 except Exception as e:
                     print(f"Error getting stat for checkpoint {checkpoint_path}: {e}")
                     continue
@@ -839,7 +901,9 @@ async def get_checkpoints(job_id: str, request: Request):
     model_name = config.get("model_name", "")
     adaptor_name = config.get("adaptor_name", "adaptor")
     workspace_dir = get_workspace_dir()
-    default_adaptor_dir = storage.join(workspace_dir, "adaptors", secure_filename(model_name), adaptor_name)
+    default_adaptor_dir = storage.join(
+        workspace_dir, "adaptors", secure_filename(model_name), adaptor_name
+    )
 
     # Get job directory
     checkpoints_dir = job_data.get("checkpoints_dir")
@@ -866,8 +930,14 @@ async def get_checkpoints(job_id: str, request: Request):
                             filesize = file_info.get("size", 0)
                             mtime = file_info.get("mtime", None)
                             modified_time = mtime if mtime else None
-                        elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
-                            file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
+                        elif (
+                            file_info_list
+                            and isinstance(file_info_list, list)
+                            and len(file_info_list) > 0
+                        ):
+                            file_info = (
+                                file_info_list[0] if isinstance(file_info_list[0], dict) else {}
+                            )
                             filesize = file_info.get("size", 0)
                             mtime = file_info.get("mtime", None)
                             modified_time = mtime if mtime else None
@@ -880,7 +950,9 @@ async def get_checkpoints(job_id: str, request: Request):
                             except (OSError, AttributeError):
                                 modified_time = None
                                 filesize = None
-                        checkpoints.append({"filename": filename, "date": modified_time, "size": filesize})
+                        checkpoints.append(
+                            {"filename": filename, "date": modified_time, "size": filesize}
+                        )
                     except Exception as e:
                         print(f"Error getting file info for {file_path}: {e}")
                         checkpoints.append({"filename": filename, "date": None, "size": None})
@@ -917,7 +989,11 @@ async def get_checkpoints(job_id: str, request: Request):
                             formatted_time = datetime.fromtimestamp(mtime).isoformat()
                         else:
                             formatted_time = None
-                    elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
+                    elif (
+                        file_info_list
+                        and isinstance(file_info_list, list)
+                        and len(file_info_list) > 0
+                    ):
                         file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
                         filesize = file_info.get("size", 0)
                         mtime = file_info.get("mtime", None)
@@ -988,8 +1064,14 @@ async def get_artifacts(job_id: str, request: Request):
                                 formatted_time = datetime.fromtimestamp(mtime).isoformat()
                             else:
                                 formatted_time = None
-                        elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
-                            file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
+                        elif (
+                            file_info_list
+                            and isinstance(file_info_list, list)
+                            and len(file_info_list) > 0
+                        ):
+                            file_info = (
+                                file_info_list[0] if isinstance(file_info_list[0], dict) else {}
+                            )
                             filesize = file_info.get("size", 0)
                             mtime = file_info.get("mtime", None)
                             if mtime:
@@ -1017,7 +1099,9 @@ async def get_artifacts(job_id: str, request: Request):
                             formatted_time = None
                             filesize = None
 
-                    filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
+                    filename = (
+                        artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
+                    )
                     artifact_dict = {"filename": filename}
                     if formatted_time is not None:
                         artifact_dict["date"] = formatted_time
@@ -1064,7 +1148,11 @@ async def get_artifacts(job_id: str, request: Request):
                             formatted_time = datetime.fromtimestamp(mtime).isoformat()
                         else:
                             formatted_time = None
-                    elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
+                    elif (
+                        file_info_list
+                        and isinstance(file_info_list, list)
+                        and len(file_info_list) > 0
+                    ):
                         file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
                         filesize = file_info.get("size", 0)
                         mtime = file_info.get("mtime", None)
@@ -1132,11 +1220,15 @@ async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
             else:
                 # Fall back to regular output file logic
                 experiment_id = job["experiment_id"]
-                output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_id)
+                output_file_name = await shared.get_job_output_file_name(
+                    job_id, experiment_name=experiment_id
+                )
         else:
             # Get experiment information for new job directory structure
             experiment_id = job["experiment_id"]
-            output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_id)
+            output_file_name = await shared.get_job_output_file_name(
+                job_id, experiment_name=experiment_id
+            )
 
         if storage.exists(output_file_name):
             with storage.open(output_file_name, "r") as f:

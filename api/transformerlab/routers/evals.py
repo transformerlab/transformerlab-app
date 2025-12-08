@@ -1,8 +1,8 @@
 import pandas as pd
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from transformerlab.services.job_service import job_get
 
+from transformerlab.services.job_service import job_get
 
 router = APIRouter(prefix="/evals", tags=["evals"])
 
@@ -84,7 +84,9 @@ async def compare_eval(job_list: str = ""):
                 # Concatenate without triggering the warning
                 combined = pd.concat([combined, df], ignore_index=True)
 
-        return JSONResponse(content=combined.to_json(orient="records"), media_type="application/json")
+        return JSONResponse(
+            content=combined.to_json(orient="records"), media_type="application/json"
+        )
 
     except Exception:
         print("An error occurred while comparing evaluations")

@@ -15,19 +15,17 @@ import os
 import traceback
 import uuid
 from contextlib import asynccontextmanager
-from typing import List
-
-import torch
-import uvicorn
-from fastapi import BackgroundTasks, FastAPI, Request
-from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import JSONResponse, StreamingResponse
 
 # IMPORT DLLM FIRST before anything else that might cause conflicts
 # This is critical to avoid circular import issues
 import dllm
+import torch
+import uvicorn
 from dllm.pipelines import dream, llada
 from dllm.tools.chat import decode_trim
+from fastapi import BackgroundTasks, FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse, StreamingResponse
 
 # Import fastchat modules after dllm to avoid circular import and CUDA init conflicts
 from fastchat.serve.base_model_worker import BaseModelWorker
@@ -56,7 +54,7 @@ class DLLMWorker(BaseModelWorker):
         worker_addr: str,
         worker_id: str,
         model_path: str,
-        model_names: List[str],
+        model_names: list[str],
         model_architecture: str,
         limit_worker_concurrency: int,
         no_register: bool,
@@ -148,7 +146,9 @@ class DLLMWorker(BaseModelWorker):
                 self.generator_type = "dream"
             else:
                 # Default to LLaDA if unknown
-                logger.warning(f"Unknown model architecture {model_architecture}, defaulting to LLaDA")
+                logger.warning(
+                    f"Unknown model architecture {model_architecture}, defaulting to LLaDA"
+                )
                 self.generator = llada.LLaDAGenerator(model=self.model, tokenizer=self.tokenizer)
                 self.generator_type = "llada"
         except Exception as e:
@@ -232,7 +232,9 @@ class DLLMWorker(BaseModelWorker):
             )
 
         # Tokenize input
-        input_ids = self.tokenizer(context, return_tensors="pt", add_special_tokens=False)["input_ids"][0].tolist()
+        input_ids = self.tokenizer(context, return_tensors="pt", add_special_tokens=False)[
+            "input_ids"
+        ][0].tolist()
         inputs = [input_ids]
 
         # Clear CUDA cache before generation to prevent OOM
@@ -297,7 +299,10 @@ class DLLMWorker(BaseModelWorker):
 
                     # Count masks (if mask_token_id is available)
                     masks_remaining = 0
-                    if hasattr(self.tokenizer, "mask_token_id") and self.tokenizer.mask_token_id is not None:
+                    if (
+                        hasattr(self.tokenizer, "mask_token_id")
+                        and self.tokenizer.mask_token_id is not None
+                    ):
                         mask_token_id = self.tokenizer.mask_token_id
                         if history_state.dim() > 1:
                             masks_remaining = (history_state[0] == mask_token_id).sum().item()
@@ -355,8 +360,11 @@ class DLLMWorker(BaseModelWorker):
                     "error_code": 0,
                     "usage": {
                         "prompt_tokens": len(input_ids),
-                        "completion_tokens": len(intermediate_text.split()) if intermediate_text else 0,
-                        "total_tokens": len(input_ids) + (len(intermediate_text.split()) if intermediate_text else 0),
+                        "completion_tokens": len(intermediate_text.split())
+                        if intermediate_text
+                        else 0,
+                        "total_tokens": len(input_ids)
+                        + (len(intermediate_text.split()) if intermediate_text else 0),
                     },
                     "finish_reason": None,
                     # Add diffusion step metadata for visualization
@@ -377,7 +385,8 @@ class DLLMWorker(BaseModelWorker):
                 "usage": {
                     "prompt_tokens": len(input_ids),
                     "completion_tokens": len(generated_text.split()) if generated_text else 0,
-                    "total_tokens": len(input_ids) + (len(generated_text.split()) if generated_text else 0),
+                    "total_tokens": len(input_ids)
+                    + (len(generated_text.split()) if generated_text else 0),
                 },
                 "finish_reason": None,
             }
@@ -390,7 +399,8 @@ class DLLMWorker(BaseModelWorker):
             "usage": {
                 "prompt_tokens": len(input_ids),
                 "completion_tokens": len(generated_text.split()) if generated_text else 0,
-                "total_tokens": len(input_ids) + (len(generated_text.split()) if generated_text else 0),
+                "total_tokens": len(input_ids)
+                + (len(generated_text.split()) if generated_text else 0),
             },
             "finish_reason": finish_reason,
         }
@@ -505,7 +515,9 @@ def main():
         type=lambda s: s.split(","),
         help="Optional display comma separated names",
     )
-    parser.add_argument("--conv-template", type=str, default=None, help="Conversation prompt template.")
+    parser.add_argument(
+        "--conv-template", type=str, default=None, help="Conversation prompt template."
+    )
     parser.add_argument("--parameters", type=str, default="{}")
     parser.add_argument("--plugin_dir", type=str)
 

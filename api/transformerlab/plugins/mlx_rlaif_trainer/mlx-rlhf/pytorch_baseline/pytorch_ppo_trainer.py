@@ -17,37 +17,34 @@ import math
 import time
 import typing
 import warnings
+from collections.abc import Callable
 from contextlib import nullcontext
-from typing import Callable, List, Optional, Union
-import wandb
-
-import torch.optim as optim
-import torch
 
 import numpy as np
-
+import torch
+import torch.optim as optim
+import wandb
+from models.config import PPOConfig
 from transformers import (
     DataCollatorForLanguageModeling,
     PreTrainedTokenizer,
     PreTrainedTokenizerBase,
     PreTrainedTokenizerFast,
 )
-
 from utils import (
-    RunningMoments,
-    stats_to_np,
-    set_seed,
-    generate_ids,
-    masked_whiten,
-    masked_mean,
-    logprobs_from_logits,
-    flatten_dict,
-    convert_to_scalar,
-    stack_dicts,
     AdaptiveKLController,
     FixedKLController,
+    RunningMoments,
+    convert_to_scalar,
+    flatten_dict,
+    generate_ids,
+    logprobs_from_logits,
+    masked_mean,
+    masked_whiten,
+    set_seed,
+    stack_dicts,
+    stats_to_np,
 )
-from models.config import PPOConfig
 
 EPS = 1e-6
 
@@ -97,9 +94,9 @@ class PPOTrainer:
         model=None,
         ref_model=None,
         tokenizer: PreTrainedTokenizerBase = None,
-        optimizer: Optional[optim.Optimizer] = None,
-        data_collator: Optional[typing.Callable] = None,
-        num_shared_layers: Optional[int] = None,
+        optimizer: optim.Optimizer | None = None,
+        data_collator: typing.Callable | None = None,
+        num_shared_layers: int | None = None,
         device="mps",
     ):
         """
@@ -159,9 +156,14 @@ class PPOTrainer:
         elif self.is_peft_model:
             self.ref_model = None
 
-        self.optional_peft_ctx = self.model.pretrained_model.disable_adapter if self.is_peft_model else nullcontext
+        self.optional_peft_ctx = (
+            self.model.pretrained_model.disable_adapter if self.is_peft_model else nullcontext
+        )
 
-        if not (isinstance(tokenizer, PreTrainedTokenizer) or isinstance(tokenizer, PreTrainedTokenizerFast)):
+        if not (
+            isinstance(tokenizer, PreTrainedTokenizer)
+            or isinstance(tokenizer, PreTrainedTokenizerFast)
+        ):
             raise ValueError(
                 "tokenizer must be a transformers.PreTrainedTokenizer or transformers.PreTrainedTokenizerFast"
             )
@@ -183,7 +185,9 @@ class PPOTrainer:
             self.optimizer = optimizer
 
         if self.config.adap_kl_ctrl:
-            self.kl_ctl = AdaptiveKLController(self.config.init_kl_coef, self.config.target, self.config.horizon)
+            self.kl_ctl = AdaptiveKLController(
+                self.config.init_kl_coef, self.config.target, self.config.horizon
+            )
         else:
             self.kl_ctl = FixedKLController(self.config.init_kl_coef)
 
@@ -199,7 +203,7 @@ class PPOTrainer:
 
     def generate(
         self,
-        query_tensor: Union[torch.Tensor, List[torch.Tensor]],
+        query_tensor: torch.Tensor | list[torch.Tensor],
         length_sampler: Callable = None,
         batch_size: int = 4,
         return_prompt: bool = True,
@@ -229,7 +233,7 @@ class PPOTrainer:
         """
         if generate_ref_response:
             ref_model = self.model if self.is_peft_model else self.ref_model
-        if isinstance(query_tensor, List):
+        if isinstance(query_tensor, list):
             response = self._generate_batched(
                 self.model,
                 query_tensor,
@@ -278,7 +282,7 @@ class PPOTrainer:
     def _generate_batched(
         self,
         model,
-        query_tensors: List[torch.Tensor],
+        query_tensors: list[torch.Tensor],
         length_sampler: Callable = None,
         batch_size: int = 4,
         return_prompt: bool = True,
@@ -331,10 +335,10 @@ class PPOTrainer:
     def _step_safety_checker(
         self,
         batch_size: int,
-        queries: List[torch.Tensor],
-        responses: List[torch.Tensor],
-        scores: List[torch.Tensor],
-        masks: Optional[List[torch.Tensor]] = None,
+        queries: list[torch.Tensor],
+        responses: list[torch.Tensor],
+        scores: list[torch.Tensor],
+        masks: list[torch.Tensor] | None = None,
     ):
         """
         Check if the input data is valid for training.
@@ -353,7 +357,9 @@ class PPOTrainer:
         Returns:
             `tuple`: The input processed data.
         """
-        for name, tensor_list in zip(["queries", "responses", "scores"], [queries, responses, scores]):
+        for name, tensor_list in zip(
+            ["queries", "responses", "scores"], [queries, responses, scores]
+        ):
             if not isinstance(tensor_list[0], torch.Tensor):
                 raise ValueError(f"Elements in {name} must be Tensor - got {type(tensor_list[0])}")
             if batch_size is not None and len(tensor_list) != batch_size:
@@ -364,7 +370,9 @@ class PPOTrainer:
         # squeeze scores if needed
         for i, score in enumerate(scores):
             if len(score.shape) > 1:
-                raise ValueError(f"Scores must be 1-dimensional - got {len(score.shape)} for {score}")
+                raise ValueError(
+                    f"Scores must be 1-dimensional - got {len(score.shape)} for {score}"
+                )
             elif len(score.shape) == 1:
                 scores[i] = score.squeeze()
 
@@ -372,10 +380,10 @@ class PPOTrainer:
 
     def step(
         self,
-        queries: List[torch.Tensor],
-        responses: List[torch.Tensor],
-        scores: List[torch.Tensor],
-        response_masks: Optional[List[torch.Tensor]] = None,
+        queries: list[torch.Tensor],
+        responses: list[torch.Tensor],
+        scores: list[torch.Tensor],
+        response_masks: list[torch.Tensor] | None = None,
     ):
         """
         Run a PPO optimisation step given a list of queries, model responses, and rewards.
@@ -466,7 +474,9 @@ class PPOTrainer:
                     scores, active_full_logprobs, ref_full_logprobs, masks
                 )
             else:
-                rewards, non_score_reward, kls = self.compute_rewards(scores, all_logprobs, ref_logprobs, masks)
+                rewards, non_score_reward, kls = self.compute_rewards(
+                    scores, all_logprobs, ref_logprobs, masks
+                )
             timing["time/ppo/compute_rewards"] = time.time() - t
 
             t = time.time()
@@ -496,9 +506,13 @@ class PPOTrainer:
                 backward_batch_end = backward_batch_start + self.config.backward_batch_size
                 backward_batch_inds = b_inds[backward_batch_start:backward_batch_end]
 
-                for mini_batch_start in range(0, self.config.backward_batch_size, self.config.mini_batch_size):
+                for mini_batch_start in range(
+                    0, self.config.backward_batch_size, self.config.mini_batch_size
+                ):
                     mini_batch_end = mini_batch_start + self.config.mini_batch_size
-                    mini_batch_inds = torch.tensor(backward_batch_inds[mini_batch_start:mini_batch_end])
+                    mini_batch_inds = torch.tensor(
+                        backward_batch_inds[mini_batch_start:mini_batch_end]
+                    )
                     mini_batch_dict = {
                         "logprobs": batch_dict["logprobs"][mini_batch_inds],
                         "values": batch_dict["values"][mini_batch_inds],
@@ -606,7 +620,9 @@ class PPOTrainer:
 
     def prepare_model_inputs(self, queries: torch.Tensor, responses: torch.Tensor):
         if self.is_encoder_decoder:
-            input_data = self.data_collator([{"input_ids": q, "attention_mask": torch.ones_like(q)} for q in queries])
+            input_data = self.data_collator(
+                [{"input_ids": q, "attention_mask": torch.ones_like(q)} for q in queries]
+            )
 
             decoder_inputs = self.data_collator(
                 [{"input_ids": r, "attention_mask": torch.ones_like(r)} for r in responses]
@@ -615,7 +631,10 @@ class PPOTrainer:
             input_data["decoder_input_ids"] = decoder_inputs["input_ids"]
             input_data["decoder_attention_mask"] = decoder_inputs["attention_mask"]
         else:
-            input_ids = [torch.concatenate([q, r]).to(q.dtype).unsqueeze(0) for q, r in zip(queries, responses)]
+            input_ids = [
+                torch.concatenate([q, r]).to(q.dtype).unsqueeze(0)
+                for q, r in zip(queries, responses)
+            ]
             input_data = self.data_collator(
                 [{"input_ids": ids, "attention_mask": torch.ones_like(ids)} for ids in input_ids]
             )
@@ -630,7 +649,7 @@ class PPOTrainer:
         responses: torch.Tensor,
         model_inputs: dict,
         return_logits: bool = False,
-        response_masks: Optional[torch.Tensor] = None,
+        response_masks: torch.Tensor | None = None,
     ):
         """
         Calculate model outputs in multiple batches.
@@ -670,7 +689,9 @@ class PPOTrainer:
                 response_masks_batch = response_masks[i * fbs : (i + 1) * fbs]
             output = model(**input_kwargs, output_hidden_states=True)
             logits = output.logits
-            values = model.value_head(output.hidden_states[-1][:, :, :].clone().detach()).squeeze(-1)
+            values = model.value_head(output.hidden_states[-1][:, :, :].clone().detach()).squeeze(
+                -1
+            )
             input_ids = torch.tensor(input_kwargs["input_ids"])
             attention_mask = torch.tensor(input_kwargs["attention_mask"])
             logprobs = logprobs_from_logits(logits[:, :-1, :], input_ids[:, 1:])
@@ -821,7 +842,9 @@ class PPOTrainer:
             return 0.5 * (logprob - ref_logprob).square()
 
         if self.config.kl_penalty == "full":
-            return torch.nn.functional.kl_div(ref_logprob, logprob, log_target=True, reduction="none").sum(-1)
+            return torch.nn.functional.kl_div(
+                ref_logprob, logprob, log_target=True, reduction="none"
+            ).sum(-1)
 
         raise NotImplementedError
 
@@ -906,7 +929,9 @@ class PPOTrainer:
 
         # Policy loss
         pg_loss1 = -advantages * ratio
-        pg_loss2 = -advantages * torch.clip(ratio, 1 - self.config.cliprange, 1 + self.config.cliprange)
+        pg_loss2 = -advantages * torch.clip(
+            ratio, 1 - self.config.cliprange, 1 + self.config.cliprange
+        )
         pg_loss = masked_mean(torch.max(torch.stack([pg_loss1, pg_loss2]), dim=0).values, mask)
         # Value Loss
         if self.config.clip_value_loss:
@@ -1025,8 +1050,8 @@ class PPOTrainer:
         self,
         stats: dict,
         batch: dict,
-        rewards: List[torch.Tensor],
-        columns_to_log: List[str] = ["query", "response"],
+        rewards: list[torch.Tensor],
+        columns_to_log: list[str] = ["query", "response"],
     ):
         """
         A function that logs all the training stats. Call it at the end of each epoch.
@@ -1046,7 +1071,9 @@ class PPOTrainer:
         rewards = rewards.flatten()
 
         if any([column_to_log not in batch.keys() for column_to_log in columns_to_log]):
-            raise ValueError(f"Columns to log {columns_to_log} are not present in the batch {batch.keys()}.")
+            raise ValueError(
+                f"Columns to log {columns_to_log} are not present in the batch {batch.keys()}."
+            )
 
         batch_list = [batch[column_to_log] for column_to_log in columns_to_log]
         logs = {}

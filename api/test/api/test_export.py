@@ -1,8 +1,10 @@
-import json
-from unittest.mock import patch, AsyncMock, MagicMock
-import pytest
-from transformerlab.shared.shared import get_job_output_file_name as get_output_file_name
 import asyncio
+import json
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from transformerlab.shared.shared import get_job_output_file_name as get_output_file_name
 
 pytestmark = pytest.mark.skip("skipping these as they need to be fixed")
 
@@ -41,7 +43,9 @@ def test_run_exporter_script_success(
 ):
     # Setup mocks
     mock_experiment_get.return_value = {
-        "config": json.dumps({"foundation": "huggingface/model1", "foundation_model_architecture": "pytorch"})
+        "config": json.dumps(
+            {"foundation": "huggingface/model1", "foundation_model_architecture": "pytorch"}
+        )
     }
     mock_job_create.return_value = "job123"
     mock_get_output_file.return_value = "/tmp/output_job123.txt"
@@ -76,7 +80,9 @@ def test_run_exporter_script_invalid_experiment(client, mock_experiment_get):
     # Setup mock to simulate experiment not found
     mock_experiment_get.return_value = None
 
-    resp = client.get("/experiment/999/export/run_exporter_script?plugin_name=test_plugin&plugin_architecture=GGUF")
+    resp = client.get(
+        "/experiment/999/export/run_exporter_script?plugin_name=test_plugin&plugin_architecture=GGUF"
+    )
     assert resp.status_code == 200
     result = resp.json()
     assert result["message"] == "Experiment 999 does not exist"
@@ -89,11 +95,19 @@ def test_run_exporter_script_invalid_experiment(client, mock_experiment_get):
 @patch("transformerlab.db.job_update_status")
 @patch("os.makedirs")
 def test_run_exporter_script_process_error(
-    client, mock_makedirs, mock_job_update, mock_get_output_file, mock_subprocess, mock_job_create, mock_experiment_get
+    client,
+    mock_makedirs,
+    mock_job_update,
+    mock_get_output_file,
+    mock_subprocess,
+    mock_job_create,
+    mock_experiment_get,
 ):
     # Setup mocks
     mock_experiment_get.return_value = {
-        "config": json.dumps({"foundation": "huggingface/model1", "foundation_model_architecture": "pytorch"})
+        "config": json.dumps(
+            {"foundation": "huggingface/model1", "foundation_model_architecture": "pytorch"}
+        )
     }
     mock_job_create.return_value = "job123"
     mock_get_output_file.return_value = "/tmp/output_job123.txt"
@@ -104,7 +118,9 @@ def test_run_exporter_script_process_error(
     mock_process.communicate.return_value = (None, b"Error")
     mock_subprocess.return_value = mock_process
 
-    resp = client.get("/experiment/1/export/run_exporter_script?plugin_name=test_plugin&plugin_architecture=GGUF")
+    resp = client.get(
+        "/experiment/1/export/run_exporter_script?plugin_name=test_plugin&plugin_architecture=GGUF"
+    )
     assert resp.status_code == 200
     result = resp.json()
     assert "Export failed" in result["message"]
@@ -120,11 +136,19 @@ def test_run_exporter_script_process_error(
 @patch("transformerlab.db.job_update_status")
 @patch("os.makedirs")
 def test_run_exporter_script_stderr_decode_error(
-    client, mock_makedirs, mock_job_update, mock_get_output_file, mock_subprocess, mock_job_create, mock_experiment_get
+    client,
+    mock_makedirs,
+    mock_job_update,
+    mock_get_output_file,
+    mock_subprocess,
+    mock_job_create,
+    mock_experiment_get,
 ):
     # Setup mocks
     mock_experiment_get.return_value = {
-        "config": json.dumps({"foundation": "huggingface/model1", "foundation_model_architecture": "pytorch"})
+        "config": json.dumps(
+            {"foundation": "huggingface/model1", "foundation_model_architecture": "pytorch"}
+        )
     }
     mock_job_create.return_value = "job123"
     mock_get_output_file.return_value = "/tmp/output_job123.txt"
@@ -135,7 +159,9 @@ def test_run_exporter_script_stderr_decode_error(
     mock_process.communicate.return_value = (None, b"\xff\xfe")  # Invalid UTF-8 sequence
     mock_subprocess.return_value = mock_process
 
-    resp = client.get("/experiment/1/export/run_exporter_script?plugin_name=test_plugin&plugin_architecture=GGUF")
+    resp = client.get(
+        "/experiment/1/export/run_exporter_script?plugin_name=test_plugin&plugin_architecture=GGUF"
+    )
     assert resp.status_code == 200
     result = resp.json()
     assert "Export failed due to an internal error" in result["message"]
@@ -149,7 +175,9 @@ def test_run_exporter_script_stderr_decode_error(
 @patch("os.path.exists")
 def test_get_output_file_name_with_custom_path(mock_exists, mock_plugin_dir, mock_job_get):
     # Setup mocks
-    mock_job_get.return_value = {"job_data": {"output_file_path": "/custom/path/output.txt", "plugin": "test_plugin"}}
+    mock_job_get.return_value = {
+        "job_data": {"output_file_path": "/custom/path/output.txt", "plugin": "test_plugin"}
+    }
     mock_plugin_dir.return_value = "/plugins/test_plugin"
     mock_exists.return_value = True
 
@@ -259,9 +287,13 @@ def test_watch_export_log_retry_success(client, mock_get_output_file, mock_sleep
 @patch("asyncio.create_subprocess_exec")
 @patch("transformerlab.routers.experiment.export.get_output_file_name")
 @patch("builtins.open")
-def test_stderr_decode_fallback(client, mock_open, mock_get_outfile, mock_subproc, mock_job_create, mock_exp_get):
+def test_stderr_decode_fallback(
+    client, mock_open, mock_get_outfile, mock_subproc, mock_job_create, mock_exp_get
+):
     # minimal fixtures
-    mock_exp_get.return_value = {"config": '{"foundation":"hf/x","foundation_model_architecture":"pt"}'}
+    mock_exp_get.return_value = {
+        "config": '{"foundation":"hf/x","foundation_model_architecture":"pt"}'
+    }
     mock_job_create.return_value = "j1"
     mock_get_outfile.return_value = "/tmp/out.txt"
 
@@ -275,7 +307,9 @@ def test_stderr_decode_fallback(client, mock_open, mock_get_outfile, mock_subpro
     fake_file = MagicMock()
     mock_open.return_value.__enter__.return_value = fake_file
 
-    resp = client.get("/experiment/1/export/run_exporter_script?plugin_name=p&plugin_architecture=GGUF")
+    resp = client.get(
+        "/experiment/1/export/run_exporter_script?plugin_name=p&plugin_architecture=GGUF"
+    )
     assert resp.status_code == 200
 
     # confirm fallback string was written

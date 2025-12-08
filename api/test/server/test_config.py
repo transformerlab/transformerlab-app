@@ -6,9 +6,12 @@ import requests
 def test_set(live_server):
     # Get admin token for authentication
     login_response = requests.post(
-        f"{live_server}/auth/jwt/login", data={"username": "admin@example.com", "password": "admin123"}
+        f"{live_server}/auth/jwt/login",
+        data={"username": "admin@example.com", "password": "admin123"},
     )
-    assert login_response.status_code == 200, f"Login failed with {login_response.status_code}: {login_response.text}"
+    assert login_response.status_code == 200, (
+        f"Login failed with {login_response.status_code}: {login_response.text}"
+    )
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -20,7 +23,9 @@ def test_set(live_server):
     team_id = teams_data["teams"][0]["id"]
     headers["X-Team-Id"] = team_id
 
-    response = requests.get(f"{live_server}/config/set", params={"k": "message", "v": "Hello, World!"}, headers=headers)
+    response = requests.get(
+        f"{live_server}/config/set", params={"k": "message", "v": "Hello, World!"}, headers=headers
+    )
     assert response.status_code == 200
     assert response.json() == {"key": "message", "value": "Hello, World!"}
 
@@ -29,9 +34,12 @@ def test_set(live_server):
 def test_get(live_server):
     # Get admin token for authentication
     login_response = requests.post(
-        f"{live_server}/auth/jwt/login", data={"username": "admin@example.com", "password": "admin123"}
+        f"{live_server}/auth/jwt/login",
+        data={"username": "admin@example.com", "password": "admin123"},
     )
-    assert login_response.status_code == 200, f"Login failed with {login_response.status_code}: {login_response.text}"
+    assert login_response.status_code == 200, (
+        f"Login failed with {login_response.status_code}: {login_response.text}"
+    )
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 

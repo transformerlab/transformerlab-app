@@ -3,16 +3,16 @@ This package defines HuggingFaceModel and functions for interacting with models
 in the Hugging Face hub local cache.
 """
 
-import os
-import json
 import fnmatch
+import json
+import os
 import shutil
 
-from transformerlab.models import basemodel
-
 import huggingface_hub
-from huggingface_hub.hf_api import RepoFile
 from huggingface_hub import scan_cache_dir
+from huggingface_hub.hf_api import RepoFile
+
+from transformerlab.models import basemodel
 
 
 async def list_models():
@@ -146,7 +146,9 @@ def _is_gguf_repository(hugging_face_id: str, hf_model_info):
     return False
 
 
-def _create_gguf_repo_config(hugging_face_id: str, hf_model_info, model_card_data, pipeline_tag: str):
+def _create_gguf_repo_config(
+    hugging_face_id: str, hf_model_info, model_card_data, pipeline_tag: str
+):
     """
     Create a model config for GGUF repositories that don't have config.json.
     Returns a special config that indicates available GGUF files for selection.
@@ -272,7 +274,8 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
             "architecture": architectures[0],
             "huggingface_repo": hugging_face_id,
             "model_type": "diffusion",
-            "size_of_model_in_mb": get_huggingface_download_size(hugging_face_id, sd_patterns) / (1024 * 1024),
+            "size_of_model_in_mb": get_huggingface_download_size(hugging_face_id, sd_patterns)
+            / (1024 * 1024),
             "tags": model_tags,
             "license": model_card_data.get("license", ""),
             "allow_patterns": sd_patterns,
@@ -285,14 +288,18 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
     # Check if this is a GGUF repository first, before processing config.json
     is_gguf_repo = _is_gguf_repository(hugging_face_id, hf_model_info)
     if is_gguf_repo:
-        return _create_gguf_repo_config(hugging_face_id, hf_model_info, model_card_data, pipeline_tag)
+        return _create_gguf_repo_config(
+            hugging_face_id, hf_model_info, model_card_data, pipeline_tag
+        )
     # Non-SD models: require config.json
     try:
         # First try to download the config.json file to local cache
-        local_config_path = huggingface_hub.hf_hub_download(repo_id=hugging_face_id, filename="config.json")
+        local_config_path = huggingface_hub.hf_hub_download(
+            repo_id=hugging_face_id, filename="config.json"
+        )
 
         # Read from the local downloaded file
-        with open(local_config_path, "r") as f:
+        with open(local_config_path) as f:
             filedata = json.load(f)
     except Exception:
         try:

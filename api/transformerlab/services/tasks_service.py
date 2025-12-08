@@ -4,7 +4,8 @@ This replaces the database-based task operations with filesystem-based ones.
 """
 
 import uuid
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 from lab.task import Task as TaskService
 
 
@@ -14,23 +15,25 @@ class TasksService:
     def __init__(self):
         self.task_service = TaskService
 
-    def tasks_get_all(self) -> List[Dict[str, Any]]:
+    def tasks_get_all(self) -> list[dict[str, Any]]:
         """Get all tasks from filesystem"""
         return self.task_service.list_all()
 
-    def tasks_get_by_id(self, task_id: str) -> Optional[Dict[str, Any]]:
+    def tasks_get_by_id(self, task_id: str) -> dict[str, Any] | None:
         """Get a specific task by ID"""
         return self.task_service.get_by_id(task_id)
 
-    def tasks_get_by_type(self, task_type: str) -> List[Dict[str, Any]]:
+    def tasks_get_by_type(self, task_type: str) -> list[dict[str, Any]]:
         """Get all tasks of a specific type"""
         return self.task_service.list_by_type(task_type)
 
-    def tasks_get_by_experiment(self, experiment_id: str) -> List[Dict[str, Any]]:
+    def tasks_get_by_experiment(self, experiment_id: str) -> list[dict[str, Any]]:
         """Get all tasks for a specific experiment"""
         return self.task_service.list_by_experiment(experiment_id)
 
-    def tasks_get_by_type_in_experiment(self, task_type: str, experiment_id: str) -> List[Dict[str, Any]]:
+    def tasks_get_by_type_in_experiment(
+        self, task_type: str, experiment_id: str
+    ) -> list[dict[str, Any]]:
         """Get all tasks of a specific type in a specific experiment"""
         return self.task_service.list_by_type_in_experiment(task_type, experiment_id)
 
@@ -38,11 +41,11 @@ class TasksService:
         self,
         name: str,
         task_type: str,
-        inputs: Dict[str, Any],
-        config: Dict[str, Any],
+        inputs: dict[str, Any],
+        config: dict[str, Any],
         plugin: str,
-        outputs: Dict[str, Any],
-        experiment_id: Optional[str],
+        outputs: dict[str, Any],
+        experiment_id: str | None,
         remote_task: bool = False,
     ) -> str:
         """Create a new task"""
@@ -78,14 +81,14 @@ class TasksService:
             )
             return task_id
 
-    def update_task(self, task_id: str, new_task_data: Dict[str, Any]) -> bool:
+    def update_task(self, task_id: str, new_task_data: dict[str, Any]) -> bool:
         """Update an existing task"""
         try:
             task = self.task_service.get(str(task_id))
 
             # Update only the fields that are provided
             update_data = {}
-            if "name" in new_task_data and new_task_data["name"]:
+            if new_task_data.get("name"):
                 update_data["name"] = new_task_data["name"]
             if "inputs" in new_task_data:
                 update_data["inputs"] = new_task_data["inputs"]

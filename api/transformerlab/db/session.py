@@ -1,14 +1,14 @@
 import os
 import shutil
-import aiosqlite
 import subprocess
 import sys
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+
+import aiosqlite
+from lab.dirs import get_workspace_dir
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from transformerlab.db.constants import DATABASE_FILE_NAME, DATABASE_URL
-from lab.dirs import get_workspace_dir
-
 
 # --- SQLAlchemy Async Engine ---
 # This engine is the core entry point to the database.
@@ -129,7 +129,9 @@ async def migrate_workflows_non_preserving():
 
     try:
         # Check if workflows table exists
-        cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='workflows'")
+        cursor = await db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='workflows'"
+        )
         table_exists = await cursor.fetchone()
         await cursor.close()
 
@@ -160,7 +162,9 @@ async def migrate_workflows_non_preserving():
 
         if experiment_id_type and experiment_id_type != "INTEGER":
             needs_migration = True
-            migration_reasons.append(f"experiment_id column type is {experiment_id_type}, expected INTEGER")
+            migration_reasons.append(
+                f"experiment_id column type is {experiment_id_type}, expected INTEGER"
+            )
 
         # SQLAlchemy JSON type maps to TEXT in SQLite, so we accept both
         if config_type and config_type not in ["JSON", "TEXT"]:
@@ -178,7 +182,9 @@ async def migrate_workflows_non_preserving():
             print(f"  - {reason}")
 
         # Check if backup table already exists and drop it
-        cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='workflows_backup'")
+        cursor = await db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='workflows_backup'"
+        )
         backup_exists = await cursor.fetchone()
         await cursor.close()
 
@@ -193,7 +199,9 @@ async def migrate_workflows_non_preserving():
         pass
 
         await db.commit()
-        print("Successfully created new workflows table with correct schema. Old table saved as workflows_backup.")
+        print(
+            "Successfully created new workflows table with correct schema. Old table saved as workflows_backup."
+        )
 
     except Exception as e:
         print(f"Failed to perform non-preserving migration: {e}")

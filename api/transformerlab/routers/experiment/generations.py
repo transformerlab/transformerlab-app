@@ -8,13 +8,13 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
-from lab import storage
-from transformerlab.services.job_service import job_get
-from transformerlab.shared import shared, dirs
 from lab import dirs as lab_dirs
-from transformerlab.services.experiment_service import experiment_get, experiment_update_config
-
+from lab import storage
 from werkzeug.utils import secure_filename
+
+from transformerlab.services.experiment_service import experiment_get, experiment_update_config
+from transformerlab.services.job_service import job_get
+from transformerlab.shared import dirs, shared
 
 router = APIRouter(prefix="/generations", tags=["generations"])
 
@@ -33,7 +33,9 @@ async def experiment_add_generation(experimentId: str, plugin: Any = Body()):
 
     experiment_config = experiment["config"]  # now returns a dict directly
 
-    if "generations" not in experiment_config or not isinstance(experiment_config.get("generations"), list):
+    if "generations" not in experiment_config or not isinstance(
+        experiment_config.get("generations"), list
+    ):
         experiment_config["generations"] = []
 
     generations = experiment_config["generations"]
@@ -71,7 +73,9 @@ async def experiment_delete_generation(experimentId: str, generation_name: str):
 
         experiment_config = experiment["config"]  # now returns a dict directly
 
-        if "generations" not in experiment_config or not isinstance(experiment_config.get("generations"), list):
+        if "generations" not in experiment_config or not isinstance(
+            experiment_config.get("generations"), list
+        ):
             return {"message": f"Experiment {experimentId} has no generations"}
 
         generations = experiment_config["generations"]
@@ -110,7 +114,9 @@ async def edit_evaluation_generation(experimentId: str, plugin: Any = Body()):
 
         # updated_json = json.loads(updated_json)
 
-        if "generations" not in experiment_config or not isinstance(experiment_config.get("generations"), list):
+        if "generations" not in experiment_config or not isinstance(
+            experiment_config.get("generations"), list
+        ):
             return {"message": f"Experiment {experimentId} has no generations"}
 
         generations = experiment_config["generations"]
@@ -153,7 +159,7 @@ async def get_generation_plugin_file_contents(experimentId: str, plugin_name: st
 
     # now get the file contents
     try:
-        with open(os.path.join(plugin_path, file_name), "r") as f:
+        with open(os.path.join(plugin_path, file_name)) as f:
             file_contents = f.read()
     except FileNotFoundError:
         return "error file not found"
@@ -162,7 +168,9 @@ async def get_generation_plugin_file_contents(experimentId: str, plugin_name: st
 
 
 @router.get("/run_generation_script")
-async def run_generation_script(experimentId: str, plugin_name: str, generation_name: str, job_id: str):
+async def run_generation_script(
+    experimentId: str, plugin_name: str, generation_name: str, job_id: str
+):
     job_config = (job_get(job_id))["job_data"]
     generation_config = job_config.get("config", {})
     print(generation_config)
@@ -215,7 +223,9 @@ async def run_generation_script(experimentId: str, plugin_name: str, generation_
                 )
         if "generations" in experiment_details["config"]:
             if isinstance(experiment_details["config"]["generations"], str):
-                experiment_details["config"]["generations"] = json.loads(experiment_details["config"]["generations"])
+                experiment_details["config"]["generations"] = json.loads(
+                    experiment_details["config"]["generations"]
+                )
 
     template_config = generation_config["script_parameters"]
     job_output_file = await shared.get_job_output_file_name(job_id, plugin_name, experimentId)
@@ -274,7 +284,9 @@ async def run_generation_script(experimentId: str, plugin_name: str, generation_
     print(f">GENERATION Output file: {job_output_file}")
 
     with storage.open(job_output_file, "w") as f:
-        process = await asyncio.create_subprocess_exec(*subprocess_command, stdout=f, stderr=subprocess.PIPE)
+        process = await asyncio.create_subprocess_exec(
+            *subprocess_command, stdout=f, stderr=subprocess.PIPE
+        )
         await process.communicate()
 
     with storage.open(output_file, "w") as f:

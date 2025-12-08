@@ -1,8 +1,10 @@
 import os
 import random
-import torch
 
+import torch
 from datasets import Dataset
+from lab import storage
+from lab.dirs import get_workspace_dir
 from sentence_transformers import (
     SentenceTransformer,
     SentenceTransformerTrainer,
@@ -10,12 +12,10 @@ from sentence_transformers import (
 )
 from sentence_transformers.evaluation import InformationRetrievalEvaluator, SequentialEvaluator
 from sentence_transformers.util import cos_sim
+from transformerlab.plugin import generate_model_json
 
 # Import the trainer SDK
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import generate_model_json
-from lab.dirs import get_workspace_dir
-from lab import storage
 
 
 # --- Utility Functions ---
@@ -30,7 +30,9 @@ def normalize_dataset_columns(dataset, dataset_type_str):
     # Get all columns except 'id'
     cols = [col for col in dataset.column_names if col.lower() != "id"]
     if len(expected_names) > len(cols):
-        raise ValueError(f"Dataset does not have enough columns to match the dataset type '{dataset_type_str}'")
+        raise ValueError(
+            f"Dataset does not have enough columns to match the dataset type '{dataset_type_str}'"
+        )
     mapping = {}
     for i, new_name in enumerate(expected_names):
         mapping[cols[i]] = new_name
@@ -44,7 +46,9 @@ def get_loss_function(loss_name, model):
         loss_cls = getattr(loss_module, loss_name)
         return loss_cls(model)
     except AttributeError:
-        raise ValueError(f"Loss function '{loss_name}' is not available in sentence_transformers.losses.")
+        raise ValueError(
+            f"Loss function '{loss_name}' is not available in sentence_transformers.losses."
+        )
 
 
 def add_noise(sentence):
@@ -61,7 +65,9 @@ def add_noise(sentence):
 def load_dataset_column(dataset, column_name="context"):
     """Load a specific column from a dataset and return the sentences as a list."""
     if column_name not in dataset.column_names:
-        raise ValueError(f"Column '{column_name}' not found in dataset. Available columns: {dataset.column_names}")
+        raise ValueError(
+            f"Column '{column_name}' not found in dataset. Available columns: {dataset.column_names}"
+        )
 
     sentences = dataset[column_name]
     print(f"Loaded {len(sentences)} sentences from column '{column_name}'.")
@@ -71,7 +77,9 @@ def load_dataset_column(dataset, column_name="context"):
 def prepare_training_data(sentences):
     """Create dataset pairs with original and noised sentences."""
     data_pairs = [
-        {"noised_text": add_noise(s), "original_text": s} for s in sentences if isinstance(s, str) and len(s) > 0
+        {"noised_text": add_noise(s), "original_text": s}
+        for s in sentences
+        if isinstance(s, str) and len(s) > 0
     ]
     return Dataset.from_list(data_pairs)
 
@@ -217,7 +225,9 @@ def train_embedding_model():
     # Load the model
     print(f"Loading Sentence Transformer model {model_id}")
     model = SentenceTransformer(
-        model_id, device=("cuda" if torch.cuda.is_available() else "cpu"), local_files_only=os.path.exists(model_id)
+        model_id,
+        device=("cuda" if torch.cuda.is_available() else "cpu"),
+        local_files_only=os.path.exists(model_id),
     )
 
     # Configure loss function
@@ -230,14 +240,18 @@ def train_embedding_model():
             print("Using the default loss function instead.")
             train_loss = inner_train_loss
         else:
-            loss_modifier_module = __import__("sentence_transformers.losses", fromlist=[loss_modifier_name])
+            loss_modifier_module = __import__(
+                "sentence_transformers.losses", fromlist=[loss_modifier_name]
+            )
             loss_modifier_cls = getattr(loss_modifier_module, loss_modifier_name)
 
             if loss_modifier_name == "AdaptiveLayerLoss":
                 # AdaptiveLayerLoss does not take matryoshka_dims as a parameter
                 train_loss = loss_modifier_cls(model=model, loss=inner_train_loss)
             else:
-                train_loss = loss_modifier_cls(model=model, loss=inner_train_loss, matryoshka_dims=matryoshka_dims)
+                train_loss = loss_modifier_cls(
+                    model=model, loss=inner_train_loss, matryoshka_dims=matryoshka_dims
+                )
     else:
         train_loss = inner_train_loss
 

@@ -6,10 +6,9 @@
 # like the samsum dataset.
 
 import os
-import numpy as np
 from dataclasses import dataclass, field
-from typing import List, Optional
 
+import numpy as np
 import torch
 
 if torch.cuda.is_available():
@@ -17,12 +16,15 @@ if torch.cuda.is_available():
     os.environ["HIP_VISIBLE_DEVICES"] = "0"
 
 from datasets import DatasetDict, concatenate_datasets
+from lab import storage
 from peft import (
     LoraConfig,
     TaskType,
     get_peft_model,
     prepare_model_for_kbit_training,
 )
+from transformerlab.plugin import TEMP_DIR
+from transformerlab.sdk.v1.train import tlab_trainer
 from transformers import (
     AutoModelForSeq2SeqLM,
     AutoTokenizer,
@@ -31,17 +33,13 @@ from transformers import (
     Seq2SeqTrainingArguments,
 )
 
-from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import TEMP_DIR
-from lab import storage
-
 
 @dataclass
 class LoraArguments:
     lora_r: int = 8
     lora_alpha: int = 16
     lora_dropout: float = 0.05
-    lora_target_modules: List[str] = field(default_factory=lambda: ["q", "v"])
+    lora_target_modules: list[str] = field(default_factory=lambda: ["q", "v"])
     lora_weight_path: str = ""
     lora_bias: str = "none"
     q_lora: bool = False
@@ -50,7 +48,7 @@ class LoraArguments:
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: Optional[str] = field(default="google/flan_t5_small")
+    model_name_or_path: str | None = field(default="google/flan_t5_small")
 
 
 @dataclass
@@ -58,7 +56,9 @@ class DataArguments:
     data_path: str = field(default=None, metadata={"help": "Path to the training data."})
     lazy_preprocess: bool = False
     num_data: int = -1
-    preprocessed_path: str = field(default=None, metadata={"help": "Path to the preprocessed training data."})
+    preprocessed_path: str = field(
+        default=None, metadata={"help": "Path to the preprocessed training data."}
+    )
 
 
 class T5LoraTrainer:
@@ -113,7 +113,9 @@ class T5LoraTrainer:
         # add prefix to the input for t5
         inputs = ["summarize: " + item for item in sample["dialogue"]]
         # tokenize inputs
-        model_inputs = self.tokenizer(inputs, max_length=self.max_source_length, padding=padding, truncation=True)
+        model_inputs = self.tokenizer(
+            inputs, max_length=self.max_source_length, padding=padding, truncation=True
+        )
 
         # Tokenize targets with the `text_target` keyword argument
         labels = self.tokenizer(
@@ -150,7 +152,9 @@ class T5LoraTrainer:
 
     def load_model(self):
         """Load base model for training"""
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(tlab_trainer.params.model_name, device_map="auto")
+        self.model = AutoModelForSeq2SeqLM.from_pretrained(
+            tlab_trainer.params.model_name, device_map="auto"
+        )
 
     def train(self):
         """Main training function using tlab_trainer wrapper for progress tracking"""

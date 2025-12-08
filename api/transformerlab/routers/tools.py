@@ -1,7 +1,7 @@
 import json
 import os
 import subprocess
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
@@ -29,8 +29,8 @@ router = APIRouter(prefix="/tools", tags=["tools"])
 @router.get("/list", summary="List the MCP tools that are currently available.")
 async def list_tools(
     mcp_server_file: str = Query(None, description="MCP server file to include MCP tools"),
-    mcp_args: Optional[str] = Query(None, description="Comma-separated args for MCP server"),
-    mcp_env: Optional[str] = Query(None, description="JSON string for MCP server env"),
+    mcp_args: str | None = Query(None, description="Comma-separated args for MCP server"),
+    mcp_env: str | None = Query(None, description="JSON string for MCP server env"),
 ) -> list[object]:
     tool_descriptions = []
 
@@ -75,7 +75,9 @@ async def get_all_tools():
             try:
                 args = mcp_config.get("args", "").split(",") if mcp_config.get("args") else None
                 base_env = os.environ.copy()
-                override_env = json.loads(mcp_config.get("env", "{}")) if mcp_config.get("env") else {}
+                override_env = (
+                    json.loads(mcp_config.get("env", "{}")) if mcp_config.get("env") else {}
+                )
                 env = {**base_env, **override_env}
 
                 mcp_tools = await mcp_list_tools(mcp_config["serverName"], args=args, env=env)
@@ -115,8 +117,10 @@ async def call_tool(
     tool_id: str,
     params: str,
     mcp_server_file: str = Query(..., description="MCP server file to call MCP tool"),
-    mcp_args: Optional[str] = Query(None, description="Comma-separated args for MCP server (if needed)"),
-    mcp_env: Optional[str] = Query(None, description="JSON string for MCP server env (if needed)"),
+    mcp_args: str | None = Query(
+        None, description="Comma-separated args for MCP server (if needed)"
+    ),
+    mcp_env: str | None = Query(None, description="JSON string for MCP server env (if needed)"),
 ):
     if not mcp_server_file:
         return {"status": "error", "message": "MCP server file is required."}
@@ -132,14 +136,16 @@ async def call_tool(
         return {"status": "error", "message": "Invalid parameters provided."}
 
     try:
-        result = await mcp_call_tool(mcp_server_file, tool_id, arguments=function_args, args=args, env=env)
+        result = await mcp_call_tool(
+            mcp_server_file, tool_id, arguments=function_args, args=args, env=env
+        )
         final_result = ""
         for content in result.content:
             content = content.model_dump()
             if isinstance(content, dict) and content.get("type") == "text":
                 final_result += f"\n {content.get('text')}"
             elif isinstance(content, dict) and content.get("type") == "json":
-                final_result += f"\n {str(content.get('json'))}"
+                final_result += f"\n {content.get('json')!s}"
 
         return {"status": "success", "data": final_result}
     except Exception as e:
@@ -150,12 +156,12 @@ async def call_tool(
 
 class MCPServerParams(BaseModel):
     server_file: str
-    args: Optional[list[str]] = None
-    env: Optional[dict[str, str]] = None
+    args: list[str] | None = None
+    env: dict[str, str] | None = None
 
 
 class MCPCallParams(MCPServerParams):
-    arguments: Optional[Dict[str, Any]] = None
+    arguments: dict[str, Any] | None = None
 
 
 def _get_stdio_server_params(server_file: str, args=None, env=None):
@@ -193,16 +199,18 @@ async def mcp_call_tool(server_file: str, tool_id: str, arguments=None, args=Non
 
 
 @router.get("/install_mcp_server", summary="Install or check MCP server module or script.")
-async def install_mcp_server(server_name: str = Query(..., description="Module name or full path to .py file")):
+async def install_mcp_server(
+    server_name: str = Query(..., description="Module name or full path to .py file"),
+):
     env = os.environ.copy()
     # If it's a .py file, treat as a full file path and check if it exists
     if server_name.endswith(".py"):
         safe_root = os.path.expanduser("~")
         server_name = os.path.abspath(os.path.normpath(server_name))
         # Check if the file is within the user's home directory and prevent symbolic link attacks
-        if not os.path.commonpath([server_name, safe_root]) == safe_root or not server_name.startswith(
-            safe_root + os.sep
-        ):
+        if not os.path.commonpath(
+            [server_name, safe_root]
+        ) == safe_root or not server_name.startswith(safe_root + os.sep):
             print(f"Access to external files is forbidden: {server_name}")
             return JSONResponse(
                 status_code=403,
@@ -215,7 +223,8 @@ async def install_mcp_server(server_name: str = Query(..., description="Module n
         else:
             print(f"File '{server_name}' does not exist.")
             return JSONResponse(
-                status_code=404, content={"status": "error", "message": f"File '{server_name}' not found."}
+                status_code=404,
+                content={"status": "error", "message": f"File '{server_name}' not found."},
             )
     # Otherwise, try to pip install the module using uv pip
     try:
@@ -228,15 +237,27 @@ async def install_mcp_server(server_name: str = Query(..., description="Module n
         )
         if result.returncode == 0:
             print(f"Successfully installed '{server_name}'.")
-            return {"status": "success", "message": f"Successfully installed '{server_name}'.", "output": result.stdout}
+            return {
+                "status": "success",
+                "message": f"Successfully installed '{server_name}'.",
+                "output": result.stdout,
+            }
         else:
             print(f"Failed to install '{server_name}': {result.stderr}")
             return JSONResponse(
                 status_code=500,
-                content={"status": "error", "message": f"Failed to install '{server_name}'.", "output": result.stderr},
+                content={
+                    "status": "error",
+                    "message": f"Failed to install '{server_name}'.",
+                    "output": result.stderr,
+                },
             )
     except Exception as e:
         print(f"An error occurred while installing '{server_name}': {e}")
         return JSONResponse(
-            status_code=500, content={"status": "error", "message": "An internal error occurred during installation"}
+            status_code=500,
+            content={
+                "status": "error",
+                "message": "An internal error occurred during installation",
+            },
         )

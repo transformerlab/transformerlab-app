@@ -1,18 +1,16 @@
+import sys
 import traceback
-import pandas as pd
-from typing import List
 
+import pandas as pd
+from datasets import Dataset
 from deepeval.models import DeepEvalBaseEmbeddingModel
 from deepeval.synthesizer import Synthesizer
 from deepeval.synthesizer.config import ContextConstructionConfig
+from lab import storage
+from lab.dirs import get_workspace_dir
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import mine_hard_negatives, paraphrase_mining
-from datasets import Dataset
-import sys
-
 from transformerlab.sdk.v1.generate import tlab_gen
-from lab.dirs import get_workspace_dir
-from lab import storage
 
 
 class CustomEmbeddingModel(DeepEvalBaseEmbeddingModel):
@@ -28,23 +26,23 @@ class CustomEmbeddingModel(DeepEvalBaseEmbeddingModel):
             print(f"An error occurred while loading the embedding model: {e}")
             raise
 
-    def embed_text(self, text: str) -> List[float]:
+    def embed_text(self, text: str) -> list[float]:
         return self.model.encode(text, convert_to_numpy=True).tolist()
 
-    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
         return self.model.encode(texts, convert_to_numpy=True).tolist()
 
-    async def a_embed_text(self, text: str) -> List[float]:
+    async def a_embed_text(self, text: str) -> list[float]:
         return self.embed_text(text)
 
-    async def a_embed_texts(self, texts: List[str]) -> List[List[float]]:
+    async def a_embed_texts(self, texts: list[str]) -> list[list[float]]:
         return self.embed_texts(texts)
 
     def get_model_name(self):
         return f"Custom HuggingFace Embedding Model ({self.model_name})"
 
 
-def get_docs_list(docs: str, experiment_name: str) -> List[str]:
+def get_docs_list(docs: str, experiment_name: str) -> list[str]:
     """Get list of document paths from comma-separated string of doc names"""
     docs_list = docs.split(",")
     workspace_dir = get_workspace_dir()
@@ -143,7 +141,9 @@ def run_embedding_dataset_generation(df, embedding_model_name, dataset_type):
         paraphrase_results = paraphrase_mining(model, sentences, show_progress_bar=True)
         results = []
         for score, id1, id2 in paraphrase_results:
-            results.append({"sentence_A": sentences[id1], "sentence_B": sentences[id2], "score": score})
+            results.append(
+                {"sentence_A": sentences[id1], "sentence_B": sentences[id2], "score": score}
+            )
         return pd.DataFrame(results)
 
     elif dataset_type == "anchor | positive":
@@ -233,7 +233,9 @@ def run_generation():
         embedding_df = run_embedding_dataset_generation(
             df=df,
             embedding_model_name=tlab_gen.params.get("embedding_model", "Snowflake/arctic-embed-m"),
-            dataset_type=tlab_gen.params.get("embedding_dataset_type", "anchor | positive | negative"),
+            dataset_type=tlab_gen.params.get(
+                "embedding_dataset_type", "anchor | positive | negative"
+            ),
         )
 
     # Save main dataset using tlab_gen helper
@@ -255,14 +257,21 @@ def run_generation():
             custom_name_embeddings = f"{custom_name_embeddings}_embedding"
         embedding_output_file, _ = tlab_gen.save_generated_dataset(
             embedding_df,
-            {**metadata, "dataset_type": tlab_gen.params.get("embedding_dataset_type", "anchor | positive | negative")},
+            {
+                **metadata,
+                "dataset_type": tlab_gen.params.get(
+                    "embedding_dataset_type", "anchor | positive | negative"
+                ),
+            },
             dataset_id=custom_name_embeddings,
         )
         print(f"Embedding dataset saved to {embedding_output_file}")
     else:
         # Save the generated outputs as a dataset
         custom_name = tlab_gen.params.get("output_dataset_name")
-        output_file, dataset_name = tlab_gen.save_generated_dataset(df, metadata, dataset_id=custom_name)
+        output_file, dataset_name = tlab_gen.save_generated_dataset(
+            df, metadata, dataset_id=custom_name
+        )
         print(f"Data generated successfully as dataset {dataset_name}")
 
     tlab_gen.progress_update(95)

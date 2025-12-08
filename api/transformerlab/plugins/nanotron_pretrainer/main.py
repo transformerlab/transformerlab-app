@@ -1,11 +1,9 @@
 import os
-import subprocess
-import yaml
 import re
+import subprocess
+
 import torch
-from typing import Dict, Tuple
-
-
+import yaml
 from transformerlab.sdk.v1.train import tlab_trainer
 
 
@@ -32,12 +30,16 @@ def generate_nanotron_config():
         dict: Complete Nanotron configuration
     """
     # Format the run name with job ID
-    run_name = tlab_trainer.params.get("template_name", "nanotron_run") + "_" + str(tlab_trainer.params.job_id)
+    run_name = (
+        tlab_trainer.params.get("template_name", "nanotron_run")
+        + "_"
+        + str(tlab_trainer.params.job_id)
+    )
     from transformerlab.plugin import WORKSPACE_DIR
 
     checkpoint_path = os.path.join(WORKSPACE_DIR, "models", "pretrained", run_name, "checkpoints")
 
-    MODEL_SIZES: Dict[str, Tuple[int, int, int, int, int]] = {
+    MODEL_SIZES: dict[str, tuple[int, int, int, int, int]] = {
         # (layers, hidden, heads, kv_heads, ffn_size)
         "160M": (12, 768, 12, 12, 3072),  # ~160M params
         "410M": (24, 1024, 16, 16, 4096),  # ~410M params
@@ -60,7 +62,9 @@ def generate_nanotron_config():
         kv_heads = int(tlab_trainer.params.get("model_num_key_value_heads", 4))
         intermediate = int(tlab_trainer.params.get("model_intermediate_size", 64))
     else:
-        layers, hidden, heads, kv_heads, intermediate = MODEL_SIZES[tlab_trainer.params.get("model_size")]
+        layers, hidden, heads, kv_heads, intermediate = MODEL_SIZES[
+            tlab_trainer.params.get("model_size")
+        ]
 
     # Create the config dictionary
     nanotron_config = {
@@ -79,7 +83,9 @@ def generate_nanotron_config():
                         "dataset_overwrite_cache": False,
                         "dataset_processing_num_proc_per_process": 1,
                         "hf_dataset_config_name": None,
-                        "hf_dataset_or_datasets": tlab_trainer.params.get("dataset_name", "stas/openwebtext-10k"),
+                        "hf_dataset_or_datasets": tlab_trainer.params.get(
+                            "dataset_name", "stas/openwebtext-10k"
+                        ),
                         "hf_dataset_splits": tlab_trainer.params.get("dataset_split", "train"),
                         "text_column_name": tlab_trainer.params.get("text_column_name", "text"),
                     },
@@ -95,7 +101,9 @@ def generate_nanotron_config():
                         "dataset_overwrite_cache": False,
                         "dataset_processing_num_proc_per_process": 1,
                         "hf_dataset_config_name": None,
-                        "hf_dataset_or_datasets": tlab_trainer.params.get("dataset_name", "stas/openwebtext-10k"),
+                        "hf_dataset_or_datasets": tlab_trainer.params.get(
+                            "dataset_name", "stas/openwebtext-10k"
+                        ),
                         "hf_dataset_splits": tlab_trainer.params.get("dataset_split", "train"),
                         "text_column_name": tlab_trainer.params.get("text_column_name", "text"),
                     },
@@ -116,7 +124,11 @@ def generate_nanotron_config():
             "step": None,
         },
         "lighteval": None,
-        "logging": {"iteration_step_info_interval": 1, "log_level": "info", "log_level_replica": "info"},
+        "logging": {
+            "iteration_step_info_interval": 1,
+            "log_level": "info",
+            "log_level_replica": "info",
+        },
         "model": {
             "ddp_bucket_cap_mb": 25,
             "dtype": tlab_trainer.params.get("mixed_precision", "bfloat16"),
@@ -130,7 +142,9 @@ def generate_nanotron_config():
                 "initializer_range": 0.02,
                 "intermediate_size": intermediate,
                 "is_llama_config": True,
-                "max_position_embeddings": int(tlab_trainer.params.get("maximum_sequence_length", 256)),
+                "max_position_embeddings": int(
+                    tlab_trainer.params.get("maximum_sequence_length", 256)
+                ),
                 "num_attention_heads": heads,
                 "num_hidden_layers": layers,
                 "num_key_value_heads": kv_heads,
@@ -178,7 +192,9 @@ def generate_nanotron_config():
         "profiler": None,
         "tokenizer": {
             "tokenizer_max_length": None,
-            "tokenizer_name_or_path": tlab_trainer.params.get("tokenizer_name", "robot-test/dummy-tokenizer-wordlevel"),
+            "tokenizer_name_or_path": tlab_trainer.params.get(
+                "tokenizer_name", "robot-test/dummy-tokenizer-wordlevel"
+            ),
             "tokenizer_revision": None,
         },
         "tokens": {
@@ -203,12 +219,18 @@ def train_model():
     nanotron_config = generate_nanotron_config()
 
     # Set up output paths
-    run_name = tlab_trainer.params.get("template_name", "nanotron_run") + "_" + str(tlab_trainer.params.job_id)
+    run_name = (
+        tlab_trainer.params.get("template_name", "nanotron_run")
+        + "_"
+        + str(tlab_trainer.params.job_id)
+    )
 
     # Create output directories
     from transformerlab.plugin import WORKSPACE_DIR
 
-    output_path = os.path.join(WORKSPACE_DIR, "models", "pretrained", run_name, "nanotron_config_files")
+    output_path = os.path.join(
+        WORKSPACE_DIR, "models", "pretrained", run_name, "nanotron_config_files"
+    )
     os.makedirs(output_path, exist_ok=True)
     # Save the configuration to a YAML file
     config_path = os.path.join(output_path, f"{run_name}.yaml")
@@ -227,7 +249,9 @@ def train_model():
     # Create run_train.py script
     from transformerlab.plugin import WORKSPACE_DIR
 
-    run_train_path = os.path.join(WORKSPACE_DIR, "plugins", "nanotron_pretrainer", "nanotron", "run_train.py")
+    run_train_path = os.path.join(
+        WORKSPACE_DIR, "plugins", "nanotron_pretrainer", "nanotron", "run_train.py"
+    )
 
     # Run training with torchrun
     env = os.environ.copy()
@@ -244,7 +268,12 @@ def train_model():
     print(f"Running Nanotron with command: {' '.join(cmd)}")
 
     process = subprocess.Popen(
-        cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1
+        cmd,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True,
+        bufsize=1,
     )
 
     # Process output line by line
@@ -289,7 +318,9 @@ def train_model():
                     grad_norm_match = re.search(r"grad_norm: ([\d.]+)", line)
                     if grad_norm_match:
                         grad_norm_value = float(grad_norm_match.group(1))
-                        tlab_trainer.log_metric("train/gradient_norm", grad_norm_value, current_iter)
+                        tlab_trainer.log_metric(
+                            "train/gradient_norm", grad_norm_value, current_iter
+                        )
 
                     # Hardware TFLOPS per GPU
                     tflops_match = re.search(r"hardware_tflops_per_gpu: ([\d.]+)", line)
@@ -311,7 +342,7 @@ def train_model():
 
     checkpoint_path = os.path.join(WORKSPACE_DIR, "models", "pretrained", run_name, "checkpoints")
     try:
-        with open(os.path.join(checkpoint_path, "latest.txt"), "r") as f:
+        with open(os.path.join(checkpoint_path, "latest.txt")) as f:
             latest_checkpoint = f.read().strip()
 
         from transformerlab.plugin import WORKSPACE_DIR
@@ -323,7 +354,9 @@ def train_model():
 
         from transformerlab.plugin import WORKSPACE_DIR
 
-        convert_script_path = os.path.join(WORKSPACE_DIR, "plugins", "nanotron_pretrainer", "convert_nanotron_to_hf.py")
+        convert_script_path = os.path.join(
+            WORKSPACE_DIR, "plugins", "nanotron_pretrainer", "convert_nanotron_to_hf.py"
+        )
 
         cmd_convert = [
             "torchrun",
@@ -338,7 +371,12 @@ def train_model():
         ]
 
         process_convert = subprocess.Popen(
-            cmd_convert, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1
+            cmd_convert,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            bufsize=1,
         )
 
         for line in iter(process_convert.stdout.readline, ""):

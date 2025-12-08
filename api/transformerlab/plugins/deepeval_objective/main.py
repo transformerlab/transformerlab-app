@@ -1,10 +1,10 @@
+import json
+
 import nltk
 import pandas as pd
-import json
 from deepeval.metrics import BaseMetric
 from deepeval.scorer import Scorer
 from deepeval.test_case import LLMTestCase
-
 from transformerlab.sdk.v1.evals import tlab_evals
 
 nltk.download("punkt_tab")
@@ -19,7 +19,9 @@ class RougeMetric(BaseMetric):
 
     def measure(self, test_case: LLMTestCase):
         self.score = self.scorer.rouge_score(
-            prediction=test_case.actual_output, target=test_case.expected_output, score_type=self.score_type
+            prediction=test_case.actual_output,
+            target=test_case.expected_output,
+            score_type=self.score_type,
         )
         self.success = self.score >= self.threshold
         return self.score
@@ -43,7 +45,9 @@ class SentenceBleuMetric(BaseMetric):
 
     def measure(self, test_case: LLMTestCase):
         self.score = self.scorer.sentence_bleu_score(
-            prediction=test_case.actual_output, references=test_case.expected_output, bleu_type=self.score_type
+            prediction=test_case.actual_output,
+            references=test_case.expected_output,
+            bleu_type=self.score_type,
         )
         self.success = self.score >= self.threshold
         return self.score
@@ -187,7 +191,9 @@ def run_evaluation():
     # Get the dataset split
     dataset_split = tlab_evals.params.get("dataset_split", "train")
     if dataset_split not in ["train", "valid", "test"]:
-        raise ValueError(f"Invalid dataset split: {dataset_split}. Must be one of 'train', 'valid', or 'test'.")
+        raise ValueError(
+            f"Invalid dataset split: {dataset_split}. Must be one of 'train', 'valid', or 'test'."
+        )
 
     # Load the dataset
     dataset = tlab_evals.load_dataset([dataset_split])
@@ -203,7 +209,9 @@ def run_evaluation():
     # Create a list of test cases
     test_cases = []
     for _, row in df.iterrows():
-        test_case = LLMTestCase(input=row["input"], actual_output=row["output"], expected_output=row["expected_output"])
+        test_case = LLMTestCase(
+            input=row["input"], actual_output=row["output"], expected_output=row["expected_output"]
+        )
         test_cases.append(test_case)
 
     if tlab_evals.params.limit and float(tlab_evals.params.limit) < 1.0:

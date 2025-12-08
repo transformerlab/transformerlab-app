@@ -2,14 +2,18 @@ import os
 import subprocess
 from functools import partial
 
-from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
+from transformerlab.sdk.v1.train import tlab_trainer
 
 # Add custom arguments
 tlab_trainer.add_argument(
-    "--launched_with_accelerate", action="store_true", help="Flag to prevent recursive subprocess launching"
+    "--launched_with_accelerate",
+    action="store_true",
+    help="Flag to prevent recursive subprocess launching",
 )
-tlab_trainer.add_argument("--training_method", type=str, default="bert", help="Training method: bert, dream, or llada")
+tlab_trainer.add_argument(
+    "--training_method", type=str, default="bert", help="Training method: bert, dream, or llada"
+)
 
 
 def setup_accelerate_environment():
@@ -59,7 +63,9 @@ def train_model():
     training_method = tlab_trainer.params.get("training_method", "bert")
     print(f"Training method: {training_method}")
     if training_method not in ["bert", "dream", "llada"]:
-        raise ValueError(f"training_method must be one of: bert, dream, llada. Got: {training_method}")
+        raise ValueError(
+            f"training_method must be one of: bert, dream, llada. Got: {training_method}"
+        )
 
     # Set up accelerate configuration
     accelerate_config = {
@@ -106,11 +112,22 @@ def train_model():
     # Import dependencies after the subprocess check
     import accelerate
     from accelerate import Accelerator
-    from jinja2 import Environment
-    from dllm.utils import ModelArguments, DataArguments, TrainingArguments
-    from dllm.utils import get_model, get_tokenizer, print_args_main, initial_training_setup
-    from dllm.utils.data_utils import default_sft_map_fn, post_process_dataset, NoAttentionMaskCollator
     from datasets import DatasetDict
+    from dllm.utils import (
+        DataArguments,
+        ModelArguments,
+        TrainingArguments,
+        get_model,
+        get_tokenizer,
+        initial_training_setup,
+        print_args_main,
+    )
+    from dllm.utils.data_utils import (
+        NoAttentionMaskCollator,
+        default_sft_map_fn,
+        post_process_dataset,
+    )
+    from jinja2 import Environment
 
     # Initialize Accelerator
     accelerator = Accelerator()
@@ -202,8 +219,12 @@ def train_model():
     instruction_template = tlab_trainer.params.get("instruction_template", "")
 
     # Create Jinja2 templates from template strings (only input and output are Jinja templates)
-    input_template = jinja_environment.from_string(input_template_str) if input_template_str else None
-    output_template = jinja_environment.from_string(output_template_str) if output_template_str else None
+    input_template = (
+        jinja_environment.from_string(input_template_str) if input_template_str else None
+    )
+    output_template = (
+        jinja_environment.from_string(output_template_str) if output_template_str else None
+    )
 
     def format_instruction(template, mapping):
         """Helper function to format instruction using Jinja2 template (similar to GRPO trainer)"""
@@ -213,7 +234,7 @@ def train_model():
 
     def convert_to_messages(row):
         # Check if dataset already has messages format
-        if "messages" in row and row["messages"]:
+        if row.get("messages"):
             return row
 
         messages = []
@@ -230,7 +251,9 @@ def train_model():
                 messages.append({"role": "user", "content": user_content})
 
             # Format assistant message using output_template (Jinja template)
-            assistant_content = format_instruction(output_template, row) if output_template_str else ""
+            assistant_content = (
+                format_instruction(output_template, row) if output_template_str else ""
+            )
             if assistant_content:
                 messages.append({"role": "assistant", "content": assistant_content})
 
@@ -238,8 +261,10 @@ def train_model():
         if not messages or (len(messages) == 1 and messages[0].get("role") == "system"):
             messages = []
             if "instruction" in row and "output" in row:
-                if "input" in row and row["input"]:
-                    messages.append({"role": "user", "content": f"{row['instruction']}\n{row['input']}"})
+                if row.get("input"):
+                    messages.append(
+                        {"role": "user", "content": f"{row['instruction']}\n{row['input']}"}
+                    )
                 else:
                     messages.append({"role": "user", "content": row["instruction"]})
                 messages.append({"role": "assistant", "content": row["output"]})
@@ -359,7 +384,11 @@ def train_model():
         )
 
     # Create progress callback
-    callback = tlab_trainer.create_progress_callback() if hasattr(tlab_trainer, "create_progress_callback") else None
+    callback = (
+        tlab_trainer.create_progress_callback()
+        if hasattr(tlab_trainer, "create_progress_callback")
+        else None
+    )
     if callback:
         trainer.add_callback(callback)
 
@@ -396,7 +425,9 @@ def train_model():
             json_data = {
                 "description": f"A model trained and generated by Transformer Lab based on {tlab_trainer.params.model_name}"
             }
-            tlab_trainer.create_transformerlab_model(fused_model_name, model_architecture, json_data)
+            tlab_trainer.create_transformerlab_model(
+                fused_model_name, model_architecture, json_data
+            )
 
         return "Training completed successfully"
 

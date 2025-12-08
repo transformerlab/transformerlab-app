@@ -2,7 +2,6 @@
 
 import inspect
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple, Union
 
 import mlx.core as mx
 import mlx.nn as nn
@@ -20,7 +19,7 @@ class TextConfig:
     num_key_value_heads: int = None
     rope_theta: float = 10000
     rope_traditional: bool = False
-    rope_scaling: Optional[Dict[str, Union[float, str]]] = None
+    rope_scaling: dict[str, float | str] | None = None
 
     @classmethod
     def from_dict(cls, params):
@@ -72,8 +71,8 @@ class Attention(nn.Module):
     def __call__(
         self,
         x: mx.array,
-        mask: Optional[mx.array] = None,
-        cache: Optional[Tuple[mx.array, mx.array]] = None,
+        mask: mx.array | None = None,
+        cache: tuple[mx.array, mx.array] | None = None,
     ) -> mx.array:
         B, L, D = x.shape
 
@@ -94,7 +93,9 @@ class Attention(nn.Module):
             queries = self.rope(queries)
             keys = self.rope(keys)
 
-        output = mx.fast.scaled_dot_product_attention(queries, keys, values, scale=self.scale, mask=mask)
+        output = mx.fast.scaled_dot_product_attention(
+            queries, keys, values, scale=self.scale, mask=mask
+        )
         output = output.transpose(0, 2, 1, 3).reshape(B, L, -1)
         return self.o_proj(output), (keys, values)
 
@@ -124,8 +125,8 @@ class TransformerBlock(nn.Module):
     def __call__(
         self,
         x: mx.array,
-        mask: Optional[mx.array] = None,
-        cache: Optional[Tuple[mx.array, mx.array]] = None,
+        mask: mx.array | None = None,
+        cache: tuple[mx.array, mx.array] | None = None,
     ) -> mx.array:
         r, cache = self.self_attn(self.input_layernorm(x), mask, cache)
         h = x + r
@@ -176,7 +177,9 @@ class LanguageModel(nn.Module):
         super().__init__()
         self.model_type = config.model_type
         if self.model_type != "llama":
-            raise ValueError(f"Model type {self.model_type} not supported. Currently only 'llama' is supported")
+            raise ValueError(
+                f"Model type {self.model_type} not supported. Currently only 'llama' is supported"
+            )
         self.model = Llama(config)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 

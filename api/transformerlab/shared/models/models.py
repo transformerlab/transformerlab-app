@@ -1,9 +1,9 @@
-from typing import Optional, List
-from sqlalchemy import String, JSON, DateTime, func, Integer, Index, UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID
-import uuid
 import enum
+import uuid
+
+from fastapi_users.db import SQLAlchemyBaseOAuthAccountTableUUID, SQLAlchemyBaseUserTableUUID
+from sqlalchemy import JSON, UUID, DateTime, Index, Integer, String, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
@@ -17,7 +17,7 @@ class Config(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     key: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    value: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    value: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class Workflow(Base):
@@ -26,11 +26,13 @@ class Workflow(Base):
     __tablename__ = "workflows"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    status: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
-    experiment_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    name: Mapped[str | None] = mapped_column(String, nullable=True)
+    config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    status: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
+    experiment_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
@@ -45,14 +47,16 @@ class WorkflowRun(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     workflow_id: Mapped[int] = mapped_column(Integer, nullable=True)
-    workflow_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    job_ids: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    node_ids: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    status: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
-    current_tasks: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    current_job_ids: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    experiment_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    workflow_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    job_ids: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    node_ids: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    status: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
+    current_tasks: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    current_job_ids: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    experiment_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
@@ -107,9 +111,13 @@ class TeamInvitation(Base):
     team_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
     invited_by_user_id: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, nullable=False, default=TeamRole.MEMBER.value)
-    status: Mapped[str] = mapped_column(String, nullable=False, default=InvitationStatus.PENDING.value, index=True)
+    status: Mapped[str] = mapped_column(
+        String, nullable=False, default=InvitationStatus.PENDING.value, index=True
+    )
     expires_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
-    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
@@ -131,11 +139,13 @@ class TeamComputeProvider(Base):
     team_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     type: Mapped[str] = mapped_column(String, nullable=False, index=True)  # ProviderType enum value
-    config: Mapped[Optional[dict]] = mapped_column(
+    config: Mapped[dict | None] = mapped_column(
         JSON, nullable=False
     )  # Provider configuration (credentials, endpoints, etc.)
     created_by_user_id: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
@@ -157,10 +167,10 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
 
     __tablename__ = "user"
 
-    first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
-    oauth_accounts: Mapped[List["OAuthAccount"]] = relationship(
+    oauth_accounts: Mapped[list["OAuthAccount"]] = relationship(
         "OAuthAccount", primaryjoin="User.id == foreign(OAuthAccount.user_id)", lazy="joined"
     )
 

@@ -20,7 +20,7 @@ import traceback
 import uuid
 from collections import namedtuple
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import mlx.core as mx
 import numpy as np
@@ -28,14 +28,13 @@ import uvicorn
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
-
+from fastchat.serve.model_worker import logger
 from fastchat.utils import get_context_length
 from huggingface_hub import snapshot_download
 from mlx_embedding_models.embedding import EmbeddingModel
 from mlx_lm import load
 from mlx_lm.generate import generate_step
 from mlx_lm.sample_utils import make_logits_processors, make_sampler
-from fastchat.serve.model_worker import logger
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -59,7 +58,7 @@ class MLXWorker(BaseModelWorker):
         worker_addr: str,
         worker_id: str,
         model_path: str,
-        model_names: List[str],
+        model_names: list[str],
         model_architecture: str,
         limit_worker_concurrency: int,
         no_register: bool,
@@ -77,7 +76,10 @@ class MLXWorker(BaseModelWorker):
             conv_template,
         )
 
-        logger.info(f"Loading the model {self.model_names} on worker" + f"{worker_id}, worker type: MLX worker...")
+        logger.info(
+            f"Loading the model {self.model_names} on worker"
+            + f"{worker_id}, worker type: MLX worker..."
+        )
         logger.info(f"Model architecture: {model_architecture}")
 
         self.model_name = model_path
@@ -117,8 +119,8 @@ class MLXWorker(BaseModelWorker):
         self,
         tokenizer,
         response,
-        top_k: Optional[int],
-    ) -> Optional[Dict[str, Any]]:
+        top_k: int | None,
+    ) -> dict[str, Any] | None:
         """Process logprobs information from generation response to match OpenAI format"""
         current_token = response.token
         current_logprobs = response.logprobs
@@ -454,16 +456,22 @@ async def api_generate_with_visualization(request: Request):
                 top_predictions = []
                 for idx, prob in zip(top_sorted_indices.tolist(), top_sorted_probs.tolist()):
                     token_text = worker.tokenizer.decode([idx])
-                    top_predictions.append({"token": token_text, "prob": prob, "logit": logprobs[idx].item()})
+                    top_predictions.append(
+                        {"token": token_text, "prob": prob, "logit": logprobs[idx].item()}
+                    )
 
                 # Generate MLP activations
                 # Since MLX doesn't directly expose layer activations like PyTorch,
                 # we'll compute synthetic values based on the model architecture
                 num_layers = len(worker.mlx_model.model.layers)
-                mlp_activations = generate_mlp_activations(worker.mlx_model, input_tokens + tokens, num_layers)
+                mlp_activations = generate_mlp_activations(
+                    worker.mlx_model, input_tokens + tokens, num_layers
+                )
 
                 # Calculate attention entropy
-                attention_entropy = calculate_attention_entropy(worker.mlx_model, input_tokens + tokens, num_layers)
+                attention_entropy = calculate_attention_entropy(
+                    worker.mlx_model, input_tokens + tokens, num_layers
+                )
 
                 # Create response with all visualization data
                 response = {
@@ -560,7 +568,10 @@ async def api_generate_layers_visualization(request: Request):
             # Log scale for better visualization
             size = float(
                 min_size
-                + ((np.log(param_size) - np.log(min_param_size)) / (np.log(max_param_size) - np.log(min_param_size)))
+                + (
+                    (np.log(param_size) - np.log(min_param_size))
+                    / (np.log(max_param_size) - np.log(min_param_size))
+                )
                 * (max_size - min_size)
             )
             clean_name = clean_layer_name(layer)
@@ -908,7 +919,9 @@ def main():
         type=lambda s: s.split(","),
         help="Optional display comma separated names",
     )
-    parser.add_argument("--conv-template", type=str, default=None, help="Conversation prompt template.")
+    parser.add_argument(
+        "--conv-template", type=str, default=None, help="Conversation prompt template."
+    )
     parser.add_argument(
         "--trust_remote_code",
         action="store_false",

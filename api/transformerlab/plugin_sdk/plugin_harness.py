@@ -8,9 +8,9 @@ All other parameters can be passed as if you are calling the plugin directly.
 
 """
 
+import argparse
 import os
 import sys
-import argparse
 import traceback
 
 # Set organization context from environment variable if provided
@@ -42,7 +42,9 @@ except ImportError as e:
 
     # if e is a ModuleNotFoundError, the plugin is missing a required package
     if isinstance(e, ModuleNotFoundError):
-        print("ModuleNotFoundError means a Python package is missing. This is usually fixed by reinstalling the plugin")
+        print(
+            "ModuleNotFoundError means a Python package is missing. This is usually fixed by reinstalling the plugin"
+        )
 
     # Clear organization context on error
     if org_id:
@@ -57,7 +59,7 @@ except ImportError as e:
 
 # Also execute the function main.main(), if it exists
 try:
-    if "main" in dir(main) and callable(getattr(main, "main")):
+    if "main" in dir(main) and callable(main.main):
         main.main()
 finally:
     # Clear organization context when plugin exits

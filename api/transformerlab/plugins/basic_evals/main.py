@@ -2,8 +2,7 @@ import json
 import re
 
 import pandas as pd
-from RestrictedPython import compile_restricted, safe_builtins, limited_builtins, utility_builtins
-
+from RestrictedPython import compile_restricted, limited_builtins, safe_builtins, utility_builtins
 from transformerlab.sdk.v1.evals import tlab_evals
 
 # Get Predefined tasks
@@ -159,7 +158,9 @@ def execute_custom_function_regexp(output_text: str, expression: str, return_typ
 
             # The code should define an evaluate() function
             if "evaluate" not in local_namespace:
-                print("Error: Python code must have an evaluate() function which controls everything")
+                print(
+                    "Error: Python code must have an evaluate() function which controls everything"
+                )
                 raise ValueError("evaluate() function not found in the code.")
 
             # Call the evaluate function
@@ -170,12 +171,14 @@ def execute_custom_function_regexp(output_text: str, expression: str, return_typ
                 print(
                     f"Error: evaluate() function must return a numeric score (int/float) or a boolean, got {type(result).__name__}"
                 )
-                raise ValueError("evaluate() function must return a numeric score (int/float) or a boolean.")
+                raise ValueError(
+                    "evaluate() function must return a numeric score (int/float) or a boolean."
+                )
 
             return result
 
         except Exception as e:
-            print(f"Error executing custom code: {str(e)}")
+            print(f"Error executing custom code: {e!s}")
             return None
     else:
         print("Invalid return type.")
@@ -192,7 +195,11 @@ def run_evaluation():
     # Parse tasks
     tasks = []
     print("TLAB EVALS TASKS:", tlab_evals.params.tasks, type(tlab_evals.params.tasks))
-    print("TLAB EVALS PREDEFINEDTASKS:", tlab_evals.params.predefined_tasks, type(tlab_evals.params.predefined_tasks))
+    print(
+        "TLAB EVALS PREDEFINEDTASKS:",
+        tlab_evals.params.predefined_tasks,
+        type(tlab_evals.params.predefined_tasks),
+    )
 
     # First try to parse the tasks JSON
     try:
@@ -203,13 +210,17 @@ def run_evaluation():
         raise ValueError(f"Invalid tasks JSON format: {tlab_evals.params.tasks}")
 
     # Add predefined tasks if specified
-    if tlab_evals.params.predefined_tasks and not isinstance(tlab_evals.params.predefined_tasks, list):
+    if tlab_evals.params.predefined_tasks and not isinstance(
+        tlab_evals.params.predefined_tasks, list
+    ):
         try:
             predefined_tasks = json.loads(tlab_evals.params.predefined_tasks)
         except json.JSONDecodeError:
             print(f"Invalid JSON format for predefined tasks: {tlab_evals.params.predefined_tasks}")
             predefined_tasks = (
-                tlab_evals.params.predefined_tasks.split(",") if tlab_evals.params.predefined_tasks else []
+                tlab_evals.params.predefined_tasks.split(",")
+                if tlab_evals.params.predefined_tasks
+                else []
             )
     if len(predefined_tasks) == 0:
         print("No valid predefined tasks found.")
@@ -232,14 +243,16 @@ def run_evaluation():
         print("Dataset loaded successfully")
     except Exception as e:
         print(f"Error loading dataset: {e}")
-        raise ValueError(f"Failed to load dataset {tlab_evals.params.dataset_name}: {str(e)}")
+        raise ValueError(f"Failed to load dataset {tlab_evals.params.dataset_name}: {e!s}")
 
     # Verify required columns exist
     if tlab_evals.params.input_col not in df.columns:
         raise ValueError(f"Input column '{tlab_evals.params.input_col}' not found in the dataset.")
 
     if tlab_evals.params.output_col not in df.columns:
-        raise ValueError(f"Output column '{tlab_evals.params.output_col}' not found in the dataset.")
+        raise ValueError(
+            f"Output column '{tlab_evals.params.output_col}' not found in the dataset."
+        )
 
     # Apply limit if specified
     if tlab_evals.params.limit and float(tlab_evals.limit) != 1.0:
@@ -254,7 +267,9 @@ def run_evaluation():
     # Apply evaluations
     for task in tasks:
         df_limited[f"eval_{task['name']}"] = df_limited[tlab_evals.params.output_col].apply(
-            lambda x: execute_custom_function_regexp(x, task["expression"], task["return_type"].lower())
+            lambda x: execute_custom_function_regexp(
+                x, task["expression"], task["return_type"].lower()
+            )
         )
 
     tlab_evals.progress_update(40)

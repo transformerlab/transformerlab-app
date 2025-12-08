@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple, Union
 
 import mlx.core as mx
 import mlx.nn as nn
@@ -24,7 +23,7 @@ class ModelArgs(BaseModelArgs):
     rope_theta: float = 1e6
     rope_traditional: bool = False
     model_type: str = None
-    rope_scaling: Optional[Dict[str, Union[float, str]]] = None
+    rope_scaling: dict[str, float | str] | None = None
 
     def __post_init__(self):
         if self.num_key_value_heads is None:
@@ -60,8 +59,12 @@ class MixtralAttention(nn.Module):
         self.scale = self.head_dim**-0.5
 
         self.q_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
-        self.k_proj = nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=False)
-        self.v_proj = nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=False)
+        self.k_proj = nn.Linear(
+            self.hidden_size, self.num_key_value_heads * self.head_dim, bias=False
+        )
+        self.v_proj = nn.Linear(
+            self.hidden_size, self.num_key_value_heads * self.head_dim, bias=False
+        )
         self.o_proj = nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=False)
 
         self.rope = nn.RoPE(
@@ -73,8 +76,8 @@ class MixtralAttention(nn.Module):
     def __call__(
         self,
         x: mx.array,
-        mask: Optional[mx.array] = None,
-        cache: Optional[Tuple[mx.array, mx.array]] = None,
+        mask: mx.array | None = None,
+        cache: tuple[mx.array, mx.array] | None = None,
     ) -> mx.array:
         B, L, D = x.shape
 
@@ -182,8 +185,8 @@ class MixtralDecoderLayer(nn.Module):
     def __call__(
         self,
         x: mx.array,
-        mask: Optional[mx.array] = None,
-        cache: Optional[Tuple[mx.array, mx.array]] = None,
+        mask: mx.array | None = None,
+        cache: tuple[mx.array, mx.array] | None = None,
     ) -> mx.array:
         r, cache = self.self_attn(self.input_layernorm(x), mask, cache)
         h = x + r
@@ -206,8 +209,8 @@ class MixtralModel(nn.Module):
     def __call__(
         self,
         inputs: mx.array,
-        input_embeds: Optional[mx.array] = None,
-        mask: Optional[mx.array] = None,
+        input_embeds: mx.array | None = None,
+        mask: mx.array | None = None,
         cache=None,
     ):
         if input_embeds is None:
@@ -239,8 +242,8 @@ class Model(nn.Module):
     def __call__(
         self,
         inputs: mx.array,
-        input_embeds: Optional[mx.array] = None,
-        mask: Optional[mx.array] = None,
+        input_embeds: mx.array | None = None,
+        mask: mx.array | None = None,
         cache=None,
     ):
         out, cache = self.model(inputs, input_embeds, mask, cache)

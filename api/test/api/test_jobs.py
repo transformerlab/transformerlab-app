@@ -1,14 +1,17 @@
+import sys
 import tempfile
 import time
-import sys
 from pathlib import Path
+
 import pytest
 
 
 @pytest.fixture(autouse=True)
 def patch_sys_argv(monkeypatch):
     monkeypatch.setattr(
-        sys, "argv", ["test", "--model_name", "dummy", "--job_id", "dummy", "--total_size_of_model_in_mb", "1"]
+        sys,
+        "argv",
+        ["test", "--model_name", "dummy", "--job_id", "dummy", "--total_size_of_model_in_mb", "1"],
     )
 
 
@@ -38,12 +41,18 @@ def fake_snapshot_download():
 
 
 @pytest.mark.skip()
-def test_launch_snapshot_with_cancel(monkeypatch, fake_cancel_check_factory, fake_snapshot_download):
+def test_launch_snapshot_with_cancel(
+    monkeypatch, fake_cancel_check_factory, fake_snapshot_download
+):
     # Import only after monkeypatching sys.argv
     from transformerlab.shared.download_huggingface_model import launch_snapshot_with_cancel
 
-    monkeypatch.setattr("transformerlab.shared.download_huggingface_model.cancel_check", fake_cancel_check_factory)
-    monkeypatch.setattr("transformerlab.shared.download_huggingface_model.snapshot_download", fake_snapshot_download)
+    monkeypatch.setattr(
+        "transformerlab.shared.download_huggingface_model.cancel_check", fake_cancel_check_factory
+    )
+    monkeypatch.setattr(
+        "transformerlab.shared.download_huggingface_model.snapshot_download", fake_snapshot_download
+    )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         result = launch_snapshot_with_cancel(repo_id="bert-base-uncased", allow_patterns=["*.json"])

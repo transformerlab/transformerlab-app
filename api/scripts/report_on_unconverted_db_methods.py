@@ -6,7 +6,7 @@ print(DB_PATH)  # For debugging purposes, can be removed later
 
 
 def get_methods_with_unconverted_decorator(filepath):
-    with open(filepath, "r") as f:
+    with open(filepath) as f:
         tree = ast.parse(f.read(), filename=filepath)
     methods = []
     unconverted_methods = []

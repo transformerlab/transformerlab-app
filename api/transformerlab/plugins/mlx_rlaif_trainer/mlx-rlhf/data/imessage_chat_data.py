@@ -1,10 +1,11 @@
 import glob
 import re
+
 import numpy as np
 
 
 def parse_messages(file_path, reverse_query: bool = False):
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         lines = f.readlines()
 
     if len(lines) < 30:
@@ -18,7 +19,10 @@ def parse_messages(file_path, reverse_query: bool = False):
             if current_message["text"]:
                 messages.append(current_message)
                 current_message = {"sender": "", "text": ""}
-        elif re.match(r"^(\+\d{11}|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})", line) or line == "Me\n":
+        elif (
+            re.match(r"^(\+\d{11}|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})", line)
+            or line == "Me\n"
+        ):
             # Phone number or email address or "Me" line, indicates sender
             current_message["sender"] = line.strip()
         elif line.strip():
@@ -96,7 +100,10 @@ def densify_chat(chat_messages, tokenizer, chunk_length: int = 512, prior_contex
                 # If the sender alone is simply too big
                 current_chunk["labels"] = current_chunk["labels"]
                 chunks.append(current_chunk)  # Put it into the buffer, we'll delete it later
-                current_chunk = {"input_ids": [], "labels": []}  # Reset the chunk to empty for the 'me' text
+                current_chunk = {
+                    "input_ids": [],
+                    "labels": [],
+                }  # Reset the chunk to empty for the 'me' text
         else:
             current_chunk["input_ids"].extend(sender_tokens)
             current_chunk["labels"].extend([-100] * len(sender_tokens))
@@ -113,7 +120,9 @@ def densify_chat(chat_messages, tokenizer, chunk_length: int = 512, prior_contex
                 "labels": [-100] * prior_context_length,
             }
             me_tokens = me_tokens[max_ctx:]
-            max_ctx = max(0, chunk_length - len(current_chunk["input_ids"]))  # == chunk_length-prior_context_length
+            max_ctx = max(
+                0, chunk_length - len(current_chunk["input_ids"])
+            )  # == chunk_length-prior_context_length
             current_chunk["input_ids"].extend(me_tokens[max_ctx:])
             current_chunk["labels"].extend(me_tokens[max_ctx:])
 
@@ -137,7 +146,9 @@ def densify_chat(chat_messages, tokenizer, chunk_length: int = 512, prior_contex
     return chunks
 
 
-def get_all_txts(message_dir, tokenizer, chunk_length=512, prior_context_length=32, reward_function: bool = False):
+def get_all_txts(
+    message_dir, tokenizer, chunk_length=512, prior_context_length=32, reward_function: bool = False
+):
     dataset = []
     for fn in glob.glob(f"{message_dir}/*.txt"):
         if "," in fn.split("/")[-1]:
@@ -146,10 +157,14 @@ def get_all_txts(message_dir, tokenizer, chunk_length=512, prior_context_length=
         chat_messages = parse_messages(fn)
         if len(chat_messages) > 0:
             if not reward_function:
-                chat_chunks = densify_chat(chat_messages, tokenizer, chunk_length, prior_context_length)
+                chat_chunks = densify_chat(
+                    chat_messages, tokenizer, chunk_length, prior_context_length
+                )
                 dataset.extend(chat_chunks)
             else:
-                chat_chunks = densify_chat(chat_messages, tokenizer, chunk_length, prior_context_length)
+                chat_chunks = densify_chat(
+                    chat_messages, tokenizer, chunk_length, prior_context_length
+                )
                 # Split chunks based on -100s...
                 #
                 dataset.extend(chat_chunks)
@@ -162,7 +177,11 @@ if __name__ == "__main__":
 
     tokenizer_demo = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-chat-hf")
     # Wherever you run `imessage-exporter -f txt -o message_data`
-    dataset = get_all_txts("../../message_data/", tokenizer_demo, chunk_length=256, prior_context_length=24)
+    dataset = get_all_txts(
+        "../../message_data/", tokenizer_demo, chunk_length=256, prior_context_length=24
+    )
     for i in range(5):
-        print(f"dataset sample {i}: {dataset[i]} \n reads as: {tokenizer_demo.decode(dataset[i]['input_ids'])}")
+        print(
+            f"dataset sample {i}: {dataset[i]} \n reads as: {tokenizer_demo.decode(dataset[i]['input_ids'])}"
+        )
     print(f"{len(dataset)} total samples -- estimated to have {len(dataset) * 256} tokens")

@@ -8,18 +8,17 @@ CUDA_VISIBLE_DEVICES=0 llamafactory-cli train examples/train_lora/llama3_lora_re
 
 """
 
+import json
 import os
+import re
 import subprocess
 import time
-import json
+
 import yaml
-import re
-
-from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import get_python_executable
-from lab.dirs import get_workspace_dir
 from lab import storage
-
+from lab.dirs import get_workspace_dir
+from transformerlab.plugin import get_python_executable
+from transformerlab.sdk.v1.train import tlab_trainer
 
 ########################################
 # First set up arguments and parameters
@@ -65,11 +64,17 @@ def run_train():
                 "file_name": "train.json",
                 "ranking": True,
                 "formatting": "sharegpt",
-                "columns": {"messages": "conversations", "chosen": "chosen", "rejected": "rejected"},
+                "columns": {
+                    "messages": "conversations",
+                    "chosen": "chosen",
+                    "rejected": "rejected",
+                },
             }
         }
 
-        with storage.open(storage.join(data_directory, "dataset_info.json"), "w", encoding="utf-8") as f:
+        with storage.open(
+            storage.join(data_directory, "dataset_info.json"), "w", encoding="utf-8"
+        ) as f:
             json.dump(dataset_info, f, indent=2)
 
     # Process the dataset
@@ -88,14 +93,18 @@ def run_train():
     # Generate YAML config
     yaml_config_path = storage.join(data_directory, "llama3_lora_dpo.yaml")
     today = time.strftime("%Y%m%d-%H%M%S")
-    output_dir = storage.join(tlab_trainer.params["output_dir"], f"job_{tlab_trainer.params['job_id']}_{today}")
+    output_dir = storage.join(
+        tlab_trainer.params["output_dir"], f"job_{tlab_trainer.params['job_id']}_{today}"
+    )
 
     # First copy a template file to the data directory
-    os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/train_lora/llama3_lora_dpo.yaml {yaml_config_path}")
+    os.system(
+        f"cp {plugin_dir}/LLaMA-Factory/examples/train_lora/llama3_lora_dpo.yaml {yaml_config_path}"
+    )
 
     # Now replace specific values in the file using PyYAML
     yml = {}
-    with open(yaml_config_path, "r") as file:
+    with open(yaml_config_path) as file:
         yml = yaml.safe_load(file)
 
     print("Template configuration:")
@@ -125,7 +134,9 @@ def run_train():
     env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
 
     if "venv" in python_executable:
-        python_executable = python_executable.replace("venv/bin/python", "venv/bin/llamafactory-cli")
+        python_executable = python_executable.replace(
+            "venv/bin/python", "venv/bin/llamafactory-cli"
+        )
 
     # Train the model
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -211,10 +222,12 @@ def fuse_model():
 
     yaml_config_path = storage.join(data_directory, "merge_llama3_lora_sft.yaml")
     # Copy a template file to the data directory
-    os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/merge_lora/llama3_lora_sft.yaml {yaml_config_path}")
+    os.system(
+        f"cp {plugin_dir}/LLaMA-Factory/examples/merge_lora/llama3_lora_sft.yaml {yaml_config_path}"
+    )
 
     yml = {}
-    with open(yaml_config_path, "r") as file:
+    with open(yaml_config_path) as file:
         yml = yaml.safe_load(file)
 
     yml["model_name_or_path"] = tlab_trainer.params.model_name
@@ -232,7 +245,9 @@ def fuse_model():
     env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
 
     if "venv" in python_executable:
-        python_executable = python_executable.replace("venv/bin/python", "venv/bin/llamafactory-cli")
+        python_executable = python_executable.replace(
+            "venv/bin/python", "venv/bin/llamafactory-cli"
+        )
 
     fuse_popen_command = [python_executable, "export", yaml_config_path]
 

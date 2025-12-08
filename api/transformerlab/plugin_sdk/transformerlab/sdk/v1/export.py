@@ -1,7 +1,7 @@
 import time
 import traceback
 
-from transformerlab.sdk.v1.tlab_plugin import TLabPlugin, DotDict
+from transformerlab.sdk.v1.tlab_plugin import DotDict, TLabPlugin
 
 
 class ExportTLabPlugin(TLabPlugin):
@@ -11,7 +11,9 @@ class ExportTLabPlugin(TLabPlugin):
         super().__init__()
         self.tlab_plugin_type = "exporter"
 
-        self._parser.add_argument("--output_dir", default=None, type=str, help="Path to save the exported model")
+        self._parser.add_argument(
+            "--output_dir", default=None, type=str, help="Path to save the exported model"
+        )
 
     def _ensure_args_parsed(self):
         """Ensure arguments are parsed and convert self.params to a DotDict"""
@@ -61,19 +63,21 @@ class ExportTLabPlugin(TLabPlugin):
                     # Update final progress and success status
                     self.job.update_progress(progress_end)
                     self.job.update_job_data_field("completion_status", "success")
-                    self.job.update_job_data_field("completion_details", "Export completed successfully")
+                    self.job.update_job_data_field(
+                        "completion_details", "Export completed successfully"
+                    )
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
 
                     return result
 
                 except Exception as e:
                     # Capture the full erorr
-                    error_msg = f"Error in Job: {str(e)}\n{traceback.format_exc()}"
+                    error_msg = f"Error in Job: {e!s}\n{traceback.format_exc()}"
                     print(error_msg)
 
                     # Log the error
                     self.job.update_job_data_field("completion_status", "failed")
-                    self.job.update_job_data_field("completion_details", f"Error occured: {str(e)}")
+                    self.job.update_job_data_field("completion_details", f"Error occured: {e!s}")
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
 
                     raise

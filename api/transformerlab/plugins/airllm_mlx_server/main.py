@@ -17,17 +17,16 @@ import os
 import sys
 import uuid
 from collections import namedtuple
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import uvicorn
 from airllm import AutoModel
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastchat.serve.model_worker import logger
 from fastchat.utils import get_context_length
 from huggingface_hub import snapshot_download
-from fastchat.serve.model_worker import logger
-
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -55,7 +54,7 @@ class MLXWorker(BaseModelWorker):
         worker_addr: str,
         worker_id: str,
         model_path: str,
-        model_names: List[str],
+        model_names: list[str],
         limit_worker_concurrency: int,
         no_register: bool,
         conv_template: str,
@@ -70,7 +69,10 @@ class MLXWorker(BaseModelWorker):
             conv_template,
         )
 
-        logger.info(f"Loading the model {self.model_names} on worker" + f"{worker_id}, worker type: MLX worker...")
+        logger.info(
+            f"Loading the model {self.model_names} on worker"
+            + f"{worker_id}, worker type: MLX worker..."
+        )
 
         self.model_name = model_path
 
@@ -101,8 +103,8 @@ class MLXWorker(BaseModelWorker):
         self,
         tokenizer,
         response,
-        top_k: Optional[int],
-    ) -> Optional[Dict[str, Any]]:
+        top_k: int | None,
+    ) -> dict[str, Any] | None:
         """Process logprobs information from generation response to match OpenAI format"""
         current_token = response.token
         current_logprobs = response.logprobs
@@ -361,7 +363,9 @@ def main():
         type=lambda s: s.split(","),
         help="Optional display comma separated names",
     )
-    parser.add_argument("--conv-template", type=str, default=None, help="Conversation prompt template.")
+    parser.add_argument(
+        "--conv-template", type=str, default=None, help="Conversation prompt template."
+    )
     parser.add_argument(
         "--trust_remote_code",
         action="store_false",

@@ -1,8 +1,7 @@
-import xmlrpc.client
-import time
-import socket
 import http.client
 import logging
+import time
+import xmlrpc.client
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -79,8 +78,8 @@ class RetryableXMLRPCClient:
                 return method(*args, **kwargs)
 
             except (
-                socket.error,
-                socket.timeout,
+                TimeoutError,
+                OSError,
                 http.client.HTTPException,
                 xmlrpc.client.ProtocolError,
                 ConnectionError,
@@ -106,7 +105,7 @@ class RetryableXMLRPCClient:
             except Exception as e:
                 # Unexpected errors - log and continue with program
                 last_exception = e
-                logger.error(f"Unexpected error in {method_name}: {str(e)}. Not retrying.")
+                logger.error(f"Unexpected error in {method_name}: {e!s}. Not retrying.")
                 return None
 
             # Implement exponential backoff
@@ -114,7 +113,9 @@ class RetryableXMLRPCClient:
             retries += 1
 
         # If we've exhausted all retries
-        logger.error(f"Failed after {self.max_retries} retries for {method_name}. Last error: {str(last_exception)}")
+        logger.error(
+            f"Failed after {self.max_retries} retries for {method_name}. Last error: {last_exception!s}"
+        )
         return None
 
     def call(self, method_name, *args, **kwargs):
@@ -153,7 +154,9 @@ class RetryableXMLRPCClient:
 # Example usage
 if __name__ == "__main__":
     # Create a retryable client
-    client = RetryableXMLRPCClient(url="http://localhost:8338/job_sdk", max_retries=3, retry_delay=1, timeout=10)
+    client = RetryableXMLRPCClient(
+        url="http://localhost:8338/job_sdk", max_retries=3, retry_delay=1, timeout=10
+    )
 
     # Use the client just like a regular XML-RPC client
     try:
@@ -176,5 +179,5 @@ if __name__ == "__main__":
 
     except Exception as e:
         # This will only be reached for errors not caught by the retry mechanism
-        print(f"Unexpected error: {str(e)}")
+        print(f"Unexpected error: {e!s}")
         print("Program continues anyway...")

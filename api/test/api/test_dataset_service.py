@@ -60,7 +60,9 @@ def test_load_local_dataset_uses_explicit_data_files(tmp_path: Path, monkeypatch
 
     monkeypatch.setattr(dataset_service, "load_dataset", fake_load_dataset)
 
-    result = dataset_service.load_local_dataset(str(tmp_path), data_files=["keep.me", "index.json"], streaming=True)
+    result = dataset_service.load_local_dataset(
+        str(tmp_path), data_files=["keep.me", "index.json"], streaming=True
+    )
 
     assert result == {"ok": True}
     assert captured["path"] == str(tmp_path)

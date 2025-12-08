@@ -1,17 +1,17 @@
 # database.py
-from typing import AsyncGenerator, Optional
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
-from fastapi_users.db import SQLAlchemyUserDatabase
-from sqlalchemy.dialects.sqlite import insert
-from fastapi import Depends
+from collections.abc import AsyncGenerator
 from os import getenv
 
-from transformerlab.db.constants import DATABASE_URL
-from transformerlab.shared.models.models import Base, Team, User, OAuthAccount
-from transformerlab.shared.s3_bucket import create_s3_bucket_for_team
+from fastapi import Depends
+from fastapi_users.db import SQLAlchemyUserDatabase
+from sqlalchemy import select
+from sqlalchemy.dialects.sqlite import insert
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
+from transformerlab.db.constants import DATABASE_URL
+from transformerlab.shared.models.models import Base, OAuthAccount, Team, User
+from transformerlab.shared.s3_bucket import create_s3_bucket_for_team
 
 # 3. Setup the Async Engine and Session
 engine = create_async_engine(DATABASE_URL)
@@ -37,7 +37,7 @@ class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
     This is REQUIRED because the base class raises NotImplementedError for get_by_oauth_account.
     """
 
-    async def get_by_oauth_account(self, oauth: str, account_id: str) -> Optional[User]:
+    async def get_by_oauth_account(self, oauth: str, account_id: str) -> User | None:
         """
         Get a user by OAuth account provider and account ID.
         Args:
@@ -67,7 +67,9 @@ class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
             .values(user_id=user.id, **create_dict)
             .on_conflict_do_update(
                 index_elements=["oauth_name", "account_id"],  # Unique index on these columns
-                set_={k: v for k, v in create_dict.items() if k not in ["id"]},  # Update all fields except primary key
+                set_={
+                    k: v for k, v in create_dict.items() if k not in ["id"]
+                },  # Update all fields except primary key
             )
         )
         await self.session.execute(stmt)

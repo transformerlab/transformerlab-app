@@ -1,10 +1,9 @@
 # Root dir is the parent of the parent of this current directory:
 
 import os
-from lab import HOME_DIR
-from lab.dirs import get_workspace_dir
-from lab import storage
 
+from lab import HOME_DIR, storage
+from lab.dirs import get_workspace_dir
 
 """
 TFL_SOURCE_CODE_DIR is the directory where the source code is stored.

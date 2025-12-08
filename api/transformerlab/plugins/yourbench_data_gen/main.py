@@ -1,12 +1,13 @@
 import os
-import yaml
 import subprocess
-from huggingface_hub import get_token, HfApi
+
+import yaml
 from datasets import load_from_disk
-from transformerlab.sdk.v1.generate import tlab_gen
-from transformerlab.plugin import get_python_executable
-from lab.dirs import get_workspace_dir
+from huggingface_hub import HfApi, get_token
 from lab import storage
+from lab.dirs import get_workspace_dir
+from transformerlab.plugin import get_python_executable
+from transformerlab.sdk.v1.generate import tlab_gen
 
 
 def generate_config():
@@ -26,7 +27,9 @@ def generate_config():
         workspace_dir, "experiments", tlab_gen.params.experiment_name, "documents", docs
     )
     if not storage.isdir(tlab_gen.params.documents_dir):
-        raise FileNotFoundError("Please provide a directory containing all your files instead of individual files")
+        raise FileNotFoundError(
+            "Please provide a directory containing all your files instead of individual files"
+        )
 
     base_url = getattr(trlab_model, "base_url", None)
     if not base_url:
@@ -62,7 +65,10 @@ def generate_config():
                 "source_documents_dir": tlab_gen.params.documents_dir,
                 "output_dir": tlab_gen.params.output_dir,
             },
-            "upload_ingest_to_hub": {"run": True, "source_documents_dir": tlab_gen.params.output_dir},
+            "upload_ingest_to_hub": {
+                "run": True,
+                "source_documents_dir": tlab_gen.params.output_dir,
+            },
             "summarization": {"run": True},
             "chunking": {
                 "run": True,
@@ -107,13 +113,22 @@ def get_huggingface_username(token):
 
 
 def save_generated_datasets(output_dir):
-    dataset_types = ["chunked", "lighteval", "ingested", "multi_hop_questions", "single_shot_questions", "summarized"]
+    dataset_types = [
+        "chunked",
+        "lighteval",
+        "ingested",
+        "multi_hop_questions",
+        "single_shot_questions",
+        "summarized",
+    ]
     for data_split in dataset_types:
         dataset = load_from_disk(storage.join(output_dir, data_split))
         df = dataset[data_split].to_pandas()
         # Save the generated data and upload to TransformerLab
         additional_metadata = {"source_docs": tlab_gen.params.documents_dir}
-        tlab_gen.save_generated_dataset(df, additional_metadata=additional_metadata, suffix=data_split)
+        tlab_gen.save_generated_dataset(
+            df, additional_metadata=additional_metadata, suffix=data_split
+        )
 
 
 @tlab_gen.job_wrapper(progress_start=0, progress_end=100)
@@ -160,7 +175,9 @@ def run_yourbench():
         env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
 
         if "venv" in python_executable:
-            yourbench_executable = python_executable.replace("venv/bin/python", "venv/bin/yourbench")
+            yourbench_executable = python_executable.replace(
+                "venv/bin/python", "venv/bin/yourbench"
+            )
         else:
             yourbench_executable = "yourbench"
 

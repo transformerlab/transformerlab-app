@@ -7,9 +7,10 @@ Usage:
 """
 
 import argparse
-import requests
-import sys
 import json
+import sys
+
+import requests
 
 
 def create_user(email: str, password: str, base_url: str = "http://127.0.0.1:8338"):
@@ -48,16 +49,20 @@ def create_user(email: str, password: str, base_url: str = "http://127.0.0.1:833
         print("Make sure the API server is running.")
         return False
     except Exception as e:
-        print(f"✗ Error: {str(e)}")
+        print(f"✗ Error: {e!s}")
         return False
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Create a new user by calling the /auth/register endpoint")
+    parser = argparse.ArgumentParser(
+        description="Create a new user by calling the /auth/register endpoint"
+    )
     parser.add_argument("--email", required=True, help="User's email address")
     parser.add_argument("--password", required=True, help="User's password")
     parser.add_argument(
-        "--url", default="http://127.0.0.1:8338", help="Base URL of the API (default: http://127.0.0.1:8338)"
+        "--url",
+        default="http://127.0.0.1:8338",
+        help="Base URL of the API (default: http://127.0.0.1:8338)",
     )
 
     args = parser.parse_args()

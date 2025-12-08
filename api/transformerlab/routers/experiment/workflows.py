@@ -1,13 +1,18 @@
-from fastapi import APIRouter, UploadFile, Body
+import json
+import uuid
+
+import yaml
+from fastapi import APIRouter, Body, UploadFile
 from fastapi.responses import FileResponse
-from transformerlab.services.tasks_service import tasks_service
+
+import transformerlab.routers.tasks as tsks
 import transformerlab.services.job_service as job_service
 from transformerlab.db.workflows import (
     workflow_count_queued,
     workflow_count_running,
+    workflow_create,
     workflow_delete_by_id,
     workflow_queue,
-    workflow_update_name,
     workflow_run_get_by_id,
     workflow_run_get_queued,
     workflow_run_get_running,
@@ -15,15 +20,11 @@ from transformerlab.db.workflows import (
     workflow_run_update_with_new_job,
     workflow_runs_get_from_experiment,
     workflow_update_config,
+    workflow_update_name,
     workflows_get_by_id,
     workflows_get_from_experiment,
-    workflow_create,
 )
-import transformerlab.routers.tasks as tsks
-import json
-import yaml
-import uuid
-
+from transformerlab.services.tasks_service import tasks_service
 from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
@@ -75,7 +76,9 @@ async def workflow_delete(workflow_id: str, experimentId: str):
 
 
 @router.get("/create", summary="Create a workflow from config")
-async def workflow_create_func(name: str, config: str = '{"nodes":[]}', experimentId: str = "alpha"):
+async def workflow_create_func(
+    name: str, config: str = '{"nodes":[]}', experimentId: str = "alpha"
+):
     config = json.loads(config)
 
     # Check if a START node already exists
@@ -83,7 +86,12 @@ async def workflow_create_func(name: str, config: str = '{"nodes":[]}', experime
 
     if len(config["nodes"]) > 0 and not has_start_node:
         config["nodes"] = [
-            {"type": "START", "id": str(uuid.uuid4()), "name": "START", "out": [config["nodes"][0]["id"]]}
+            {
+                "type": "START",
+                "id": str(uuid.uuid4()),
+                "name": "START",
+                "out": [config["nodes"][0]["id"]],
+            }
         ] + config["nodes"]
     elif len(config["nodes"]) == 0:
         config["nodes"] = [{"type": "START", "id": str(uuid.uuid4()), "name": "START", "out": []}]
@@ -106,8 +114,12 @@ async def workflow_create_empty(name: str, experimentId: str = "alpha"):
     return workflow_id
 
 
-@router.get("/{workflow_id}/{node_id}/edit_node_metadata", summary="Edit metadata of a node in a workflow")
-async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: str, experimentId: str):
+@router.get(
+    "/{workflow_id}/{node_id}/edit_node_metadata", summary="Edit metadata of a node in a workflow"
+)
+async def workflow_edit_node_metadata(
+    workflow_id: str, node_id: str, metadata: str, experimentId: str
+):
     # Get workflow with experiment enforcement at database level
     workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
@@ -196,7 +208,9 @@ async def workflow_add_node(workflow_id: str, node: str, experimentId: str):
 
 
 @router.post("/{workflow_id}/{node_id}/update_node", summary="Update a specific node in a workflow")
-async def workflow_update_node(workflow_id: str, node_id: str, experimentId: str, new_node: dict = Body()):
+async def workflow_update_node(
+    workflow_id: str, node_id: str, experimentId: str, new_node: dict = Body()
+):
     # Get workflow with experiment enforcement at database level
     workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
@@ -221,8 +235,13 @@ async def workflow_update_node(workflow_id: str, node_id: str, experimentId: str
     return {"message": "OK"}
 
 
-@router.post("/{workflow_id}/{start_node_id}/remove_edge", summary="Remove an edge between two nodes in a workflow")
-async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id: str, experimentId: str):
+@router.post(
+    "/{workflow_id}/{start_node_id}/remove_edge",
+    summary="Remove an edge between two nodes in a workflow",
+)
+async def workflow_remove_edge(
+    workflow_id: str, start_node_id: str, end_node_id: str, experimentId: str
+):
     # Get workflow with experiment enforcement at database level
     workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
@@ -249,8 +268,12 @@ async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id
     return {"message": "OK"}
 
 
-@router.post("/{workflow_id}/{start_node_id}/add_edge", summary="Add an edge between two nodes in a workflow")
-async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: str, experimentId: str):
+@router.post(
+    "/{workflow_id}/{start_node_id}/add_edge", summary="Add an edge between two nodes in a workflow"
+)
+async def workflow_add_edge(
+    workflow_id: str, start_node_id: str, end_node_id: str, experimentId: str
+):
     # Get workflow with experiment enforcement at database level
     workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
@@ -338,7 +361,7 @@ async def workflow_export_to_yaml(workflow_id: str, experimentId: str):
 
 @router.post("/import_from_yaml", summary="Import a workflow definition from YAML")
 async def workflow_import_from_yaml(file: UploadFile, experimentId: str = "alpha"):
-    with open(file.filename, "r") as fileStream:
+    with open(file.filename) as fileStream:
         workflow = yaml.load(fileStream, Loader=yaml.BaseLoader)
     await workflow_create(workflow["name"], json.dumps(workflow["config"]), experimentId)
     return {"message": "OK"}
@@ -362,9 +385,13 @@ async def start_next_step_in_workflow():
         return {"message": "No workflow is running or queued."}
 
     # 2. Load context for the active run
-    workflow_run_id, workflow_id, workflow_config, current_tasks, current_job_ids = await load_workflow_context(
-        active_run
-    )
+    (
+        workflow_run_id,
+        workflow_id,
+        workflow_config,
+        current_tasks,
+        current_job_ids,
+    ) = await load_workflow_context(active_run)
 
     # 3. Check status of jobs from the *previous* step (if any)
     job_status_message = await check_current_jobs_status(workflow_run_id, current_job_ids)
@@ -382,11 +409,15 @@ async def start_next_step_in_workflow():
     if not next_task_ids:
         # Workflow is complete
         await workflow_run_update_status(workflow_run_id, "COMPLETE")
-        await workflow_run_update_with_new_job(workflow_run_id, "[]", "[]")  # Clear current tasks/jobs
+        await workflow_run_update_with_new_job(
+            workflow_run_id, "[]", "[]"
+        )  # Clear current tasks/jobs
         return {"message": "Workflow Complete!"}
 
     # 5. Handle START node and get the actual next nodes
-    actual_next_task_ids, next_nodes = await handle_start_node_skip(next_task_ids, workflow_config, workflow_run_id)
+    actual_next_task_ids, next_nodes = await handle_start_node_skip(
+        next_task_ids, workflow_config, workflow_run_id
+    )
 
     if actual_next_task_ids is None:  # Indicates an error occurred in _handle_start_node_skip
         return {"message": "Failed processing potential START node."}
@@ -407,7 +438,9 @@ async def start_next_step_in_workflow():
             return {"message": f"Failed to queue job for task '{node.get('task', 'UNKNOWN')}'."}
 
     # 7. Update workflow run state with new current tasks and job IDs
-    await workflow_run_update_with_new_job(workflow_run_id, json.dumps(actual_next_task_ids), json.dumps(next_job_ids))
+    await workflow_run_update_with_new_job(
+        workflow_run_id, json.dumps(actual_next_task_ids), json.dumps(next_job_ids)
+    )
 
     return {"message": f"Started next step with job(s): {next_job_ids}"}
 
@@ -648,7 +681,9 @@ async def handle_start_node_skip(next_task_ids, workflow_config, workflow_run_id
         return next_task_ids, next_nodes
 
 
-async def find_task_definition(task_name: str, workflow_run_id: int, experiment_id: int, task_type: str):
+async def find_task_definition(
+    task_name: str, workflow_run_id: int, experiment_id: int, task_type: str
+):
     """Finds the task definition from the database by name within the specified experiment and task type."""
     tasks = tasks_service.tasks_get_by_type_in_experiment(task_type, experiment_id)
     for task in tasks:
@@ -667,7 +702,9 @@ async def find_previous_node_and_job(current_node, workflow_run, workflow_config
     previous_job = None
 
     # Find nodes that have current_node["id"] in their "out" list
-    potential_previous_nodes = [node for node in all_nodes if current_node.get("id") in node.get("out", [])]
+    potential_previous_nodes = [
+        node for node in all_nodes if current_node.get("id") in node.get("out", [])
+    ]
 
     if not potential_previous_nodes:
         return None

@@ -1,4 +1,3 @@
-# coding=utf-8
 # Modified by Andrew Silva from https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama/scripts/rl_training.py
 #
 # Copyright 2023 The HuggingFace Inc. team. All rights reserved.
@@ -28,7 +27,6 @@ python ppo_training.py --log_with=wandb --model TinyLlama/TinyLlama-1.1B-Chat-v1
 import os
 import random
 from dataclasses import dataclass, field
-from typing import Optional
 
 import mlx.core as mx
 import numpy as np
@@ -126,10 +124,18 @@ def main(args_in, ppo_config_in):
 
         if custom_dataset is not None:
             # Use ground truth reward function
-            scores = mx.array(reward_against_ground_truth(batch["response"], ground_truths, match_type="exact"))
-            ref_scores = mx.array(reward_against_ground_truth(batch["ref_response"], ground_truths, match_type="exact"))
+            scores = mx.array(
+                reward_against_ground_truth(batch["response"], ground_truths, match_type="exact")
+            )
+            ref_scores = mx.array(
+                reward_against_ground_truth(
+                    batch["ref_response"], ground_truths, match_type="exact"
+                )
+            )
         elif args_in.ground_truth_reward:
-            scores = mx.array(reward_function(batch["response"], negated=False))  # Should we omit query in the scoring?
+            scores = mx.array(
+                reward_function(batch["response"], negated=False)
+            )  # Should we omit query in the scoring?
             # scores = [x + np.random.randn() * 0.05 for x in scores]  # Noisify the ground truth reward signal
             ref_scores = mx.array(reward_function(batch["ref_response"], negated=False))
         else:
@@ -149,7 +155,10 @@ def main(args_in, ppo_config_in):
             ppo_trainer.config.batch_size = rewards.shape[0]
             stats = ppo_trainer.step(query_tensors, response_tensors, rewards)
             ppo_trainer.log_stats(
-                stats, batch, rewards, columns_to_log=["query", "response", "ref_response", "ref_rewards"]
+                stats,
+                batch,
+                rewards,
+                columns_to_log=["query", "response", "ref_response", "ref_rewards"],
             )
     # Save prompt weights
     mx.savez(args_in.save_file, **dict(tree_flatten(model.trainable_parameters())))
@@ -171,25 +180,41 @@ if __name__ == "__main__":
     class ScriptArguments:
         # LoraConfig
         use_peft: bool = field(default=False, metadata={"help": "whether to use peft"})
-        ground_truth_reward: bool = field(default=False, metadata={"help": "whether to use ground truth reward or not"})
-        lora_layers: Optional[int] = field(default=16, metadata={"help": "the number of lora layers"})
-        num_prompt_tokens: Optional[int] = field(default=10, metadata={"help": "the number of prompt tokens"})
-        model: Optional[str] = field(
-            default=None, metadata={"help": "The path to the local model directory or Hugging Face repo"}
+        ground_truth_reward: bool = field(
+            default=False, metadata={"help": "whether to use ground truth reward or not"}
         )
-        reward_model_dir: Optional[str] = field(
-            default=None, metadata={"help": "The path to the local model directory or Hugging Face repo"}
+        lora_layers: int | None = field(default=16, metadata={"help": "the number of lora layers"})
+        num_prompt_tokens: int | None = field(
+            default=10, metadata={"help": "the number of prompt tokens"}
+        )
+        model: str | None = field(
+            default=None,
+            metadata={"help": "The path to the local model directory or Hugging Face repo"},
+        )
+        reward_model_dir: str | None = field(
+            default=None,
+            metadata={"help": "The path to the local model directory or Hugging Face repo"},
         )
 
-        save_file: str = field(default="peft_weights.npz", metadata={"help": "Save path for the trained PEFT weights."})
-        resume_file: Optional[str] = field(default=None, metadata={"help": "Load path for the trained PEFT weights."})
-        prompt_tuning: bool = field(default=False, metadata={"help": "whether to use prompt-tuning or LoRA"})
-        me_chatbot: bool = field(default=False, metadata={"help": "Set prompts as samples from my imessage history?"})
-        num_steps: Optional[int] = (
-            field(default=5550, metadata={"help": "How many PPO training iterations should we use?"}),
+        save_file: str = field(
+            default="peft_weights.npz", metadata={"help": "Save path for the trained PEFT weights."}
+        )
+        resume_file: str | None = field(
+            default=None, metadata={"help": "Load path for the trained PEFT weights."}
+        )
+        prompt_tuning: bool = field(
+            default=False, metadata={"help": "whether to use prompt-tuning or LoRA"}
+        )
+        me_chatbot: bool = field(
+            default=False, metadata={"help": "Set prompts as samples from my imessage history?"}
+        )
+        num_steps: int | None = (
+            field(
+                default=5550, metadata={"help": "How many PPO training iterations should we use?"}
+            ),
         )
         quantize: bool = field(default=False, metadata={"help": "Should we quantize our model?"})
-        custom_hf_dataset: Optional[str] = (
+        custom_hf_dataset: str | None = (
             (
                 field(
                     default=None,
@@ -199,7 +224,9 @@ if __name__ == "__main__":
                 ),
             ),
         )
-        output_dir: Optional[str] = field(default=None, metadata={"help": "Directory to save the trained model."})
+        output_dir: str | None = field(
+            default=None, metadata={"help": "Directory to save the trained model."}
+        )
 
     parser = HfArgumentParser((ScriptArguments, PPOConfig))
     args, ppo_config = parser.parse_args_into_dataclasses()

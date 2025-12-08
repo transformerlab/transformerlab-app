@@ -3,14 +3,16 @@ import os
 import subprocess
 
 try:
-    from transformerlab.sdk.v1.export import tlab_exporter
     from transformerlab.plugin import get_python_executable
+    from transformerlab.sdk.v1.export import tlab_exporter
 except ImportError or ModuleNotFoundError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
     from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
 
 
-tlab_exporter.add_argument("--q_bits", default="4", type=str, help="Bits per weight for quantization.")
+tlab_exporter.add_argument(
+    "--q_bits", default="4", type=str, help="Bits per weight for quantization."
+)
 
 
 @tlab_exporter.exporter_job_wrapper(progress_start=0, progress_end=100)
@@ -87,7 +89,7 @@ def mlx_export():
                 raise RuntimeError(error_msg)
 
     except Exception as e:
-        error_msg = f"MLX conversion failed with exception: {str(e)}"
+        error_msg = f"MLX conversion failed with exception: {e!s}"
         print(error_msg)
         tlab_exporter.add_job_data("status", error_msg)
         raise

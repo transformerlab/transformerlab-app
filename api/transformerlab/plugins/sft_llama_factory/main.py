@@ -8,18 +8,18 @@ CUDA_VISIBLE_DEVICES=0 llamafactory-cli train examples/lora_single_gpu/llama3_lo
 
 """
 
+import json
 import os
+import re
 import subprocess
 import time
-import json
-import yaml
-import re
 
-from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import get_python_executable
-from lab.dirs import get_workspace_dir
-from lab import storage
+import yaml
 from jinja2 import Environment
+from lab import storage
+from lab.dirs import get_workspace_dir
+from transformerlab.plugin import get_python_executable
+from transformerlab.sdk.v1.train import tlab_trainer
 
 jinja_environment = Environment()
 
@@ -87,7 +87,9 @@ def run_train():
         input_text = input_template.render(dataset[i])
         output_text = output_template.render(dataset[i])
 
-        formatted_dataset.append({"instruction": instruction_text, "input": input_text, "output": output_text})
+        formatted_dataset.append(
+            {"instruction": instruction_text, "input": input_text, "output": output_text}
+        )
 
     # output training files in templated format in to data directory
     with storage.open(storage.join(data_directory, "train.json"), "w") as f:
@@ -103,11 +105,15 @@ def run_train():
     yaml_config_path = storage.join(data_directory, "llama3_lora_sft.yaml")
 
     today = time.strftime("%Y%m%d-%H%M%S")
-    output_dir = storage.join(tlab_trainer.params.output_dir, f"job_{tlab_trainer.params.job_id}_{today}")
+    output_dir = storage.join(
+        tlab_trainer.params.output_dir, f"job_{tlab_trainer.params.job_id}_{today}"
+    )
 
     try:
         # First copy a template file to the data directory
-        os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/train_lora/llama3_lora_sft.yaml {yaml_config_path}")
+        os.system(
+            f"cp {plugin_dir}/LLaMA-Factory/examples/train_lora/llama3_lora_sft.yaml {yaml_config_path}"
+        )
     except Exception as e:
         raise e
 
@@ -161,7 +167,9 @@ def run_train():
     env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
 
     if "venv" in python_executable:
-        python_executable = python_executable.replace("venv/bin/python", "venv/bin/llamafactory-cli")
+        python_executable = python_executable.replace(
+            "venv/bin/python", "venv/bin/llamafactory-cli"
+        )
 
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     popen_command = [python_executable, "train", yaml_config_path]
@@ -236,7 +244,9 @@ def fuse_model():
 
     yaml_config_path = storage.join(data_directory, "merge_llama3_lora_sft.yaml")
     # Copy a template file to the data directory
-    os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/merge_lora/llama3_lora_sft.yaml {yaml_config_path}")
+    os.system(
+        f"cp {plugin_dir}/LLaMA-Factory/examples/merge_lora/llama3_lora_sft.yaml {yaml_config_path}"
+    )
 
     yml = {}
     with storage.open(yaml_config_path, "r") as file:
@@ -257,7 +267,9 @@ def fuse_model():
     env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
 
     if "venv" in python_executable:
-        python_executable = python_executable.replace("venv/bin/python", "venv/bin/llamafactory-cli")
+        python_executable = python_executable.replace(
+            "venv/bin/python", "venv/bin/llamafactory-cli"
+        )
 
     fuse_popen_command = [python_executable, "export", yaml_config_path]
 

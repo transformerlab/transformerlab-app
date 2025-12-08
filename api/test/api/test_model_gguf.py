@@ -5,7 +5,9 @@ import pytest
 async def test_gguf_model_detection_requires_file_selection(client):
     """Test that GGUF models return requires_file_selection status"""
     # Test with a known GGUF model that has config.json but should be detected as GGUF
-    response = client.get("/model/download_from_huggingface?model=MaziyarPanahi/gemma-3-1b-it-GGUF&experiment_id=1")
+    response = client.get(
+        "/model/download_from_huggingface?model=MaziyarPanahi/gemma-3-1b-it-GGUF&experiment_id=1"
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -25,7 +27,9 @@ async def test_gguf_model_detection_requires_file_selection(client):
 def test_gguf_model_without_config_detection(client):
     """Test GGUF model that doesn't have config.json"""
     # Test with a GGUF model known to not have config.json
-    response = client.get("/model/download_from_huggingface?model=Qwen/Qwen3-Embedding-0.6B-GGUF&experiment_id=1")
+    response = client.get(
+        "/model/download_from_huggingface?model=Qwen/Qwen3-Embedding-0.6B-GGUF&experiment_id=1"
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -42,7 +46,9 @@ def test_gguf_model_without_config_detection(client):
 def test_download_gguf_file_success(client):
     """Test downloading a specific GGUF file"""
     # First get the available files
-    response = client.get("/model/download_from_huggingface?model=MaziyarPanahi/gemma-3-1b-it-GGUF&experiment_id=1")
+    response = client.get(
+        "/model/download_from_huggingface?model=MaziyarPanahi/gemma-3-1b-it-GGUF&experiment_id=1"
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "requires_file_selection"
@@ -91,7 +97,9 @@ def test_download_gguf_file_invalid_model(client):
 def test_regular_model_still_works(client):
     """Test that regular (non-GGUF) models still work normally"""
     # Test with a regular model that should work normally
-    response = client.get("/model/download_from_huggingface?model=microsoft/DialoGPT-small&experiment_id=1")
+    response = client.get(
+        "/model/download_from_huggingface?model=microsoft/DialoGPT-small&experiment_id=1"
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -117,7 +125,9 @@ def test_model_gallery_includes_gguf(client):
 def test_gguf_download_with_job_id(client):
     """Test GGUF file download with custom job_id"""
     # First get available files
-    response = client.get("/model/download_from_huggingface?model=MaziyarPanahi/gemma-3-1b-it-GGUF&experiment_id=1")
+    response = client.get(
+        "/model/download_from_huggingface?model=MaziyarPanahi/gemma-3-1b-it-GGUF&experiment_id=1"
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "requires_file_selection"
@@ -166,7 +176,9 @@ def test_gguf_detection_edge_cases(client):
 def test_gguf_large_model_file_listing(client):
     """Test that large GGUF repositories can list files properly"""
     # Test with a larger GGUF model
-    response = client.get("/model/download_from_huggingface?model=MaziyarPanahi/gemma-3-1b-it-GGUF&experiment_id=1")
+    response = client.get(
+        "/model/download_from_huggingface?model=MaziyarPanahi/gemma-3-1b-it-GGUF&experiment_id=1"
+    )
 
     if response.status_code == 200:
         data = response.json()

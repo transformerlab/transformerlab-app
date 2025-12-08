@@ -1,9 +1,10 @@
 import json
 import os
 from typing import Annotated
-from fastapi import APIRouter, Body
 
+from fastapi import APIRouter, Body
 from lab import dirs as lab_dirs
+
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
 
@@ -14,16 +15,18 @@ router = APIRouter(prefix="/prompts", tags=["prompts"])
 async def list_prompts():
     """List the prompt templates available in the prompt gallery"""
 
-    remote_gallery_file = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab/galleries/prompt-gallery.json")
+    remote_gallery_file = os.path.join(
+        dirs.TFL_SOURCE_CODE_DIR, "transformerlab/galleries/prompt-gallery.json"
+    )
 
-    with open(remote_gallery_file, "r") as f:
+    with open(remote_gallery_file) as f:
         prompt_gallery = json.load(f)
 
     prompt_templates = []
     prompts_dir = lab_dirs.get_prompt_templates_dir()
     for file in os.listdir(prompts_dir):
         if file.endswith(".json"):
-            with open(os.path.join(prompts_dir, file), "r") as f:
+            with open(os.path.join(prompts_dir, file)) as f:
                 try:
                     prompt = json.load(f)
                     prompt["source"] = "local"

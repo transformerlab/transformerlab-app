@@ -80,7 +80,9 @@ def train():
 
             # Simple Llama-3 instruction template
             if training_config["template_name"] == "llama3instruct":
-                formatted = f"<|begin_of_text|><|prompt|>{instruction}<|response|>{response}<|end_of_text|>"
+                formatted = (
+                    f"<|begin_of_text|><|prompt|>{instruction}<|response|>{response}<|end_of_text|>"
+                )
             else:
                 # Default simple template
                 formatted = f"Instruction: {instruction}\n\nResponse: {response}"
@@ -137,7 +139,9 @@ def train():
         # Save the final model
         tlab_client.log_info("Saving model...")
         trainer.save_model(os.path.join(training_config["output_dir"], f"final_model_{job_id}"))
-        tokenizer.save_pretrained(os.path.join(training_config["output_dir"], f"final_model_{job_id}"))
+        tokenizer.save_pretrained(
+            os.path.join(training_config["output_dir"], f"final_model_{job_id}")
+        )
         tlab_client.log_info("Saving model in Transformer Lab")
         tlab_client.save_model(os.path.join(training_config["output_dir"], f"final_model_{job_id}"))
 
@@ -162,11 +166,11 @@ def train():
         return {"status": "stopped", "job_id": job_id}
 
     except Exception as e:
-        tlab_client.log_error(f"Training failed: {str(e)}")
+        tlab_client.log_error(f"Training failed: {e!s}")
         import traceback
 
         traceback.print_exc()
-        tlab_client.stop(f"Training failed: {str(e)}")
+        tlab_client.stop(f"Training failed: {e!s}")
         return {"status": "error", "job_id": job_id, "error": str(e)}
 
 

@@ -2,13 +2,9 @@ import json
 from typing import Annotated
 
 from fastapi import APIRouter, Body
-
-
-from lab import Experiment, storage
-
-from werkzeug.utils import secure_filename
 from fastapi.responses import FileResponse
-
+from lab import Experiment, storage
+from werkzeug.utils import secure_filename
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 

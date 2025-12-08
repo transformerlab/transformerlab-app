@@ -3,18 +3,16 @@
 # Copyright © 2023 Apple Inc.
 import math
 import time
-from typing import Union
 from pathlib import Path
-from data.data_utils import load_datasets, build_parser
-import matplotlib.pyplot as plt
 
+import matplotlib.pyplot as plt
 import mlx.core as mx
 import mlx.nn as nn
 import mlx.optimizers as optim
 import numpy as np
+from data.data_utils import build_parser, load_datasets
 from mlx.utils import tree_flatten
 from utils import get_model_and_tokenizer
-
 
 """
 Example command for supervised fine-tuning with soft-prompts on generated data with a locally saved tiny llama:
@@ -76,11 +74,11 @@ def reward_loss(mdl, better_inputs, worse_inputs):
     return diff_val, mx.array(0)  # TODO: this is telling the logger "0 toks per sec"
 
 
-def iterate_batches(dset, tok, batch_size, train_mode=False, reward_modeling=False, chat_data=False):
+def iterate_batches(
+    dset, tok, batch_size, train_mode=False, reward_modeling=False, chat_data=False
+):
     # Shuffle indices
-    len_warning_message = (
-        "[WARNING] Some sequences are longer than 2048 tokens. Consider pre-splitting your data to save memory."
-    )
+    len_warning_message = "[WARNING] Some sequences are longer than 2048 tokens. Consider pre-splitting your data to save memory."
     while True:
         indices = np.arange(len(dset))
         if train_mode:
@@ -164,7 +162,7 @@ def evaluate(mdl, dataset, loss_fn, tok, train_args):
 
 def save_adapter(
     save_model: nn.Module,
-    adapter_file: Union[str, Path],
+    adapter_file: str | Path,
 ):
     flattened_tree = tree_flatten(save_model.trainable_parameters())
     mx.save_safetensors(str(adapter_file), dict(flattened_tree))
@@ -219,7 +217,9 @@ def train(mdl, train_ds, val_set, optimizer, loss_fn, tok, train_args):
         if (it == 0 or (it + 1) % train_args.steps_per_eval == 0) and val_set is not None:
             stop = time.perf_counter()
             val_loss = evaluate(mdl, val_set, loss_fn, tok, train_args)
-            print(f"Iter {it + 1}: Val loss {val_loss:.3f}, Val took {(time.perf_counter() - stop):.3f}s")
+            print(
+                f"Iter {it + 1}: Val loss {val_loss:.3f}, Val took {(time.perf_counter() - stop):.3f}s"
+            )
             val_losses.append(val_loss)
 
             start = time.perf_counter()
@@ -269,7 +269,9 @@ if __name__ == "__main__":
 
     # Load the weights which we assume should exist by this point
     if not Path(args.save_file).is_file():
-        raise ValueError(f"Save file {args.save_file} missing. Use --train to learn and save the prompts.npz.")
+        raise ValueError(
+            f"Save file {args.save_file} missing. Use --train to learn and save the prompts.npz."
+        )
     model.load_weights(args.save_file, strict=False)
 
     if args.test and test_set is not None:

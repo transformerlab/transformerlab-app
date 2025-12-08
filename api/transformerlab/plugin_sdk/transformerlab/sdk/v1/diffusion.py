@@ -6,9 +6,15 @@ class DiffusionTLabPlugin(TLabPlugin):
 
     def __init__(self):
         super().__init__()
-        self._parser.add_argument("--run_name", default="diffused", type=str, help="Name for the diffusion output")
-        self._parser.add_argument("--experiment_name", default="default", type=str, help="Name of the experiment")
-        self._parser.add_argument("--diffusion_model", default="local", type=str, help="Diffusion model to use")
+        self._parser.add_argument(
+            "--run_name", default="diffused", type=str, help="Name for the diffusion output"
+        )
+        self._parser.add_argument(
+            "--experiment_name", default="default", type=str, help="Name of the experiment"
+        )
+        self._parser.add_argument(
+            "--diffusion_model", default="local", type=str, help="Diffusion model to use"
+        )
         self._parser.add_argument("--model", type=str, default="")
 
         self.tlab_plugin_type = "diffusion"

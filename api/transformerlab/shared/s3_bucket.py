@@ -83,8 +83,12 @@ def create_s3_bucket_for_team(team_id: str, profile_name: str = "transformerlab-
                 # us-east-1 doesn't require LocationConstraint
                 s3_client.create_bucket(Bucket=bucket_name)
             else:
-                s3_client.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={"LocationConstraint": region})
-            print(f"Successfully created S3 bucket '{bucket_name}' for team {team_id} in region {region}")
+                s3_client.create_bucket(
+                    Bucket=bucket_name, CreateBucketConfiguration={"LocationConstraint": region}
+                )
+            print(
+                f"Successfully created S3 bucket '{bucket_name}' for team {team_id} in region {region}"
+            )
             return True
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "")

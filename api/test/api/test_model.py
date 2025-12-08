@@ -1,7 +1,7 @@
-from unittest.mock import AsyncMock, patch
-import pytest
 import os
-from unittest.mock import MagicMock, mock_open
+from unittest.mock import AsyncMock, MagicMock, mock_open, patch
+
+import pytest
 
 
 def test_model_gallery(client):
@@ -14,7 +14,9 @@ def test_model_gallery(client):
         assert "name" in model or "uniqueID" in model
 
 
-@pytest.mark.skip(reason="Skipping test_model_list_local_uninstalled because it is taking 23 seconds to load??!!")
+@pytest.mark.skip(
+    reason="Skipping test_model_list_local_uninstalled because it is taking 23 seconds to load??!!"
+)
 def test_model_list_local_uninstalled(client):
     resp = client.get("/model/list_local_uninstalled")
     assert resp.status_code == 200
@@ -40,15 +42,25 @@ def make_mock_adapter_info(overrides={}):
             "base_model": "unsloth/Llama-3.2-1B-Instruct",
             **overrides.get("cardData", {}),
         },
-        config={"architectures": "MockArch", "model_type": "MockType", **overrides.get("config", {})},
+        config={
+            "architectures": "MockArch",
+            "model_type": "MockType",
+            **overrides.get("config", {}),
+        },
         downloads=123,
     )
 
 
 @pytest.mark.skip(reason="")
 @pytest.mark.asyncio
-@patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", new_callable=AsyncMock)
-@patch("transformerlab.routers.model.shared.async_run_python_script_and_update_status", new_callable=AsyncMock)
+@patch(
+    "transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface",
+    new_callable=AsyncMock,
+)
+@patch(
+    "transformerlab.routers.model.shared.async_run_python_script_and_update_status",
+    new_callable=AsyncMock,
+)
 async def test_install_peft_mock(mock_run_script, mock_get_details, client):
     mock_get_details.return_value = {"name": "dummy_adapter"}
     mock_process = AsyncMock()
@@ -58,24 +70,38 @@ async def test_install_peft_mock(mock_run_script, mock_get_details, client):
     test_model_id = "unsloth_Llama-3.2-1B-Instruct"
     test_peft_id = "dummy_adapter"
 
-    response = client.post(f"/model/install_peft?model_id={test_model_id}&peft={test_peft_id}&experiment_id=1")
+    response = client.post(
+        f"/model/install_peft?model_id={test_model_id}&peft={test_peft_id}&experiment_id=1"
+    )
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "error"  # As install_peft now returns 'started' after starting the async task
+    assert (
+        data["status"] == "error"
+    )  # As install_peft now returns 'started' after starting the async task
 
 
 @pytest.mark.asyncio
 @patch("transformerlab.routers.model.snapshot_download")
-@patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", new_callable=AsyncMock)
-@patch("transformerlab.routers.model.shared.async_run_python_script_and_update_status", new_callable=AsyncMock)
-async def test_install_peft_base_model_adaptor_not_found(mock_run_script, mock_get_details, mock_snapshot, client):
+@patch(
+    "transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface",
+    new_callable=AsyncMock,
+)
+@patch(
+    "transformerlab.routers.model.shared.async_run_python_script_and_update_status",
+    new_callable=AsyncMock,
+)
+async def test_install_peft_base_model_adaptor_not_found(
+    mock_run_script, mock_get_details, mock_snapshot, client
+):
     mock_snapshot.return_value = "/tmp/empty_folder"
     os.makedirs("/tmp/empty_folder", exist_ok=True)
 
     mock_get_details.return_value = {"name": "dummy_adapter"}
     mock_run_script.return_value = AsyncMock()
 
-    response = client.post("/model/install_peft?model_id=broken_model&peft=dummy_adapter&experiment_id=1")
+    response = client.post(
+        "/model/install_peft?model_id=broken_model&peft=dummy_adapter&experiment_id=1"
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "error"
@@ -89,14 +115,21 @@ async def test_install_peft_success(client):
 
     with (
         patch("transformerlab.routers.model.snapshot_download", return_value="/tmp/mock"),
-        patch("builtins.open", mock_open(read_data='{"architectures": "MockArch", "model_type": "MockType"}')),
+        patch(
+            "builtins.open",
+            mock_open(read_data='{"architectures": "MockArch", "model_type": "MockType"}'),
+        ),
         patch("json.load", return_value={"architectures": "MockArch", "model_type": "MockType"}),
         patch("huggingface_hub.HfApi.model_info", return_value=make_mock_adapter_info()),
-        patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
+        patch(
+            "transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface",
+            return_value={},
+        ),
         patch("transformerlab.routers.model.job_service.job_create", return_value=123),
     ):
         response = client.post(
-            "/model/install_peft", params={"peft": adapter_id, "model_id": model_id, "experiment_id": 1}
+            "/model/install_peft",
+            params={"peft": adapter_id, "model_id": model_id, "experiment_id": 1},
         )
         assert response.status_code == 200
         result = response.json()
@@ -110,7 +143,8 @@ def test_install_peft_model_config_fail(client):
         patch("transformerlab.routers.model.snapshot_download", side_effect=FileNotFoundError()),
     ):
         response = client.post(
-            "/model/install_peft", params={"peft": "dummy", "model_id": "invalid-model", "experiment_id": 1}
+            "/model/install_peft",
+            params={"peft": "dummy", "model_id": "invalid-model", "experiment_id": 1},
         )
         assert response.status_code == 200
         assert response.json()["check_status"]["error"] == "not found"
@@ -124,7 +158,8 @@ def test_install_peft_adapter_info_fail(client):
         patch("huggingface_hub.HfApi.model_info", side_effect=RuntimeError("not found")),
     ):
         response = client.post(
-            "/model/install_peft", params={"peft": "dummy", "model_id": "valid_model", "experiment_id": 1}
+            "/model/install_peft",
+            params={"peft": "dummy", "model_id": "valid_model", "experiment_id": 1},
         )
         assert response.status_code == 200
         assert response.json()["check_status"]["error"] == "not found"
@@ -138,11 +173,15 @@ async def test_install_peft_architecture_detection_unknown(client):
         patch("builtins.open", mock_open(read_data="{}")),
         patch("json.load", return_value={"architectures": "A", "model_type": "B"}),
         patch("huggingface_hub.HfApi.model_info", return_value=adapter_info),
-        patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
+        patch(
+            "transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface",
+            return_value={},
+        ),
         patch("transformerlab.routers.model.job_service.job_create", return_value=123),
     ):
         response = client.post(
-            "/model/install_peft", params={"peft": "dummy", "model_id": "valid_model", "experiment_id": 1}
+            "/model/install_peft",
+            params={"peft": "dummy", "model_id": "valid_model", "experiment_id": 1},
         )
         assert response.status_code == 200
         assert response.json()["check_status"]["architectures_status"] == "unknown"
@@ -156,11 +195,15 @@ async def test_install_peft_unknown_field_status(client):
         patch("builtins.open", mock_open(read_data="{}")),
         patch("json.load", return_value={}),
         patch("huggingface_hub.HfApi.model_info", return_value=adapter_info),
-        patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
+        patch(
+            "transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface",
+            return_value={},
+        ),
         patch("transformerlab.routers.model.job_service.job_create", return_value=123),
     ):
         response = client.post(
-            "/model/install_peft", params={"peft": "dummy", "model_id": "valid_model", "experiment_id": 1}
+            "/model/install_peft",
+            params={"peft": "dummy", "model_id": "valid_model", "experiment_id": 1},
         )
         status = response.json()["check_status"]
         assert status["architectures_status"] == "unknown"

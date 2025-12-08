@@ -5,6 +5,36 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["transformerlab"]
 
+[tool.pyright]
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportUnusedImport = true
+reportUnusedParameter = "warning"
+exclude = ["alembic", "tests/fixtures", "build", ".venv", "dist"]
+
+[tool.ruff]
+line-length = 100
+fix = true
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "W",
+    "B",
+    "UP",
+    "RUF",
+]
+
+ignore = [
+    "B008",
+    "E501",
+]
+
 [project]
 name = "transformerlab-api"
 version = "0.27.0"

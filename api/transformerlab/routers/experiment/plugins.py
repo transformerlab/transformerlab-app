@@ -1,21 +1,16 @@
 import json
 import os
 from pathlib import Path
-
 from typing import Annotated
 
-from fastapi import APIRouter, Body
 import httpx
-
-from transformerlab.services.experiment_service import experiment_get
-
-from transformerlab.shared import shared, dirs
+from fastapi import APIRouter, Body
 from lab import dirs as lab_dirs
-
 from werkzeug.utils import secure_filename
 
 from transformerlab.routers.plugins import plugin_gallery
-
+from transformerlab.services.experiment_service import experiment_get
+from transformerlab.shared import dirs, shared
 
 router = APIRouter(prefix="/plugins", tags=["plugins"])
 
@@ -58,7 +53,7 @@ async def experiment_list_scripts(id: str, type: str = None, filter: str = None)
         if os.path.isdir(os.path.join(scripts_dir, filename)):
             # check the type of each index.json in each script dir
             try:
-                plugin_info = json.load(open(f"{scripts_dir}/{filename}/index.json", "r"))
+                plugin_info = json.load(open(f"{scripts_dir}/{filename}/index.json"))
             except FileNotFoundError:
                 continue
             except json.decoder.JSONDecodeError:
@@ -113,8 +108,10 @@ async def plugin_download(id: int, plugin_slug: str):
     # plugin = await db.get_plugin(plugin_slug)
     # Right now this plugin object doesn't contain the URL to the plugin, so we need to get that from the plugin gallery:
     # Fix this later by storing the information locally in the database
-    gallery_file = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "plugin-gallery.json")
-    plugin_gallery_json = open(gallery_file, "r")
+    gallery_file = os.path.join(
+        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "plugin-gallery.json"
+    )
+    plugin_gallery_json = open(gallery_file)
     plugin_gallery = json.load(plugin_gallery_json)
 
     # We hardcode this to the first object -- fix later
@@ -162,7 +159,9 @@ allowed_extensions: list[str] = [".py", ".pyj2", ".ipynb", ".md", ".txt", ".sh",
 
 
 @router.post("/{pluginId}/save_file_contents")
-async def plugin_save_file_contents(id: str, pluginId: str, filename: str, file_contents: Annotated[str, Body()]):
+async def plugin_save_file_contents(
+    id: str, pluginId: str, filename: str, file_contents: Annotated[str, Body()]
+):
     global allowed_extensions
 
     filename = secure_filename(filename)
@@ -218,14 +217,14 @@ async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
         return {"message": f"File extension {file_ext} for {filename} not supported"}
 
     # The following prevents path traversal attacks:
-    plugin_dir = lab_dirs.plugin_dir_by_name((pluginId))
+    plugin_dir = lab_dirs.plugin_dir_by_name(pluginId)
     final_path = Path(plugin_dir).joinpath(filename + file_ext).resolve().relative_to(plugin_dir)
 
     final_path = plugin_dir + "/" + str(final_path)
 
     # now get the file contents
     try:
-        with open(final_path, "r") as f:
+        with open(final_path) as f:
             file_contents = f.read()
     except FileNotFoundError:
         return "FILE NOT FOUND"

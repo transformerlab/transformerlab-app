@@ -1,15 +1,15 @@
 """Compute provider router for managing and routing to compute provider instances."""
 
 import asyncio
-from typing import Dict, Optional
+
 from .base import ComputeProvider
-from .config import load_compute_providers_config, create_compute_provider, ComputeProviderConfig
+from .config import ComputeProviderConfig, create_compute_provider, load_compute_providers_config
 
 
 class ComputeProviderRouter:
     """Router that manages compute provider instances and routes requests."""
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         """
         Initialize the compute provider router.
 
@@ -20,12 +20,12 @@ class ComputeProviderRouter:
             config_path: Path to compute_providers config file. If None, uses default.
                         If file doesn't exist, router starts with no providers.
         """
-        self._providers: Dict[str, ComputeProvider] = {}
-        self._configs: Dict[str, ComputeProviderConfig] = {}
-        self._provider_errors: Dict[str, str] = {}
+        self._providers: dict[str, ComputeProvider] = {}
+        self._configs: dict[str, ComputeProviderConfig] = {}
+        self._provider_errors: dict[str, str] = {}
         self._load_providers(config_path)
 
-    def _load_providers(self, config_path: Optional[str] = None):
+    def _load_providers(self, config_path: str | None = None):
         """Load compute providers from configuration. YAML file is optional."""
         try:
             configs = load_compute_providers_config(config_path)
@@ -77,7 +77,9 @@ class ComputeProviderRouter:
         if provider_name not in self._providers:
             # Check if provider exists in config but failed to initialize
             if provider_name in self._configs:
-                error_msg = self._provider_errors.get(provider_name, "Unknown error during initialization")
+                error_msg = self._provider_errors.get(
+                    provider_name, "Unknown error during initialization"
+                )
                 raise ValueError(
                     f"Provider '{provider_name}' is configured but failed to initialize: {error_msg}\n"
                     f"Available providers: {list(self._providers.keys())}"
@@ -92,7 +94,7 @@ class ComputeProviderRouter:
         """List all available provider names."""
         return list(self._providers.keys())
 
-    def reload(self, config_path: Optional[str] = None):
+    def reload(self, config_path: str | None = None):
         """Reload compute providers from configuration."""
         self._providers.clear()
         self._configs.clear()
@@ -111,10 +113,10 @@ class ComputeProviderRouter:
 
 
 # Global router instance
-_global_router: Optional[ComputeProviderRouter] = None
+_global_router: ComputeProviderRouter | None = None
 
 
-def _try_load_from_database(provider_name: str) -> Optional[ComputeProvider]:
+def _try_load_from_database(provider_name: str) -> ComputeProvider | None:
     """
     Try to load a compute provider from the database by name.
     This is a helper function that attempts async database access from sync context.
@@ -127,11 +129,12 @@ def _try_load_from_database(provider_name: str) -> Optional[ComputeProvider]:
     """
     try:
         # Import here to avoid circular dependencies
+        from sqlalchemy import select
+
         from transformerlab.db.session import async_session
         from transformerlab.services.provider_service import (
             get_provider_instance,
         )
-        from sqlalchemy import select
         from transformerlab.shared.models.models import TeamComputeProvider
 
         # Try to get an async session and query the database
@@ -140,7 +143,9 @@ def _try_load_from_database(provider_name: str) -> Optional[ComputeProvider]:
                 async with async_session() as session:
                     # Search for provider by name across all teams
                     # Note: In a real scenario, you might want to filter by team_id
-                    stmt = select(TeamComputeProvider).where(TeamComputeProvider.name == provider_name)
+                    stmt = select(TeamComputeProvider).where(
+                        TeamComputeProvider.name == provider_name
+                    )
                     result = await session.execute(stmt)
                     provider_record = result.scalar_one_or_none()
 
@@ -167,7 +172,7 @@ def _try_load_from_database(provider_name: str) -> Optional[ComputeProvider]:
         return None
 
 
-def get_provider(provider_name: str, config_path: Optional[str] = None) -> ComputeProvider:
+def get_provider(provider_name: str, config_path: str | None = None) -> ComputeProvider:
     """
     Get a compute provider instance (convenience function using global router).
 
@@ -184,7 +189,7 @@ def get_provider(provider_name: str, config_path: Optional[str] = None) -> Compu
     return _global_router.get_provider(provider_name)
 
 
-def get_router(config_path: Optional[str] = None) -> ComputeProviderRouter:
+def get_router(config_path: str | None = None) -> ComputeProviderRouter:
     """
     Get the global router instance.
 

@@ -1,12 +1,12 @@
 """Service layer for bridging database provider records to ProviderConfig."""
 
-from typing import Optional
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from fastapi import HTTPException
-from transformerlab.shared.models.models import TeamComputeProvider, Team, UserTeam, User
-from transformerlab.compute_providers.config import ComputeProviderConfig, create_compute_provider
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from transformerlab.compute_providers.base import ComputeProvider
+from transformerlab.compute_providers.config import ComputeProviderConfig, create_compute_provider
+from transformerlab.shared.models.models import Team, TeamComputeProvider, User, UserTeam
 
 
 async def validate_team_exists(session: AsyncSession, team_id: str) -> None:
@@ -62,7 +62,9 @@ async def validate_user_team_membership(session: AsyncSession, user_id: str, tea
     result = await session.execute(stmt)
     user_team = result.scalar_one_or_none()
     if not user_team:
-        raise HTTPException(status_code=403, detail=f"User '{user_id}' is not a member of team '{team_id}'")
+        raise HTTPException(
+            status_code=403, detail=f"User '{user_id}' is not a member of team '{team_id}'"
+        )
 
 
 async def validate_provider_data(
@@ -86,14 +88,16 @@ async def validate_provider_data(
         await validate_user_team_membership(session, created_by_user_id, team_id)
 
 
-async def get_provider_by_id(session: AsyncSession, provider_id: str) -> Optional[TeamComputeProvider]:
+async def get_provider_by_id(session: AsyncSession, provider_id: str) -> TeamComputeProvider | None:
     """Get a provider record by ID only (without team filter)."""
     stmt = select(TeamComputeProvider).where(TeamComputeProvider.id == provider_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
-async def get_team_provider(session: AsyncSession, team_id: str, provider_id: str) -> Optional[TeamComputeProvider]:
+async def get_team_provider(
+    session: AsyncSession, team_id: str, provider_id: str
+) -> TeamComputeProvider | None:
     """
     Get a provider record by ID, ensuring it belongs to the team.
     Explicitly validates team membership for security.
@@ -106,7 +110,8 @@ async def get_team_provider(session: AsyncSession, team_id: str, provider_id: st
     # Explicitly check team membership
     if provider.team_id != team_id:
         raise HTTPException(
-            status_code=403, detail=f"Provider '{provider_id}' belongs to a different team. Access denied."
+            status_code=403,
+            detail=f"Provider '{provider_id}' belongs to a different team. Access denied.",
         )
 
     return provider
@@ -201,7 +206,11 @@ async def create_team_provider(
         await validate_provider_data(session, team_id, created_by_user_id, validate_membership=True)
 
     provider = TeamComputeProvider(
-        team_id=team_id, name=name, type=provider_type, config=config, created_by_user_id=created_by_user_id
+        team_id=team_id,
+        name=name,
+        type=provider_type,
+        config=config,
+        created_by_user_id=created_by_user_id,
     )
     session.add(provider)
     await session.commit()
@@ -210,7 +219,10 @@ async def create_team_provider(
 
 
 async def update_team_provider(
-    session: AsyncSession, provider: TeamComputeProvider, name: Optional[str] = None, config: Optional[dict] = None
+    session: AsyncSession,
+    provider: TeamComputeProvider,
+    name: str | None = None,
+    config: dict | None = None,
 ) -> TeamComputeProvider:
     """Update an existing team provider record."""
     if name is not None:

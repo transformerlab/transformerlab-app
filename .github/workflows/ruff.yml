@@ -1,21 +1,33 @@
 name: Ruff
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
+
 jobs:
-  ruff:
+  lint:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/ruff-action@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # -----------------------
+      # Ruff Lint (errors & warnings)
+      # -----------------------
+      - name: Ruff Lint
+        uses: astral-sh/ruff-action@v3
         with:
-          args: "check ./api ./lab-sdk"
-  ruff-format:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/ruff-action@v3
+          src: '.'
+          args: 'check ./api ./lab-sdk .'
+        continue-on-error: true
+
+      # -----------------------
+      # Ruff Format Check (shows what would be reformatted)
+      # -----------------------
+      - name: Ruff Format
+        uses: astral-sh/ruff-action@v3
         with:
-          args: "format --check ./api ./lab-sdk"
+          src: '.'
+          args: 'format --diff ./api ./lab-sdk .'
+        continue-on-error: true

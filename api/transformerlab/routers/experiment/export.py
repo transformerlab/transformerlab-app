@@ -1,27 +1,28 @@
-import json
-import time
 import asyncio
+import json
 import subprocess
 import sys
+import time
 
 from fastapi import APIRouter
-
-from transformerlab.services.experiment_service import experiment_get
-from transformerlab.services.job_service import job_create, job_get
 from lab import dirs as lab_dirs
 from lab import storage
-from transformerlab.shared import dirs, shared
-
-from transformerlab.services.job_service import job_update_status
-
 from werkzeug.utils import secure_filename
+
+from transformerlab.services.experiment_service import experiment_get
+from transformerlab.services.job_service import job_create, job_get, job_update_status
+from transformerlab.shared import dirs, shared
 
 router = APIRouter(prefix="/export", tags=["export"])
 
 
 @router.get("/run_exporter_script")
 async def run_exporter_script(
-    id: str, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}", job_id: str = None
+    id: str,
+    plugin_name: str,
+    plugin_architecture: str,
+    plugin_params: str = "{}",
+    job_id: str = None,
 ):
     """
     plugin_name: the id of the exporter plugin to run
@@ -66,7 +67,9 @@ async def run_exporter_script(
     # Generate output model details
     conversion_time = int(time.time())
     output_model_architecture = plugin_architecture
-    output_model_id = f"{output_model_architecture}-{input_model_id_without_author}-{conversion_time}"
+    output_model_id = (
+        f"{output_model_architecture}-{input_model_id_without_author}-{conversion_time}"
+    )
     if len(q_type) > 0:
         output_model_id = f"{output_model_id}-{q_type}"
     output_model_name = f"{input_model_id_without_author} - {output_model_architecture}"
@@ -109,7 +112,9 @@ async def run_exporter_script(
             params=params,
         )
         job_data_json = json.dumps(job_data)
-        job_id = job_create(type="EXPORT", status="Started", experiment_id=experiment_name, job_data=job_data_json)
+        job_id = job_create(
+            type="EXPORT", status="Started", experiment_id=experiment_name, job_data=job_data_json
+        )
         return job_id
 
     # Setup arguments to pass to plugin
@@ -139,7 +144,9 @@ async def run_exporter_script(
     subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + args
     try:
         # Get the output file path
-        job_output_file = await shared.get_job_output_file_name(job_id, experiment_name=experiment_name)
+        job_output_file = await shared.get_job_output_file_name(
+            job_id, experiment_name=experiment_name
+        )
 
         # Create the output file and run the process with output redirection
         with storage.open(job_output_file, "w") as f:

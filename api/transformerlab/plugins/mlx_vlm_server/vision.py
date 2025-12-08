@@ -3,7 +3,6 @@
 import inspect
 import math
 from dataclasses import dataclass
-from typing import Optional
 
 import mlx.core as mx
 import mlx.nn as nn
@@ -33,11 +32,11 @@ class Attention(nn.Module):
         self,
         dims: int,
         num_heads: int,
-        query_input_dims: Optional[int] = None,
-        key_input_dims: Optional[int] = None,
-        value_input_dims: Optional[int] = None,
-        value_dims: Optional[int] = None,
-        value_output_dims: Optional[int] = None,
+        query_input_dims: int | None = None,
+        key_input_dims: int | None = None,
+        value_input_dims: int | None = None,
+        value_dims: int | None = None,
+        value_output_dims: int | None = None,
         bias: bool = False,
     ):
         super().__init__()
@@ -103,7 +102,7 @@ class EncoderLayer(nn.Module):
         self.mlp = MLP(config)
         self.layer_norm2 = nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
 
-    def __call__(self, x: mx.array, mask: Optional[mx.array] = None) -> mx.array:
+    def __call__(self, x: mx.array, mask: mx.array | None = None) -> mx.array:
         y = self.layer_norm1(x)
         y = self.self_attn(y, y, y, mask)
         x = x + y
@@ -162,7 +161,7 @@ class ClipVisionModel(nn.Module):
     def __call__(
         self,
         x: mx.array,
-        output_hidden_states: Optional[bool] = None,
+        output_hidden_states: bool | None = None,
     ) -> mx.array:
         x = self.embeddings(x)
         x = self.pre_layrnorm(x)
@@ -188,7 +187,7 @@ class VisionModel(nn.Module):
 
         self.vision_model = ClipVisionModel(config)
 
-    def __call__(self, x: mx.array, output_hidden_states: Optional[bool] = None) -> mx.array:
+    def __call__(self, x: mx.array, output_hidden_states: bool | None = None) -> mx.array:
         return self.vision_model(x, output_hidden_states)
 
     @staticmethod

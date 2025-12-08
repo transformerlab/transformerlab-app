@@ -1,10 +1,11 @@
 """Configuration loading and provider factory."""
 
-import os
-import yaml
 import json
-from typing import Dict, Any, Optional
+import os
 from pathlib import Path
+from typing import Any
+
+import yaml
 from pydantic import BaseModel, Field
 
 
@@ -15,26 +16,26 @@ class ComputeProviderConfig(BaseModel):
     name: str  # Provider name/identifier
 
     # SkyPilot-specific config
-    server_url: Optional[str] = None
-    api_token: Optional[str] = None
-    default_env_vars: Dict[str, str] = Field(default_factory=dict)
-    default_entrypoint_command: Optional[str] = None
+    server_url: str | None = None
+    api_token: str | None = None
+    default_env_vars: dict[str, str] = Field(default_factory=dict)
+    default_entrypoint_command: str | None = None
 
     # SLURM-specific config
-    mode: Optional[str] = None  # "rest" or "ssh"
-    rest_url: Optional[str] = None
-    ssh_host: Optional[str] = None
-    ssh_user: Optional[str] = None
-    ssh_key_path: Optional[str] = None
+    mode: str | None = None  # "rest" or "ssh"
+    rest_url: str | None = None
+    ssh_host: str | None = None
+    ssh_user: str | None = None
+    ssh_key_path: str | None = None
     ssh_port: int = 22
 
     # Additional provider-specific config
-    extra_config: Dict[str, Any] = Field(default_factory=dict)
+    extra_config: dict[str, Any] = Field(default_factory=dict)
 
 
 def load_compute_providers_config(
-    config_path: Optional[str] = None,
-) -> Dict[str, ComputeProviderConfig]:
+    config_path: str | None = None,
+) -> dict[str, ComputeProviderConfig]:
     """
     Load compute provider configurations from YAML or JSON file.
 
@@ -90,7 +91,7 @@ def load_compute_providers_config(
         # Providers can be loaded from database instead
         return {}
 
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         if config_path.suffix in [".yaml", ".yml"]:
             config_data = yaml.safe_load(f)
         elif config_path.suffix == ".json":

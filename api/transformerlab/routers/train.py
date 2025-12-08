@@ -1,11 +1,10 @@
 import subprocess
 
 from fastapi import APIRouter
-import transformerlab.services.job_service as job_service
 from lab import Experiment, storage
-
 from werkzeug.utils import secure_filename
 
+import transformerlab.services.job_service as job_service
 
 router = APIRouter(prefix="/train", tags=["train"])
 

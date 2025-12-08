@@ -1,5 +1,7 @@
 import json
+
 import pytest
+
 from transformerlab.routers.experiment.workflows import workflows_get_by_trigger_type
 
 pytestmark = pytest.mark.skip("Skipping all workflow trigger tests due to database index conflicts")
@@ -8,7 +10,10 @@ pytestmark = pytest.mark.skip("Skipping all workflow trigger tests due to databa
 def test_workflow_triggers_endpoint_basic_functionality(client, experiment_id):
     """Test basic workflow triggering functionality"""
     # Create a workflow with TRAIN trigger
-    config = {"nodes": [{"type": "START", "id": "start", "name": "START", "out": []}], "triggers": ["TRAIN"]}
+    config = {
+        "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
+        "triggers": ["TRAIN"],
+    }
     resp = client.get(
         f"/experiment/{experiment_id}/workflows/create",
         params={"name": "test_trigger_workflow", "config": json.dumps(config)},
@@ -26,7 +31,10 @@ def test_workflow_triggers_endpoint_basic_functionality(client, experiment_id):
 def test_workflow_triggers_endpoint_export_model_mapping(client, experiment_id):
     """Test that EXPORT trigger works correctly"""
     # Create a workflow with EXPORT trigger
-    config = {"nodes": [{"type": "START", "id": "start", "name": "START", "out": []}], "triggers": ["EXPORT"]}
+    config = {
+        "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
+        "triggers": ["EXPORT"],
+    }
     resp = client.get(
         f"/experiment/{experiment_id}/workflows/create",
         params={"name": "test_export_trigger", "config": json.dumps(config)},
@@ -45,6 +53,7 @@ def test_workflow_triggers_endpoint_error_handling(client, experiment_id):
     """Test that malformed configs are handled gracefully"""
     # Create a workflow with malformed config directly in the database
     import asyncio
+
     from transformerlab.db.workflows import workflow_create
 
     async def create_malformed_workflow():
@@ -62,7 +71,10 @@ def test_workflow_triggers_endpoint_error_handling(client, experiment_id):
 def test_workflow_triggers_endpoint_no_matching_triggers(client, experiment_id):
     """Test that no workflows are returned when no triggers match"""
     # Create a workflow with EVAL trigger
-    config = {"nodes": [{"type": "START", "id": "start", "name": "START", "out": []}], "triggers": ["EVAL"]}
+    config = {
+        "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
+        "triggers": ["EVAL"],
+    }
     resp = client.get(
         f"/experiment/{experiment_id}/workflows/create",
         params={"name": "test_eval_workflow", "config": json.dumps(config)},

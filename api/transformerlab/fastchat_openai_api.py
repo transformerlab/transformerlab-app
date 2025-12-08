@@ -8,15 +8,15 @@ import logging
 import os
 import time
 import uuid
-
-from typing import Any, AsyncGenerator, Dict, Generator, List, Optional, Union
+from collections.abc import AsyncGenerator, Generator
+from typing import Any
 
 import httpx
 import shortuuid
 import tiktoken
 
 # Using torch to test for CUDA and MPS support.
-from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.security.http import HTTPAuthorizationCredentials, HTTPBearer
 from fastchat.constants import WORKER_API_EMBEDDING_BATCH_SIZE, ErrorCode
@@ -44,8 +44,8 @@ from fastchat.protocol.openai_api_protocol import (
     ModelPermission,
     UsageInfo,
 )
-from pydantic import BaseModel as PydanticBaseModel
 from lab import Experiment, storage
+from pydantic import BaseModel as PydanticBaseModel
 
 WORKER_API_TIMEOUT = 3600
 
@@ -53,64 +53,62 @@ WORKER_API_TIMEOUT = 3600
 # TODO: Move all base model to fastchat.protocol.openai_api_protocol
 class APIChatCompletionRequest(BaseModel):
     model: str
-    adaptor: Optional[str] = ""
-    messages: Union[str, List[Dict[str, str]], List[List[Dict[str, str]]]]
-    temperature: Optional[float] = 0.7
-    top_p: Optional[float] = 1.0
-    top_k: Optional[int] = -1
-    min_p: Optional[float] = 0.0
-    n: Optional[int] = 1
-    max_tokens: Optional[int] = None
-    stop: Optional[Union[str, List[str]]] = None
-    stream: Optional[bool] = False
-    user: Optional[str] = None
-    repetition_penalty: Optional[float] = 1.0
-    frequency_penalty: Optional[float] = 0.0
-    presence_penalty: Optional[float] = 0.0
-    logprobs: Optional[bool] = False
+    adaptor: str | None = ""
+    messages: str | list[dict[str, str]] | list[list[dict[str, str]]]
+    temperature: float | None = 0.7
+    top_p: float | None = 1.0
+    top_k: int | None = -1
+    min_p: float | None = 0.0
+    n: int | None = 1
+    max_tokens: int | None = None
+    stop: str | list[str] | None = None
+    stream: bool | None = False
+    user: str | None = None
+    repetition_penalty: float | None = 1.0
+    frequency_penalty: float | None = 0.0
+    presence_penalty: float | None = 0.0
+    logprobs: bool | None = False
 
 
 class ChatCompletionRequest(BaseModel):
     model: str
-    adaptor: Optional[str] = ""
-    messages: Union[
-        str,
-        List[Dict[str, str]],
-        List[Dict[str, Union[str, List[Dict[str, Union[str, Dict[str, str]]]]]]],
-    ]
-    temperature: Optional[float] = 0.7
-    top_p: Optional[float] = 1.0
-    top_k: Optional[int] = -1
-    min_p: Optional[float] = 0.0
-    n: Optional[int] = 1
-    max_tokens: Optional[int] = None
-    stop: Optional[Union[str, List[str]]] = None
-    stream: Optional[bool] = False
-    presence_penalty: Optional[float] = 0.0
-    frequency_penalty: Optional[float] = 0.0
-    user: Optional[str] = None
-    logprobs: Optional[bool] = False
-    tools: Optional[List[Dict[str, Any]]] = None
+    adaptor: str | None = ""
+    messages: (
+        str | list[dict[str, str]] | list[dict[str, str | list[dict[str, str | dict[str, str]]]]]
+    )
+    temperature: float | None = 0.7
+    top_p: float | None = 1.0
+    top_k: int | None = -1
+    min_p: float | None = 0.0
+    n: int | None = 1
+    max_tokens: int | None = None
+    stop: str | list[str] | None = None
+    stream: bool | None = False
+    presence_penalty: float | None = 0.0
+    frequency_penalty: float | None = 0.0
+    user: str | None = None
+    logprobs: bool | None = False
+    tools: list[dict[str, Any]] | None = None
 
 
 class AudioGenerationRequest(BaseModel):
     experiment_id: str
     model: str
-    adaptor: Optional[str] = ""
+    adaptor: str | None = ""
     text: str
     file_prefix: str
     sample_rate: int
     temperature: float
     speed: float
-    top_p: Optional[float] = 1.0
-    voice: Optional[str] = None
-    audio_path: Optional[str] = None
+    top_p: float | None = 1.0
+    voice: str | None = None
+    audio_path: str | None = None
 
 
 class AudioTranscriptionsRequest(BaseModel):
     experiment_id: str
     model: str
-    adaptor: Optional[str] = ""
+    adaptor: str | None = ""
     audio_path: str
     # format: str
     # output_path: str note: probably we set this by ourself
@@ -118,34 +116,34 @@ class AudioTranscriptionsRequest(BaseModel):
 
 class VisualizationRequest(PydanticBaseModel):
     model: str
-    adaptor: Optional[str] = ""
+    adaptor: str | None = ""
     prompt: str
-    max_tokens: Optional[int] = 100
-    temperature: Optional[float] = 0.7
-    top_p: Optional[float] = 1.0
-    min_p: Optional[float] = 0.0
-    stream: Optional[bool] = True
+    max_tokens: int | None = 100
+    temperature: float | None = 0.7
+    top_p: float | None = 1.0
+    min_p: float | None = 0.0
+    stream: bool | None = True
 
 
 class TextDiffusionRequest(PydanticBaseModel):
     model: str
-    adaptor: Optional[str] = ""
+    adaptor: str | None = ""
     prompt: str
-    max_tokens: Optional[int] = 128
-    temperature: Optional[float] = 0.0
-    top_p: Optional[float] = 1.0
-    min_p: Optional[float] = 0.0
-    stop: Optional[Union[str, List[str]]] = None
+    max_tokens: int | None = 128
+    temperature: float | None = 0.0
+    top_p: float | None = 1.0
+    min_p: float | None = 0.0
+    stop: str | list[str] | None = None
 
 
 class ModelArchitectureRequest(PydanticBaseModel):
     model: str
-    adaptor: Optional[str] = ""
+    adaptor: str | None = ""
 
 
 class ModifiedCompletionRequest(CompletionRequest):
-    adaptor: Optional[str] = ""
-    min_p: Optional[float] = 0.0
+    adaptor: str | None = ""
+    min_p: float | None = 0.0
 
 
 try:
@@ -171,16 +169,16 @@ class AppSettings(BaseSettings):
     controller_address: str = "http://localhost:21001"
 
     # Used to overwrite the random seed in huggingface transformers
-    seed: Optional[int] = None
+    seed: int | None = None
 
-    api_keys: Optional[List[str]] = None
+    api_keys: list[str] | None = None
 
 
 app_settings = AppSettings()
 
 
 async def check_api_key(
-    auth: Optional[HTTPAuthorizationCredentials] = Depends(get_bearer_token),
+    auth: HTTPAuthorizationCredentials | None = Depends(get_bearer_token),
 ) -> str:
     if app_settings.api_keys:
         if auth is None or (token := auth.credentials) not in app_settings.api_keys:
@@ -205,7 +203,7 @@ def create_error_response(code: int, message: str) -> JSONResponse:
     return JSONResponse(ErrorResponse(message=message, code=code).model_dump(), status_code=400)
 
 
-async def check_model(request, bypass_adaptor=False) -> Optional[JSONResponse]:
+async def check_model(request, bypass_adaptor=False) -> JSONResponse | None:
     controller_address = app_settings.controller_address
     ret = None
     async with httpx.AsyncClient() as client:
@@ -255,7 +253,9 @@ def log_prompt(prompt):
             if file_size > MAX_LOG_SIZE_BEFORE_ROTATE:
                 with storage.open(prompt_log_path, "w") as f:
                     f.writelines(lines[-1000:])
-                with storage.open(storage.join(logs_dir, f"prompt_{time.strftime('%Y%m%d%H%M%S')}.log"), "w") as f:
+                with storage.open(
+                    storage.join(logs_dir, f"prompt_{time.strftime('%Y%m%d%H%M%S')}.log"), "w"
+                ) as f:
                     f.writelines(lines[:-1000])
         except Exception:
             # If we can't read the file, just continue with appending
@@ -312,7 +312,7 @@ async def check_length(request, prompt, max_tokens):
         return None
 
 
-def check_requests(request) -> Optional[JSONResponse]:
+def check_requests(request) -> JSONResponse | None:
     # Check all params
     if request.max_tokens is not None and request.max_tokens <= 0:
         return create_error_response(
@@ -350,7 +350,9 @@ def check_requests(request) -> Optional[JSONResponse]:
             ErrorCode.PARAM_OUT_OF_RANGE,
             f"{request.min_p} is less than the minimum of 0 - 'min_p'",
         )
-    if request.stop is not None and (not isinstance(request.stop, str) and not isinstance(request.stop, list)):
+    if request.stop is not None and (
+        not isinstance(request.stop, str) and not isinstance(request.stop, list)
+    ):
         return create_error_response(
             ErrorCode.PARAM_OUT_OF_RANGE,
             f"{request.stop} is not valid under any of the given schemas - 'stop'",
@@ -375,23 +377,20 @@ def process_input(model_name, inp):
 
 async def get_gen_params(
     model_name: str,
-    messages: Union[
-        str,
-        List[Dict[str, str]],
-        # necessary for image support
-        List[Dict[str, Union[str, List[Dict[str, Union[str, Dict[str, str]]]]]]],
-    ],
+    messages: str
+    | list[dict[str, str]]
+    | list[dict[str, str | list[dict[str, str | dict[str, str]]]]],
     *,
     temperature: float,
     top_p: float,
     min_p: float,
-    max_tokens: Optional[int],
-    echo: Optional[bool],
-    stream: Optional[bool],
-    stop: Optional[Union[str, List[str]]],
-    logprobs: Optional[bool] = False,
-    tools: Optional[List[Dict[str, Any]]] = None,
-) -> Dict[str, Any]:
+    max_tokens: int | None,
+    echo: bool | None,
+    stream: bool | None,
+    stop: str | list[str] | None,
+    logprobs: bool | None = False,
+    tools: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     conv = await get_conv(model_name)
     conv = Conversation(
         name=conv["name"],
@@ -656,7 +655,9 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
         tools=tools,
     )
 
-    error_check_ret = await check_length(request, gen_params["prompt"], gen_params["max_new_tokens"])
+    error_check_ret = await check_length(
+        request, gen_params["prompt"], gen_params["max_new_tokens"]
+    )
     if error_check_ret is not None:
         return error_check_ret
     log_prompt(gen_params)
@@ -692,7 +693,7 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
 
 
 async def chat_completion_stream_generator(
-    model_name: str, gen_params: Dict[str, Any], n: int
+    model_name: str, gen_params: dict[str, Any], n: int
 ) -> Generator[str, Any, None]:
     """
     Event stream format:
@@ -853,7 +854,9 @@ async def create_completion(request: ModifiedCompletionRequest):
             for usage_key, usage_value in task_usage.model_dump().items():
                 setattr(usage, usage_key, getattr(usage, usage_key) + usage_value)
 
-        return CompletionResponse(model=request.model, choices=choices, usage=UsageInfo.model_validate(usage))
+        return CompletionResponse(
+            model=request.model, choices=choices, usage=UsageInfo.model_validate(usage)
+        )
 
 
 def convert_to_openai_format(token_data):
@@ -918,7 +921,7 @@ def convert_to_openai_format(token_data):
     return openai_format
 
 
-def convert_group_of_logprobs_to_openai_format(logprobs: List[Dict[str, Any]]) -> Dict[str, Any]:
+def convert_group_of_logprobs_to_openai_format(logprobs: list[dict[str, Any]]) -> dict[str, Any]:
     """
     Convert custom logprobs format to OpenAI API format.
 
@@ -1062,7 +1065,7 @@ async def generate_completion_stream_generator(request: ModifiedCompletionReques
     yield "data: [DONE]\n\n"
 
 
-async def generate_completion_stream(payload: Dict[str, Any]):
+async def generate_completion_stream(payload: dict[str, Any]):
     async with httpx.AsyncClient() as client:
         worker_addr = await get_worker_address(payload["model"], client)
         delimiter = b"\0"
@@ -1092,7 +1095,7 @@ async def generate_completion_stream(payload: Dict[str, Any]):
                     yield data
 
 
-async def generate_completion(payload: Dict[str, Any]):
+async def generate_completion(payload: dict[str, Any]):
     async with httpx.AsyncClient() as client:
         worker_addr = await get_worker_address(payload["model"], client)
 
@@ -1129,7 +1132,8 @@ async def create_embeddings(request: EmbeddingsRequest, model_name: str = None):
     token_num = 0
     batch_size = WORKER_API_EMBEDDING_BATCH_SIZE
     batches = [
-        request.input[i : min(i + batch_size, len(request.input))] for i in range(0, len(request.input), batch_size)
+        request.input[i : min(i + batch_size, len(request.input))]
+        for i in range(0, len(request.input), batch_size)
     ]
     for num_batch, batch in enumerate(batches):
         payload = {
@@ -1159,7 +1163,7 @@ async def create_embeddings(request: EmbeddingsRequest, model_name: str = None):
     ).model_dump(exclude_none=True)
 
 
-async def get_embedding(payload: Dict[str, Any]):
+async def get_embedding(payload: dict[str, Any]):
     model_name = payload["model"]
     async with httpx.AsyncClient() as client:
         worker_addr = await get_worker_address(model_name, client)
@@ -1208,7 +1212,11 @@ async def count_tokens(request: APITokenCheckRequest):
             if token_num + item.max_tokens > context_len:
                 can_fit = False
 
-            checkedList.append(APITokenCheckResponseItem(fits=can_fit, contextLength=context_len, tokenCount=token_num))
+            checkedList.append(
+                APITokenCheckResponseItem(
+                    fits=can_fit, contextLength=context_len, tokenCount=token_num
+                )
+            )
 
     return APITokenCheckResponse(prompts=checkedList)
 
@@ -1249,7 +1257,9 @@ async def create_chat_completion(request: APIChatCompletionRequest):
     if request.repetition_penalty is not None:
         gen_params["repetition_penalty"] = request.repetition_penalty
 
-    error_check_ret = await check_length(request, gen_params["prompt"], gen_params["max_new_tokens"])
+    error_check_ret = await check_length(
+        request, gen_params["prompt"], gen_params["max_new_tokens"]
+    )
     if error_check_ret is not None:
         return error_check_ret
 
@@ -1356,7 +1366,9 @@ async def tokenize(request: Request):
         return response.json()
 
 
-@router.post("/v1/visualize_generation", dependencies=[Depends(check_api_key)], tags=["visualization"])
+@router.post(
+    "/v1/visualize_generation", dependencies=[Depends(check_api_key)], tags=["visualization"]
+)
 async def visualize_model_generation(request: VisualizationRequest):
     """Stream model activations and attention data during text generation"""
     error_check_ret = await check_model(request)
@@ -1467,7 +1479,10 @@ async def visualization_stream_generator(
         except Exception as e:
             print("Error connecting to model worker ", e)
             error_msg = json.dumps(
-                {"error": "Error connecting to model worker", "error_code": ErrorCode.INTERNAL_ERROR}
+                {
+                    "error": "Error connecting to model worker",
+                    "error_code": ErrorCode.INTERNAL_ERROR,
+                }
             )
             yield f"data: {error_msg}\n\n"
             yield "data: [DONE]\n\n"
@@ -1496,7 +1511,10 @@ async def generate_complete_visualization(
                     "error_code": ErrorCode.INTERNAL_ERROR,
                 }
         except httpx.HTTPStatusError:
-            return {"error": "Visualization not supported by this model worker", "error_code": ErrorCode.INTERNAL_ERROR}
+            return {
+                "error": "Visualization not supported by this model worker",
+                "error_code": ErrorCode.INTERNAL_ERROR,
+            }
 
         # Set up parameters
         payload = {
@@ -1517,7 +1535,9 @@ async def generate_complete_visualization(
         return response.json()
 
 
-@router.post("/v1/model_architecture", dependencies=[Depends(check_api_key)], tags=["visualization"])
+@router.post(
+    "/v1/model_architecture", dependencies=[Depends(check_api_key)], tags=["visualization"]
+)
 async def get_model_architecture(request: ModelArchitectureRequest):
     """Retrieve model architecture data for visualization"""
     error_check_ret = await check_model(request, bypass_adaptor=True)
@@ -1590,7 +1610,9 @@ async def text_diffusion_visualization(request: TextDiffusionRequest):
         logprobs=False,
     )
 
-    error_check_ret = await check_length(request, gen_params["prompt"], gen_params["max_new_tokens"])
+    error_check_ret = await check_length(
+        request, gen_params["prompt"], gen_params["max_new_tokens"]
+    )
     if error_check_ret is not None:
         return error_check_ret
 
@@ -1598,7 +1620,9 @@ async def text_diffusion_visualization(request: TextDiffusionRequest):
     return StreamingResponse(generator, media_type="text/event-stream")
 
 
-async def text_diffusion_stream_generator(model_name: str, gen_params: Dict[str, Any]) -> AsyncGenerator[str, Any]:
+async def text_diffusion_stream_generator(
+    model_name: str, gen_params: dict[str, Any]
+) -> AsyncGenerator[str, Any]:
     """Generator for text diffusion visualization stream"""
     id = f"diff-{shortuuid.random()}"
 

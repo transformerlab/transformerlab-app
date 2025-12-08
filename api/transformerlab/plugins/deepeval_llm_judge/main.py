@@ -12,8 +12,8 @@ from deepeval.dataset import EvaluationDataset
 from deepeval.evaluate.configs import AsyncConfig
 from deepeval.metrics import GEval
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
-
 from transformerlab.sdk.v1.evals import tlab_evals
+
 # # Add specific arguments needed for DeepEval metrics
 # tlab_evals.add_argument("--threshold", default=0.5, type=float, help="Score threshold for metrics")
 # tlab_evals.add_argument("--geval_name", default="", type=str, help="Name for custom GEval metrics")
@@ -53,11 +53,15 @@ def run_evaluation():
         except json.JSONDecodeError:
             print(f"Invalid JSON format for predefined tasks: {tlab_evals.params.predefined_tasks}")
             predefined_tasks = (
-                tlab_evals.params.predefined_tasks.split(",") if tlab_evals.params.predefined_tasks else []
+                tlab_evals.params.predefined_tasks.split(",")
+                if tlab_evals.params.predefined_tasks
+                else []
             )
     if len(predefined_tasks) == 0:
         print("No valid predefined tasks found.")
-    formatted_predefined_tasks = [task.strip().replace(" ", "") + "Metric" for task in predefined_tasks]
+    formatted_predefined_tasks = [
+        task.strip().replace(" ", "") + "Metric" for task in predefined_tasks
+    ]
 
     try:
         geval_tasks = json.loads(tlab_evals.params.tasks) if tlab_evals.params.tasks else []
@@ -96,7 +100,7 @@ def run_evaluation():
         print("Model loaded successfully")
     except Exception as e:
         print(f"An error occurred while loading the model: {e}")
-        raise ValueError(f"Failed to load model: {str(e)}")
+        raise ValueError(f"Failed to load model: {e!s}")
 
     tlab_evals.progress_update(10)
 
@@ -107,7 +111,7 @@ def run_evaluation():
         print("Dataset loaded successfully")
     except Exception as e:
         print(f"Error loading dataset: {e}")
-        raise ValueError(f"Failed to load dataset {tlab_evals.params.dataset_name}: {str(e)}")
+        raise ValueError(f"Failed to load dataset {tlab_evals.params.dataset_name}: {e!s}")
 
     tlab_evals.progress_update(15)
 
@@ -120,7 +124,10 @@ def run_evaluation():
         )
 
     # Check context requirements
-    if any(elem in three_input_metrics for elem in formatted_predefined_tasks) or len(three_input_custom_metric) > 0:
+    if (
+        any(elem in three_input_metrics for elem in formatted_predefined_tasks)
+        or len(three_input_custom_metric) > 0
+    ):
         if "context" not in df.columns:
             print("Using expected_output column as the context")
             df["context"] = df["expected_output"]
@@ -147,7 +154,9 @@ def run_evaluation():
             print("CHECKING FOR METRIC:", met)
             metric_class = get_metric_class(met)
             metric = metric_class(
-                model=trlab_model, threshold=tlab_evals.params.get("threshold", 0.5), include_reason=True
+                model=trlab_model,
+                threshold=tlab_evals.params.get("threshold", 0.5),
+                include_reason=True,
             )
             metrics_arr.append(metric)
 
@@ -199,7 +208,7 @@ def run_evaluation():
         print("Metrics loaded successfully")
     except Exception as e:
         print(f"An error occurred while loading the metrics: {e}")
-        raise ValueError(f"Failed to initialize metrics: {str(e)}")
+        raise ValueError(f"Failed to initialize metrics: {e!s}")
 
     tlab_evals.progress_update(30)
 
@@ -213,7 +222,11 @@ def run_evaluation():
             # Two-input test cases
             for _, row in df.iterrows():
                 test_cases.append(
-                    LLMTestCase(input=row["input"], actual_output=row["output"], expected_output=row["expected_output"])
+                    LLMTestCase(
+                        input=row["input"],
+                        actual_output=row["output"],
+                        expected_output=row["expected_output"],
+                    )
                 )
         elif (
             any(elem in three_input_metrics for elem in formatted_predefined_tasks)
@@ -271,7 +284,7 @@ def run_evaluation():
                     )
     except Exception as e:
         print(f"An error occurred while creating test cases: {e}")
-        raise ValueError(f"Failed to create test cases: {str(e)}")
+        raise ValueError(f"Failed to create test cases: {e!s}")
 
     # Apply limit if specified
     if tlab_evals.params.limit and float(tlab_evals.params.limit) != 1.0:
@@ -331,7 +344,7 @@ def run_evaluation():
     except Exception as e:
         traceback.print_exc()
         print(f"An error occurred during evaluation: {e}")
-        raise ValueError(f"Evaluation failed: {str(e)}")
+        raise ValueError(f"Evaluation failed: {e!s}")
 
 
 # Run the evaluation when script is executed

@@ -1,11 +1,12 @@
 import json
 import os
 import shutil
+from datetime import datetime
 
+from lab import Experiment, Job
+from lab import dirs as lab_dirs
 from lab.dataset import Dataset as dataset_service
 from lab.task import Task as task_service
-from lab import Experiment, Job, dirs as lab_dirs
-from datetime import datetime
 
 
 async def migrate_datasets_table_to_filesystem():
@@ -17,6 +18,7 @@ async def migrate_datasets_table_to_filesystem():
     try:
         # Late import to avoid hard dependency during tests without DB
         from sqlalchemy import text as sqlalchemy_text
+
         from transformerlab.db.session import async_session
 
         # Read existing rows
@@ -25,7 +27,9 @@ async def migrate_datasets_table_to_filesystem():
             # First check if the table exists
             async with async_session() as session:
                 result = await session.execute(
-                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='dataset'")
+                    sqlalchemy_text(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name='dataset'"
+                    )
                 )
                 exists = result.fetchone() is not None
             if not exists:
@@ -37,7 +41,7 @@ async def migrate_datasets_table_to_filesystem():
                 datasets = result.mappings().all()
                 dict_rows = [dict(dataset) for dataset in datasets]
                 for row in dict_rows:
-                    if "json_data" in row and row["json_data"]:
+                    if row.get("json_data"):
                         if isinstance(row["json_data"], str):
                             row["json_data"] = json.loads(row["json_data"])
                     rows.append(row)
@@ -79,7 +83,9 @@ async def migrate_datasets_table_to_filesystem():
         # Drop the legacy table if present
         try:
             async with async_session() as session:
-                await session.execute(sqlalchemy_text("ALTER TABLE dataset RENAME TO zzz_archived_dataset"))
+                await session.execute(
+                    sqlalchemy_text("ALTER TABLE dataset RENAME TO zzz_archived_dataset")
+                )
                 await session.commit()
         except Exception:
             pass
@@ -102,6 +108,7 @@ async def migrate_models_table_to_filesystem():
         from lab.dirs import get_models_dir
         from lab.model import Model as model_service
         from sqlalchemy import text as sqlalchemy_text
+
         from transformerlab.db.session import async_session
 
         models_dir = get_models_dir()
@@ -119,7 +126,9 @@ async def migrate_models_table_to_filesystem():
             # First check if the table exists
             async with async_session() as session:
                 result = await session.execute(
-                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='model'")
+                    sqlalchemy_text(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name='model'"
+                    )
                 )
                 exists = result.fetchone() is not None
             if not exists:
@@ -132,7 +141,7 @@ async def migrate_models_table_to_filesystem():
                     dict_rows = [dict(model) for model in models_rows]
                     rows = []
                     for row in dict_rows:
-                        if "json_data" in row and row["json_data"]:
+                        if row.get("json_data"):
                             if isinstance(row["json_data"], str):
                                 try:
                                     row["json_data"] = json.loads(row["json_data"])
@@ -177,7 +186,9 @@ async def migrate_models_table_to_filesystem():
         if exists:
             try:
                 async with async_session() as session:
-                    await session.execute(sqlalchemy_text("ALTER TABLE model RENAME TO zzz_archived_model"))
+                    await session.execute(
+                        sqlalchemy_text("ALTER TABLE model RENAME TO zzz_archived_model")
+                    )
                     await session.commit()
             except Exception as e:
                 print(f"Error dropping models table: {e}")
@@ -203,7 +214,7 @@ async def migrate_models_table_to_filesystem():
                         name = model_id
                         json_data = {}
                         try:
-                            with open(info_path, "r") as f:
+                            with open(info_path) as f:
                                 info_obj = json.load(f)
                                 if isinstance(info_obj, dict):
                                     name = info_obj.get("name", name)
@@ -230,7 +241,9 @@ async def migrate_models_table_to_filesystem():
                             continue
 
                 if fs_migrated:
-                    print(f"Filesystem models migration: {fs_migrated} entries created from info.json (no index.json).")
+                    print(
+                        f"Filesystem models migration: {fs_migrated} entries created from info.json (no index.json)."
+                    )
         except Exception as e:
             # Do not block startup on filesystem migration issues
             print(f"Error migrating models: {e}")
@@ -252,6 +265,7 @@ async def migrate_tasks_table_to_filesystem():
     try:
         # Late import to avoid hard dependency during tests without DB
         from sqlalchemy import text as sqlalchemy_text
+
         from transformerlab.db.session import async_session
 
         # Read existing rows
@@ -260,7 +274,9 @@ async def migrate_tasks_table_to_filesystem():
             # First check if the table exists
             async with async_session() as session:
                 result = await session.execute(
-                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'")
+                    sqlalchemy_text(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'"
+                    )
                 )
                 exists = result.fetchone() is not None
             if not exists:
@@ -274,7 +290,7 @@ async def migrate_tasks_table_to_filesystem():
                 for row in dict_rows:
                     # Handle JSON fields that might be strings
                     for json_field in ["inputs", "config", "outputs"]:
-                        if json_field in row and row[json_field]:
+                        if row.get(json_field):
                             if isinstance(row[json_field], str):
                                 try:
                                     row[json_field] = json.loads(row[json_field])
@@ -291,7 +307,9 @@ async def migrate_tasks_table_to_filesystem():
         try:
             async with async_session() as session:
                 result = await session.execute(
-                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='experiment'")
+                    sqlalchemy_text(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name='experiment'"
+                    )
                 )
                 experiments_table_exists = result.fetchone() is not None
 
@@ -348,11 +366,15 @@ async def migrate_tasks_table_to_filesystem():
                 metadata = task.get_metadata()
                 if created_at:
                     metadata["created_at"] = (
-                        created_at.isoformat() if hasattr(created_at, "isoformat") else str(created_at)
+                        created_at.isoformat()
+                        if hasattr(created_at, "isoformat")
+                        else str(created_at)
                     )
                 if updated_at:
                     metadata["updated_at"] = (
-                        updated_at.isoformat() if hasattr(updated_at, "isoformat") else str(updated_at)
+                        updated_at.isoformat()
+                        if hasattr(updated_at, "isoformat")
+                        else str(updated_at)
                     )
                 task._set_json_data(metadata)
 
@@ -365,7 +387,9 @@ async def migrate_tasks_table_to_filesystem():
         # Drop the legacy table if present
         try:
             async with async_session() as session:
-                await session.execute(sqlalchemy_text("ALTER TABLE tasks RENAME TO zzz_archived_tasks"))
+                await session.execute(
+                    sqlalchemy_text("ALTER TABLE tasks RENAME TO zzz_archived_tasks")
+                )
                 await session.commit()
         except Exception:
             pass
@@ -381,8 +405,9 @@ async def migrate_jobs():
     """Migrate jobs from DB to filesystem"""
     try:
         # Late import to avoid hard dependency during tests without DB
-        from transformerlab.db.session import async_session
         from sqlalchemy import text as sqlalchemy_text
+
+        from transformerlab.db.session import async_session
 
         print("Migrating jobs...")
 
@@ -393,7 +418,9 @@ async def migrate_jobs():
             # First check if the jobs table exists
             async with async_session() as session:
                 result = await session.execute(
-                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='job'")
+                    sqlalchemy_text(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name='job'"
+                    )
                 )
                 jobs_table_exists = result.fetchone() is not None
 
@@ -412,7 +439,9 @@ async def migrate_jobs():
             # Get experiments mapping first (can't use experiment_get_all() as it might be deleted)
             if experiments_table_exists:
                 async with async_session() as session:
-                    result = await session.execute(sqlalchemy_text("SELECT * FROM zzz_archived_experiment"))
+                    result = await session.execute(
+                        sqlalchemy_text("SELECT * FROM zzz_archived_experiment")
+                    )
                     experiments = result.mappings().all()
                     for exp in experiments:
                         # Ensure consistent string keys for mapping
@@ -424,7 +453,7 @@ async def migrate_jobs():
                 dict_jobs = [dict(job) for job in jobs]
                 for job in dict_jobs:
                     # Handle job_data JSON inconsistency (might be string or dict)
-                    if "job_data" in job and job["job_data"]:
+                    if job.get("job_data"):
                         if isinstance(job["job_data"], str):
                             try:
                                 job["job_data"] = json.loads(job["job_data"])
@@ -519,7 +548,9 @@ async def migrate_jobs():
         # Clean up temp experiments directory if it was used for job migration
         temp_experiments_dir = f"{lab_dirs.get_experiments_dir()}_migration_temp"
         if os.path.exists(temp_experiments_dir):
-            print(f"Cleaning up temp experiments directory after job migration: {temp_experiments_dir}")
+            print(
+                f"Cleaning up temp experiments directory after job migration: {temp_experiments_dir}"
+            )
             shutil.rmtree(temp_experiments_dir)
 
         # Archive the legacy jobs table if present
@@ -542,8 +573,9 @@ async def migrate_experiments():
     """Migrate experiments from DB to filesystem."""
     try:
         # Late import to avoid hard dependency during tests without DB
-        from transformerlab.db.session import async_session
         from sqlalchemy import text as sqlalchemy_text
+
+        from transformerlab.db.session import async_session
 
         print("Migrating experiments...")
 
@@ -553,7 +585,9 @@ async def migrate_experiments():
             # First check if the experiments table exists
             async with async_session() as session:
                 result = await session.execute(
-                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='experiment'")
+                    sqlalchemy_text(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name='experiment'"
+                    )
                 )
                 exists = result.fetchone() is not None
             if not exists:
@@ -567,7 +601,7 @@ async def migrate_experiments():
                 dict_experiments = [dict(experiment) for experiment in experiments]
                 for exp in dict_experiments:
                     # Handle config JSON inconsistency (like dataset migration)
-                    if "config" in exp and exp["config"]:
+                    if exp.get("config"):
                         if isinstance(exp["config"], str):
                             try:
                                 exp["config"] = json.loads(exp["config"])
@@ -638,13 +672,17 @@ async def migrate_experiments():
         # Archive the legacy experiments table if present
         try:
             async with async_session() as session:
-                await session.execute(sqlalchemy_text("ALTER TABLE experiment RENAME TO zzz_archived_experiment"))
+                await session.execute(
+                    sqlalchemy_text("ALTER TABLE experiment RENAME TO zzz_archived_experiment")
+                )
                 await session.commit()
         except Exception:
             pass
 
         if migrated:
-            print(f"Experiments migration completed: {migrated} entries migrated to filesystem store.")
+            print(
+                f"Experiments migration completed: {migrated} entries migrated to filesystem store."
+            )
 
     except Exception as e:
         # Do not block startup on migration issues
@@ -656,8 +694,9 @@ async def migrate_job_and_experiment_to_filesystem():
 
     try:
         # Late import to avoid hard dependency during tests without DB
-        from transformerlab.db.session import async_session
         from sqlalchemy import text as sqlalchemy_text
+
+        from transformerlab.db.session import async_session
 
         # Check if migration is needed by looking for the existence of old database tables
         experiments_need_migration = False
@@ -667,13 +706,17 @@ async def migrate_job_and_experiment_to_filesystem():
             async with async_session() as session:
                 # Check if experiments table exists
                 result = await session.execute(
-                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='experiment'")
+                    sqlalchemy_text(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name='experiment'"
+                    )
                 )
                 experiments_need_migration = result.fetchone() is not None
 
                 # Check if jobs table exists
                 result = await session.execute(
-                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='job'")
+                    sqlalchemy_text(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name='job'"
+                    )
                 )
                 jobs_need_migration = result.fetchone() is not None
         except Exception as e:

@@ -26,4 +26,6 @@ class TLabProgressCallback(TrainerCallback):
             for key, value in logs.items():
                 if isinstance(value, (int, float)):
                     metrics[key] = value
-            self.tlab_client.report_progress(30 + ((state.global_step / state.max_steps) * 60), metrics)
+            self.tlab_client.report_progress(
+                30 + ((state.global_step / state.max_steps) * 60), metrics
+            )

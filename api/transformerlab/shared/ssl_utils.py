@@ -3,16 +3,14 @@ from __future__ import annotations
 import datetime as _dt
 import ipaddress as _ip
 from pathlib import Path
-from typing import Tuple
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 from filelock import FileLock
-
-from lab.dirs import get_workspace_dir
 from lab import storage
+from lab.dirs import get_workspace_dir
 
 __all__ = [
     "CERT_DIR",
@@ -26,14 +24,16 @@ CERT_PATH: Path = CERT_DIR / "server-cert.pem"
 KEY_PATH: Path = CERT_DIR / "server-key.pem"
 
 
-def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
+def ensure_persistent_self_signed_cert() -> tuple[str, str]:
     lock = CERT_DIR / ".cert.lock"
     with FileLock(str(lock)):
         if CERT_PATH.exists() and KEY_PATH.exists():
             return str(CERT_PATH), str(KEY_PATH)
         CERT_DIR.mkdir(parents=True, exist_ok=True)
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-        subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "TransformerLab-Selfhost")])
+        subject = issuer = x509.Name(
+            [x509.NameAttribute(NameOID.COMMON_NAME, "TransformerLab-Selfhost")]
+        )
         cert_builder = (
             x509.CertificateBuilder()
             .subject_name(subject)

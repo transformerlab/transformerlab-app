@@ -1,15 +1,14 @@
+import json
 import os
 import re
 import subprocess
 import traceback
 
 import pandas as pd
-import json
 import torch
 from lab import storage
-
-from transformerlab.sdk.v1.evals import tlab_evals
 from transformerlab.plugin import get_python_executable
+from transformerlab.sdk.v1.evals import tlab_evals
 
 
 def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"):
@@ -72,7 +71,9 @@ def run_evaluation():
 
         # Check if CUDA is available
         if torch.cuda.is_available():
-            raise ValueError("CUDA is available. Please use the `eleuther-ai-lm-evaluation-harness-plugin`.")
+            raise ValueError(
+                "CUDA is available. Please use the `eleuther-ai-lm-evaluation-harness-plugin`."
+            )
 
         # Get plugin directory
         plugin_dir = os.path.realpath(os.path.dirname(__file__))

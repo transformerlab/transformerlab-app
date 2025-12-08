@@ -1,21 +1,19 @@
+import gc
+import json
 import math
 import random
-import json
-import gc
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
-from peft import LoraConfig
-from peft.utils import get_peft_model_state_dict
-from torchvision import transforms
-
 from diffusers import AutoPipelineForText2Image, StableDiffusionPipeline
-
 from diffusers.optimization import get_scheduler
 from diffusers.training_utils import cast_training_params, compute_snr
 from diffusers.utils import convert_state_dict_to_diffusers
+from peft import LoraConfig
+from peft.utils import get_peft_model_state_dict
+from torchvision import transforms
 
 # Try to import xformers for memory optimization
 try:
@@ -25,9 +23,9 @@ try:
 except ImportError:
     xformers_available = False
 
-from transformerlab.sdk.v1.train import tlab_trainer
-from lab.dirs import get_workspace_dir
 from lab import storage
+from lab.dirs import get_workspace_dir
+from transformerlab.sdk.v1.train import tlab_trainer
 
 workspace_dir = get_workspace_dir()
 
@@ -47,7 +45,7 @@ def cleanup_pipeline():
             torch.cuda.empty_cache()  # Second empty_cache call
 
     except Exception as e:
-        print(f"Warning: Failed to cleanup pipeline: {str(e)}")
+        print(f"Warning: Failed to cleanup pipeline: {e!s}")
 
 
 cleanup_pipeline()
@@ -61,13 +59,16 @@ def compute_loss_weighting(args, timesteps, noise_scheduler):
     if args.get("min_snr_gamma") is not None and args.get("min_snr_gamma") != "":
         snr = compute_snr(noise_scheduler, timesteps)
         min_snr_gamma = float(args.get("min_snr_gamma"))
-        snr_weight = torch.stack([snr, min_snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0] / snr
+        snr_weight = (
+            torch.stack([snr, min_snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
+            / snr
+        )
         return snr_weight
     elif args.get("snr_gamma") is not None and args.get("snr_gamma") != "":
         snr = compute_snr(noise_scheduler, timesteps)
-        mse_loss_weights = torch.stack([snr, float(args["snr_gamma"]) * torch.ones_like(timesteps)], dim=1).min(dim=1)[
-            0
-        ]
+        mse_loss_weights = torch.stack(
+            [snr, float(args["snr_gamma"]) * torch.ones_like(timesteps)], dim=1
+        ).min(dim=1)[0]
         if noise_scheduler.config.prediction_type == "epsilon":
             mse_loss_weights = mse_loss_weights / snr
         elif noise_scheduler.config.prediction_type == "v_prediction":
@@ -85,7 +86,9 @@ def compute_loss(model_pred, target, timesteps, noise_scheduler, args):
     if loss_type == "l2":
         loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
     elif loss_type == "huber":
-        loss = F.smooth_l1_loss(model_pred.float(), target.float(), reduction="none", beta=args.get("huber_c", 0.1))
+        loss = F.smooth_l1_loss(
+            model_pred.float(), target.float(), reduction="none", beta=args.get("huber_c", 0.1)
+        )
     else:
         loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
 
@@ -99,7 +102,9 @@ def compute_loss(model_pred, target, timesteps, noise_scheduler, args):
         return loss.mean()
 
 
-def compute_time_ids(original_size, crops_coords_top_left, target_size, dtype, device, weight_dtype=None):
+def compute_time_ids(
+    original_size, crops_coords_top_left, target_size, dtype, device, weight_dtype=None
+):
     """
     Compute time IDs for SDXL conditioning.
     """
@@ -157,7 +162,12 @@ def encode_prompt(
 
     if prompt_embeds is None:
         prompt_2 = prompt if hasattr(pipe, "text_encoder_2") else None
-        prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds = encode_prompt_sdxl(
+        (
+            prompt_embeds,
+            negative_prompt_embeds,
+            pooled_prompt_embeds,
+            negative_pooled_prompt_embeds,
+        ) = encode_prompt_sdxl(
             text_encoders,
             tokenizers,
             prompt,
@@ -169,7 +179,12 @@ def encode_prompt(
             clip_skip=clip_skip,
         )
 
-    return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
+    return (
+        prompt_embeds,
+        negative_prompt_embeds,
+        pooled_prompt_embeds,
+        negative_pooled_prompt_embeds,
+    )
 
 
 def encode_prompt_sdxl(
@@ -214,7 +229,9 @@ def encode_prompt_sdxl(
         text_input_ids = text_inputs.input_ids
         untruncated_ids = tokenizer(prompt, padding="longest", return_tensors="pt").input_ids
 
-        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not torch.equal(text_input_ids, untruncated_ids):
+        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not torch.equal(
+            text_input_ids, untruncated_ids
+        ):
             removed_text = tokenizer.batch_decode(untruncated_ids[:, max_length - 1 : -1])
             print(
                 f"The following part of your input was truncated because CLIP can only handle sequences up to {max_length} tokens: {removed_text}"
@@ -253,9 +270,13 @@ def encode_prompt_sdxl(
     if do_classifier_free_guidance:
         # get unconditional embeddings for classifier free guidance
         negative_prompt_embeds_list = []
-        negative_prompts = [negative_prompt, negative_prompt_2] if negative_prompt_2 else [negative_prompt]
+        negative_prompts = (
+            [negative_prompt, negative_prompt_2] if negative_prompt_2 else [negative_prompt]
+        )
 
-        for negative_prompt, tokenizer, text_encoder in zip(negative_prompts, tokenizers, text_encoders):
+        for negative_prompt, tokenizer, text_encoder in zip(
+            negative_prompts, tokenizers, text_encoders
+        ):
             if negative_prompt is None:
                 negative_prompt = ""
 
@@ -268,7 +289,9 @@ def encode_prompt_sdxl(
                 return_tensors="pt",
             )
 
-            negative_prompt_embeds = text_encoder(uncond_input.input_ids.to(device), output_hidden_states=True)
+            negative_prompt_embeds = text_encoder(
+                uncond_input.input_ids.to(device), output_hidden_states=True
+            )
             # We are only interested in the pooled output of the final text encoder
             negative_pooled_prompt_embeds = negative_prompt_embeds[0]
 
@@ -288,9 +311,13 @@ def encode_prompt_sdxl(
         # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
         seq_len = negative_prompt_embeds.shape[1]
 
-        negative_prompt_embeds = negative_prompt_embeds.to(dtype=text_encoders[0].dtype, device=device)
+        negative_prompt_embeds = negative_prompt_embeds.to(
+            dtype=text_encoders[0].dtype, device=device
+        )
         negative_prompt_embeds = negative_prompt_embeds.repeat(1, num_images_per_prompt, 1)
-        negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
+        negative_prompt_embeds = negative_prompt_embeds.view(
+            batch_size * num_images_per_prompt, seq_len, -1
+        )
     else:
         negative_prompt_embeds = None
         negative_pooled_prompt_embeds = None
@@ -298,9 +325,16 @@ def encode_prompt_sdxl(
     # Ensure pooled embeddings have correct dtype and device
     pooled_prompt_embeds = pooled_prompt_embeds.to(dtype=text_encoders[-1].dtype, device=device)
     if negative_pooled_prompt_embeds is not None:
-        negative_pooled_prompt_embeds = negative_pooled_prompt_embeds.to(dtype=text_encoders[-1].dtype, device=device)
+        negative_pooled_prompt_embeds = negative_pooled_prompt_embeds.to(
+            dtype=text_encoders[-1].dtype, device=device
+        )
 
-    return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
+    return (
+        prompt_embeds,
+        negative_prompt_embeds,
+        pooled_prompt_embeds,
+        negative_pooled_prompt_embeds,
+    )
 
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
@@ -320,7 +354,9 @@ def train_diffusion_lora():
     eval_steps = int(args.get("eval_steps", 1))
 
     if args.get("model_architecture", "").strip() == "FluxPipeline":
-        print("Disabling evaluation for FluxPipeline as we don't support sharding based inference in the plugin yet.")
+        print(
+            "Disabling evaluation for FluxPipeline as we don't support sharding based inference in the plugin yet."
+        )
         eval_prompt = None
         args["eval_prompt"] = None
         args["eval_steps"] = 0
@@ -359,7 +395,9 @@ def train_diffusion_lora():
         "requires_safety_checker": False,
     }
 
-    temp_pipeline = AutoPipelineForText2Image.from_pretrained(pretrained_model_name_or_path, **pipeline_kwargs)
+    temp_pipeline = AutoPipelineForText2Image.from_pretrained(
+        pretrained_model_name_or_path, **pipeline_kwargs
+    )
 
     # Extract components from the loaded pipeline
     noise_scheduler = temp_pipeline.scheduler
@@ -387,7 +425,9 @@ def train_diffusion_lora():
     torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
     print(f"Model components loaded successfully: {pretrained_model_name_or_path}")
-    print(f"Architecture detected - Model component ({model_component_name}): {type(unet).__name__}")
+    print(
+        f"Architecture detected - Model component ({model_component_name}): {type(unet).__name__}"
+    )
     if text_encoder_2 is not None:
         print("Dual text encoder setup detected (likely SDXL)")
     print(f"Text encoder type: {type(text_encoder).__name__}")
@@ -507,9 +547,13 @@ def train_diffusion_lora():
                 if torch.cuda.is_available():
                     memory_after_ema = torch.cuda.memory_allocated() / (1024**3)
                     memory_increase = memory_after_ema - memory_before_ema
-                    print(f"GPU memory after EMA: {memory_after_ema:.2f}GB (increase: {memory_increase:.2f}GB)")
+                    print(
+                        f"GPU memory after EMA: {memory_after_ema:.2f}GB (increase: {memory_increase:.2f}GB)"
+                    )
 
-                print(f"EMA enabled for LoRA parameters only ({len(lora_parameters)} parameters) - Memory optimized")
+                print(
+                    f"EMA enabled for LoRA parameters only ({len(lora_parameters)} parameters) - Memory optimized"
+                )
             else:
                 print("Warning: No trainable LoRA parameters found for EMA")
         except ImportError:
@@ -563,7 +607,9 @@ def train_diffusion_lora():
         print(f"Evaluation image saved to: {image_path}")
 
     # Data transforms with enhanced augmentation (similar to Kohya)
-    interpolation = getattr(transforms.InterpolationMode, args.get("image_interpolation_mode", "lanczos").upper(), None)
+    interpolation = getattr(
+        transforms.InterpolationMode, args.get("image_interpolation_mode", "lanczos").upper(), None
+    )
     args["resolution"] = int(args.get("resolution", 512))
 
     # Build transforms list conditionally
@@ -596,7 +642,8 @@ def train_diffusion_lora():
     if args.get("random_rotation", False):
         transform_list.append(
             transforms.RandomApply(
-                [transforms.RandomRotation(args.get("rotation_degrees", 5))], p=args.get("rotation_prob", 0.3)
+                [transforms.RandomRotation(args.get("rotation_degrees", 5))],
+                p=args.get("rotation_prob", 0.3),
             )
         )
 
@@ -622,7 +669,9 @@ def train_diffusion_lora():
                 f"Warning: Caption column '{caption_column}' not found in dataset. Training on images only (caption dropout = 1.0)"
             )
             # Create empty captions for all examples and force caption dropout
-            num_examples = len(next(iter(examples.values())))  # Get number of examples from any column
+            num_examples = len(
+                next(iter(examples.values()))
+            )  # Get number of examples from any column
             captions = [""] * num_examples
             caption_dropout_rate = 1.0  # Force complete caption dropout
         else:
@@ -649,7 +698,11 @@ def train_diffusion_lora():
 
         # Primary tokenizer (always present)
         inputs = tokenizer(
-            captions, max_length=tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt"
+            captions,
+            max_length=tokenizer.model_max_length,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt",
         )
 
         result = {"input_ids": inputs.input_ids}
@@ -733,7 +786,9 @@ def train_diffusion_lora():
         # Add SDXL-specific metadata for proper conditioning
         if "original_sizes" in examples[0]:
             batch["original_sizes"] = [example["original_sizes"] for example in examples]
-            batch["crop_coords_top_left"] = [example["crop_coords_top_left"] for example in examples]
+            batch["crop_coords_top_left"] = [
+                example["crop_coords_top_left"] for example in examples
+            ]
             batch["target_sizes"] = [example["target_sizes"] for example in examples]
 
         return batch
@@ -789,7 +844,9 @@ def train_diffusion_lora():
         unet.train()
         for step, batch in enumerate(train_dataloader):
             # Convert images to latent space
-            latents = vae.encode(batch["pixel_values"].to(device, dtype=weight_dtype)).latent_dist.sample()
+            latents = vae.encode(
+                batch["pixel_values"].to(device, dtype=weight_dtype)
+            ).latent_dist.sample()
             latents = latents * vae.config.scaling_factor
 
             # Sample noise
@@ -814,7 +871,9 @@ def train_diffusion_lora():
                 # else:
                 #     prompts_2 = None
 
-                text_encoders = [text_encoder, text_encoder_2] if text_encoder_2 is not None else [text_encoder]
+                text_encoders = (
+                    [text_encoder, text_encoder_2] if text_encoder_2 is not None else [text_encoder]
+                )
                 tokenizers = [tokenizer, tokenizer_2] if tokenizer_2 is not None else [tokenizer]
 
                 # Create a temporary pipeline-like object for encode_prompt compatibility
@@ -838,19 +897,25 @@ def train_diffusion_lora():
                 )
             else:
                 # Standard single text encoder approach
-                encoder_hidden_states = text_encoder(batch["input_ids"].to(device), return_dict=False)[0]
+                encoder_hidden_states = text_encoder(
+                    batch["input_ids"].to(device), return_dict=False
+                )[0]
                 pooled_prompt_embeds = None
 
                 # For SDXL with dual text encoders, handle dimension compatibility and concatenate
                 if text_encoder_2 is not None and "input_ids_2" in batch:
-                    encoder_hidden_states_2 = text_encoder_2(batch["input_ids_2"].to(device), return_dict=False)[0]
+                    encoder_hidden_states_2 = text_encoder_2(
+                        batch["input_ids_2"].to(device), return_dict=False
+                    )[0]
 
                     # Handle dimension mismatch - ensure both tensors have the same number of dimensions
                     if encoder_hidden_states.dim() != encoder_hidden_states_2.dim():
                         # If one is 2D and the other is 3D, add a dimension to the 2D tensor
                         if encoder_hidden_states.dim() == 2 and encoder_hidden_states_2.dim() == 3:
                             encoder_hidden_states = encoder_hidden_states.unsqueeze(1)
-                        elif encoder_hidden_states.dim() == 3 and encoder_hidden_states_2.dim() == 2:
+                        elif (
+                            encoder_hidden_states.dim() == 3 and encoder_hidden_states_2.dim() == 2
+                        ):
                             encoder_hidden_states_2 = encoder_hidden_states_2.unsqueeze(1)
 
                     # Ensure sequence lengths match for concatenation
@@ -879,7 +944,9 @@ def train_diffusion_lora():
                                     device=encoder_hidden_states.device,
                                     dtype=encoder_hidden_states.dtype,
                                 )
-                                encoder_hidden_states = torch.cat([encoder_hidden_states, padding], dim=1)
+                                encoder_hidden_states = torch.cat(
+                                    [encoder_hidden_states, padding], dim=1
+                                )
 
                             if encoder_hidden_states_2.shape[1] < max_seq_len:
                                 pad_size = max_seq_len - encoder_hidden_states_2.shape[1]
@@ -890,10 +957,14 @@ def train_diffusion_lora():
                                     device=encoder_hidden_states_2.device,
                                     dtype=encoder_hidden_states_2.dtype,
                                 )
-                                encoder_hidden_states_2 = torch.cat([encoder_hidden_states_2, padding], dim=1)
+                                encoder_hidden_states_2 = torch.cat(
+                                    [encoder_hidden_states_2, padding], dim=1
+                                )
 
                     # Concatenate along the feature dimension (last dimension)
-                    encoder_hidden_states = torch.cat([encoder_hidden_states, encoder_hidden_states_2], dim=-1)
+                    encoder_hidden_states = torch.cat(
+                        [encoder_hidden_states, encoder_hidden_states_2], dim=-1
+                    )
 
             # Loss target
             prediction_type = args.get("prediction_type", None)
@@ -908,7 +979,11 @@ def train_diffusion_lora():
                 raise ValueError(
                     f"Unknown prediction type {noise_scheduler.config.prediction_type}"
                 )  # Handle SDXL-specific conditioning parameters with proper metadata
-            unet_kwargs = {"timestep": timesteps, "encoder_hidden_states": encoder_hidden_states, "return_dict": False}
+            unet_kwargs = {
+                "timestep": timesteps,
+                "encoder_hidden_states": encoder_hidden_states,
+                "return_dict": False,
+            }
 
             # SDXL requires additional conditioning kwargs with proper pooled embeddings and time_ids
             if is_sdxl:
@@ -926,7 +1001,11 @@ def train_diffusion_lora():
                     text_embeds = torch.zeros(batch_size, 1280, device=device, dtype=weight_dtype)
 
                 # Compute proper time_ids from actual image metadata if available
-                if "original_sizes" in batch and "crop_coords_top_left" in batch and "target_sizes" in batch:
+                if (
+                    "original_sizes" in batch
+                    and "crop_coords_top_left" in batch
+                    and "target_sizes" in batch
+                ):
                     time_ids_list = []
                     for i in range(batch_size):
                         original_size = batch["original_sizes"][i]
@@ -966,7 +1045,9 @@ def train_diffusion_lora():
             loss.backward()
 
             if (step + 1) % gradient_accumulation_steps == 0 or (step + 1) == len(train_dataloader):
-                torch.nn.utils.clip_grad_norm_(list(lora_layers), float(args.get("max_grad_norm", 1.0)))
+                torch.nn.utils.clip_grad_norm_(
+                    list(lora_layers), float(args.get("max_grad_norm", 1.0))
+                )
                 optimizer.step()
                 lr_scheduler.step()
                 optimizer.zero_grad()
@@ -1000,7 +1081,9 @@ def train_diffusion_lora():
                     memory_used = torch.cuda.memory_allocated() / (1024**3)
                     memory_reserved = torch.cuda.memory_reserved() / (1024**3)
                     tlab_trainer.log_metric("train/gpu_memory_used_gb", memory_used, global_step)
-                    tlab_trainer.log_metric("train/gpu_memory_reserved_gb", memory_reserved, global_step)
+                    tlab_trainer.log_metric(
+                        "train/gpu_memory_reserved_gb", memory_reserved, global_step
+                    )
                     print(
                         f"Step {global_step}: GPU memory used: {memory_used:.2f}GB, reserved: {memory_reserved:.2f}GB"
                     )
@@ -1064,7 +1147,9 @@ def train_diffusion_lora():
         },
         "tlab_trainer_used": True,
     }
-    with storage.open(storage.join(save_directory, "tlab_adaptor_info.json"), "w", encoding="utf-8") as f:
+    with storage.open(
+        storage.join(save_directory, "tlab_adaptor_info.json"), "w", encoding="utf-8"
+    ) as f:
         json.dump(save_info, f, indent=4)
 
     # Method 1: Try the original SD 1.x approach that worked perfectly
@@ -1075,7 +1160,9 @@ def train_diffusion_lora():
                 unet_lora_layers=model_lora_state_dict,
                 safe_serialization=True,
             )
-            print(f"LoRA weights saved to {save_directory} using StableDiffusionPipeline.save_lora_weights (SD 1.x)")
+            print(
+                f"LoRA weights saved to {save_directory} using StableDiffusionPipeline.save_lora_weights (SD 1.x)"
+            )
             saved_successfully = True
         except Exception as e:
             print(f"Error with StableDiffusionPipeline.save_lora_weights: {e}")
@@ -1094,11 +1181,13 @@ def train_diffusion_lora():
                 text_encoder_2_lora_layers=None,  # Explicitly set to None for UNet-only training
                 safe_serialization=True,
             )
-            print(f"LoRA weights saved to {save_directory} using StableDiffusionXLPipeline.save_lora_weights (SDXL)")
+            print(
+                f"LoRA weights saved to {save_directory} using StableDiffusionXLPipeline.save_lora_weights (SDXL)"
+            )
             saved_successfully = True
         except Exception as e:
             print(f"Error with StableDiffusionXLPipeline.save_lora_weights: {e}")
-            print(f"Detailed error: {str(e)}")
+            print(f"Detailed error: {e!s}")
 
     # Method 3: Try SD3-specific save method
     if not saved_successfully and is_sd3:
@@ -1111,7 +1200,9 @@ def train_diffusion_lora():
                 unet_lora_layers=model_lora_state_dict,
                 safe_serialization=True,
             )
-            print(f"LoRA weights saved to {save_directory} using StableDiffusion3Pipeline.save_lora_weights (SD3)")
+            print(
+                f"LoRA weights saved to {save_directory} using StableDiffusion3Pipeline.save_lora_weights (SD3)"
+            )
             saved_successfully = True
         except Exception as e:
             print(f"Error with StableDiffusion3Pipeline.save_lora_weights: {e}")
@@ -1167,7 +1258,10 @@ def train_diffusion_lora():
         try:
             from safetensors.torch import save_file
 
-            save_file(model_lora_state_dict, storage.join(save_directory, "pytorch_lora_weights.safetensors"))
+            save_file(
+                model_lora_state_dict,
+                storage.join(save_directory, "pytorch_lora_weights.safetensors"),
+            )
             print(
                 f"LoRA weights saved to {save_directory}/pytorch_lora_weights.safetensors using safetensors (universal fallback)"
             )
@@ -1177,7 +1271,9 @@ def train_diffusion_lora():
             saved_successfully = True
         except ImportError:
             # Final fallback to standard PyTorch format
-            torch.save(model_lora_state_dict, storage.join(save_directory, "pytorch_lora_weights.bin"))
+            torch.save(
+                model_lora_state_dict, storage.join(save_directory, "pytorch_lora_weights.bin")
+            )
             print(
                 f"LoRA weights saved to {save_directory}/pytorch_lora_weights.bin using PyTorch format (final fallback)"
             )

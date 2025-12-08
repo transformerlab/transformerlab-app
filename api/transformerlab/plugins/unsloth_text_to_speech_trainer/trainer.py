@@ -1,10 +1,9 @@
-from unsloth import FastModel, FastLanguageModel
-
 from abc import ABC, abstractmethod
-from transformers import CsmForConditionalGeneration
+
 import torch
-from transformers import AutoProcessor
 from snac import SNAC
+from transformers import AutoProcessor, CsmForConditionalGeneration
+from unsloth import FastLanguageModel, FastModel
 
 
 class AudioTrainerBase(ABC):
@@ -33,7 +32,15 @@ class AudioTrainerBase(ABC):
         self.max_audio_length = max_audio_length
         self.audio_column_name = audio_column_name
         self.text_column_name = text_column_name
-        self.lora_target_modules = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+        self.lora_target_modules = [
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
+        ]
 
     @abstractmethod
     def preprocess_dataset(self, example):
@@ -122,10 +129,18 @@ class CsmAudioTrainer(AudioTrainerBase):
                 common_kwargs={"return_tensors": "pt"},
             )
         except Exception as e:
-            print(f"Error processing example with text '{example[self.text_column_name][:50]}...': {e}")
+            print(
+                f"Error processing example with text '{example[self.text_column_name][:50]}...': {e}"
+            )
             return None
 
-        required_keys = ["input_ids", "attention_mask", "labels", "input_values", "input_values_cutoffs"]
+        required_keys = [
+            "input_ids",
+            "attention_mask",
+            "labels",
+            "input_values",
+            "input_values_cutoffs",
+        ]
         processed_example = {}
         for key in required_keys:
             if key not in model_inputs:
@@ -265,14 +280,16 @@ class OrpheusAudioTrainer(AudioTrainerBase):
             codes_list = self._tokenize_audio(audio_array)
 
             if not codes_list:
-                print(f"Warning: Empty codes list for example with text '{example[self.text_column_name][:50]}...'")
+                print(
+                    f"Warning: Empty codes list for example with text '{example[self.text_column_name][:50]}...'"
+                )
                 return None
 
             # Remove duplicate frames for efficiency
             codes_list = self._remove_duplicate_frames(codes_list)
 
             # Create text prompt (multi-speaker or single-speaker)
-            if self.speaker_key in example and example[self.speaker_key]:
+            if example.get(self.speaker_key):
                 text_prompt = f"{example[self.speaker_key]}: {example[self.text_column_name]}"
             else:
                 text_prompt = example[self.text_column_name]
@@ -310,5 +327,7 @@ class OrpheusAudioTrainer(AudioTrainerBase):
             return {"input_ids": input_ids, "labels": labels, "attention_mask": attention_mask}
 
         except Exception as e:
-            print(f"Error processing example with text '{example[self.text_column_name][:50]}...': {e}")
+            print(
+                f"Error processing example with text '{example[self.text_column_name][:50]}...': {e}"
+            )
             return None

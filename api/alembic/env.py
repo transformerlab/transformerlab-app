@@ -1,15 +1,14 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
-# Import all models to ensure they're registered with Base.metadata
-from transformerlab.shared.models.models import Base
-
 # Override sqlalchemy.url from environment or use the one from constants
 from transformerlab.db.constants import DATABASE_URL
+
+# Import all models to ensure they're registered with Base.metadata
+from transformerlab.shared.models.models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

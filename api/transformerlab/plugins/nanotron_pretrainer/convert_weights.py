@@ -1,7 +1,6 @@
 # Adapted from: https://github.com/huggingface/nanotron/blob/main/examples/llama/convert_weights.py
 import json
 from pathlib import Path
-from typing import Optional
 
 import nanotron
 import torch
@@ -16,9 +15,13 @@ def get_weight_mapping(config: NanotronLlamaConfig, nt_to_hf: bool = True) -> di
 
     hf_to_nt_map = {}
     hf_to_nt_map["lm_head.weight"] = "model.lm_head.pp_block.weight"
-    hf_to_nt_map["model.embed_tokens.weight"] = "model.token_position_embeddings.pp_block.token_embedding.weight"
+    hf_to_nt_map["model.embed_tokens.weight"] = (
+        "model.token_position_embeddings.pp_block.token_embedding.weight"
+    )
     hf_to_nt_map["model.norm.weight"] = "model.final_layer_norm.pp_block.weight"
-    hf_to_nt_map["model.embed_tokens.weight"] = "model.token_position_embeddings.pp_block.token_embedding.weight"
+    hf_to_nt_map["model.embed_tokens.weight"] = (
+        "model.token_position_embeddings.pp_block.token_embedding.weight"
+    )
 
     for i in range(config.num_hidden_layers):
         hf_prefix = f"model.layers.{i}"
@@ -34,7 +37,9 @@ def get_weight_mapping(config: NanotronLlamaConfig, nt_to_hf: bool = True) -> di
         hf_to_nt_map[f"{hf_prefix}.mlp.down_proj.weight"] = f"{nt_prefix}.mlp.down_proj.weight"
         hf_to_nt_map[f"{hf_prefix}.mlp.down_proj.bias"] = f"{nt_prefix}.mlp.down_proj.bias"
         hf_to_nt_map[f"{hf_prefix}.input_layernorm.weight"] = f"{nt_prefix}.input_layernorm.weight"
-        hf_to_nt_map[f"{hf_prefix}.post_attention_layernorm.weight"] = f"{nt_prefix}.post_attention_layernorm.weight"
+        hf_to_nt_map[f"{hf_prefix}.post_attention_layernorm.weight"] = (
+            f"{nt_prefix}.post_attention_layernorm.weight"
+        )
 
     if nt_to_hf:
         nt_to_hf_map = {}
@@ -99,10 +104,10 @@ def make_parallel_config(
 
 
 def load_nanotron_model(
-    model_config: Optional[NanotronLlamaConfig] = None,
+    model_config: NanotronLlamaConfig | None = None,
     device: torch.device = torch.device("cuda"),
     dtype: torch.dtype = torch.bfloat16,
-    checkpoint_path: Optional[Path] = None,
+    checkpoint_path: Path | None = None,
 ) -> LlamaForTraining:
     """
     Creates and returns a nanotron model.

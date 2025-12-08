@@ -1,42 +1,43 @@
 """Router for managing team-scoped compute providers."""
 
-import os
 import configparser
+import os
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, List, Optional, Union, Tuple
+from lab import storage
+from lab.dirs import get_workspace_dir
 from pydantic import BaseModel, Field
-from transformerlab.shared.models.user_model import get_async_session
-from transformerlab.routers.auth import require_team_owner, get_user_and_team
-from transformerlab.services.provider_service import (
-    get_team_provider,
-    list_team_providers,
-    create_team_provider,
-    update_team_provider,
-    delete_team_provider,
-    get_provider_instance,
-)
-from transformerlab.schemas.compute_providers import (
-    ProviderCreate,
-    ProviderUpdate,
-    ProviderRead,
-    mask_sensitive_config,
-)
-from transformerlab.shared.models.models import ProviderType, TeamComputeProvider
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from transformerlab.compute_providers.base import ComputeProvider
 from transformerlab.compute_providers.models import (
     ClusterConfig,
     ClusterStatus,
-    ResourceInfo,
     JobConfig,
     JobInfo,
     JobState,
+    ResourceInfo,
+)
+from transformerlab.routers.auth import get_user_and_team, require_team_owner
+from transformerlab.schemas.compute_providers import (
+    ProviderCreate,
+    ProviderRead,
+    ProviderUpdate,
+    mask_sensitive_config,
 )
 from transformerlab.services import job_service
-from lab import storage
-from lab.dirs import get_workspace_dir
+from transformerlab.services.provider_service import (
+    create_team_provider,
+    delete_team_provider,
+    get_provider_instance,
+    get_team_provider,
+    list_team_providers,
+    update_team_provider,
+)
+from transformerlab.shared.models.models import ProviderType, TeamComputeProvider
+from transformerlab.shared.models.user_model import get_async_session
 
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
 
@@ -45,23 +46,27 @@ class ProviderTaskLaunchRequest(BaseModel):
     """Payload for launching a remote task via providers."""
 
     experiment_id: str = Field(..., description="Experiment that owns the job")
-    task_name: Optional[str] = Field(None, description="Friendly task name")
-    cluster_name: Optional[str] = Field(None, description="Base cluster name, suffix is appended automatically")
+    task_name: str | None = Field(None, description="Friendly task name")
+    cluster_name: str | None = Field(
+        None, description="Base cluster name, suffix is appended automatically"
+    )
     command: str = Field(..., description="Command to execute on the cluster")
-    subtype: Optional[str] = Field(None, description="Optional subtype for filtering")
-    cpus: Optional[str] = None
-    memory: Optional[str] = None
-    disk_space: Optional[str] = None
-    accelerators: Optional[str] = None
-    num_nodes: Optional[int] = None
-    setup: Optional[str] = None
-    env_vars: Dict[str, str] = Field(default_factory=dict, description="Environment variables as key-value pairs")
+    subtype: str | None = Field(None, description="Optional subtype for filtering")
+    cpus: str | None = None
+    memory: str | None = None
+    disk_space: str | None = None
+    accelerators: str | None = None
+    num_nodes: int | None = None
+    setup: str | None = None
+    env_vars: dict[str, str] = Field(
+        default_factory=dict, description="Environment variables as key-value pairs"
+    )
     # File mounts: mapping of remote path -> local path
-    file_mounts: Optional[Dict[str, str]] = Field(
+    file_mounts: dict[str, str] | None = Field(
         default=None,
         description="File mounts in the form {<remote_path>: <local_path>}",
     )
-    provider_name: Optional[str] = None
+    provider_name: str | None = None
 
 
 class ProviderTaskFileUploadResponse(BaseModel):
@@ -69,21 +74,23 @@ class ProviderTaskFileUploadResponse(BaseModel):
 
     status: str
     stored_path: str
-    message: Optional[str] = None
+    message: str | None = None
 
 
-def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
+def _sanitize_cluster_basename(base_name: str | None) -> str:
     """Return a filesystem-safe cluster base name."""
     if not base_name:
         return "remote-task"
-    normalized = "".join(ch if ch.isalnum() or ch in ("-", "_") else "-" for ch in base_name.strip())
+    normalized = "".join(
+        ch if ch.isalnum() or ch in ("-", "_") else "-" for ch in base_name.strip()
+    )
     normalized = normalized.strip("-_")
     return normalized or "remote-task"
 
 
-def _get_provider_instances(providers: list[TeamComputeProvider]) -> Dict[str, ComputeProvider]:
+def _get_provider_instances(providers: list[TeamComputeProvider]) -> dict[str, ComputeProvider]:
     """Instantiate providers safely."""
-    instances: Dict[str, ComputeProvider] = {}
+    instances: dict[str, ComputeProvider] = {}
     for provider in providers:
         try:
             instances[provider.id] = get_provider_instance(provider)
@@ -92,7 +99,9 @@ def _get_provider_instances(providers: list[TeamComputeProvider]) -> Dict[str, C
     return instances
 
 
-@router.post("/{provider_id}/tasks/{task_id}/file-upload", response_model=ProviderTaskFileUploadResponse)
+@router.post(
+    "/{provider_id}/tasks/{task_id}/file-upload", response_model=ProviderTaskFileUploadResponse
+)
 async def upload_task_file_for_provider(
     provider_id: str,
     task_id: str,
@@ -155,7 +164,7 @@ async def upload_task_file_for_provider(
         raise HTTPException(status_code=500, detail="Failed to upload task file")
 
 
-@router.get("/", response_model=List[ProviderRead])
+@router.get("/", response_model=list[ProviderRead])
 async def list_providers(
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
@@ -212,7 +221,8 @@ async def create_provider(
     for existing_provider in existing:
         if existing_provider.name == provider_data.name:
             raise HTTPException(
-                status_code=400, detail=f"Provider with name '{provider_data.name}' already exists for this team"
+                status_code=400,
+                detail=f"Provider with name '{provider_data.name}' already exists for this team",
             )
 
     # Convert Pydantic config to dict
@@ -297,7 +307,8 @@ async def update_provider(
         for existing_provider in existing:
             if existing_provider.id != provider_id and existing_provider.name == provider_data.name:
                 raise HTTPException(
-                    status_code=400, detail=f"Provider with name '{provider_data.name}' already exists for this team"
+                    status_code=400,
+                    detail=f"Provider with name '{provider_data.name}' already exists for this team",
                 )
 
     # Prepare update data
@@ -312,7 +323,9 @@ async def update_provider(
         update_config = {**existing_config, **new_config}
 
     # Update provider
-    provider = await update_team_provider(session=session, provider=provider, name=update_name, config=update_config)
+    provider = await update_team_provider(
+        session=session, provider=provider, name=update_name, config=update_config
+    )
 
     # Return with masked sensitive fields
     masked_config = mask_sensitive_config(provider.config or {}, provider.type)
@@ -423,11 +436,13 @@ async def launch_cluster(
             "result": result,
         }
     except Exception as e:
-        print(f"Failed to launch cluster: {str(e)}")
+        print(f"Failed to launch cluster: {e!s}")
         raise HTTPException(status_code=500, detail="Failed to launch cluster")
 
 
-def _get_aws_credentials_from_file(profile_name: str = "transformerlab-s3") -> Tuple[Optional[str], Optional[str]]:
+def _get_aws_credentials_from_file(
+    profile_name: str = "transformerlab-s3",
+) -> tuple[str | None, str | None]:
     """
     Read AWS credentials from ~/.aws/credentials file for the specified profile.
 
@@ -457,7 +472,7 @@ def _get_aws_credentials_from_file(profile_name: str = "transformerlab-s3") -> T
 
 
 def _generate_aws_credentials_setup(
-    aws_access_key_id: str, aws_secret_access_key: str, aws_profile: Optional[str] = None
+    aws_access_key_id: str, aws_secret_access_key: str, aws_profile: str | None = None
 ) -> str:
     """
     Generate bash script to set up AWS credentials in ~/.aws/credentials.
@@ -530,10 +545,12 @@ async def launch_task_on_provider(
     user_info = {}
     if getattr(user, "first_name", None) or getattr(user, "last_name", None):
         user_info["name"] = " ".join(
-            part for part in [getattr(user, "first_name", ""), getattr(user, "last_name", "")] if part
+            part
+            for part in [getattr(user, "first_name", ""), getattr(user, "last_name", "")]
+            if part
         ).strip()
     if getattr(user, "email", None):
-        user_info["email"] = getattr(user, "email")
+        user_info["email"] = user.email
 
     provider_display_name = request.provider_name or provider.name
 
@@ -550,7 +567,9 @@ async def launch_task_on_provider(
     # Build setup script - prepend AWS credentials setup if credentials are provided
     setup_commands = []
     if aws_access_key_id and aws_secret_access_key:
-        aws_setup = _generate_aws_credentials_setup(aws_access_key_id, aws_secret_access_key, aws_profile)
+        aws_setup = _generate_aws_credentials_setup(
+            aws_access_key_id, aws_secret_access_key, aws_profile
+        )
         setup_commands.append(aws_setup)
 
     # Add user-provided setup if any
@@ -567,7 +586,9 @@ async def launch_task_on_provider(
     try:
         storage_root = storage.root_uri()
         # Check if it's a remote URI (not a local path)
-        if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
+        if storage_root and any(
+            storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")
+        ):
             tfl_storage_uri = storage_root
     except Exception:
         pass
@@ -600,7 +621,9 @@ async def launch_task_on_provider(
 
     for key, value in job_data.items():
         if value is not None:
-            job_service.job_update_job_data_insert_key_value(job_id, key, value, request.experiment_id)
+            job_service.job_update_job_data_insert_key_value(
+                job_id, key, value, request.experiment_id
+            )
 
     disk_size = None
     if request.disk_space:
@@ -733,7 +756,8 @@ async def check_provider_job_status(
 
     terminal_states = {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
     jobs_finished = bool(provider_jobs) and all(
-        getattr(provider_job, "state", JobState.UNKNOWN) in terminal_states for provider_job in provider_jobs
+        getattr(provider_job, "state", JobState.UNKNOWN) in terminal_states
+        for provider_job in provider_jobs
     )
 
     if jobs_finished:
@@ -794,7 +818,7 @@ async def stop_cluster(
             "result": result,
         }
     except Exception as e:
-        print(f"Failed to stop cluster: {str(e)}")
+        print(f"Failed to stop cluster: {e!s}")
         raise HTTPException(status_code=500, detail="Failed to stop cluster")
 
 
@@ -824,7 +848,7 @@ async def get_cluster_status(
 
         return status
     except Exception as e:
-        print(f"Failed to get cluster status: {str(e)}")
+        print(f"Failed to get cluster status: {e!s}")
         raise HTTPException(status_code=500, detail="Failed to get cluster status")
 
 
@@ -854,7 +878,7 @@ async def get_cluster_resources(
 
         return resources
     except Exception as e:
-        print(f"Failed to get cluster resources: {str(e)}")
+        print(f"Failed to get cluster resources: {e!s}")
         raise HTTPException(status_code=500, detail="Failed to get cluster resources")
 
 
@@ -899,15 +923,15 @@ async def submit_job(
             "result": result,
         }
     except Exception as e:
-        print(f"Failed to submit job: {str(e)}")
+        print(f"Failed to submit job: {e!s}")
         raise HTTPException(status_code=500, detail="Failed to submit job")
 
 
-@router.get("/{provider_id}/clusters/{cluster_name}/jobs", response_model=List[JobInfo])
+@router.get("/{provider_id}/clusters/{cluster_name}/jobs", response_model=list[JobInfo])
 async def list_jobs(
     provider_id: str,
     cluster_name: str,
-    state: Optional[JobState] = Query(None, description="Filter jobs by state"),
+    state: JobState | None = Query(None, description="Filter jobs by state"),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -934,7 +958,7 @@ async def list_jobs(
 
         return jobs
     except Exception as e:
-        print(f"Failed to list jobs: {str(e)}")
+        print(f"Failed to list jobs: {e!s}")
         raise HTTPException(status_code=500, detail="Failed to list jobs")
 
 
@@ -942,7 +966,7 @@ async def list_jobs(
 async def get_job_info(
     provider_id: str,
     cluster_name: str,
-    job_id: Union[str, int],
+    job_id: str | int,
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -981,7 +1005,7 @@ async def get_job_info(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Failed to get job info: {str(e)}")
+        print(f"Failed to get job info: {e!s}")
         raise HTTPException(status_code=500, detail="Failed to get job info")
 
 
@@ -989,8 +1013,8 @@ async def get_job_info(
 async def get_job_logs(
     provider_id: str,
     cluster_name: str,
-    job_id: Union[str, int],
-    tail_lines: Optional[int] = Query(None, description="Number of lines to retrieve from the end"),
+    job_id: str | int,
+    tail_lines: int | None = Query(None, description="Number of lines to retrieve from the end"),
     follow: bool = Query(False, description="Whether to stream/follow logs"),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
@@ -1013,7 +1037,9 @@ async def get_job_logs(
         provider_instance = get_provider_instance(provider)
 
         # Get job logs
-        logs = provider_instance.get_job_logs(cluster_name, job_id, tail_lines=tail_lines, follow=follow)
+        logs = provider_instance.get_job_logs(
+            cluster_name, job_id, tail_lines=tail_lines, follow=follow
+        )
 
         if follow:
             # Return streaming response
@@ -1034,7 +1060,7 @@ async def get_job_logs(
                             elif text and not text.startswith("Error reading logs:"):
                                 yield text
                     except Exception as e:
-                        print(f"Error streaming logs: {str(e)}")
+                        print(f"Error streaming logs: {e!s}")
                         yield "\n[Error streaming logs]\n"
 
                 return StreamingResponse(
@@ -1069,7 +1095,7 @@ async def get_job_logs(
 
             return log_content
     except Exception as e:
-        print(f"Failed to get job logs: {str(e)}")
+        print(f"Failed to get job logs: {e!s}")
         raise HTTPException(status_code=500, detail="Failed to get job logs")
 
 
@@ -1077,7 +1103,7 @@ async def get_job_logs(
 async def cancel_job(
     provider_id: str,
     cluster_name: str,
-    job_id: Union[str, int],
+    job_id: str | int,
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -1106,5 +1132,5 @@ async def cancel_job(
             "result": result,
         }
     except Exception as e:
-        print(f"Failed to cancel job: {str(e)}")
+        print(f"Failed to cancel job: {e!s}")
         raise HTTPException(status_code=500, detail="Failed to cancel job")

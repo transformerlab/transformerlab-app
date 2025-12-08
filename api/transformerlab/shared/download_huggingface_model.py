@@ -1,19 +1,18 @@
-import json
-import sqlite3
-import time
-from threading import Thread, Event
-from huggingface_hub import hf_hub_download, snapshot_download, HfFileSystem, list_repo_files
-from huggingface_hub.utils import GatedRepoError, EntryNotFoundError
 import argparse
+import json
 import os
+import sqlite3
 import sys
-from pathlib import Path
+import time
 from multiprocessing import Process, Queue
-from werkzeug.utils import secure_filename
+from pathlib import Path
+from threading import Event, Thread
 
-from lab import HOME_DIR, Job
-from lab import storage
+from huggingface_hub import HfFileSystem, hf_hub_download, list_repo_files, snapshot_download
+from huggingface_hub.utils import EntryNotFoundError, GatedRepoError
+from lab import HOME_DIR, Job, storage
 from lab.dirs import set_organization_id
+from werkzeug.utils import secure_filename
 
 DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
 
@@ -197,7 +196,9 @@ def get_downloaded_files_from_cache(repo_id, file_metadata):
         return (0, len(file_metadata), 0)
 
 
-def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files_downloaded=None, files_total=None):
+def update_job_progress(
+    job_id, model_name, downloaded_bytes, total_bytes, files_downloaded=None, files_total=None
+):
     """Update progress in the database"""
     try:
         job = Job.get(job_id)
@@ -231,13 +232,17 @@ def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files
                 f"Cache Progress: {progress_pct:.2f}% ({downloaded_mb:.1f} MB / {total_mb:.1f} MB) - Files: {files_downloaded}/{files_total}"
             )
         else:
-            print(f"Cache Progress: {progress_pct:.2f}% ({downloaded_mb:.1f} MB / {total_mb:.1f} MB)")
+            print(
+                f"Cache Progress: {progress_pct:.2f}% ({downloaded_mb:.1f} MB / {total_mb:.1f} MB)"
+            )
 
     except Exception as e:
         print(f"Failed to update database progress: {e}")
 
 
-def cache_progress_monitor(job_id, org_id, workspace_dir, model_name, repo_id, file_metadata, total_bytes):
+def cache_progress_monitor(
+    job_id, org_id, workspace_dir, model_name, repo_id, file_metadata, total_bytes
+):
     """
     Monitor cache directory for download progress.
     Runs in a separate thread.
@@ -260,10 +265,14 @@ def cache_progress_monitor(job_id, org_id, workspace_dir, model_name, repo_id, f
                 )
 
                 # Update job with both file count and bytes
-                update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files_downloaded, files_total)
+                update_job_progress(
+                    job_id, model_name, downloaded_bytes, total_bytes, files_downloaded, files_total
+                )
 
                 # Check if download is complete (both files and bytes)
-                if files_downloaded >= files_total and downloaded_bytes >= total_bytes * 0.99:  # 99% complete
+                if (
+                    files_downloaded >= files_total and downloaded_bytes >= total_bytes * 0.99
+                ):  # 99% complete
                     print("Download appears to be complete")
                     break
 
@@ -307,7 +316,9 @@ def check_model_gated(repo_id):
             return
         except GatedRepoError:
             # If we get a GatedRepoError, the model is definitely gated
-            raise GatedRepoError(f"Model {repo_id} is gated and requires authentication or license acceptance")
+            raise GatedRepoError(
+                f"Model {repo_id} is gated and requires authentication or license acceptance"
+            )
         except Exception:
             # If we get other errors (like file not found), continue to next file
             continue
@@ -364,7 +375,15 @@ else:
     # Models can have custom allow_patterns filters
     # Start with a default set of allow_patterns
     # but if we are able to read a list from the passed parameter use that instead
-    allow_patterns = ["*.json", "*.safetensors", "*.py", "tokenizer.model", "*.tiktoken", "*.npz", "*.bin"]
+    allow_patterns = [
+        "*.json",
+        "*.safetensors",
+        "*.py",
+        "tokenizer.model",
+        "*.tiktoken",
+        "*.npz",
+        "*.bin",
+    ]
     if args.allow_patterns:
         allow_patterns_json = args.allow_patterns
         try:
@@ -387,7 +406,7 @@ def do_download(repo_id, queue, allow_patterns=None, mode="model"):
             snapshot_download(repo_id=peft, local_dir=target_dir, repo_type="model")
         queue.put("done")
     except Exception as e:
-        queue.put(f"error: {str(e)}")
+        queue.put(f"error: {e!s}")
 
 
 def cancel_check(job_id, org_id):
@@ -537,7 +556,15 @@ def download_blocking(model_is_downloaded, org_id):
                 # Pass org_id so thread can set context
                 progress_thread = Thread(
                     target=cache_progress_monitor,
-                    args=(job_id, org_id, WORKSPACE_DIR, peft, peft, file_metadata, actual_total_size),
+                    args=(
+                        job_id,
+                        org_id,
+                        WORKSPACE_DIR,
+                        peft,
+                        peft,
+                        file_metadata,
+                        actual_total_size,
+                    ),
                     daemon=True,
                 )
                 progress_thread.start()
@@ -591,7 +618,15 @@ def download_blocking(model_is_downloaded, org_id):
                 # Pass org_id so thread can set context
                 progress_thread = Thread(
                     target=cache_progress_monitor,
-                    args=(job_id, org_id, WORKSPACE_DIR, model_filename, model, file_metadata, file_size),
+                    args=(
+                        job_id,
+                        org_id,
+                        WORKSPACE_DIR,
+                        model_filename,
+                        model,
+                        file_metadata,
+                        file_size,
+                    ),
                     daemon=True,
                 )
                 progress_thread.start()
@@ -645,7 +680,15 @@ def download_blocking(model_is_downloaded, org_id):
                     # Pass org_id so thread can set context
                     progress_thread = Thread(
                         target=cache_progress_monitor,
-                        args=(job_id, org_id, WORKSPACE_DIR, model, model, file_metadata, actual_total_size),
+                        args=(
+                            job_id,
+                            org_id,
+                            WORKSPACE_DIR,
+                            model,
+                            model,
+                            file_metadata,
+                            actual_total_size,
+                        ),
                         daemon=True,
                     )
                     progress_thread.start()

@@ -1,9 +1,10 @@
 import json
 import time
-import requests
 from pathlib import Path
-from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
+
+import requests
 from lab import storage
+from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 
 
 class GenTLabPlugin(TLabPlugin):
@@ -12,11 +13,21 @@ class GenTLabPlugin(TLabPlugin):
     def __init__(self):
         super().__init__()
         # Add common generation-specific arguments
-        self._parser.add_argument("--run_name", default="generated", type=str, help="Name for the generated dataset")
-        self._parser.add_argument("--experiment_name", default="default", type=str, help="Name of the experiment")
-        self._parser.add_argument("--model_adapter", default=None, type=str, help="Model adapter to use")
-        self._parser.add_argument("--generation_model", default="local", type=str, help="Model to use for generation")
-        self._parser.add_argument("--generation_type", default="local", type=str, help="Model to use for generation")
+        self._parser.add_argument(
+            "--run_name", default="generated", type=str, help="Name for the generated dataset"
+        )
+        self._parser.add_argument(
+            "--experiment_name", default="default", type=str, help="Name of the experiment"
+        )
+        self._parser.add_argument(
+            "--model_adapter", default=None, type=str, help="Model adapter to use"
+        )
+        self._parser.add_argument(
+            "--generation_model", default="local", type=str, help="Model to use for generation"
+        )
+        self._parser.add_argument(
+            "--generation_type", default="local", type=str, help="Model to use for generation"
+        )
 
         self.tlab_plugin_type = "generation"
 
@@ -43,7 +54,9 @@ class GenTLabPlugin(TLabPlugin):
                 self.params[key] = arg
                 key = None
 
-    def save_generated_dataset(self, df, additional_metadata=None, dataset_id=None, suffix=None, is_image=False):
+    def save_generated_dataset(
+        self, df, additional_metadata=None, dataset_id=None, suffix=None, is_image=False
+    ):
         """Save generated data to file and create dataset in TransformerLab
 
         Args:
@@ -71,9 +84,13 @@ class GenTLabPlugin(TLabPlugin):
         else:
             lines = False
             if suffix is not None:
-                output_file = storage.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_{suffix}.json")
+                output_file = storage.join(
+                    output_dir, f"{self.params.run_name}_{self.params.job_id}_{suffix}.json"
+                )
             else:
-                output_file = storage.join(output_dir, f"{self.params.run_name}_{self.params.job_id}.json")
+                output_file = storage.join(
+                    output_dir, f"{self.params.run_name}_{self.params.job_id}.json"
+                )
 
             if dataset_id is None:
                 # Makes /Users/xx/yy.json to yy
@@ -93,7 +110,9 @@ class GenTLabPlugin(TLabPlugin):
 
             # Save metadata
             if dataset_id is None:
-                metadata_file = storage.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_metadata.json")
+                metadata_file = storage.join(
+                    output_dir, f"{self.params.run_name}_{self.params.job_id}_metadata.json"
+                )
             else:
                 metadata_file = storage.join(output_dir, f"{dataset_id}_metadata.json")
             with storage.open(metadata_file, "w", encoding="utf-8") as f:
@@ -130,7 +149,10 @@ class GenTLabPlugin(TLabPlugin):
 
             # Create a new dataset
             if not dataset_id:
-                params = {"dataset_id": f"{self.params.run_name}_{self.params.job_id}", "generated": True}
+                params = {
+                    "dataset_id": f"{self.params.run_name}_{self.params.job_id}",
+                    "generated": True,
+                }
             else:
                 params = {"dataset_id": dataset_id, "generated": True}
 
@@ -190,7 +212,9 @@ class GenTLabPlugin(TLabPlugin):
         else:
             return storage.join(gen_dir, f"{self.params.run_name}.json")
 
-    def generate_expected_outputs(self, input_values, task=None, scenario=None, input_format=None, output_format=None):
+    def generate_expected_outputs(
+        self, input_values, task=None, scenario=None, input_format=None, output_format=None
+    ):
         """Generate expected outputs for given inputs using loaded model
 
         Args:
@@ -211,7 +235,9 @@ class GenTLabPlugin(TLabPlugin):
 
         # Load model if not already available as instance attribute
         if self.params.generation_model_instance is None:
-            self.generation_model_instance = self.load_evaluation_model(field_name="generation_model")
+            self.generation_model_instance = self.load_evaluation_model(
+                field_name="generation_model"
+            )
 
         model = self.generation_model_instance
 

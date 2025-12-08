@@ -2,29 +2,25 @@
 A model worker using Apple MLX Audio
 """
 
-import os
-import sys
 import argparse
 import asyncio
+import json
+import os
+import sys
 import uuid
 from contextlib import asynccontextmanager
-from typing import List
-import json
 from datetime import datetime
-import uvicorn
-import torch
-import soundfile as sf
+
 import librosa
+import soundfile as sf
+import torch
+import uvicorn
 from audio import CsmAudioModel, OrpheusAudioModel
-
-
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
-
 from fastchat.serve.model_worker import logger
-from lab.dirs import get_workspace_dir
 from lab import storage
-
+from lab.dirs import get_workspace_dir
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -49,7 +45,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         worker_addr: str,
         worker_id: str,
         model_path: str,
-        model_names: List[str],
+        model_names: list[str],
         model_architecture: str,
         limit_worker_concurrency: int,
         no_register: bool,
@@ -94,7 +90,9 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
             logger.info("Initialized Orpheus Audio Model")
 
         else:
-            logger.info(f"Model architecture {self.model_architecture} is not supported for audio generation.")
+            logger.info(
+                f"Model architecture {self.model_architecture} is not supported for audio generation."
+            )
 
         if not no_register:
             self.init_heart_beat()

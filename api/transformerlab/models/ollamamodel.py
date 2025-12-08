@@ -3,12 +3,13 @@ This package defines OllamaModel which represents a model that is stored
 in the Ollama cache and can be imported into Transformer Lab.
 """
 
-from transformerlab.models import basemodel
-
-import os
-import json
 import errno
+import json
+import os
+
 from lab import storage
+
+from transformerlab.models import basemodel
 
 
 async def list_models():
@@ -107,7 +108,7 @@ class OllamaModel(basemodel.BaseModel):
         model_name, variant = self.source_id_or_path.split(":", 1)
         manifestfile = os.path.join(library_dir, model_name, variant)
         try:
-            with open(manifestfile, "r") as f:
+            with open(manifestfile) as f:
                 filedata = json.load(f)
 
         except FileNotFoundError:
@@ -134,7 +135,7 @@ class OllamaModel(basemodel.BaseModel):
                     modelfile = digestvalue.replace(":", "-")
                     model_path = os.path.join(blobs_dir, modelfile)
                     try:
-                        with open(model_path, "r") as f:
+                        with open(model_path) as f:
                             return model_path
                     except FileNotFoundError:
                         self.status = f"model file does not exist {modelfile}"
@@ -190,7 +191,11 @@ class OllamaModel(basemodel.BaseModel):
         # For now, we'll create the symlink using os.symlink since it's a local filesystem operation
         # If the storage backend is remote, this will need special handling
         try:
-            local_link_path = link_name if not link_name.startswith(("s3://", "gs://", "http://", "https://")) else None
+            local_link_path = (
+                link_name
+                if not link_name.startswith(("s3://", "gs://", "http://", "https://"))
+                else None
+            )
             if local_link_path:
                 os.symlink(input_model_path, local_link_path)
         except Exception as e:

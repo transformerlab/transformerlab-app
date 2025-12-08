@@ -1,16 +1,26 @@
+import os
 import uuid
-from typing import Optional
+
 from fastapi import Depends, Request, Response
 from fastapi.responses import JSONResponse
-from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas, exceptions
-from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy, Strategy
+from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, exceptions, schemas
+from fastapi_users.authentication import (
+    AuthenticationBackend,
+    BearerTransport,
+    JWTStrategy,
+    Strategy,
+)
 from fastapi_users.db import SQLAlchemyUserDatabase
-from httpx_oauth.clients.google import GoogleOAuth2
 from httpx_oauth.clients.github import GitHubOAuth2
-from transformerlab.shared.models.user_model import get_async_session, create_personal_team, get_user_db
-from transformerlab.shared.models.models import User, UserTeam, TeamRole
-from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
-import os
+from httpx_oauth.clients.google import GoogleOAuth2
+
+from transformerlab.shared.models.models import TeamRole, User, UserTeam
+from transformerlab.shared.models.user_model import (
+    create_personal_team,
+    get_async_session,
+    get_user_db,
+)
+from transformerlab.utils.email import send_email_verification_link, send_password_reset_email
 
 
 # --- Pydantic Schemas for API interactions ---
@@ -20,8 +30,8 @@ class UserRead(schemas.BaseUser[uuid.UUID]):
     Inherits: id, email, is_active, is_superuser, is_verified
     """
 
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
 
 
 class UserCreate(schemas.BaseUserCreate):
@@ -30,8 +40,8 @@ class UserCreate(schemas.BaseUserCreate):
     Inherits: email, password, is_active, is_superuser, is_verified
     """
 
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
 
 
 class UserUpdate(schemas.BaseUserUpdate):
@@ -40,8 +50,8 @@ class UserUpdate(schemas.BaseUserUpdate):
     Inherits: email, password, is_active, is_superuser, is_verified
     """
 
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
 
 
 # --- User Manager (Handles registration, password reset, etc.) ---
@@ -53,7 +63,12 @@ SECRET = os.getenv("TRANSFORMERLAB_JWT_SECRET")
 REFRESH_SECRET = os.getenv("TRANSFORMERLAB_REFRESH_SECRET")
 REFRESH_LIFETIME = 60 * 60 * 24 * 7  # 7 days
 
-if not SECRET or not REFRESH_SECRET or SECRET == DEFAULT_SECRET or REFRESH_SECRET == DEFAULT_REFRESH_SECRET:
+if (
+    not SECRET
+    or not REFRESH_SECRET
+    or SECRET == DEFAULT_SECRET
+    or REFRESH_SECRET == DEFAULT_REFRESH_SECRET
+):
     print(
         "Missing or insecure JWT secrets. Please set TRANSFORMERLAB_JWT_SECRET and TRANSFORMERLAB_REFRESH_SECRET "
         "to strong, different values in your environment variables or .env file. Exiting."
@@ -66,7 +81,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     reset_password_token_lifetime_seconds = TOKEN_LIFETIME
     reset_password_token_audience = "fastapi-users:reset"
 
-    async def on_after_register(self, user: User, request: Optional[Request] = None):
+    async def on_after_register(self, user: User, request: Request | None = None):
         """
         Called after a user successfully registers.
         Creates a personal team for the user and sends verification email.
@@ -77,7 +92,9 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         async for session in get_async_session():
             try:
                 team = await create_personal_team(session, user)
-                user_team = UserTeam(user_id=str(user.id), team_id=team.id, role=TeamRole.OWNER.value)
+                user_team = UserTeam(
+                    user_id=str(user.id), team_id=team.id, role=TeamRole.OWNER.value
+                )
                 session.add(user_team)
                 await session.commit()
                 print(f"Created personal team '{team.name}' for user {user.email}")
@@ -95,7 +112,9 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             except Exception as e:
                 print(f"⚠️  Could not send verification email: {e}")
 
-    async def on_after_forgot_password(self, user: User, token: str, request: Request | None = None):
+    async def on_after_forgot_password(
+        self, user: User, token: str, request: Request | None = None
+    ):
         """
         Called after a user requests a password reset.
         Sends an email with a reset link containing the token.
@@ -110,7 +129,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             send_password_reset_email(to_email=user.email, reset_url=reset_url)
             print(f"✅ Password reset email sent to {user.email}")
         except Exception as e:
-            print(f"❌ Failed to send password reset email to {user.email}: {str(e)}")
+            print(f"❌ Failed to send password reset email to {user.email}: {e!s}")
 
     async def on_after_request_verify(self, user: User, token: str, request: Request | None = None):
         """
@@ -129,7 +148,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             send_email_verification_link(to_email=user.email, verification_url=verification_url)
             print(f"✅ Verification email sent to {user.email}")
         except Exception as e:
-            print(f"❌ Failed to send verification email to {user.email}: {str(e)}")
+            print(f"❌ Failed to send verification email to {user.email}: {e!s}")
 
     async def oauth_callback(
         self,
@@ -259,7 +278,11 @@ class RefreshTokenBackend(AuthenticationBackend):
 
         # 3. Return combined JSON response
         return JSONResponse(
-            content={"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+            content={
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "bearer",
+            }
         )
 
 
@@ -284,9 +307,7 @@ class OAuthBackend(AuthenticationBackend):
 
         # Redirect to frontend callback with tokens in URL
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
-        callback_url = (
-            f"{frontend_url}/auth/callback?access_token={access_token}&refresh_token={refresh_token}&token_type=bearer"
-        )
+        callback_url = f"{frontend_url}/auth/callback?access_token={access_token}&refresh_token={refresh_token}&token_type=bearer"
 
         return Response(status_code=302, headers={"Location": callback_url})
 

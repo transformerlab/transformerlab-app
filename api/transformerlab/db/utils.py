@@ -2,8 +2,9 @@
 Utilities for working with SQLAlchemy objects
 """
 
-from sqlalchemy.inspection import inspect
 import json
+
+from sqlalchemy.inspection import inspect
 
 
 def sqlalchemy_to_dict(obj):

@@ -2,19 +2,18 @@ import datetime
 import os
 import tempfile
 import zipfile
+from urllib.parse import urlparse
 
 import aiofiles
 import httpx
 from fastapi import APIRouter, Body, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from lab import Experiment, storage
 from markitdown import MarkItDown
 from werkzeug.utils import secure_filename
-from urllib.parse import urlparse
 
 from transformerlab.routers.experiment import rag
 from transformerlab.shared.shared import slugify
-
-from lab import Experiment, storage
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -97,13 +96,31 @@ async def document_list(experimentId: str, folder: str = None):
                 size = 0 if is_dir else 0
                 mtime = None
             if is_dir:
-                date_str = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S") if mtime else ""
-                documents.append({"name": name, "size": 0, "date": date_str, "type": "folder", "path": full_path})
+                date_str = (
+                    datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+                    if mtime
+                    else ""
+                )
+                documents.append(
+                    {"name": name, "size": 0, "date": date_str, "type": "folder", "path": full_path}
+                )
             else:
                 if any(name.endswith(ext) for ext in allowed_file_types):
-                    date_str = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S") if mtime else ""
+                    date_str = (
+                        datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+                        if mtime
+                        else ""
+                    )
                     ext = os.path.splitext(name)[1]
-                    documents.append({"name": name, "size": size, "date": date_str, "type": ext, "path": full_path})
+                    documents.append(
+                        {
+                            "name": name,
+                            "size": size,
+                            "date": date_str,
+                            "type": ext,
+                            "path": full_path,
+                        }
+                    )
 
     return documents  # convert list to JSON object
 
@@ -155,12 +172,19 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
 
         restricted_file_type = False
 
-        if file.content_type not in ["text/plain", "application/json", "application/pdf", "application/octet-stream"]:
+        if file.content_type not in [
+            "text/plain",
+            "application/json",
+            "application/pdf",
+            "application/octet-stream",
+        ]:
             restricted_file_type = True
             print("File Type is Restricted from viewing, we will paste it as an md file instead")
 
             if file.content_type.startswith("image/"):
-                raise HTTPException(status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
+                raise HTTPException(
+                    status_code=403, detail="The file must be a text file, a JSONL file, or a PDF"
+                )
 
         file_ext = os.path.splitext(file_name)[1]
         # if file_ext not in allowed_file_types:
@@ -173,7 +197,9 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
             if storage.exists(storage.join(documents_dir, folder)):
                 documents_dir = storage.join(documents_dir, folder)
             else:
-                print(f"Creating directory as it doesn't exist: {storage.join(documents_dir, folder)}")
+                print(
+                    f"Creating directory as it doesn't exist: {storage.join(documents_dir, folder)}"
+                )
                 storage.makedirs(storage.join(documents_dir, folder), exist_ok=True)
                 documents_dir = storage.join(documents_dir, folder)
 
@@ -200,7 +226,9 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
                     try:
                         result = md.convert(newfilename)
                         # Save the converted file
-                        newfilename = storage.join(markitdown_dir, str(file_name).replace(file_ext, ".md"))
+                        newfilename = storage.join(
+                            markitdown_dir, str(file_name).replace(file_ext, ".md")
+                        )
                         print(f"Saving converted file to {markitdown_dir}")
 
                         async with aiofiles.open(newfilename, "w", encoding="utf-8") as out_file:
@@ -209,7 +237,9 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
                     except Exception as e:
                         print(f"Error converting file to .md format: {e}")
             except Exception:
-                raise HTTPException(status_code=403, detail="There was a problem uploading the file")
+                raise HTTPException(
+                    status_code=403, detail="There was a problem uploading the file"
+                )
         else:
             # Do the conversion to md using MarkitDown
             # Save the file to the dataset directory
@@ -225,8 +255,12 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
                     # Convert the file to .md format using MarkitDown
                     result = md.convert(temp_file_path)
                     # Save the converted file
-                    newfilename = storage.join(documents_dir, str(file_name).replace(file_ext, ".md"))
-                    newfilename_md = storage.join(markitdown_dir, str(file_name).replace(file_ext, ".md"))
+                    newfilename = storage.join(
+                        documents_dir, str(file_name).replace(file_ext, ".md")
+                    )
+                    newfilename_md = storage.join(
+                        markitdown_dir, str(file_name).replace(file_ext, ".md")
+                    )
                     async with aiofiles.open(newfilename, "w", encoding="utf-8") as out_file:
                         await out_file.write(result.markdown)
                     print(f"Saving converted file to {markitdown_dir} as well")
@@ -237,7 +271,9 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
                     print(f"Temporary file {temp_file_path} deleted")
             except Exception as e:
                 print(f"Error converting file to .md format: {e}")
-                raise HTTPException(status_code=403, detail="There was a problem uploading the file")
+                raise HTTPException(
+                    status_code=403, detail="There was a problem uploading the file"
+                )
 
         # reindex the vector store on every file upload
         if folder == "rag":
@@ -325,7 +361,9 @@ async def document_download_zip(experimentId: str, data: dict = Body(...)):
         # Extract ZIP file
         with zipfile.ZipFile(temp_zip_path, "r") as zip_ref:
             zip_ref.extractall(documents_dir)
-            extracted_files = [f for f in zip_ref.namelist() if not f.endswith("/") and not f.startswith(".")]
+            extracted_files = [
+                f for f in zip_ref.namelist() if not f.endswith("/") and not f.startswith(".")
+            ]
 
         # Clean up
         os.remove(temp_zip_path)
@@ -335,7 +373,11 @@ async def document_download_zip(experimentId: str, data: dict = Body(...)):
         if rag_files:
             await rag.reindex(experimentId)
 
-        return {"status": "success", "extracted_files": extracted_files, "total_files": len(extracted_files)}
+        return {
+            "status": "success",
+            "extracted_files": extracted_files,
+            "total_files": len(extracted_files),
+        }
 
     except httpx.HTTPStatusError:
         if "temp_zip_path" in locals() and os.path.exists(temp_zip_path):

@@ -7,14 +7,13 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
-from lab import storage
-from transformerlab.services.job_service import job_get
-from transformerlab.shared import shared
 from lab import dirs as lab_dirs
-from transformerlab.shared import dirs
-from transformerlab.services.experiment_service import experiment_get, experiment_update_config
-
+from lab import storage
 from werkzeug.utils import secure_filename
+
+from transformerlab.services.experiment_service import experiment_get, experiment_update_config
+from transformerlab.services.job_service import job_get
+from transformerlab.shared import dirs, shared
 
 router = APIRouter(prefix="/evals", tags=["evals"])
 
@@ -33,7 +32,9 @@ async def experiment_add_evaluation(experimentId: str, plugin: Any = Body()):
 
     experiment_config = experiment["config"]  # now returns a dict directly
 
-    if "evaluations" not in experiment_config or not isinstance(experiment_config.get("evaluations"), list):
+    if "evaluations" not in experiment_config or not isinstance(
+        experiment_config.get("evaluations"), list
+    ):
         experiment_config["evaluations"] = []
 
     evaluations = experiment_config["evaluations"]
@@ -69,7 +70,9 @@ async def experiment_delete_eval(experimentId: str, eval_name: str):
 
     experiment_config = experiment["config"]  # now returns a dict directly
 
-    if "evaluations" not in experiment_config or not isinstance(experiment_config.get("evaluations"), list):
+    if "evaluations" not in experiment_config or not isinstance(
+        experiment_config.get("evaluations"), list
+    ):
         return {"message": f"Experiment {experimentId} has no evaluations"}
 
     evaluations = experiment_config["evaluations"]
@@ -105,7 +108,9 @@ async def edit_evaluation_task(experimentId: str, plugin: Any = Body()):
 
         # updated_json = json.loads(updated_json)
 
-        if "evaluations" not in experiment_config or not isinstance(experiment_config.get("evaluations"), list):
+        if "evaluations" not in experiment_config or not isinstance(
+            experiment_config.get("evaluations"), list
+        ):
             return {"message": f"Experiment {experimentId} has no evaluations"}
 
         evaluations = experiment_config["evaluations"]
@@ -148,7 +153,7 @@ async def get_evaluation_plugin_file_contents(experimentId: str, plugin_name: st
 
     # now get the file contents
     try:
-        with open(os.path.join(plugin_path, file_name), "r") as f:
+        with open(os.path.join(plugin_path, file_name)) as f:
             file_contents = f.read()
     except FileNotFoundError:
         return "error file not found"
@@ -210,7 +215,9 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
                 )
         if "evaluations" in experiment_details["config"]:
             if isinstance(experiment_details["config"]["evaluations"], str):
-                experiment_details["config"]["evaluations"] = json.loads(experiment_details["config"]["evaluations"])
+                experiment_details["config"]["evaluations"] = json.loads(
+                    experiment_details["config"]["evaluations"]
+                )
 
     template_config = eval_config["script_parameters"]
     job_output_file = await shared.get_job_output_file_name(job_id, plugin_name, experimentId)
@@ -275,7 +282,9 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
     print(f">EVAL Output file: {job_output_file}")
 
     with storage.open(job_output_file, "w") as f:
-        process = await asyncio.create_subprocess_exec(*subprocess_command, stdout=f, stderr=subprocess.PIPE)
+        process = await asyncio.create_subprocess_exec(
+            *subprocess_command, stdout=f, stderr=subprocess.PIPE
+        )
         await process.communicate()
 
     with storage.open(output_file, "w") as f:

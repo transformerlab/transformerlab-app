@@ -14,9 +14,9 @@ if api_dir not in sys.path:
     sys.path.insert(0, api_dir)
 
 # Now import transformerlab modules (must be after path setup)
-# noqa: E402 - imports must come after sys.path modification
-from transformerlab.compute_providers.router import get_provider, get_router  # noqa: E402
+
 from transformerlab.compute_providers.models import ClusterConfig, JobConfig  # noqa: E402
+from transformerlab.compute_providers.router import get_provider, get_router  # noqa: E402
 
 
 def example_skypilot():

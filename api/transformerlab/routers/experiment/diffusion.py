@@ -1,20 +1,20 @@
-from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
-from huggingface_hub import model_info
-from fastapi.responses import FileResponse, JSONResponse
-import os
-from werkzeug.utils import secure_filename
 import json
+import logging
+import os
 import uuid
-from typing import List
-from transformerlab.services.dataset_service import create_local_dataset
-from transformerlab.models import model_helper
+
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
+from huggingface_hub import model_info
 from lab import Dataset, storage
 from lab.dirs import get_workspace_dir
-from transformerlab.shared.shared import slugify
-from transformerlab.services.job_service import job_create
-import logging
+from pydantic import BaseModel
+from werkzeug.utils import secure_filename
 
+from transformerlab.models import model_helper
+from transformerlab.services.dataset_service import create_local_dataset
+from transformerlab.services.job_service import job_create
+from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/diffusion", tags=["diffusion"])
 
@@ -261,13 +261,13 @@ class ImageHistoryItem(BaseModel):
 
 
 class HistoryResponse(BaseModel):
-    images: List[ImageHistoryItem]
+    images: list[ImageHistoryItem]
     total: int
 
 
 class CreateDatasetRequest(BaseModel):
     dataset_name: str
-    image_ids: List[str]
+    image_ids: list[str]
     description: str = ""
     include_metadata: bool = True
 
@@ -332,7 +332,9 @@ def load_history(
 
     # Load from legacy global path for backward compatibility
     try:
-        legacy_history_file = get_history_file_path(None, workspace_dir)  # No experiment → legacy path
+        legacy_history_file = get_history_file_path(
+            None, workspace_dir
+        )  # No experiment → legacy path
         if storage.exists(legacy_history_file):
             with storage.open(legacy_history_file, "r") as f:
                 legacy_history_data = json.load(f)
@@ -381,7 +383,9 @@ def find_image_by_id(
 
     # Search in legacy global path for backward compatibility
     try:
-        legacy_history_file = get_history_file_path(None, workspace_dir)  # No experiment → legacy path
+        legacy_history_file = get_history_file_path(
+            None, workspace_dir
+        )  # No experiment → legacy path
         if storage.exists(legacy_history_file):
             with storage.open(legacy_history_file, "r") as f:
                 history = json.load(f)
@@ -423,12 +427,16 @@ async def generate_image(experimentId: str, request: DiffusionRequest, http_requ
                 "config": request_dict,
             }
 
-            job_id = job_create(type="DIFFUSION", status="QUEUED", job_data=job_config, experiment_id=experimentId)
+            job_id = job_create(
+                type="DIFFUSION", status="QUEUED", job_data=job_config, experiment_id=experimentId
+            )
 
             # Get experiment name for experiment-specific paths
             images_folder = storage.join(get_images_dir(experimentId), generation_id)
             if not images_folder.startswith(get_images_dir(experimentId)):  # Validate containment
-                raise HTTPException(status_code=400, detail="Invalid generation_id: Path traversal detected.")
+                raise HTTPException(
+                    status_code=400, detail="Invalid generation_id: Path traversal detected."
+                )
             tmp_json_path = storage.join(images_folder, "tmp_json.json")
 
             return {
@@ -446,8 +454,8 @@ async def generate_image(experimentId: str, request: DiffusionRequest, http_requ
             )
 
     except Exception as e:
-        log_print(f"Error during image generation: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
+        log_print(f"Error during image generation: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Image generation failed: {e!s}")
 
 
 @router.post("/is_valid_diffusion_model", summary="Check if model is Stable Diffusion")
@@ -506,7 +514,10 @@ async def is_valid_diffusion(experimentId: str, request: DiffusionRequest):
         if request.is_inpainting:
             # First check if it's already an inpainting-specific architecture
             if any(a in ALLOWED_INPAINTING_ARCHITECTURES for a in architectures):
-                return {"is_valid_diffusion_model": True, "reason": "Architecture matches allowed SD inpainting"}
+                return {
+                    "is_valid_diffusion_model": True,
+                    "reason": "Architecture matches allowed SD inpainting",
+                }
 
             # Then check if we can derive an inpainting pipeline from a text2img architecture
             # This follows the same logic as diffusers AutoPipelineForInpainting
@@ -519,18 +530,26 @@ async def is_valid_diffusion(experimentId: str, request: DiffusionRequest):
         elif request.is_img2img:
             # Check if this is an img2img model
             if any(a in ALLOWED_IMG2IMG_ARCHITECTURES for a in architectures):
-                return {"is_valid_diffusion_model": True, "reason": "Architecture matches allowed SD img2img"}
+                return {
+                    "is_valid_diffusion_model": True,
+                    "reason": "Architecture matches allowed SD img2img",
+                }
         else:
             if any(a in ALLOWED_TEXT2IMG_ARCHITECTURES for a in architectures):
-                return {"is_valid_diffusion_model": True, "reason": "Architecture matches allowed SD"}
+                return {
+                    "is_valid_diffusion_model": True,
+                    "reason": "Architecture matches allowed SD",
+                }
 
         return {"is_valid_diffusion_model": False, "reason": "No SD indicators found"}
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+        raise HTTPException(status_code=404, detail=f"Model not found or error: {e!s}")
 
 
 @router.get("/history", summary="Get image generation history", response_model=HistoryResponse)
-async def get_history(experimentId: str, limit: int = 50, offset: int = 0, http_request: Request = None):
+async def get_history(
+    experimentId: str, limit: int = 50, offset: int = 0, http_request: Request = None
+):
     """
     Get paginated history of generated images
 
@@ -549,7 +568,9 @@ async def get_history(experimentId: str, limit: int = 50, offset: int = 0, http_
 
     # Get experiment name for experiment-specific paths
     workspace_dir = get_workspace_dir()
-    return load_history(limit=limit, offset=offset, experiment_name=experimentId, workspace_dir=workspace_dir)
+    return load_history(
+        limit=limit, offset=offset, experiment_name=experimentId, workspace_dir=workspace_dir
+    )
 
 
 @router.get("/history/{image_id}", summary="Get the actual image by ID")
@@ -582,11 +603,15 @@ async def get_image_by_id(
 
         # Ensure the constructed path is within the intended base directory
         if not image_dir_based_on_id.startswith(images_dir):
-            raise HTTPException(status_code=400, detail="Invalid image ID or path traversal attempt detected")
+            raise HTTPException(
+                status_code=400, detail="Invalid image ID or path traversal attempt detected"
+            )
 
         # Check if the image path is a directory (new format)
         if not storage.isdir(image_dir_based_on_id):
-            raise HTTPException(status_code=404, detail=f"Image path is not a directory for image ID {image_id}")
+            raise HTTPException(
+                status_code=404, detail=f"Image path is not a directory for image ID {image_id}"
+            )
 
         # Construct the path for the step image
         step_image_path = storage.join(image_dir_based_on_id, "step.png")
@@ -594,7 +619,9 @@ async def get_image_by_id(
             raise HTTPException(status_code=400, detail="Invalid path traversal attempt detected")
 
         if not storage.exists(step_image_path):
-            raise HTTPException(status_code=404, detail=f"Step image file not found at {step_image_path}")
+            raise HTTPException(
+                status_code=404, detail=f"Step image file not found at {step_image_path}"
+            )
 
         return FileResponse(step_image_path)
 
@@ -608,30 +635,44 @@ async def get_image_by_id(
     if mask_image:
         # Return the mask image if requested and available
         if not image_item.mask_image_path or not image_item.mask_image_path.strip():
-            raise HTTPException(status_code=404, detail=f"No mask image found for image ID {image_id}")
+            raise HTTPException(
+                status_code=404, detail=f"No mask image found for image ID {image_id}"
+            )
         image_path = image_item.mask_image_path
         if not storage.exists(image_path):
-            raise HTTPException(status_code=404, detail=f"Mask image file not found at {image_path}")
+            raise HTTPException(
+                status_code=404, detail=f"Mask image file not found at {image_path}"
+            )
     elif input_image:
         # Return the input image if requested and available
         if not image_item.input_image_path or not image_item.input_image_path.strip():
-            raise HTTPException(status_code=404, detail=f"No input image found for image ID {image_id}")
+            raise HTTPException(
+                status_code=404, detail=f"No input image found for image ID {image_id}"
+            )
 
         image_path = image_item.input_image_path
         if not storage.exists(image_path):
-            raise HTTPException(status_code=404, detail=f"Input image file not found at {image_path}")
+            raise HTTPException(
+                status_code=404, detail=f"Input image file not found at {image_path}"
+            )
     elif preprocessed:
         if not image_item.processed_image or not image_item.processed_image.strip():
-            raise HTTPException(status_code=404, detail=f"No preprocessed image found for image ID {image_id}")
+            raise HTTPException(
+                status_code=404, detail=f"No preprocessed image found for image ID {image_id}"
+            )
         image_path = image_item.processed_image
         if not storage.exists(image_path):
-            raise HTTPException(status_code=404, detail=f"Preprocessed image file not found at {image_path}")
+            raise HTTPException(
+                status_code=404, detail=f"Preprocessed image file not found at {image_path}"
+            )
     else:
         # Return the generated output image (default behavior)
         # Check if image_path is a folder (new format) or a file (old format)
         if storage.isdir(image_item.image_path):
             # New format: folder with numbered images
-            if index < 0 or index >= (image_item.num_images if hasattr(image_item, "num_images") else 1):
+            if index < 0 or index >= (
+                image_item.num_images if hasattr(image_item, "num_images") else 1
+            ):
                 raise HTTPException(
                     status_code=404,
                     detail=f"Image index {index} out of range. Available: 0-{(image_item.num_images if hasattr(image_item, 'num_images') else 1) - 1}",
@@ -643,7 +684,9 @@ async def get_image_by_id(
         else:
             # Old format: single image file
             if index != 0:
-                raise HTTPException(status_code=404, detail="Only index 0 available for this image set")
+                raise HTTPException(
+                    status_code=404, detail="Only index 0 available for this image set"
+                )
             image_path = image_item.image_path
 
         if not storage.exists(image_path):
@@ -672,7 +715,9 @@ async def get_image_info_by_id(image_id: str, experimentId: str, http_request: R
 
     # Check if image folder/file exists
     if not storage.exists(image_item.image_path):
-        raise HTTPException(status_code=404, detail=f"Image path not found at {image_item.image_path}")
+        raise HTTPException(
+            status_code=404, detail=f"Image path not found at {image_item.image_path}"
+        )
 
     # Determine number of images available
     num_images = 1  # Default for old format
@@ -709,7 +754,9 @@ async def get_image_count(image_id: str, experimentId: str, http_request: Reques
 
     # Check if image folder/file exists
     if not storage.exists(image_item.image_path):
-        raise HTTPException(status_code=404, detail=f"Image path not found at {image_item.image_path}")
+        raise HTTPException(
+            status_code=404, detail=f"Image path not found at {image_item.image_path}"
+        )
 
     # Determine number of images available
     num_images = 1  # Default for old format
@@ -733,8 +780,8 @@ async def get_all_images(image_id: str, experimentId: str, http_request: Request
     Returns:
         Zip file containing all images
     """
-    import zipfile
     import tempfile
+    import zipfile
 
     # Get experiment name for experiment-specific paths
     workspace_dir = get_workspace_dir()
@@ -745,7 +792,9 @@ async def get_all_images(image_id: str, experimentId: str, http_request: Request
 
     # Check if image folder/file exists
     if not storage.exists(image_item.image_path):
-        raise HTTPException(status_code=404, detail=f"Image path not found at {image_item.image_path}")
+        raise HTTPException(
+            status_code=404, detail=f"Image path not found at {image_item.image_path}"
+        )
 
     # Create a temporary zip file
     temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
@@ -784,7 +833,7 @@ async def get_all_images(image_id: str, experimentId: str, http_request: Request
         # Clean up temp file on error
         if os.path.exists(temp_zip.name):
             os.unlink(temp_zip.name)
-        raise HTTPException(status_code=500, detail=f"Failed to create zip file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create zip file: {e!s}")
 
 
 @router.delete("/history/{image_id}", summary="Delete image from history")
@@ -831,10 +880,14 @@ async def delete_image_from_history(experimentId: str, image_id: str, http_reque
                 storage.rm(image_path)
 
         # Remove input image if it exists
-        if item_to_remove.get("input_image_path") and storage.exists(item_to_remove["input_image_path"]):
+        if item_to_remove.get("input_image_path") and storage.exists(
+            item_to_remove["input_image_path"]
+        ):
             storage.rm(item_to_remove["input_image_path"])
         # Remove processed image if it exists
-        if item_to_remove.get("processed_image") and storage.exists(item_to_remove["processed_image"]):
+        if item_to_remove.get("processed_image") and storage.exists(
+            item_to_remove["processed_image"]
+        ):
             storage.rm(item_to_remove["processed_image"])
 
         # Save updated history
@@ -842,10 +895,13 @@ async def delete_image_from_history(experimentId: str, image_id: str, http_reque
             json.dump(updated_history, f, indent=2)
 
         return JSONResponse(
-            content={"message": f"Image set {image_id} deleted successfully", "deleted_item": item_to_remove}
+            content={
+                "message": f"Image set {image_id} deleted successfully",
+                "deleted_item": item_to_remove,
+            }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete image: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete image: {e!s}")
 
 
 @router.delete("/history", summary="Clear all history")
@@ -908,7 +964,7 @@ async def clear_history(experimentId: str, http_request: Request = None):
             }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to clear history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to clear history: {e!s}")
 
 
 @router.post("/dataset/create", summary="Create dataset from history images")
@@ -956,7 +1012,9 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
         if storage.isdir(image_item.image_path):
             # Count images in folder
             entries = storage.ls(image_item.image_path, detail=False)
-            image_files = [f for f in entries if f.endswith(".png") and f.replace(".png", "").isdigit()]
+            image_files = [
+                f for f in entries if f.endswith(".png") and f.replace(".png", "").isdigit()
+            ]
             total_image_count += len(image_files)
         else:
             # Single image
@@ -967,13 +1025,14 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
         json_data = {
             "generated": True,
             "source": "diffusion_history",
-            "description": request.description or f"Dataset created from {total_image_count} diffusion images",
+            "description": request.description
+            or f"Dataset created from {total_image_count} diffusion images",
             "image_count": total_image_count,
             "created_from_image_ids": image_ids,
         }
         new_dataset = create_local_dataset(dataset_id, json_data=json_data)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create dataset: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create dataset: {e!s}")
 
     # Create dataset directory
     dataset_dir = new_dataset.get_dir()
@@ -1092,7 +1151,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
                 file_counter += 1
 
         except Exception as e:
-            log_print(f"Warning: Failed to process image {image_item.id}: {str(e)}")
+            log_print(f"Warning: Failed to process image {image_item.id}: {e!s}")
             continue
 
     if not dataset_records:
@@ -1111,7 +1170,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
     except Exception as e:
         # Clean up on failure
         new_dataset.delete()
-        raise HTTPException(status_code=500, detail=f"Failed to save dataset: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to save dataset: {e!s}")
 
     return JSONResponse(
         content={

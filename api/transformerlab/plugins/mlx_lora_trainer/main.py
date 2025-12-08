@@ -4,21 +4,19 @@ Fine-Tuning with LoRA or QLoRA using MLX
 https://github.com/ml-explore/mlx-examples/blob/main/llms/mlx_lm/LORA.md
 """
 
-import yaml
+import os
 import re
 import subprocess
-import os
 import time
 
+import yaml
+from lab import storage
+from lab.dirs import get_workspace_dir
+from transformerlab.plugin import get_python_executable, prepare_dataset_files
 
 # Import tlab_trainer from the SDK
 # from transformerlab.tlab_decorators import tlab_trainer
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import prepare_dataset_files
-
-from transformerlab.plugin import get_python_executable
-from lab.dirs import get_workspace_dir
-from lab import storage
 
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
@@ -109,7 +107,9 @@ def train_mlx_lora():
     adaptor_output_dir = tlab_trainer.params.get("adaptor_output_dir", "")
     if adaptor_output_dir == "" or adaptor_output_dir is None:
         workspace_dir = get_workspace_dir()
-        adaptor_output_dir = storage.join(workspace_dir, "adaptors", tlab_trainer.params.model_name, adaptor_name)
+        adaptor_output_dir = storage.join(
+            workspace_dir, "adaptors", tlab_trainer.params.model_name, adaptor_name
+        )
         print("Using default adaptor output directory:", adaptor_output_dir)
     if not storage.exists(adaptor_output_dir):
         storage.makedirs(adaptor_output_dir)
@@ -162,7 +162,12 @@ def train_mlx_lora():
 
     # Run the MLX LoRA training process
     with subprocess.Popen(
-        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, env=env
+        popen_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=1,
+        universal_newlines=True,
+        env=env,
     ) as process:
         for line in process.stdout:
             # Parse progress from output
@@ -183,12 +188,12 @@ def train_mlx_lora():
                         avg_time_per_iter = elapsed_time / iteration
                         estimated_time_remaining = avg_time_per_iter * iterations_remaining
                         # Store estimated time remaining in seconds
-                        tlab_trainer.add_job_data("estimated_time_remaining", int(estimated_time_remaining))
+                        tlab_trainer.add_job_data(
+                            "estimated_time_remaining", int(estimated_time_remaining)
+                        )
 
                 # Parse training metrics
-                pattern = (
-                    r"Train loss (\d+\.\d+), Learning Rate (\d+\.[e\-\d]+), It/sec (\d+\.\d+), Tokens/sec (\d+\.\d+)"
-                )
+                pattern = r"Train loss (\d+\.\d+), Learning Rate (\d+\.[e\-\d]+), It/sec (\d+\.\d+), Tokens/sec (\d+\.\d+)"
                 match = re.search(pattern, line)
                 if match:
                     loss = float(match.group(1))

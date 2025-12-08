@@ -5,8 +5,8 @@ This package defines both
 FilesystemModel and FilesystemGGUFModel classes
 """
 
-import os
 import json
+import os
 
 from transformerlab.models import basemodel
 
@@ -69,7 +69,7 @@ class FilesystemModel(basemodel.BaseModel):
         # Get model details from configuration file
         config_file = os.path.join(self.model_path, "config.json")
         try:
-            with open(config_file, "r") as f:
+            with open(config_file) as f:
                 filedata = json.load(f)
                 f.close()
 

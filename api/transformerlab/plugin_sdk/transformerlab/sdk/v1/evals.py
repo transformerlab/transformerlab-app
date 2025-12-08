@@ -2,9 +2,9 @@ import json
 import os
 import time
 
+from lab import storage
 from transformerlab.plugin import test_wandb_login
 from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
-from lab import storage
 
 
 class EvalsTLabPlugin(TLabPlugin):
@@ -13,10 +13,18 @@ class EvalsTLabPlugin(TLabPlugin):
     def __init__(self):
         super().__init__()
         # Add common evaluation-specific arguments
-        self._parser.add_argument("--run_name", default="evaluation", type=str, help="Name for the evaluation run")
-        self._parser.add_argument("--template_name", default="evaluation", type=str, help="Name for the evaluation run")
-        self._parser.add_argument("--experiment_name", default="", type=str, help="Name of the experiment")
-        self._parser.add_argument("--eval_name", default="", type=str, help="Name of the evaluation")
+        self._parser.add_argument(
+            "--run_name", default="evaluation", type=str, help="Name for the evaluation run"
+        )
+        self._parser.add_argument(
+            "--template_name", default="evaluation", type=str, help="Name for the evaluation run"
+        )
+        self._parser.add_argument(
+            "--experiment_name", default="", type=str, help="Name of the experiment"
+        )
+        self._parser.add_argument(
+            "--eval_name", default="", type=str, help="Name of the evaluation"
+        )
         self.tlab_plugin_type = "evals"
 
     def _ensure_args_parsed(self):
@@ -43,7 +51,9 @@ class EvalsTLabPlugin(TLabPlugin):
                 self.params[key] = arg
                 key = None
 
-    def setup_eval_logging(self, wandb_project_name: str = "TLab_Evaluations", manual_logging=False):
+    def setup_eval_logging(
+        self, wandb_project_name: str = "TLab_Evaluations", manual_logging=False
+    ):
         """Setup Weights and Biases and TensorBoard logging for evaluations
 
         Returns:
@@ -57,7 +67,9 @@ class EvalsTLabPlugin(TLabPlugin):
         from transformerlab.plugin import WORKSPACE_DIR as workspace_dir
 
         # Create tensorboard directory structure
-        tensorboard_dir = storage.join(workspace_dir, "experiments", self.params.experiment_name, "tensorboards")
+        tensorboard_dir = storage.join(
+            workspace_dir, "experiments", self.params.experiment_name, "tensorboards"
+        )
         storage.makedirs(tensorboard_dir, exist_ok=True)
 
         # Find directory based on eval name
@@ -110,13 +122,15 @@ class EvalsTLabPlugin(TLabPlugin):
                     self.add_job_data("wandb_logging", False)
 
             except Exception as e:
-                print(f"Error setting up W&B: {str(e)}. Continuing without W&B.")
+                print(f"Error setting up W&B: {e!s}. Continuing without W&B.")
                 self.add_job_data("wandb_logging", False)
                 report_to = ["tensorboard"]
 
         if "wandb" in report_to and manual_logging:
             self.wandb_run = wandb.init(
-                project=wandb_project_name, config=self.params, name=f"{self.params.template_name}_{self.params.job_id}"
+                project=wandb_project_name,
+                config=self.params,
+                name=f"{self.params.template_name}_{self.params.job_id}",
             )
 
         self.report_to = report_to
@@ -132,7 +146,7 @@ class EvalsTLabPlugin(TLabPlugin):
         if "tensorboard" in self.report_to:
             self.writer.add_scalar(f"eval/{metric_name}", value, step)
 
-        if "wandb" in self.report_to and getattr(self, "wandb_run") is not None:
+        if "wandb" in self.report_to and self.wandb_run is not None:
             self.wandb_run.log({metric_name: value}, step=step)
 
     def get_output_file_path(self, suffix="", is_plotting=False, dir_only=False):
@@ -206,7 +220,9 @@ class EvalsTLabPlugin(TLabPlugin):
         plotting_data = metrics_df[["test_case_id", "metric_name", "score"]].copy()
 
         # Format metric names for better display (replace underscores with spaces and capitalize)
-        plotting_data["metric_name"] = plotting_data["metric_name"].apply(lambda x: x.replace("_", " ").title())
+        plotting_data["metric_name"] = plotting_data["metric_name"].apply(
+            lambda x: x.replace("_", " ").title()
+        )
 
         # Save as JSON
         with storage.open(plot_data_path, "w", encoding="utf-8") as f:
