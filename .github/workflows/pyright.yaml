@@ -20,9 +20,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Adjust the path to your requirements.txt if it is in api/
-          pip install -r api/requirements.txt
-          # Or if you use poetry/uv, install those instead
+          # Installs dependencies defined in api/pyproject.toml
+          pip install ./api
 
       - name: Set up Node
         uses: actions/setup-node@v4
