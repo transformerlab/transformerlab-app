@@ -25,14 +25,12 @@ import {
 import { RiImageAiLine } from 'react-icons/ri';
 
 import {
-  Box,
   ButtonGroup,
   Divider,
   IconButton,
   List,
   Sheet,
   Tooltip,
-  Typography,
 } from '@mui/joy';
 
 import {
