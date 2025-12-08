@@ -37,7 +37,8 @@ jobs:
         run: npm install pyright
 
       - name: Run Pyright and generate JSON
-        id: pyright_run        run: |
+        id: pyright_run
+        run: |
           npx pyright --outputjson > pyright_report.json || true
 
       - name: Generate Summary Markdown
