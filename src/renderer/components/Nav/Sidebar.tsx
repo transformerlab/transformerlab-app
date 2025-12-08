@@ -275,6 +275,7 @@ function GlobalMenuItems({
   experimentInfo,
   outdatedPluginsCount,
   mode,
+  hasProviders,
 }) {
   const isS3Mode = mode === 's3';
 
@@ -291,7 +292,7 @@ function GlobalMenuItems({
 
       <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
       <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
-      {isS3Mode && (
+      {hasProviders && (
         <SubNavItem
           title="Tasks Gallery"
           path="/tasks-gallery"
@@ -469,6 +470,7 @@ export default function Sidebar({
         experimentInfo={experimentInfo}
         outdatedPluginsCount={outdatedPlugins?.length}
         mode={mode}
+        hasProviders={hasProviders}
       />
       {process.env.MULTIUSER === 'true' && <LoginChip />}
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
