@@ -62,7 +62,6 @@ interface GalleryTasksListProps {
   isLoading: boolean;
   onInstall: (id: string) => void;
   installingTasks: Set<string>;
-  localTasks: Array<{ task_dir: string; name: string }>;
 }
 
 export default function GalleryTasksList({
@@ -70,7 +69,6 @@ export default function GalleryTasksList({
   isLoading,
   onInstall,
   installingTasks,
-  localTasks,
 }: GalleryTasksListProps) {
   if (isLoading) {
     return <LinearProgress />;
@@ -194,27 +192,11 @@ export default function GalleryTasksList({
                 <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
                   {(() => {
                     const isInstalling = installingTasks.has(taskId);
-                    const isInstalled = localTasks.some(
-                      (localTask) => localTask.task_dir === taskId,
-                    );
 
                     if (isInstalling) {
                       return (
                         <Button size="sm" loading disabled>
                           Installing...
-                        </Button>
-                      );
-                    }
-
-                    if (isInstalled) {
-                      return (
-                        <Button
-                          size="sm"
-                          variant="outlined"
-                          color="success"
-                          disabled
-                        >
-                          Installed
                         </Button>
                       );
                     }
