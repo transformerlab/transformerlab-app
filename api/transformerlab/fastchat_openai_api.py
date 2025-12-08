@@ -572,9 +572,12 @@ async def create_audio_tts(request: AudioGenerationRequest):
 
     # TODO: Define a base model class to structure the return value
     try:
+        logger.info(f"Audio TTS request - sending to worker: model={request.model}, audio_dir={audio_dir}")
         content = await generate_completion(gen_params)
+        logger.info(f"Audio TTS response received: {content}")
         return content
     except Exception as e:
+        logger.error(f"Audio TTS error: {str(e)}", exc_info=True)
         return create_error_response(ErrorCode.INTERNAL_ERROR, str(e))
 
 

@@ -15,15 +15,11 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
-from lab.dirs import get_workspace_dir
 from lab import storage
 
 from mlx_audio.tts.generate import generate_audio
 from mlx_audio.stt.generate import generate
 from datetime import datetime
-
-from lab.dirs import get_experiments_dir
-from werkzeug.utils import secure_filename
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -79,7 +75,7 @@ class MLXAudioWorker(BaseModelWorker):
             text = params.get("text", "")
             model = params.get("model", None)
             speed = params.get("speed", 1.0)
-            file_prefix = secure_filename(params.get("file_prefix", "audio"))
+            file_prefix = params.get("file_prefix", "audio")
             audio_format = params.get("audio_format", "wav")
             sample_rate = params.get("sample_rate", 24000)
             temperature = params.get("temperature", 0.0)
@@ -89,12 +85,10 @@ class MLXAudioWorker(BaseModelWorker):
             lang_code = params.get("lang_code", None)
             stream = params.get("stream", False)
 
-            experiment_dir = get_experiments_dir()
-            audio_dir_name = secure_filename(params.get("audio_dir", "audio"))
-            audio_dir = storage.join(experiment_dir, audio_dir_name)
-            storage.makedirs(name=audio_dir, exist_ok=True)
+            audio_dir = params.get("audio_dir")
 
             try:
+                storage.makedirs(path=audio_dir, exist_ok=True)
                 kwargs = {
                     "text": text,
                     "model_path": model,
@@ -138,25 +132,24 @@ class MLXAudioWorker(BaseModelWorker):
                     "status": "success",
                     "message": f"{audio_dir}/{file_prefix}.{audio_format}",
                 }
-            except Exception:
-                logger.error(f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}")
+            except Exception as e:
+                logger.error(f"Error generating audio: {str(e)}")
                 return {
                     "status": "error",
-                    "message": f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}",
+                    "message": f"Error generating audio: {str(e)}",
                 }
 
         elif task == "stt":
             audio_path = params.get("audio_path", "")
             model = params.get("model", None)
             format = params.get("format", "txt")
-            output_path_name = secure_filename(params.get("output_path", "transcriptions"))
-            transcriptions_dir = storage.join(get_workspace_dir(), output_path_name)
-            storage.makedirs(name=transcriptions_dir, exist_ok=True)
+            transcriptions_dir = params.get("output_path")
 
             # Generate a UUID for this file name:
             file_prefix = str(uuid.uuid4())
 
             try:
+                storage.makedirs(path=transcriptions_dir, exist_ok=True)
                 generate(
                     audio_path=audio_path,
                     model_path=model,
@@ -185,11 +178,11 @@ class MLXAudioWorker(BaseModelWorker):
                     "status": "success",
                     "message": f"{transcriptions_dir}/{file_prefix}.{format}",
                 }
-            except Exception:
-                logger.error(f"Error generating transcription: {transcriptions_dir}/{file_prefix}.{format}")
+            except Exception as e:
+                logger.error(f"Error generating transcription: {str(e)}")
                 return {
                     "status": "error",
-                    "message": f"Error generating transcription: {transcriptions_dir}/{file_prefix}.{format}",
+                    "message": f"Error generating transcription: {str(e)}",
                 }
 
         else:
@@ -222,15 +215,19 @@ def create_background_tasks(request_id):
 
 @app.post("/worker_generate")
 async def api_generate(request: Request):
-    params = await request.json()
-    await acquire_worker_semaphore()
-    request_id = uuid.uuid4()
-    params["request_id"] = str(request_id)
-    output = await worker.generate(params)
-    release_worker_semaphore()
-    # await engine.abort(request_id)
-    # logger.debug("Trying to abort but not implemented")
-    return JSONResponse(output)
+    try:
+        params = await request.json()
+        logger.info(f"Worker received request: task={params.get('task')}, model={params.get('model')}")
+        await acquire_worker_semaphore()
+        request_id = uuid.uuid4()
+        params["request_id"] = str(request_id)
+        output = await worker.generate(params)
+        release_worker_semaphore()
+        # await engine.abort(request_id)
+        # logger.debug("Trying to abort but not implemented")
+        return JSONResponse(output)
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)})
 
 
 @app.post("/worker_get_status")
