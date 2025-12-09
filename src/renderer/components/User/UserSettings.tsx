@@ -25,11 +25,7 @@ import {
 } from '@mui/joy';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
-import {
-  CopyIcon,
-  TrashIcon,
-  PlusIcon,
-} from 'lucide-react';
+import { CopyIcon, TrashIcon, PlusIcon } from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/api-client/urls';
 
 function PasswordChangeForm({ open, onClose }) {
