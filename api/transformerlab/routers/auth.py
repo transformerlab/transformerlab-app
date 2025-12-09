@@ -148,7 +148,8 @@ async def _get_user_from_jwt_or_api_key(
 
     # If we get here, neither API key nor JWT worked
     raise HTTPException(status_code=401, detail="Authentication required")
-    
+
+
 @router.get("/auth/github/status")
 async def github_oauth_status():
     return {"enabled": GITHUB_OAUTH_ENABLED}
