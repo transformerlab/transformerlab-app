@@ -636,6 +636,7 @@ async def launch_task_on_provider(
 
     # Add default environment variables
     env_vars["_TFL_JOB_ID"] = str(job_id)
+    env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
 
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
