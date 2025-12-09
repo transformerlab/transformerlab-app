@@ -236,6 +236,7 @@ class SLURMProvider(ComputeProvider):
         # Create a temporary SLURM script
         script_content = "#!/bin/bash\n"
         script_content += f"#SBATCH --job-name={cluster_name}\n"
+        script_content += "#SBATCH --requeue\n"
 
         if config.num_nodes and config.num_nodes > 1:
             script_content += f"#SBATCH --nodes={config.num_nodes}\n"
@@ -403,6 +404,8 @@ class SLURMProvider(ComputeProvider):
         """Submit a job using sbatch."""
         # Create a temporary SLURM script
         script_content = "#!/bin/bash\n"
+        script_content += "#SBATCH --requeue\n"
+
         if job_config.job_name:
             script_content += f"#SBATCH --job-name={job_config.job_name}\n"
         if job_config.num_nodes:
