@@ -424,11 +424,11 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
           }
         >
           <Typography level="title-sm" mb={1}>
-            API Key Created Successfully!
-          </Typography>
-          <Typography level="body-sm" mb={2}>
-            <strong>Important:</strong> Copy this key now. You won't be able to
-            see it again.
+            API Key Created Successfully!<br />
+            <Typography level="body-sm" mb={2}>
+              <strong>Important:</strong> Copy this key now. You won't be able to
+              see it again.
+            </Typography>
           </Typography>
           <Card variant="outlined" sx={{ bgcolor: 'background.level1', p: 1 }}>
             <Stack direction="row" spacing={1} alignItems="center">
