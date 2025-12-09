@@ -451,7 +451,7 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
         </Typography>
       ) : (
         <List>
-          {apiKeys?.map((key: any) => (
+          {Array.isArray(apiKeys) && apiKeys.map((key: any) => (
             <ListItem key={key.id}>
               <Card variant="outlined" sx={{ width: '100%', p: 2 }}>
                 <Stack
