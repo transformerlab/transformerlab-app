@@ -18,6 +18,19 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--plugin_dir", type=str, required=True)
 args, unknown = parser.parse_known_args()
 
+
+def set_config_env_vars(env_var: str, target_env_var: str = None, user_id: str = None, team_id: str = None):
+    try:
+        from transformerlab.plugin import get_db_config_value
+
+        value = get_db_config_value(env_var, user_id=user_id, team_id=team_id)
+        if value:
+            os.environ[target_env_var] = value
+            print(f"Set {target_env_var} from {'user' if user_id else 'team'} config: {value}")
+    except Exception as e:
+        print(f"Warning: Could not set {target_env_var} from {'user' if user_id else 'team'} config: {e}")
+
+
 # Set organization context from environment variable if provided
 # This allows plugins to have the correct org context without leaking to the API
 org_id = os.environ.get("_TFL_ORG_ID")
@@ -29,50 +42,17 @@ if org_id:
 
         set_organization_id(org_id)
 
-        # Set team/user-specific configs as environment variables for plugins
-        # This allows plugins to use standard env vars (HF_TOKEN, WANDB_API_KEY, etc.)
-        # without needing to access the database directly
-        # Priority: user-specific -> team-wide -> global
         try:
-            # Import from local file system (prioritized via sys.path.insert above)
-            # This ensures we use the latest local code, not the installed package version
-            from transformerlab.plugin import get_db_config_value
-
             # Set HuggingFace token
-            hf_token = get_db_config_value("HuggingfaceUserAccessToken", team_id=org_id, user_id=user_id)
-            if hf_token:
-                os.environ["HF_TOKEN"] = hf_token
-                print(f"Set HF_TOKEN from {'user' if user_id else 'team'} config")
-
+            set_config_env_vars("HuggingfaceUserAccessToken", "HF_TOKEN", user_id=user_id, team_id=org_id)
             # Set WANDB API key
-            wandb_key = get_db_config_value("WANDB_API_KEY", team_id=org_id, user_id=user_id)
-            if wandb_key:
-                os.environ["WANDB_API_KEY"] = wandb_key
-                print(f"Set WANDB_API_KEY from {'user' if user_id else 'team'} config")
-
+            set_config_env_vars("WANDB_API_KEY", "WANDB_API_KEY", user_id=user_id, team_id=org_id)
             # Set AI provider keys
-            openai_key = get_db_config_value("OPENAI_API_KEY", team_id=org_id, user_id=user_id)
-            if openai_key:
-                os.environ["OPENAI_API_KEY"] = openai_key
-                print(f"Set OPENAI_API_KEY from {'user' if user_id else 'team'} config")
-
-            anthropic_key = get_db_config_value("ANTHROPIC_API_KEY", team_id=org_id, user_id=user_id)
-            if anthropic_key:
-                os.environ["ANTHROPIC_API_KEY"] = anthropic_key
-                print(f"Set ANTHROPIC_API_KEY from {'user' if user_id else 'team'} config")
-
-            custom_key = get_db_config_value("CUSTOM_MODEL_API_KEY", team_id=org_id, user_id=user_id)
-            if custom_key:
-                os.environ["CUSTOM_MODEL_API_KEY"] = custom_key
-                print(f"Set CUSTOM_MODEL_API_KEY from {'user' if user_id else 'team'} config")
-
+            set_config_env_vars("OPENAI_API_KEY", "OPENAI_API_KEY", user_id=user_id, team_id=org_id)
+            set_config_env_vars("ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY", user_id=user_id, team_id=org_id)
+            set_config_env_vars("CUSTOM_MODEL_API_KEY", "CUSTOM_MODEL_API_KEY", user_id=user_id, team_id=org_id)
             # Azure OpenAI details (JSON string)
-            azure_details = get_db_config_value("AZURE_OPENAI_DETAILS", team_id=org_id, user_id=user_id)
-            if azure_details:
-                # Azure details might be JSON, but we'll set it as-is
-                # Plugins can parse it if needed
-                os.environ["AZURE_OPENAI_DETAILS"] = azure_details
-                print(f"Set AZURE_OPENAI_DETAILS from {'user' if user_id else 'team'} config")
+            set_config_env_vars("AZURE_OPENAI_DETAILS", "AZURE_OPENAI_DETAILS", user_id=user_id, team_id=org_id)
         except Exception as e:
             print(f"Warning: Could not set team/user-specific config env vars: {e}")
     except Exception as e:
