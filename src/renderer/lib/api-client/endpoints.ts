@@ -495,15 +495,6 @@ Endpoints.Jobs = {
     `${API_URL()}experiment/${experimentId}/jobs/update/${jobId}?status=${status}`,
   GetEvalImages: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
-  CreateRemoteJob: (experimentId: string) =>
-    `${API_URL()}remote/create-job?experimentId=${experimentId}`,
-  LaunchRemote: (experimentId: string) =>
-    `${API_URL()}remote/launch?experimentId=${experimentId}`,
-  UploadRemote: () => `${API_URL()}remote/upload`,
-  StopRemote: () => `${API_URL()}remote/stop`,
-  CheckStatus: () => `${API_URL()}remote/check-status`,
-  GetLogs: (requestId: string) => `${API_URL()}remote/logs/${requestId}`,
-  GetInstancesStatus: () => `${API_URL()}remote/instances-status`,
 };
 
 Endpoints.Global = {

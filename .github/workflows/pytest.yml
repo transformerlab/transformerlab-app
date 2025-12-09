@@ -41,6 +41,10 @@ jobs:
           pip install uv
           uv pip install --system pytest pytest-asyncio jsonschema requests pytest-cov shellcheck-py
           uv pip install --system .[cpu] --upgrade --index=https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+      - name: Install lab-sdk in editable mode
+        run: |
+          cd ../lab-sdk
+          uv pip install --system -e .
       - name: Test with pytest
         run: |
           pytest --cov=transformerlab --cov-branch --cov-report=xml -k 'not test_teams'

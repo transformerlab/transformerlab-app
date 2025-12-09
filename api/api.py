@@ -565,7 +565,7 @@ def print_launch_message():
     with open(os.path.join(os.path.dirname(__file__), "transformerlab/launch_header_text.txt"), "r") as f:
         text = f.read()
         shared.print_in_rainbow(text)
-    print("http://www.transformerlab.ai\nhttps://github.com/transformerlab/transformerlab-api\n")
+    print("https://www.lab.cloud\nhttps://github.com/transformerlab/transformerlab-api\n")
 
 
 def run():
