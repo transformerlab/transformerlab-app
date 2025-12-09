@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, CSSProperties } from 'react';
 
 import {
   CodeIcon,
@@ -41,22 +41,24 @@ import {
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
 import LoginChip from './UserWidget';
-import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
+
+interface ExperimentMenuItemsProps {
+  experimentInfo: any;
+  models: any;
+  mode: string;
+}
 
 function ExperimentMenuItems({
-  DEV_MODE,
   experimentInfo,
   models,
   mode,
-  hasProviders,
-}) {
-  const [pipelineTag, setPipelineTag] = useState<string | null>(null);
-
+}: ExperimentMenuItemsProps) {
   const { team } = useAuth();
   const isS3Mode = mode === 's3';
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
@@ -66,10 +68,6 @@ function ExperimentMenuItems({
   const experimentReady = Boolean(experimentInfo?.name);
   const hasFoundation = Boolean(experimentInfo?.config?.foundation);
 
-  function activeModelIsNotSameAsFoundation() {
-    if (models === null) {
-      return true;
-    }
   const { data: providerListData } = useAPI('compute_provider', ['list'], {
     teamId: team?.id ?? null,
   });
@@ -102,13 +100,7 @@ function ExperimentMenuItems({
       activeModelId !== normalize(config?.foundation_filename) &&
       activeModelId !== config?.adaptor
     );
-  }, [
-    models,
-    experimentReady,
-    experimentInfo?.config?.foundation,
-    experimentInfo?.config?.foundation_filename,
-    experimentInfo?.config?.adaptor,
-  ]);
+  }, [models, experimentReady, experimentInfo?.config]);
 
   const disableInteract = !experimentReady || isActiveModelDifferent;
   const disableEval = !experimentReady || isDiffusionModel;
@@ -178,7 +170,8 @@ function ExperimentMenuItems({
 
     checkValidDiffusionAndPipelineTag();
 
-    return () => {
+    // eslint-disable-next-line consistent-return
+    return function cleanup() {
       isMounted = false;
     };
   }, [experimentInfo?.id, experimentInfo?.config?.foundation, hasFoundation]);
@@ -290,13 +283,19 @@ function ExperimentMenuItems({
   );
 }
 
+interface GlobalMenuItemsProps {
+  outdatedPluginsCount: number | undefined;
+  mode: string;
+  hasProviders: boolean;
+  experimentInfo: any;
+}
+
 function GlobalMenuItems({
-  DEV_MODE,
-  experimentInfo,
   outdatedPluginsCount,
   mode,
   hasProviders,
-}) {
+  experimentInfo,
+}: GlobalMenuItemsProps) {
   const isS3Mode = mode === 's3';
   return (
     <List
@@ -344,7 +343,12 @@ function GlobalMenuItems({
   );
 }
 
-function BottomMenuItems({ navigate, themeSetter }) {
+interface BottomMenuItemsProps {
+  navigate: (path: string) => void;
+  themeSetter: (theme: string) => void;
+}
+
+function BottomMenuItems({ navigate, themeSetter }: BottomMenuItemsProps) {
   return (
     <>
       <Divider sx={{ my: 1 }} />
@@ -388,11 +392,17 @@ function BottomMenuItems({ navigate, themeSetter }) {
   );
 }
 
+interface SidebarProps {
+  logsDrawerOpen?: boolean;
+  setLogsDrawerOpen?: (open: boolean) => void;
+  themeSetter: (theme: string) => void;
+}
+
 export default function Sidebar({
-  logsDrawerOpen: _logsDrawerOpen,
-  setLogsDrawerOpen: _setLogsDrawerOpen,
+  logsDrawerOpen: _logsDrawerOpen, // eslint-disable-line @typescript-eslint/no-unused-vars
+  setLogsDrawerOpen: _setLogsDrawerOpen, // eslint-disable-line @typescript-eslint/no-unused-vars
   themeSetter,
-}) {
+}: SidebarProps) {
   const { experimentInfo } = useExperimentInfo();
   const { models } = useModelStatus();
   const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
@@ -463,30 +473,31 @@ export default function Sidebar({
       }}
     >
       <div
-        style={{
-          width: '100%',
-          height: '52px',
-          '-webkit-app-region': 'drag',
-          display: 'flex',
-          alignItems: 'flex-end',
-          justifyContent: 'center',
-          color: 'var(--joy-palette-neutral-plainDisabledColor)',
-        }}
+        style={
+          {
+            width: '100%',
+            height: '52px',
+            WebkitAppRegion: 'drag',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            color: 'var(--joy-palette-neutral-plainDisabledColor)',
+          } as CSSProperties
+        }
       >
-        {isDevExperiment && <>v{window.platform?.version}</>}
+        {isDevExperiment && <>v{(window as any).platform?.version}</>}
       </div>
       <SelectExperimentMenu models={models} />
       <ExperimentMenuItems
         experimentInfo={experimentInfo}
         models={models}
         mode={mode}
-        hasProviders={hasProviders}
       />
       <GlobalMenuItems
-        experimentInfo={experimentInfo}
         outdatedPluginsCount={outdatedPlugins?.length}
         mode={mode}
         hasProviders={hasProviders}
+        experimentInfo={experimentInfo}
       />
       {process.env.MULTIUSER === 'true' && <LoginChip />}
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
