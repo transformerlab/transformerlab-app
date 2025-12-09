@@ -13,16 +13,6 @@ import sys
 import argparse
 import traceback
 
-# Prioritize local plugin_sdk over installed transformerlab package
-# This ensures plugins use the latest local code, not the installed package version
-plugin_harness_dir = os.path.dirname(os.path.abspath(__file__))
-# plugin_harness.py is at: api/transformerlab/plugin_sdk/plugin_harness.py
-# transformerlab package is at: api/transformerlab/plugin_sdk/transformerlab/
-# Adding plugin_harness_dir to sys.path allows imports like:
-# "from transformerlab.sdk.v1.train import ..." to work
-if plugin_harness_dir not in sys.path:
-    # Insert at the beginning to prioritize over installed packages
-    sys.path.insert(0, plugin_harness_dir)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--plugin_dir", type=str, required=True)
@@ -87,7 +77,6 @@ if org_id:
             print(f"Warning: Could not set team/user-specific config env vars: {e}")
     except Exception as e:
         print(f"Warning: Could not set organization context: {e}")
-
 
 # Add the plugin directory to the path
 # Note that this will allow the plugin to import files in this file's directory
