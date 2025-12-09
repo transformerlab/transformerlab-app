@@ -425,12 +425,24 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
               to see it again.
             </Typography>
           </Typography>
-          <Card variant="outlined" sx={{ bgcolor: 'background.level1', p: 1 }}>
+          <Card
+            variant="outlined"
+            sx={{ bgcolor: 'background.level1', p: 1, display: 'inline-block' }}
+          >
             <Stack direction="row" spacing={1} alignItems="center">
               <Input
                 value={createdKey.api_key}
                 readOnly
-                sx={{ fontFamily: 'monospace', fontSize: 'sm' }}
+                sx={{
+                  fontFamily: 'monospace',
+                  fontSize: 'sm',
+                  minWidth: `${Math.max(createdKey.api_key?.length || 0, 40) * 1.1}ch`,
+                  '& input': {
+                    overflow: 'visible',
+                    textOverflow: 'clip',
+                    whiteSpace: 'nowrap',
+                  },
+                }}
                 endDecorator={
                   <IconButton
                     size="sm"
