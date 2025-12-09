@@ -1,7 +1,7 @@
 """add_team_id_to_config_table
 
 Revision ID: c78d76a6d65c
-Revises: c175b784119c
+Revises: f278bbaa6f67
 Create Date: 2025-12-04 11:23:22.165544
 
 """
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "c78d76a6d65c"
-down_revision: Union[str, Sequence[str], None] = "c175b784119c"
+down_revision: Union[str, Sequence[str], None] = "f278bbaa6f67"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
