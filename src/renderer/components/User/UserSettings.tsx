@@ -16,22 +16,16 @@ import {
   FormControl,
   FormLabel,
   Select,
+  Sheet,
   Option,
   IconButton,
   Alert,
-  Divider,
   Card,
   Chip,
 } from '@mui/joy';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
-import {
-  CopyIcon,
-  TrashIcon,
-  EyeIcon,
-  EyeOffIcon,
-  PlusIcon,
-} from 'lucide-react';
+import { CopyIcon, TrashIcon, PlusIcon } from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/api-client/urls';
 
 function PasswordChangeForm({ open, onClose }) {
@@ -174,7 +168,7 @@ function UserNameChangeForm({
   );
 }
 
-export default function UserLoginTest(): JSX.Element {
+export default function UserSettings(): JSX.Element {
   const authContext = useAuth();
   const [isNameChangeOpen, setIsNameChangeOpen] = useState(false);
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
@@ -182,7 +176,7 @@ export default function UserLoginTest(): JSX.Element {
   const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
 
   return (
-    <div>
+    <Sheet sx={{ overflowY: 'auto', p: 2 }}>
       <Typography level="h2" mb={2}>
         User Settings
       </Typography>
@@ -254,7 +248,7 @@ export default function UserLoginTest(): JSX.Element {
         )}
       </Box>
       <ApiKeysSection teams={teams?.teams || []} />
-    </div>
+    </Sheet>
   );
 }
 
