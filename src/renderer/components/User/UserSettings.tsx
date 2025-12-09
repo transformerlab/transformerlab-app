@@ -20,7 +20,6 @@ import {
   Option,
   IconButton,
   Alert,
-  Divider,
   Card,
   Chip,
 } from '@mui/joy';
@@ -29,8 +28,6 @@ import { useAPI, useAuth } from 'renderer/lib/authContext';
 import {
   CopyIcon,
   TrashIcon,
-  EyeIcon,
-  EyeOffIcon,
   PlusIcon,
 } from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/api-client/urls';
