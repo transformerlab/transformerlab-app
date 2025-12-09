@@ -172,7 +172,7 @@ function UserNameChangeForm({
   );
 }
 
-export default function UserLoginTest(): JSX.Element {
+export default function UserSettings(): JSX.Element {
   const authContext = useAuth();
   const [isNameChangeOpen, setIsNameChangeOpen] = useState(false);
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
