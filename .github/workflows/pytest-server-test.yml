@@ -62,38 +62,11 @@ jobs:
         run: |
           cd ../lab-sdk
           uv pip install --system -e .
-      - name: Start server and run tests
+      - name: Now run the server by calling ./run.sh and wait for it to be ready
         run: |
-          ./run.sh > server.log 2>&1 &
-          SERVER_PID=$!
-          echo "Server started with PID: $SERVER_PID"
-
-          # Wait for server to be ready with health check
-          echo "Waiting for server to be ready..."
-          max_attempts=60
-          attempt=0
-          while [ $attempt -lt $max_attempts ]; do
-            if curl -f -s http://127.0.0.1:8338/ > /dev/null 2>&1; then
-              echo "Server is ready!"
-              break
-            fi
-            attempt=$((attempt + 1))
-            sleep 1
-          done
-
-          if [ $attempt -eq $max_attempts ]; then
-            echo "Server failed to start. Logs:"
-            cat server.log
-            exit 1
-          fi
-
+          ./run.sh &
+          python scripts/wait_for_server.py --timeout 120 --interval 2
+      - name: Test the API Server and DB Setup
+        run: |
           # Run tests
           pytest -m live_server test/server/
-          TEST_EXIT_CODE=$?
-
-          # Stop server
-          echo "Stopping server (PID: $SERVER_PID)..."
-          kill $SERVER_PID || true
-          wait $SERVER_PID 2>/dev/null || true
-
-          exit $TEST_EXIT_CODE

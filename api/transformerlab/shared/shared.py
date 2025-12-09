@@ -66,9 +66,6 @@ def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs
         popenKWArgs["stdout"] = log
         popenKWArgs["stderr"] = log
 
-        print("FINAL popenKWArgs:", popenKWArgs)
-        print("FINAL popenArgs:", popenArgs)
-
         proc = subprocess.Popen(popenArgs, **popenKWArgs)
         proc.communicate(input=input.encode("utf-8"))
         proc.wait()
