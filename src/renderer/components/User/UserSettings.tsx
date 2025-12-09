@@ -182,7 +182,7 @@ export default function UserLoginTest(): JSX.Element {
   const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
 
   return (
-    <div>
+    <Box sx={{ height: '100vh', overflow: 'auto' }}>
       <Typography level="h2" mb={2}>
         User Settings
       </Typography>
@@ -254,7 +254,7 @@ export default function UserLoginTest(): JSX.Element {
         )}
       </Box>
       <ApiKeysSection teams={teams?.teams || []} />
-    </div>
+    </Box>
   );
 }
 
