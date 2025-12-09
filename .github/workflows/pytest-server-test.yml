@@ -60,7 +60,7 @@ jobs:
       - name: Now run the server by calling ./run.sh and wait for it to be ready
         run: |
           ./run.sh &
-          sleep 30  # Wait for the server to start
+          python scripts/wait_for_server.py --timeout 120 --interval 2
       - name: Test the API Server and DB Setup
         run: |
           pytest -m live_server test/server/
