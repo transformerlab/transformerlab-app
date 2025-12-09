@@ -67,12 +67,6 @@ def get_tasks_gallery():
 def gallery_cache_file_path(filename: str):
     from lab.dirs import get_galleries_cache_dir
 
-    from lab import HOME_DIR
-
-    print(f"HOME_DIR: {HOME_DIR}")
-
-    print(f"get_galleries_cache_dir(): {get_galleries_cache_dir()}")
-
     return os.path.join(get_galleries_cache_dir(), filename)
 
 
