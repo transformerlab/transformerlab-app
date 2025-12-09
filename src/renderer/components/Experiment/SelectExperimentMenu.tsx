@@ -25,12 +25,20 @@ import {
   Sheet,
 } from '@mui/joy';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useSWRWithAuth as useSWR, useAuth, useAPI } from 'renderer/lib/authContext';
+import {
+  useSWRWithAuth as useSWR,
+  useAuth,
+  useAPI,
+} from 'renderer/lib/authContext';
 import { useNavigate } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import RecipesModal from './Recipes';
-import { getAPIFullPath, fetcher, apiHealthz } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  getAPIFullPath,
+  fetcher,
+  apiHealthz,
+} from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function ExperimentSettingsMenu({
