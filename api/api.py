@@ -62,6 +62,7 @@ from transformerlab.routers import (  # noqa: E402
     teams,
     compute_provider,
     auth,
+    api_keys,
 )
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
 import torch  # noqa: E402
@@ -190,10 +191,28 @@ app.add_middleware(
 
 
 # Middleware to set context var for organization id per request (multitenant)
+# Determines team_id from X-Team-Id header or API key, and sets context early.
 @app.middleware("http")
 async def set_org_context(request: Request, call_next):
     try:
+        org_id = None
+
+        # First check X-Team-Id header (fastest path)
         org_id = request.headers.get("X-Team-Id")
+
+        # If no X-Team-Id, try to determine from API key
+        if not org_id:
+            from transformerlab.shared.api_key_auth import determine_team_id_from_request
+            from transformerlab.db.session import async_session
+
+            # Create a session for the middleware check
+            async with async_session() as session:
+                try:
+                    org_id = await determine_team_id_from_request(request, session)
+                except Exception:
+                    # If determination fails, leave as None (will be handled by dependency)
+                    pass
+
         set_current_org_id(org_id)
         if lab_set_org_id is not None:
             lab_set_org_id(org_id)
@@ -233,6 +252,7 @@ app.include_router(fastchat_openai_api.router, dependencies=[Depends(get_user_an
 app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(compute_provider.router)
 app.include_router(auth.router)
+app.include_router(api_keys.router)
 
 controller_process = None
 worker_process = None
