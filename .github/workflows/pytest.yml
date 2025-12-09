@@ -6,11 +6,11 @@ on:
   push:
     branches: ["main"]
     paths:
-      - 'api/**'
+      - "api/**"
   pull_request:
     branches: ["main"]
     paths:
-      - 'api/**'
+      - "api/**"
 
 jobs:
   build:
