@@ -23,7 +23,7 @@ from sqlalchemy import select
 from pydantic import BaseModel
 from typing import Optional
 
-from transformerlab.routers.auth_utils.api_key_auth import (
+from transformerlab.shared.api_key_auth import (
     extract_api_key_from_request,
     validate_api_key_and_get_user,
     get_user_personal_team_id,
