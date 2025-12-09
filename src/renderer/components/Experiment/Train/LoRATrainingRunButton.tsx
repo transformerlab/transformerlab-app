@@ -3,9 +3,10 @@ import { useState } from 'react';
 
 import { Button, LinearProgress, Stack } from '@mui/joy';
 
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
+import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { PlayIcon } from 'lucide-react';
-import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 
 export default function LoRATrainingRunButton({
   initialMessage,
@@ -23,12 +24,7 @@ export default function LoRATrainingRunButton({
   let jobConfig = job_data?.config;
   let pluginName = '';
   if (jobConfig) {
-    try {
-      jobConfig = JSON.parse(jobConfig);
-    } catch (e) {
-      console.error('Failed to parse jobConfig:', e);
-      jobConfig = {};
-    }
+    jobConfig = SafeJSONParse(jobConfig, {});
     pluginName = jobConfig?.plugin_name || '';
   }
   return (
