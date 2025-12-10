@@ -71,7 +71,9 @@ export async function sendAndReceiveTranscription(
 
 export default function Audio() {
   const { experimentInfo } = useExperimentInfo();
-  const currentModel = experimentInfo?.config?.foundation;
+  const currentModel = experimentInfo?.config?.foundation_filename
+    ? experimentInfo?.config?.foundation_filename
+    : experimentInfo?.config?.foundation;
 
   const { data: transcriptionHistory, mutate: mutateHistory } = useAPI(
     'conversations',

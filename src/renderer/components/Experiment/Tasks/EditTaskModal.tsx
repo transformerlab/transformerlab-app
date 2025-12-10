@@ -15,6 +15,7 @@ import {
   Option,
   IconButton,
   Stack,
+  Checkbox,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
@@ -78,6 +79,9 @@ export default function EditTaskModal({
   >([{ remotePath: '', file: null, storedPath: undefined }]);
   const [saving, setSaving] = React.useState(false);
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
+  const [githubEnabled, setGithubEnabled] = React.useState(false);
+  const [githubRepoUrl, setGithubRepoUrl] = React.useState('');
+  const [githubDirectory, setGithubDirectory] = React.useState('');
 
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
@@ -125,6 +129,11 @@ export default function EditTaskModal({
     } else {
       setFileMounts([{ remotePath: '', file: null, storedPath: undefined }]);
     }
+
+    // Initialize GitHub fields from config
+    setGithubEnabled(cfg.github_enabled || false);
+    setGithubRepoUrl(cfg.github_repo_url || '');
+    setGithubDirectory(cfg.github_directory || '');
   }, [task]);
 
   React.useEffect(() => {
@@ -302,6 +311,11 @@ export default function EditTaskModal({
       provider_id: selectedProviderId,
       file_mounts:
         Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
+      github_enabled: githubEnabled || undefined,
+      github_repo_url:
+        githubEnabled && githubRepoUrl ? githubRepoUrl : undefined,
+      github_directory:
+        githubEnabled && githubDirectory ? githubDirectory : undefined,
     } as any;
     const providerMeta = providers.find(
       (provider) => provider.id === selectedProviderId,
@@ -645,6 +659,48 @@ export default function EditTaskModal({
                   Add File Mount
                 </Button>
               </Stack>
+            </FormControl>
+
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>GitHub Repository (Optional)</FormLabel>
+              <Checkbox
+                label="Enable GitHub repository cloning"
+                checked={githubEnabled}
+                onChange={(e) => setGithubEnabled(e.target.checked)}
+                sx={{ mb: githubEnabled ? 2 : 0 }}
+              />
+              {githubEnabled && (
+                <Stack spacing={2} sx={{ mt: 1 }}>
+                  <FormControl>
+                    <FormLabel>GitHub Repository URL</FormLabel>
+                    <Input
+                      value={githubRepoUrl}
+                      onChange={(e) => setGithubRepoUrl(e.target.value)}
+                      placeholder="https://github.com/owner/repo.git"
+                    />
+                    <FormHelperText>
+                      The GitHub repository URL to clone from
+                    </FormHelperText>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Directory Path (Optional)</FormLabel>
+                    <Input
+                      value={githubDirectory}
+                      onChange={(e) => setGithubDirectory(e.target.value)}
+                      placeholder="path/to/directory"
+                    />
+                    <FormHelperText>
+                      Optional: Specific directory within the repo to clone. If
+                      empty, the entire repo will be cloned.
+                    </FormHelperText>
+                  </FormControl>
+                </Stack>
+              )}
+              <FormHelperText>
+                If enabled, the repository will be cloned during setup. A GitHub
+                PAT (Personal Access Token) will be used for private
+                repositories.
+              </FormHelperText>
             </FormControl>
 
             <FormControl required sx={{ mt: 2 }}>

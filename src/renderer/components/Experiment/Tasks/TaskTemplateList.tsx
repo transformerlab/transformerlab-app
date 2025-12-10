@@ -1,6 +1,16 @@
 import React from 'react';
-import { Table, ButtonGroup, Typography, IconButton, Button } from '@mui/joy';
-import { PlayIcon, Trash2Icon } from 'lucide-react';
+import {
+  Table,
+  ButtonGroup,
+  Typography,
+  IconButton,
+  Button,
+  Dropdown,
+  MenuButton,
+  Menu,
+  MenuItem,
+} from '@mui/joy';
+import { PlayIcon, Trash2Icon, MoreVerticalIcon } from 'lucide-react';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 
 type TaskRow = {
@@ -20,6 +30,7 @@ type TaskTemplateListProps = {
   onDeleteTask: (taskId: string) => void;
   onQueueTask: (task: TaskRow) => void;
   onEditTask: (task: TaskRow) => void;
+  onExportTask?: (taskId: string) => void;
 };
 
 const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
@@ -27,6 +38,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   onDeleteTask,
   onQueueTask,
   onEditTask,
+  onExportTask,
 }) => {
   const getResourcesInfo = (task: TaskRow) => {
     if (!task.remote_task) {
@@ -119,6 +131,24 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
                 >
                   <Trash2Icon style={{ cursor: 'pointer' }} />
                 </IconButton>
+                {onExportTask && (
+                  <Dropdown>
+                    <MenuButton
+                      slots={{ root: IconButton }}
+                      slotProps={{
+                        root: { variant: 'plain', color: 'neutral' },
+                      }}
+                      sx={{ minWidth: 0 }}
+                    >
+                      <MoreVerticalIcon size={16} />
+                    </MenuButton>
+                    <Menu>
+                      <MenuItem onClick={() => onExportTask?.(row.id)}>
+                        Export to Team Gallery
+                      </MenuItem>
+                    </Menu>
+                  </Dropdown>
+                )}
               </ButtonGroup>
             </td>
           </tr>
