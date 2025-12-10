@@ -336,6 +336,9 @@ function GlobalMenuItems({
           counter={outdatedPluginsCount}
         />
       )}
+      {hasProviders && (
+        <SubNavItem title="Compute" path="/compute" icon={<MonitorIcon />} />
+      )}
       {!isS3Mode && (
         <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
       )}
