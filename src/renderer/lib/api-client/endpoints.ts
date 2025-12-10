@@ -31,6 +31,10 @@ Endpoints.Tasks = {
   Gallery: () => `${API_URL()}tasks/gallery`,
   ImportFromGallery: (experimentId: string) =>
     `${API_URL()}tasks/gallery/import`,
+  TeamGallery: () => `${API_URL()}tasks/gallery/team`,
+  ImportFromTeamGallery: (experimentId: string) =>
+    `${API_URL()}tasks/gallery/team/import`,
+  ExportToTeamGallery: () => `${API_URL()}tasks/gallery/team/export`,
 };
 
 Endpoints.ComputeProvider = {

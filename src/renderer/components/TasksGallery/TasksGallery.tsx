@@ -6,6 +6,9 @@ import {
   Button,
   Card,
   CardContent,
+  Tab,
+  TabList,
+  Tabs,
   FormControl,
   Grid,
   Input,
@@ -73,6 +76,7 @@ function TaskIcon({ icon, color }: { icon: React.ReactNode; color?: string }) {
 
 export default function TasksGallery() {
   const [searchText, setSearchText] = useState('');
+  const [activeTab, setActiveTab] = useState<'global' | 'team'>('global');
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const navigate = useNavigate();
@@ -82,6 +86,12 @@ export default function TasksGallery() {
     chatAPI.Endpoints.Tasks.Gallery(),
     fetcher,
   );
+  const {
+    data: teamData,
+    error: teamError,
+    isLoading: teamLoading,
+    mutate: teamMutate,
+  } = useSWR(chatAPI.Endpoints.Tasks.TeamGallery(), fetcher);
 
   const handleImport = async (galleryIndex: number) => {
     if (!experimentInfo?.id) {
@@ -95,19 +105,20 @@ export default function TasksGallery() {
 
     setImportingIndex(galleryIndex);
     try {
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Tasks.ImportFromGallery(experimentInfo.id),
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            gallery_id: galleryIndex.toString(),
-            experiment_id: experimentInfo.id,
-          }),
+      const endpoint =
+        activeTab === 'team'
+          ? chatAPI.Endpoints.Tasks.ImportFromTeamGallery(experimentInfo.id)
+          : chatAPI.Endpoints.Tasks.ImportFromGallery(experimentInfo.id);
+      const response = await chatAPI.authenticatedFetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify({
+          gallery_id: galleryIndex.toString(),
+          experiment_id: experimentInfo.id,
+        }),
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -124,6 +135,12 @@ export default function TasksGallery() {
         message: result.message || 'Task imported successfully!',
       });
 
+      if (activeTab === 'team') {
+        teamMutate();
+      } else {
+        mutate();
+      }
+
       // Navigate to the tasks page for the experiment
       navigate(`/experiment/tasks`);
     } catch (err: any) {
@@ -137,7 +154,7 @@ export default function TasksGallery() {
     }
   };
 
-  if (error)
+  if (error && activeTab === 'global')
     return (
       <Sheet sx={{ p: 2 }}>
         <Typography color="danger">
@@ -146,9 +163,10 @@ export default function TasksGallery() {
         </Typography>
       </Sheet>
     );
-  if (isLoading) return <LinearProgress />;
-
-  const gallery = data?.data || [];
+  const globalGallery = data?.data || [];
+  const teamGallery = teamData?.data || [];
+  const gallery = activeTab === 'team' ? teamGallery : globalGallery;
+  const isActiveLoading = activeTab === 'team' ? teamLoading : isLoading;
 
   return (
     <Sheet
@@ -159,6 +177,17 @@ export default function TasksGallery() {
         height: '100%',
       }}
     >
+      <Tabs
+        size="sm"
+        value={activeTab}
+        onChange={(_e, val) => val && setActiveTab(val as 'global' | 'team')}
+        sx={{ mb: 1 }}
+      >
+        <TabList>
+          <Tab value="global">Tasks Gallery</Tab>
+          <Tab value="team">Team Specific Tasks</Tab>
+        </TabList>
+      </Tabs>
       <Box
         className="SearchAndFilters-tabletUp"
         sx={{
@@ -195,11 +224,19 @@ export default function TasksGallery() {
           paddingRight: 2,
         }}
       >
-        {gallery.length === 0 ? (
+        {isActiveLoading ? (
+          <LinearProgress />
+        ) : gallery.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <Typography level="body-lg" color="neutral">
               No tasks available in the gallery.
             </Typography>
+            {teamError && activeTab === 'team' && (
+              <Typography level="body-sm" color="danger" sx={{ mt: 1 }}>
+                Failed to load team tasks. Check workspace
+                team_specific_tasks.json.
+              </Typography>
+            )}
           </Box>
         ) : (
           <Grid container spacing={2} sx={{ flexGrow: 1 }}>

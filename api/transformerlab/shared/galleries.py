@@ -18,6 +18,8 @@ MODEL_GROUP_GALLERY_FILE = "model-group-gallery.json"
 EXP_RECIPES_GALLERY_FILE = "exp-recipe-gallery.json"
 # Tasks gallery main file
 TASKS_GALLERY_FILE = "tasks-gallery.json"
+# Team-specific tasks gallery stored in workspace dir (per team)
+TEAM_TASKS_GALLERY_FILE = "team_specific_tasks.json"
 GALLERY_FILES = [
     MODEL_GALLERY_FILE,
     DATA_GALLERY_FILE,
@@ -57,6 +59,70 @@ def get_exp_recipe_gallery():
 
 def get_tasks_gallery():
     return get_gallery_file(TASKS_GALLERY_FILE)
+
+
+def get_team_tasks_gallery():
+    """
+    Team-specific tasks gallery stored in the workspace directory.
+    Falls back to an empty list when missing or unreadable.
+    """
+    from lab.dirs import get_workspace_dir
+    from lab import storage
+
+    workspace_dir = get_workspace_dir()
+    gallery_path = storage.join(workspace_dir, TEAM_TASKS_GALLERY_FILE)
+
+    try:
+        # Ensure the workspace directory exists before checking the file
+        storage.makedirs(workspace_dir, exist_ok=True)
+
+        if not storage.exists(gallery_path):
+            # Initialize an empty gallery file
+            with storage.open(gallery_path, "w") as f:
+                json.dump([], f)
+            return []
+
+        with storage.open(gallery_path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"❌ Failed to read team tasks gallery: {e}")
+        return []
+
+
+def add_team_task_to_gallery(entry: dict):
+    """
+    Append (or upsert) a task entry to the team-specific gallery.
+    Replaces an existing entry with the same id/title to avoid duplicates.
+    """
+    from lab.dirs import get_workspace_dir
+    from lab import storage
+
+    workspace_dir = get_workspace_dir()
+    gallery_path = storage.join(workspace_dir, TEAM_TASKS_GALLERY_FILE)
+
+    try:
+        storage.makedirs(workspace_dir, exist_ok=True)
+        current = get_team_tasks_gallery()
+
+        # De-duplicate on id or title
+        new_id = entry.get("id")
+        new_title = entry.get("title")
+        filtered = []
+        for item in current:
+            if new_id and item.get("id") == new_id:
+                continue
+            if new_title and item.get("title") == new_title:
+                continue
+            filtered.append(item)
+
+        filtered.append(entry)
+
+        with storage.open(gallery_path, "w") as f:
+            json.dump(filtered, f, indent=2)
+        return filtered
+    except Exception as e:
+        print(f"❌ Failed to write team tasks gallery: {e}")
+        return get_team_tasks_gallery()
 
 
 ######################

@@ -361,6 +361,42 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     }
   };
 
+  const handleExportToTeamGallery = async (taskId: string) => {
+    try {
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Tasks.ExportToTeamGallery(),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ task_id: taskId }),
+        },
+      );
+
+      if (!response.ok) {
+        const txt = await response.text();
+        addNotification({
+          type: 'danger',
+          message: `Failed to export task: ${txt}`,
+        });
+        return;
+      }
+
+      const result = await response.json();
+      addNotification({
+        type: 'success',
+        message: result?.message || 'Task exported to team gallery.',
+      });
+    } catch (error) {
+      console.error('Error exporting task:', error);
+      addNotification({
+        type: 'danger',
+        message: 'Failed to export task. Please try again.',
+      });
+    }
+  };
+
   const handleSubmit = async (data: any) => {
     if (!experimentInfo?.id) {
       addNotification({ type: 'warning', message: 'No experiment selected' });
@@ -638,6 +674,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             onDeleteTask={handleDeleteTask}
             onQueueTask={handleQueue}
             onEditTask={handleEditTask}
+            onExportTask={handleExportToTeamGallery}
           />
         )}
       </Sheet>

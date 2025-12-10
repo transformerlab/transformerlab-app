@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 from pydantic import BaseModel
 
 from lab import Dataset
+from lab.dirs import get_workspace_dir
 from transformerlab.services.job_service import job_create
 from transformerlab.models import model_helper
 from transformerlab.services.tasks_service import tasks_service
@@ -280,6 +281,15 @@ class ImportTaskFromGalleryRequest(BaseModel):
     experiment_id: str
 
 
+class ImportTaskFromTeamGalleryRequest(BaseModel):
+    gallery_id: str  # Index or identifier in the gallery array
+    experiment_id: str
+
+
+class ExportTaskToTeamGalleryRequest(BaseModel):
+    task_id: str
+
+
 @router.post("/gallery/import", summary="Import a task from the tasks gallery")
 async def import_task_from_gallery(
     request: ImportTaskFromGalleryRequest,
@@ -373,3 +383,137 @@ async def import_task_from_gallery(
     )
 
     return {"status": "success", "message": f"Task '{task_name}' imported successfully"}
+
+
+@router.get("/gallery/team", summary="List team-specific tasks from the team gallery")
+async def team_tasks_gallery():
+    """Get the team-specific tasks gallery stored in workspace_dir"""
+    gallery = galleries.get_team_tasks_gallery()
+    return {"status": "success", "data": gallery}
+
+
+@router.post("/gallery/team/import", summary="Import a task from the team tasks gallery")
+async def import_task_from_team_gallery(
+    request: ImportTaskFromTeamGalleryRequest,
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Import a task from the team-specific tasks gallery (workspace_dir/team_specific_tasks.json).
+    """
+    gallery = galleries.get_team_tasks_gallery()
+
+    # Find the gallery entry by index or ID
+    try:
+        gallery_index = int(request.gallery_id)
+        if gallery_index < 0 or gallery_index >= len(gallery):
+            raise HTTPException(status_code=404, detail="Gallery entry not found")
+        gallery_entry = gallery[gallery_index]
+    except (ValueError, IndexError):
+        gallery_entry = None
+        for entry in gallery:
+            if entry.get("id") == request.gallery_id or entry.get("title") == request.gallery_id:
+                gallery_entry = entry
+                break
+        if not gallery_entry:
+            raise HTTPException(status_code=404, detail="Gallery entry not found")
+
+    # Extract gallery entry fields
+    title = gallery_entry.get("title", "Imported Task")
+    github_repo_url = gallery_entry.get("github_repo_url") or gallery_entry.get("github_url", "")
+    github_repo_dir = (
+        gallery_entry.get("github_repo_dir")
+        or gallery_entry.get("directory_path")
+        or gallery_entry.get("github_directory")
+    )
+    config = gallery_entry.get("config", {})
+
+    if not isinstance(config, dict):
+        try:
+            config = json.loads(config) if isinstance(config, str) else {}
+        except Exception:
+            config = {}
+
+    # Get task name from config or use title
+    task_name = config.get("name") or config.get("cluster_name") or title
+
+    # Build the task config, merging gallery config with GitHub info
+    task_config = {
+        **config,  # Start with gallery config
+    }
+
+    if github_repo_url:
+        task_config["github_enabled"] = True
+        task_config["github_repo_url"] = github_repo_url
+    if github_repo_dir:
+        task_config["github_directory"] = github_repo_dir
+
+    # Ensure required fields are set with defaults if not in config
+    if "cluster_name" not in task_config:
+        task_config["cluster_name"] = task_name
+    if "command" not in task_config:
+        task_config["command"] = config.get("command", "echo 'No command specified'")
+
+    # Create the task
+    new_task = {
+        "name": task_name,
+        "type": "REMOTE",
+        "inputs": {},
+        "config": task_config,
+        "plugin": "remote_orchestrator",
+        "outputs": {},
+        "experiment_id": request.experiment_id,
+        "remote_task": True,
+    }
+
+    # Perform secure_filename before adding the task
+    new_task["name"] = secure_filename(new_task["name"])
+
+    tasks_service.add_task(
+        new_task["name"],
+        new_task["type"],
+        new_task["inputs"],
+        new_task["config"],
+        new_task["plugin"],
+        new_task["outputs"],
+        new_task["experiment_id"],
+        remote_task=True,
+    )
+
+    return {"status": "success", "message": f"Task '{task_name}' imported successfully"}
+
+
+@router.post("/gallery/team/export", summary="Export an existing task to the team gallery")
+async def export_task_to_team_gallery(
+    request: ExportTaskToTeamGalleryRequest,
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Export a task template into the team-specific gallery stored in workspace_dir.
+    """
+    task = tasks_service.tasks_get_by_id(request.task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    config = task.get("config") or {}
+    if isinstance(config, str):
+        try:
+            config = json.loads(config)
+        except Exception:
+            config = {}
+
+    gallery_entry = {
+        "id": task.get("id") or request.task_id,
+        "title": task.get("name") or config.get("name") or "Untitled Task",
+        "description": task.get("description") or config.get("description"),
+        "config": config,
+        "github_repo_url": config.get("github_repo_url") or config.get("github_url"),
+        "github_repo_dir": config.get("github_directory") or config.get("github_repo_dir"),
+    }
+
+    galleries.add_team_task_to_gallery(gallery_entry)
+
+    return {
+        "status": "success",
+        "message": f"Task '{gallery_entry['title']}' exported to team gallery",
+        "data": gallery_entry,
+    }
