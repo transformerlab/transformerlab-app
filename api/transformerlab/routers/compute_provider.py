@@ -456,7 +456,6 @@ async def launch_cluster(
             "result": result,
         }
     except Exception as e:
-        print(f"Failed to launch cluster: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to launch cluster")
 
 
@@ -823,7 +822,6 @@ async def stop_cluster(
         # Return the result directly from the provider
         return result
     except Exception as e:
-        print(f"Failed to stop cluster: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to stop cluster")
 
 
