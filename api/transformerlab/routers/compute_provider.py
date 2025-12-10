@@ -206,12 +206,14 @@ async def get_clusters(
             # Use the provider's list_clusters method (all providers inherit this from base class)
             provider_clusters = provider_instance.list_clusters()
             for cluster_status in provider_clusters:
-                clusters.append({
-                    "cluster_name": cluster_status.cluster_name,
-                    "state": cluster_status.state.value,
-                    "resources_str": cluster_status.resources_str,
-                    "provider_id": provider.id,
-                })
+                clusters.append(
+                    {
+                        "cluster_name": cluster_status.cluster_name,
+                        "state": cluster_status.state.value,
+                        "resources_str": cluster_status.resources_str,
+                        "provider_id": provider.id,
+                    }
+                )
         except Exception as e:
             # Skip providers that fail
             print(f"Error getting clusters for provider {provider.id}: {e}")

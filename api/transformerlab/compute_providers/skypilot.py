@@ -438,7 +438,7 @@ class SkyPilotProvider(ComputeProvider):
                     "message": f"Cluster '{cluster_name}' stopped successfully",
                     "cluster_name": cluster_name,
                     "request_id": request_id,
-                    "result": result
+                    "result": result,
                 }
             except Exception as e:
                 return {
@@ -446,14 +446,14 @@ class SkyPilotProvider(ComputeProvider):
                     "message": f"Failed to stop cluster '{cluster_name}': {str(e)}",
                     "cluster_name": cluster_name,
                     "request_id": request_id,
-                    "error": str(e)
+                    "error": str(e),
                 }
 
         # Fallback: return basic response if we can't get request_id
         return {
             "status": "initiated",
             "message": f"Cluster '{cluster_name}' stop initiated",
-            "cluster_name": cluster_name
+            "cluster_name": cluster_name,
         }
 
     def get_cluster_status(self, cluster_name: str) -> ClusterStatus:
