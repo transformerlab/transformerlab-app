@@ -23,10 +23,8 @@ import {
 import {
   SearchIcon,
   GithubIcon,
-  FolderIcon,
   DownloadIcon,
   ScanTextIcon,
-  ExternalLinkIcon,
 } from 'lucide-react';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -114,16 +112,10 @@ function TaskCard({
               </Typography>
             )}
             {task?.github_repo_url && (
-              <Box sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
-                <Typography
-                  level="body-sm"
-                  sx={{
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    fontSize: '0.75rem',
-                  }}
-                  startDecorator={<ExternalLinkIcon size={11} />}
+              <Box
+                sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}
+              >
+                <Box
                   component="a"
                   href={generateGithubLink(
                     task.github_repo_url,
@@ -131,6 +123,39 @@ function TaskCard({
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    color: 'text.secondary',
+                    textDecoration: 'none',
+                    '&:hover': {
+                      color: 'primary.plainColor',
+                    },
+                  }}
+                >
+                  <GithubIcon size={16} />
+                </Box>
+                <Typography
+                  level="body-sm"
+                  component="a"
+                  href={generateGithubLink(
+                    task.github_repo_url,
+                    task?.github_repo_dir,
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    fontSize: '0.75rem',
+                    color: 'text.secondary',
+                    textDecoration: 'none',
+                    '&:hover': {
+                      color: 'primary.plainColor',
+                      textDecoration: 'underline',
+                    },
+                  }}
                 >
                   {formatGithubPath(
                     task.github_repo_url,
