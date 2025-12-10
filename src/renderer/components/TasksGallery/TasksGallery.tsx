@@ -74,6 +74,76 @@ function TaskIcon({ icon, color }: { icon: React.ReactNode; color?: string }) {
   );
 }
 
+function TaskCard({
+  task,
+  index,
+  onImport,
+  isImporting,
+  disableImport,
+}: {
+  task: any;
+  index: number;
+  onImport: (idx: number) => void;
+  isImporting: boolean;
+  disableImport: boolean;
+}) {
+  return (
+    <Card variant="outlined" sx={{ height: '100%' }}>
+      <CardContent>
+        <Stack spacing={2}>
+          <TaskIcon icon={<ScanTextIcon />} color="#1976d2" />
+          <Box>
+            <Typography level="title-lg">
+              {task.title || 'Untitled Task'}
+            </Typography>
+            {task.description && (
+              <Typography level="body-sm" sx={{ mt: 1 }}>
+                {task.description}
+              </Typography>
+            )}
+          </Box>
+          {task.config && (
+            <Stack spacing={0.5}>
+              <Typography level="body-xs" fontWeight="bold">
+                Compute:
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                {task.config.cpus && (
+                  <Chip size="sm" variant="soft">
+                    CPUs: {task.config.cpus}
+                  </Chip>
+                )}
+                {task.config.memory && (
+                  <Chip size="sm" variant="soft">
+                    Memory: {task.config.memory}GB
+                  </Chip>
+                )}
+                {task.config.accelerators && (
+                  <Chip size="sm" variant="soft">
+                    {task.config.accelerators}
+                  </Chip>
+                )}
+              </Stack>
+            </Stack>
+          )}
+        </Stack>
+        <CardActions>
+          <Button
+            variant="soft"
+            color="success"
+            endDecorator={<DownloadIcon size={16} />}
+            onClick={() => onImport(index)}
+            loading={isImporting}
+            disabled={disableImport}
+          >
+            Import
+          </Button>
+        </CardActions>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function TasksGallery() {
   const [searchText, setSearchText] = useState('');
   const [activeTab, setActiveTab] = useState<'global' | 'team'>('global');
@@ -243,81 +313,15 @@ export default function TasksGallery() {
             {filterTasksGallery(gallery, searchText).map(
               (task: any, index: number) => (
                 <Grid xs={12} sm={12} md={6} lg={4} xl={3} key={index}>
-                  <Card variant="outlined" sx={{ height: '100%' }}>
-                    <CardContent>
-                      <Stack spacing={2}>
-                        <TaskIcon icon={<ScanTextIcon />} color="#1976d2" />
-                        <Box>
-                          <Typography level="title-lg">
-                            {task.title || 'Untitled Task'}
-                          </Typography>
-                          {task.description && (
-                            <Typography level="body-sm" sx={{ mt: 1 }}>
-                              {task.description}
-                            </Typography>
-                          )}
-                        </Box>
-
-                        {/* <Stack spacing={1}>
-                          <Stack
-                            direction="row"
-                            spacing={1}
-                            alignItems="center"
-                          >
-                            <GithubIcon size={16} />
-                            <Typography
-                              level="body-xs"
-                              sx={{ wordBreak: 'break-all' }}
-                            >
-                              {formatGithubPath(
-                                task?.github_repo_url,
-                                task?.github_repo_dir,
-                              )}
-                            </Typography>
-                          </Stack>
-                        </Stack> */}
-
-                        {task.config && (
-                          <Stack spacing={0.5}>
-                            <Typography level="body-xs" fontWeight="bold">
-                              Compute:
-                            </Typography>
-                            <Stack direction="row" spacing={1} flexWrap="wrap">
-                              {task.config.cpus && (
-                                <Chip size="sm" variant="soft">
-                                  CPUs: {task.config.cpus}
-                                </Chip>
-                              )}
-                              {task.config.memory && (
-                                <Chip size="sm" variant="soft">
-                                  Memory: {task.config.memory}GB
-                                </Chip>
-                              )}
-                              {task.config.accelerators && (
-                                <Chip size="sm" variant="soft">
-                                  {task.config.accelerators}
-                                </Chip>
-                              )}
-                            </Stack>
-                          </Stack>
-                        )}
-                      </Stack>
-                      <CardActions>
-                        <Button
-                          variant="soft"
-                          color="success"
-                          endDecorator={<DownloadIcon size={16} />}
-                          onClick={() => handleImport(index)}
-                          loading={importingIndex === index}
-                          disabled={
-                            !experimentInfo?.id || importingIndex !== null
-                          }
-                        >
-                          Import
-                        </Button>
-                      </CardActions>
-                    </CardContent>
-                  </Card>
+                  <TaskCard
+                    task={task}
+                    index={index}
+                    onImport={handleImport}
+                    isImporting={importingIndex === index}
+                    disableImport={
+                      !experimentInfo?.id || importingIndex !== null
+                    }
+                  />
                 </Grid>
               ),
             )}
