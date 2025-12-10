@@ -89,7 +89,13 @@ function TaskCard({
 }) {
   return (
     <Card variant="outlined" sx={{ height: '100%' }}>
-      <CardContent>
+      <CardContent
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+        }}
+      >
         <Stack spacing={2}>
           <TaskIcon icon={<ScanTextIcon />} color="#1976d2" />
           <Box>
