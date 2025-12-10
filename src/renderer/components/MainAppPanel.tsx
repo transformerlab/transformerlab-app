@@ -21,9 +21,9 @@ import Welcome from './Welcome/Welcome';
 import ModelZoo from './ModelZoo/ModelZoo';
 import Plugins from './Plugins/Plugins';
 import PluginDetails from './Plugins/PluginDetails';
-import TasksGallery from './TaskLibrary/TasksGallery';
 
 import Computer from './Computer';
+import Compute from './Compute/Compute';
 import Eval from './Experiment/Eval/Eval';
 import Generate from './Experiment/Generate/Generate';
 import Export from './Experiment/Export/Export';
@@ -48,7 +48,11 @@ import { useAnalytics } from './Shared/analytics/AnalyticsContext';
 import SafeJSONParse from './Shared/SafeJSONParse';
 import Tasks from './Experiment/Tasks/Tasks';
 import Team from './Team/Team';
+<<<<<<< HEAD
 import UsageReport from './Team/UsageReport';
+=======
+import TasksGallery from './TasksGallery/TasksGallery';
+>>>>>>> 6738602ff878ca601cfb589b298670c12dedbd26
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -410,7 +414,6 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
           element={<Plugins setLogsDrawerOpen={setLogsDrawerOpen} />}
         />
         <Route path="/plugins/:pluginName" element={<PluginDetails />} />
-        <Route path="/task_library" element={<TasksGallery />} />
         <Route path="/api" element={<Api />} />
         <Route path="/experiment/settings" element={<Settings />} />
         <Route path="/zoo" element={<ModelZoo tab="groups" />} />
@@ -419,8 +422,9 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/zoo/store" element={<ModelZoo tab="store" />} />
         <Route path="/zoo/groups" element={<ModelZoo tab="groups" />} />
         <Route path="/data" element={<Data />} />
-        <Route path="/task_library" element={<TasksGallery />} />
+        <Route path="/tasks-gallery" element={<TasksGallery />} />
         <Route path="/computer" element={<Computer />} />
+        <Route path="/compute" element={<Compute />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />
         <Route path="/user" element={<UserSettings />} />
