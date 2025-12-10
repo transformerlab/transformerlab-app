@@ -224,9 +224,8 @@ export default function TasksGallery() {
           paddingRight: 2,
         }}
       >
-        {isActiveLoading ? (
-          <LinearProgress />
-        ) : gallery.length === 0 ? (
+        {isActiveLoading && <LinearProgress />}
+        {!isActiveLoading && gallery.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <Typography level="body-lg" color="neutral">
               No tasks available in the gallery.
@@ -238,7 +237,8 @@ export default function TasksGallery() {
               </Typography>
             )}
           </Box>
-        ) : (
+        )}
+        {!isActiveLoading && gallery.length > 0 && (
           <Grid container spacing={2} sx={{ flexGrow: 1 }}>
             {filterTasksGallery(gallery, searchText).map(
               (task: any, index: number) => (
