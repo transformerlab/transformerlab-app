@@ -443,7 +443,7 @@ class SkyPilotProvider(ComputeProvider):
             except Exception as e:
                 return {
                     "status": "error",
-                    "message": f"Failed to stop cluster '{cluster_name}': {str(e)}",
+                    "message": f"Failed to stop cluster '{cluster_name}'",
                     "cluster_name": cluster_name,
                     "request_id": request_id,
                 }
