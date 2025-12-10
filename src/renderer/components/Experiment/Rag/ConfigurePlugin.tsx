@@ -17,7 +17,9 @@ export default function PluginSettingsModal({
   plugin,
   setRagEngine,
 }) {
-  const currentModelName = experimentInfo?.config?.foundation;
+  const currentModelName = experimentInfo?.config?.foundation_filename
+    ? experimentInfo?.config?.foundation_filename
+    : experimentInfo?.config?.foundation;
 
   let ragEngineSettings = {};
   try {
