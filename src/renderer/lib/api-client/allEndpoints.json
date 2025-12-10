@@ -250,6 +250,10 @@
       "method": "GET",
       "path": "compute_provider/jobs/{jobId}/check-status"
     },
+    "clusters": {
+      "method": "GET",
+      "path": "compute_provider/clusters"
+    },
     "stopCluster": {
       "method": "POST",
       "path": "compute_provider/{providerId}/clusters/{clusterName}/stop"
