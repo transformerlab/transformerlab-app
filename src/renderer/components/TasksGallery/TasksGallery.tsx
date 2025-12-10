@@ -23,7 +23,6 @@ import {
 import {
   SearchIcon,
   GithubIcon,
-  FolderIcon,
   DownloadIcon,
   ScanTextIcon,
 } from 'lucide-react';
@@ -57,6 +56,11 @@ function formatGithubPath(repoUrl?: string, repoDir?: string) {
   return repoDir ? `${finalRepoUrl}/${repoDir}` : finalRepoUrl;
 }
 
+function generateGithubLink(repoUrl?: string, repoDir?: string) {
+  const finalRepoUrl = repoUrl.replace(/\.git$/, '');
+  return repoDir ? `${finalRepoUrl}/tree/main/${repoDir}` : finalRepoUrl;
+}
+
 function TaskIcon({ icon, color }: { icon: React.ReactNode; color?: string }) {
   return (
     <Box
@@ -71,6 +75,135 @@ function TaskIcon({ icon, color }: { icon: React.ReactNode; color?: string }) {
     >
       {icon}
     </Box>
+  );
+}
+
+function TaskCard({
+  task,
+  index,
+  onImport,
+  isImporting,
+  disableImport,
+}: {
+  task: any;
+  index: number;
+  onImport: (idx: number) => void;
+  isImporting: boolean;
+  disableImport: boolean;
+}) {
+  return (
+    <Card variant="outlined" sx={{ height: '100%' }}>
+      <CardContent
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+        }}
+      >
+        <Stack spacing={2}>
+          <TaskIcon icon={<ScanTextIcon />} color="#1976d2" />
+          <Box>
+            <Typography level="title-lg">
+              {task?.title || 'Untitled Task'}
+            </Typography>
+            {task?.description && (
+              <Typography level="body-sm" sx={{ mt: 1 }}>
+                {task.description}
+              </Typography>
+            )}
+            {task?.github_repo_url && (
+              <Box
+                sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}
+              >
+                <Box
+                  component="a"
+                  href={generateGithubLink(
+                    task.github_repo_url,
+                    task?.github_repo_dir,
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    color: 'text.secondary',
+                    textDecoration: 'none',
+                    '&:hover': {
+                      color: 'primary.plainColor',
+                    },
+                  }}
+                >
+                  <GithubIcon size={16} />
+                </Box>
+                <Typography
+                  level="body-sm"
+                  component="a"
+                  href={generateGithubLink(
+                    task.github_repo_url,
+                    task?.github_repo_dir,
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    fontSize: '0.75rem',
+                    color: 'text.secondary',
+                    textDecoration: 'none',
+                    '&:hover': {
+                      color: 'primary.plainColor',
+                      textDecoration: 'underline',
+                    },
+                  }}
+                >
+                  {formatGithubPath(
+                    task.github_repo_url,
+                    task?.github_repo_dir,
+                  )}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+          {task.config && (
+            <Stack spacing={0.5}>
+              <Typography level="body-xs" fontWeight="bold">
+                Compute:
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                {task.config.cpus && (
+                  <Chip size="sm" variant="soft">
+                    CPUs: {task.config.cpus}
+                  </Chip>
+                )}
+                {task.config.memory && (
+                  <Chip size="sm" variant="soft">
+                    Memory: {task.config.memory}GB
+                  </Chip>
+                )}
+                {task.config.accelerators && (
+                  <Chip size="sm" variant="soft">
+                    {task.config.accelerators}
+                  </Chip>
+                )}
+              </Stack>
+            </Stack>
+          )}
+        </Stack>
+        <CardActions>
+          <Button
+            variant="soft"
+            color="success"
+            endDecorator={<DownloadIcon size={16} />}
+            onClick={() => onImport(index)}
+            loading={isImporting}
+            disabled={disableImport}
+          >
+            Import
+          </Button>
+        </CardActions>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -224,9 +357,8 @@ export default function TasksGallery() {
           paddingRight: 2,
         }}
       >
-        {isActiveLoading ? (
-          <LinearProgress />
-        ) : gallery.length === 0 ? (
+        {isActiveLoading && <LinearProgress />}
+        {!isActiveLoading && gallery.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <Typography level="body-lg" color="neutral">
               No tasks available in the gallery.
@@ -238,86 +370,21 @@ export default function TasksGallery() {
               </Typography>
             )}
           </Box>
-        ) : (
+        )}
+        {!isActiveLoading && gallery.length > 0 && (
           <Grid container spacing={2} sx={{ flexGrow: 1 }}>
             {filterTasksGallery(gallery, searchText).map(
               (task: any, index: number) => (
                 <Grid xs={12} sm={12} md={6} lg={4} xl={3} key={index}>
-                  <Card variant="outlined" sx={{ height: '100%' }}>
-                    <CardContent>
-                      <Stack spacing={2}>
-                        <TaskIcon icon={<ScanTextIcon />} color="#1976d2" />
-                        <Box>
-                          <Typography level="title-lg">
-                            {task.title || 'Untitled Task'}
-                          </Typography>
-                          {task.description && (
-                            <Typography level="body-sm" sx={{ mt: 1 }}>
-                              {task.description}
-                            </Typography>
-                          )}
-                        </Box>
-
-                        {/* <Stack spacing={1}>
-                          <Stack
-                            direction="row"
-                            spacing={1}
-                            alignItems="center"
-                          >
-                            <GithubIcon size={16} />
-                            <Typography
-                              level="body-xs"
-                              sx={{ wordBreak: 'break-all' }}
-                            >
-                              {formatGithubPath(
-                                task?.github_repo_url,
-                                task?.github_repo_dir,
-                              )}
-                            </Typography>
-                          </Stack>
-                        </Stack> */}
-
-                        {task.config && (
-                          <Stack spacing={0.5}>
-                            <Typography level="body-xs" fontWeight="bold">
-                              Compute:
-                            </Typography>
-                            <Stack direction="row" spacing={1} flexWrap="wrap">
-                              {task.config.cpus && (
-                                <Chip size="sm" variant="soft">
-                                  CPUs: {task.config.cpus}
-                                </Chip>
-                              )}
-                              {task.config.memory && (
-                                <Chip size="sm" variant="soft">
-                                  Memory: {task.config.memory}GB
-                                </Chip>
-                              )}
-                              {task.config.accelerators && (
-                                <Chip size="sm" variant="soft">
-                                  {task.config.accelerators}
-                                </Chip>
-                              )}
-                            </Stack>
-                          </Stack>
-                        )}
-                      </Stack>
-                      <CardActions>
-                        <Button
-                          variant="soft"
-                          color="success"
-                          endDecorator={<DownloadIcon size={16} />}
-                          onClick={() => handleImport(index)}
-                          loading={importingIndex === index}
-                          disabled={
-                            !experimentInfo?.id || importingIndex !== null
-                          }
-                        >
-                          Import
-                        </Button>
-                      </CardActions>
-                    </CardContent>
-                  </Card>
+                  <TaskCard
+                    task={task}
+                    index={index}
+                    onImport={handleImport}
+                    isImporting={importingIndex === index}
+                    disableImport={
+                      !experimentInfo?.id || importingIndex !== null
+                    }
+                  />
                 </Grid>
               ),
             )}
