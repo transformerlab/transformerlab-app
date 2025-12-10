@@ -440,7 +440,7 @@ class SkyPilotProvider(ComputeProvider):
                     "request_id": request_id,
                     "result": result,
                 }
-            except Exception as e:
+            except Exception:
                 return {
                     "status": "error",
                     "message": f"Failed to stop cluster '{cluster_name}'",
