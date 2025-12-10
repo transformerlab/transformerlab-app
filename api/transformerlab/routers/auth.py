@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from transformerlab.shared.models.user_model import get_async_session, create_personal_team
 from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole
 from transformerlab.models.users import (
@@ -13,12 +13,21 @@ from transformerlab.models.users import (
     get_refresh_strategy,
     google_oauth_client,
     GOOGLE_OAUTH_ENABLED,
+    github_oauth_client,
+    GITHUB_OAUTH_ENABLED,
     EMAIL_AUTH_ENABLED,
     SECRET,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
+from typing import Optional
+
+from transformerlab.shared.api_key_auth import (
+    extract_api_key_from_request,
+    validate_api_key_and_get_user,
+    get_user_personal_team_id,
+)
 
 router = APIRouter(tags=["users"])
 
@@ -85,23 +94,125 @@ if GOOGLE_OAUTH_ENABLED:
     )
 
 
+async def _get_user_from_jwt_or_api_key(
+    request: Request,
+    session: AsyncSession,
+) -> tuple[User, Optional[str], str]:
+    """
+    Try to authenticate user via JWT or API key.
+    Returns (user, api_key_team_id, auth_method)
+    """
+    # Check if request has an API key (starts with "tl-")
+    api_key = extract_api_key_from_request(request)
+
+    if api_key:
+        # API key authentication
+        try:
+            user, api_key_team_id, _ = await validate_api_key_and_get_user(api_key, session)
+            return user, api_key_team_id, "api_key"
+        except HTTPException as e:
+            raise e
+
+    # Try JWT authentication - check if there's a Bearer token that's not an API key
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:]  # Remove "Bearer " prefix
+        # If it's not an API key format, try JWT validation
+        from transformerlab.utils.api_key_utils import validate_api_key_format
+
+        if not validate_api_key_format(token):
+            # This looks like a JWT token, try to validate it
+            from transformerlab.models.users import auth_backend
+
+            # Create user_db and user_manager directly using the existing session
+            from transformerlab.shared.models.models import User, OAuthAccount
+            from transformerlab.shared.models.user_model import SQLAlchemyUserDatabaseWithOAuth
+            from transformerlab.models.users import UserManager
+
+            try:
+                # Create user_db instance
+                user_db = SQLAlchemyUserDatabaseWithOAuth(session, User, OAuthAccount)
+
+                # Create user_manager instance
+                user_manager = UserManager(user_db)
+
+                # Validate JWT token
+                strategy = auth_backend.get_strategy()
+                user = await strategy.read_token(token, user_manager)
+                if user and user.is_active:
+                    return user, None, "jwt"
+            except Exception:
+                # Token validation failed (expired, invalid, etc.)
+                # Continue to raise 401 below
+                pass
+
+    # If we get here, neither API key nor JWT worked
+    raise HTTPException(status_code=401, detail="Authentication required")
+
+
+@router.get("/auth/github/status")
+async def github_oauth_status():
+    return {"enabled": GITHUB_OAUTH_ENABLED}
+
+
+if GITHUB_OAUTH_ENABLED:
+    router.include_router(
+        fastapi_users.get_oauth_router(github_oauth_client, oauth_backend, SECRET),
+        prefix="/auth/github",
+        tags=["auth"],
+    )
+
+
 async def get_user_and_team(
-    user: User = Depends(current_active_user),
+    request: Request,
     x_team: str | None = Header(None, alias="X-Team-Id"),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
     Dependency to validate user authentication and team membership.
-    Extracts X-Team-Id header and verifies user belongs to that team.
+    Supports both JWT and API key authentication.
+
+    For JWT auth: Requires X-Team-Id header
+    For API key auth:
+      - If API key has team_id set, uses that team (X-Team-Id not needed)
+      - If API key has team_id = null, uses X-Team-Id if provided, otherwise uses personal team
+
     Returns user, team_id, and role.
     """
-    if not x_team:
-        raise HTTPException(status_code=400, detail="X-Team-Id header missing")
+    # Authenticate user (JWT or API key)
+    user, api_key_team_id, auth_method = await _get_user_from_jwt_or_api_key(request, session)
+
+    # Determine which team to use
+    if auth_method == "api_key":
+        # API key authentication
+        if api_key_team_id:
+            # API key is scoped to a specific team - use that team
+            team_id = api_key_team_id
+        elif x_team:
+            # API key works for all teams, and X-Team-Id was provided
+            team_id = x_team
+        else:
+            # API key works for all teams, but no X-Team-Id - use personal team
+            team_id = await get_user_personal_team_id(session, user)
+    else:
+        # JWT authentication - requires X-Team-Id
+        if not x_team:
+            raise HTTPException(status_code=400, detail="X-Team-Id header required for JWT authentication")
+        team_id = x_team
+
+    # Context should already be set by middleware, but ensure it's correct
+    # (in case middleware couldn't determine it, or for consistency)
+    from transformerlab.shared.request_context import set_current_org_id
+    from lab.dirs import set_organization_id as lab_set_org_id
+
+    set_current_org_id(team_id)
+    if lab_set_org_id is not None:
+        lab_set_org_id(team_id)
 
     # Verify user is associated with the provided team id
     stmt = select(UserTeam).where(
         UserTeam.user_id == str(user.id),
-        UserTeam.team_id == x_team,
+        UserTeam.team_id == team_id,
     )
     result = await session.execute(stmt)
     user_team = result.scalar_one_or_none()
@@ -109,7 +220,7 @@ async def get_user_and_team(
     if user_team is None:
         raise HTTPException(status_code=403, detail="User is not a member of the specified team")
 
-    return {"user": user, "team_id": x_team, "role": user_team.role}
+    return {"user": user, "team_id": team_id, "role": user_team.role}
 
 
 async def require_team_owner(

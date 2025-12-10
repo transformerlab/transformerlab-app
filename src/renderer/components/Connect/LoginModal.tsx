@@ -38,7 +38,6 @@ export default function LoginModal({
   connection,
   setTerminalDrawerOpen,
   setSSHConnection,
-  setGPUOrchestrationServer,
 }) {
   const [checking, setChecking] = React.useState<boolean>(false);
   const [failed, setFailed] = React.useState<boolean>(false);
@@ -92,9 +91,6 @@ export default function LoginModal({
           window.TransformerLab.API_URL,
           ...recentConnections,
         ]);
-      }
-      if (response?.gpu_orchestration_server) {
-        setGPUOrchestrationServer(response.gpu_orchestration_server);
       }
       setServer(window.TransformerLab.API_URL);
 
@@ -191,7 +187,13 @@ export default function LoginModal({
           </TabPanel>
           <TabPanel
             value="remote"
-            sx={{ p: 1, maxWidth: '600px', margin: 'auto', pt: 4 }}
+            sx={{
+              p: 3,
+              pt: 4,
+              maxWidth: '90%',
+              margin: '0 auto',
+              width: '100%',
+            }}
             keepMounted
           >
             {/* <Typography id="basic-modal-dialog-title" component="h2">
@@ -203,24 +205,6 @@ export default function LoginModal({
         >
           Provide connection information:
         </Typography> */}
-            <Alert variant="plain">
-              <Typography
-                level="body-sm"
-                textColor="text.tertiary"
-                fontWeight={400}
-              >
-                <a
-                  href="https://lab.cloud/docs/install/install-on-cloud"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Follow these instructions
-                </a>{' '}
-                to install the Transformer Lab Engine on a remote computer. Once
-                you have completed those steps, enter the server URL and port
-                below.
-              </Typography>
-            </Alert>
             <form
               onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
                 event.preventDefault();

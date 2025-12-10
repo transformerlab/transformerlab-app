@@ -213,7 +213,9 @@ export default function ModelLayerVisualization({
 
   // Get current model
   if (!currentModel) {
-    currentModel = experimentInfo?.config?.foundation;
+    currentModel = experimentInfo?.config?.foundation_filename
+      ? experimentInfo?.config?.foundation_filename
+      : experimentInfo?.config?.foundation;
   }
 
   // const currentModel = experimentInfo?.config?.foundation;

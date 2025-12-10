@@ -15,6 +15,8 @@ import {
   Alert,
   Chip,
   IconButton,
+  FormControl,
+  FormLabel,
 } from '@mui/joy';
 import {
   NetworkIcon,
@@ -22,6 +24,7 @@ import {
   ServerIcon,
   User2Icon,
   ActivityIcon,
+  GithubIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
@@ -54,6 +57,11 @@ export default function UserLoginTest(): JSX.Element {
   const [providerCheckStatus, setProviderCheckStatus] = useState<
     Record<string, boolean | null>
   >({});
+  const [githubPAT, setGithubPAT] = useState<string>('');
+  const [githubPATMasked, setGithubPATMasked] = useState<string>('');
+  const [githubPATExists, setGithubPATExists] = useState<boolean>(false);
+  const [savingPAT, setSavingPAT] = useState<boolean>(false);
+  const [loadingPAT, setLoadingPAT] = useState<boolean>(true);
 
   // Get teams list (unchanged)
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
@@ -84,6 +92,74 @@ export default function UserLoginTest(): JSX.Element {
   useEffect(() => {
     providersMutate();
   }, [authContext?.team?.id]);
+
+  // Fetch GitHub PAT when team changes
+  useEffect(() => {
+    const fetchGitHubPAT = async () => {
+      if (!authContext?.team?.id) {
+        setLoadingPAT(false);
+        return;
+      }
+      setLoadingPAT(true);
+      try {
+        const res = await authContext.fetchWithAuth(
+          `teams/${authContext.team.id}/github_pat`,
+          { method: 'GET' },
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setGithubPATExists(data.pat_exists || false);
+          setGithubPATMasked(data.masked_pat || '');
+          if (!data.pat_exists) {
+            setGithubPAT('');
+          }
+        }
+      } catch (e: any) {
+        console.error('Error fetching GitHub PAT:', e);
+      } finally {
+        setLoadingPAT(false);
+      }
+    };
+    fetchGitHubPAT();
+  }, [authContext?.team?.id]);
+
+  const handleSaveGitHubPAT = async () => {
+    if (!authContext?.team?.id || !iAmOwner) return;
+    setSavingPAT(true);
+    try {
+      const res = await authContext.fetchWithAuth(
+        `teams/${authContext.team.id}/github_pat`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ pat: githubPAT || '' }),
+        },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        // Refresh PAT display
+        const fetchRes = await authContext.fetchWithAuth(
+          `teams/${authContext.team.id}/github_pat`,
+          { method: 'GET' },
+        );
+        if (fetchRes.ok) {
+          const fetchData = await fetchRes.json();
+          setGithubPATExists(fetchData.pat_exists || false);
+          setGithubPATMasked(fetchData.masked_pat || '');
+          if (!fetchData.pat_exists) {
+            setGithubPAT('');
+          }
+        }
+      }
+    } catch (e: any) {
+      console.error('Error saving GitHub PAT:', e);
+      alert(`Failed to save GitHub PAT: ${e?.message || String(e)}`);
+    } finally {
+      setSavingPAT(false);
+    }
+  };
 
   // Clear all role errors or add an error text
   function handleSetRoleError(message?: string) {
@@ -188,9 +264,14 @@ export default function UserLoginTest(): JSX.Element {
     }
 
     try {
-      const res = await authContext.fetchWithAuth(`providers/${id}`, {
-        method: 'DELETE',
-      });
+      const res = await authContext.fetchWithAuth(
+        chatAPI.getAPIFullPath('compute_provider', ['delete'], {
+          providerId: id,
+        }),
+        {
+          method: 'DELETE',
+        },
+      );
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({
@@ -557,6 +638,72 @@ export default function UserLoginTest(): JSX.Element {
           >
             Add Provider {!iAmOwner ? '(Only owners can add providers)' : ''}
           </Button>
+        </Box>
+        <Box sx={{ mt: 4 }}>
+          <Typography level="title-lg" mb={1} startDecorator={<GithubIcon />}>
+            GitHub Integration
+          </Typography>
+          <Stack spacing={2} maxWidth={500}>
+            <Alert color="neutral" variant="soft">
+              Set a GitHub Personal Access Token (PAT) to enable cloning private
+              repositories in tasks. The PAT is stored securely in your team's
+              workspace and shared across all team members.
+            </Alert>
+            {loadingPAT ? (
+              <CircularProgress size="sm" />
+            ) : (
+              <>
+                {githubPATExists && (
+                  <Alert color="success" variant="soft">
+                    GitHub PAT is configured. Last 4 characters:{' '}
+                    {githubPATMasked}
+                  </Alert>
+                )}
+                <FormControl>
+                  <Input
+                    type="password"
+                    placeholder={
+                      githubPATExists
+                        ? 'Enter new PAT to update'
+                        : 'Enter GitHub Personal Access Token'
+                    }
+                    value={githubPAT}
+                    onChange={(e) => setGithubPAT(e.target.value)}
+                    disabled={!iAmOwner || savingPAT}
+                    sx={{ fontFamily: 'monospace' }}
+                  />
+                  <Typography level="body-sm" sx={{ mt: 0.5 }}>
+                    {iAmOwner
+                      ? 'Only team owners can set or update the GitHub PAT.'
+                      : 'Only team owners can manage the GitHub PAT.'}
+                  </Typography>
+                </FormControl>
+                <Stack direction="row" spacing={2}>
+                  <Button
+                    variant="solid"
+                    onClick={handleSaveGitHubPAT}
+                    disabled={!iAmOwner || savingPAT || loadingPAT}
+                    loading={savingPAT}
+                  >
+                    {githubPATExists ? 'Update PAT' : 'Save PAT'}
+                  </Button>
+                  {githubPATExists && (
+                    <Button
+                      variant="outlined"
+                      color="danger"
+                      onClick={async () => {
+                        setGithubPAT('');
+                        await handleSaveGitHubPAT();
+                      }}
+                      disabled={!iAmOwner || savingPAT || loadingPAT}
+                    >
+                      Remove PAT
+                    </Button>
+                  )}
+                </Stack>
+              </>
+            )}
+          </Stack>
         </Box>
       </Box>
       <RenameTeamModal
