@@ -293,7 +293,6 @@ async def get_usage_report(
     Aggregates usage data by user, provider, and resources.
     Only accessible to team owners.
     """
-    print("INCOMING")
     import json
     from datetime import datetime
     from lab import Experiment
@@ -326,8 +325,6 @@ async def get_usage_report(
 
     # Collect all REMOTE jobs
     remote_jobs = []
-
-    print("WE GOT TILL HERE")
 
     for experiment_id in experiments:
         try:
