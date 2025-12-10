@@ -199,24 +199,6 @@ export default function LoginModal({
         >
           Provide connection information:
         </Typography> */}
-            <Alert variant="plain">
-              <Typography
-                level="body-sm"
-                textColor="text.tertiary"
-                fontWeight={400}
-              >
-                <a
-                  href="https://lab.cloud/docs/install/install-on-cloud"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Follow these instructions
-                </a>{' '}
-                to install the Transformer Lab Engine on a remote computer. Once
-                you have completed those steps, enter the server URL and port
-                below.
-              </Typography>
-            </Alert>
             <form
               onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
                 event.preventDefault();
