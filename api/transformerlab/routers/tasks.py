@@ -6,7 +6,6 @@ from werkzeug.utils import secure_filename
 from pydantic import BaseModel
 
 from lab import Dataset
-from lab.dirs import get_workspace_dir
 from transformerlab.services.job_service import job_create
 from transformerlab.models import model_helper
 from transformerlab.services.tasks_service import tasks_service
