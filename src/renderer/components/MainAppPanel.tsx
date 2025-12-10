@@ -48,11 +48,8 @@ import { useAnalytics } from './Shared/analytics/AnalyticsContext';
 import SafeJSONParse from './Shared/SafeJSONParse';
 import Tasks from './Experiment/Tasks/Tasks';
 import Team from './Team/Team';
-<<<<<<< HEAD
 import UsageReport from './Team/UsageReport';
-=======
 import TasksGallery from './TasksGallery/TasksGallery';
->>>>>>> 6738602ff878ca601cfb589b298670c12dedbd26
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
