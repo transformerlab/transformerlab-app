@@ -26,6 +26,7 @@ import {
   FolderIcon,
   DownloadIcon,
   ScanTextIcon,
+  ExternalLinkIcon,
 } from 'lucide-react';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -55,6 +56,11 @@ function formatGithubPath(repoUrl?: string, repoDir?: string) {
   // remove .git from end of url if it exists:
   const finalRepoUrl = cleanedRepoUrl.replace(/\.git$/, '');
   return repoDir ? `${finalRepoUrl}/${repoDir}` : finalRepoUrl;
+}
+
+function generateGithubLink(repoUrl?: string, repoDir?: string) {
+  const finalRepoUrl = repoUrl.replace(/\.git$/, '');
+  return `${finalRepoUrl}/tree/main/${repoDir}` || '';
 }
 
 function TaskIcon({ icon, color }: { icon: React.ReactNode; color?: string }) {
@@ -106,6 +112,29 @@ function TaskCard({
               <Typography level="body-sm" sx={{ mt: 1 }}>
                 {task.description}
               </Typography>
+            )}
+            {task.github_repo_url && (
+              <Box sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+                <Typography
+                  level="body-sm"
+                  sx={{
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    fontSize: '0.75rem',
+                  }}
+                  startDecorator={<ExternalLinkIcon size={11} />}
+                  component="a"
+                  href={generateGithubLink(
+                    task.github_repo_url,
+                    task.github_repo_dir,
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {formatGithubPath(task.github_repo_url, task.github_repo_dir)}
+                </Typography>
+              </Box>
             )}
           </Box>
           {task.config && (
