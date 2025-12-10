@@ -48,6 +48,7 @@ import { useAnalytics } from './Shared/analytics/AnalyticsContext';
 import SafeJSONParse from './Shared/SafeJSONParse';
 import Tasks from './Experiment/Tasks/Tasks';
 import Team from './Team/Team';
+import UsageReport from './Team/UsageReport';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -424,6 +425,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/logs" element={<Logs />} />
         <Route path="/user" element={<UserSettings />} />
         <Route path="/team" element={<Team />} />
+        <Route path="/team/usage-report" element={<UsageReport />} />
       </Routes>
     </>
   );

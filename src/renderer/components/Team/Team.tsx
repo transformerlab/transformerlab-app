@@ -22,8 +22,10 @@ import {
   ServerIcon,
   User2Icon,
   ActivityIcon,
+  BarChart3Icon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import RenameTeamModal from './RenameTeamModal';
 import InviteUserModal from './InviteUserModal';
@@ -39,6 +41,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 // --- React component ---
 export default function UserLoginTest(): JSX.Element {
+  const navigate = useNavigate();
   const authContext = useAuth();
   const [loading, setLoading] = useState<boolean>(false);
   const [newTeamName, setNewTeamName] = useState<string>('');
@@ -359,6 +362,14 @@ export default function UserLoginTest(): JSX.Element {
           </Button>
           <Button variant="outlined" disabled={!iAmOwner}>
             Set Logo
+          </Button>
+          <Button
+            variant="outlined"
+            startDecorator={<BarChart3Icon />}
+            onClick={() => navigate('/team/usage-report')}
+            disabled={!iAmOwner}
+          >
+            Usage Report {!iAmOwner ? '(Only owners can view)' : ''}
           </Button>
         </Stack>
 
