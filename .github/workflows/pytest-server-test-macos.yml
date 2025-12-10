@@ -7,10 +7,12 @@ on:
     branches: ["main"]
     paths:
       - "api/**"
+      - "lab-sdk/**"
   pull_request:
     branches: ["main"]
     paths:
       - "api/**"
+      - "lab-sdk/**"
 
 jobs:
   build:
@@ -49,9 +51,13 @@ jobs:
           mkdir -p "${TLAB_DIR}"
           mkdir -p "${TLAB_CODE_DIR}"
           mkdir -p "${TLAB_STATIC_WEB_DIR}"
+          # Temporarily remove transformerlab from pyproject.toml to avoid installing unreleased version
+          # macOS uses BSD sed which requires: sed -i '' or sed -i '.bak'
+          sed -i '.bak' '/^  "transformerlab==/d' pyproject.toml
           ./install.sh install_conda
           ./install.sh create_conda_environment
           ./install.sh install_dependencies
+          mv pyproject.toml.bak pyproject.toml || true
           uv pip install --system pytest pytest-asyncio jsonschema requests
       - name: Install lab-sdk in editable mode
         run: |
@@ -63,4 +69,5 @@ jobs:
           python scripts/wait_for_server.py --timeout 120 --interval 2
       - name: Test the API Server and DB Setup
         run: |
+          # Run tests
           pytest -m live_server test/server/
