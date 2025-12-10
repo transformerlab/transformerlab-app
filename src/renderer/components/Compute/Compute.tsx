@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
-import {
-  Tabs,
-  TabList,
-  Tab,
-  TabPanel,
-} from '@mui/joy';
+import { Tabs, TabList, Tab, TabPanel } from '@mui/joy';
 import Clusters from './Clusters';
 
 const Compute = () => {
   const [activeTab, setActiveTab] = useState(0);
 
   return (
-    <Tabs value={activeTab} onChange={(event, newValue) => setActiveTab(Number(newValue) ?? 0)}>
+    <Tabs
+      value={activeTab}
+      onChange={(event, newValue) => setActiveTab(Number(newValue) ?? 0)}
+    >
       <TabList>
         <Tab>Clusters</Tab>
       </TabList>
