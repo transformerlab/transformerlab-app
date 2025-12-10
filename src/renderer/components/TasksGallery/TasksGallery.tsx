@@ -60,7 +60,7 @@ function formatGithubPath(repoUrl?: string, repoDir?: string) {
 
 function generateGithubLink(repoUrl?: string, repoDir?: string) {
   const finalRepoUrl = repoUrl.replace(/\.git$/, '');
-  return `${finalRepoUrl}/tree/main/${repoDir}` || '';
+  return repoDir ? `${finalRepoUrl}/tree/main/${repoDir}` : finalRepoUrl;
 }
 
 function TaskIcon({ icon, color }: { icon: React.ReactNode; color?: string }) {
@@ -106,14 +106,14 @@ function TaskCard({
           <TaskIcon icon={<ScanTextIcon />} color="#1976d2" />
           <Box>
             <Typography level="title-lg">
-              {task.title || 'Untitled Task'}
+              {task?.title || 'Untitled Task'}
             </Typography>
-            {task.description && (
+            {task?.description && (
               <Typography level="body-sm" sx={{ mt: 1 }}>
                 {task.description}
               </Typography>
             )}
-            {task.github_repo_url && (
+            {task?.github_repo_url && (
               <Box sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
                 <Typography
                   level="body-sm"
@@ -127,12 +127,15 @@ function TaskCard({
                   component="a"
                   href={generateGithubLink(
                     task.github_repo_url,
-                    task.github_repo_dir,
+                    task?.github_repo_dir,
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {formatGithubPath(task.github_repo_url, task.github_repo_dir)}
+                  {formatGithubPath(
+                    task.github_repo_url,
+                    task?.github_repo_dir,
+                  )}
                 </Typography>
               </Box>
             )}
