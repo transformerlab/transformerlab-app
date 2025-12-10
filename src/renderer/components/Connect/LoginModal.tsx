@@ -187,7 +187,13 @@ export default function LoginModal({
           </TabPanel>
           <TabPanel
             value="remote"
-            sx={{ p: 1, maxWidth: '600px', margin: 'auto', pt: 4 }}
+            sx={{
+              p: 3,
+              pt: 4,
+              maxWidth: '90%',
+              margin: '0 auto',
+              width: '100%',
+            }}
             keepMounted
           >
             {/* <Typography id="basic-modal-dialog-title" component="h2">
