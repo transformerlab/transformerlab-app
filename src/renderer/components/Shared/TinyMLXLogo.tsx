@@ -3,7 +3,7 @@ export default function TinyMLXLogo() {
     <svg
       // class="text-black inline-block ml-2 text-sm"
       xmlns="http://www.w3.org/2000/svg"
-      xmlns:xlink="http://www.w3.org/1999/xlink"
+      xmlnsXlink="http://www.w3.org/1999/xlink"
       aria-hidden="true"
       focusable="false"
       role="img"
