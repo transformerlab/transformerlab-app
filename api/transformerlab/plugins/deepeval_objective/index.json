@@ -5,7 +5,7 @@
   "plugin-format": "python",
   "type": "evaluator",
   "evalsType": "dataset",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "git": "https://github.com/confident-ai/deepeval",
   "url": "https://github.com/confident-ai/deepeval",
   "files": [
