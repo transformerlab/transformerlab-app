@@ -10,6 +10,7 @@ import {
   Stack,
   Radio,
   RadioGroup,
+  Switch,
 } from '@mui/joy';
 import { Endpoints } from '../../../lib/api-client/endpoints';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
@@ -23,6 +24,7 @@ export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
   const [args, setArgs] = useState('');
   const [env, setEnv] = useState('');
   const [loading, setLoading] = useState(false);
+  const [teamWide, setTeamWide] = useState(true);
 
   const handleFilePick = async () => {
     // For Electron, use dialog API; for web, use input[type=file]
@@ -54,6 +56,7 @@ export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
         chatAPI.getAPIFullPath('config', ['set'], {
           key: 'MCP_SERVER',
           value: configValue,
+          team_wide: teamWide,
         }),
       );
       // await fetch(Endpoints.Config.Set('MCP_SERVER', configValue), {
@@ -116,6 +119,20 @@ export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
               value={env}
               onChange={(e) => setEnv(e.target.value)}
               placeholder='{"KEY":"VALUE"}'
+            />
+          </FormControl>
+          <FormControl
+            orientation="horizontal"
+            sx={{ gap: 1, alignItems: 'center' }}
+          >
+            <FormLabel sx={{ mr: 1 }}>
+              {teamWide
+                ? 'Team-wide (all members can use)'
+                : 'User-specific (only you)'}
+            </FormLabel>
+            <Switch
+              checked={teamWide}
+              onChange={(e) => setTeamWide(e.target.checked)}
             />
           </FormControl>
           <Button loading={loading} onClick={handleInstall} disabled={loading}>
