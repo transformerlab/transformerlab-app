@@ -115,13 +115,38 @@ export default function LoginModal({
   }
 
   React.useEffect(() => {
-    // If we are on the webapp, try to automatically connect to the current server's host:8338
+    // If we are on the webapp, try to automatically connect
     if (WEB_APP && connection === '') {
-      const apiUrl = `http://${window.location.hostname}:8338/`;
-      window.TransformerLab.API_URL = apiUrl;
-      console.log('Connecting to: ', window.TransformerLab.API_URL);
-      // Call checkServer to verify the server is healthy before connecting
-      checkServer();
+      const tryConnect = async () => {
+        // First try the old way: window.location.href
+        const oldApiUrl = window.location.href;
+        window.TransformerLab.API_URL = oldApiUrl;
+        const oldResponse = await apiHealthz();
+        if (oldResponse !== null) {
+          // Old method worked, use checkServer to handle the rest
+          checkServer();
+          return;
+        }
+
+        // Old method failed, try the new way: hostname:8338
+        const newApiUrl = `http://${window.location.hostname}:8338/`;
+        window.TransformerLab.API_URL = newApiUrl;
+        const newResponse = await apiHealthz();
+        if (newResponse !== null) {
+          // New method worked, use checkServer to handle the rest
+          checkServer();
+          return;
+        }
+
+        // Both methods failed, clear connection and don't auto-connect
+        if ((window as any).TransformerLab) {
+          (window as any).TransformerLab.API_URL = null;
+        }
+        setServer('');
+      };
+
+      tryConnect();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }
   }, []);
 
