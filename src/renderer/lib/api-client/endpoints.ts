@@ -284,6 +284,7 @@ Endpoints.ServerInfo = {
   Get: () => `${API_URL()}server/info`,
   PythonLibraries: () => `${API_URL()}server/python_libraries`,
   StreamLog: () => `${API_URL()}server/stream_log`,
+  Update: () => `${API_URL()}server/update`,
 };
 
 Endpoints.Charts = {

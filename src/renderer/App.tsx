@@ -20,6 +20,7 @@ import OutputTerminal from './components/OutputTerminal';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
 // import OutputTerminal from './components/OutputTerminal';
 import AutoUpdateModal from './components/AutoUpdateModal';
+import CloudUpdateModal from './components/CloudUpdateModal';
 import AnnouncementsModal from './components/Shared/AnnouncementsModal';
 import { NotificationProvider } from './components/Shared/NotificationSystem';
 import {
@@ -194,7 +195,9 @@ function AppContent({
           />
         </Box>
       </Box>
-      <AutoUpdateModal />
+      {typeof (window as any).platform !== 'undefined' &&
+        (window as any).platform?.appmode !== 'cloud' && <AutoUpdateModal />}
+      <CloudUpdateModal />
       <AnnouncementsModal />
       {process.env.TL_FORCE_API_URL === 'false' && (
         <LoginModal

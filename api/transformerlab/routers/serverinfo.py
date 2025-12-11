@@ -497,3 +497,53 @@ async def download_logs():
         if os.path.exists(temp_zip.name):
             os.unlink(temp_zip.name)
         raise HTTPException(status_code=500, detail=f"Failed to create zip file: {str(e)}")
+
+
+async def stream_update_output():
+    """
+    Generator function that streams the output of the update command.
+    """
+    try:
+        # Execute the update command asynchronously
+        proc = await asyncio.create_subprocess_shell(
+            "curl https://lab.cloud/install.sh | bash",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+
+        # Stream output line by line
+        while True:
+            line = await proc.stdout.readline()
+            if not line:
+                break
+            # Format as Server-Sent Events
+            yield f"data: {json.dumps({'line': line.decode('utf-8', errors='replace')})}\n\n"
+
+        # Wait for process to complete
+        return_code = await proc.wait()
+
+        # Send final status
+        if return_code != 0:
+            yield f"data: {json.dumps({'error': f'Update failed with exit code {return_code}'})}\n\n"
+        else:
+            yield f"data: {json.dumps({'success': True, 'message': 'Update completed successfully'})}\n\n"
+    except Exception as e:
+        yield f"data: {json.dumps({'error': f'Failed to update server: {str(e)}'})}\n\n"
+
+
+@router.post("/update")
+async def update_server():
+    """
+    Trigger server update by running the install script from lab.cloud.
+    This downloads and installs the latest version of Transformer Lab.
+    Streams output in real-time.
+    """
+    return StreamingResponse(
+        stream_update_output(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )

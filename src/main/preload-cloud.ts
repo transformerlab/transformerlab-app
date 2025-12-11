@@ -129,10 +129,144 @@ contextBridge.exposeInMainWorld('storage', {
 //   },
 // });
 
+// Cloud mode auto-updater implementation
+let updateMessageListeners: Array<(event: any, message: string) => void> = [];
+
+const getAPIUrl = () => {
+  // Try to get API URL from window or use default
+  if (
+    typeof window !== 'undefined' &&
+    (window as any).TransformerLab?.API_URL
+  ) {
+    let apiUrl = (window as any).TransformerLab.API_URL;
+    // Ensure trailing slash
+    if (!apiUrl.endsWith('/')) {
+      apiUrl += '/';
+    }
+    return apiUrl;
+  }
+  // Default to relative path if in browser
+  return '/api/';
+};
+
 contextBridge.exposeInMainWorld('autoUpdater', {
-  onMessage: (f) => {
-    f(null, 'Update not available.');
+  onMessage: (callback: (event: any, message: string) => void) => {
+    updateMessageListeners.push(callback);
+    // Return a function to remove the listener (for compatibility)
+    return () => {
+      updateMessageListeners = updateMessageListeners.filter(
+        (cb) => cb !== callback,
+      );
+    };
   },
-  removeAllListeners: () => ipcRenderer.removeAllListeners('autoUpdater'),
-  requestUpdate: () => ipcRenderer.invoke('autoUpdater:requestUpdate'),
+  removeAllListeners: () => {
+    updateMessageListeners = [];
+    ipcRenderer.removeAllListeners('autoUpdater');
+  },
+  requestUpdate: async () => {
+    // Send initial checking message
+    updateMessageListeners.forEach((listener) => {
+      listener(null, 'Checking for update...');
+    });
+
+    try {
+      // Get current version
+      const platformVersion = (window as any).platform?.version || '0.0.0';
+
+      // Check GitHub for latest release
+      const response = await fetch(
+        'https://api.github.com/repos/transformerlab/transformerlab-app/releases/latest',
+      );
+      if (!response.ok) {
+        throw new Error('Failed to fetch latest release');
+      }
+
+      const release = await response.json();
+      const latestTag = release.tag_name;
+
+      // Compare versions
+      if (latestTag !== platformVersion) {
+        // Update available - notify listeners
+        updateMessageListeners.forEach((listener) => {
+          listener(null, 'Update available');
+        });
+      } else {
+        // No update available
+        updateMessageListeners.forEach((listener) => {
+          listener(null, 'Update not available.');
+        });
+      }
+    } catch (error) {
+      console.error('Error checking for updates:', error);
+      updateMessageListeners.forEach((listener) => {
+        listener(null, 'Update error');
+      });
+    }
+  },
+  downloadUpdate: async () => {
+    // Send downloading message
+    updateMessageListeners.forEach((listener) => {
+      listener(null, 'Downloading update...');
+    });
+
+    try {
+      const apiUrl = getAPIUrl();
+      // Get auth token and team from localStorage
+      const accessToken =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('access_token')
+          : null;
+      let currentTeam: { id: string; name: string } | null = null;
+      if (typeof window !== 'undefined') {
+        try {
+          const teamStr = localStorage.getItem('current_team');
+          if (teamStr) {
+            currentTeam = JSON.parse(teamStr);
+          }
+        } catch {
+          currentTeam = null;
+        }
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // Add auth header if token exists
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
+      // Add team headers if team exists (required for authenticated endpoints)
+      if (currentTeam) {
+        headers['X-Team-Id'] = currentTeam.id;
+        headers['X-Team-Name'] = currentTeam.name;
+      }
+
+      const response = await fetch(`${apiUrl}server/update`, {
+        method: 'POST',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(
+          errorData.detail || `Update failed with status ${response.status}`,
+        );
+      }
+
+      const result = await response.json();
+      // Notify that download completed
+      updateMessageListeners.forEach((listener) => {
+        listener(null, 'Update downloaded');
+      });
+    } catch (error) {
+      console.error('Error downloading update:', error);
+      updateMessageListeners.forEach((listener) => {
+        listener(null, 'Update error');
+      });
+    }
+  },
 });
