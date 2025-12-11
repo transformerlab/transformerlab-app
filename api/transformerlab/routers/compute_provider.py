@@ -1,6 +1,7 @@
 """Router for managing team-scoped compute providers."""
 
 import os
+import time
 import uuid
 import configparser
 from pathlib import Path
@@ -361,6 +362,10 @@ async def get_usage_report(
                         except Exception as e:
                             print(f"Error calculating duration for job {job.get('id')}: {e}")
                             pass
+
+                    # Only include jobs that have both start_time and end_time AND duration > 0
+                    if not (start_time and end_time and duration_seconds is not None and duration_seconds > 0):
+                        continue
 
                     # Get user info
                     user_info = job_data.get("user_info", {}) or {}
@@ -899,6 +904,7 @@ async def launch_task_on_provider(
         "provider_type": provider.type,
         "provider_name": provider_display_name,
         "user_info": user_info or None,
+        "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
 
     for key, value in job_data.items():
@@ -1041,6 +1047,10 @@ async def check_provider_job_status(
 
     if jobs_finished:
         try:
+            # Set end_time when marking job as complete
+            job_service.job_update_job_data_insert_key_value(
+                job_id, "end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), experiment_id
+            )
             await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
             return {
                 "status": "success",
