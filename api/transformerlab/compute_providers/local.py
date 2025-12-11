@@ -219,6 +219,8 @@ class LocalProvider(ComputeProvider):
             log_file.write("Virtual environment initialized.\n\n")
             log_file.flush()
 
+            # Now you should activate the environment **** TODO
+
             _debug(f"Job {job.job_id} running bash script: {script_path}")
             log_file.write(f"Running script: {script_path}\n")
             log_file.write("=" * 60 + "\n\n")
