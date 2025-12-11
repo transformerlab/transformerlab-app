@@ -406,12 +406,14 @@ export default function Header({ connection, setConnection }) {
       className="header"
     >
       <div
-        style={{
-          height: '100%',
-          flex: 1,
-          // border: '1px solid purple',
-          WebkitAppRegion: 'drag',
-        } as any}
+        style={
+          {
+            height: '100%',
+            flex: 1,
+            // border: '1px solid purple',
+            WebkitAppRegion: 'drag',
+          } as any
+        }
       />
       {!isS3Mode && (
         <div
@@ -433,12 +435,14 @@ export default function Header({ connection, setConnection }) {
       )}
 
       <div
-        style={{
-          height: '100%',
-          flex: 1,
-          // border: '1px solid purple',
-          WebkitAppRegion: 'drag',
-        } as any}
+        style={
+          {
+            height: '100%',
+            flex: 1,
+            // border: '1px solid purple',
+            WebkitAppRegion: 'drag',
+          } as any
+        }
       />
       {isS3Mode ? (
         <Box sx={{ mr: 2 }} />
