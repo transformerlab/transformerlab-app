@@ -408,25 +408,52 @@ class SkyPilotProvider(ComputeProvider):
         body_json.setdefault("override_skypilot_config", {})
 
         # Use SkyPilot's make_authenticated_request (matches SDK exactly)
-        response = self._make_authenticated_request("POST", "/down", json_data=body_json, timeout=5)
+        response = self._make_authenticated_request("POST", "/down", json_data=body_json, timeout=30)
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
+        request_id = None
         if self._server_common:
             try:
                 request_id = self._server_common.get_request_id(response)
-                return {"request_id": request_id}
             except Exception:
                 pass
 
         # Fallback: try to extract request_id from response
-        try:
-            if hasattr(response, "json"):
-                result = response.json()
-                if isinstance(result, dict):
-                    return result
-            return {"response": response}
-        except Exception:
-            return {}
+        if not request_id:
+            try:
+                if hasattr(response, "json"):
+                    result = response.json()
+                    if isinstance(result, dict):
+                        request_id = result.get("request_id")
+            except Exception:
+                pass
+
+        # If we have a request_id, wait for the operation to complete
+        if request_id:
+            try:
+                # Wait for the stop operation to complete
+                result = self._get_request_result(request_id)
+                return {
+                    "status": "success",
+                    "message": f"Cluster '{cluster_name}' stopped successfully",
+                    "cluster_name": cluster_name,
+                    "request_id": request_id,
+                    "result": result,
+                }
+            except Exception:
+                return {
+                    "status": "error",
+                    "message": f"Failed to stop cluster '{cluster_name}'",
+                    "cluster_name": cluster_name,
+                    "request_id": request_id,
+                }
+
+        # Fallback: return basic response if we can't get request_id
+        return {
+            "status": "initiated",
+            "message": f"Cluster '{cluster_name}' stop initiated",
+            "cluster_name": cluster_name,
+        }
 
     def get_cluster_status(self, cluster_name: str) -> ClusterStatus:
         """Get cluster status."""
@@ -613,6 +640,158 @@ class SkyPilotProvider(ComputeProvider):
             resources_str=cluster_data.get("resources_str_full"),
             provider_data=cluster_data,
         )
+
+    def list_clusters(self) -> List[ClusterStatus]:
+        """List all clusters."""
+        # Get StatusRefreshMode from SkyPilot
+        if sky_common and hasattr(sky_common, "StatusRefreshMode"):
+            refresh_mode = sky_common.StatusRefreshMode.NONE
+        else:
+            # Fallback if StatusRefreshMode is not available
+            refresh_mode = "NONE"
+
+        # Build StatusBody using SkyPilot's payload class
+        # Set cluster_names to None or empty to get all clusters
+        body = payloads.StatusBody(
+            cluster_names=None,  # None means get all clusters
+            refresh=refresh_mode,
+            all_users=False,
+            include_credentials=False,
+            summary_response=False,
+        )
+
+        # Convert to JSON using SkyPilot's method (matches SDK exactly)
+        body_json = json.loads(body.model_dump_json())
+
+        # Add default env_vars and entrypoint_command to match API format
+        if self.default_env_vars:
+            body_json.setdefault("env_vars", {}).update(self.default_env_vars)
+        if self.default_entrypoint_command:
+            body_json.setdefault("entrypoint_command", self.default_entrypoint_command)
+        body_json.setdefault("using_remote_api_server", False)
+        body_json.setdefault("override_skypilot_config", {})
+
+        # Use SkyPilot's make_authenticated_request (matches SDK exactly)
+        response = self._make_authenticated_request("POST", "/status", json_data=body_json, timeout=10)
+
+        # Check response status
+        if hasattr(response, "status_code"):
+            if response.status_code != 200:
+                return []
+
+        # Parse response content
+        response_content = None
+        if hasattr(response, "content"):
+            if response.content == b"null" or response.content == b"":
+                response_content = None
+            else:
+                try:
+                    response_content = response.json() if hasattr(response, "json") else None
+                except Exception as e:
+                    print(f"Warning: Could not parse response as JSON: {e}")
+                    response_content = None
+
+        # Get request ID using SkyPilot's method (matches SDK exactly)
+        request_id = None
+        if self._server_common:
+            try:
+                request_id = self._server_common.get_request_id(response)
+            except Exception as e:
+                # If get_request_id fails, try to extract from response directly
+                if response_content and isinstance(response_content, dict):
+                    request_id = response_content.get("request_id")
+                # Also check headers
+                if not request_id and hasattr(response, "headers"):
+                    request_id = (
+                        response.headers.get("X-Request-ID")
+                        or response.headers.get("Request-ID")
+                        or response.headers.get("X-Request-Id")
+                    )
+                if not request_id:
+                    print(f"Warning: Could not extract request_id: {e}")
+
+        # Get the actual result from the request ID
+        clusters = []
+        if request_id:
+            try:
+                # Use our custom _get_request_result() to get the actual response
+                clusters = self._get_request_result(request_id)
+                # The return value should be a list of clusters
+                if not isinstance(clusters, list):
+                    # If it's not a list, try to convert it
+                    if isinstance(clusters, str):
+                        clusters = json.loads(clusters)
+                    elif isinstance(clusters, dict):
+                        clusters = clusters.get("clusters", [clusters])
+                    else:
+                        clusters = [clusters] if clusters else []
+            except Exception as e:
+                print(f"Warning: Could not get clusters from request_id {request_id}: {e}")
+                # Fallback: try to parse response directly
+                try:
+                    if response_content:
+                        clusters = (
+                            response_content
+                            if isinstance(response_content, list)
+                            else response_content.get("clusters", [])
+                        )
+                    elif hasattr(response, "json"):
+                        result = response.json()
+                        clusters = result if isinstance(result, list) else result.get("clusters", [])
+                except Exception as parse_error:
+                    print(f"Warning: Could not parse response: {parse_error}")
+                    clusters = []
+        else:
+            # Fallback: try to parse response directly
+            try:
+                if response_content:
+                    clusters = (
+                        response_content if isinstance(response_content, list) else response_content.get("clusters", [])
+                    )
+                elif hasattr(response, "json"):
+                    result = response.json()
+                    clusters = result if isinstance(result, list) else result.get("clusters", [])
+            except Exception as e:
+                print(f"Warning: Could not parse response directly: {e}")
+                clusters = []
+
+        # Handle empty or invalid responses
+        if not clusters or not isinstance(clusters, list):
+            return []
+
+        # Parse cluster data into ClusterStatus objects
+        cluster_statuses = []
+        for cluster_data in clusters:
+            # Parse SkyPilot status response
+            # The status field is a sky.ClusterStatus enum, convert to string
+            status_value = cluster_data.get("status")
+            if hasattr(status_value, "value"):
+                state_str = status_value.value.upper()
+            elif isinstance(status_value, str):
+                state_str = status_value.upper()
+            else:
+                state_str = "UNKNOWN"
+
+            try:
+                state = ClusterState[state_str]
+            except KeyError:
+                state = ClusterState.UNKNOWN
+
+            cluster_statuses.append(
+                ClusterStatus(
+                    cluster_name=cluster_data.get("name", "unknown"),
+                    state=state,
+                    status_message=str(status_value) if status_value else "",
+                    launched_at=str(cluster_data.get("launched_at")) if cluster_data.get("launched_at") else None,
+                    last_use=cluster_data.get("last_use"),
+                    autostop=cluster_data.get("autostop"),
+                    num_nodes=cluster_data.get("num_nodes"),
+                    resources_str=cluster_data.get("resources_str_full"),
+                    provider_data=cluster_data,
+                )
+            )
+
+        return cluster_statuses
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         """Get cluster resources."""

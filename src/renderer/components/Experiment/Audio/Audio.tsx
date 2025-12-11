@@ -132,7 +132,9 @@ export async function uploadAudioFile(
 
 export default function Audio() {
   const { experimentInfo } = useExperimentInfo();
-  const currentModel = experimentInfo?.config?.foundation;
+  const currentModel = experimentInfo?.config?.foundation_filename
+    ? experimentInfo?.config?.foundation_filename
+    : experimentInfo?.config?.foundation;
   const foundationModelArchitecture =
     experimentInfo?.config?.foundation_model_architecture;
   const adaptor = experimentInfo?.config?.adaptor || '';
