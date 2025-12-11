@@ -73,11 +73,11 @@ function notifyListeners() {
 }
 
 export function getAccessToken() {
-  return _accessToken;
+  return localStorage.getItem('access_token');
 }
 
 export function getRefreshToken() {
-  return _refreshToken;
+  return localStorage.getItem('refresh_token');
 }
 
 export function getCurrentTeam(): Team | null {
@@ -138,19 +138,57 @@ export function subscribeAuthChange(cb: () => void) {
 let refreshPromise: Promise<string> | null = null;
 
 async function handleRefresh(): Promise<string> {
+  console.log(
+    '[REFRESH] handleRefresh called, refreshPromise:',
+    refreshPromise ? 'exists' : 'null',
+  );
+
   // If a refresh is already in progress, return the existing promise
   if (refreshPromise) {
+    const currentToken = getRefreshToken();
+    console.log(
+      '[REFRESH] Returning existing promise (singleton pattern), current token:',
+      currentToken ? 'exists' : 'MISSING',
+    );
+    if (!currentToken) {
+      console.warn(
+        '[REFRESH] WARNING: Returning existing promise but token is MISSING - this promise will likely fail',
+      );
+    }
     return refreshPromise;
+  }
+
+  const refreshTokenAtCreation = getRefreshToken();
+  console.log(
+    '[REFRESH] Creating new refresh promise, token at creation:',
+    refreshTokenAtCreation ? 'exists' : 'MISSING',
+  );
+
+  // Check token BEFORE creating promise - fail fast if missing
+  if (!refreshTokenAtCreation) {
+    console.error(
+      '[REFRESH] No refresh token available - cannot create refresh promise',
+    );
+    throw new Error('No refresh token available');
   }
 
   refreshPromise = (async () => {
     try {
+      console.log('[REFRESH] Starting refresh attempt...');
+      // Double-check token inside promise (it might have been cleared)
       const refreshToken = getRefreshToken();
+      console.log(
+        '[REFRESH] Token check inside promise - token exists:',
+        !!refreshToken,
+      );
       if (!refreshToken) {
+        console.error(
+          '[REFRESH] No refresh token available - token was cleared after promise creation',
+        );
         throw new Error('No refresh token available');
       }
 
-      console.log('Refreshing access token...');
+      console.log('[REFRESH] Refreshing access token...');
       const url = getAPIFullPath('auth', ['refresh'], {});
 
       const refreshResponse = await fetch(url, {
@@ -163,8 +201,18 @@ async function handleRefresh(): Promise<string> {
         }),
       });
 
+      console.log(
+        '[REFRESH] Refresh response status:',
+        refreshResponse.status,
+        refreshResponse.ok ? 'OK' : 'FAILED',
+      );
+
       if (!refreshResponse.ok) {
         // If refresh fails (e.g. 401), the refresh token is invalid.
+        console.error(
+          '[REFRESH] Refresh failed with status:',
+          refreshResponse.status,
+        );
         throw new Error('Refresh failed');
       }
 
@@ -178,17 +226,25 @@ async function handleRefresh(): Promise<string> {
       // The backend should return a new refresh token.
       if (data.refresh_token) {
         updateRefreshToken(data.refresh_token);
+        console.log('[REFRESH] New refresh token received and stored');
+      } else {
+        console.warn('[REFRESH] No new refresh token in response');
       }
 
-      console.log('Access token refreshed successfully.');
+      console.log('[REFRESH] Access token refreshed successfully.');
 
       return newAccessToken;
     } catch (error) {
-      console.error('Token refresh failed. Logging out.', error);
+      console.error('[REFRESH] Token refresh failed. Logging out.', error);
+      console.log(
+        '[REFRESH] About to call logoutUser() - this will clear tokens',
+      );
       logoutUser();
+      console.log('[REFRESH] logoutUser() completed - tokens cleared');
       throw error;
     } finally {
       // Reset the promise so future failures trigger a new refresh
+      console.log('[REFRESH] Finally block: resetting refreshPromise to null');
       refreshPromise = null;
     }
   })();
@@ -227,9 +283,16 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   // If Unauthorized (401)
   if (response.status === 401) {
+    console.log(
+      '[FETCH_WITH_AUTH] Got 401, attempting to refresh token for URL:',
+      fullUrl,
+    );
     try {
       // Attempt to refresh token
       const newAccessToken = await handleRefresh();
+      console.log(
+        '[FETCH_WITH_AUTH] Refresh successful, retrying original request',
+      );
 
       // Retry the original request with new token
       return fetch(fullUrl, {
@@ -241,6 +304,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
       });
     } catch (e) {
       // Refresh failed (and user was logged out inside handleRefresh)
+      console.error('[FETCH_WITH_AUTH] Refresh failed, throwing error:', e);
       throw e;
     }
   }
