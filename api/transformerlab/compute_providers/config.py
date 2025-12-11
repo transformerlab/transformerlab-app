@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 class ComputeProviderConfig(BaseModel):
     """Configuration for a single compute provider."""
 
-    type: str  # "skypilot" or "slurm"
+    type: str  # "skypilot", "slurm", or "local"
     name: str  # Provider name/identifier
 
     # SkyPilot-specific config
@@ -27,6 +27,11 @@ class ComputeProviderConfig(BaseModel):
     ssh_user: Optional[str] = None
     ssh_key_path: Optional[str] = None
     ssh_port: int = 22
+
+    # Local provider config
+    python_version: str = "3.11"
+    working_dir: Optional[str] = None
+    log_dir: Optional[str] = None
 
     # Additional provider-specific config
     extra_config: Dict[str, Any] = Field(default_factory=dict)
@@ -120,8 +125,16 @@ def create_compute_provider(config: ComputeProviderConfig):
     """
     from .skypilot import SkyPilotProvider
     from .slurm import SLURMProvider
+    from .local import LocalProvider
 
-    if config.type == "skypilot":
+    if config.type == "local":
+        return LocalProvider(
+            python_version=config.python_version,
+            working_dir=config.working_dir,
+            log_dir=config.log_dir,
+            extra_config=config.extra_config,
+        )
+    elif config.type == "skypilot":
         if not config.server_url:
             raise ValueError("SkyPilot provider requires server_url in config")
         return SkyPilotProvider(

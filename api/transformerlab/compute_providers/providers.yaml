@@ -1,6 +1,13 @@
 # Provider Bridge Configuration
-# This file defines the available providers (SkyPilot, SLURM, etc.)
+# This file defines the available providers (SkyPilot, SLURM, Local, etc.)
 providers:
+  # Local provider - runs tasks on the local machine with uv
+  local:
+    type: local
+    python_version: "3.11"
+    # working_dir: null  # Optional: defaults to current directory
+    # log_dir: null  # Optional: defaults to .local_provider_logs in working_dir
+
   # SkyPilot provider example
   skypilot:
     type: skypilot

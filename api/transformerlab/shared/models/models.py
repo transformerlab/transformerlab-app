@@ -120,6 +120,7 @@ class ProviderType(str, enum.Enum):
 
     SLURM = "slurm"
     SKYPILOT = "skypilot"
+    LOCAL = "local"
 
 
 class TeamComputeProvider(Base):
