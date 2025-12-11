@@ -4,20 +4,13 @@
   "description": "Fastchat loads vision models for inference using Huggingface Transformers for generation.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "model_architectures": [
     "LlavaForConditionalGeneration",
     "Mistral3ForConditionalGeneration"
   ],
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
     "num_gpus": {
