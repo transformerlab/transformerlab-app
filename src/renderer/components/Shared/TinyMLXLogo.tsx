@@ -14,7 +14,7 @@ export default function TinyMLXLogo() {
     >
       <path
         fill="#000"
-        fill-rule="evenodd"
+        fillRule="evenodd"
         d="M24.17.96H1.5v1.08H.42v10.77-1.08h1.09v1.08h21.57v-1.08h1.09V2.04h-1.09V.96h1.09Z"
         clipRule="evenodd"
       ></path>
