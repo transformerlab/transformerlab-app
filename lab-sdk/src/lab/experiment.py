@@ -23,7 +23,10 @@ class Experiment(BaseLabResource):
     _cache_rebuild_thread = None
 
     def __init__(self, experiment_id, create_new=False):
-        self.id = experiment_id
+        # For consistency and simplicity, let's edit experiment name to match
+        # the directory (which requires experiment_id)
+        self.id = secure_filename(str(experiment_id))
+
         # Auto-initialize if create_new=True and experiment doesn't exist
         if create_new and (not storage.exists(self.get_dir()) or not storage.exists(self._get_json_file())):
             self._initialize()
