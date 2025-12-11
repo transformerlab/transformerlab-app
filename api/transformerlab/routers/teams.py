@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole, TeamInvitation, InvitationStatus
@@ -12,6 +13,8 @@ from typing import Optional
 from sqlalchemy import select, delete, update, func, and_
 from datetime import datetime, timedelta
 from os import getenv
+from PIL import Image
+import io
 
 from lab import Experiment
 from lab.dirs import set_organization_id, get_workspace_dir
@@ -71,12 +74,13 @@ router = APIRouter(tags=["teams"])
 
 @router.post("/teams", response_model=TeamResponse)
 async def create_team(
-    team_data: TeamCreate,
+    name: str = Form(...),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
+    logo: Optional[UploadFile] = File(None),
 ):
     # Create team
-    team = Team(name=team_data.name)
+    team = Team(name=name)
     session.add(team)
     await session.commit()
     await session.refresh(team)
@@ -104,6 +108,34 @@ async def create_team(
 
         # Create the default experiment
         Experiment("alpha", create_new=True)
+
+        # Save logo if provided
+        if logo:
+            try:
+                workspace_dir = get_workspace_dir()
+                logo_path = storage.join(workspace_dir, "logo.png")
+
+                # Read and process the image
+                contents = await logo.read()
+                image = Image.open(io.BytesIO(contents))
+
+                # Convert to RGB if necessary (handles RGBA, P, etc.)
+                if image.mode in ("RGBA", "LA", "P"):
+                    # Create a white background
+                    rgb_image = Image.new("RGB", image.size, (255, 255, 255))
+                    if image.mode == "P":
+                        image = image.convert("RGBA")
+                    rgb_image.paste(image, mask=image.split()[-1] if image.mode in ("RGBA", "LA") else None)
+                    image = rgb_image
+                elif image.mode != "RGB":
+                    image = image.convert("RGB")
+
+                # Save as PNG
+                with storage.open(logo_path, "wb") as f:
+                    image.save(f, format="PNG")
+            except Exception as e:
+                # Log error but don't fail team creation if logo save fails
+                print(f"Warning: Failed to save logo for team {team.id}: {e}")
     except Exception as e:
         # Log error but don't fail team creation if experiment creation fails
         print(f"Warning: Failed to create default experiment 'alpha' for team {team.id}: {e}")
@@ -799,3 +831,102 @@ async def set_github_pat(
     except Exception as e:
         print(f"Error saving GitHub PAT: {e}")
         raise HTTPException(status_code=500, detail="Failed to save GitHub PAT")
+
+
+@router.get("/teams/{team_id}/logo")
+async def get_team_logo(
+    team_id: str,
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Get team logo. Returns logo.png from workspace if it exists, otherwise returns 404.
+    Any team member can view the logo.
+    """
+    # Verify team_id matches the one in header
+    if team_id != user_and_team["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    workspace_dir = get_workspace_dir()
+    logo_path = storage.join(workspace_dir, "logo.png")
+
+    if not storage.exists(logo_path):
+        raise HTTPException(status_code=404, detail="Team logo not found")
+
+    try:
+        # For local filesystem, return file directly
+        if not workspace_dir.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+            return FileResponse(logo_path, media_type="image/png")
+        else:
+            # For remote storage, read and return as bytes
+            with storage.open(logo_path, "rb") as f:
+                return Response(content=f.read(), media_type="image/png")
+    except Exception as e:
+        print(f"Error reading team logo: {e}")
+        raise HTTPException(status_code=500, detail="Failed to read team logo")
+
+
+@router.put("/teams/{team_id}/logo")
+async def set_team_logo(
+    team_id: str,
+    logo: UploadFile = File(...),
+    owner_info=Depends(require_team_owner),
+):
+    """
+    Set team logo. Only team owners can set/update the logo.
+    Stored in workspace/logo.png file.
+    """
+    # Verify team_id matches the one in header
+    if team_id != owner_info["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    workspace_dir = get_workspace_dir()
+    logo_path = storage.join(workspace_dir, "logo.png")
+
+    try:
+        # Read and process the image
+        contents = await logo.read()
+        image = Image.open(io.BytesIO(contents))
+
+        # Convert to RGB if necessary (handles RGBA, P, etc.)
+        if image.mode in ("RGBA", "LA", "P"):
+            # Create a white background
+            rgb_image = Image.new("RGB", image.size, (255, 255, 255))
+            if image.mode == "P":
+                image = image.convert("RGBA")
+            rgb_image.paste(image, mask=image.split()[-1] if image.mode in ("RGBA", "LA") else None)
+            image = rgb_image
+        elif image.mode != "RGB":
+            image = image.convert("RGB")
+
+        # Save as PNG
+        with storage.open(logo_path, "wb") as f:
+            image.save(f, format="PNG")
+
+        return {"status": "success", "message": "Team logo saved successfully"}
+    except Exception as e:
+        print(f"Error saving team logo: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save team logo")
+
+
+@router.delete("/teams/{team_id}/logo")
+async def delete_team_logo(
+    team_id: str,
+    owner_info=Depends(require_team_owner),
+):
+    """
+    Delete team logo. Only team owners can delete the logo.
+    """
+    # Verify team_id matches the one in header
+    if team_id != owner_info["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    workspace_dir = get_workspace_dir()
+    logo_path = storage.join(workspace_dir, "logo.png")
+
+    try:
+        if storage.exists(logo_path):
+            storage.rm(logo_path)
+        return {"status": "success", "message": "Team logo deleted successfully"}
+    except Exception as e:
+        print(f"Error deleting team logo: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete team logo")
