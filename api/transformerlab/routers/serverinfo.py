@@ -527,7 +527,7 @@ async def stream_update_output():
             yield f"data: {json.dumps({'error': f'Update failed with exit code {return_code}'})}\n\n"
         else:
             yield f"data: {json.dumps({'success': True, 'message': 'Update completed successfully'})}\n\n"
-    except Exception as e:
+    except Exception:
         yield f"data: {json.dumps({'error': 'Failed to update server'})}\n\n"
 
 
