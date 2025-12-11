@@ -74,7 +74,7 @@ export default function ModelZoo({ tab = 'store' }) {
           {!isS3Mode && (
             <Tab value="groups">
               <StoreIcon color="grey" />
-              &nbsp; Model Gallery
+              &nbsp; Model Registry
             </Tab>
           )}
         </TabList>

@@ -481,7 +481,7 @@ const LocalModelsTable = ({
                     download a model by going to the{' '}
                     <ReactRouterLink to="/zoo">
                       <StoreIcon />
-                      Model Gallery
+                      Model Registry
                     </ReactRouterLink>
                     .
                   </Typography>
@@ -493,7 +493,7 @@ const LocalModelsTable = ({
       </Sheet>
       <Typography mt={2} level="body-sm">
         Looking for more models? Go to the{' '}
-        <ReactRouterLink to="/zoo">Model Gallery</ReactRouterLink>
+        <ReactRouterLink to="/zoo">Model Registry</ReactRouterLink>
       </Typography>
     </>
   );

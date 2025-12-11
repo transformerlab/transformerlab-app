@@ -124,7 +124,7 @@ export default function ControlNetModal({
             sx={{ mt: 3, textAlign: 'center', px: 2 }}
           >
             No ControlNets available. You can install ControlNet models from the
-            Model Gallery using the download bar at the bottom of the page
+            Model Registry using the download bar at the bottom of the page
             there.
           </Typography>
         )}
