@@ -5,7 +5,7 @@
   "plugin-format": "python",
   "type": "evaluator",
   "evalsType": "model",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "git": "https://github.com/EleutherAI/lm-evaluation-harness",
   "url": "https://github.com/EleutherAI/lm-evaluation-harness",
   "supported_hardware_architectures": [

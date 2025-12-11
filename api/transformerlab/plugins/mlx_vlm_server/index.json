@@ -4,7 +4,7 @@
   "description": "MLX Machine learning multimodal research on your laptop or in a data center - by Blaizzy",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "model_architectures": [
     "LlavaForConditionalGeneration"
   ],
