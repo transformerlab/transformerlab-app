@@ -4,7 +4,7 @@
   "description": "An implementation of several Preference Optimization methods using Llama Factory.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "model_architectures": [
     "LlamaForCausalLM",
     "MistralForCausalLM",
@@ -16,14 +16,8 @@
     "Qwen3MoeForCausalLM",
     "Phi3ForCausalLM"
   ],
-  "supported_hardware_architectures": [
-    "cuda",
-    "amd"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["cuda", "amd"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "training_template_format": "none",
   "training_data_instructions": "Ensure that the dataset below has the following required columns: \"conversations\", \"chosen\", \"rejected\"",
@@ -31,18 +25,14 @@
     "pref_loss": {
       "title": "Task",
       "type": "string",
-      "enum": [
-        "dpo",
-        "orpo",
-        "simpo"
-      ],
+      "enum": ["dpo", "orpo", "simpo"],
       "required": true
     },
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
       "default": 0.001,
-      "minimum": 1e-06
+      "minimum": 1e-6
     },
     "num_train_epochs": {
       "title": "Number of Training Epochs",

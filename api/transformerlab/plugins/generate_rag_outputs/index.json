@@ -4,19 +4,11 @@
   "description": "Run RAG on dataset queries and generate evaluation results.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "git": "https://github.com/transformerlab/transformerlab",
   "url": "https://github.com/transformerlab/transformerlab",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx",
-    "amd"
-  ],
+  "files": ["main.py", "setup.sh"],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "_dataset": true,
   "_dataset_display_message": "This plugin requires a dataset to run. Please upload a dataset to continue.",
   "setup-script": "setup.sh",

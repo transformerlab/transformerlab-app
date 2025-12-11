@@ -4,7 +4,7 @@
   "description": "Fastchat loads models for inference using Huggingface Transformers for generation.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.28",
+  "version": "1.0.29",
   "supports": [
     "chat",
     "completion",
@@ -47,16 +47,8 @@
     "RForConditionalGeneration",
     "Lfm2ForCausalLM"
   ],
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx",
-    "amd"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
     "gpu_ids": {
@@ -68,21 +60,12 @@
       "title": "Load compressed model",
       "type": "string",
       "default": "None",
-      "enum": [
-        "None",
-        "8-bit",
-        "4-bit"
-      ]
+      "enum": ["None", "8-bit", "4-bit"]
     },
     "model_dtype": {
       "title": "Select a specific data type for the model",
       "type": "string",
-      "enum": [
-        "auto",
-        "float16",
-        "bfloat16",
-        "float32"
-      ]
+      "enum": ["auto", "float16", "bfloat16", "float32"]
     }
   },
   "parameters_ui": {
