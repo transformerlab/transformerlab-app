@@ -7,19 +7,23 @@ import {
   CircularProgress,
   Box,
 } from '@mui/joy';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { apiHealthz } from 'renderer/lib/transformerlab-api-sdk';
 import { AlertCircle } from 'lucide-react';
 
 interface ConnectionLostModalProps {
   connection: string;
+  setConnection: (conn: string) => void;
 }
 
 export default function ConnectionLostModal({
   connection,
+  setConnection,
 }: ConnectionLostModalProps) {
   const [isChecking, setIsChecking] = useState(false);
   const [checkCount, setCheckCount] = useState(0);
+  const checkCountRef = useRef(0);
+  const MAX_ATTEMPTS = 16;
 
   // Poll apiHealthz every 5 seconds to check if connection is restored
   useEffect(() => {
@@ -27,7 +31,21 @@ export default function ConnectionLostModal({
       return;
     }
 
+    // Reset check count when connection changes
+    checkCountRef.current = 0;
+    setCheckCount(0);
+
+    let interval: NodeJS.Timeout | null = null;
+
     const checkConnection = async () => {
+      // Stop if we've reached max attempts
+      if (checkCountRef.current >= MAX_ATTEMPTS) {
+        if (interval) {
+          clearInterval(interval);
+        }
+        return;
+      }
+
       setIsChecking(true);
       try {
         const healthz = await apiHealthz();
@@ -35,6 +53,9 @@ export default function ConnectionLostModal({
           // Connection restored - the parent component will detect this
           // and close the modal
           setIsChecking(false);
+          if (interval) {
+            clearInterval(interval);
+          }
           return;
         }
       } catch (error) {
@@ -42,7 +63,24 @@ export default function ConnectionLostModal({
         console.log('Connection check failed:', error);
       } finally {
         setIsChecking(false);
-        setCheckCount((prev) => prev + 1);
+        checkCountRef.current += 1;
+        const newCount = checkCountRef.current;
+        setCheckCount(newCount);
+
+        // After MAX_ATTEMPTS, give up and clear the connection
+        if (newCount >= MAX_ATTEMPTS) {
+          console.log(
+            `Connection check failed after ${MAX_ATTEMPTS} attempts. Clearing connection.`,
+          );
+          // Clear the API URL
+          if ((window as any).TransformerLab) {
+            (window as any).TransformerLab.API_URL = null;
+          }
+          setConnection('');
+          if (interval) {
+            clearInterval(interval);
+          }
+        }
       }
     };
 
@@ -50,14 +88,16 @@ export default function ConnectionLostModal({
     checkConnection();
 
     // Then check every 5 seconds
-    const interval = setInterval(() => {
+    interval = setInterval(() => {
       checkConnection();
     }, 5000);
 
     return () => {
-      clearInterval(interval);
+      if (interval) {
+        clearInterval(interval);
+      }
     };
-  }, [connection]);
+  }, [connection, setConnection]);
 
   return (
     <Modal open={true} hideBackdrop={false}>
@@ -104,11 +144,15 @@ export default function ConnectionLostModal({
             <Typography level="body-sm">
               {isChecking
                 ? 'Checking connection...'
-                : `Retrying in 5 seconds... (Attempt ${checkCount + 1})`}
+                : checkCount >= MAX_ATTEMPTS
+                  ? `Failed after ${MAX_ATTEMPTS} attempts. Closing...`
+                  : `Retrying in 5 seconds... (Attempt ${checkCount + 1}/${MAX_ATTEMPTS})`}
             </Typography>
           </Box>
           <Typography level="body-sm" sx={{ mt: 2, opacity: 0.7 }}>
-            This modal will automatically close when the connection is restored.
+            {checkCount >= MAX_ATTEMPTS
+              ? 'Connection will be cleared. Please reconnect manually.'
+              : 'This modal will automatically close when the connection is restored.'}
           </Typography>
         </DialogContent>
       </ModalDialog>

@@ -501,7 +501,10 @@ export default function Header({ connection, setConnection }) {
         <StatsBar connection={connection} setConnection={setConnection} />
       )}
       {showConnectionLostModal && (
-        <ConnectionLostModal connection={connection} />
+        <ConnectionLostModal
+          connection={connection}
+          setConnection={setConnection}
+        />
       )}
     </Sheet>
   );
