@@ -157,7 +157,14 @@ class LocalProvider(ComputeProvider):
 
     async def _run_job(self, job: LocalJob):
         """Run a single job using asyncio subprocess with uv."""
-        log_file_path = os.path.join(self.log_dir, f"{job.job_id}.log")
+        from lab.dirs import get_job_dir
+        from lab import storage
+
+        job_dir = get_job_dir(job.job_id)
+        storage.makedirs(job_dir, exist_ok=True)
+        _debug(f"Job {job.job_id} directory: {job_dir}")
+
+        log_file_path = storage.join(job_dir, "output.log")
         job.log_file = log_file_path
         _debug(f"Job {job.job_id} log file: {log_file_path}")
 
@@ -165,15 +172,18 @@ class LocalProvider(ComputeProvider):
         env.update(job.env_vars)
         _debug(f"Job {job.job_id} env vars added: {list(job.env_vars.keys())}")
 
-        working_dir = job.working_dir or self.working_dir
+        working_dir = job_dir
         _debug(f"Job {job.job_id} working directory: {working_dir}")
 
-        uv_cmd = ["uv", "run", "--python", self.python_version, "python", "-c", job.command]
-
-        if job.command.endswith(".py") or "/" in job.command:
-            uv_cmd = ["uv", "run", "--python", self.python_version, "python", job.command]
-
-        _debug(f"Job {job.job_id} command: {' '.join(uv_cmd)}")
+        script_path = os.path.join(job_dir, "run.sh")
+        with open(script_path, "w") as f:
+            f.write("#!/bin/bash\n")
+            f.write("set -e\n")
+            f.write(f"source {job_dir}/.venv/bin/activate\n")
+            f.write(job.command)
+            f.write("\n")
+        os.chmod(script_path, 0o755)
+        _debug(f"Job {job.job_id} script written to: {script_path}")
 
         with open(log_file_path, "w") as log_file:
             log_file.write(f"=== Job {job.job_id} started at {datetime.now().isoformat()} ===\n")
@@ -183,9 +193,39 @@ class LocalProvider(ComputeProvider):
             log_file.write("=" * 60 + "\n\n")
             log_file.flush()
 
-            _debug(f"Job {job.job_id} spawning subprocess...")
+            _debug(f"Job {job.job_id} initializing venv with uv...")
+            log_file.write("Initializing virtual environment...\n")
+            log_file.flush()
+            venv_process = await asyncio.create_subprocess_exec(
+                "uv",
+                "venv",
+                "--python",
+                self.python_version,
+                stdout=log_file,
+                stderr=asyncio.subprocess.STDOUT,
+                env=env,
+                cwd=working_dir,
+            )
+            venv_exit_code = await venv_process.wait()
+            if venv_exit_code != 0:
+                _debug(f"Job {job.job_id} uv venv failed with code {venv_exit_code}")
+                log_file.write(f"ERROR: uv venv failed with exit code {venv_exit_code}\n")
+                job.exit_code = venv_exit_code
+                job.finished_at = time.time()
+                job.status = LocalJobStatus.FAILED
+                job.error_message = f"uv venv failed with code {venv_exit_code}"
+                return
+            _debug(f"Job {job.job_id} venv initialized successfully")
+            log_file.write("Virtual environment initialized.\n\n")
+            log_file.flush()
+
+            _debug(f"Job {job.job_id} running bash script: {script_path}")
+            log_file.write(f"Running script: {script_path}\n")
+            log_file.write("=" * 60 + "\n\n")
+            log_file.flush()
             process = await asyncio.create_subprocess_exec(
-                *uv_cmd,
+                "bash",
+                script_path,
                 stdout=log_file,
                 stderr=asyncio.subprocess.STDOUT,
                 env=env,
