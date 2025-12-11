@@ -5,7 +5,7 @@
   "plugin-format": "python",
   "type": "evaluator",
   "evalsType": "model",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "git": "https://github.com/ZHZisZZ/dllm",
   "url": "https://github.com/ZHZisZZ/dllm",
   "supported_hardware_architectures": ["cuda"],

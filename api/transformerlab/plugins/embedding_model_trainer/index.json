@@ -5,7 +5,7 @@
   "plugin-format": "python",
   "type": "trainer",
   "train_type": "embedding",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "model_architectures": [
     "BertModel",
     "SentenceTransformer",
@@ -73,18 +73,10 @@
     "Davinci",
     "AsymmetricSemanticSearchModel"
   ],
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx",
-    "amd"
-  ],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "git": "",
   "url": "",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "training_template_format": "none",
   "parameters": {
@@ -165,8 +157,8 @@
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
-      "default": 2e-05,
-      "minimum": 1e-06
+      "default": 2e-5,
+      "minimum": 1e-6
     },
     "warmup_ratio": {
       "title": "Warmup Ratio",

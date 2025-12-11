@@ -4,18 +4,10 @@
   "description": "",
   "plugin-format": "python",
   "type": "rag",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "model_architectures": [],
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx",
-    "amd"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
     "response_mode": {
