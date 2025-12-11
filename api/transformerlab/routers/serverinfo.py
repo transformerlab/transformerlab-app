@@ -528,7 +528,7 @@ async def stream_update_output():
         else:
             yield f"data: {json.dumps({'success': True, 'message': 'Update completed successfully'})}\n\n"
     except Exception as e:
-        yield f"data: {json.dumps({'error': f'Failed to update server: {str(e)}'})}\n\n"
+        yield f"data: {json.dumps({'error': 'Failed to update server'})}\n\n"
 
 
 @router.post("/update")
