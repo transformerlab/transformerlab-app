@@ -23,7 +23,16 @@ function mapArchitectureToIcon(arch) {
 export default function ShowArchitectures({ architectures }) {
   if (!architectures) return null;
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        flexWrap: 'wrap',
+        minWidth: 0,
+        maxWidth: '100%',
+      }}
+    >
       {architectures.map((arch) => (
         <div key={arch}>{mapArchitectureToIcon(arch)}</div>
       ))}
