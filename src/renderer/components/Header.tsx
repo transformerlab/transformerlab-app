@@ -28,6 +28,7 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 function StatsBar({ connection, setConnection }) {
   const [cs, setCS] = useState({ cpu: [0], gpu: [0], mem: [0] });
   const { server, isLoading, isError } = useServerStats();
+  const isCloudMode = (window as any).platform?.appmode === 'cloud';
 
   useEffect(() => {
     if (connection === '') return;
@@ -303,21 +304,23 @@ function StatsBar({ connection, setConnection }) {
                         </ReactRouterLink>
                       </Typography>
 
-                      <Button
-                        variant="solid"
-                        color="danger"
-                        size="sm"
-                        sx={{ m: 0, p: 1 }}
-                        onClick={() => {
-                          // Clear the API URL when disconnecting
-                          if ((window as any).TransformerLab) {
-                            (window as any).TransformerLab.API_URL = null;
-                          }
-                          setConnection('');
-                        }}
-                      >
-                        Disconnect
-                      </Button>
+                      {!isCloudMode && (
+                        <Button
+                          variant="solid"
+                          color="danger"
+                          size="sm"
+                          sx={{ m: 0, p: 1 }}
+                          onClick={() => {
+                            // Clear the API URL when disconnecting
+                            if ((window as any).TransformerLab) {
+                              (window as any).TransformerLab.API_URL = null;
+                            }
+                            setConnection('');
+                          }}
+                        >
+                          Disconnect
+                        </Button>
+                      )}
                     </Stack>
                   </Box>
                 </Box>
