@@ -212,11 +212,36 @@ class LocalProvider(ComputeProvider):
             _debug(f"Job {job.job_id} failed: {job.error_message}")
 
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
-        """Launch a 'cluster' - for local provider this is a no-op since we run locally."""
+        """Launch a 'cluster' by submitting the job (same as submit_job for local provider)."""
+        _debug(f"launch_cluster called for {cluster_name}")
+
+        command = config.command or ""
+        if config.setup:
+            command = f"{config.setup}\n{command}"
+
+        if not command.strip():
+            _debug(f"launch_cluster {cluster_name}: no command to run")
+            return {
+                "cluster_name": cluster_name,
+                "status": "ready",
+                "message": "No command specified, cluster ready for jobs",
+            }
+
+        job_config = JobConfig(
+            command=command,
+            job_name=config.cluster_name or cluster_name,
+            env_vars=config.env_vars,
+            num_nodes=config.num_nodes,
+            provider_config=config.provider_config,
+        )
+
+        result = self.submit_job(cluster_name, job_config)
+        _debug(f"launch_cluster {cluster_name}: submitted job {result.get('job_id')}")
+
         return {
             "cluster_name": cluster_name,
-            "status": "ready",
-            "message": "Local provider is always ready",
+            "job_id": result.get("job_id"),
+            "status": "submitted",
         }
 
     def stop_cluster(self, cluster_name: str) -> Dict[str, Any]:
