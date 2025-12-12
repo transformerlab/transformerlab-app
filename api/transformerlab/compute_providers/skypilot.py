@@ -330,7 +330,7 @@ class SkyPilotProvider(ComputeProvider):
             retry_until_up=config.provider_config.get("retry_until_up", False),
             idle_minutes_to_autostop=config.idle_minutes_to_autostop,
             dryrun=config.provider_config.get("dryrun", False),
-            down=config.provider_config.get("down", False),
+            down=True,  # Always tear down cluster after jobs finish
             backend=backend.NAME if backend else None,
             optimize_target=config.provider_config.get("optimize_target", 0),  # 0 = COST
             no_setup=config.provider_config.get("no_setup", False),
