@@ -654,6 +654,47 @@ function InstallStepper({ setServer }) {
     if (data.includes('Uvicorn running on')) {
       // Start attempting autologin when server log shows it's running
       setShouldAttemptAutologin(true);
+
+      // Ensure API URL is set
+      const fullServer = 'http://' + 'localhost' + ':' + '8338' + '/';
+      if (!window.TransformerLab) {
+        window.TransformerLab = {};
+      }
+      window.TransformerLab.API_URL = fullServer;
+
+      // Attempt autologin immediately after a short delay (give server time to fully start)
+      if (
+        process.env.MULTIUSER !== 'true' &&
+        authContext &&
+        !authContext.isAuthenticated &&
+        !autologinAttemptedRef.current
+      ) {
+        setTimeout(async () => {
+          try {
+            const healthz = await apiHealthz();
+            if (healthz !== null) {
+              console.log(
+                'Server detected via log, attempting auto-login immediately',
+              );
+              autologinAttemptedRef.current = true;
+              try {
+                await authContext.login('admin@example.com', 'admin123');
+                console.log('Auto-login successful!');
+                // Set the server connection to close the modal
+                setServer(fullServer);
+              } catch (error) {
+                console.error('Auto-login failed:', error);
+                // Reset flag so polling can retry
+                autologinAttemptedRef.current = false;
+              }
+            }
+          } catch (error) {
+            // Server not ready yet, polling will handle it
+            console.log('Server not ready yet, polling will continue');
+          }
+        }, 500); // 500ms delay to ensure server is fully ready
+      }
+
       // call with a 150ms delay just to give the server some time to start up
       setTimeout(() => {
         mutateLocalConnectionCheck();
