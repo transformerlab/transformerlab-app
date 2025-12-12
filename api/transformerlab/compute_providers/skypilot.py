@@ -1017,7 +1017,7 @@ class SkyPilotProvider(ComputeProvider):
                     "provider_data": provider_data
                 }
                 detailed.append(detailed_cluster)
-            except Exception as e:
+            except Exception:
                 # If getting resources fails, skip this cluster
                 print(f"Failed to get resources for cluster {cluster.cluster_name}")
                 continue
