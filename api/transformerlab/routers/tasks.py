@@ -289,6 +289,18 @@ class ExportTaskToTeamGalleryRequest(BaseModel):
     task_id: str
 
 
+class AddTeamTaskToGalleryRequest(BaseModel):
+    title: str
+    description: Optional[str] = None
+    setup: Optional[str] = None
+    command: str
+    cpus: Optional[str] = None
+    memory: Optional[str] = None
+    accelerators: Optional[str] = None
+    github_repo_url: Optional[str] = None
+    github_repo_dir: Optional[str] = None
+
+
 @router.post("/gallery/import", summary="Import a task from the tasks gallery")
 async def import_task_from_gallery(
     request: ImportTaskFromGalleryRequest,
@@ -514,5 +526,53 @@ async def export_task_to_team_gallery(
     return {
         "status": "success",
         "message": f"Task '{gallery_entry['title']}' exported to team gallery",
+        "data": gallery_entry,
+    }
+
+
+@router.post("/gallery/team/add", summary="Add a new task directly to the team gallery")
+async def add_team_task_to_gallery(
+    request: AddTeamTaskToGalleryRequest,
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Add a new task directly to the team-specific gallery stored in workspace_dir.
+    This allows creating team tasks without first creating a task template.
+    """
+    import uuid
+
+    # Build the config object from the request
+    config = {}
+    if request.setup:
+        config["setup"] = request.setup
+    if request.command:
+        config["command"] = request.command
+    if request.cpus:
+        config["cpus"] = request.cpus
+    if request.memory:
+        config["memory"] = request.memory
+    if request.accelerators:
+        config["accelerators"] = request.accelerators
+    if request.github_repo_url:
+        config["github_repo_url"] = request.github_repo_url
+        config["github_enabled"] = True
+    if request.github_repo_dir:
+        config["github_directory"] = request.github_repo_dir
+
+    # Create gallery entry
+    gallery_entry = {
+        "id": str(uuid.uuid4()),  # Generate a unique ID
+        "title": request.title,
+        "description": request.description,
+        "config": config,
+        "github_repo_url": request.github_repo_url,
+        "github_repo_dir": request.github_repo_dir,
+    }
+
+    galleries.add_team_task_to_gallery(gallery_entry)
+
+    return {
+        "status": "success",
+        "message": f"Task '{gallery_entry['title']}' added to team gallery",
         "data": gallery_entry,
     }

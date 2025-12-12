@@ -25,12 +25,14 @@ import {
   GithubIcon,
   DownloadIcon,
   ScanTextIcon,
+  PlusIcon,
 } from 'lucide-react';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { fetcher } from '../../lib/transformerlab-api-sdk';
 import { useNotification } from '../Shared/NotificationSystem';
+import NewTeamTaskModal from './NewTeamTaskModal';
 
 // Custom filter function for tasks gallery (uses 'title' instead of 'name')
 function filterTasksGallery(data: any[], searchText: string = '') {
@@ -214,6 +216,8 @@ export default function TasksGallery() {
   const { addNotification } = useNotification();
   const navigate = useNavigate();
   const [importingIndex, setImportingIndex] = useState<number | null>(null);
+  const [newTeamTaskModalOpen, setNewTeamTaskModalOpen] = useState(false);
+  const [isSubmittingTeamTask, setIsSubmittingTeamTask] = useState(false);
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Tasks.Gallery(),
@@ -287,6 +291,58 @@ export default function TasksGallery() {
     }
   };
 
+  const handleAddTeamTask = async (data: {
+    title: string;
+    description?: string;
+    setup?: string;
+    command: string;
+    cpus?: string;
+    memory?: string;
+    accelerators?: string;
+    github_repo_url?: string;
+    github_repo_dir?: string;
+  }) => {
+    setIsSubmittingTeamTask(true);
+    try {
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Tasks.AddToTeamGallery(),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        addNotification({
+          type: 'danger',
+          message: `Failed to add team task: ${errorText}`,
+        });
+        return;
+      }
+
+      const result = await response.json();
+      addNotification({
+        type: 'success',
+        message: result?.message || 'Team task added successfully!',
+      });
+
+      // Refresh the team gallery
+      teamMutate();
+    } catch (err: any) {
+      console.error('Error adding team task:', err);
+      addNotification({
+        type: 'danger',
+        message: `Failed to add team task: ${err?.message || String(err)}`,
+      });
+    } finally {
+      setIsSubmittingTeamTask(false);
+    }
+  };
+
   if (error && activeTab === 'global')
     return (
       <Sheet sx={{ p: 2 }}>
@@ -310,17 +366,40 @@ export default function TasksGallery() {
         height: '100%',
       }}
     >
-      <Tabs
-        size="sm"
-        value={activeTab}
-        onChange={(_e, val) => val && setActiveTab(val as 'global' | 'team')}
-        sx={{ mb: 1 }}
+      <NewTeamTaskModal
+        open={newTeamTaskModalOpen}
+        onClose={() => setNewTeamTaskModalOpen(false)}
+        onSubmit={handleAddTeamTask}
+        isSubmitting={isSubmittingTeamTask}
+      />
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 1,
+        }}
       >
-        <TabList>
-          <Tab value="global">Tasks Gallery</Tab>
-          <Tab value="team">Team Specific Tasks</Tab>
-        </TabList>
-      </Tabs>
+        <Tabs
+          size="sm"
+          value={activeTab}
+          onChange={(_e, val) => val && setActiveTab(val as 'global' | 'team')}
+        >
+          <TabList>
+            <Tab value="global">Tasks Gallery</Tab>
+            <Tab value="team">Team Specific Tasks</Tab>
+          </TabList>
+        </Tabs>
+        {activeTab === 'team' && (
+          <Button
+            startDecorator={<PlusIcon size={16} />}
+            onClick={() => setNewTeamTaskModalOpen(true)}
+            size="sm"
+          >
+            Add Team Task
+          </Button>
+        )}
+      </Box>
       <Box
         className="SearchAndFilters-tabletUp"
         sx={{
