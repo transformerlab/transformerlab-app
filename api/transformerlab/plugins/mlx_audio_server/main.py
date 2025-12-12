@@ -219,13 +219,13 @@ async def api_generate(request: Request):
         params = await request.json()
         logger.info(f"Worker received request: task={params.get('task')}, model={params.get('model')}")
         await acquire_worker_semaphore()
-        request_id = uuid.uuid4()
-        params["request_id"] = str(request_id)
-        output = await worker.generate(params)
-        release_worker_semaphore()
-        # await engine.abort(request_id)
-        # logger.debug("Trying to abort but not implemented")
-        return JSONResponse(output)
+        try:
+            request_id = uuid.uuid4()
+            params["request_id"] = str(request_id)
+            output = await worker.generate(params)
+            return JSONResponse(output)
+        finally:
+            release_worker_semaphore()
     except Exception:
         return JSONResponse({"status": "error", "message": "An error occurred during generation."})
 
