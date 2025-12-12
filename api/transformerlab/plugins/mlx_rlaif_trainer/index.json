@@ -4,7 +4,7 @@
   "description": "MLX PPO (Proximal Policy Optimization) Reinforcement Learning from AI Feedback (RLAIF) trainer for MLX models.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "model_architectures": [
     "MLX",
     "LlamaForCausalLM",
@@ -15,13 +15,8 @@
   ],
   "training_template_format": "none",
   "training_data_instructions": "Enxure that the dataset below has the following required columns: \"conversations\", \"chosen\", \"rejected\"",
-  "supported_hardware_architectures": [
-    "mlx"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["mlx"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
     "batch_size": {

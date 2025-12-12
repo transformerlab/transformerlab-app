@@ -3,13 +3,13 @@
 # with a backup stored in the server code.
 # This is all managed in this file.
 
+import os
 import json
 import posixpath
 import urllib.request
-import time
+import shutil
 
 from transformerlab.shared import dirs
-from lab import storage
 
 # This is the list of galleries that are updated remotely
 MODEL_GALLERY_FILE = "model-gallery.json"
@@ -17,7 +17,9 @@ DATA_GALLERY_FILE = "dataset-gallery.json"
 MODEL_GROUP_GALLERY_FILE = "model-group-gallery.json"
 EXP_RECIPES_GALLERY_FILE = "exp-recipe-gallery.json"
 # Tasks gallery main file
-TASKS_GALLERY_FILE = "task-gallery.json"
+TASKS_GALLERY_FILE = "tasks-gallery.json"
+# Team-specific tasks gallery stored in workspace dir (per team)
+TEAM_TASKS_GALLERY_FILE = "team_specific_tasks.json"
 GALLERY_FILES = [
     MODEL_GALLERY_FILE,
     DATA_GALLERY_FILE,
@@ -59,6 +61,70 @@ def get_tasks_gallery():
     return get_gallery_file(TASKS_GALLERY_FILE)
 
 
+def get_team_tasks_gallery():
+    """
+    Team-specific tasks gallery stored in the workspace directory.
+    Falls back to an empty list when missing or unreadable.
+    """
+    from lab.dirs import get_workspace_dir
+    from lab import storage
+
+    workspace_dir = get_workspace_dir()
+    gallery_path = storage.join(workspace_dir, TEAM_TASKS_GALLERY_FILE)
+
+    try:
+        # Ensure the workspace directory exists before checking the file
+        storage.makedirs(workspace_dir, exist_ok=True)
+
+        if not storage.exists(gallery_path):
+            # Initialize an empty gallery file
+            with storage.open(gallery_path, "w") as f:
+                json.dump([], f)
+            return []
+
+        with storage.open(gallery_path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"❌ Failed to read team tasks gallery: {e}")
+        return []
+
+
+def add_team_task_to_gallery(entry: dict):
+    """
+    Append (or upsert) a task entry to the team-specific gallery.
+    Replaces an existing entry with the same id/title to avoid duplicates.
+    """
+    from lab.dirs import get_workspace_dir
+    from lab import storage
+
+    workspace_dir = get_workspace_dir()
+    gallery_path = storage.join(workspace_dir, TEAM_TASKS_GALLERY_FILE)
+
+    try:
+        storage.makedirs(workspace_dir, exist_ok=True)
+        current = get_team_tasks_gallery()
+
+        # De-duplicate on id or title
+        new_id = entry.get("id")
+        new_title = entry.get("title")
+        filtered = []
+        for item in current:
+            if new_id and item.get("id") == new_id:
+                continue
+            if new_title and item.get("title") == new_title:
+                continue
+            filtered.append(item)
+
+        filtered.append(entry)
+
+        with storage.open(gallery_path, "w") as f:
+            json.dump(filtered, f, indent=2)
+        return filtered
+    except Exception as e:
+        print(f"❌ Failed to write team tasks gallery: {e}")
+        return get_team_tasks_gallery()
+
+
 ######################
 # INTERNAL SUBROUTINES
 ######################
@@ -67,7 +133,7 @@ def get_tasks_gallery():
 def gallery_cache_file_path(filename: str):
     from lab.dirs import get_galleries_cache_dir
 
-    return storage.join(get_galleries_cache_dir(), filename)
+    return os.path.join(get_galleries_cache_dir(), filename)
 
 
 def update_gallery_cache_file(filename: str):
@@ -78,16 +144,16 @@ def update_gallery_cache_file(filename: str):
 
     # First, if nothing is cached yet, then initialize with the local copy.
     cached_gallery_file = gallery_cache_file_path(filename)
-    if not storage.isfile(cached_gallery_file):
+    if not os.path.isfile(cached_gallery_file):
         print(f"✅ Initializing {filename} from local source.")
 
-        sourcefile = storage.join(dirs.GALLERIES_LOCAL_FALLBACK_DIR, filename)
-        if storage.isfile(sourcefile):
+        sourcefile = os.path.join(dirs.GALLERIES_LOCAL_FALLBACK_DIR, filename)
+        if os.path.isfile(sourcefile):
             # Use fsspec-aware copy
             parent_dir = posixpath.dirname(cached_gallery_file)
             if parent_dir:
-                storage.makedirs(parent_dir, exist_ok=True)
-            storage.copy_file(sourcefile, cached_gallery_file)
+                os.makedirs(parent_dir, exist_ok=True)
+            shutil.copy(sourcefile, cached_gallery_file)
         else:
             print("❌ Unable to find local gallery file", sourcefile)
 
@@ -107,70 +173,12 @@ def update_cache_from_remote(gallery_filename: str):
             data = resp.read()
         parent_dir = posixpath.dirname(local_cache_filename)
         if parent_dir:
-            storage.makedirs(parent_dir, exist_ok=True)
-        with storage.open(local_cache_filename, "wb") as f:
+            os.makedirs(parent_dir, exist_ok=True)
+        with open(local_cache_filename, "wb") as f:
             f.write(data)
         print(f"☁️  Updated gallery from remote: {remote_gallery}")
     except Exception as e:
         print(f"❌ Failed to update gallery from remote: {remote_gallery} {e}")
-
-
-def update_cache_from_remote_if_stale(gallery_filename: str, max_age_seconds: int = 3600):
-    """
-    Updates the gallery cache from remote only if the cache is older than max_age_seconds.
-    Default max_age_seconds is 3600 (1 hour).
-
-    Handles fused filesystems where getmtime() might be unreliable.
-    """
-    local_cache_filename = gallery_cache_file_path(gallery_filename)
-
-    # If file doesn't exist, update it
-    if not storage.isfile(local_cache_filename):
-        update_cache_from_remote(gallery_filename)
-        return
-
-    # Check if cache is stale
-    # Handle fused filesystems where getmtime() might be unreliable or unavailable
-    try:
-        # Get file info using storage module
-        file_info = storage.filesystem().info(local_cache_filename)
-
-        # Extract modification time - handle different filesystem formats
-        mtime = None
-        if "mtime" in file_info:
-            mtime = file_info["mtime"]
-        elif "LastModified" in file_info:
-            # S3 and some other filesystems use LastModified (datetime object)
-            from datetime import datetime
-
-            last_modified = file_info["LastModified"]
-            if isinstance(last_modified, datetime):
-                mtime = last_modified.timestamp()
-            else:
-                mtime = float(last_modified)
-        elif "modified" in file_info:
-            mtime = file_info["modified"]
-
-        if mtime is None:
-            # Could not determine modification time, update to be safe
-            update_cache_from_remote(gallery_filename)
-            return
-
-        current_time = time.time()
-        file_age = current_time - mtime
-
-        # Sanity check: if mtime is in the future or file_age is negative, treat as unreliable
-        if file_age < 0 or mtime > current_time:
-            # Fused filesystem returned unreliable timestamp, update to be safe
-            update_cache_from_remote(gallery_filename)
-            return
-
-        if file_age > max_age_seconds:
-            update_cache_from_remote(gallery_filename)
-    except (OSError, ValueError, KeyError, AttributeError) as e:
-        # getmtime() failed (e.g., on some fused filesystems), update to be safe
-        print(f"⚠️  Could not determine cache age for {gallery_filename}, updating: {e}")
-        update_cache_from_remote(gallery_filename)
 
 
 def get_gallery_file(filename: str):
@@ -179,11 +187,11 @@ def get_gallery_file(filename: str):
     gallery_path = gallery_cache_file_path(filename)
 
     # Check for the cached file. If it's not there then initialize.
-    if not storage.isfile(gallery_path):
+    if not os.path.isfile(gallery_path):
         print(f"Updating gallery cache file {filename}")
         update_gallery_cache_file(filename)
 
-    with storage.open(gallery_path) as f:
+    with open(gallery_path, "r") as f:
         gallery = json.load(f)
 
     return gallery
