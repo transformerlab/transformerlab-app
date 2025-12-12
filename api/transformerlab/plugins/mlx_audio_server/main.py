@@ -136,7 +136,7 @@ class MLXAudioWorker(BaseModelWorker):
                 logger.error(f"Error generating audio")
                 return {
                     "status": "error",
-                    "message": f"Error generating audio}",
+                    "message": f"Error generating audio",
                 }
 
         elif task == "stt":
