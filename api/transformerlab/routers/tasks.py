@@ -594,7 +594,7 @@ async def delete_team_task_from_gallery(
     if success:
         return {
             "status": "success",
-            "message": f"Task deleted from team gallery",
+            "message": "Task deleted from team gallery",
         }
     else:
         raise HTTPException(status_code=404, detail="Task not found in team gallery")
