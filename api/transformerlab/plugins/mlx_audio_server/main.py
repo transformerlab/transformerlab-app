@@ -226,7 +226,7 @@ async def api_generate(request: Request):
         # await engine.abort(request_id)
         # logger.debug("Trying to abort but not implemented")
         return JSONResponse(output)
-    except Exception as e:
+    except Exception:
         return JSONResponse({"status": "error", "message": "An error occurred during generation."})
 
 
