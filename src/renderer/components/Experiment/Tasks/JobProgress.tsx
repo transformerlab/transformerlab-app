@@ -133,7 +133,10 @@ export default function JobProgress({ job }: JobProps) {
           {job?.job_data?.start_time && (
             <>
               Started:{' '}
-              {dayjs(job.job_data.start_time).format('MMM D, YYYY HH:mm:ss')}
+              {dayjs
+                .utc(job.job_data.start_time)
+                .local()
+                .format('MMM D, YYYY HH:mm:ss')}
             </>
           )}
         </>
@@ -193,7 +196,10 @@ export default function JobProgress({ job }: JobProps) {
           {job?.job_data?.start_time && (
             <>
               Started:{' '}
-              {dayjs(job.job_data.start_time).format('MMM D, YYYY HH:mm:ss')}
+              {dayjs
+                .utc(job.job_data.start_time)
+                .local()
+                .format('MMM D, YYYY HH:mm:ss')}
             </>
           )}
         </>
@@ -212,9 +218,10 @@ export default function JobProgress({ job }: JobProps) {
             {job?.job_data?.start_time && (
               <>
                 Started:{' '}
-                {dayjs(job?.job_data?.start_time).format(
-                  'MMM D, YYYY HH:mm:ss',
-                )}{' '}
+                {dayjs
+                  .utc(job?.job_data?.start_time)
+                  .local()
+                  .format('MMM D, YYYY HH:mm:ss')}{' '}
                 <br />
               </>
             )}

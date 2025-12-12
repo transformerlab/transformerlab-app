@@ -58,6 +58,10 @@ class Lab:
             if self._job is None:
                 raise RuntimeError(f"Job with ID {existing_job_id} not found. Check _TFL_JOB_ID environment variable.")
             print(f"Using existing job ID: {existing_job_id}")
+            # Set start_time if not already set (for remote jobs launched through providers)
+            job_data = self._job.get_job_data()
+            if not job_data.get("start_time"):
+                self._job.update_job_data_field("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
         else:
             # Create new job as before
             self._experiment = Experiment(experiment_id, create_new=True)
@@ -191,6 +195,7 @@ class Lab:
         self._job.update_status("COMPLETE")  # type: ignore[union-attr]
         self._job.update_job_data_field("completion_status", "success")  # type: ignore[union-attr]
         self._job.update_job_data_field("completion_details", message)  # type: ignore[union-attr]
+        self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))  # type: ignore[union-attr]
         if score is not None:
             self._job.update_job_data_field("score", score)  # type: ignore[union-attr]
         if additional_output_path is not None and additional_output_path.strip() != "":
@@ -832,6 +837,7 @@ class Lab:
         self._job.update_status("COMPLETE")  # type: ignore[union-attr]
         self._job.update_job_data_field("completion_status", "failed")  # type: ignore[union-attr]
         self._job.update_job_data_field("completion_details", message)  # type: ignore[union-attr]
+        self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))  # type: ignore[union-attr]
         self._job.update_job_data_field("status", "FAILED")  # type: ignore[union-attr]
 
     def _detect_and_capture_wandb_url(self) -> None:
