@@ -91,23 +91,24 @@ class SLURMProvider(ComputeProvider):
 
             if self.ssh_key_path:
                 key_path = os.path.expanduser(self.ssh_key_path)
+                if not os.path.exists(key_path):
+                    raise FileNotFoundError(f"SSH key file not found: {key_path}")
                 connect_kwargs["key_filename"] = key_path
-            else:
-                # Try to use default SSH key
-                default_key = os.path.expanduser("~/.ssh/id_rsa")
-                if os.path.exists(default_key):
-                    connect_kwargs["key_filename"] = default_key
 
-            ssh.connect(**connect_kwargs)
+            ssh.connect(**connect_kwargs, timeout=30)
             stdin, stdout, stderr = ssh.exec_command(command)
             output = stdout.read().decode("utf-8")
             error = stderr.read().decode("utf-8")
+            print(f"Output: {output}")
+            print(f"Error: {error}")
 
             if error and "Permission denied" not in error:
                 # Some commands output to stderr but are successful
                 pass
 
             return output
+        except Exception as e:
+            print(f"Error executing command: {e}")
         finally:
             ssh.close()
 
@@ -147,14 +148,11 @@ class SLURMProvider(ComputeProvider):
 
             if self.ssh_key_path:
                 key_path = os.path.expanduser(self.ssh_key_path)
+                if not os.path.exists(key_path):
+                    raise FileNotFoundError(f"SSH key file not found: {key_path}")
                 connect_kwargs["key_filename"] = key_path
-            else:
-                # Try to use default SSH key
-                default_key = os.path.expanduser("~/.ssh/id_rsa")
-                if os.path.exists(default_key):
-                    connect_kwargs["key_filename"] = default_key
 
-            ssh.connect(**connect_kwargs)
+            ssh.connect(**connect_kwargs, timeout=10)
             sftp = ssh.open_sftp()
 
             def _mkdir_p(remote_dir: str) -> None:
@@ -537,11 +535,16 @@ class SLURMProvider(ComputeProvider):
         try:
             if self.mode == "ssh":
                 # Try to execute a simple command to check connectivity
+                # First test basic SSH connectivity with a simple command
+                self._ssh_execute("echo 'SSH connection test'")
+                # Then test if SLURM is available
                 self._ssh_execute("sinfo --version")
                 return True
             else:
                 # REST API - try to make a simple request
                 self._rest_request("GET", "/slurm/v0.0.39/diag")
                 return True
-        except Exception:
+        except Exception as e:
+            # Log the error for debugging
+            print(f"SLURM provider check failed: {type(e).__name__}: {str(e)}")
             return False

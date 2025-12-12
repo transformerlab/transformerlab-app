@@ -455,11 +455,11 @@ install_dependencies() {
 }
 
 ##############################
-## Step 5: Install SkyPilot
+## Step 5: Install Compute Providers
 ##############################
 
-install_skypilot() {
-  title "Step 5: Install SkyPilot"
+install_providers() {
+  title "Step 5: Install Compute Providers"
   echo "🌘 Step 5: START"
 
   unset_conda_for_sure
@@ -475,6 +475,9 @@ install_skypilot() {
 
   echo "Installing SkyPilot with Kubernetes support..."
   uv pip install "skypilot[kubernetes]==0.10.5"
+
+  echo "Installing paramiko for SLURM provider support..."
+  uv pip install paramiko
 
   echo "🌕 Step 5: COMPLETE"
 }
@@ -556,8 +559,8 @@ else
       install_dependencies)
         install_dependencies
         ;;
-      install_skypilot)
-        install_skypilot
+      install_providers)
+        install_providers
         ;;
       doctor)
         doctor
@@ -570,7 +573,7 @@ else
         ;;
       *)
         # Print allowed arguments
-        echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies, install_skypilot] or leave blank to perform a full installation."
+        echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies, install_providers] or leave blank to perform a full installation."
         abort "❌ Unknown argument: $arg"
         ;;
     esac
