@@ -1,15 +1,19 @@
 import json
+import base64
+import httpx
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from typing import Optional
 from werkzeug.utils import secure_filename
 from pydantic import BaseModel
 
 from lab import Dataset
+from lab.dirs import get_workspace_dir
 from transformerlab.services.job_service import job_create
 from transformerlab.models import model_helper
 from transformerlab.services.tasks_service import tasks_service
 from transformerlab.shared import galleries
+from transformerlab.shared.github_utils import read_github_pat_from_workspace
 from transformerlab.routers.auth import get_user_and_team
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -516,3 +520,146 @@ async def export_task_to_team_gallery(
         "message": f"Task '{gallery_entry['title']}' exported to team gallery",
         "data": gallery_entry,
     }
+
+
+@router.get("/fetch_task_json", summary="Fetch task.json from a GitHub repository")
+async def fetch_task_json_from_github(
+    repo_url: str = Query(..., description="GitHub repository URL"),
+    directory: Optional[str] = Query(None, description="Optional subdirectory path"),
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Fetch task.json file from a GitHub repository.
+    Supports both public and private repositories using the team's GitHub PAT.
+
+    Args:
+        repo_url: GitHub repository URL (e.g., https://github.com/owner/repo.git)
+        directory: Optional subdirectory within the repo where task.json is located
+
+    Returns:
+        JSON object containing the task.json content, or error if not found
+    """
+    # Extract owner and repo from URL
+    repo_url_clean = repo_url.replace(".git", "").strip()
+    if not repo_url_clean.startswith("https://github.com/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid GitHub repository URL. Must start with https://github.com/",
+        )
+
+    # Extract owner/repo from URL (e.g., https://github.com/owner/repo -> owner/repo)
+    parts = repo_url_clean.replace("https://github.com/", "").split("/")
+    if len(parts) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid GitHub repository URL format",
+        )
+
+    owner = parts[0]
+    repo = parts[1]
+
+    # Build file path
+    file_path = f"{directory}/task.json" if directory else "task.json"
+    # Normalize path (remove leading/trailing slashes)
+    file_path = file_path.strip("/")
+
+    # Get GitHub PAT from workspace
+    workspace_dir = get_workspace_dir()
+    github_pat = read_github_pat_from_workspace(workspace_dir)
+
+    # Build GitHub API URL
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
+
+    # Prepare headers
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "TransformerLab",
+    }
+
+    # Add authentication if PAT is available
+    if github_pat:
+        headers["Authorization"] = f"token {github_pat}"
+
+    try:
+        # Fetch file from GitHub API
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(api_url, headers=headers)
+
+            if response.status_code == 404:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"task.json not found at {file_path} in repository {owner}/{repo}",
+                )
+
+            if response.status_code == 403:
+                # Could be rate limit or private repo without auth
+                if github_pat:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Access denied. Please check your GitHub PAT permissions.",
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Repository is private. Please configure a GitHub PAT in team settings.",
+                    )
+
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Failed to fetch task.json: {response.text}",
+                )
+
+            # Parse response
+            file_data = response.json()
+
+            # GitHub API returns base64-encoded content
+            if "content" not in file_data:
+                raise HTTPException(
+                    status_code=500,
+                    detail="GitHub API response missing content field",
+                )
+
+            # Decode base64 content
+            try:
+                content = base64.b64decode(file_data["content"]).decode("utf-8")
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to decode file content: {str(e)}",
+                )
+
+            # Parse JSON
+            try:
+                task_json = json.loads(content)
+            except json.JSONDecodeError as e:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"task.json is not valid JSON: {str(e)}",
+                )
+
+            return {
+                "status": "success",
+                "data": task_json,
+                "repo": f"{owner}/{repo}",
+                "path": file_path,
+            }
+
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail="Request to GitHub API timed out",
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to connect to GitHub API: {str(e)}",
+        )
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error fetching task.json: {str(e)}",
+        )

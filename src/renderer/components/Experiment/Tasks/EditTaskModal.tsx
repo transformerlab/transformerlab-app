@@ -296,9 +296,10 @@ export default function EditTaskModal({
     }
 
     // Preserve existing config and only update editable fields
+    // GitHub fields are preserved from existing config (read-only)
     const existingConfig = SafeJSONParse(task.config, {});
     const config = {
-      ...existingConfig, // Keep all existing fields
+      ...existingConfig, // Keep all existing fields (including GitHub settings)
       cluster_name: clusterName,
       command: commandValue,
       cpus: cpus || undefined,
@@ -311,11 +312,14 @@ export default function EditTaskModal({
       provider_id: selectedProviderId,
       file_mounts:
         Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
-      github_enabled: githubEnabled || undefined,
+      // GitHub fields are preserved from existingConfig (not editable)
+      // Only update if they don't exist in existing config (shouldn't happen, but safety)
+      github_enabled:
+        existingConfig.github_enabled || githubEnabled || undefined,
       github_repo_url:
-        githubEnabled && githubRepoUrl ? githubRepoUrl : undefined,
+        existingConfig.github_repo_url || githubRepoUrl || undefined,
       github_directory:
-        githubEnabled && githubDirectory ? githubDirectory : undefined,
+        existingConfig.github_directory || githubDirectory || undefined,
     } as any;
     const providerMeta = providers.find(
       (provider) => provider.id === selectedProviderId,
@@ -661,47 +665,52 @@ export default function EditTaskModal({
               </Stack>
             </FormControl>
 
-            <FormControl sx={{ mt: 2 }}>
-              <FormLabel>GitHub Repository (Optional)</FormLabel>
-              <Checkbox
-                label="Enable GitHub repository cloning"
-                checked={githubEnabled}
-                onChange={(e) => setGithubEnabled(e.target.checked)}
-                sx={{ mb: githubEnabled ? 2 : 0 }}
-              />
-              {githubEnabled && (
+            {githubEnabled && (
+              <FormControl sx={{ mt: 2 }}>
+                <FormLabel>GitHub Repository (Read-Only)</FormLabel>
                 <Stack spacing={2} sx={{ mt: 1 }}>
                   <FormControl>
                     <FormLabel>GitHub Repository URL</FormLabel>
                     <Input
                       value={githubRepoUrl}
-                      onChange={(e) => setGithubRepoUrl(e.target.value)}
+                      disabled
+                      readOnly
                       placeholder="https://github.com/owner/repo.git"
+                      sx={{
+                        bgcolor: 'background.level1',
+                        cursor: 'not-allowed',
+                      }}
                     />
                     <FormHelperText>
-                      The GitHub repository URL to clone from
+                      GitHub repository URL (read-only - source of truth)
                     </FormHelperText>
                   </FormControl>
-                  <FormControl>
-                    <FormLabel>Directory Path (Optional)</FormLabel>
-                    <Input
-                      value={githubDirectory}
-                      onChange={(e) => setGithubDirectory(e.target.value)}
-                      placeholder="path/to/directory"
-                    />
-                    <FormHelperText>
-                      Optional: Specific directory within the repo to clone. If
-                      empty, the entire repo will be cloned.
-                    </FormHelperText>
-                  </FormControl>
+                  {githubDirectory && (
+                    <FormControl>
+                      <FormLabel>Directory Path</FormLabel>
+                      <Input
+                        value={githubDirectory}
+                        disabled
+                        readOnly
+                        placeholder="path/to/directory"
+                        sx={{
+                          bgcolor: 'background.level1',
+                          cursor: 'not-allowed',
+                        }}
+                      />
+                      <FormHelperText>
+                        Directory path (read-only - source of truth)
+                      </FormHelperText>
+                    </FormControl>
+                  )}
                 </Stack>
-              )}
-              <FormHelperText>
-                If enabled, the repository will be cloned during setup. A GitHub
-                PAT (Personal Access Token) will be used for private
-                repositories.
-              </FormHelperText>
-            </FormControl>
+                <FormHelperText sx={{ mt: 1 }}>
+                  GitHub repository settings are read-only. To change the
+                  repository, create a new task. You can edit the parsed
+                  configuration values above.
+                </FormHelperText>
+              </FormControl>
+            )}
 
             <FormControl required sx={{ mt: 2 }}>
               <FormLabel>Command</FormLabel>
