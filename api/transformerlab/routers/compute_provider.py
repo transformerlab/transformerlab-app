@@ -963,6 +963,35 @@ async def get_cluster_resources(
         raise HTTPException(status_code=500, detail="Failed to get cluster resources")
 
 
+@router.get("/{provider_id}/clusters")
+async def list_clusters_detailed(
+    provider_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get detailed list of clusters for a provider, including nodes and resources.
+    Requires X-Team-Id header and team membership.
+    """
+    team_id = user_and_team["team_id"]
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        # Get provider instance
+        provider_instance = get_provider_instance(provider)
+
+        # Get detailed clusters
+        clusters = provider_instance.get_clusters_detailed()
+
+        return clusters
+    except Exception as e:
+        print(f"Failed to list clusters: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to list clusters")
+
+
 # ============================================================================
 # Job Management Routes
 # ============================================================================

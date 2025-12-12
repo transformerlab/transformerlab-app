@@ -254,6 +254,10 @@
       "method": "GET",
       "path": "compute_provider/clusters"
     },
+    "providerClusters": {
+      "method": "GET",
+      "path": "compute_provider/{providerId}/clusters"
+    },
     "stopCluster": {
       "method": "POST",
       "path": "compute_provider/{providerId}/clusters/{clusterName}/stop"

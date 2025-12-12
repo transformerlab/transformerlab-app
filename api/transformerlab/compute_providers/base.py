@@ -66,6 +66,16 @@ class ComputeProvider(ABC):
         return []
 
     @abstractmethod
+    def get_clusters_detailed(self) -> List[Dict[str, Any]]:
+        """
+        Get detailed cluster information including nodes and resources.
+
+        Returns:
+            List of dictionaries with detailed cluster information
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         """
         Get resource information for a cluster (GPUs, CPUs, memory, etc.).
