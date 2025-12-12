@@ -140,7 +140,7 @@
       "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
     },
     "fuse_model": {
-      "ui:help": "This will create a new fused model with the adaptor and the model merged. A separate entry will be created in the Model Gallery for the fused model."
+      "ui:help": "This will create a new fused model with the adaptor and the model merged. A separate entry will be created in the Model Registry for the fused model."
     }
   }
 }
