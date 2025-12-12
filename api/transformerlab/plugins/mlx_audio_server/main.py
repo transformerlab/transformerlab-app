@@ -133,10 +133,10 @@ class MLXAudioWorker(BaseModelWorker):
                     "message": f"{audio_dir}/{file_prefix}.{audio_format}",
                 }
             except Exception as e:
-                logger.error(f"Error generating audio: {str(e)}")
+                logger.error(f"Error generating audio")
                 return {
                     "status": "error",
-                    "message": f"Error generating audio: {str(e)}",
+                    "message": f"Error generating audio}",
                 }
 
         elif task == "stt":
@@ -179,10 +179,10 @@ class MLXAudioWorker(BaseModelWorker):
                     "message": f"{transcriptions_dir}/{file_prefix}.{format}",
                 }
             except Exception as e:
-                logger.error(f"Error generating transcription: {str(e)}")
+                logger.error(f"Error generating transcription")
                 return {
                     "status": "error",
-                    "message": f"Error generating transcription: {str(e)}",
+                    "message": f"Error generating transcription}",
                 }
 
         else:
@@ -227,7 +227,7 @@ async def api_generate(request: Request):
         # logger.debug("Trying to abort but not implemented")
         return JSONResponse(output)
     except Exception as e:
-        return JSONResponse({"status": "error", "message": str(e)})
+        return JSONResponse({"status": "error", "message"})
 
 
 @app.post("/worker_get_status")
