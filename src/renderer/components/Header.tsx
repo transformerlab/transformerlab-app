@@ -329,7 +329,7 @@ function StatsBar({ connection, setConnection }) {
               &nbsp; Connected -
             </div>
           </Tooltip>
-          <span style={{ display: 'flex', '-webkit-app-region': 'no-drag' }}>
+          <span style={{ display: 'flex', WebkitAppRegion: 'no-drag' } as any}>
             &nbsp;CPU:
             <div style={{ width: '60px', textAlign: 'center' }}>
               <div
@@ -461,12 +461,14 @@ export default function Header({ connection, setConnection }) {
       className="header"
     >
       <div
-        style={{
-          height: '100%',
-          flex: 1,
-          // border: '1px solid purple',
-          '-webkit-app-region': 'drag',
-        }}
+        style={
+          {
+            height: '100%',
+            flex: 1,
+            // border: '1px solid purple',
+            WebkitAppRegion: 'drag',
+          } as any
+        }
       />
       {!isS3Mode && (
         <div
@@ -488,12 +490,14 @@ export default function Header({ connection, setConnection }) {
       )}
 
       <div
-        style={{
-          height: '100%',
-          flex: 1,
-          // border: '1px solid purple',
-          '-webkit-app-region': 'drag',
-        }}
+        style={
+          {
+            height: '100%',
+            flex: 1,
+            // border: '1px solid purple',
+            WebkitAppRegion: 'drag',
+          } as any
+        }
       />
       {isS3Mode ? (
         <Box sx={{ mr: 2 }} />
