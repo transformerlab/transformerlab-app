@@ -4,7 +4,7 @@
   "description": "Inference server for diffusion language models (dLLM) - supports LLaDA, Dream, and other diffusion-based text generation models",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "supports": ["text_diffusion"],
   "model_architectures": [
     "BertForMaskedLM",

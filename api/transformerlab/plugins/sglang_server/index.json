@@ -4,7 +4,7 @@
   "description": "SGLang Server loads models for multimodal inference using Huggingface Transformers for generation.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "supports": [
     "chat",
     "completion",
