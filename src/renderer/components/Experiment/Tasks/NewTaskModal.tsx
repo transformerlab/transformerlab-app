@@ -15,12 +15,21 @@ import {
   Option,
   IconButton,
   Stack,
-  Switch,
   Checkbox,
+  Radio,
+  RadioGroup,
+  Typography,
+  Divider,
+  CircularProgress,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
-import { Trash2Icon, PlusIcon } from 'lucide-react';
+import {
+  Trash2Icon,
+  PlusIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+} from 'lucide-react';
 
 import { useEffect, useRef, useState } from 'react';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
@@ -65,6 +74,50 @@ type NewTaskModalProps = {
   isProvidersLoading?: boolean;
 };
 
+type TaskMode = 'github-with-json' | 'github-manual' | 'no-github';
+
+type Phase =
+  | 'github-selection'
+  | 'task-json-selection'
+  | 'task-config'
+  | 'provider-env';
+
+// Helper function to fetch task.json from GitHub via backend API
+async function fetchTaskJsonFromGitHub(
+  repoUrl: string,
+  directory?: string,
+): Promise<any | null> {
+  try {
+    const url = chatAPI.Endpoints.Tasks.FetchTaskJson(
+      repoUrl,
+      directory || undefined,
+    );
+    const response = await chatAPI.authenticatedFetch(url, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(
+        'Error fetching task.json from GitHub:',
+        response.status,
+        errorText,
+      );
+      return null;
+    }
+
+    const result = await response.json();
+    if (result.status === 'success' && result.data) {
+      return result.data;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error fetching task.json from GitHub:', error);
+    return null;
+  }
+}
+
 export default function NewTaskModal({
   open,
   onClose,
@@ -75,6 +128,19 @@ export default function NewTaskModal({
 }: NewTaskModalProps) {
   const { addNotification } = useNotification();
 
+  // Phase management
+  const [currentPhase, setCurrentPhase] = useState<Phase>('github-selection');
+  const [taskMode, setTaskMode] = useState<TaskMode | null>(null);
+
+  // GitHub fields
+  const [useGithub, setUseGithub] = useState<boolean | null>(null);
+  const [githubRepoUrl, setGithubRepoUrl] = useState('');
+  const [githubDirectory, setGithubDirectory] = useState('');
+  const [hasTaskJson, setHasTaskJson] = useState<boolean | null>(null);
+  const [isLoadingTaskJson, setIsLoadingTaskJson] = useState(false);
+  const [taskJsonData, setTaskJsonData] = useState<any | null>(null);
+
+  // Task fields
   const [title, setTitle] = React.useState('');
   const [clusterName, setClusterName] = React.useState('');
   const [command, setCommand] = React.useState('');
@@ -96,12 +162,49 @@ export default function NewTaskModal({
     }>
   >([{ remotePath: '', file: null, uploading: false, storedPath: undefined }]);
   const [selectedProviderId, setSelectedProviderId] = useState('');
-  const [githubEnabled, setGithubEnabled] = useState(false);
-  const [githubRepoUrl, setGithubRepoUrl] = useState('');
-  const [githubDirectory, setGithubDirectory] = useState('');
-  // keep separate refs for the two Monaco editors
+
+  // Editor refs
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
+
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (!open) {
+      // Reset all state when modal closes
+      setCurrentPhase('github-selection');
+      setTaskMode(null);
+      setUseGithub(null);
+      setGithubRepoUrl('');
+      setGithubDirectory('');
+      setHasTaskJson(null);
+      setTaskJsonData(null);
+      setTitle('');
+      setClusterName('');
+      setCommand('');
+      setCpus('');
+      setMemory('');
+      setDiskSpace('');
+      setAccelerators('');
+      setNumNodes('');
+      setSetup('');
+      setEnvVars([{ key: '', value: '' }]);
+      setFileMounts([
+        { remotePath: '', file: null, uploading: false, storedPath: undefined },
+      ]);
+      setSelectedProviderId(providers[0]?.id || '');
+      try {
+        setupEditorRef?.current?.setValue?.('');
+        commandEditorRef?.current?.setValue?.('');
+      } catch (err) {
+        // ignore
+      }
+    } else {
+      // Initialize provider selection when modal opens
+      if (providers.length > 0 && !selectedProviderId) {
+        setSelectedProviderId(providers[0].id);
+      }
+    }
+  }, [open, providers]);
 
   useEffect(() => {
     if (!providers.length) {
@@ -117,8 +220,139 @@ export default function NewTaskModal({
     }
   }, [providers, selectedProviderId]);
 
+  // Load task.json when user confirms they have one
+  useEffect(() => {
+    if (
+      currentPhase === 'task-json-selection' &&
+      hasTaskJson === true &&
+      githubRepoUrl &&
+      !taskJsonData &&
+      !isLoadingTaskJson
+    ) {
+      setIsLoadingTaskJson(true);
+      fetchTaskJsonFromGitHub(githubRepoUrl, githubDirectory || undefined)
+        .then((data) => {
+          if (data) {
+            setTaskJsonData(data);
+            // Pre-populate fields from task.json
+            if (data.title) setTitle(data.title);
+            if (data.name) setTitle(data.name);
+            if (data.cluster_name) setClusterName(data.cluster_name);
+            if (data.command) setCommand(data.command);
+            if (data.cpus) setCpus(String(data.cpus));
+            if (data.memory) setMemory(String(data.memory));
+            if (data.disk_space) setDiskSpace(String(data.disk_space));
+            if (data.accelerators) setAccelerators(data.accelerators);
+            if (data.num_nodes) setNumNodes(String(data.num_nodes));
+            if (data.setup) setSetup(data.setup);
+            if (data.env_vars && typeof data.env_vars === 'object') {
+              const envVarsArray = Object.entries(data.env_vars).map(
+                ([key, value]) => ({
+                  key,
+                  value: String(value),
+                }),
+              );
+              setEnvVars(
+                envVarsArray.length > 0
+                  ? envVarsArray
+                  : [{ key: '', value: '' }],
+              );
+            }
+            addNotification({
+              type: 'success',
+              message: 'Successfully loaded task.json from GitHub',
+            });
+          } else {
+            addNotification({
+              type: 'warning',
+              message:
+                'Could not find or parse task.json. You can still configure manually.',
+            });
+            setHasTaskJson(false);
+          }
+        })
+        .catch((error) => {
+          console.error('Error loading task.json:', error);
+          addNotification({
+            type: 'warning',
+            message:
+              'Could not load task.json. You can still configure manually.',
+          });
+          setHasTaskJson(false);
+        })
+        .finally(() => {
+          setIsLoadingTaskJson(false);
+        });
+    }
+  }, [
+    currentPhase,
+    hasTaskJson,
+    githubRepoUrl,
+    githubDirectory,
+    taskJsonData,
+    isLoadingTaskJson,
+    addNotification,
+  ]);
+
+  const handleNextPhase = () => {
+    if (currentPhase === 'github-selection') {
+      if (useGithub === true) {
+        if (!githubRepoUrl.trim()) {
+          addNotification({
+            type: 'warning',
+            message: 'Please enter a GitHub repository URL',
+          });
+          return;
+        }
+        setCurrentPhase('task-json-selection');
+      } else if (useGithub === false) {
+        setTaskMode('no-github');
+        setCurrentPhase('task-config');
+      }
+    } else if (currentPhase === 'task-json-selection') {
+      if (hasTaskJson === true) {
+        setTaskMode('github-with-json');
+        setCurrentPhase('task-config');
+      } else if (hasTaskJson === false) {
+        setTaskMode('github-manual');
+        setCurrentPhase('task-config');
+      }
+    } else if (currentPhase === 'task-config') {
+      setCurrentPhase('provider-env');
+    }
+  };
+
+  const handleBackPhase = () => {
+    if (currentPhase === 'task-json-selection') {
+      setCurrentPhase('github-selection');
+      setHasTaskJson(null);
+      setTaskJsonData(null);
+    } else if (currentPhase === 'task-config') {
+      if (useGithub) {
+        setCurrentPhase('task-json-selection');
+      } else {
+        setCurrentPhase('github-selection');
+      }
+      setTaskMode(null);
+    } else if (currentPhase === 'provider-env') {
+      setCurrentPhase('task-config');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (currentPhase !== 'provider-env') {
+      handleNextPhase();
+      return;
+    }
+
+    // Validation
+    if (!title.trim()) {
+      addNotification({ type: 'warning', message: 'Title is required' });
+      return;
+    }
+
     // read editor values (fallback to state if editor not mounted)
     const setupValue =
       setupEditorRef?.current?.getValue?.() ?? (setup || undefined);
@@ -203,7 +437,7 @@ export default function NewTaskModal({
 
     onSubmit({
       title,
-      cluster_name: clusterName,
+      cluster_name: clusterName || title,
       command: commandValue,
       cpus: cpus || undefined,
       memory: memory || undefined,
@@ -215,13 +449,20 @@ export default function NewTaskModal({
       provider_id: selectedProviderId,
       file_mounts:
         Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
-      github_enabled: githubEnabled || undefined,
-      github_repo_url:
-        githubEnabled && githubRepoUrl ? githubRepoUrl : undefined,
+      github_enabled: useGithub || undefined,
+      github_repo_url: useGithub && githubRepoUrl ? githubRepoUrl : undefined,
       github_directory:
-        githubEnabled && githubDirectory ? githubDirectory : undefined,
+        useGithub && githubDirectory ? githubDirectory : undefined,
     });
-    // Reset all form fields
+
+    // Reset form
+    setCurrentPhase('github-selection');
+    setTaskMode(null);
+    setUseGithub(null);
+    setGithubRepoUrl('');
+    setGithubDirectory('');
+    setHasTaskJson(null);
+    setTaskJsonData(null);
     setTitle('');
     setClusterName('');
     setCommand('');
@@ -236,10 +477,6 @@ export default function NewTaskModal({
       { remotePath: '', file: null, uploading: false, storedPath: undefined },
     ]);
     setSelectedProviderId(providers[0]?.id || '');
-    setGithubEnabled(false);
-    setGithubRepoUrl('');
-    setGithubDirectory('');
-    // clear editor contents if mounted
     try {
       setupEditorRef?.current?.setValue?.('');
       commandEditorRef?.current?.setValue?.('');
@@ -252,78 +489,192 @@ export default function NewTaskModal({
   function handleSetupEditorDidMount(editor: any, monaco: any) {
     setupEditorRef.current = editor;
     setTheme(editor, monaco);
+    if (setup) {
+      editor.setValue(setup);
+    }
   }
 
   function handleCommandEditorDidMount(editor: any, monaco: any) {
     commandEditorRef.current = editor;
     setTheme(editor, monaco);
+    if (command) {
+      editor.setValue(command);
+    }
   }
 
-  return (
-    <Modal open={open} onClose={onClose}>
-      <ModalDialog
-        sx={{ maxHeight: '90vh', width: '70vw', overflow: 'hidden' }}
-      >
-        <ModalClose />
-        <DialogTitle>New Task</DialogTitle>
-        <form onSubmit={handleSubmit}>
-          <DialogContent sx={{ maxHeight: '70vh', overflow: 'auto' }}>
+  // Update editors when setup/command state changes (e.g., from task.json)
+  useEffect(() => {
+    if (setupEditorRef.current && setup) {
+      setupEditorRef.current.setValue(setup);
+    }
+  }, [setup]);
+
+  useEffect(() => {
+    if (commandEditorRef.current && command) {
+      commandEditorRef.current.setValue(command);
+    }
+  }, [command]);
+
+  const renderPhaseContent = () => {
+    switch (currentPhase) {
+      case 'github-selection':
+        return (
+          <Stack spacing={3}>
+            <Typography level="title-lg">GitHub Repository</Typography>
+            <FormHelperText>
+              Would you like to specify a GitHub repository and subdirectory
+              where your task is located?
+            </FormHelperText>
+            <RadioGroup
+              value={useGithub === null ? '' : useGithub ? 'yes' : 'no'}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                const value = e.target.value;
+                setUseGithub(value === 'yes');
+                if (value === 'yes') {
+                  // Clear previous GitHub data
+                  setGithubRepoUrl('');
+                  setGithubDirectory('');
+                }
+              }}
+            >
+              <Radio value="yes" label="Yes, use a GitHub repository" />
+              <Radio value="no" label="No, I'll provide files manually" />
+            </RadioGroup>
+            {useGithub === true && (
+              <Stack spacing={2} sx={{ mt: 2 }}>
+                <FormControl required>
+                  <FormLabel>GitHub Repository URL</FormLabel>
+                  <Input
+                    value={githubRepoUrl}
+                    onChange={(e) => setGithubRepoUrl(e.target.value)}
+                    placeholder="https://github.com/owner/repo.git"
+                  />
+                  <FormHelperText>
+                    The GitHub repository URL to clone from
+                  </FormHelperText>
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Directory Path (Optional)</FormLabel>
+                  <Input
+                    value={githubDirectory}
+                    onChange={(e) => setGithubDirectory(e.target.value)}
+                    placeholder="path/to/directory"
+                  />
+                  <FormHelperText>
+                    Optional: Specific directory within the repo. If empty, the
+                    entire repo will be cloned.
+                  </FormHelperText>
+                </FormControl>
+              </Stack>
+            )}
+          </Stack>
+        );
+
+      case 'task-json-selection':
+        return (
+          <Stack spacing={3}>
+            <Typography level="title-lg">Task Configuration</Typography>
+            <FormHelperText>
+              Does your GitHub repository have a task.json file that contains
+              the task configuration (cpus, accelerators, setup, command,
+              memory, etc.)?
+            </FormHelperText>
+            {isLoadingTaskJson && (
+              <Stack
+                direction="row"
+                spacing={2}
+                alignItems="center"
+                sx={{ mt: 2 }}
+              >
+                <CircularProgress size="sm" />
+                <Typography level="body-sm">
+                  Loading task.json from GitHub...
+                </Typography>
+              </Stack>
+            )}
+            <RadioGroup
+              value={hasTaskJson === null ? '' : hasTaskJson ? 'yes' : 'no'}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                const value = e.target.value;
+                setHasTaskJson(value === 'yes');
+                if (value === 'no') {
+                  // Clear task.json data if user changes mind
+                  setTaskJsonData(null);
+                }
+              }}
+            >
+              <Radio
+                value="yes"
+                label="Yes, use task.json from the repository"
+                disabled={isLoadingTaskJson}
+              />
+              <Radio
+                value="no"
+                label="No, I'll configure manually"
+                disabled={isLoadingTaskJson}
+              />
+            </RadioGroup>
+            {taskJsonData && (
+              <Stack
+                spacing={1}
+                sx={{
+                  mt: 2,
+                  p: 2,
+                  bgcolor: 'background.level1',
+                  borderRadius: 'sm',
+                }}
+              >
+                <Typography level="body-sm" fontWeight="lg">
+                  Loaded from task.json:
+                </Typography>
+                <Typography level="body-xs" fontFamily="mono">
+                  {JSON.stringify(taskJsonData, null, 2).slice(0, 200)}...
+                </Typography>
+              </Stack>
+            )}
+          </Stack>
+        );
+
+      case 'task-config':
+        return (
+          <Stack spacing={3}>
+            <Typography level="title-lg">Task Configuration</Typography>
+            {taskMode === 'github-with-json' && (
+              <FormHelperText>
+                Configuration loaded from task.json. You can review and modify
+                these fields if needed.
+              </FormHelperText>
+            )}
+            {taskMode === 'github-manual' && (
+              <FormHelperText>
+                Configure your task settings. The GitHub repository will be
+                cloned during setup.
+              </FormHelperText>
+            )}
+            {taskMode === 'no-github' && (
+              <FormHelperText>
+                Configure your task settings and upload any required files.
+              </FormHelperText>
+            )}
+
             <FormControl required>
               <FormLabel>Title</FormLabel>
               <Input
                 value={title}
                 onChange={(e) => {
                   setTitle(e.target.value);
-                  setClusterName(`${e.target.value}`);
+                  setClusterName(e.target.value || '');
                 }}
                 placeholder="Task title"
                 autoFocus
               />
             </FormControl>
 
-            <FormControl required sx={{ mt: 2 }}>
-              <FormLabel>Provider</FormLabel>
-              <Select
-                placeholder={
-                  providers.length
-                    ? 'Select a provider'
-                    : 'No providers configured'
-                }
-                value={selectedProviderId || null}
-                onChange={(_, value) => setSelectedProviderId(value || '')}
-                disabled={
-                  isSubmitting || isProvidersLoading || providers.length === 0
-                }
-                slotProps={{
-                  listbox: { sx: { maxHeight: 240 } },
-                }}
-              >
-                {providers.map((provider) => (
-                  <Option key={provider.id} value={provider.id}>
-                    {provider.name}
-                  </Option>
-                ))}
-              </Select>
-              <FormHelperText>
-                Choose which provider should launch this task.
-              </FormHelperText>
-            </FormControl>
-
-            {/* <FormControl required sx={{ mt: 2 }}>
-              <FormLabel>Cluster Name</FormLabel>
-              <Input
-                value={clusterName}
-                onChange={(e) => setClusterName(e.target.value)}
-                placeholder="Cluster name"
-              />
-            </FormControl> */}
-
             <div
               style={{
                 display: 'flex',
                 flexWrap: 'wrap',
                 gap: '16px',
-                marginTop: '16px',
               }}
             >
               <FormControl
@@ -360,7 +711,7 @@ export default function NewTaskModal({
               </FormControl>
             </div>
 
-            <FormControl sx={{ mt: 2 }}>
+            <FormControl>
               <FormLabel>Accelerators per Node</FormLabel>
               <Input
                 value={accelerators}
@@ -369,7 +720,7 @@ export default function NewTaskModal({
               />
             </FormControl>
 
-            <FormControl sx={{ mt: 2 }}>
+            <FormControl>
               <FormLabel>Number of Nodes</FormLabel>
               <Input
                 type="number"
@@ -379,15 +730,8 @@ export default function NewTaskModal({
               />
             </FormControl>
 
-            <FormControl sx={{ mt: 2 }}>
+            <FormControl>
               <FormLabel>Setup Command</FormLabel>
-              {/* <Textarea
-                minRows={2}
-                value={setup}
-                onChange={(e) => setSetup(e.target.value)}
-                placeholder="Setup commands (optional) that runs before task is run. e.g. pip install -r requirements.txt"
-              /> */}
-
               <Editor
                 defaultLanguage="shell"
                 theme="my-theme"
@@ -407,7 +751,147 @@ export default function NewTaskModal({
               </FormHelperText>
             </FormControl>
 
-            <FormControl sx={{ mt: 2 }}>
+            <FormControl required>
+              <FormLabel>Command</FormLabel>
+              <Editor
+                defaultLanguage="shell"
+                theme="my-theme"
+                height="8rem"
+                options={{
+                  minimap: {
+                    enabled: false,
+                  },
+                  fontSize: 18,
+                  cursorStyle: 'block',
+                  wordWrap: 'on',
+                }}
+                onMount={handleCommandEditorDidMount}
+              />
+              <FormHelperText>
+                e.g. <code>python train.py --epochs 10</code>
+              </FormHelperText>
+            </FormControl>
+
+            {taskMode === 'no-github' && (
+              <FormControl>
+                <FormLabel>File Mounts</FormLabel>
+                <FormHelperText>
+                  For each mount, choose a remote path and upload a file to be
+                  staged on the server.
+                </FormHelperText>
+                <Stack spacing={1} sx={{ mt: 1 }}>
+                  {fileMounts.map((fm, index) => (
+                    <Stack
+                      key={index}
+                      direction="row"
+                      spacing={1}
+                      alignItems="center"
+                      sx={{ flexWrap: 'wrap' }}
+                    >
+                      <Input
+                        placeholder="/remote/path/on/cluster"
+                        value={fm.remotePath}
+                        onChange={(e) => {
+                          const next = [...fileMounts];
+                          next[index].remotePath = e.target.value;
+                          setFileMounts(next);
+                        }}
+                        sx={{ flex: 1, minWidth: '200px' }}
+                      />
+                      <input
+                        type="file"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          const next = [...fileMounts];
+                          next[index].file = file;
+                          setFileMounts(next);
+                        }}
+                      />
+                      <IconButton
+                        color="danger"
+                        variant="plain"
+                        onClick={() => {
+                          if (fileMounts.length === 1) {
+                            setFileMounts([
+                              {
+                                remotePath: '',
+                                file: null,
+                                uploading: false,
+                                storedPath: undefined,
+                              },
+                            ]);
+                          } else {
+                            setFileMounts(
+                              fileMounts.filter((_, i) => i !== index),
+                            );
+                          }
+                        }}
+                      >
+                        <Trash2Icon size={16} />
+                      </IconButton>
+                    </Stack>
+                  ))}
+                  <Button
+                    variant="outlined"
+                    size="sm"
+                    startDecorator={<PlusIcon size={16} />}
+                    onClick={() =>
+                      setFileMounts([
+                        ...fileMounts,
+                        {
+                          remotePath: '',
+                          file: null,
+                          uploading: false,
+                          storedPath: undefined,
+                        },
+                      ])
+                    }
+                  >
+                    Add File Mount
+                  </Button>
+                </Stack>
+              </FormControl>
+            )}
+          </Stack>
+        );
+
+      case 'provider-env':
+        return (
+          <Stack spacing={3}>
+            <Typography level="title-lg">Provider & Environment</Typography>
+            <FormHelperText>
+              Select the compute provider and configure environment variables.
+            </FormHelperText>
+
+            <FormControl required>
+              <FormLabel>Provider</FormLabel>
+              <Select
+                placeholder={
+                  providers.length
+                    ? 'Select a provider'
+                    : 'No providers configured'
+                }
+                value={selectedProviderId || null}
+                onChange={(_, value) => setSelectedProviderId(value || '')}
+                disabled={
+                  isSubmitting || isProvidersLoading || providers.length === 0
+                }
+                slotProps={{
+                  listbox: { sx: { maxHeight: 240 } },
+                }}
+              >
+                {providers.map((provider) => (
+                  <Option key={provider.id} value={provider.id}>
+                    {provider.name}
+                  </Option>
+                ))}
+              </Select>
+              <FormHelperText>
+                Choose which provider should launch this task.
+              </FormHelperText>
+            </FormControl>
+
+            <FormControl>
               <FormLabel>Environment Variables</FormLabel>
               <Stack spacing={1}>
                 {envVars.map((envVar, index) => (
@@ -467,172 +951,97 @@ export default function NewTaskModal({
                 Optional environment variables to set when launching the cluster
               </FormHelperText>
             </FormControl>
-            <FormControl sx={{ mt: 2 }}>
-              <FormLabel>File Mounts</FormLabel>
-              <FormHelperText>
-                For each mount, choose a remote path and upload a file to be
-                staged on the server.
-              </FormHelperText>
-              <Stack spacing={1} sx={{ mt: 1 }}>
-                {fileMounts.map((fm, index) => (
-                  <Stack
-                    key={index}
-                    direction="row"
-                    spacing={1}
-                    alignItems="center"
-                    sx={{ flexWrap: 'wrap' }}
-                  >
-                    <Input
-                      placeholder="/remote/path/on/cluster"
-                      value={fm.remotePath}
-                      onChange={(e) => {
-                        const next = [...fileMounts];
-                        next[index].remotePath = e.target.value;
-                        setFileMounts(next);
-                      }}
-                      sx={{ flex: 1, minWidth: '200px' }}
-                    />
-                    <input
-                      type="file"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] || null;
-                        const next = [...fileMounts];
-                        next[index].file = file;
-                        setFileMounts(next);
-                      }}
-                    />
-                    <IconButton
-                      color="danger"
-                      variant="plain"
-                      onClick={() => {
-                        if (fileMounts.length === 1) {
-                          setFileMounts([
-                            {
-                              remotePath: '',
-                              file: null,
-                              uploading: false,
-                              storedPath: undefined,
-                            },
-                          ]);
-                        } else {
-                          setFileMounts(
-                            fileMounts.filter((_, i) => i !== index),
-                          );
-                        }
-                      }}
-                    >
-                      <Trash2Icon size={16} />
-                    </IconButton>
-                  </Stack>
-                ))}
-                <Button
-                  variant="outlined"
-                  size="sm"
-                  startDecorator={<PlusIcon size={16} />}
-                  onClick={() =>
-                    setFileMounts([
-                      ...fileMounts,
-                      {
-                        remotePath: '',
-                        file: null,
-                        uploading: false,
-                        storedPath: undefined,
-                      },
-                    ])
-                  }
-                >
-                  Add File Mount
-                </Button>
-              </Stack>
-            </FormControl>
+          </Stack>
+        );
 
-            <FormControl sx={{ mt: 2 }}>
-              <FormLabel>GitHub Repository (Optional)</FormLabel>
-              <Checkbox
-                label="Enable GitHub repository cloning"
-                checked={githubEnabled}
-                onChange={(e) => setGithubEnabled(e.target.checked)}
-                sx={{ mb: githubEnabled ? 2 : 0 }}
-              />
-              {githubEnabled && (
-                <Stack spacing={2} sx={{ mt: 1 }}>
-                  <FormControl>
-                    <FormLabel>GitHub Repository URL</FormLabel>
-                    <Input
-                      value={githubRepoUrl}
-                      onChange={(e) => setGithubRepoUrl(e.target.value)}
-                      placeholder="https://github.com/owner/repo.git"
-                    />
-                    <FormHelperText>
-                      The GitHub repository URL to clone from
-                    </FormHelperText>
-                  </FormControl>
-                  <FormControl>
-                    <FormLabel>Directory Path (Optional)</FormLabel>
-                    <Input
-                      value={githubDirectory}
-                      onChange={(e) => setGithubDirectory(e.target.value)}
-                      placeholder="path/to/directory"
-                    />
-                    <FormHelperText>
-                      Optional: Specific directory within the repo to clone. If
-                      empty, the entire repo will be cloned.
-                    </FormHelperText>
-                  </FormControl>
-                </Stack>
-              )}
-              <FormHelperText>
-                If enabled, the repository will be cloned during setup. A GitHub
-                PAT (Personal Access Token) will be used for private
-                repositories.
-              </FormHelperText>
-            </FormControl>
+      default:
+        return null;
+    }
+  };
 
-            <FormControl required sx={{ mt: 2, mb: 2 }}>
-              <FormLabel>Command</FormLabel>
-              {/* <Textarea
-                minRows={4}
-                value={command}
-                onChange={(e) => setCommand(e.target.value)}
-                placeholder="e.g. python train.py --epochs 10"
-              /> */}
+  const getPhaseTitle = () => {
+    switch (currentPhase) {
+      case 'github-selection':
+        return 'Step 1: GitHub Repository';
+      case 'task-json-selection':
+        return 'Step 2: Task Configuration Source';
+      case 'task-config':
+        return 'Step 3: Task Configuration';
+      case 'provider-env':
+        return 'Step 4: Provider & Environment';
+      default:
+        return 'New Task';
+    }
+  };
 
-              <Editor
-                defaultLanguage="shell"
-                theme="my-theme"
-                height="8rem"
-                options={{
-                  minimap: {
-                    enabled: false,
-                  },
-                  fontSize: 18,
-                  cursorStyle: 'block',
-                  wordWrap: 'on',
-                }}
-                onMount={handleCommandEditorDidMount}
-              />
-              <FormHelperText>
-                e.g. <code>python train.py --epochs 10</code>
-              </FormHelperText>
-            </FormControl>
+  const canGoNext = () => {
+    if (currentPhase === 'github-selection') {
+      if (useGithub === null) return false;
+      if (useGithub === true && !githubRepoUrl.trim()) return false;
+      return true;
+    }
+    if (currentPhase === 'task-json-selection') {
+      return hasTaskJson !== null;
+    }
+    if (currentPhase === 'task-config') {
+      return title.trim().length > 0;
+    }
+    if (currentPhase === 'provider-env') {
+      return selectedProviderId.length > 0;
+    }
+    return true;
+  };
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <ModalDialog
+        sx={{ maxHeight: '90vh', width: '70vw', overflow: 'hidden' }}
+      >
+        <ModalClose />
+        <DialogTitle>{getPhaseTitle()}</DialogTitle>
+        <form onSubmit={handleSubmit}>
+          <DialogContent sx={{ maxHeight: '70vh', overflow: 'auto' }}>
+            {renderPhaseContent()}
           </DialogContent>
+          <Divider />
           <DialogActions>
-            <Button
-              variant="plain"
-              color="neutral"
-              onClick={onClose}
-              disabled={isSubmitting}
+            <Stack
+              direction="row"
+              spacing={2}
+              sx={{ width: '100%', justifyContent: 'space-between' }}
             >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="solid"
-              loading={isSubmitting}
-              disabled={isSubmitting || providers.length === 0}
-            >
-              Create Task
-            </Button>
+              <Button
+                variant="plain"
+                color="neutral"
+                onClick={
+                  currentPhase === 'github-selection'
+                    ? onClose
+                    : handleBackPhase
+                }
+                disabled={isSubmitting}
+                startDecorator={<ArrowLeftIcon size={16} />}
+              >
+                {currentPhase === 'github-selection' ? 'Cancel' : 'Back'}
+              </Button>
+              <Button
+                type="submit"
+                variant="solid"
+                loading={isSubmitting}
+                disabled={
+                  isSubmitting ||
+                  providers.length === 0 ||
+                  !canGoNext() ||
+                  (currentPhase === 'provider-env' && isLoadingTaskJson)
+                }
+                endDecorator={
+                  currentPhase !== 'provider-env' ? (
+                    <ArrowRightIcon size={16} />
+                  ) : null
+                }
+              >
+                {currentPhase === 'provider-env' ? 'Create Task' : 'Next'}
+              </Button>
+            </Stack>
           </DialogActions>
         </form>
       </ModalDialog>

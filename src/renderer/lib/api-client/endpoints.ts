@@ -35,6 +35,10 @@ Endpoints.Tasks = {
   ImportFromTeamGallery: (experimentId: string) =>
     `${API_URL()}tasks/gallery/team/import`,
   ExportToTeamGallery: () => `${API_URL()}tasks/gallery/team/export`,
+  FetchTaskJson: (repoUrl: string, directory?: string) =>
+    `${API_URL()}tasks/fetch_task_json?repo_url=${encodeURIComponent(repoUrl)}${
+      directory ? `&directory=${encodeURIComponent(directory)}` : ''
+    }`,
 };
 
 Endpoints.ComputeProvider = {

@@ -38,6 +38,7 @@ from transformerlab.compute_providers.models import (
 from transformerlab.services import job_service
 from lab import storage
 from lab.dirs import get_workspace_dir
+from transformerlab.shared.github_utils import read_github_pat_from_workspace
 
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
 
@@ -535,20 +536,6 @@ def _generate_aws_credentials_setup(
     return setup_script
 
 
-def _read_github_pat_from_workspace(workspace_dir: str) -> Optional[str]:
-    """Read GitHub PAT from workspace/github_pat.txt file."""
-    try:
-        pat_path = storage.join(workspace_dir, "github_pat.txt")
-        if storage.exists(pat_path):
-            with storage.open(pat_path, "r") as f:
-                pat = f.read().strip()
-                if pat:
-                    return pat
-    except Exception as e:
-        print(f"Error reading GitHub PAT from workspace: {e}")
-    return None
-
-
 def _generate_github_clone_setup(
     repo_url: str,
     directory: Optional[str] = None,
@@ -654,7 +641,7 @@ async def launch_task_on_provider(
     # Add GitHub clone setup if enabled
     if request.github_enabled and request.github_repo_url:
         workspace_dir = get_workspace_dir()
-        github_pat = _read_github_pat_from_workspace(workspace_dir)
+        github_pat = read_github_pat_from_workspace(workspace_dir)
         github_setup = _generate_github_clone_setup(
             repo_url=request.github_repo_url,
             directory=request.github_directory,
