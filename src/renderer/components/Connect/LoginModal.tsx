@@ -118,7 +118,7 @@ export default function LoginModal({
     // If we are on the webapp, try to automatically connect
     if (WEB_APP && connection === '') {
       const tryConnect = async () => {
-        // First try the old way: window.location.href
+        // First try using the current URL: window.location.href
         const oldApiUrl = window.location.href;
         window.TransformerLab.API_URL = oldApiUrl;
         const oldResponse = await apiHealthz();
@@ -128,12 +128,11 @@ export default function LoginModal({
           return;
         }
 
-        // Old method failed, try the new way: hostname:8338
+        // If the old method failed, try using the hostname:8338 format
         const newApiUrl = `http://${window.location.hostname}:8338/`;
         window.TransformerLab.API_URL = newApiUrl;
         const newResponse = await apiHealthz();
         if (newResponse !== null) {
-          // New method worked, use checkServer to handle the rest
           checkServer();
           return;
         }
