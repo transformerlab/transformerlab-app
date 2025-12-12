@@ -115,9 +115,50 @@ async def create_team(
                 workspace_dir = get_workspace_dir()
                 logo_path = storage.join(workspace_dir, "logo.png")
 
-                # Read and process the image
+                # Validate content type
+                if logo.content_type and not logo.content_type.startswith("image/"):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid file type. Only image files are allowed. Got: {logo.content_type}",
+                    )
+
+                # Validate file extension
+                if logo.filename:
+                    filename_lower = logo.filename.lower()
+                    # Extract extension using string operation (works with any filename, not just paths)
+                    if "." in filename_lower:
+                        ext = "." + filename_lower.rpartition(".")[2]
+                    else:
+                        ext = ""
+                    allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
+                    if ext not in allowed_extensions:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Invalid file extension. Allowed extensions: {', '.join(allowed_extensions)}",
+                        )
+
+                # Read and check file size limit (1 MB)
                 contents = await logo.read()
-                image = Image.open(io.BytesIO(contents))
+
+                MAX_LOGO_SIZE = 1 * 1024 * 1024  # 1 MB
+                file_size = len(contents)
+                if file_size > MAX_LOGO_SIZE:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Logo file size ({file_size / (1024 * 1024):.2f} MB) exceeds maximum allowed size (1 MB)",
+                    )
+
+                # Validate and process the image
+                try:
+                    image = Image.open(io.BytesIO(contents))
+                    # Verify it's actually a valid image by attempting to load it
+                    image.verify()
+                    # Reopen after verify() since verify() closes the image
+                    image = Image.open(io.BytesIO(contents))
+                except Exception as e:
+                    raise HTTPException(
+                        status_code=400, detail=f"Invalid image file. Please upload a valid image file. Error: {str(e)}"
+                    )
 
                 # Convert to RGB if necessary (handles RGBA, P, etc.)
                 if image.mode in ("RGBA", "LA", "P"):
@@ -133,6 +174,9 @@ async def create_team(
                 # Save as PNG
                 with storage.open(logo_path, "wb") as f:
                     image.save(f, format="PNG")
+            except HTTPException:
+                # Re-raise HTTPExceptions (validation errors)
+                raise
             except Exception as e:
                 # Log error but don't fail team creation if logo save fails
                 print(f"Warning: Failed to save logo for team {team.id}: {e}")
@@ -883,9 +927,49 @@ async def set_team_logo(
     logo_path = storage.join(workspace_dir, "logo.png")
 
     try:
-        # Read and process the image
+        # Validate content type
+        if logo.content_type and not logo.content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=400, detail=f"Invalid file type. Only image files are allowed. Got: {logo.content_type}"
+            )
+
+        # Validate file extension
+        if logo.filename:
+            filename_lower = logo.filename.lower()
+            # Extract extension using string operation (works with any filename, not just paths)
+            if "." in filename_lower:
+                ext = "." + filename_lower.rpartition(".")[2]
+            else:
+                ext = ""
+            allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
+            if ext not in allowed_extensions:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid file extension. Allowed extensions: {', '.join(allowed_extensions)}",
+                )
+
+        # Read and check file size limit (1 MB)
         contents = await logo.read()
-        image = Image.open(io.BytesIO(contents))
+
+        MAX_LOGO_SIZE = 1 * 1024 * 1024  # 1 MB
+        file_size = len(contents)
+        if file_size > MAX_LOGO_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Logo file size ({file_size / (1024 * 1024):.2f} MB) exceeds maximum allowed size (1 MB)",
+            )
+
+        # Validate and process the image
+        try:
+            image = Image.open(io.BytesIO(contents))
+            # Verify it's actually a valid image by attempting to load it
+            image.verify()
+            # Reopen after verify() since verify() closes the image
+            image = Image.open(io.BytesIO(contents))
+        except Exception as e:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid image file. Please upload a valid image file. Error: {str(e)}"
+            )
 
         # Convert to RGB if necessary (handles RGBA, P, etc.)
         if image.mode in ("RGBA", "LA", "P"):
