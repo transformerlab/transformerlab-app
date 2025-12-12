@@ -1,6 +1,5 @@
 import json
 from werkzeug.utils import secure_filename
-import time
 
 from .dirs import get_models_dir
 from .labresource import BaseLabResource
@@ -201,6 +200,10 @@ class Model(BaseLabResource):
         """
 
         # Start with base provenance data matching the structure from train.py
+        # Get current time once to avoid potential scoping issues
+        import time
+
+        current_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
         final_provenance = {
             "model_name": model_name,
             "model_architecture": model_architecture,
@@ -209,8 +212,8 @@ class Model(BaseLabResource):
             "dataset": None,
             "adaptor_name": None,
             "parameters": None,
-            "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-            "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+            "start_time": current_time_str,
+            "end_time": current_time_str,
             "md5_checksums": md5_objects,
         }
 

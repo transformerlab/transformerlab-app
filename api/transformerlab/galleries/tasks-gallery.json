@@ -1,0 +1,219 @@
+[
+  {
+    "title": "Sample Task Example",
+    "description": "A sample PyTorch training task that clones a repository and runs training script",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app.git",
+    "github_repo_dir": "lab-sdk",
+    "config": {
+      "name": "sample-task",
+      "cluster_name": "sample-task",
+      "command": "echo hello",
+      "cpus": "2",
+      "memory": "4",
+      "setup": "uv pip install wandb"
+    }
+  },
+  {
+    "title": "Evaluation Task Example",
+    "description": "A sample evaluation task that runs an evaluation script and creates reports.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app",
+    "github_repo_dir": "lab-sdk",
+    "config": {
+      "name": "demo-eval-task",
+      "cluster_name": "demo-eval-task",
+      "command": "cd ~/lab-sdk/scripts/examples && python fake_evals.py;",
+      "cpus": "2",
+      "memory": "4",
+      "setup": "uv pip install transformerlab datasets;"
+    }
+  },
+  {
+    "title": "Dataset Generation Task Example",
+    "description": "A sample dataset generation task that runs a dataset generation script and creates a dataset.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app",
+    "github_repo_dir": "lab-sdk",
+    "config": {
+      "name": "demo-generate-task",
+      "cluster_name": "demo-generate-task",
+      "command": "cd ~/lab-sdk/scripts/examples && python fake_dataset_generate.py;",
+      "cpus": "2",
+      "memory": "4",
+      "setup": "uv pip install transformerlab datasets;"
+    }
+  },
+  {
+    "title": "YOLO Object Detection Train Task Example",
+    "description": "A sample YOLO object detection train task that runs a YOLO object detection train script on COCO8 dataset for 10 epochs",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app/",
+    "github_repo_dir": "lab-sdk",
+    "config": {
+      "name": "yolo-train-task",
+      "cluster_name": "yolo-train-task",
+      "command": "cd ~/lab-sdk/scripts/examples && python yolo_train_script.py",
+      "cpus": "2",
+      "memory": "4",
+      "accelerators": "RTX3090:1",
+      "setup": "uv pip install datasets transformers torch wandb ultralytics transformerlab;\nsudo apt update;\nsudo apt install -y libgl1 libglib2.0-0;"
+    }
+  },
+  {
+    "title": "Train GPT OSS 20b with LoRA",
+    "description": "LoRA fine-tuning of an open-source GPT-NeoX 20B checkpoint using DeepSpeed ZeRO",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app.git",
+    "github_repo_dir": "examples/gpt-20b-lora",
+    "config": {
+      "name": "gpt-oss-20b-lora",
+      "cluster_name": "gpt-oss-20b",
+      "command": "bash scripts/train_lora.sh",
+      "cpus": "16",
+      "memory": "128",
+      "gpus": "4",
+      "setup": "uv pip install -r requirements.txt"
+    }
+  },
+  {
+    "title": "Nanochat Full Train",
+    "description": "End-to-end training of the Nanochat conversational model with custom dialogue augmentations",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app.git",
+    "github_repo_dir": "examples/nanochat",
+    "config": {
+      "name": "nanochat-full-train",
+      "cluster_name": "nanochat",
+      "command": "python train.py --config configs/full_train.yaml",
+      "cpus": "12",
+      "memory": "64",
+      "gpus": "2",
+      "setup": "uv pip install -r requirements.txt"
+    }
+  },
+  {
+    "title": "Finetune Stable Diffusion",
+    "description": "DreamBooth-style Stable Diffusion fine-tuning on a curated image set with automatic validation renders",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app.git",
+    "github_repo_dir": "examples/stable-diffusion",
+    "config": {
+      "name": "stable-diffusion-finetune",
+      "cluster_name": "diffusion",
+      "command": "accelerate launch train_dreambooth.py --config_file configs/dreambooth.yaml",
+      "cpus": "8",
+      "memory": "48",
+      "gpus": "2",
+      "setup": "uv pip install -r requirements.txt"
+    }
+  },
+  {
+    "title": "Object Detection with YOLO Train",
+    "description": "Train a YOLOv8 detector on labeled bounding boxes with automated export to ONNX",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app.git",
+    "github_repo_dir": "examples/yolo-detection",
+    "config": {
+      "name": "yolo-object-detect-train",
+      "cluster_name": "cv-detection",
+      "command": "python train.py --cfg configs/yolo.yaml",
+      "cpus": "6",
+      "memory": "32",
+      "gpus": "1",
+      "setup": "uv pip install ultralytics"
+    }
+  },
+  {
+    "title": "Distributed XGBoost Pipeline",
+    "description": "End-to-end distributed gradient boosted tree training on tabular data with Ray integration",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app.git",
+    "github_repo_dir": "examples/xgboost-distributed",
+    "config": {
+      "name": "distributed-xgboost",
+      "cluster_name": "xgb-cluster",
+      "command": "python launch_pipeline.py --profile distributed",
+      "cpus": "20",
+      "memory": "96",
+      "setup": "uv pip install -r requirements.txt"
+    }
+  },
+  {
+    "title": "Train XGBoost for Batch & Online Serving",
+    "description": "Train an XGBoost model, package it for batch scoring, and deploy a Triton endpoint for online inference",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app.git",
+    "github_repo_dir": "examples/xgboost-serving",
+    "config": {
+      "name": "xgboost-serving",
+      "cluster_name": "model-serving",
+      "command": "bash scripts/train_and_deploy.sh",
+      "cpus": "10",
+      "memory": "40",
+      "setup": "uv pip install -r requirements.txt"
+    }
+  },
+  {
+    "title": "Audio Batch Inference",
+    "description": "Run large-scale audio embedding and transcription jobs over stored clips with batch scheduling",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app.git",
+    "github_repo_dir": "examples/audio-batch",
+    "config": {
+      "name": "audio-batch-inference",
+      "cluster_name": "audio-batch",
+      "command": "python batch_infer.py --manifest manifests/audio.json",
+      "cpus": "8",
+      "memory": "24",
+      "setup": "uv pip install -r requirements.txt"
+    }
+  },
+  {
+    "title": "LLM Judge for Audio Dataset Curation",
+    "description": "Use LLMs as judges to score, filter, and tag audio samples for dataset quality control",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app.git",
+    "github_repo_dir": "examples/audio-judge",
+    "config": {
+      "name": "audio-judge-curation",
+      "cluster_name": "audio-curation",
+      "command": "python run_judging.py --config configs/audio_llm.yaml",
+      "cpus": "6",
+      "memory": "32",
+      "setup": "uv pip install -r requirements.txt"
+    }
+  },
+  {
+    "title": "Fine-tune LLMs with Llama-Factory",
+    "description": "Run Llama-Factory to fine-tune multiple LLM backbones with adapters and validation sweeps",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app.git",
+    "github_repo_dir": "examples/llama-factory",
+    "config": {
+      "name": "llama-factory-finetune",
+      "cluster_name": "llama-factory",
+      "command": "bash launch_llama_factory.sh",
+      "cpus": "14",
+      "memory": "72",
+      "gpus": "2",
+      "setup": "uv pip install -r requirements.txt"
+    }
+  },
+  {
+    "title": "PPO Reinforcement Learning Fine-tune",
+    "description": "Fine-tune a policy using PPO with reward models and evaluation rollouts on simulated environments",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app.git",
+    "github_repo_dir": "examples/rl-ppo",
+    "config": {
+      "name": "ppo-rl-finetune",
+      "cluster_name": "rl-train",
+      "command": "python train.py --run ppo --config configs/default.yaml",
+      "cpus": "12",
+      "memory": "48",
+      "setup": "uv pip install -r requirements.txt"
+    }
+  },
+  {
+    "title": "Multilingual Speech-to-Text Training",
+    "description": "Train a multilingual speech-to-text transformer with SpecAugment and mixed-precision checkpoints",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app.git",
+    "github_repo_dir": "examples/speech2text",
+    "config": {
+      "name": "speech2text-train",
+      "cluster_name": "speech-train",
+      "command": "python train.py --config configs/multilingual.yaml",
+      "cpus": "16",
+      "memory": "80",
+      "gpus": "2",
+      "setup": "uv pip install -r requirements.txt"
+    }
+  }
+]

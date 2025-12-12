@@ -1,4 +1,5 @@
 import json
+import os
 import time
 import asyncio
 import subprocess
@@ -21,7 +22,12 @@ router = APIRouter(prefix="/export", tags=["export"])
 
 @router.get("/run_exporter_script")
 async def run_exporter_script(
-    id: str, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}", job_id: str = None
+    id: str,
+    plugin_name: str,
+    plugin_architecture: str,
+    plugin_params: str = "{}",
+    job_id: str = None,
+    org_id: str = None,
 ):
     """
     plugin_name: the id of the exporter plugin to run
@@ -137,6 +143,14 @@ async def run_exporter_script(
 
     # Run the export plugin
     subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + args
+
+    # Prepare environment variables for subprocess
+    # Pass organization_id via environment variable if provided
+    process_env = None
+    if org_id:
+        process_env = os.environ.copy()
+        process_env["_TFL_ORG_ID"] = org_id
+
     try:
         # Get the output file path
         job_output_file = await shared.get_job_output_file_name(job_id, experiment_name=experiment_name)
@@ -144,7 +158,7 @@ async def run_exporter_script(
         # Create the output file and run the process with output redirection
         with storage.open(job_output_file, "w") as f:
             process = await asyncio.create_subprocess_exec(
-                *subprocess_command, stdout=f, stderr=subprocess.PIPE, cwd=script_directory
+                *subprocess_command, stdout=f, stderr=subprocess.PIPE, cwd=script_directory, env=process_env
             )
             _, stderr = await process.communicate()
 

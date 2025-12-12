@@ -24,10 +24,12 @@ import TinyMLXLogo from './Shared/TinyMLXLogo';
 import TinyNVIDIALogo from './Shared/TinyNVIDIALogo';
 import TinyAMDLogo from './Shared/TinyAMDLogo';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import ConnectionLostModal from './Shared/ConnectionLostModal';
 
 function StatsBar({ connection, setConnection }) {
   const [cs, setCS] = useState({ cpu: [0], gpu: [0], mem: [0] });
   const { server, isLoading, isError } = useServerStats();
+  const isCloudMode = (window as any).platform?.appmode === 'cloud';
 
   useEffect(() => {
     if (connection === '') return;
@@ -79,15 +81,6 @@ function StatsBar({ connection, setConnection }) {
     setCS(newConnectionStats);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connection, server]);
-
-  // The following effect checks if the server is returning "error"
-  // and if so, it resets the connection in order to force the user to
-  // re-connect
-  useEffect(() => {
-    if (isError) {
-      setConnection('');
-    }
-  }, [isError]);
 
   function showGPU() {
     if (server?.os == 'Darwin' && server?.cpu == 'arm64') {
@@ -303,21 +296,23 @@ function StatsBar({ connection, setConnection }) {
                         </ReactRouterLink>
                       </Typography>
 
-                      <Button
-                        variant="solid"
-                        color="danger"
-                        size="sm"
-                        sx={{ m: 0, p: 1 }}
-                        onClick={() => {
-                          // Clear the API URL when disconnecting
-                          if ((window as any).TransformerLab) {
-                            (window as any).TransformerLab.API_URL = null;
-                          }
-                          setConnection('');
-                        }}
-                      >
-                        Disconnect
-                      </Button>
+                      {!isCloudMode && (
+                        <Button
+                          variant="solid"
+                          color="danger"
+                          size="sm"
+                          sx={{ m: 0, p: 1 }}
+                          onClick={() => {
+                            // Clear the API URL when disconnecting
+                            if ((window as any).TransformerLab) {
+                              (window as any).TransformerLab.API_URL = null;
+                            }
+                            setConnection('');
+                          }}
+                        >
+                          Disconnect
+                        </Button>
+                      )}
                     </Stack>
                   </Box>
                 </Box>
@@ -334,7 +329,7 @@ function StatsBar({ connection, setConnection }) {
               &nbsp; Connected -
             </div>
           </Tooltip>
-          <span style={{ display: 'flex', '-webkit-app-region': 'no-drag' }}>
+          <span style={{ display: 'flex', WebkitAppRegion: 'no-drag' } as any}>
             &nbsp;CPU:
             <div style={{ width: '60px', textAlign: 'center' }}>
               <div
@@ -368,6 +363,8 @@ function StatsBar({ connection, setConnection }) {
 export default function Header({ connection, setConnection }) {
   const { experimentInfo } = useExperimentInfo();
   const [mode, setMode] = useState<string>('local');
+  const { isError, server } = useServerStats();
+  const [connectionLost, setConnectionLost] = useState(false);
 
   // Fetch healthz to get the mode
   useEffect(() => {
@@ -385,7 +382,65 @@ export default function Header({ connection, setConnection }) {
     fetchHealthz();
   }, []);
 
+  // Check connection health when we have a connection URL set
+  useEffect(() => {
+    if (!connection || connection === '') {
+      setConnectionLost(false);
+      return;
+    }
+
+    let isMounted = true;
+    let checkInterval: NodeJS.Timeout | null = null;
+
+    const checkConnectionHealth = async () => {
+      try {
+        const healthz = await apiHealthz();
+        if (isMounted) {
+          // Connection is healthy if healthz returns non-null
+          if (healthz !== null) {
+            setConnectionLost(false);
+          } else {
+            // Connection is lost (apiHealthz returns null on error)
+            setConnectionLost(true);
+          }
+        }
+      } catch (error) {
+        // Connection is lost
+        if (isMounted) {
+          setConnectionLost(true);
+        }
+      }
+    };
+
+    // Check immediately
+    checkConnectionHealth();
+
+    // Then check every 2 seconds for faster detection
+    checkInterval = setInterval(() => {
+      checkConnectionHealth();
+    }, 2000);
+
+    return () => {
+      isMounted = false;
+      if (checkInterval) {
+        clearInterval(checkInterval);
+      }
+    };
+  }, [connection]);
+
+  // Also check if useServerStats reports an error (as a backup detection method)
+  // Note: The direct apiHealthz check above is the primary method, this is just a backup
+  useEffect(() => {
+    if (connection && connection !== '' && isError) {
+      // If useServerStats reports an error, also mark as lost
+      setConnectionLost(true);
+    }
+    // Don't override connectionLost=false here because the direct check above handles that
+  }, [connection, isError]);
+
   const isS3Mode = mode === 's3';
+  // Show connection lost modal when we have a connection but it's lost
+  const showConnectionLostModal = connection !== '' && connectionLost;
 
   return (
     <Sheet
@@ -406,12 +461,14 @@ export default function Header({ connection, setConnection }) {
       className="header"
     >
       <div
-        style={{
-          height: '100%',
-          flex: 1,
-          // border: '1px solid purple',
-          '-webkit-app-region': 'drag',
-        }}
+        style={
+          {
+            height: '100%',
+            flex: 1,
+            // border: '1px solid purple',
+            WebkitAppRegion: 'drag',
+          } as any
+        }
       />
       {!isS3Mode && (
         <div
@@ -433,17 +490,25 @@ export default function Header({ connection, setConnection }) {
       )}
 
       <div
-        style={{
-          height: '100%',
-          flex: 1,
-          // border: '1px solid purple',
-          '-webkit-app-region': 'drag',
-        }}
+        style={
+          {
+            height: '100%',
+            flex: 1,
+            // border: '1px solid purple',
+            WebkitAppRegion: 'drag',
+          } as any
+        }
       />
       {isS3Mode ? (
         <Box sx={{ mr: 2 }} />
       ) : (
         <StatsBar connection={connection} setConnection={setConnection} />
+      )}
+      {showConnectionLostModal && (
+        <ConnectionLostModal
+          connection={connection}
+          setConnection={setConnection}
+        />
       )}
     </Sheet>
   );

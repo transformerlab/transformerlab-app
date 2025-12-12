@@ -5,22 +5,9 @@
   "plugin-format": "python",
   "type": "loader",
   "version": "0.1.3",
-  "supports": [
-    "Text-to-Speech",
-    "Audio",
-    "Speech-to-Text"
-  ],
-  "model_architectures": [
-    "MLXTextToSpeech",
-    "StyleTTS2",
-    "MLXSpeechToText"
-  ],
-  "supported_hardware_architectures": [
-    "mlx"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supports": ["Text-to-Speech", "Audio", "Speech-to-Text"],
+  "model_architectures": ["MLXTextToSpeech", "StyleTTS2", "MLXSpeechToText"],
+  "supported_hardware_architectures": ["mlx"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh"
 }
