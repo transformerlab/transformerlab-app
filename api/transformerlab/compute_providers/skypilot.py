@@ -1012,9 +1012,7 @@ class SkyPilotProvider(ComputeProvider):
         nodes = []
         for i in range(resources.num_nodes or 1):
             node_name = (
-                f"{cluster.cluster_name}-node-{i + 1}"
-                if resources.num_nodes > 1
-                else f"{cluster.cluster_name}-node"
+                f"{cluster.cluster_name}-node-{i + 1}" if resources.num_nodes > 1 else f"{cluster.cluster_name}-node"
             )
             node = {
                 "node_name": node_name,
