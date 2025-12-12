@@ -164,7 +164,7 @@ export default function LoRATrainingRunButton({
                     throw new Error(`${response.message}`);
                   } else if (response.status === 'requires_file_selection') {
                     throw new Error(
-                      `This model contains multiple GGUF files. Please download it manually from the Model Zoo and select the specific file you need.`,
+                      `This model contains multiple GGUF files. Please download it manually from the Model Registry and select the specific file you need.`,
                     );
                   }
                   return response;
