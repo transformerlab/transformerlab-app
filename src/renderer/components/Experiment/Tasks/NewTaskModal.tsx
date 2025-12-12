@@ -354,12 +354,28 @@ export default function NewTaskModal({
     }
 
     // read editor values (fallback to state if editor not mounted)
-    const setupValue =
-      setupEditorRef?.current?.getValue?.() ?? (setup || undefined);
-    const commandValue =
-      commandEditorRef?.current?.getValue?.() ?? (command || undefined);
+    let setupValue: string | undefined;
+    let commandValue: string | undefined;
+    
+    try {
+      setupValue = setupEditorRef?.current?.getValue?.() || undefined;
+      commandValue = commandEditorRef?.current?.getValue?.() || undefined;
+    } catch (e) {
+      // If editor getValue fails, fall back to state
+      console.warn('Failed to get editor values, using state:', e);
+    }
+    
+    // Fallback to state if editor values are empty
+    if (!setupValue && setup) {
+      setupValue = setup;
+    }
+    if (!commandValue && command) {
+      commandValue = command;
+    }
 
-    if (!commandValue) {
+    // Trim and validate command
+    const trimmedCommand = commandValue?.trim();
+    if (!trimmedCommand) {
       addNotification({ type: 'warning', message: 'Command is required' });
       return;
     }
@@ -438,13 +454,13 @@ export default function NewTaskModal({
     onSubmit({
       title,
       cluster_name: clusterName || title,
-      command: commandValue,
+      command: trimmedCommand,
       cpus: cpus || undefined,
       memory: memory || undefined,
       disk_space: diskSpace || undefined,
       accelerators: accelerators || undefined,
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
-      setup: setupValue,
+      setup: setupValue || undefined,
       env_vars: Object.keys(envVarsObj).length > 0 ? envVarsObj : undefined,
       provider_id: selectedProviderId,
       file_mounts:
@@ -489,29 +505,69 @@ export default function NewTaskModal({
   function handleSetupEditorDidMount(editor: any, monaco: any) {
     setupEditorRef.current = editor;
     setTheme(editor, monaco);
+    // Set initial value if setup state exists
     if (setup) {
-      editor.setValue(setup);
+      try {
+        editor.setValue(setup);
+      } catch (e) {
+        console.warn('Failed to set initial setup value:', e);
+      }
     }
+    // Also ensure we update after a brief delay in case state updates after mount
+    setTimeout(() => {
+      if (setup && editor.getValue() !== setup) {
+        try {
+          editor.setValue(setup);
+        } catch (e) {
+          // ignore
+        }
+      }
+    }, 100);
   }
 
   function handleCommandEditorDidMount(editor: any, monaco: any) {
     commandEditorRef.current = editor;
     setTheme(editor, monaco);
+    // Set initial value if command state exists
     if (command) {
-      editor.setValue(command);
+      try {
+        editor.setValue(command);
+      } catch (e) {
+        console.warn('Failed to set initial command value:', e);
+      }
     }
+    // Also ensure we update after a brief delay in case state updates after mount
+    setTimeout(() => {
+      if (command && editor.getValue() !== command) {
+        try {
+          editor.setValue(command);
+        } catch (e) {
+          // ignore
+        }
+      }
+    }, 100);
   }
 
   // Update editors when setup/command state changes (e.g., from task.json)
   useEffect(() => {
     if (setupEditorRef.current && setup) {
-      setupEditorRef.current.setValue(setup);
+      try {
+        setupEditorRef.current.setValue(setup);
+      } catch (e) {
+        // Editor might not be ready yet
+        console.warn('Failed to set setup editor value:', e);
+      }
     }
   }, [setup]);
 
   useEffect(() => {
     if (commandEditorRef.current && command) {
-      commandEditorRef.current.setValue(command);
+      try {
+        commandEditorRef.current.setValue(command);
+      } catch (e) {
+        // Editor might not be ready yet
+        console.warn('Failed to set command editor value:', e);
+      }
     }
   }, [command]);
 
@@ -948,7 +1004,9 @@ export default function NewTaskModal({
                 </Button>
               </Stack>
               <FormHelperText>
-                Optional environment variables to set when launching the cluster
+                {taskMode === 'github-with-json' && taskJsonData?.env_vars
+                  ? 'Environment variables from task.json are shown above. You can edit them or add additional variables. All will be merged together.'
+                  : 'Optional environment variables to set when launching the cluster'}
               </FormHelperText>
             </FormControl>
           </Stack>
