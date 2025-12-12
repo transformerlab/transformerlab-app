@@ -125,6 +125,40 @@ def add_team_task_to_gallery(entry: dict):
         return get_team_tasks_gallery()
 
 
+def delete_team_task_from_gallery(task_id: str):
+    """
+    Delete a task entry from the team-specific gallery by id or title.
+    Returns True if deleted, False if not found.
+    """
+    from lab.dirs import get_workspace_dir
+    from lab import storage
+
+    workspace_dir = get_workspace_dir()
+    gallery_path = storage.join(workspace_dir, TEAM_TASKS_GALLERY_FILE)
+
+    try:
+        storage.makedirs(workspace_dir, exist_ok=True)
+        current = get_team_tasks_gallery()
+
+        # Filter out the task with matching id or title
+        filtered = []
+        found = False
+        for item in current:
+            if item.get("id") == task_id or item.get("title") == task_id:
+                found = True
+                continue
+            filtered.append(item)
+
+        if found:
+            with storage.open(gallery_path, "w") as f:
+                json.dump(filtered, f, indent=2)
+            return True
+        return False
+    except Exception as e:
+        print(f"❌ Failed to delete from team tasks gallery: {e}")
+        return False
+
+
 ######################
 # INTERNAL SUBROUTINES
 ######################

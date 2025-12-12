@@ -19,18 +19,22 @@ import {
   Stack,
   Chip,
   CardActions,
+  Checkbox,
 } from '@mui/joy';
 import {
   SearchIcon,
   GithubIcon,
   DownloadIcon,
   ScanTextIcon,
+  PlusIcon,
+  Trash2Icon,
 } from 'lucide-react';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { fetcher } from '../../lib/transformerlab-api-sdk';
 import { useNotification } from '../Shared/NotificationSystem';
+import NewTeamTaskModal from './NewTeamTaskModal';
 
 // Custom filter function for tasks gallery (uses 'title' instead of 'name')
 function filterTasksGallery(data: any[], searchText: string = '') {
@@ -57,6 +61,7 @@ function formatGithubPath(repoUrl?: string, repoDir?: string) {
 }
 
 function generateGithubLink(repoUrl?: string, repoDir?: string) {
+  if (!repoUrl) return '';
   const finalRepoUrl = repoUrl.replace(/\.git$/, '');
   return repoDir ? `${finalRepoUrl}/tree/main/${repoDir}` : finalRepoUrl;
 }
@@ -84,13 +89,20 @@ function TaskCard({
   onImport,
   isImporting,
   disableImport,
+  showCheckbox,
+  isSelected,
+  onSelect,
 }: {
   task: any;
   index: number;
   onImport: (idx: number) => void;
   isImporting: boolean;
   disableImport: boolean;
+  showCheckbox?: boolean;
+  isSelected?: boolean;
+  onSelect?: (taskId: string, selected: boolean) => void;
 }) {
+  const taskId = task?.id || task?.title || index.toString();
   return (
     <Card variant="outlined" sx={{ height: '100%' }}>
       <CardContent
@@ -101,7 +113,22 @@ function TaskCard({
         }}
       >
         <Stack spacing={2}>
-          <TaskIcon icon={<ScanTextIcon />} color="#1976d2" />
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+            }}
+          >
+            <TaskIcon icon={<ScanTextIcon />} color="#1976d2" />
+            {showCheckbox && (
+              <Checkbox
+                checked={isSelected || false}
+                onChange={(e) => onSelect?.(taskId, e.target.checked)}
+                sx={{ mt: -0.5 }}
+              />
+            )}
+          </Box>
           <Box>
             <Typography level="title-lg">
               {task?.title || 'Untitled Task'}
@@ -214,16 +241,20 @@ export default function TasksGallery() {
   const { addNotification } = useNotification();
   const navigate = useNavigate();
   const [importingIndex, setImportingIndex] = useState<number | null>(null);
+  const [newTeamTaskModalOpen, setNewTeamTaskModalOpen] = useState(false);
+  const [isSubmittingTeamTask, setIsSubmittingTeamTask] = useState(false);
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const { data, error, isLoading, mutate } = useSWR(
+  const { data, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Tasks.Gallery(),
     fetcher,
   );
   const {
     data: teamData,
-    error: teamError,
     isLoading: teamLoading,
     mutate: teamMutate,
+    isError: teamError,
   } = useSWR(chatAPI.Endpoints.Tasks.TeamGallery(), fetcher);
 
   const handleImport = async (galleryIndex: number) => {
@@ -287,15 +318,139 @@ export default function TasksGallery() {
     }
   };
 
-  if (error && activeTab === 'global')
-    return (
-      <Sheet sx={{ p: 2 }}>
-        <Typography color="danger">
-          Failed to load tasks from the gallery. Please check your connection or
-          try again later.
-        </Typography>
-      </Sheet>
-    );
+  const handleAddTeamTask = async (data: {
+    title: string;
+    description?: string;
+    setup?: string;
+    command: string;
+    cpus?: string;
+    memory?: string;
+    accelerators?: string;
+    github_repo_url?: string;
+    github_repo_dir?: string;
+  }) => {
+    setIsSubmittingTeamTask(true);
+    try {
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Tasks.AddToTeamGallery(),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        addNotification({
+          type: 'danger',
+          message: `Failed to add team task: ${errorText}`,
+        });
+        return;
+      }
+
+      const result = await response.json();
+      addNotification({
+        type: 'success',
+        message: result?.message || 'Team task added successfully!',
+      });
+
+      // Refresh the team gallery
+      teamMutate();
+    } catch (err: any) {
+      console.error('Error adding team task:', err);
+      addNotification({
+        type: 'danger',
+        message: `Failed to add team task: ${err?.message || String(err)}`,
+      });
+    } finally {
+      setIsSubmittingTeamTask(false);
+    }
+  };
+
+  const handleSelectTask = (taskId: string, selected: boolean) => {
+    setSelectedTasks((prev) => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(taskId);
+      } else {
+        newSet.delete(taskId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedTasks.size === 0) return;
+
+    // eslint-disable-next-line no-alert
+    if (
+      !confirm(
+        `Are you sure you want to delete ${selectedTasks.size} task(s)? This action cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    setIsDeleting(true);
+    const taskIds = Array.from(selectedTasks);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      for (const taskId of taskIds) {
+        try {
+          const response = await chatAPI.authenticatedFetch(
+            chatAPI.Endpoints.Tasks.DeleteFromTeamGallery(),
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ task_id: taskId }),
+            },
+          );
+
+          if (response.ok) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (err) {
+          console.error(`Error deleting task ${taskId}:`, err);
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        addNotification({
+          type: 'success',
+          message: `Successfully deleted ${successCount} task(s)${
+            failCount > 0 ? `. ${failCount} failed.` : '.'
+          }`,
+        });
+        // Clear selection and refresh gallery
+        setSelectedTasks(new Set());
+        teamMutate();
+      } else {
+        addNotification({
+          type: 'danger',
+          message: 'Failed to delete tasks. Please try again.',
+        });
+      }
+    } catch (err: any) {
+      console.error('Error deleting tasks:', err);
+      addNotification({
+        type: 'danger',
+        message: `Failed to delete tasks: ${err?.message || String(err)}`,
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const globalGallery = data?.data || [];
   const teamGallery = teamData?.data || [];
   const gallery = activeTab === 'team' ? teamGallery : globalGallery;
@@ -310,17 +465,60 @@ export default function TasksGallery() {
         height: '100%',
       }}
     >
-      <Tabs
-        size="sm"
-        value={activeTab}
-        onChange={(_e, val) => val && setActiveTab(val as 'global' | 'team')}
-        sx={{ mb: 1 }}
+      <NewTeamTaskModal
+        open={newTeamTaskModalOpen}
+        onClose={() => setNewTeamTaskModalOpen(false)}
+        onSubmit={handleAddTeamTask}
+        isSubmitting={isSubmittingTeamTask}
+      />
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 1,
+        }}
       >
-        <TabList>
-          <Tab value="global">Tasks Gallery</Tab>
-          <Tab value="team">Team Specific Tasks</Tab>
-        </TabList>
-      </Tabs>
+        <Tabs
+          size="sm"
+          value={activeTab}
+          onChange={(_e, val) => {
+            if (val) {
+              setActiveTab(val as 'global' | 'team');
+              // Clear selection when switching tabs
+              setSelectedTasks(new Set());
+            }
+          }}
+        >
+          <TabList>
+            <Tab value="global">Tasks Gallery</Tab>
+            <Tab value="team">Team Specific Tasks</Tab>
+          </TabList>
+        </Tabs>
+        {activeTab === 'team' && (
+          <Stack direction="row" spacing={1}>
+            {selectedTasks.size > 0 && (
+              <Button
+                startDecorator={<Trash2Icon size={16} />}
+                onClick={handleDeleteSelected}
+                size="sm"
+                color="danger"
+                variant="soft"
+                loading={isDeleting}
+              >
+                Delete Selected ({selectedTasks.size})
+              </Button>
+            )}
+            <Button
+              startDecorator={<PlusIcon size={16} />}
+              onClick={() => setNewTeamTaskModalOpen(true)}
+              size="sm"
+            >
+              Add Team Task
+            </Button>
+          </Stack>
+        )}
+      </Box>
       <Box
         className="SearchAndFilters-tabletUp"
         sx={{
@@ -374,19 +572,25 @@ export default function TasksGallery() {
         {!isActiveLoading && gallery.length > 0 && (
           <Grid container spacing={2} sx={{ flexGrow: 1 }}>
             {filterTasksGallery(gallery, searchText).map(
-              (task: any, index: number) => (
-                <Grid xs={12} sm={12} md={6} lg={4} xl={3} key={index}>
-                  <TaskCard
-                    task={task}
-                    index={index}
-                    onImport={handleImport}
-                    isImporting={importingIndex === index}
-                    disableImport={
-                      !experimentInfo?.id || importingIndex !== null
-                    }
-                  />
-                </Grid>
-              ),
+              (task: any, index: number) => {
+                const taskId = task?.id || task?.title || index.toString();
+                return (
+                  <Grid xs={12} sm={12} md={6} lg={4} xl={3} key={index}>
+                    <TaskCard
+                      task={task}
+                      index={index}
+                      onImport={handleImport}
+                      isImporting={importingIndex === index}
+                      disableImport={
+                        !experimentInfo?.id || importingIndex !== null
+                      }
+                      showCheckbox={activeTab === 'team'}
+                      isSelected={selectedTasks.has(taskId)}
+                      onSelect={handleSelectTask}
+                    />
+                  </Grid>
+                );
+              },
             )}
           </Grid>
         )}
