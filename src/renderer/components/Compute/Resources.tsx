@@ -97,11 +97,13 @@ const Resources = () => {
     setLoading(true);
     try {
       const response = await authenticatedFetch(
-        getAPIFullPath('compute_provider', ['providerClusters'], { providerId: selectedProvider }),
+        getAPIFullPath('compute_provider', ['providerClusters'], {
+          providerId: selectedProvider,
+        }),
       );
       if (response.ok) {
         const clustersData = await response.json();
-        console.log('Clusters data:', clustersData);  // Added console.log to see the output
+        console.log('Clusters data:', clustersData); // Added console.log to see the output
         setClusters(Array.isArray(clustersData) ? clustersData : []);
       } else {
         console.error('Failed to fetch clusters:', await response.text());
@@ -118,33 +120,36 @@ const Resources = () => {
   // Organize data into different sections
   const sshClusters: Cluster[] = [];
   const elasticClusters: Cluster[] = [];
-  const activeNodesWithCluster: Array<{node: Node; cluster: Cluster}> = [];
+  const activeNodesWithCluster: Array<{ node: Node; cluster: Cluster }> = [];
 
   // Group elastic clusters by cloud provider
   const cloudGroups: Record<string, Cluster[]> = {};
 
-  clusters.forEach(cluster => {
+  clusters.forEach((cluster) => {
     // Check if this is an SSH cluster (cluster_name contains "SSH" or backend is SSH-related)
-    const isSSH = cluster.cloud_provider?.toUpperCase() === 'SSH' ||
-                  cluster.cluster_name?.toUpperCase().includes('SSH') || 
-                  cluster.cluster_id?.includes('ssh');
-    
+    const isSSH =
+      cluster.cloud_provider?.toUpperCase() === 'SSH' ||
+      cluster.cluster_name?.toUpperCase().includes('SSH') ||
+      cluster.cluster_id?.includes('ssh');
+
     if (isSSH) {
       sshClusters.push(cluster);
     } else if (cluster.elastic_enabled) {
       elasticClusters.push(cluster);
-      
+
       // Group by cloud provider (use cloud_provider field if available, otherwise cluster_name)
-      const cloudName = cluster.cloud_provider?.toUpperCase() || cluster.cluster_name.toUpperCase();
+      const cloudName =
+        cluster.cloud_provider?.toUpperCase() ||
+        cluster.cluster_name.toUpperCase();
       if (!cloudGroups[cloudName]) {
         cloudGroups[cloudName] = [];
       }
       cloudGroups[cloudName].push(cluster);
     }
-    
-    cluster.nodes.forEach(node => {
+
+    cluster.nodes.forEach((node) => {
       if (node.is_active) {
-        activeNodesWithCluster.push({node, cluster});
+        activeNodesWithCluster.push({ node, cluster });
       }
     });
   });
@@ -194,9 +199,9 @@ const Resources = () => {
                   No SSH nodes found.
                 </Typography>
               ) : (
-                <Sheet 
-                  variant="outlined" 
-                  sx={{ 
+                <Sheet
+                  variant="outlined"
+                  sx={{
                     borderRadius: 'sm',
                     overflow: 'auto',
                     '& thead th': {
@@ -213,7 +218,7 @@ const Resources = () => {
                     },
                     '& tbody tr:hover': {
                       backgroundColor: 'background.level1',
-                    }
+                    },
                   }}
                 >
                   <Table sx={{ minWidth: 700 }}>
@@ -232,30 +237,52 @@ const Resources = () => {
                       {sshClusters.map((cluster) => {
                         // Calculate totals from nodes
                         const totalGPUs = cluster.nodes.reduce((sum, node) => {
-                          const nodeGPUCount = Object.values(node.resources.gpus).reduce((a, b) => a + b, 0);
+                          const nodeGPUCount = Object.values(
+                            node.resources.gpus,
+                          ).reduce((a, b) => a + b, 0);
                           return sum + nodeGPUCount;
                         }, 0);
-                        
+
                         const freeGPUs = cluster.nodes.reduce((sum, node) => {
-                          const nodeFreeGPUCount = node.resources.gpus_free 
-                            ? Object.values(node.resources.gpus_free).reduce((a, b) => a + b, 0)
+                          const nodeFreeGPUCount = node.resources.gpus_free
+                            ? Object.values(node.resources.gpus_free).reduce(
+                                (a, b) => a + b,
+                                0,
+                              )
                             : 0;
                           return sum + nodeFreeGPUCount;
                         }, 0);
-                        
+
                         const gpuTypes = new Set<string>();
-                        cluster.nodes.forEach(node => {
-                          Object.keys(node.resources.gpus).forEach(gpuType => gpuTypes.add(gpuType));
+                        cluster.nodes.forEach((node) => {
+                          Object.keys(node.resources.gpus).forEach((gpuType) =>
+                            gpuTypes.add(gpuType),
+                          );
                         });
-                        
+
                         // Count active nodes (running clusters/jobs)
-                        const activeNodes = cluster.nodes.filter(node => node.is_active).length;
-                        
+                        const activeNodes = cluster.nodes.filter(
+                          (node) => node.is_active,
+                        ).length;
+
                         return (
                           <tr key={cluster.cluster_id}>
                             <td>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Typography level="body-md" fontWeight="bold" sx={{ color: 'primary.main', cursor: 'pointer' }}>
+                              <Box
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 1,
+                                }}
+                              >
+                                <Typography
+                                  level="body-md"
+                                  fontWeight="bold"
+                                  sx={{
+                                    color: 'primary.main',
+                                    cursor: 'pointer',
+                                  }}
+                                >
                                   {cluster.cluster_name}
                                 </Typography>
                               </Box>
@@ -266,13 +293,23 @@ const Resources = () => {
                               </Typography>
                             </td>
                             <td>
-                              <Typography level="body-md" sx={{ color: activeNodes > 0 ? 'inherit' : 'text.secondary' }}>
+                              <Typography
+                                level="body-md"
+                                sx={{
+                                  color:
+                                    activeNodes > 0
+                                      ? 'inherit'
+                                      : 'text.secondary',
+                                }}
+                              >
                                 {activeNodes > 0 ? activeNodes : '0'}
                               </Typography>
                             </td>
                             <td>
                               <Typography level="body-md">
-                                {cluster.nodes.length > 0 ? cluster.nodes.length : '1'}
+                                {cluster.nodes.length > 0
+                                  ? cluster.nodes.length
+                                  : '1'}
                               </Typography>
                             </td>
                             <td>
@@ -281,7 +318,10 @@ const Resources = () => {
                                   {Array.from(gpuTypes).join(', ')}
                                 </Typography>
                               ) : (
-                                <Typography level="body-md" sx={{ color: 'text.secondary' }}>
+                                <Typography
+                                  level="body-md"
+                                  sx={{ color: 'text.secondary' }}
+                                >
                                   -
                                 </Typography>
                               )}
@@ -293,9 +333,21 @@ const Resources = () => {
                             </td>
                             <td>
                               {totalGPUs > 0 ? (
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box
+                                  sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1,
+                                  }}
+                                >
                                   <Chip
-                                    color={freeGPUs === totalGPUs ? 'success' : freeGPUs > 0 ? 'warning' : 'danger'}
+                                    color={
+                                      freeGPUs === totalGPUs
+                                        ? 'success'
+                                        : freeGPUs > 0
+                                          ? 'warning'
+                                          : 'danger'
+                                    }
                                     size="sm"
                                     variant="soft"
                                   >
@@ -303,7 +355,10 @@ const Resources = () => {
                                   </Chip>
                                 </Box>
                               ) : (
-                                <Typography level="body-md" sx={{ color: 'text.secondary' }}>
+                                <Typography
+                                  level="body-md"
+                                  sx={{ color: 'text.secondary' }}
+                                >
                                   -
                                 </Typography>
                               )}
@@ -331,9 +386,9 @@ const Resources = () => {
                   No elastic compute clusters found.
                 </Typography>
               ) : (
-                <Sheet 
-                  variant="outlined" 
-                  sx={{ 
+                <Sheet
+                  variant="outlined"
+                  sx={{
                     borderRadius: 'sm',
                     overflow: 'auto',
                     '& thead th': {
@@ -350,7 +405,7 @@ const Resources = () => {
                     },
                     '& tbody tr:hover': {
                       backgroundColor: 'background.level1',
-                    }
+                    },
                   }}
                 >
                   <Table sx={{ minWidth: 400 }}>
@@ -361,32 +416,47 @@ const Resources = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {Object.entries(cloudGroups).map(([cloudName, cloudClusters]) => {
-                        // Count clusters with active nodes
-                        const activeClusters = cloudClusters.filter(c => c.nodes.length > 0 && c.nodes.some(n => n.is_active));
-                        const totalClusters = activeClusters.length;
-                        
-                        return (
-                          <tr key={cloudName}>
-                            <td>
-                              <Typography level="body-md" fontWeight="bold">
-                                {cloudName}
-                              </Typography>
-                            </td>
-                            <td>
-                              {totalClusters > 0 ? (
-                                <Typography level="body-md">
-                                  {totalClusters} {totalClusters === 1 ? 'cluster' : 'clusters'}
+                      {Object.entries(cloudGroups).map(
+                        ([cloudName, cloudClusters]) => {
+                          // Count clusters with active nodes
+                          const activeClusters = cloudClusters.filter(
+                            (c) =>
+                              c.nodes.length > 0 &&
+                              c.nodes.some((n) => n.is_active),
+                          );
+                          const totalClusters = activeClusters.length;
+
+                          return (
+                            <tr key={cloudName}>
+                              <td>
+                                <Typography level="body-md" fontWeight="bold">
+                                  {cloudName}
                                 </Typography>
-                              ) : (
-                                <Typography level="body-sm" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
-                                  No active clusters
-                                </Typography>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                              </td>
+                              <td>
+                                {totalClusters > 0 ? (
+                                  <Typography level="body-md">
+                                    {totalClusters}{' '}
+                                    {totalClusters === 1
+                                      ? 'cluster'
+                                      : 'clusters'}
+                                  </Typography>
+                                ) : (
+                                  <Typography
+                                    level="body-sm"
+                                    sx={{
+                                      color: 'text.secondary',
+                                      fontStyle: 'italic',
+                                    }}
+                                  >
+                                    No active clusters
+                                  </Typography>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        },
+                      )}
                     </tbody>
                   </Table>
                 </Sheet>
@@ -407,9 +477,9 @@ const Resources = () => {
                   No active nodes found.
                 </Typography>
               ) : (
-                <Sheet 
-                  variant="outlined" 
-                  sx={{ 
+                <Sheet
+                  variant="outlined"
+                  sx={{
                     borderRadius: 'sm',
                     overflow: 'auto',
                     '& thead th': {
@@ -426,7 +496,7 @@ const Resources = () => {
                     },
                     '& tbody tr:hover': {
                       backgroundColor: 'background.level1',
-                    }
+                    },
                   }}
                 >
                   <Table sx={{ minWidth: 800 }}>
@@ -442,12 +512,16 @@ const Resources = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {activeNodesWithCluster.map(({node, cluster}) => {
-                        const isSSH = cluster.cloud_provider?.toUpperCase() === 'SSH' ||
-                                      cluster.cluster_name?.toUpperCase().includes('SSH') || 
-                                      cluster.cluster_id?.includes('ssh');
-                        const cloudType = isSSH ? 'SSH' : (cluster.cloud_provider?.toUpperCase() || cluster.cluster_name.toUpperCase());
-                        
+                      {activeNodesWithCluster.map(({ node, cluster }) => {
+                        const isSSH =
+                          cluster.cloud_provider?.toUpperCase() === 'SSH' ||
+                          cluster.cluster_name?.toUpperCase().includes('SSH') ||
+                          cluster.cluster_id?.includes('ssh');
+                        const cloudType = isSSH
+                          ? 'SSH'
+                          : cluster.cloud_provider?.toUpperCase() ||
+                            cluster.cluster_name.toUpperCase();
+
                         return (
                           <tr key={`${cluster.cluster_id}-${node.node_name}`}>
                             <td>
@@ -476,25 +550,37 @@ const Resources = () => {
                             </td>
                             <td>
                               <Typography level="body-md">
-                                {node.resources.cpus_allocated}/{node.resources.cpus_total}
+                                {node.resources.cpus_allocated}/
+                                {node.resources.cpus_total}
                               </Typography>
                             </td>
                             <td>
                               <Typography level="body-md">
-                                {node.resources.memory_gb_allocated}/{node.resources.memory_gb_total}
+                                {node.resources.memory_gb_allocated}/
+                                {node.resources.memory_gb_total}
                               </Typography>
                             </td>
                             <td>
                               {Object.keys(node.resources.gpus).length > 0 ? (
                                 <Box>
-                                  {Object.entries(node.resources.gpus).map(([type, count]) => (
-                                    <Chip key={type} size="sm" variant="soft" sx={{ mr: 0.5 }}>
-                                      {type}: {count}
-                                    </Chip>
-                                  ))}
+                                  {Object.entries(node.resources.gpus).map(
+                                    ([type, count]) => (
+                                      <Chip
+                                        key={type}
+                                        size="sm"
+                                        variant="soft"
+                                        sx={{ mr: 0.5 }}
+                                      >
+                                        {type}: {count}
+                                      </Chip>
+                                    ),
+                                  )}
                                 </Box>
                               ) : (
-                                <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
+                                <Typography
+                                  level="body-sm"
+                                  sx={{ color: 'text.secondary' }}
+                                >
                                   -
                                 </Typography>
                               )}
