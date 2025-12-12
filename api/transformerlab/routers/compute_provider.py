@@ -1,7 +1,6 @@
 """Router for managing team-scoped compute providers."""
 
 import os
-import uuid
 import configparser
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request

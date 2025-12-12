@@ -7,10 +7,10 @@ from lab import storage
 
 def read_github_pat_from_workspace(workspace_dir: str) -> Optional[str]:
     """Read GitHub PAT from workspace/github_pat.txt file.
-    
+
     Args:
         workspace_dir: Path to the workspace directory
-        
+
     Returns:
         GitHub PAT string if found, None otherwise
     """
@@ -35,12 +35,12 @@ def generate_github_clone_setup(
     Generate bash script to clone a GitHub repository.
     Supports both public and private repos (with PAT).
     Supports cloning entire repo or specific directory (sparse checkout).
-    
+
     Args:
         repo_url: GitHub repository URL (e.g., https://github.com/owner/repo.git)
         directory: Optional subdirectory within the repo to clone
         github_pat: Optional GitHub Personal Access Token for private repos
-        
+
     Returns:
         Bash script string that can be executed to clone the repository
     """
@@ -48,9 +48,7 @@ def generate_github_clone_setup(
 
     if github_pat:
         if repo_url.startswith("https://github.com/"):
-            repo_url_with_auth = repo_url.replace(
-                "https://github.com/", f"https://{github_pat}@github.com/"
-            )
+            repo_url_with_auth = repo_url.replace("https://github.com/", f"https://{github_pat}@github.com/")
         elif repo_url.startswith("https://"):
             repo_url_with_auth = repo_url.replace("https://", f"https://{github_pat}@")
         else:
@@ -77,10 +75,6 @@ def generate_github_clone_setup(
             f"if [ -d '{escaped_directory}' ]; then cp -r {escaped_directory} $CURRENT_DIR/; cd $CURRENT_DIR; rm -rf $TEMP_CLONE_DIR; else echo 'Warning: Directory {escaped_directory} not found in repository'; cd $CURRENT_DIR; rm -rf $TEMP_CLONE_DIR; fi"
         )
     else:
-        setup_script = (
-            f"git clone {repo_url_with_auth} {clone_dir}; "
-            f"cp -r {clone_dir}/* .; "
-            f"rm -rf {clone_dir}"
-        )
+        setup_script = f"git clone {repo_url_with_auth} {clone_dir}; cp -r {clone_dir}/* .; rm -rf {clone_dir}"
 
     return setup_script
