@@ -1,0 +1,35 @@
+{
+  "name": "transformerlab-cli",
+  "version": "1.0.0",
+  "bin": {
+    "lab": "./dist/cli/src/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "chalk": "^4.1.2",
+    "conf": "^10.2.0",
+    "dayjs": "^1.11.19",
+    "execa": "^5.1.1",
+    "ink": "^3.2.0",
+    "ink-big-text": "^1.2.0",
+    "ink-gradient": "^2.0.0",
+    "ink-select-input": "^4.2.0",
+    "ink-spinner": "^4.0.3",
+    "ink-table": "^3.0.0",
+    "ink-text-input": "^4.0.3",
+    "open": "^8.4.2",
+    "react": "^17.0.2",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.0",
+    "@types/react": "^17.0.0",
+    "@types/yargs": "^17.0.0",
+    "typescript": "^4.9.0"
+  }
+}

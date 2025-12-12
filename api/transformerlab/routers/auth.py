@@ -163,6 +163,16 @@ if GITHUB_OAUTH_ENABLED:
     )
 
 
+async def get_current_user_flexible(request: Request, session: AsyncSession = Depends(get_async_session)) -> User:
+    """
+    Dependency that returns the current active user from either
+    a JWT (Standard Login) or an API Key.
+    """
+    # This helper already handles validation and raises 401 if invalid
+    user, _, _ = await _get_user_from_jwt_or_api_key(request, session)
+    return user
+
+
 async def get_user_and_team(
     request: Request,
     x_team: str | None = Header(None, alias="X-Team-Id"),
@@ -311,7 +321,9 @@ async def refresh_access_token(
 
 
 @router.get("/users/me/teams")
-async def get_user_teams(user: User = Depends(current_active_user), session: AsyncSession = Depends(get_async_session)):
+async def get_user_teams(
+    user: User = Depends(get_current_user_flexible), session: AsyncSession = Depends(get_async_session)
+):
     # Check if user has any team associations
     stmt = select(UserTeam).where(UserTeam.user_id == str(user.id))
     result = await session.execute(stmt)
