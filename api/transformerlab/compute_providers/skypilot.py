@@ -958,73 +958,83 @@ class SkyPilotProvider(ComputeProvider):
 
         for cluster in clusters:
             try:
-                resources = self.get_cluster_resources(cluster.cluster_name)
-
-                # Determine if this is a fixed (SSH) or elastic (cloud) cluster
-                provider_data = cluster.provider_data or {}
-                cloud = provider_data.get("cloud", "").lower()
-                is_ssh = cloud == "ssh" or "ssh" in str(provider_data).lower()
-                is_fixed = is_ssh
-                elastic_enabled = not is_fixed
-
-                # Map cloud to standard names (AWS, Azure, GCP, etc.)
-                cloud_provider = "UNKNOWN"
-                if is_ssh:
-                    cloud_provider = "SSH"
-                elif "aws" in cloud:
-                    cloud_provider = "AWS"
-                elif "azure" in cloud:
-                    cloud_provider = "AZURE"
-                elif "gcp" in cloud or "google" in cloud:
-                    cloud_provider = "GCP"
-                else:
-                    cloud_provider = cloud.upper() if cloud else "UNKNOWN"
-
-                # Get head node IP if available
-                head_node_ip = provider_data.get("head_node_ip") or provider_data.get("head_ip")
-
-                # Create nodes list
-                nodes = []
-                for i in range(resources.num_nodes or 1):
-                    node_name = (
-                        f"{cluster.cluster_name}-node-{i + 1}"
-                        if resources.num_nodes > 1
-                        else f"{cluster.cluster_name}-node"
-                    )
-                    node = {
-                        "node_name": node_name,
-                        "is_fixed": is_fixed,
-                        "is_active": cluster.state == ClusterState.UP,
-                        "state": cluster.state.value if hasattr(cluster.state, "value") else str(cluster.state),
-                        "reason": cluster.status_message or "N/A",
-                        "resources": {
-                            "cpus_total": resources.cpus or 0,
-                            "cpus_allocated": 0,  # SkyPilot doesn't provide allocated resources directly
-                            "gpus": {gpu["gpu"]: gpu["count"] for gpu in resources.gpus} if resources.gpus else {},
-                            "memory_gb_total": resources.memory_gb or 0,
-                            "memory_gb_allocated": 0,  # SkyPilot doesn't provide allocated resources directly
-                        },
-                    }
-                    nodes.append(node)
-
-                detailed_cluster = {
-                    "cluster_id": cluster.cluster_name,
-                    "cluster_name": cluster.cluster_name,
-                    "cloud_provider": cloud_provider,  # Use mapped cloud provider
-                    "backend_type": "SkyPilot",
-                    "elastic_enabled": elastic_enabled,
-                    "max_nodes": resources.num_nodes or 1,
-                    "head_node_ip": head_node_ip,
-                    "nodes": nodes,
-                    "provider_data": provider_data,
-                }
-                detailed.append(detailed_cluster)
+                cluster_detail = self._build_cluster_detail(cluster)
+                detailed.append(cluster_detail)
             except Exception:
                 # If getting resources fails, skip this cluster
                 print(f"Failed to get resources for cluster {cluster.cluster_name}")
                 continue
 
         # Add SSH node pool information using the new API
+        self._add_ssh_node_pools(detailed)
+
+        # Add available cloud backends with zero clusters
+        self._add_available_cloud_backends(detailed)
+
+        return detailed
+
+    def _build_cluster_detail(self, cluster) -> Dict[str, Any]:
+        """Build detailed information for a single cluster."""
+        resources = self.get_cluster_resources(cluster.cluster_name)
+
+        # Determine if this is a fixed (SSH) or elastic (cloud) cluster
+        provider_data = cluster.provider_data or {}
+        cloud = provider_data.get("cloud", "").lower()
+        is_ssh = cloud == "ssh" or "ssh" in str(provider_data).lower()
+        is_fixed = is_ssh
+        elastic_enabled = not is_fixed
+
+        # Use lowercase cloud names directly
+        cloud_provider = cloud.upper() if cloud else "UNKNOWN"
+        if is_ssh:
+            cloud_provider = "SSH"
+
+        # Get head node IP if available
+        head_node_ip = provider_data.get("head_node_ip") or provider_data.get("head_ip")
+
+        # Create nodes list
+        nodes = self._build_cluster_nodes(cluster, resources, is_fixed)
+
+        return {
+            "cluster_id": cluster.cluster_name,
+            "cluster_name": cluster.cluster_name,
+            "cloud_provider": cloud_provider,
+            "backend_type": "SkyPilot",
+            "elastic_enabled": elastic_enabled,
+            "max_nodes": resources.num_nodes or 1,
+            "head_node_ip": head_node_ip,
+            "nodes": nodes,
+            "provider_data": provider_data,
+        }
+
+    def _build_cluster_nodes(self, cluster, resources, is_fixed: bool) -> List[Dict[str, Any]]:
+        """Build the nodes list for a cluster."""
+        nodes = []
+        for i in range(resources.num_nodes or 1):
+            node_name = (
+                f"{cluster.cluster_name}-node-{i + 1}"
+                if resources.num_nodes > 1
+                else f"{cluster.cluster_name}-node"
+            )
+            node = {
+                "node_name": node_name,
+                "is_fixed": is_fixed,
+                "is_active": cluster.state == ClusterState.UP,
+                "state": cluster.state.value if hasattr(cluster.state, "value") else str(cluster.state),
+                "reason": cluster.status_message or "N/A",
+                "resources": {
+                    "cpus_total": resources.cpus or 0,
+                    "cpus_allocated": 0,  # SkyPilot doesn't provide allocated resources directly
+                    "gpus": {gpu["gpu"]: gpu["count"] for gpu in resources.gpus} if resources.gpus else {},
+                    "memory_gb_total": resources.memory_gb or 0,
+                    "memory_gb_allocated": 0,  # SkyPilot doesn't provide allocated resources directly
+                },
+            }
+            nodes.append(node)
+        return nodes
+
+    def _add_ssh_node_pools(self, detailed: List[Dict[str, Any]]) -> None:
+        """Add SSH node pool information to the detailed clusters list."""
         ssh_node_pools = self._get_ssh_node_pool_info()
 
         # Track which SSH nodes are already in detailed list (running clusters)
@@ -1049,53 +1059,7 @@ class SkyPilotProvider(ComputeProvider):
                     continue
 
                 # Create nodes for this SSH pool
-                nodes = []
-                for node_data in pool_nodes:
-                    node_name = node_data.get("name", pool_name)
-                    gpu_type = node_data.get("gpu_type")
-                    gpu_count = node_data.get("gpu_count", 0)
-                    gpu_free = node_data.get("gpu_free", 0)
-
-                    # Build GPU dict for this node
-                    node_gpus = {}
-                    if gpu_type and gpu_count > 0:
-                        node_gpus[gpu_type] = gpu_count
-
-                    node = {
-                        "node_name": node_name,
-                        "is_fixed": True,
-                        "is_active": False,  # Not currently in use
-                        "state": "AVAILABLE",
-                        "reason": f"{gpu_free} of {gpu_count} free" if gpu_type else "Available for use",
-                        "resources": {
-                            "cpus_total": 0,
-                            "cpus_allocated": 0,
-                            "gpus": node_gpus,
-                            "gpus_free": {gpu_type: gpu_free} if gpu_type and gpu_free > 0 else {},
-                            "memory_gb_total": 0,
-                            "memory_gb_allocated": 0,
-                        },
-                    }
-                    nodes.append(node)
-
-                # If no nodes were added, create at least one placeholder
-                if not nodes:
-                    nodes.append(
-                        {
-                            "node_name": pool_name,
-                            "is_fixed": True,
-                            "is_active": False,
-                            "state": "AVAILABLE",
-                            "reason": "Available for use",
-                            "resources": {
-                                "cpus_total": 0,
-                                "cpus_allocated": 0,
-                                "gpus": total_gpus,
-                                "memory_gb_total": 0,
-                                "memory_gb_allocated": 0,
-                            },
-                        }
-                    )
+                nodes = self._build_ssh_pool_nodes(pool_name, pool_nodes, total_gpus)
 
                 ssh_cluster = {
                     "cluster_id": f"ssh-{pool_name}",
@@ -1108,7 +1072,60 @@ class SkyPilotProvider(ComputeProvider):
                 }
                 detailed.append(ssh_cluster)
 
-        # Add available cloud backends with zero clusters
+    def _build_ssh_pool_nodes(self, pool_name: str, pool_nodes: List[Dict], total_gpus: Dict) -> List[Dict[str, Any]]:
+        """Build nodes list for an SSH pool."""
+        nodes = []
+        for node_data in pool_nodes:
+            node_name = node_data.get("name", pool_name)
+            gpu_type = node_data.get("gpu_type")
+            gpu_count = node_data.get("gpu_count", 0)
+            gpu_free = node_data.get("gpu_free", 0)
+
+            # Build GPU dict for this node
+            node_gpus = {}
+            if gpu_type and gpu_count > 0:
+                node_gpus[gpu_type] = gpu_count
+
+            node = {
+                "node_name": node_name,
+                "is_fixed": True,
+                "is_active": False,  # Not currently in use
+                "state": "AVAILABLE",
+                "reason": f"{gpu_free} of {gpu_count} free" if gpu_type else "Available for use",
+                "resources": {
+                    "cpus_total": 0,
+                    "cpus_allocated": 0,
+                    "gpus": node_gpus,
+                    "gpus_free": {gpu_type: gpu_free} if gpu_type and gpu_free > 0 else {},
+                    "memory_gb_total": 0,
+                    "memory_gb_allocated": 0,
+                },
+            }
+            nodes.append(node)
+
+        # If no nodes were added, create at least one placeholder
+        if not nodes:
+            nodes.append(
+                {
+                    "node_name": pool_name,
+                    "is_fixed": True,
+                    "is_active": False,
+                    "state": "AVAILABLE",
+                    "reason": "Available for use",
+                    "resources": {
+                        "cpus_total": 0,
+                        "cpus_allocated": 0,
+                        "gpus": total_gpus,
+                        "memory_gb_total": 0,
+                        "memory_gb_allocated": 0,
+                    },
+                }
+            )
+
+        return nodes
+
+    def _add_available_cloud_backends(self, detailed: List[Dict[str, Any]]) -> None:
+        """Add available cloud backends with zero clusters."""
         try:
             # Get enabled clouds with COMPUTE capability using SkyPilot's Python API
             enabled_cloud_objects = get_cached_enabled_clouds_or_refresh(
@@ -1120,22 +1137,13 @@ class SkyPilotProvider(ComputeProvider):
             # For each enabled cloud without an active cluster, add a placeholder
             existing_cloud_providers = {c.get("cloud_provider") for c in detailed if c.get("elastic_enabled")}
             for cloud in enabled_clouds:
-                # Convert cloud name to proper format (e.g., 'aws' -> 'AWS')
-                cloud_upper = cloud.upper() if isinstance(cloud, str) else str(cloud).upper()
-
-                # Map to standard cloud provider names
-                cloud_provider_name = cloud_upper
-                if "aws" in cloud.lower():
-                    cloud_provider_name = "AWS"
-                elif "azure" in cloud.lower():
-                    cloud_provider_name = "AZURE"
-                elif "gcp" in cloud.lower() or "google" in cloud.lower():
-                    cloud_provider_name = "GCP"
+                # Use lowercase cloud names directly
+                cloud_provider_name = cloud.upper()
 
                 # Check if we already have a cluster on this cloud provider
                 if cloud_provider_name not in existing_cloud_providers:
                     cluster_detail = {
-                        "cluster_id": f"{cloud.lower()}-available",
+                        "cluster_id": f"{cloud}-available",
                         "cluster_name": cloud_provider_name,
                         "cloud_provider": cloud_provider_name,
                         "backend_type": "SkyPilot",
@@ -1148,8 +1156,6 @@ class SkyPilotProvider(ComputeProvider):
         except Exception as e:
             print(f"Failed to fetch enabled clouds: {e}")
             # Continue without adding available backends if query fails
-
-        return detailed
 
     def submit_job(self, cluster_name: str, job_config: JobConfig) -> Dict[str, Any]:
         """Submit a job to an existing cluster."""
