@@ -17,7 +17,7 @@ DATA_GALLERY_FILE = "dataset-gallery.json"
 MODEL_GROUP_GALLERY_FILE = "model-group-gallery.json"
 EXP_RECIPES_GALLERY_FILE = "exp-recipe-gallery.json"
 # Tasks gallery main file
-TASKS_GALLERY_FILE = "tasks-gallery.json"
+TASKS_GALLERY_FILE = "task-gallery.json"
 # Team-specific tasks gallery stored in workspace dir (per team)
 TEAM_TASKS_GALLERY_FILE = "team_specific_tasks.json"
 GALLERY_FILES = [
