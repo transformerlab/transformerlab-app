@@ -6,10 +6,10 @@ from lab import storage
 
 def read_github_pat_from_workspace(workspace_dir: str) -> Optional[str]:
     """Read GitHub PAT from workspace/github_pat.txt file.
-    
+
     Args:
         workspace_dir: Path to the workspace directory
-        
+
     Returns:
         GitHub PAT string if found, None otherwise
     """
@@ -23,4 +23,3 @@ def read_github_pat_from_workspace(workspace_dir: str) -> Optional[str]:
     except Exception as e:
         print(f"Error reading GitHub PAT from workspace: {e}")
     return None
-

@@ -356,7 +356,7 @@ export default function NewTaskModal({
     // read editor values (fallback to state if editor not mounted)
     let setupValue: string | undefined;
     let commandValue: string | undefined;
-    
+
     try {
       setupValue = setupEditorRef?.current?.getValue?.() || undefined;
       commandValue = commandEditorRef?.current?.getValue?.() || undefined;
@@ -364,7 +364,7 @@ export default function NewTaskModal({
       // If editor getValue fails, fall back to state
       console.warn('Failed to get editor values, using state:', e);
     }
-    
+
     // Fallback to state if editor values are empty
     if (!setupValue && setup) {
       setupValue = setup;
