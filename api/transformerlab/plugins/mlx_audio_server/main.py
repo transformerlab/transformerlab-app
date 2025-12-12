@@ -227,7 +227,7 @@ async def api_generate(request: Request):
         # logger.debug("Trying to abort but not implemented")
         return JSONResponse(output)
     except Exception as e:
-        return JSONResponse({"status": "error", "message": str(e)})
+        return JSONResponse({"status": "error", "message": "An error occurred during generation."})
 
 
 @app.post("/worker_get_status")
