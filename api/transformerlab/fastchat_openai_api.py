@@ -577,7 +577,7 @@ async def create_audio_tts(request: AudioGenerationRequest):
         logger.info(f"Audio TTS response received: {content}")
         return content
     except Exception as e:
-        logger.error(f"Audio TTS error", exc_info=True)
+        logger.error("Audio TTS error", exc_info=True)
         return create_error_response(ErrorCode.INTERNAL_ERROR, str(e))
 
 
