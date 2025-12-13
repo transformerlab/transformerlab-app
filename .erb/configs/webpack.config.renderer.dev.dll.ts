@@ -61,8 +61,9 @@ const configuration: webpack.Configuration = {
     new webpack.EnvironmentPlugin({
       NODE_ENV: 'development',
       MULTIUSER: 'false',
-      TL_API_URL: 'default',
+      TL_API_URL: '',
       TL_FORCE_API_URL: 'false',
+      EMAIL_AUTH_ENABLED: 'true',
     }),
 
     new webpack.LoaderOptionsPlugin({

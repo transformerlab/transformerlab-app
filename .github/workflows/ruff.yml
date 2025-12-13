@@ -12,3 +12,10 @@ jobs:
       - uses: astral-sh/ruff-action@v3
         with:
           args: "check ./api ./lab-sdk"
+  ruff-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: "format --check ./api ./lab-sdk"

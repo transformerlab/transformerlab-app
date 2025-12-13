@@ -1,6 +1,10 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useState, useEffect } from 'react';
-import useSWR from 'swr';
+import { useState, useEffect, useMemo } from 'react';
+import {
+  useSWRWithAuth as useSWR,
+  useAuth,
+  useAPI,
+} from 'renderer/lib/authContext';
 
 import { Button, Sheet, Stack, Typography } from '@mui/joy';
 
@@ -14,9 +18,13 @@ import {
   MessageCircleIcon,
   PlayCircle,
   PlayCircleIcon,
+  StretchHorizontalIcon,
 } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  getAPIFullPath,
+  apiHealthz,
+} from 'renderer/lib/transformerlab-api-sdk';
 import { API_URL } from 'renderer/lib/api-client/urls';
 
 import { Link, Link as ReactRouterLink, useNavigate } from 'react-router-dom';
@@ -60,11 +68,43 @@ export default function Welcome() {
   const [recipesModalOpen, setRecipesModalOpen] = useState<boolean>(false);
   const [hasInitiallyConnected, setHasInitiallyConnected] =
     useState<boolean>(false);
+  const [mode, setMode] = useState<string>('local');
 
   const { server, isLoading, isError } = chatAPI.useServerStats();
   const { setExperimentId } = useExperimentInfo();
+  const { team } = useAuth();
 
   const navigate = useNavigate();
+
+  // Fetch providers
+  const { data: providerListData } = useAPI('compute_provider', ['list'], {
+    teamId: team?.id ?? null,
+  });
+
+  const providers = useMemo(
+    () => (Array.isArray(providerListData) ? providerListData : []),
+    [providerListData],
+  );
+
+  const hasProviders = providers.length > 0;
+  const isS3Mode = mode === 's3';
+  const shouldShowTasksText = hasProviders || isS3Mode;
+
+  // Fetch healthz to get the mode
+  useEffect(() => {
+    const fetchHealthz = async () => {
+      try {
+        const data = await apiHealthz();
+        if (data?.mode) {
+          setMode(data.mode);
+        }
+      } catch (error) {
+        console.error('Failed to fetch healthz data:', error);
+      }
+    };
+
+    fetchHealthz();
+  }, []);
 
   // Automatically open recipes modal when no experiment is selected AND API is connected
   // BUT NOT when the connection modal is open (when there's no connection)
@@ -123,7 +163,7 @@ export default function Welcome() {
 
   // Create experiment creation callback
   const createNewExperiment = async (name: string, fromRecipeId = null) => {
-    let newId = 0;
+    let newId: string | number = '';
 
     if (fromRecipeId === null) {
       const response = await chatAPI.authenticatedFetch(
@@ -150,7 +190,7 @@ export default function Welcome() {
       }
       newId = responseJson?.data?.experiment_id;
     }
-    setExperimentId(newId);
+    setExperimentId(String(newId));
 
     // Navigate to Notes page if experiment was created from a recipe AND recipe is not blank
     if (fromRecipeId !== null && fromRecipeId !== -1) {
@@ -204,40 +244,82 @@ export default function Welcome() {
             Let's start your next Experiment! 🤓
           </Typography>
           <div>
-            <Typography level="body-lg" sx={{ fontSize: '24px' }} mb={2}>
-              Get started by downloading a small model from the <BoxesIcon />{' '}
-              Model Zoo. <b>{recommendedModel(cpu, os, device)}</b> could be a
-              great starting point for your {typeOfComputer(cpu, os, device)}.
-              After downloading a model, you can:
-            </Typography>
-            <Stack
-              direction="column"
-              justifyContent="flex-start"
-              alignItems="flex-start"
-              spacing={2}
-            >
-              <ul>
-                <li>
-                  <Typography level="body-lg" sx={{ fontSize: '20px' }}>
-                    <b>Run it</b> by clicking on <LayersIcon /> Foundation then
-                    press <PlayCircleIcon /> Run{' '}
-                  </Typography>
-                </li>
-                <li>
-                  <Typography level="body-lg" sx={{ fontSize: '20px' }}>
-                    Once a model is running, you can <b>Chat</b> with it by
-                    clicking on <MessageCircleIcon /> Interact
-                  </Typography>
-                </li>
-                <li>
-                  <Typography level="body-lg" sx={{ fontSize: '20px' }}>
-                    <b>Fine tune</b> a model by clicking on{' '}
-                    <GraduationCapIcon /> Train
-                  </Typography>
-                </li>
-              </ul>
+            {shouldShowTasksText ? (
+              <>
+                <Typography level="body-lg" sx={{ fontSize: '24px' }} mb={2}>
+                  Get started by creating a new experiment and launching tasks
+                  from the <StretchHorizontalIcon /> <b>Tasks</b> menu tab.
+                </Typography>
+                <Stack
+                  direction="column"
+                  justifyContent="flex-start"
+                  alignItems="flex-start"
+                  spacing={2}
+                >
+                  <ul>
+                    <li>
+                      <Typography level="body-lg" sx={{ fontSize: '20px' }}>
+                        <b>Create an experiment</b> by clicking on the
+                        experiment dropdown and selecting <b>New</b>
+                      </Typography>
+                    </li>
+                    <li>
+                      <Typography level="body-lg" sx={{ fontSize: '20px' }}>
+                        Navigate to the <StretchHorizontalIcon /> <b>Tasks</b>{' '}
+                        tab to launch training, evaluation, or other tasks on
+                        your configured compute providers
+                      </Typography>
+                    </li>
+                    <li>
+                      <Typography level="body-lg" sx={{ fontSize: '20px' }}>
+                        Tasks will run on your available compute providers,
+                        allowing you to leverage cloud resources or remote
+                        servers
+                      </Typography>
+                    </li>
+                  </ul>
+                </Stack>
+              </>
+            ) : (
+              <>
+                <Typography level="body-lg" sx={{ fontSize: '24px' }} mb={2}>
+                  Get started by downloading a small model from the{' '}
+                  <BoxesIcon /> <b>{recommendedModel(cpu, os, device)}</b> could
+                  great great starting point for your{' '}
+                  {typeOfComputer(cpu, os, device)}. After downloading a model,
+                  you can:
+                </Typography>
+                <Stack
+                  direction="column"
+                  justifyContent="flex-start"
+                  alignItems="flex-start"
+                  spacing={2}
+                >
+                  <ul>
+                    <li>
+                      <Typography level="body-lg" sx={{ fontSize: '20px' }}>
+                        <b>Run it</b> by clicking on <LayersIcon /> Foundation
+                        then press <PlayCircleIcon /> Run{' '}
+                      </Typography>
+                    </li>
+                    <li>
+                      <Typography level="body-lg" sx={{ fontSize: '20px' }}>
+                        Once a model is running, you can <b>Chat</b> with it by
+                        clicking on <MessageCircleIcon /> Interact
+                      </Typography>
+                    </li>
+                    <li>
+                      <Typography level="body-lg" sx={{ fontSize: '20px' }}>
+                        <b>Fine tune</b> a model by clicking on{' '}
+                        <GraduationCapIcon /> Train
+                      </Typography>
+                    </li>
+                  </ul>
+                </Stack>
+              </>
+            )}
 
-              {/* <Button
+            {/* <Button
               endDecorator={<ArrowRightCircleIcon />}
               size="lg"
               onClick={() => {
@@ -246,16 +328,15 @@ export default function Welcome() {
             >
               Chat 💬 with it
             </Button> */}
-              {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
+            {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
               Start 🔬 with a pre-built recipe
             </Button> */}
-              {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
+            {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
               Train 🧑🏽‍🎓 a new model from scratch
             </Button> */}
-              {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
+            {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
               Fine tune 🎵 it
             </Button> */}
-            </Stack>
             <Typography level="body-lg" mt={2} sx={{ fontSize: '24px' }}>
               Access our{' '}
               <a

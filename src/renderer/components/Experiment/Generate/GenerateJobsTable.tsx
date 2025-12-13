@@ -19,7 +19,7 @@ import {
   Grid3X3Icon,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import dayjs from 'dayjs';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';

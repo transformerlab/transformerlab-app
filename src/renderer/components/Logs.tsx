@@ -18,7 +18,7 @@ import {
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { RotateCcwIcon } from 'lucide-react';
 
 import { fetcher } from '../lib/transformerlab-api-sdk';

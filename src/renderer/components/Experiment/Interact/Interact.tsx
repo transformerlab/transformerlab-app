@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import * as React from 'react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import {
   Sheet,
@@ -108,7 +108,9 @@ export default function Chat({
   const [debouncedText] = useDebounce(textToDebounce, 1000);
 
   const [tokenCount, setTokenCount] = React.useState({});
-  const currentModel = experimentInfo?.config?.foundation;
+  const currentModel = experimentInfo?.config?.foundation_filename
+    ? experimentInfo?.config?.foundation_filename
+    : experimentInfo?.config?.foundation;
   //This is necessary for assessing whether a model is multimodal or not, and whether images can be sent
   const currentModelArchitecture =
     experimentInfo?.config?.foundation_model_architecture;

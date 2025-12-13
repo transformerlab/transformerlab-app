@@ -35,12 +35,13 @@ import { Editor } from '@monaco-editor/react';
 
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import { fetcher } from '../../../../lib/transformerlab-api-sdk';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import NewWorkflowModal from './NewWorkflowModal';
 import NewNodeModal from './NewNodeModal';
 import WorkflowCanvas from './WorkflowCanvas';
 import { useNotification } from '../../../Shared/NotificationSystem';
 import fairyflossTheme from '../../../Shared/fairyfloss.tmTheme.js';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 const { parseTmTheme } = require('monaco-themes');
 
@@ -97,7 +98,7 @@ function ShowCode({
       const configObject = JSON.parse(value);
 
       // Use the new direct config update endpoint
-      const response = await fetch(
+      const response = await fetchWithAuth(
         chatAPI.Endpoints.Workflows.UpdateConfig(code.id, experimentInfo.id),
         {
           method: 'PUT',

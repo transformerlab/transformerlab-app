@@ -13,7 +13,7 @@ import { ChangeEvent, FocusEvent, useMemo } from 'react';
 
 import validator from '@rjsf/validator-ajv8';
 import Form from '@rjsf/core';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import {

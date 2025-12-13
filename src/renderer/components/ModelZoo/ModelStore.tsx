@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { downloadModelFromGallery } from 'renderer/lib/transformerlab-api-sdk';
 
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import ModelDetailsModal from './ModelDetailsModal';

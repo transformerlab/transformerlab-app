@@ -18,6 +18,7 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import PluginGallery from './PluginGallery';
 import LocalPlugins from './LocalPlugins';
 import OneTimePopup from '../Shared/OneTimePopup';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 export default function Plugins({ setLogsDrawerOpen = null }) {
   const { experimentInfo } = useExperimentInfo();
@@ -71,7 +72,7 @@ export default function Plugins({ setLogsDrawerOpen = null }) {
               // eslint-disable-next-line no-restricted-syntax
               for (const plugin of pluginsToUpdate) {
                 setInstalling(plugin.name);
-                await fetch(
+                await fetchWithAuth(
                   chatAPI.Endpoints.Experiment.InstallPlugin(plugin.uniqueId),
                 );
                 console.log('Installing plugin:', plugin);

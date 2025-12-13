@@ -13,6 +13,7 @@ import {
   Textarea,
 } from '@mui/joy';
 import React, { useState } from 'react';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
@@ -35,16 +36,19 @@ export default function TemplatedPromptModal({ open, setOpen, mutate }) {
             const promptName = formData.get('name') as string;
             const template = formData.get('template') as string;
 
-            const response = await fetch(chatAPI.Endpoints.Prompts.New(), {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
+            const response = await fetchWithAuth(
+              chatAPI.Endpoints.Prompts.New(),
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  title: promptName,
+                  text: template,
+                }),
               },
-              body: JSON.stringify({
-                title: promptName,
-                text: template,
-              }),
-            });
+            );
 
             const responseJSON = await response.json();
 

@@ -65,6 +65,10 @@
     "pythonLibraries": {
       "method": "GET",
       "path": "server/python_libraries"
+    },
+    "download_logs": {
+      "method": "GET",
+      "path": "server/download_logs"
     }
   },
   "config": {
@@ -204,9 +208,59 @@
       "method": "DELETE",
       "path": "teams/{teamId}/delete"
     },
+    "rename": {
+      "method": "PUT",
+      "path": "teams/{teamId}"
+    },
     "getMembers": {
       "method": "GET",
       "path": "teams/{teamId}/members"
+    },
+    "inviteMember": {
+      "method": "POST",
+      "path": "teams/{teamId}/members"
+    }
+  },
+  "compute_provider": {
+    "list": {
+      "method": "GET",
+      "path": "compute_provider/"
+    },
+    "create": {
+      "method": "POST",
+      "path": "compute_provider/"
+    },
+    "get": {
+      "method": "GET",
+      "path": "compute_provider/{providerId}"
+    },
+    "update": {
+      "method": "PATCH",
+      "path": "compute_provider/{providerId}"
+    },
+    "delete": {
+      "method": "DELETE",
+      "path": "compute_provider/{providerId}"
+    },
+    "launchTask": {
+      "method": "POST",
+      "path": "compute_provider/{providerId}/tasks/launch"
+    },
+    "checkJobStatus": {
+      "method": "GET",
+      "path": "compute_provider/jobs/{jobId}/check-status"
+    },
+    "clusters": {
+      "method": "GET",
+      "path": "compute_provider/clusters"
+    },
+    "stopCluster": {
+      "method": "POST",
+      "path": "compute_provider/{providerId}/clusters/{clusterName}/stop"
+    },
+    "uploadTaskFile": {
+      "method": "POST",
+      "path": "compute_provider/{providerId}/tasks/{taskId}/file-upload"
     }
   },
   "auth": {
@@ -225,6 +279,46 @@
     "logout": {
       "method": "POST",
       "path": "auth/logout"
+    },
+    "forgotPassword": {
+      "method": "POST",
+      "path": "auth/forgot_password"
+    },
+    "apiKeys": {
+      "list": {
+        "method": "GET",
+        "path": "auth/api-keys"
+      },
+      "create": {
+        "method": "POST",
+        "path": "auth/api-keys"
+      },
+      "get": {
+        "method": "GET",
+        "path": "auth/api-keys/{key_id}"
+      },
+      "update": {
+        "method": "PATCH",
+        "path": "auth/api-keys/{key_id}"
+      },
+      "delete": {
+        "method": "DELETE",
+        "path": "auth/api-keys/{key_id}"
+      }
+    },
+    "verify": {
+      "method": "POST",
+      "path": "auth/verify"
+    },
+    "refresh": {
+      "method": "POST",
+      "path": "auth/refresh"
+    }
+  },
+  "invitations": {
+    "accept": {
+      "method": "POST",
+      "path": "invitations/accept"
     }
   },
   "experiment": {

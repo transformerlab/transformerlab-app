@@ -32,6 +32,7 @@ import { filterByFilters, licenseTypes, modelTypes } from '../../lib/utils';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import SelectButton from '../Experiment/SelectButton';
 import { RiChatAiLine, RiImageAiLine } from 'react-icons/ri';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 type Order = 'asc' | 'desc';
 
@@ -381,14 +382,14 @@ const LocalModelsTable = ({
                                           "' from your local Huggingface cache as well (if present) ?",
                                       )
                                     ) {
-                                      await fetch(
+                                      await fetchWithAuth(
                                         chatAPI.Endpoints.Models.Delete(
                                           row.model_id,
                                           true,
                                         ),
                                       );
                                     } else {
-                                      await fetch(
+                                      await fetchWithAuth(
                                         chatAPI.Endpoints.Models.Delete(
                                           row.model_id,
                                           false,
@@ -480,7 +481,7 @@ const LocalModelsTable = ({
                     download a model by going to the{' '}
                     <ReactRouterLink to="/zoo">
                       <StoreIcon />
-                      Model Store
+                      Model Registry
                     </ReactRouterLink>
                     .
                   </Typography>
@@ -492,7 +493,7 @@ const LocalModelsTable = ({
       </Sheet>
       <Typography mt={2} level="body-sm">
         Looking for more models? Go to the{' '}
-        <ReactRouterLink to="/zoo">Model Store</ReactRouterLink>
+        <ReactRouterLink to="/zoo">Model Registry</ReactRouterLink>
       </Typography>
     </>
   );

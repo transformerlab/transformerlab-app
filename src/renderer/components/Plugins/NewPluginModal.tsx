@@ -12,6 +12,7 @@ import {
 } from '@mui/joy';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 export default function NewPluginModal({
   open,
@@ -43,7 +44,7 @@ export default function NewPluginModal({
                 const formData = new FormData(event.currentTarget);
                 const name = formData.get('plugin-name');
 
-                await fetch(
+                await fetchWithAuth(
                   chatAPI.Endpoints.Experiment.ScriptCreateNew(
                     experimentInfo?.id,
                     name,

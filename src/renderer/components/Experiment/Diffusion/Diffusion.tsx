@@ -57,6 +57,7 @@ type DiffusionProps = {
 };
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 // Helper component for labels with tooltips
 const LabelWithTooltip = ({
@@ -292,7 +293,7 @@ export default function Diffusion() {
       if (!selectedPlugin || !experimentInfo?.id) return;
 
       try {
-        const res = await fetch(
+        const res = await fetchWithAuth(
           getAPIFullPath('diffusion', ['checkValidDiffusion'], {
             experimentId: experimentInfo.id,
           }),
@@ -351,7 +352,7 @@ export default function Diffusion() {
   const checkImg2ImgEligibility = async () => {
     setIsImg2ImgEligible(null);
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         getAPIFullPath('diffusion', ['checkValidDiffusion'], {
           experimentId: experimentId,
         }),
@@ -372,7 +373,7 @@ export default function Diffusion() {
   const checkInpaintingEligibility = async () => {
     setIsInpaintingEligible(null);
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         getAPIFullPath('diffusion', ['checkValidDiffusion'], {
           experimentId: experimentId,
         }),
@@ -450,7 +451,7 @@ export default function Diffusion() {
   // Intermediate image generation helper functions
   const getGenerationId = async (): Promise<string | null> => {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         getAPIFullPath('diffusion', ['generateId'], {
           experimentId: experimentId,
         }),
@@ -497,7 +498,7 @@ export default function Diffusion() {
           imageId: genId,
           index: 0,
         });
-        const stepResponse = await fetch(`${stepUrl}&step=true`);
+        const stepResponse = await fetchWithAuth(`${stepUrl}&step=true`);
         if (stepResponse.ok) {
           const blob = await stepResponse.blob();
           const imageUrl = URL.createObjectURL(blob);
@@ -514,7 +515,7 @@ export default function Diffusion() {
             experimentId,
             generationId: genId,
           });
-          const resultResponse = await fetch(resultUrl);
+          const resultResponse = await fetchWithAuth(resultUrl);
           if (resultResponse.ok) {
             const json = await resultResponse.json();
             hasReceivedJson = true;
@@ -552,7 +553,7 @@ export default function Diffusion() {
     return new Promise((resolve) => {
       const poll = async () => {
         try {
-          const res = await fetch(
+          const res = await fetchWithAuth(
             getAPIFullPath('jobs', ['get'], {
               id: jobId,
               experimentId: experimentInfo?.id,
@@ -666,10 +667,11 @@ export default function Diffusion() {
       pollingCleanupRef.current = startPollingForIntermediateImages(
         genId,
         Number(numSteps),
-        (data) => {
+        async (data) => {
           if (data.error_code !== 0) {
             setError(data.detail || 'Error in generation result.');
           } else {
+            // Fetch images with authentication and convert to blob URLs
             const imageUrls: string[] = [];
             for (let i = 0; i < data.num_images; i++) {
               const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
@@ -677,7 +679,20 @@ export default function Diffusion() {
                 imageId: data.id,
                 index: i,
               });
-              imageUrls.push(imageUrl);
+              try {
+                const response = await fetchWithAuth(imageUrl);
+                if (response.ok) {
+                  const blob = await response.blob();
+                  const blobUrl = URL.createObjectURL(blob);
+                  imageUrls.push(blobUrl);
+                } else {
+                  // Fallback to URL if fetch fails
+                  imageUrls.push(imageUrl);
+                }
+              } catch (e) {
+                // Fallback to URL if fetch fails
+                imageUrls.push(imageUrl);
+              }
             }
 
             setCurrentImages(imageUrls);
@@ -696,7 +711,7 @@ export default function Diffusion() {
         },
       );
 
-      const response = await fetch(
+      const response = await fetchWithAuth(
         getAPIFullPath('diffusion', ['generate'], {
           experimentId: experimentId,
         }),
@@ -786,7 +801,7 @@ export default function Diffusion() {
         requestBody.height = Number(inpaintingImageHeight);
       }
 
-      const response = await fetch(
+      const response = await fetchWithAuth(
         getAPIFullPath('diffusion', ['generate'], {
           experimentId: experimentId,
         }),
@@ -813,10 +828,11 @@ export default function Diffusion() {
       pollingCleanupRef.current = startPollingForIntermediateImages(
         genId,
         Number(numSteps),
-        (data) => {
+        async (data) => {
           if (data.error_code !== 0) {
             setError(data.detail || 'Error in generation result.');
           } else {
+            // Fetch images with authentication and convert to blob URLs
             const imageUrls: string[] = [];
             for (let i = 0; i < data.num_images; i++) {
               const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
@@ -824,7 +840,20 @@ export default function Diffusion() {
                 imageId: data.id,
                 index: i,
               });
-              imageUrls.push(imageUrl);
+              try {
+                const response = await fetchWithAuth(imageUrl);
+                if (response.ok) {
+                  const blob = await response.blob();
+                  const blobUrl = URL.createObjectURL(blob);
+                  imageUrls.push(blobUrl);
+                } else {
+                  // Fallback to URL if fetch fails
+                  imageUrls.push(imageUrl);
+                }
+              } catch (e) {
+                // Fallback to URL if fetch fails
+                imageUrls.push(imageUrl);
+              }
             }
 
             setInpaintingImages(imageUrls);
@@ -854,12 +883,23 @@ export default function Diffusion() {
     }
 
     try {
-      // Create a link to the new endpoint that returns a zip file
-      const link = document.createElement('a');
-      link.href = getAPIFullPath('diffusion', ['getAllImages'], {
+      // Fetch the zip file with authentication
+      const zipUrl = getAPIFullPath('diffusion', ['getAllImages'], {
         experimentId: experimentId,
         imageId: currentGenerationData.id,
       });
+
+      const response = await fetchWithAuth(zipUrl);
+      if (!response.ok) {
+        throw new Error('Failed to download images');
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Create a link to download the blob
+      const link = document.createElement('a');
+      link.href = blobUrl;
 
       // Generate filename with timestamp
       const timestamp = new Date()
@@ -872,6 +912,11 @@ export default function Diffusion() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      // Clean up blob URL after a short delay
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 100);
     } catch (err) {
       setError('Failed to save images');
     }
@@ -896,7 +941,7 @@ export default function Diffusion() {
   const checkValidDiffusion = async () => {
     setIsStableDiffusion(null);
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         getAPIFullPath('diffusion', ['checkValidDiffusion'], {
           experimentId: experimentId,
         }),

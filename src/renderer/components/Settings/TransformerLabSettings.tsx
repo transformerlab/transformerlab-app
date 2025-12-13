@@ -22,8 +22,9 @@ import {
 } from '@mui/joy';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import useSWR from 'swr';
-import { EyeIcon, EyeOffIcon, RotateCcwIcon } from 'lucide-react';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
+import { EyeIcon, EyeOffIcon, RotateCcwIcon, DownloadIcon } from 'lucide-react';
+import { useNotification } from '../Shared/NotificationSystem';
 
 import AIProvidersSettings from './AIProvidersSettings';
 import EditTokenModal from './EditTokenModal';
@@ -44,6 +45,7 @@ export default function TransformerLabSettings() {
     React.useState(false);
   const [showExperimentalPlugins, setShowExperimentalPlugins] =
     React.useState(false);
+  const { addNotification } = useNotification();
 
   React.useEffect(() => {
     const fetchDoNotTrack = async () => {
@@ -411,6 +413,71 @@ export default function TransformerLabSettings() {
                   : 'Experimental plugins will be hidden from the Plugin Gallery.'}
               </FormHelperText>
             </FormControl>
+            <Divider sx={{ mt: 2, mb: 2 }} />
+            <Button
+              variant="soft"
+              startDecorator={<DownloadIcon />}
+              onClick={async () => {
+                try {
+                  const response = await chatAPI.authenticatedFetch(
+                    getAPIFullPath('server', ['download_logs'], {}),
+                  );
+
+                  if (!response.ok) {
+                    // Check if it's a 404 (no log files)
+                    if (response.status === 404) {
+                      const errorData = await response.json();
+                      addNotification({
+                        type: 'warning',
+                        message:
+                          errorData.detail ||
+                          'No log files found. The log files may not have been created yet.',
+                      });
+                      return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                  }
+
+                  const blob = await response.blob();
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+
+                  // Get filename from Content-Disposition header or use default
+                  const contentDisposition = response.headers.get(
+                    'Content-Disposition',
+                  );
+                  let filename = 'transformerlab_logs.zip';
+                  if (contentDisposition) {
+                    const filenameMatch =
+                      contentDisposition.match(/filename="?(.+?)"?$/i);
+                    if (filenameMatch) {
+                      filename = filenameMatch[1];
+                    }
+                  }
+
+                  link.download = filename;
+                  link.href = url;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  URL.revokeObjectURL(url);
+
+                  addNotification({
+                    type: 'success',
+                    message: 'API logs downloaded successfully',
+                  });
+                } catch (error) {
+                  console.error('Error downloading logs:', error);
+                  addNotification({
+                    type: 'danger',
+                    message: `Failed to download logs: ${error.message}`,
+                  });
+                }
+              }}
+              sx={{ mt: 2 }}
+            >
+              Download API Logs
+            </Button>
           </TabPanel>
           <TabPanel
             value={1}

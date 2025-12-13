@@ -15,6 +15,7 @@ import { SendIcon, StopCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 export default function TextDiffusionVisualization({
   tokenCount,
@@ -92,7 +93,7 @@ export default function TextDiffusionVisualization({
       };
 
       // Make fetch request
-      const response = await fetch(url, {
+      const response = await fetchWithAuth(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

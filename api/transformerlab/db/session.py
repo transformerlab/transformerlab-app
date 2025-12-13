@@ -1,12 +1,13 @@
 import os
 import shutil
 import aiosqlite
+import subprocess
+import sys
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 from transformerlab.db.constants import DATABASE_FILE_NAME, DATABASE_URL
 from lab.dirs import get_workspace_dir
-from transformerlab.shared.models import models
 
 
 # --- SQLAlchemy Async Engine ---
@@ -22,6 +23,41 @@ async_session = sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
+
+
+async def run_alembic_migrations():
+    """
+    Run Alembic migrations to create/update database schema.
+    This replaces the previous create_all() approach.
+    """
+    try:
+        # Get the directory containing this file (transformerlab/db)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # Go up to api directory where alembic.ini is located
+        api_dir = os.path.dirname(os.path.dirname(current_dir))
+
+        # Run alembic upgrade head
+        result = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            cwd=api_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        if result.returncode != 0:
+            print(f"⚠️  Alembic migration warning: {result.stderr}")
+            # Don't fail completely - the database might already be up to date
+            # or there might be a minor issue
+            if "Target database is not up to date" not in result.stderr:
+                print(f"Migration output: {result.stdout}")
+        else:
+            print("✅ Database migrations applied")
+    except Exception as e:
+        print(f"⚠️  Error running Alembic migrations: {e}")
+        print("Continuing with startup - database may need manual migration")
+        # Don't raise - allow the app to continue
+        # The database might already be in the correct state
 
 
 async def init():
@@ -52,9 +88,9 @@ async def init():
     await db.execute("PRAGMA synchronous=normal")
     await db.execute("PRAGMA busy_timeout = 30000")
 
-    # Create the tables if they don't exist
-    async with async_engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.create_all)
+    # Run Alembic migrations to create/update tables
+    # This replaces the previous create_all() call
+    await run_alembic_migrations()
 
     # Check if experiment_id column exists in workflow_runs table
     cursor = await db.execute("PRAGMA table_info(workflow_runs)")
@@ -152,9 +188,9 @@ async def migrate_workflows_non_preserving():
         # Rename current table as backup
         await db.execute("ALTER TABLE workflows RENAME TO workflows_backup")
 
-        # Create new workflows table using SQLAlchemy schema
-        async with async_engine.begin() as conn:
-            await conn.run_sync(models.Base.metadata.create_all)
+        # Note: Table creation is now handled by Alembic migrations
+        # If we need to recreate the workflows table, it should be done via a migration
+        pass
 
         await db.commit()
         print("Successfully created new workflows table with correct schema. Old table saved as workflows_backup.")

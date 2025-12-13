@@ -8,6 +8,7 @@ All other parameters can be passed as if you are calling the plugin directly.
 
 """
 
+import os
 import sys
 import argparse
 import traceback
@@ -16,6 +17,17 @@ import traceback
 parser = argparse.ArgumentParser()
 parser.add_argument("--plugin_dir", type=str, required=True)
 args, unknown = parser.parse_known_args()
+
+# Set organization context from environment variable if provided
+# This allows plugins to have the correct org context without leaking to the API
+org_id = os.environ.get("_TFL_ORG_ID")
+if org_id:
+    try:
+        from lab.dirs import set_organization_id
+
+        set_organization_id(org_id)
+    except Exception as e:
+        print(f"Warning: Could not set organization context: {e}")
 
 # Add the plugin directory to the path
 # Note that this will allow the plugin to import files in this file's directory
@@ -32,8 +44,27 @@ except ImportError as e:
     if isinstance(e, ModuleNotFoundError):
         print("ModuleNotFoundError means a Python package is missing. This is usually fixed by reinstalling the plugin")
 
+    # Clear organization context on error
+    if org_id:
+        try:
+            from lab.dirs import set_organization_id
+
+            set_organization_id(None)
+        except Exception:
+            pass
+
     sys.exit(1)
 
 # Also execute the function main.main(), if it exists
-if "main" in dir(main) and callable(getattr(main, "main")):
-    main.main()
+try:
+    if "main" in dir(main) and callable(getattr(main, "main")):
+        main.main()
+finally:
+    # Clear organization context when plugin exits
+    if org_id:
+        try:
+            from lab.dirs import set_organization_id
+
+            set_organization_id(None)
+        except Exception:
+            pass

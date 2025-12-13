@@ -14,6 +14,7 @@ import {
 import { Endpoints } from '../../../lib/api-client/endpoints';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { authenticatedFetch } from '../../../lib/transformerlab-api-sdk';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
   const [mode, setMode] = useState<'package' | 'file'>('package');
@@ -49,7 +50,7 @@ export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
     if (result.status === 'success') {
       // Store serverName, args, and env in config
       const configValue = JSON.stringify({ serverName, args, env });
-      await fetch(
+      await fetchWithAuth(
         chatAPI.getAPIFullPath('config', ['set'], {
           key: 'MCP_SERVER',
           value: configValue,

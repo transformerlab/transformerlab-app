@@ -39,6 +39,7 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import HistoryCard from './HistoryCard';
 import HistoryImageViewModal from './HistoryImageViewModal';
 import { HistoryImage } from './types';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 type HistoryProps = {};
 
@@ -228,7 +229,7 @@ const History: React.FC<HistoryProps> = () => {
     setDatasetError('');
 
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         getAPIFullPath('diffusion', ['createDataset'], {
           experimentId,
         }),

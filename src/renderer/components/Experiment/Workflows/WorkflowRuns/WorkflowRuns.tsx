@@ -10,7 +10,7 @@ import {
   Sheet,
   Typography,
 } from '@mui/joy';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import TinyCircle from 'renderer/components/Shared/TinyCircle';
 import { useEffect, useState } from 'react';
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';

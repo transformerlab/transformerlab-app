@@ -20,7 +20,7 @@ import {
 import React, { useState, useEffect } from 'react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { fetcher } from '../../../../lib/transformerlab-api-sdk';
 
 export default function NewNodeModal({

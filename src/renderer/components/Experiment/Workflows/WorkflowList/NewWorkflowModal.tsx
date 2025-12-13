@@ -17,6 +17,7 @@ import {
 import Alert from '@mui/joy/Alert';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 export default function NewWorkflowModal({
   open,
@@ -47,7 +48,7 @@ export default function NewWorkflowModal({
             const workflowName = formData.get('name') as string;
             if (selectedWorkflow?.id) {
               // Update existing workflow
-              const response = await fetch(
+              const response = await fetchWithAuth(
                 chatAPI.Endpoints.Workflows.UpdateName(
                   selectedWorkflow.id,
                   workflowName,
@@ -66,7 +67,7 @@ export default function NewWorkflowModal({
               }
               onClose();
             } else {
-              const response = await fetch(
+              const response = await fetchWithAuth(
                 chatAPI.Endpoints.Workflows.CreateEmpty(
                   workflowName,
                   experimentId,

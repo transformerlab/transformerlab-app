@@ -1,8 +1,7 @@
 import { Option, Select } from '@mui/joy';
 import { useState, useEffect } from 'react';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import useSWR from 'swr';
-import { fetcher } from '../../../lib/transformerlab-api-sdk';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 export default function PickADocumentMenu({
   name,
@@ -17,7 +16,11 @@ export default function PickADocumentMenu({
     data: rows,
     isLoading,
     mutate,
-  } = useSWR(chatAPI.Endpoints.Documents.List(experimentInfo?.id, ''), fetcher);
+  } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Documents.List(experimentInfo.id, '')
+      : null,
+  );
 
   function handleChange(event, newValue) {
     console.log(newValue);

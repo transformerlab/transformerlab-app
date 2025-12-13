@@ -1,3 +1,4 @@
+import { fetchWithAuth } from 'renderer/lib/authContext';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
 export function scrollChatToBottom() {
@@ -13,7 +14,7 @@ export function focusChatInput() {
 }
 
 export async function getMcpServerFile() {
-  const configResp = await fetch(
+  const configResp = await fetchWithAuth(
     chatAPI.getAPIFullPath('config', ['get'], { key: 'MCP_SERVER' }),
   );
   const configData = await configResp.json();

@@ -5,16 +5,20 @@ import React, {
   useMemo,
   useState,
   useEffect,
+  useRef,
 } from 'react'; // Import useMemo
 import useSWR from 'swr';
 
 import * as chatAPI from './transformerlab-api-sdk.ts'; // Adjust the import path as necessary
 import { fetcher } from './transformerlab-api-sdk.ts';
+import { useAuth } from './authContext';
 
 const ExperimentInfoContext = createContext(undefined);
 
 export function ExperimentInfoProvider({ connection, children }) {
   const [experimentId, setExperimentId] = useState(null);
+  const authContext = useAuth();
+  const lastAutoSelectedTeamId = useRef(null);
 
   // Load experimentId from storage or default
   useEffect(() => {
@@ -56,6 +60,72 @@ export function ExperimentInfoProvider({ connection, children }) {
     experimentId ? chatAPI.Endpoints.Experiment.Get(experimentId) : null,
     fetcher,
   );
+
+  // Fetch all experiments to auto-select first one when team changes
+  const { data: allExperiments, mutate: mutateAllExperiments } = useSWR(
+    chatAPI.API_URL() === null ? null : chatAPI.Endpoints.Experiment.GetAll(),
+    fetcher,
+  );
+
+  // Auto-select first experiment when team changes and no experiment is selected
+  // or if current experiment doesn't exist in the new team's experiments
+  useEffect(() => {
+    const currentTeamId = authContext?.team?.id;
+    
+    // Only run if we have a team, connection, and experiments are loaded
+    if (
+      !currentTeamId ||
+      !connection ||
+      connection === '' ||
+      !allExperiments
+    ) {
+      return;
+    }
+
+    // Skip if we've already auto-selected for this team
+    if (lastAutoSelectedTeamId.current === currentTeamId) {
+      return;
+    }
+
+    // If no experiments available, clear selection
+    if (allExperiments.length === 0) {
+      if (experimentId) {
+        setExperimentId(null);
+      }
+      lastAutoSelectedTeamId.current = currentTeamId;
+      return;
+    }
+
+    // Check if current experiment exists in the new team's experiments
+    const currentExperimentExists = experimentId
+      ? allExperiments.some(
+          (exp) =>
+            exp.id === experimentId ||
+            exp.name === experimentId ||
+            exp.id === experimentInfo?.id ||
+            exp.name === experimentInfo?.name,
+        )
+      : false;
+
+    // If no experiment is selected, or current experiment doesn't exist in new team,
+    // auto-select the first one
+    if ((!experimentId || !currentExperimentExists) && allExperiments.length > 0) {
+      const firstExperiment = allExperiments[0];
+      setExperimentId(firstExperiment.name || firstExperiment.id);
+      lastAutoSelectedTeamId.current = currentTeamId;
+    } else if (currentExperimentExists) {
+      // Current experiment exists, mark this team as handled
+      lastAutoSelectedTeamId.current = currentTeamId;
+    }
+  }, [
+    authContext?.team?.id,
+    allExperiments,
+    connection,
+    experimentId,
+    experimentInfo?.id,
+    experimentInfo?.name,
+  ]);
+
   // Use useMemo to memoize the contextValue object
   const contextValue = useMemo(() => {
     return {

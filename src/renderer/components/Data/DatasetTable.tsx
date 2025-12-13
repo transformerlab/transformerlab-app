@@ -15,7 +15,7 @@ import {
 } from '@mui/joy';
 
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import AudioPlayer from './AudioPlayer';
 import { fetcher } from '../../lib/transformerlab-api-sdk';

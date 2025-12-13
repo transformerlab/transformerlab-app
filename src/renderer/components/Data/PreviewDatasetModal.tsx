@@ -9,15 +9,10 @@ import {
 } from '@mui/joy';
 
 import DatasetTable from './DatasetTable';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import DatasetPreviewEditImage from './DatasetPreviewEditImage';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
-
-const fetcher = (url) =>
-  fetch(url)
-    .then((res) => res.json())
-    .then((data) => data);
 
 export default function PreviewDatasetModal({
   dataset_id,

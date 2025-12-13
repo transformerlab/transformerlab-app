@@ -11,6 +11,7 @@ import { CircleCheckIcon, CircleXIcon, DownloadIcon } from 'lucide-react';
 import { useState } from 'react';
 import { getAPIFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { useEffect } from 'react';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 function InstalledStateChip({ state }) {
   let color = 'neutral';
@@ -174,7 +175,7 @@ export default function RecipeDependencies({
             }
             onClick={async () => {
               setInstalling(true);
-              const installTask = await fetch(
+              const installTask = await fetchWithAuth(
                 getAPIFullPath('recipes', ['installDependencies'], {
                   id: recipeId,
                 }),

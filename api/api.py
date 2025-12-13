@@ -18,25 +18,35 @@ import httpx
 
 # Using torch to test for CUDA and MPS support.
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-from fastchat.constants import (
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+from fastchat.constants import (  # noqa: E402
     ErrorCode,
 )
-from fastchat.protocol.openai_api_protocol import (
+from fastchat.protocol.openai_api_protocol import (  # noqa: E402
     ErrorResponse,
 )
 
-from transformerlab.services.experiment_service import experiment_get
-from transformerlab.services.job_service import job_create, job_get, job_update_status
-from transformerlab.services.experiment_init import seed_default_experiments, cancel_in_progress_jobs
-import transformerlab.db.session as db
+from transformerlab.services.experiment_service import experiment_get  # noqa: E402
+from transformerlab.services.job_service import job_create, job_get, job_update_status  # noqa: E402
+from transformerlab.services.experiment_init import (  # noqa: E402
+    seed_default_experiments,
+    cancel_in_progress_jobs,
+    seed_default_admin_user,
+)
+import transformerlab.db.session as db  # noqa: E402
 
-from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
-from transformerlab.routers import (
+from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert  # noqa: E402
+from transformerlab.routers import (  # noqa: E402
     data,
     model,
     serverinfo,
@@ -49,40 +59,41 @@ from transformerlab.routers import (
     tools,
     batched_prompts,
     recipes,
-    remote,
+    teams,
+    compute_provider,
+    auth,
+    api_keys,
 )
-import torch
+from transformerlab.routers.auth import get_user_and_team  # noqa: E402
+import torch  # noqa: E402
 
 try:
-    from pynvml import nvmlShutdown
+    from pynvml import nvmlShutdown  # noqa: E402
 
     HAS_AMD = False
 except Exception:
-    from pyrsmi import rocml
+    from pyrsmi import rocml  # noqa: E402
 
     HAS_AMD = True
-from transformerlab import fastchat_openai_api
-from transformerlab.routers.experiment import experiment
-from transformerlab.routers.experiment import workflows
-from transformerlab.routers.experiment import jobs
-from transformerlab.shared import shared
-from transformerlab.shared import galleries
-from lab.dirs import get_workspace_dir
-from lab import dirs as lab_dirs
-from transformerlab.shared import dirs
-from transformerlab.db.filesystem_migrations import (
-    migrate_datasets_table_to_filesystem,
-    migrate_models_table_to_filesystem,
-    migrate_tasks_table_to_filesystem,
-    migrate_job_and_experiment_to_filesystem,
+from transformerlab import fastchat_openai_api  # noqa: E402
+from transformerlab.routers.experiment import experiment  # noqa: E402
+from transformerlab.routers.experiment import workflows  # noqa: E402
+from transformerlab.routers.experiment import jobs  # noqa: E402
+from transformerlab.shared import shared  # noqa: E402
+from transformerlab.shared import galleries  # noqa: E402
+from lab.dirs import get_workspace_dir  # noqa: E402
+from lab import dirs as lab_dirs  # noqa: E402
+from transformerlab.shared import dirs  # noqa: E402
+from transformerlab.db.filesystem_migrations import (  # noqa: E402
+    migrate_datasets_table_to_filesystem,  # noqa: E402
+    migrate_models_table_to_filesystem,  # noqa: E402
+    migrate_tasks_table_to_filesystem,  # noqa: E402
+    migrate_job_and_experiment_to_filesystem,  # noqa: E402
 )
-from transformerlab.shared.request_context import set_current_org_id
-from lab.dirs import set_organization_id as lab_set_org_id
-from lab import storage
+from transformerlab.shared.request_context import set_current_org_id  # noqa: E402
+from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
+from lab import storage  # noqa: E402
 
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
@@ -95,12 +106,6 @@ os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 temp_image_dir = storage.join(get_workspace_dir(), "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
-# Check if anything is stored in GPU_ORCHESTRATION_SERVER, and if so, print a message
-if os.getenv("GPU_ORCHESTRATION_SERVER"):
-    print(
-        f"🚀 GPU Orchestration Server mode enabled. Using server: {os.getenv('GPU_ORCHESTRATION_SERVER')}:{os.getenv('GPU_ORCHESTRATION_SERVER_PORT', '80')}"
-    )
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -109,10 +114,14 @@ async def lifespan(app: FastAPI):
     print_launch_message()
     galleries.update_gallery_cache()
     spawn_fastchat_controller_subprocess()
-    await db.init()
+    await db.init()  # This now runs Alembic migrations internally
+    # create_db_and_tables() is deprecated - migrations are handled in db.init()
     print("✅ SEED DATA")
-    # Initialize experiments and cancel any running jobs
+    # Initialize experiments
     seed_default_experiments()
+    # Seed default admin user
+    await seed_default_admin_user()
+    # Cancel any running jobs
     cancel_in_progress_jobs()
 
     if "--reload" in sys.argv:
@@ -174,22 +183,36 @@ app = fastapi.FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    # Restrict origins so credentialed requests (cookies) are allowed
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
 # Middleware to set context var for organization id per request (multitenant)
+# Determines team_id from X-Team-Id header or API key, and sets context early.
 @app.middleware("http")
 async def set_org_context(request: Request, call_next):
     try:
         org_id = None
-        if os.getenv("TFL_MULTITENANT") == "true":
-            org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-            org_id = request.cookies.get(org_cookie_name)
+
+        # First check X-Team-Id header (fastest path)
+        org_id = request.headers.get("X-Team-Id")
+
+        # If no X-Team-Id, try to determine from API key
+        if not org_id:
+            from transformerlab.shared.api_key_auth import determine_team_id_from_request
+            from transformerlab.db.session import async_session
+
+            # Create a session for the middleware check
+            async with async_session() as session:
+                try:
+                    org_id = await determine_team_id_from_request(request, session)
+                except Exception:
+                    # If determination fails, leave as None (will be handled by dependency)
+                    pass
+
         set_current_org_id(org_id)
         if lab_set_org_id is not None:
             lab_set_org_id(org_id)
@@ -211,32 +234,25 @@ async def validation_exception_handler(request, exc):
     return create_error_response(ErrorCode.VALIDATION_TYPE_ERROR, str(exc))
 
 
-### END GENERAL API - NOT OPENAI COMPATIBLE ###
-
-
-app.include_router(model.router)
-app.include_router(serverinfo.router)
-app.include_router(train.router)
-app.include_router(data.router)
-app.include_router(experiment.router)
-app.include_router(plugins.router)
-app.include_router(evals.router)
-app.include_router(jobs.router)
-app.include_router(tasks.router)
-app.include_router(config.router)
-app.include_router(prompts.router)
-app.include_router(tools.router)
-app.include_router(recipes.router)
-app.include_router(batched_prompts.router)
-app.include_router(remote.router)
-app.include_router(fastchat_openai_api.router)
-
-# Authentication and session management routes
-if os.getenv("TFL_MULTITENANT") == "true":
-    from transformerlab.routers import auth  # noqa: E402
-
-    app.include_router(auth.router)
-
+app.include_router(model.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(serverinfo.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(train.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(data.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(experiment.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(plugins.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(evals.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(jobs.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(tasks.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(config.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(prompts.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(tools.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(recipes.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(batched_prompts.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(fastchat_openai_api.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(compute_provider.router)
+app.include_router(auth.router)
+app.include_router(api_keys.router)
 
 controller_process = None
 worker_process = None
@@ -386,11 +402,20 @@ async def server_worker_start(
     with storage.open(get_global_log_path(), "a") as global_log:
         global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
+    # Pass organization_id as environment variable to subprocess
+    from transformerlab.shared.request_context import get_current_org_id
+
+    org_id = get_current_org_id()
+    subprocess_env = {}
+    if org_id:
+        subprocess_env["_TFL_ORG_ID"] = org_id
+
     process = await shared.async_run_python_daemon_and_update_status(
         python_script=params,
         job_id=job_id,
         begin_string="Application startup complete.",
         set_process_id_function=set_worker_process_id,
+        env=subprocess_env,
     )
     exitcode = process.returncode
     if exitcode == 99:
@@ -489,17 +514,17 @@ async def healthz():
     """
     Health check endpoint to verify server status and mode.
     """
-    gpu_orchestration_server = os.getenv("GPU_ORCHESTRATION_SERVER", "")
-    mode = "gpu_orchestration" if gpu_orchestration_server else "local"
+    tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
 
-    # Get the port from the environment or use default
-    port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT", "")
+    # Determine mode: s3 or local
+    if tfl_api_storage_uri:
+        mode = "s3"
+    else:
+        mode = "local"
 
     return {
         "message": "OK",
         "mode": mode,
-        "gpu_orchestration_server": gpu_orchestration_server,
-        "gpu_orchestration_server_port": port,
     }
 
 
@@ -560,7 +585,7 @@ def print_launch_message():
     with open(os.path.join(os.path.dirname(__file__), "transformerlab/launch_header_text.txt"), "r") as f:
         text = f.read()
         shared.print_in_rainbow(text)
-    print("http://www.transformerlab.ai\nhttps://github.com/transformerlab/transformerlab-api\n")
+    print("https://www.lab.cloud\nhttps://github.com/transformerlab/transformerlab-api\n")
 
 
 def run():

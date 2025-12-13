@@ -12,7 +12,7 @@ import Typography from '@mui/joy/Typography';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useEffect, useState } from 'react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk'; // Adjust the import path as necessary
 import RecipeCard from './RecipeCard';
 import { fetcher } from '../../../lib/transformerlab-api-sdk';

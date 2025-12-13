@@ -7,18 +7,19 @@ import Button from '@mui/joy/Button';
 import FormControl from '@mui/joy/FormControl';
 import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
-import Textarea from '@mui/joy/Textarea';
 import {
   FormHelperText,
   ModalClose,
   ModalDialog,
-  Sheet,
+  Select,
+  Option,
+  IconButton,
   Stack,
-  Typography,
+  Checkbox,
 } from '@mui/joy';
-import { FolderIcon } from 'lucide-react';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
+import { Trash2Icon, PlusIcon } from 'lucide-react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
@@ -26,6 +27,11 @@ import { SafeJSONParse } from 'renderer/components/Shared/SafeJSONParse';
 import { useRef } from 'react';
 
 const { parseTmTheme } = require('monaco-themes');
+
+type ProviderOption = {
+  id: string;
+  name: string;
+};
 
 function setTheme(editor: any, monaco: any) {
   const themeData = parseTmTheme(fairyflossTheme);
@@ -39,6 +45,8 @@ type EditTaskModalProps = {
   onClose: () => void;
   task: any | null;
   onSaved?: () => void;
+  providers: ProviderOption[];
+  isProvidersLoading?: boolean;
 };
 
 export default function EditTaskModal({
@@ -46,6 +54,8 @@ export default function EditTaskModal({
   onClose,
   task,
   onSaved = () => {},
+  providers,
+  isProvidersLoading = false,
 }: EditTaskModalProps) {
   const { addNotification } = useNotification();
   const [title, setTitle] = React.useState('');
@@ -57,7 +67,21 @@ export default function EditTaskModal({
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
   const [setup, setSetup] = React.useState('');
+  const [envVars, setEnvVars] = React.useState<
+    Array<{ key: string; value: string }>
+  >([{ key: '', value: '' }]);
+  const [fileMounts, setFileMounts] = React.useState<
+    Array<{
+      remotePath: string;
+      file?: File | null;
+      storedPath?: string;
+    }>
+  >([{ remotePath: '', file: null, storedPath: undefined }]);
   const [saving, setSaving] = React.useState(false);
+  const [selectedProviderId, setSelectedProviderId] = React.useState('');
+  const [githubEnabled, setGithubEnabled] = React.useState(false);
+  const [githubRepoUrl, setGithubRepoUrl] = React.useState('');
+  const [githubDirectory, setGithubDirectory] = React.useState('');
 
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
@@ -74,7 +98,57 @@ export default function EditTaskModal({
     setAccelerators(cfg.accelerators != null ? String(cfg.accelerators) : '');
     setNumNodes(cfg.num_nodes != null ? String(cfg.num_nodes) : '');
     setSetup(cfg.setup != null ? String(cfg.setup) : '');
+    setSelectedProviderId(cfg.provider_id || '');
+    // Initialize env_vars from config
+    if (cfg.env_vars && typeof cfg.env_vars === 'object') {
+      const envVarsArray = Object.entries(cfg.env_vars).map(([key, value]) => ({
+        key,
+        value: String(value),
+      }));
+      setEnvVars(
+        envVarsArray.length > 0 ? envVarsArray : [{ key: '', value: '' }],
+      );
+    } else {
+      setEnvVars([{ key: '', value: '' }]);
+    }
+
+    // Initialize file_mounts from config
+    if (cfg.file_mounts && typeof cfg.file_mounts === 'object') {
+      const fmArray = Object.entries(cfg.file_mounts).map(
+        ([remotePath, storedPath]) => ({
+          remotePath,
+          file: null,
+          storedPath: String(storedPath),
+        }),
+      );
+      setFileMounts(
+        fmArray.length > 0
+          ? fmArray
+          : [{ remotePath: '', file: null, storedPath: undefined }],
+      );
+    } else {
+      setFileMounts([{ remotePath: '', file: null, storedPath: undefined }]);
+    }
+
+    // Initialize GitHub fields from config
+    setGithubEnabled(cfg.github_enabled || false);
+    setGithubRepoUrl(cfg.github_repo_url || '');
+    setGithubDirectory(cfg.github_directory || '');
   }, [task]);
+
+  React.useEffect(() => {
+    if (!providers.length) {
+      setSelectedProviderId('');
+      return;
+    }
+    if (!selectedProviderId) {
+      setSelectedProviderId(providers[0].id);
+      return;
+    }
+    if (!providers.find((p) => p.id === selectedProviderId)) {
+      setSelectedProviderId(providers[0].id);
+    }
+  }, [providers, selectedProviderId]);
 
   // Keep Monaco editors in sync if the state changes after mount
   React.useEffect(
@@ -146,7 +220,80 @@ export default function EditTaskModal({
       addNotification({ type: 'warning', message: 'Command is required' });
       return;
     }
+    if (!selectedProviderId) {
+      addNotification({
+        type: 'warning',
+        message: 'Select a provider before saving.',
+      });
+      return;
+    }
     setSaving(true);
+
+    // Convert env_vars array to object, filtering out empty entries
+    const envVarsObj: Record<string, string> = {};
+    envVars.forEach(({ key, value }) => {
+      if (key.trim() && value.trim()) {
+        envVarsObj[key.trim()] = value.trim();
+      }
+    });
+
+    // Upload any files for file mounts and build mapping {remotePath: storedPath}
+    const fileMountsObj: Record<string, string> = {};
+    for (let i = 0; i < fileMounts.length; i += 1) {
+      const fm = fileMounts[i];
+      const remotePath = fm.remotePath.trim();
+      if (!remotePath) continue;
+
+      // If we already have a storedPath and no new file, reuse it
+      if (!fm.file && fm.storedPath) {
+        fileMountsObj[remotePath] = fm.storedPath;
+        continue;
+      }
+
+      if (!fm.file) continue;
+      if (!selectedProviderId) continue;
+
+      try {
+        const formData = new FormData();
+        formData.append('file', fm.file);
+        // Use 0 as template ID for now; stored path is independent of ID
+        const uploadUrl = chatAPI.Endpoints.ComputeProvider.UploadTaskFile(
+          selectedProviderId,
+          0,
+        );
+        const resp = await chatAPI.authenticatedFetch(uploadUrl, {
+          method: 'POST',
+          body: formData,
+        });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          addNotification({
+            type: 'danger',
+            message: `Failed to upload file for mount ${remotePath}: ${txt}`,
+          });
+          setSaving(false);
+          return;
+        }
+        const json = await resp.json();
+        if (json.status !== 'success' || !json.stored_path) {
+          addNotification({
+            type: 'danger',
+            message: `Upload for mount ${remotePath} did not return stored_path`,
+          });
+          setSaving(false);
+          return;
+        }
+        fileMountsObj[remotePath] = json.stored_path;
+      } catch (err) {
+        console.error(err);
+        addNotification({
+          type: 'danger',
+          message: `Failed to upload file for mount ${remotePath}`,
+        });
+        setSaving(false);
+        return;
+      }
+    }
 
     // Preserve existing config and only update editable fields
     const existingConfig = SafeJSONParse(task.config, {});
@@ -160,7 +307,22 @@ export default function EditTaskModal({
       accelerators: accelerators || undefined,
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
       setup: setupValue || undefined,
+      env_vars: Object.keys(envVarsObj).length > 0 ? envVarsObj : undefined,
+      provider_id: selectedProviderId,
+      file_mounts:
+        Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
+      github_enabled: githubEnabled || undefined,
+      github_repo_url:
+        githubEnabled && githubRepoUrl ? githubRepoUrl : undefined,
+      github_directory:
+        githubEnabled && githubDirectory ? githubDirectory : undefined,
     } as any;
+    const providerMeta = providers.find(
+      (provider) => provider.id === selectedProviderId,
+    );
+    if (providerMeta) {
+      config.provider_name = providerMeta.name;
+    }
 
     const body = {
       name: title,
@@ -247,6 +409,34 @@ export default function EditTaskModal({
                 }}
                 placeholder="Task title"
               />
+            </FormControl>
+
+            <FormControl required sx={{ mt: 2 }}>
+              <FormLabel>Provider</FormLabel>
+              <Select
+                placeholder={
+                  providers.length
+                    ? 'Select a provider'
+                    : 'No providers configured'
+                }
+                value={selectedProviderId || null}
+                onChange={(_, value) => setSelectedProviderId(value || '')}
+                disabled={
+                  saving || isProvidersLoading || providers.length === 0
+                }
+                slotProps={{
+                  listbox: { sx: { maxHeight: 240 } },
+                }}
+              >
+                {providers.map((provider) => (
+                  <Option key={provider.id} value={provider.id}>
+                    {provider.name}
+                  </Option>
+                ))}
+              </Select>
+              <FormHelperText>
+                Choose which provider this template should use.
+              </FormHelperText>
             </FormControl>
 
             <div
@@ -338,6 +528,181 @@ export default function EditTaskModal({
               </FormHelperText>
             </FormControl>
 
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>Environment Variables</FormLabel>
+              <Stack spacing={1}>
+                {envVars.map((envVar, index) => (
+                  <Stack
+                    key={index}
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                  >
+                    <Input
+                      placeholder="Key"
+                      value={envVar.key}
+                      onChange={(e) => {
+                        const newEnvVars = [...envVars];
+                        newEnvVars[index].key = e.target.value;
+                        setEnvVars(newEnvVars);
+                      }}
+                      sx={{ flex: 1 }}
+                    />
+                    <Input
+                      placeholder="Value"
+                      value={envVar.value}
+                      onChange={(e) => {
+                        const newEnvVars = [...envVars];
+                        newEnvVars[index].value = e.target.value;
+                        setEnvVars(newEnvVars);
+                      }}
+                      sx={{ flex: 1 }}
+                    />
+                    <IconButton
+                      color="danger"
+                      variant="plain"
+                      onClick={() => {
+                        if (envVars.length > 1) {
+                          setEnvVars(envVars.filter((_, i) => i !== index));
+                        } else {
+                          setEnvVars([{ key: '', value: '' }]);
+                        }
+                      }}
+                    >
+                      <Trash2Icon size={16} />
+                    </IconButton>
+                  </Stack>
+                ))}
+                <Button
+                  variant="outlined"
+                  size="sm"
+                  startDecorator={<PlusIcon size={16} />}
+                  onClick={() =>
+                    setEnvVars([...envVars, { key: '', value: '' }])
+                  }
+                >
+                  Add Environment Variable
+                </Button>
+              </Stack>
+              <FormHelperText>
+                Optional environment variables to set when launching the cluster
+              </FormHelperText>
+            </FormControl>
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>File Mounts</FormLabel>
+              <FormHelperText>
+                For each mount, choose a remote path and upload a file to be
+                staged on the server.
+              </FormHelperText>
+              <Stack spacing={1} sx={{ mt: 1 }}>
+                {fileMounts.map((fm, index) => (
+                  <Stack
+                    key={index}
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                    sx={{ flexWrap: 'wrap' }}
+                  >
+                    <Input
+                      placeholder="/remote/path/on/cluster"
+                      value={fm.remotePath}
+                      onChange={(e) => {
+                        const next = [...fileMounts];
+                        next[index].remotePath = e.target.value;
+                        setFileMounts(next);
+                      }}
+                      sx={{ flex: 1, minWidth: '200px' }}
+                    />
+                    <input
+                      type="file"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        const next = [...fileMounts];
+                        next[index].file = file;
+                        setFileMounts(next);
+                      }}
+                    />
+                    <IconButton
+                      color="danger"
+                      variant="plain"
+                      onClick={() => {
+                        if (fileMounts.length === 1) {
+                          setFileMounts([
+                            {
+                              remotePath: '',
+                              file: null,
+                              storedPath: undefined,
+                            },
+                          ]);
+                        } else {
+                          setFileMounts(
+                            fileMounts.filter((_, i) => i !== index),
+                          );
+                        }
+                      }}
+                    >
+                      <Trash2Icon size={16} />
+                    </IconButton>
+                  </Stack>
+                ))}
+                <Button
+                  variant="outlined"
+                  size="sm"
+                  startDecorator={<PlusIcon size={16} />}
+                  onClick={() =>
+                    setFileMounts([
+                      ...fileMounts,
+                      { remotePath: '', file: null, storedPath: undefined },
+                    ])
+                  }
+                >
+                  Add File Mount
+                </Button>
+              </Stack>
+            </FormControl>
+
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>GitHub Repository (Optional)</FormLabel>
+              <Checkbox
+                label="Enable GitHub repository cloning"
+                checked={githubEnabled}
+                onChange={(e) => setGithubEnabled(e.target.checked)}
+                sx={{ mb: githubEnabled ? 2 : 0 }}
+              />
+              {githubEnabled && (
+                <Stack spacing={2} sx={{ mt: 1 }}>
+                  <FormControl>
+                    <FormLabel>GitHub Repository URL</FormLabel>
+                    <Input
+                      value={githubRepoUrl}
+                      onChange={(e) => setGithubRepoUrl(e.target.value)}
+                      placeholder="https://github.com/owner/repo.git"
+                    />
+                    <FormHelperText>
+                      The GitHub repository URL to clone from
+                    </FormHelperText>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Directory Path (Optional)</FormLabel>
+                    <Input
+                      value={githubDirectory}
+                      onChange={(e) => setGithubDirectory(e.target.value)}
+                      placeholder="path/to/directory"
+                    />
+                    <FormHelperText>
+                      Optional: Specific directory within the repo to clone. If
+                      empty, the entire repo will be cloned.
+                    </FormHelperText>
+                  </FormControl>
+                </Stack>
+              )}
+              <FormHelperText>
+                If enabled, the repository will be cloned during setup. A GitHub
+                PAT (Personal Access Token) will be used for private
+                repositories.
+              </FormHelperText>
+            </FormControl>
+
             <FormControl required sx={{ mt: 2 }}>
               <FormLabel>Command</FormLabel>
               {/* <Textarea
@@ -366,25 +731,6 @@ export default function EditTaskModal({
                 e.g. <code>python train.py --epochs 10</code>
               </FormHelperText>
             </FormControl>
-
-            {/* Show uploaded directory indicator if present */}
-            {task &&
-              (() => {
-                const cfg = SafeJSONParse(task.config, {});
-                return cfg.uploaded_dir_path ? (
-                  <Sheet
-                    variant="soft"
-                    sx={{ p: 2, borderRadius: 'md', mt: 2 }}
-                  >
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <FolderIcon size={16} />
-                      <Typography level="body-sm">
-                        This task includes an uploaded directory
-                      </Typography>
-                    </Stack>
-                  </Sheet>
-                ) : null;
-              })()}
           </DialogContent>
           <DialogActions>
             <Button
@@ -395,7 +741,12 @@ export default function EditTaskModal({
             >
               Cancel
             </Button>
-            <Button type="submit" variant="solid" loading={saving}>
+            <Button
+              type="submit"
+              variant="solid"
+              loading={saving}
+              disabled={saving || providers.length === 0}
+            >
               Save Changes
             </Button>
           </DialogActions>

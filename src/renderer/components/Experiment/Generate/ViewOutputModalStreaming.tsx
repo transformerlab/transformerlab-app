@@ -1,4 +1,4 @@
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import { Box, Modal, ModalClose, ModalDialog, Typography } from '@mui/joy';
 

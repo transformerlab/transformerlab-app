@@ -92,19 +92,6 @@ def test_job_evaluation_images(client):
     assert resp.status_code in (200, 404)
 
 
-def test_training_template_endpoints(client):
-    """Test training template endpoints"""
-    # Test get training template
-    resp = client.get("/experiment/alpha/jobs/template/1")
-    assert resp.status_code in (200, 404)
-
-    # Test update training template with valid config
-    resp = client.put(
-        '/experiment/alpha/jobs/template/update?template_id=1&name=test&description=test&type=test&config={"valid": "config"}'
-    )
-    assert resp.status_code in (200, 404, 400)  # 400 for invalid config
-
-
 def test_job_get_by_id(client):
     """Test getting job by ID"""
     resp = client.get("/experiment/alpha/jobs/1")

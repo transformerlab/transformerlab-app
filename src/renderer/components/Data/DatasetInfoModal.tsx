@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import {
   Button,

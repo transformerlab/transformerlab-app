@@ -1,6 +1,6 @@
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import Markdown from 'react-markdown';
@@ -103,6 +103,38 @@ export default function TrainingModalLoRA({
   const [chatColumn, setChatColumn] = useState('');
   const [formattingTemplate, setFormattingTemplate] = useState('');
   const [formattingChatTemplate, setFormattingChatTemplate] = useState('');
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Preserve cursor position in controlled input
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Before updating state, capture cursor position & scroll so we can restore them.
+    // React re-renders controlled inputs, which normally resets the cursor (causing jumps).
+
+    const inputEl =
+      (nameInputRef.current as HTMLInputElement | null) ||
+      (e.target as HTMLInputElement);
+
+    const start = inputEl?.selectionStart ?? 0;
+    const end = inputEl?.selectionEnd ?? start;
+    const scrollLeft = inputEl?.scrollLeft ?? 0;
+    const value = (e.target as HTMLInputElement).value;
+
+    flushSync(() => {
+      setNameInput(value); // update input value immediately
+    });
+
+    // After the re-render, restore cursor & scroll so typing feels natural in controlled input.
+    const cur = nameInputRef.current;
+    if (cur && document.activeElement === cur) {
+      try {
+        const max = cur.value.length;
+        cur.setSelectionRange(Math.min(start, max), Math.min(end, max));
+        cur.scrollLeft = scrollLeft;
+      } catch {
+        // ignore if browser doesn't allow programmatic cursor updates
+      }
+    }
+  };
 
   // Fetch training type with useSWR
   const { data: trainingTypeData } = useSWR(
@@ -356,7 +388,8 @@ export default function TrainingModalLoRA({
             required
             autoFocus
             value={nameInput} //Value needs to be stored in a state variable otherwise it will not update on change/update
-            onChange={(e) => setNameInput(e.target.value)}
+            onChange={handleNameChange}
+            slotProps={{ input: { ref: nameInputRef } }}
             name="template_name"
             size="lg"
           />
@@ -862,7 +895,7 @@ export default function TrainingModalLoRA({
                     />
                     <br />
                     <br />
-                    The Avaiable Fields will change dynamically based on the
+                    The Available Fields will change dynamically based on the
                     columns in your selected dataset.
                   </OneTimePopup>
                 )}

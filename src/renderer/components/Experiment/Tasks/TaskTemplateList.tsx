@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Table,
   ButtonGroup,
@@ -6,16 +6,12 @@ import {
   IconButton,
   Button,
   Dropdown,
-  Menu,
   MenuButton,
+  Menu,
   MenuItem,
-  CircularProgress,
-  Chip,
 } from '@mui/joy';
-import { PlayIcon, Trash2Icon, ServerIcon } from 'lucide-react';
+import { PlayIcon, Trash2Icon, MoreVerticalIcon } from 'lucide-react';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { parseResourcesString } from './ResourceStringParser';
 
 type TaskRow = {
   id: string;
@@ -34,7 +30,7 @@ type TaskTemplateListProps = {
   onDeleteTask: (taskId: string) => void;
   onQueueTask: (task: TaskRow) => void;
   onEditTask: (task: TaskRow) => void;
-  onSelectInstance?: (task: TaskRow, instance: any) => void;
+  onExportTask?: (taskId: string) => void;
 };
 
 const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
@@ -42,47 +38,8 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   onDeleteTask,
   onQueueTask,
   onEditTask,
-  onSelectInstance,
+  onExportTask,
 }) => {
-  const [instances, setInstances] = useState<any[]>([]);
-  const [loadingInstances, setLoadingInstances] = useState(false);
-
-  // Fetch instances from the GPU orchestrator
-  useEffect(() => {
-    const fetchInstances = async () => {
-      setLoadingInstances(true);
-      try {
-        const response = await chatAPI.authenticatedFetch(
-          chatAPI.Endpoints.Jobs.GetInstancesStatus(),
-          {
-            method: 'GET',
-            headers: {
-              accept: 'application/json',
-            },
-          },
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.status === 'success' && data.data?.clusters) {
-            setInstances(data.data.clusters);
-          } else {
-            setInstances([]);
-          }
-        } else {
-          setInstances([]);
-        }
-      } catch (error) {
-        console.error('Failed to fetch instances:', error);
-        setInstances([]);
-      } finally {
-        setLoadingInstances(false);
-      }
-    };
-
-    fetchInstances();
-  }, []);
-
   const getResourcesInfo = (task: TaskRow) => {
     if (!task.remote_task) {
       return 'N/A';
@@ -125,25 +82,6 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     return command.length > 50 ? `${command.substring(0, 50)}...` : command;
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'UP':
-        return 'success';
-      case 'INIT':
-        return 'warning';
-      case 'STOPPED':
-        return 'neutral';
-      default:
-        return 'neutral';
-    }
-  };
-
-  const handleInstanceSelect = (task: TaskRow, instance: any) => {
-    if (onSelectInstance) {
-      onSelectInstance(task, instance);
-    }
-  };
-
   return (
     <Table stickyHeader>
       <thead>
@@ -182,103 +120,6 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
                 >
                   Queue
                 </Button>
-                <Dropdown>
-                  <MenuButton
-                    variant="outlined"
-                    color="primary"
-                    startDecorator={<ServerIcon />}
-                    loading={loadingInstances}
-                  >
-                    Use Existing
-                  </MenuButton>
-                  <Menu
-                    sx={{ maxHeight: 400, overflow: 'auto', minWidth: 300 }}
-                  >
-                    {instances.length === 0 ? (
-                      <MenuItem disabled>
-                        <Typography level="body-sm">
-                          No instances available
-                        </Typography>
-                      </MenuItem>
-                    ) : (
-                      instances.map((instance) => {
-                        const parsed = parseResourcesString(
-                          instance.resources_str || '',
-                        );
-                        return (
-                          <MenuItem
-                            key={instance.cluster_name}
-                            onClick={() => handleInstanceSelect(row, instance)}
-                            sx={{
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'flex-start',
-                              py: 1.5,
-                              gap: 1,
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                width: '100%',
-                                alignItems: 'center',
-                              }}
-                            >
-                              <Typography level="title-sm">
-                                {instance.cluster_name}
-                              </Typography>
-                              <Chip
-                                size="sm"
-                                color={getStatusColor(instance.status)}
-                              >
-                                {instance.status}
-                              </Chip>
-                            </div>
-                            <div
-                              style={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                gap: '4px',
-                              }}
-                            >
-                              {parsed.count && parsed.count > 1 && (
-                                <Chip size="sm" variant="soft" color="neutral">
-                                  {parsed.count}x
-                                </Chip>
-                              )}
-                              {parsed.cpus && (
-                                <Chip size="sm" variant="soft" color="neutral">
-                                  {parsed.cpus} CPU{parsed.cpus > 1 ? 's' : ''}
-                                </Chip>
-                              )}
-                              {parsed.memory && (
-                                <Chip size="sm" variant="soft" color="neutral">
-                                  {parsed.memory}GB RAM
-                                </Chip>
-                              )}
-                              {parsed.gpu && (
-                                <Chip size="sm" variant="soft" color="primary">
-                                  {parsed.gpu}
-                                </Chip>
-                              )}
-                              {parsed.disk && (
-                                <Chip size="sm" variant="soft" color="neutral">
-                                  {parsed.disk}GB disk
-                                </Chip>
-                              )}
-                              {parsed.instanceName && (
-                                <Chip size="sm" variant="soft" color="neutral">
-                                  {parsed.instanceName}
-                                </Chip>
-                              )}
-                            </div>
-                          </MenuItem>
-                        );
-                      })
-                    )}
-                  </Menu>
-                </Dropdown>
                 <Button variant="outlined" onClick={() => onEditTask?.(row)}>
                   Edit
                 </Button>
@@ -290,6 +131,24 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
                 >
                   <Trash2Icon style={{ cursor: 'pointer' }} />
                 </IconButton>
+                {onExportTask && (
+                  <Dropdown>
+                    <MenuButton
+                      slots={{ root: IconButton }}
+                      slotProps={{
+                        root: { variant: 'plain', color: 'neutral' },
+                      }}
+                      sx={{ minWidth: 0 }}
+                    >
+                      <MoreVerticalIcon size={16} />
+                    </MenuButton>
+                    <Menu>
+                      <MenuItem onClick={() => onExportTask?.(row.id)}>
+                        Export to Team Gallery
+                      </MenuItem>
+                    </Menu>
+                  </Dropdown>
+                )}
               </ButtonGroup>
             </td>
           </tr>

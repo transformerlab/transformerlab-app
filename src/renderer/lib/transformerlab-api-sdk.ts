@@ -24,12 +24,6 @@ export {
 } from './api-client/chat';
 
 export {
-  login,
-  logout,
-  getAccessToken,
-  setAccessToken,
-  setRefreshToken,
-  registerUser,
   downloadModelFromHuggingFace,
   downloadGGUFFile,
   downloadModelFromGallery,
@@ -51,7 +45,6 @@ export {
 } from './api-client/functions';
 
 export {
-  useAPI,
   useModelStatus,
   usePluginStatus,
   useServerStats,
@@ -64,3 +57,5 @@ export {
   API_URL,
   getAPIFullPath,
 } from './api-client/urls';
+
+export { useAPI } from './authContext';

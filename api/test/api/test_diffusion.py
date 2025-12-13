@@ -1,6 +1,5 @@
 import pytest
 from unittest.mock import patch, MagicMock, mock_open
-from lab.dirs import get_workspace_dir
 import json
 
 
@@ -199,8 +198,13 @@ def test_get_history_success(client):
 
         resp = client.get("/experiment/test-exp-name/diffusion/history")
         assert resp.status_code == 200
+        # Get the expected workspace_dir using team_id from the client
+        from lab import HOME_DIR
+        from lab import storage
+
+        expected_workspace_dir = storage.join(HOME_DIR, "orgs", client._team_id, "workspace")
         mock_load_history.assert_called_once_with(
-            limit=50, offset=0, experiment_name="test-exp-name", workspace_dir=get_workspace_dir()
+            limit=50, offset=0, experiment_name="test-exp-name", workspace_dir=expected_workspace_dir
         )
 
 
@@ -216,8 +220,13 @@ def test_get_history_with_pagination(client):
 
         resp = client.get("/experiment/test-exp-name/diffusion/history?limit=25&offset=10")
         assert resp.status_code == 200
+        # Get the expected workspace_dir using team_id from the client
+        from lab import HOME_DIR
+        from lab import storage
+
+        expected_workspace_dir = storage.join(HOME_DIR, "orgs", client._team_id, "workspace")
         mock_load_history.assert_called_once_with(
-            limit=25, offset=10, experiment_name="test-exp-name", workspace_dir=get_workspace_dir()
+            limit=25, offset=10, experiment_name="test-exp-name", workspace_dir=expected_workspace_dir
         )
 
 

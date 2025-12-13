@@ -14,7 +14,7 @@ import {
 } from '@mui/joy';
 import { SquareCheckIcon, Type } from 'lucide-react';
 import dayjs from 'dayjs';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import JobDetails from './JobDetails';
 import JobProgress from '../../Train/JobProgress';
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';

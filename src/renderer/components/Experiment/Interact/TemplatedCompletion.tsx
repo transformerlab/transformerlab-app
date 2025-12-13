@@ -22,7 +22,7 @@ import { useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import TemplatedPromptModal from './TemplatedPromptModal';
@@ -97,8 +97,11 @@ export default function TemplatedCompletion({
       console.log('Error parsing stop strings as JSON');
     }
 
+    const currentModel = experimentInfo?.config?.foundation_filename
+      ? experimentInfo?.config?.foundation_filename
+      : experimentInfo?.config?.foundation;
     const result = await chatAPI.sendCompletion(
-      experimentInfo?.config?.foundation,
+      currentModel,
       experimentInfo?.config?.adaptor,
       completionText,
       generationParameters?.temperature,

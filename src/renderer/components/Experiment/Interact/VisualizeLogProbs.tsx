@@ -113,7 +113,9 @@ export default function CompletionsPage({
         console.log('Error parsing stop strings as JSON');
       }
 
-      const currentModel = experimentInfo?.config?.foundation;
+      const currentModel = experimentInfo?.config?.foundation_filename
+        ? experimentInfo?.config?.foundation_filename
+        : experimentInfo?.config?.foundation;
       const adaptor = experimentInfo?.config?.adaptor;
 
       const result = await chatAPI.sendCompletionReactWay(

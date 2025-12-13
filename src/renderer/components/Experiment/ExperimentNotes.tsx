@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { useRef, useEffect, useState } from 'react';
 
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import Sheet from '@mui/joy/Sheet';
 
@@ -64,15 +64,15 @@ export default function ExperimentNotes({}) {
     }
 
     // Use authenticatedFetch to post the value to the server with proper authentication
+    // Note: Backend expects JSON body, so we send the string as JSON
     authenticatedFetch(
       chatAPI.Endpoints.Experiment.SaveFile(experimentInfo.id, 'readme.md'),
       {
         method: 'POST',
-        body: value,
+        body: JSON.stringify(value),
         headers: {
-          'Content-Type': 'text/plain',
+          'Content-Type': 'application/json',
         },
-        credentials: 'include',
       },
     )
       .then((response) => {

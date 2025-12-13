@@ -29,17 +29,26 @@ Endpoints.Tasks = {
   NewTask: () => `${API_URL()}tasks/new_task`,
   DeleteTask: (id: string) => `${API_URL()}tasks/${id}/delete`,
   Gallery: () => `${API_URL()}tasks/gallery`,
-  LocalGallery: () => `${API_URL()}tasks/local_gallery`,
-  InstallFromGallery: () => `${API_URL()}tasks/install_from_gallery`,
-  ImportFromGallery: () => `${API_URL()}tasks/import_from_gallery`,
-  ImportFromLocalGallery: () => `${API_URL()}tasks/import_from_local_gallery`,
-  ExportToLocalGallery: () => `${API_URL()}tasks/export_to_local_gallery`,
-  DeleteFromLocalGallery: (taskDir: string) =>
-    `${API_URL()}tasks/local_gallery/${taskDir}`,
-  GetTaskFiles: (taskDir: string) =>
-    `${API_URL()}tasks/local_gallery/${taskDir}/files`,
-  GetTaskFileContent: (taskDir: string, filePath: string) =>
-    `${API_URL()}tasks/local_gallery/${taskDir}/files/${filePath}`,
+  ImportFromGallery: (experimentId: string) =>
+    `${API_URL()}tasks/gallery/import`,
+  TeamGallery: () => `${API_URL()}tasks/gallery/team`,
+  ImportFromTeamGallery: (experimentId: string) =>
+    `${API_URL()}tasks/gallery/team/import`,
+  ExportToTeamGallery: () => `${API_URL()}tasks/gallery/team/export`,
+};
+
+Endpoints.ComputeProvider = {
+  List: () => `${API_URL()}compute_provider/`,
+  LaunchTask: (providerId: string) =>
+    `${API_URL()}compute_provider/${providerId}/tasks/launch`,
+  CheckJobStatus: (jobId: string) =>
+    `${API_URL()}compute_provider/jobs/${jobId}/check-status`,
+  StopCluster: (providerId: string, clusterName: string) =>
+    `${API_URL()}compute_provider/${providerId}/clusters/${clusterName}/stop`,
+  UploadTaskFile: (providerId: string, taskId: string | number) =>
+    `${API_URL()}compute_provider/${providerId}/tasks/${taskId}/file-upload`,
+  Check: (providerId: string) =>
+    `${API_URL()}compute_provider/${providerId}/check`,
 };
 
 Endpoints.Workflows = {
@@ -427,6 +436,12 @@ Endpoints.Experiment = {
     fileName: string,
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/stream_detailed_json_report?file_name=${fileName}`,
+  GetProviderLogs: (
+    experimentId: string,
+    jobId: string,
+    tailLines: number = 400,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/provider_logs?tail_lines=${tailLines}`,
   GetAdditionalDetails: (
     experimentId: string,
     jobId: string,
@@ -484,15 +499,6 @@ Endpoints.Jobs = {
     `${API_URL()}experiment/${experimentId}/jobs/update/${jobId}?status=${status}`,
   GetEvalImages: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
-  CreateRemoteJob: (experimentId: string) =>
-    `${API_URL()}remote/create-job?experimentId=${experimentId}`,
-  LaunchRemote: (experimentId: string) =>
-    `${API_URL()}remote/launch?experimentId=${experimentId}`,
-  UploadRemote: () => `${API_URL()}remote/upload`,
-  StopRemote: () => `${API_URL()}remote/stop`,
-  CheckStatus: () => `${API_URL()}remote/check-status`,
-  GetLogs: (requestId: string) => `${API_URL()}remote/logs/${requestId}`,
-  GetInstancesStatus: () => `${API_URL()}remote/instances-status`,
 };
 
 Endpoints.Global = {

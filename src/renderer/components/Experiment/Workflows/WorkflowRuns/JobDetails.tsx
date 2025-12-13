@@ -9,7 +9,7 @@ import {
 } from '@mui/joy';
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import OutputTerminal from 'renderer/components/OutputTerminal';
 import { fetcher } from '../../../../lib/transformerlab-api-sdk';
 

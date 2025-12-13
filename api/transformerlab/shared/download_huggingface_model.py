@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 
 from lab import HOME_DIR, Job
 from lab import storage
-
+from lab.dirs import set_organization_id
 
 DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
 
@@ -237,32 +237,45 @@ def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files
         print(f"Failed to update database progress: {e}")
 
 
-def cache_progress_monitor(job_id, workspace_dir, model_name, repo_id, file_metadata, total_bytes):
+def cache_progress_monitor(job_id, org_id, workspace_dir, model_name, repo_id, file_metadata, total_bytes):
     """
     Monitor cache directory for download progress.
     Runs in a separate thread.
     Tracks both file count and bytes for progress reporting.
+
+    Sets organization context at the start so Job.get() works correctly.
     """
     global _cache_stop_monitoring
 
-    while not _cache_stop_monitoring:
-        try:
-            # Get both file count and bytes downloaded
-            files_downloaded, files_total, downloaded_bytes = get_downloaded_files_from_cache(repo_id, file_metadata)
+    # Set organization context for this thread
+    if org_id:
+        set_organization_id(org_id)
 
-            # Update job with both file count and bytes
-            update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files_downloaded, files_total)
+    try:
+        while not _cache_stop_monitoring:
+            try:
+                # Get both file count and bytes downloaded
+                files_downloaded, files_total, downloaded_bytes = get_downloaded_files_from_cache(
+                    repo_id, file_metadata
+                )
 
-            # Check if download is complete (both files and bytes)
-            if files_downloaded >= files_total and downloaded_bytes >= total_bytes * 0.99:  # 99% complete
-                print("Download appears to be complete")
-                break
+                # Update job with both file count and bytes
+                update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files_downloaded, files_total)
 
-            time.sleep(2)  # Check every 2 seconds
+                # Check if download is complete (both files and bytes)
+                if files_downloaded >= files_total and downloaded_bytes >= total_bytes * 0.99:  # 99% complete
+                    print("Download appears to be complete")
+                    break
 
-        except Exception as e:
-            print(f"Error in progress monitor: {e}")
-            time.sleep(5)  # Wait longer on error
+                time.sleep(2)  # Check every 2 seconds
+
+            except Exception as e:
+                print(f"Error in progress monitor: {e}")
+                time.sleep(5)  # Wait longer on error
+    finally:
+        # Clear organization context when thread exits
+        if org_id:
+            set_organization_id(None)
 
     print("Progress monitoring stopped")
 
@@ -377,16 +390,32 @@ def do_download(repo_id, queue, allow_patterns=None, mode="model"):
         queue.put(f"error: {str(e)}")
 
 
-def cancel_check():
+def cancel_check(job_id, org_id):
+    """Check if job has been cancelled. Sets org context before checking."""
     try:
-        job = Job.get(job_id)
-        return job.get_status() == "cancelled"
+        # Set organization context for this check
+        if org_id:
+            set_organization_id(org_id)
+        try:
+            job = Job.get(job_id)
+
+            if job.get_status() == "cancelled":
+                return True
+
+            job_data = job.get_job_data()
+            if job_data.get("stop") is True:
+                return True
+
+        finally:
+            if org_id:
+                set_organization_id(None)
     except Exception as e:
         print(f"Warning: cancel_check() failed: {e}", file=sys.stderr)
     return False
 
 
-def launch_snapshot_with_cancel(repo_id, allow_patterns=None):
+def launch_snapshot_with_cancel(repo_id, job_id, org_id, allow_patterns=None):
+    """Launch download with cancellation support."""
     queue = Queue()
     if mode == "model":
         p = Process(target=do_download, args=(repo_id, queue, allow_patterns, "model"))
@@ -395,7 +424,7 @@ def launch_snapshot_with_cancel(repo_id, allow_patterns=None):
     p.start()
 
     while p.is_alive():
-        if cancel_check():
+        if cancel_check(job_id, org_id):
             print("Cancellation detected. Terminating download...", file=sys.stderr)
             p.terminate()
             p.join()
@@ -432,181 +461,88 @@ else:
 print("starting script with progressbar updater")
 
 
-def download_blocking(model_is_downloaded):
+def download_blocking(model_is_downloaded, org_id):
+    """
+    Download blocking function. Sets organization context for this thread.
+
+    Args:
+        model_is_downloaded: Event to signal when download is complete
+        org_id: Organization ID to set in context for this thread
+    """
     global error_msg, returncode, _cache_stop_monitoring
-    print("Downloading")
 
-    # NOTE: For now storing size in two fields.
-    # Will remove total_size_of_model_in_mb in the future.
-    if mode == "adaptor":
-        job_data = {
-            "downloaded": 0,
-            "model": peft,
-            "total_size_in_mb": total_size_of_model_in_mb,
-            "total_size_of_model_in_mb": total_size_of_model_in_mb,
-            "files_downloaded": 0,
-            "files_total": 0,  # Will be updated when file metadata is fetched
-        }
-    else:
-        job_data = {
-            "downloaded": 0,
-            "model": model,
-            "total_size_in_mb": total_size_of_model_in_mb,
-            "total_size_of_model_in_mb": total_size_of_model_in_mb,
-            "files_downloaded": 0,
-            "files_total": 0,  # Will be updated when file metadata is fetched
-        }
-
-    print(job_data)
-
-    # Initialize job data using SDK
-    job = Job.get(job_id)
-    job.update_progress(0)
-    job.set_job_data(job_data)
-
-    # Check if model is gated before starting download
-    if mode == "adaptor":
-        repo_to_check = peft
-    else:
-        repo_to_check = model
+    # Set organization context for this thread
+    if org_id:
+        set_organization_id(org_id)
 
     try:
-        check_model_gated(repo_to_check)
-    except GatedRepoError:
-        returncode = 77
+        print("Downloading")
+
+        # NOTE: For now storing size in two fields.
+        # Will remove total_size_of_model_in_mb in the future.
         if mode == "adaptor":
-            error_msg = f"{peft} is a gated adapter. Please accept the license on the model's HuggingFace page."
+            job_data = {
+                "downloaded": 0,
+                "model": peft,
+                "total_size_in_mb": total_size_of_model_in_mb,
+                "total_size_of_model_in_mb": total_size_of_model_in_mb,
+                "files_downloaded": 0,
+                "files_total": 0,  # Will be updated when file metadata is fetched
+            }
         else:
-            error_msg = f"{model} is a gated HuggingFace model. To continue downloading, you must agree to the terms on the model's HuggingFace page."
-        model_is_downloaded.set()
-        return
+            job_data = {
+                "downloaded": 0,
+                "model": model,
+                "total_size_in_mb": total_size_of_model_in_mb,
+                "total_size_of_model_in_mb": total_size_of_model_in_mb,
+                "files_downloaded": 0,
+                "files_total": 0,  # Will be updated when file metadata is fetched
+            }
 
-    if mode == "adaptor":
+        print(job_data)
+
+        # Initialize job data using SDK (context is now set in this thread)
+        job = Job.get(job_id)
+        job.update_progress(0)
+        job.set_job_data(job_data)
+
+        # Check if model is gated before starting download
+        if mode == "adaptor":
+            repo_to_check = peft
+        else:
+            repo_to_check = model
+
         try:
-            # Get file metadata before starting download
-            file_metadata, actual_total_size = get_repo_file_metadata(peft)
-
-            # Update job_data with files_total
-            job = Job.get(job_id)
-            job_data = job.get_job_data() or {}
-            job_data["files_total"] = len(file_metadata)
-            job.set_job_data(job_data)
-
-            # Start progress monitoring thread
-            progress_thread = Thread(
-                target=cache_progress_monitor,
-                args=(job_id, WORKSPACE_DIR, peft, peft, file_metadata, actual_total_size),
-                daemon=True,
-            )
-            progress_thread.start()
-
-            result = launch_snapshot_with_cancel(repo_id=peft)
-            if result == "cancelled":
-                returncode = 1
-                error_msg = "Download was cancelled"
-
-            # Stop progress monitoring
-            _cache_stop_monitoring = True
-            progress_thread.join(timeout=5)
-
-            model_is_downloaded.set()
+            check_model_gated(repo_to_check)
         except GatedRepoError:
             returncode = 77
-            error_msg = f"{peft} is a gated adapter. Please accept the license."
-        except EntryNotFoundError:
-            returncode = 1
-            error_msg = f"{peft} does not contain a config.json or is not available."
-        except Exception as e:
-            returncode = 1
-            error_msg = f"{type(e).__name__}: {e}"
-    else:
-        if model_filename is not None:
-            # Filename mode means we download just one file from the repo, not the whole repo
-            # This is useful for downloading GGUF repos which contain multiple versions of the model
-            # make the directory if it doesn't exist
-            # Right now the logo is hard coded to assuming if you are downloading one file, you are looking
-            # at GGUF
-            print("downloading model to workspace/models using filename mode")
-            # Use the model ID (repo name) as the directory name, not the filename
-            location = storage.join(WORKSPACE_DIR, "models", secure_filename(model))
-            storage.makedirs(location, exist_ok=True)
-            # Get metadata for single file
-            try:
-                fs = HfFileSystem()
-                file_info = fs.info(f"{model}/{model_filename}")
-                file_size = file_info.get("size", total_size_of_model_in_mb * 1024 * 1024)
-                file_metadata = {model_filename: file_size}
-            except Exception:
-                file_metadata = {model_filename: total_size_of_model_in_mb * 1024 * 1024}
-                file_size = total_size_of_model_in_mb * 1024 * 1024
+            if mode == "adaptor":
+                error_msg = f"{peft} is a gated adapter. Please accept the license on the model's HuggingFace page."
+            else:
+                error_msg = f"{model} is a gated HuggingFace model. To continue downloading, you must agree to the terms on the model's HuggingFace page."
+            model_is_downloaded.set()
+            return
 
-            # Update job_data with files_total (1 file for single file downloads)
-            job = Job.get(job_id)
-            job_data = job.get_job_data() or {}
-            job_data["files_total"] = 1
-            job.set_job_data(job_data)
-
-            # Start progress monitoring thread
-            progress_thread = Thread(
-                target=cache_progress_monitor,
-                args=(job_id, WORKSPACE_DIR, model_filename, model, file_metadata, file_size),
-                daemon=True,
-            )
-            progress_thread.start()
-
-            hf_hub_download(repo_id=model, filename=model_filename, local_dir=location)
-
-            # Stop progress monitoring
-            _cache_stop_monitoring = True
-            progress_thread.join(timeout=5)
-            # create model metadata using SDK
-            try:
-                from lab.model import Model as ModelService
-
-                model_service = ModelService.create(model)
-                model_service.set_metadata(
-                    model_id=model,
-                    name=model,
-                    json_data={
-                        "uniqueId": f"gguf/{model}",
-                        "name": model,
-                        "description": "A GGUF model downloaded from the HuggingFace Hub",
-                        "source": "huggingface",
-                        "source_id_or_path": model,
-                        "huggingface_repo": model,
-                        "model_filename": model_filename if model_filename else "",  # Use specific filename for GGUF
-                        "architecture": "GGUF",
-                        "private": False,
-                        "gated": False,
-                        "model_type": "",
-                        "library_name": "",
-                        "formats": ["GGUF"],
-                        "logo": "https://user-images.githubusercontent.com/1991296/230134379-7181e485-c521-4d23-a0d6-f7b3b61ba524.png",
-                    },
-                )
-                print(f"Created GGUF model metadata for {model}")
-            except Exception as e:
-                print(f"Warning: Could not create GGUF model metadata for {model}: {e}")
-        else:
+        if mode == "adaptor":
             try:
                 # Get file metadata before starting download
-                file_metadata, actual_total_size = get_repo_file_metadata(model, allow_patterns)
+                file_metadata, actual_total_size = get_repo_file_metadata(peft)
 
                 # Update job_data with files_total
-                job = Job.get(job_id)
                 job_data = job.get_job_data() or {}
                 job_data["files_total"] = len(file_metadata)
                 job.set_job_data(job_data)
 
                 # Start progress monitoring thread
+                # Pass org_id so thread can set context
                 progress_thread = Thread(
                     target=cache_progress_monitor,
-                    args=(job_id, WORKSPACE_DIR, model, model, file_metadata, actual_total_size),
+                    args=(job_id, org_id, WORKSPACE_DIR, peft, peft, file_metadata, actual_total_size),
                     daemon=True,
                 )
                 progress_thread.start()
 
-                result = launch_snapshot_with_cancel(repo_id=model, allow_patterns=allow_patterns)
+                result = launch_snapshot_with_cancel(repo_id=peft, job_id=job_id, org_id=org_id)
                 if result == "cancelled":
                     returncode = 1
                     error_msg = "Download was cancelled"
@@ -615,15 +551,125 @@ def download_blocking(model_is_downloaded):
                 _cache_stop_monitoring = True
                 progress_thread.join(timeout=5)
 
+                model_is_downloaded.set()
             except GatedRepoError:
                 returncode = 77
-                error_msg = f"{model} is a gated HuggingFace model. \
-    To continue downloading, you must agree to the terms \
-    on the model's Huggingface page."
-
+                error_msg = f"{peft} is a gated adapter. Please accept the license."
+            except EntryNotFoundError:
+                returncode = 1
+                error_msg = f"{peft} does not contain a config.json or is not available."
             except Exception as e:
                 returncode = 1
                 error_msg = f"{type(e).__name__}: {e}"
+        else:
+            if model_filename is not None:
+                # Filename mode means we download just one file from the repo, not the whole repo
+                # This is useful for downloading GGUF repos which contain multiple versions of the model
+                # make the directory if it doesn't exist
+                # Right now the logo is hard coded to assuming if you are downloading one file, you are looking
+                # at GGUF
+                print("downloading model to workspace/models using filename mode")
+                # Use the model ID (repo name) as the directory name, not the filename
+                location = storage.join(WORKSPACE_DIR, "models", secure_filename(model))
+                storage.makedirs(location, exist_ok=True)
+                # Get metadata for single file
+                try:
+                    fs = HfFileSystem()
+                    file_info = fs.info(f"{model}/{model_filename}")
+                    file_size = file_info.get("size", total_size_of_model_in_mb * 1024 * 1024)
+                    file_metadata = {model_filename: file_size}
+                except Exception:
+                    file_metadata = {model_filename: total_size_of_model_in_mb * 1024 * 1024}
+                    file_size = total_size_of_model_in_mb * 1024 * 1024
+
+                # Update job_data with files_total (1 file for single file downloads)
+                job_data = job.get_job_data() or {}
+                job_data["files_total"] = 1
+                job.set_job_data(job_data)
+
+                # Start progress monitoring thread
+                # Pass org_id so thread can set context
+                progress_thread = Thread(
+                    target=cache_progress_monitor,
+                    args=(job_id, org_id, WORKSPACE_DIR, model_filename, model, file_metadata, file_size),
+                    daemon=True,
+                )
+                progress_thread.start()
+
+                hf_hub_download(repo_id=model, filename=model_filename, local_dir=location)
+
+                # Stop progress monitoring
+                _cache_stop_monitoring = True
+                progress_thread.join(timeout=5)
+                # create model metadata using SDK
+                try:
+                    from lab.model import Model as ModelService
+
+                    model_service = ModelService.create(model)
+                    model_service.set_metadata(
+                        model_id=model,
+                        name=model,
+                        json_data={
+                            "uniqueId": f"gguf/{model}",
+                            "name": model,
+                            "description": "A GGUF model downloaded from the HuggingFace Hub",
+                            "source": "huggingface",
+                            "source_id_or_path": model,
+                            "huggingface_repo": model,
+                            "model_filename": model_filename
+                            if model_filename
+                            else "",  # Use specific filename for GGUF
+                            "architecture": "GGUF",
+                            "private": False,
+                            "gated": False,
+                            "model_type": "",
+                            "library_name": "",
+                            "formats": ["GGUF"],
+                            "logo": "https://user-images.githubusercontent.com/1991296/230134379-7181e485-c521-4d23-a0d6-f7b3b61ba524.png",
+                        },
+                    )
+                    print(f"Created GGUF model metadata for {model}")
+                except Exception as e:
+                    print(f"Warning: Could not create GGUF model metadata for {model}: {e}")
+            else:
+                try:
+                    # Get file metadata before starting download
+                    file_metadata, actual_total_size = get_repo_file_metadata(model, allow_patterns)
+
+                    # Update job_data with files_total
+                    job_data = job.get_job_data() or {}
+                    job_data["files_total"] = len(file_metadata)
+                    job.set_job_data(job_data)
+
+                    # Start progress monitoring thread
+                    # Pass org_id so thread can set context
+                    progress_thread = Thread(
+                        target=cache_progress_monitor,
+                        args=(job_id, org_id, WORKSPACE_DIR, model, model, file_metadata, actual_total_size),
+                        daemon=True,
+                    )
+                    progress_thread.start()
+
+                    result = launch_snapshot_with_cancel(
+                        repo_id=model, job_id=job_id, org_id=org_id, allow_patterns=allow_patterns
+                    )
+                    if result == "cancelled":
+                        returncode = 1
+                        error_msg = "Download was cancelled"
+
+                    # Stop progress monitoring
+                    _cache_stop_monitoring = True
+                    progress_thread.join(timeout=5)
+
+                except GatedRepoError:
+                    returncode = 77
+                    error_msg = f"{model} is a gated HuggingFace model. \
+    To continue downloading, you must agree to the terms \
+    on the model's Huggingface page."
+
+                except Exception as e:
+                    returncode = 1
+                    error_msg = f"{type(e).__name__}: {e}"
 
         model_is_downloaded.set()
 
@@ -657,43 +703,66 @@ def download_blocking(model_is_downloaded):
             except Exception as e:
                 print(f"Warning: Could not create model metadata for {model}: {e}")
 
-    print("Download complete")
+        print("Download complete")
+    finally:
+        # Clear organization context when thread exits
+        if org_id:
+            set_organization_id(None)
 
 
 def main():
     global returncode
 
-    model_is_downloaded = Event()  # A threadsafe flag to coordinate threads
-    print(f"flag:  {model_is_downloaded.is_set()}")
+    # Set organization ID from environment variable if provided
+    # This allows the subprocess to have the correct org context without leaking to the API
+    org_id = os.environ.get("_TFL_ORG_ID")
+    if org_id:
+        set_organization_id(org_id)
+        print(f"Set organization context for subprocess: {org_id}")
 
-    # Simple approach: just run the download with built-in progress tracking
-    p2 = Thread(target=download_blocking, args=(model_is_downloaded,))
-    p2.start()
-    p2.join()
+    try:
+        model_is_downloaded = Event()  # A threadsafe flag to coordinate threads
+        print(f"flag:  {model_is_downloaded.is_set()}")
 
-    if error_msg:
-        print(f"Error downloading: {error_msg}")
+        from lab.dirs import get_workspace_dir
 
-        # Set status to FAILED by default
-        # But returncode 77 means the model was gated and unauthorized.
-        status = "FAILED"
-        if returncode == 77:
-            status = "UNAUTHORIZED"
+        workspace_dir = get_workspace_dir()
+        print(f"Workspace dir: {workspace_dir}")
 
-        # If the error is that the database is locked then this call might also fail
-        # for the same reason! Better catch and at least print a message.
-        try:
-            job = Job.get(job_id)
-            job.update_status(status)
-            job.update_job_data_field("error_msg", str(error_msg))
-        except sqlite3.OperationalError:
-            # NOTE: If we fail to write to the database the app won't get
-            # the right error message. So set a different
-            print(f"Failed to save download job status {status}:")
-            print(error_msg)
-            returncode = 74  # IOERR
+        # Simple approach: just run the download with built-in progress tracking
+        # Pass org_id so thread can set context
+        p2 = Thread(target=download_blocking, args=(model_is_downloaded, org_id))
+        p2.start()
+        p2.join()
+
+        if error_msg:
+            print(f"Error downloading: {error_msg}")
+
+            # Set status to FAILED by default
+            # But returncode 77 means the model was gated and unauthorized.
+            status = "FAILED"
+            if returncode == 77:
+                status = "UNAUTHORIZED"
+
+            # If the error is that the database is locked then this call might also fail
+            # for the same reason! Better catch and at least print a message.
+            try:
+                # Context is already set in main(), so we can get job here
+                job = Job.get(job_id)
+                job.update_status(status)
+                job.update_job_data_field("error_msg", str(error_msg))
+            except sqlite3.OperationalError:
+                # NOTE: If we fail to write to the database the app won't get
+                # the right error message. So set a different
+                print(f"Failed to save download job status {status}:")
+                print(error_msg)
+                returncode = 74  # IOERR
 
         exit(returncode)
+    finally:
+        # Clear organization ID when subprocess exits to prevent any leakage
+        if org_id:
+            set_organization_id(None)
 
 
 if __name__ == "__main__":

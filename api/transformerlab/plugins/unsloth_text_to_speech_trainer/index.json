@@ -4,7 +4,7 @@
   "description": "A Text-to-Speech (TTS) trainer based on the unsloth audio training notebooks",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "model_architectures": [
     "CsmForConditionalGeneration",
     "LlamaForCausalLM"

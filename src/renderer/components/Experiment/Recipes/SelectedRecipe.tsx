@@ -24,7 +24,7 @@ import remarkGfm from 'remark-gfm';
 import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
 import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { authenticatedFetch } from 'renderer/lib/api-client/functions';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 export function isRecipeCompatibleWithDevice(recipe: any, device: any) {
   if (!recipe?.requiredMachineArchitecture) return true;

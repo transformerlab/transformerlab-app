@@ -1,5 +1,5 @@
 <div align="center">
-  <a href="https://transformerlab.ai"><picture>
+  <a href="https://lab.cloud"><picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/main/assets/Transformer-Lab_Logo_Reverse.svg">
     <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/main/assets/Transformer-Lab_Logo.svg">
     <img alt="transformer lab logo" src="https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/main/assets/Transformer-Lab_Logo.svg" style="max-width: 650px">
@@ -8,9 +8,9 @@
   <p align="center">
     100% Open Source Toolkit for Large Language Models: Train, Tune, Chat on your own Machine
     <br />
-    <a href="https://transformerlab.ai/docs/download/"><strong>Download</strong></a>
+    <a href="https://lab.cloud/docs/download/"><strong>Download</strong></a>
     ·
-    <a href="https://transformerlab.ai/docs/"><strong>Explore the docs »</strong></a>
+    <a href="https://lab.cloud/docs/"><strong>Explore the docs »</strong></a>
     <br />
     <br />
     <a href="https://youtu.be/tY5TAvKviLo">View Demo</a>
@@ -44,7 +44,7 @@ Transformer Lab is an app that allows anyone to experiment with Large Language M
 Transformer Lab is proud to be supported by Mozilla through the <a href="https://future.mozilla.org/builders/">Mozilla Builders Program</a>
 
 <a href="https://future.mozilla.org/builders/">
-    <img src="https://transformerlab.ai/img/mozilla-builders-2024.png" alt="Mozilla Builders Logo" width=300>
+    <img src="https://lab.cloud/img/mozilla-builders-2024.png" alt="Mozilla Builders Logo" width=300>
 </a>
 
 ## Features
@@ -115,9 +115,9 @@ And you can do the above, all through a simple cross-platform GUI.
 
 ## Getting Started
 
-<a href="https://transformerlab.ai/docs/download">Click here</a> to download Transformer Lab.
+<a href="https://lab.cloud/docs/download">Click here</a> to download Transformer Lab.
 
-<a href="https://transformerlab.ai/docs/install">Read this page</a> to learn how to install and use.
+<a href="https://lab.cloud/docs/install">Read this page</a> to learn how to install and use.
 
 ### Requirements
 
@@ -127,9 +127,9 @@ And you can do the above, all through a simple cross-platform GUI.
 
 #### Windows Notes
 
-See https://transformerlab.ai/docs/install/#install-on-windows for GPU driver and WSL guidance.
+See https://lab.cloud/docs/install/#install-on-windows for GPU driver and WSL guidance.
 
-Need a fully manual install without the helper script? Follow https://transformerlab.ai/docs/install/advanced-install for step-by-step instructions.
+Need a fully manual install without the helper script? Follow https://lab.cloud/docs/install/advanced-install for step-by-step instructions.
 
 ### Built With
 
@@ -189,30 +189,33 @@ cd api
 
 #### Updating API Python Requirements
 
-Python dependencies (used by the API) are managed with `uv pip compile`. To add/change a dependency, update `requirements.in` and then refresh the platform specific files:
+Python dependencies (used by the API) are managed with `pyproject.toml`. To add/change a dependency, update `pyproject.toml` directly:
+
+- Base dependencies go in `[project.dependencies]`
+- Platform-specific dependencies go in `[project.optional-dependencies]`:
+  - `nvidia` - For NVIDIA GPU support (includes `nvidia-ml-py`, PyTorch with `+cu128` suffix)
+  - `rocm` - For AMD ROCm GPU support (includes `pyrsmi`, and PyTorch with `+rocm6.4` suffix)
+  - `cpu` - For CPU-only installations
+
+To install with a specific platform:
 
 ```bash
 cd api
 
-# CUDA (default)
-uv pip compile requirements.in -o requirements-uv.txt
+# NVIDIA GPU (default)
+uv pip install .[nvidia]
 
 # AMD ROCm
-uv pip compile requirements-rocm.in -o requirements-rocm-uv.txt --index=https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match
-sed -i 's/\+rocm6\.4//g' requirements-rocm-uv.txt
+uv pip install .[rocm] --index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match
 
 # CPU-only (Linux/Windows)
-uv pip compile requirements.in -o requirements-no-gpu-uv.txt --index=https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
-sed -i 's/\+cpu//g' requirements-no-gpu-uv.txt
+uv pip install .[cpu] --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
 
 # macOS (Apple Silicon)
-uv pip compile requirements.in -o requirements-no-gpu-uv.txt
+uv pip install .[cpu]
 ```
 
-Notes:
-
-1. Remove `nvidia-ml-py` if it appears in the ROCm lockfile.
-2. The `sed` commands strip suffixes from PyTorch wheels that otherwise break installs using uv pip sync.
+The `install.sh` script automatically detects the platform and installs the appropriate extra.
 
 ### Lab SDK Development
 
@@ -232,6 +235,28 @@ uv venv
 uv pip install -e .
 uv run pytest  # Run tests
 ```
+
+### Database Migrations (Alembic)
+
+Our Alembic setup lives under `api/alembic`. Use the API Conda/uv environment before running any commands.
+
+- **Autogenerate a migration**
+
+  ```bash
+  cd api
+  alembic revision --autogenerate -m "describe change"
+  ```
+
+  The autogenerator respects the exclusions configured in `api/alembic/env.py` (e.g., exclusion of tables `workflows`, `workflow_runs`). Always review the generated file before committing.
+
+- **Run migrations locally for testing**
+
+  ```bash
+  cd api
+  alembic upgrade head
+  ```
+
+  To roll back the most recent migration while iterating, run `alembic downgrade -1`.
 
 <!-- LICENSE -->
 
@@ -269,4 +294,4 @@ If you found Transformer Lab useful in your research or applications, please cit
 [HuggingFace]: https://img.shields.io/badge/🤗_HuggingFace-20232A?style=for-the-badge
 [HuggingFace-url]: https://huggingface.co/
 [Download Icon]: https://img.shields.io/badge/Download-EF2D5E?style=for-the-badge&logoColor=white&logo=DocuSign
-[Download URL]: https://transformerlab.ai/docs/download
+[Download URL]: https://lab.cloud/docs/download

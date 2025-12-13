@@ -6,14 +6,15 @@ import React, {
   useEffect,
   useCallback,
 } from 'react';
-import useSWR from 'swr';
 import { API_URL, fetcher } from './transformerlab-api-sdk';
+import useSWR from 'swr';
 import { getAPIFullPath, getPath } from './api-client/urls';
 // Added types
 export type Team = {
   id: string;
   name: string;
 };
+
 // export the AuthContextValue so consumers get correct types
 export interface AuthContextValue {
   token: string | null;
@@ -22,7 +23,7 @@ export interface AuthContextValue {
   userError: any;
   userIsLoading: boolean;
   userMutate: any;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void | Error>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   initializing: boolean;
@@ -39,9 +40,7 @@ interface AuthProviderProps {
 // Update context generic to use null as the empty value
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-let _accessToken: string | null =
-  typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-// NEW: team in-memory cache (stored as JSON)
+// Team in-memory cache
 let _currentTeam: Team | null = null;
 if (typeof window !== 'undefined') {
   try {
@@ -51,6 +50,7 @@ if (typeof window !== 'undefined') {
     _currentTeam = null;
   }
 }
+
 const listeners = new Set<() => void>();
 
 function notifyListeners() {
@@ -64,15 +64,18 @@ function notifyListeners() {
 }
 
 export function getAccessToken() {
-  return _accessToken;
+  return localStorage.getItem('access_token');
 }
-// NEW: team accessors
+
+export function getRefreshToken() {
+  return localStorage.getItem('refresh_token');
+}
+
 export function getCurrentTeam(): Team | null {
   return _currentTeam;
 }
 
 export function updateAccessToken(token: string | null) {
-  _accessToken = token;
   try {
     if (token) localStorage.setItem('access_token', token);
     else localStorage.removeItem('access_token');
@@ -81,7 +84,19 @@ export function updateAccessToken(token: string | null) {
   }
   notifyListeners();
 }
-// NEW: update team (persists + notifies)
+
+// Refresh token storage
+export function updateRefreshToken(token: string | null) {
+  try {
+    if (token) localStorage.setItem('refresh_token', token);
+    else localStorage.removeItem('refresh_token');
+  } catch (e) {
+    /* ignore storage errors */
+  }
+  // We usually don't need to notify listeners for refresh token changes,
+  // but strictly speaking, auth state has changed.
+}
+
 export function updateCurrentTeam(team: Team | null) {
   _currentTeam = team;
   try {
@@ -94,8 +109,9 @@ export function updateCurrentTeam(team: Team | null) {
 }
 
 export function logoutUser() {
-  // Optionally call server logout endpoint here.
   updateAccessToken(null);
+  updateRefreshToken(null); // Clear refresh token
+  updateCurrentTeam(null);
 }
 
 // allow components to re-render when auth changes
@@ -104,66 +120,147 @@ export function subscribeAuthChange(cb: () => void) {
   return () => listeners.delete(cb);
 }
 
-// --- Step 2: Refresh Handler ---
-async function handleRefresh() {
-  try {
-    const refreshResponse = await fetch(getAPIFullPath('users', ['me'], {}), {
-      method: 'POST',
-      credentials: 'include',
-    });
+// --- 2. Refresh Logic (Singleton Pattern) ---
 
-    if (!refreshResponse.ok) {
-      throw new Error('Not Authorized');
+// We use a promise variable to ensure we only run ONE refresh request at a time,
+// even if 5 API calls fail simultaneously.
+let refreshPromise: Promise<string> | null = null;
+
+async function handleRefresh(): Promise<string> {
+  // If a refresh is already in progress, return the existing promise
+  if (refreshPromise) {
+    const currentToken = getRefreshToken();
+    if (!currentToken) {
+      console.warn(
+        '[REFRESH] WARNING: Returning existing promise but token is MISSING - this promise will likely fail',
+      );
     }
-
-    const data = await refreshResponse.json();
-    updateAccessToken(data.access_token);
-    return data.access_token;
-  } catch (error) {
-    console.error('Token refresh failed. Logging out.', error);
-    logoutUser();
-    throw error;
+    return refreshPromise;
   }
+
+  const refreshTokenAtCreation = getRefreshToken();
+
+  // Check token BEFORE creating promise - fail fast if missing
+  if (!refreshTokenAtCreation) {
+    console.error(
+      '[REFRESH] No refresh token available - cannot create refresh promise',
+    );
+    throw new Error('No refresh token available');
+  }
+
+  refreshPromise = (async () => {
+    try {
+      // Double-check token inside promise (it might have been cleared)
+      const refreshToken = getRefreshToken();
+      if (!refreshToken) {
+        console.error(
+          '[REFRESH] No refresh token available - token was cleared after promise creation',
+        );
+        throw new Error('No refresh token available');
+      }
+
+      const url = getAPIFullPath('auth', ['refresh'], {});
+
+      const refreshResponse = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          refresh_token: refreshToken,
+        }),
+      });
+
+      if (!refreshResponse.ok) {
+        // If refresh fails (e.g. 401), the refresh token is invalid.
+        console.error(
+          '[REFRESH] Refresh failed with status:',
+          refreshResponse.status,
+        );
+        throw new Error('Refresh failed');
+      }
+
+      const data = await refreshResponse.json();
+
+      // 1. Update Access Token
+      const newAccessToken = data.access_token;
+      updateAccessToken(newAccessToken);
+
+      // 2. Update Refresh Token (Rotation)
+      // The backend should return a new refresh token.
+      if (data.refresh_token) {
+        updateRefreshToken(data.refresh_token);
+      } else {
+        console.warn('[REFRESH] No new refresh token in response');
+      }
+
+      return newAccessToken;
+    } catch (error) {
+      console.error('[REFRESH] Token refresh failed. Logging out.', error);
+      logoutUser();
+      throw error;
+    } finally {
+      // Reset the promise so future failures trigger a new refresh
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
-// --- Step 3: Wrapper Fetch Function ---
+// --- 3. Wrapper Fetch Function ---
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const token = getAccessToken();
   const currentTeam = getCurrentTeam();
-  const fullUrl = `${API_URL()}${url}`;
+
+  // Handle cases where url might be partial or full
+  // Ideally fetchWithAuth is passed a relative path, but we handle both.
+  const fullUrl = url.startsWith('http') ? url : `${API_URL()}${url}`;
+
+  const headers: Record<string, string> = {
+    ...((options.headers as Record<string, string>) || {}),
+    // Only set Content-Type if body is not FormData (browser will set it with boundary for FormData)
+    ...(options.body instanceof FormData
+      ? {}
+      : { 'Content-Type': 'application/json' }),
+    ...(currentTeam
+      ? { 'X-Team-Id': currentTeam.id, 'X-Team-Name': currentTeam.name }
+      : {}),
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
   const response = await fetch(fullUrl, {
     ...options,
-    headers: {
-      ...((options && options.headers) || {}),
-      Authorization: `Bearer ${token ?? ''}`,
-      'Content-Type': 'application/json',
-      // Include team headers if set (both id and name)
-      ...(currentTeam
-        ? { 'X-Team-Id': currentTeam.id, 'X-Team-Name': currentTeam.name }
-        : {}),
-    },
-    credentials: 'include',
+    headers,
   });
 
+  // If Unauthorized (401)
   if (response.status === 401) {
-    // try refresh and retry once
+    console.log(
+      '[FETCH_WITH_AUTH] Got 401, attempting to refresh token for URL:',
+      fullUrl,
+    );
     try {
+      // Attempt to refresh token
       const newAccessToken = await handleRefresh();
+      console.log(
+        '[FETCH_WITH_AUTH] Refresh successful, retrying original request',
+      );
+
+      // Retry the original request with new token
       return fetch(fullUrl, {
         ...options,
         headers: {
-          ...((options && options.headers) || {}),
-          Authorization: `Bearer ${newAccessToken ?? ''}`,
-          'Content-Type': 'application/json',
-          ...(currentTeam
-            ? { 'X-Team-Id': currentTeam.id, 'X-Team-Name': currentTeam.name }
-            : {}),
+          ...headers,
+          Authorization: `Bearer ${newAccessToken}`,
         },
-        credentials: 'include',
       });
     } catch (e) {
-      // handleRefresh already logged out and threw
+      // Refresh failed (and user was logged out inside handleRefresh)
+      console.error('[FETCH_WITH_AUTH] Refresh failed, throwing error:', e);
       throw e;
     }
   }
@@ -176,21 +273,42 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   const [initializing, setInitializing] = useState<boolean>(true);
   const [team, setTeamState] = useState<Team | null>(null);
 
-  const connectionKey = connection ? connection.replace(/\./g, '-') : '';
-  // Replace previous token load effects with subscription
   useEffect(() => {
-    // Initialize current token immediately
+    // Initialize
     setToken(getAccessToken());
     setTeamState(getCurrentTeam());
     setInitializing(false);
+
+    // Check for OAuth callback tokens in URL
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const accessToken = urlParams.get('access_token');
+      const refreshToken = urlParams.get('refresh_token');
+
+      if (accessToken) {
+        updateAccessToken(accessToken);
+        setToken(accessToken);
+      }
+      if (refreshToken) {
+        updateRefreshToken(refreshToken);
+      }
+
+      // Clean up URL if tokens were found
+      if (accessToken || refreshToken) {
+        // Remove the query params
+        const newUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, newUrl);
+      }
+    }
+
+    // Subscribe
     const unsub = subscribeAuthChange(() => {
       setToken(getAccessToken());
       setTeamState(getCurrentTeam());
     });
     return unsub;
   }, []);
-  // Remove old window.storage persistence effect
-  // ...existing code...
+
   const {
     data: user,
     error: userError,
@@ -205,7 +323,31 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           })
       : null,
   );
-  // New login handler
+
+  // Get a list of teams this user belongs to
+  // using useSWR directly or your hook (assuming your hook uses fetchWithAuth internally or similar logic)
+  // Since useAPI in your snippet calls fetchWithAuth, it will auto-refresh too!
+  const { data: teamsData, mutate: teamsMutate } = useSWR(
+    token ? getAPIFullPath('teams', ['list'], {}) : null,
+    token ? (url) => fetchWithAuth(url).then((r) => r.json()) : null,
+  );
+
+  useEffect(() => {
+    // Logic to auto-select team if none selected
+    const teams = teamsData?.teams;
+    if (teams && teams.length > 0) {
+      if (!getCurrentTeam()) {
+        updateCurrentTeam(teams[0]);
+        setTeamState(teams[0]);
+      }
+    } else if (teams && teams.length === 0) {
+      // No teams available
+      updateCurrentTeam(null);
+      setTeamState(null);
+    }
+  }, [teamsData, token]);
+
+  // Login handler
   const handleLogin = useCallback(
     async (username: string, password: string) => {
       console.log('Attempting login...');
@@ -214,12 +356,13 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           username: username,
           password: password,
         }).toString();
+
         const res = await fetch(getAPIFullPath('auth', ['login'], {}), {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: form,
-          credentials: 'include',
         });
+
         const data = await (async () => {
           try {
             return await res.json();
@@ -227,88 +370,95 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
             return {};
           }
         })();
+
         if (!res.ok) {
           console.error(`Login failed: ${res.status} ${JSON.stringify(data)}`);
           const error = new Error(
             `Login failed: ${res.status} ${JSON.stringify(data)}`,
           );
-          error.info = data;
-          error.status = res.status;
+          (error as any).info = data;
+          (error as any).status = res.status;
           return error;
         }
+
         const newToken =
           data.access_token ?? data.token ?? data.accessToken ?? null;
+        const newRefreshToken = data.refresh_token ?? data.refreshToken ?? null;
+
         if (newToken) {
           updateAccessToken(newToken);
           setToken(newToken);
-          // Revalidate user data after login
+
+          // Store refresh token if present
+          if (newRefreshToken) {
+            updateRefreshToken(newRefreshToken);
+          }
+
+          // Revalidate user/teams data
           if (userMutate) userMutate();
+          if (teamsMutate) teamsMutate();
         } else {
           console.error(
             `Login succeeded but no token returned: ${JSON.stringify(data)}`,
           );
         }
       } catch (e) {
-        console.error(`Login error: ${e?.message ?? String(e)}`);
+        console.error(
+          `Login error: ${e instanceof Error ? e.message : String(e)}`,
+        );
+        return e instanceof Error ? e : new Error(String(e));
       }
     },
-    [userMutate],
+    [userMutate, teamsMutate],
   );
-  // Register handler
-  const handleRegister = useCallback(async () => {
-    try {
-      const body = {
-        email: 'test@example.com',
-        password: 'password123',
-      };
-      const res = await fetchWithAuth('auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await (async () => {
-        try {
-          return await res.json();
-        } catch {
-          return {};
-        }
-      })();
-      if (!res.ok) {
-        console.error(`Register failed: ${res.status} ${JSON.stringify(data)}`);
-        return;
-      }
-      const newToken =
-        data.access_token ?? data.token ?? data.accessToken ?? null;
-      if (newToken) {
-        updateAccessToken(newToken);
-        setToken(newToken);
-        // Revalidate user data after register
-        if (userMutate) userMutate();
-      } else {
-        console.log(`Register succeeded: ${JSON.stringify(data)}`);
-      }
-    } catch (e) {
-      console.error(`Register error: ${e?.message ?? String(e)}`);
-    }
-  }, [userMutate]);
+
+  // // Register handler
+  // const handleRegister = useCallback(async () => {
+  //   try {
+  //     const body = {
+  //       email: 'test@example.com',
+  //       password: 'password123',
+  //     };
+  //     const res = await fetchWithAuth('auth/register', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify(body),
+  //     });
+
+  //     // Note: Register usually doesn't return tokens in fastapi-users default flow,
+  //     // but if it does, we handle it.
+  //     if (!res.ok) return;
+
+  //     const data = await res.json();
+  //     const newToken = data.access_token;
+  //      if (newToken) {
+  //       updateAccessToken(newToken);
+  //       setToken(newToken);
+  //       if (userMutate) userMutate();
+  //     }
+  //   } catch (e) {
+  //     console.error(`Register error: ${e instanceof Error ? e.message : String(e)}`);
+  //   }
+  // }, [userMutate]);
+
   // Logout handler
   const handleLogout = useCallback(async () => {
     try {
-      await fetch(getAPIFullPath('Auth', ['logout'], {}), {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await fetch(
+        getAPIFullPath('auth', ['logout'], {}) || '/auth/jwt/logout',
+        {
+          method: 'POST',
+        },
+      );
     } catch {
       /* ignore errors */
     }
     logoutUser();
     setToken(null);
+    setTeamState(null);
     if (userMutate) userMutate(null, false);
   }, [userMutate]);
-  // Backward-compatible aliases
-  const login = handleLogin;
-  const logout = handleLogout;
-  const isAuthenticated = !!token;
+
   const handleSetTeam = useCallback(
     (value: React.SetStateAction<Team | null>) => {
       const next =
@@ -317,6 +467,11 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           : value;
       updateCurrentTeam(next);
       setTeamState(next);
+      // If the team changes, we reload the app to ensure all components pick up new team context
+      // But only do this if the team actually changed
+      if (next?.id !== team?.id) {
+        window.location.reload();
+      }
     },
     [team],
   );
@@ -329,10 +484,9 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       userError,
       userIsLoading,
       userMutate,
-      handleRegister,
-      login,
-      logout,
-      isAuthenticated,
+      login: handleLogin,
+      logout: handleLogout,
+      isAuthenticated: !!token,
       initializing,
       fetchWithAuth,
       team,
@@ -344,16 +498,14 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       userError,
       userIsLoading,
       userMutate,
-      handleRegister,
-      login,
-      logout,
-      isAuthenticated,
+      handleLogin,
+      handleLogout,
       initializing,
       team,
       handleSetTeam,
     ],
   );
-  // Replace JSX return (file is .ts)
+
   return React.createElement(
     AuthContext.Provider,
     { value: contextValue },
@@ -367,9 +519,7 @@ export function useAuth(): AuthContextValue {
   return context;
 }
 
-/* The following useAPI hook is the same as the useAPI hook in api-client/hooks.ts,
-but this one uses the new auth we have for fastapi-users, instead of the auth
-implemented using workos */
+// Helper hook for components
 export function useAPI(
   majorEntity: string,
   pathArray: string[],
@@ -377,41 +527,23 @@ export function useAPI(
   options: any = {},
 ) {
   let path: string | null = getPath(majorEntity, pathArray, params) as any;
+
   const fetcher = async (url: string) => {
-    // check for an access token. Will be "" if user not logged in.
-    const accessToken = await getAccessToken();
+    // Use fetchWithAuth which handles the token injection and 401 refresh logic
+    const res = await fetchWithAuth(url);
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    return fetchWithAuth(url, {
-      headers,
-    }).then((res) => {
-      // Check for HTTP 401 which means user is not authorized
-      if (res.status === 401) {
-        return {
-          status: 'unauthorized',
-          message: 'User not authorized',
-        };
-      }
+    if (res.status === 401) {
+      // Should have been handled by fetchWithAuth, but if still 401, return error
+      return { status: 'unauthorized', message: 'User not authorized' };
+    }
 
-      // If there was an error then report in standard API format
-      if (!res.ok) {
-        console.log('Unexpected API response:');
-        console.log(res);
-        return {
-          status: 'error',
-          message: 'API returned HTTP ' + res.status,
-        };
-      }
+    if (!res.ok) {
+      return { status: 'error', message: 'API returned HTTP ' + res.status };
+    }
 
-      // Otherwise return the JSON contained in the API response
-      return res.json();
-    });
+    return res.json();
   };
 
-  // If any of the params are null or undefined, return null:
   if (
     Object.values(params).some((param) => param === null || param === undefined)
   ) {
@@ -424,10 +556,40 @@ export function useAPI(
     revalidateOnReconnect: false,
   });
 
+  return { data, error, isLoading, mutate };
+}
+
+// Create a new function called useSWRWithAuth which is EXACTLY the same as useSWR,
+// but uses fetchWithAuth as the fetcher.
+export function useSWRWithAuth(
+  key: string | null,
+  fetcher_unused?: any,
+  options?: any,
+) {
+  const fetcher = async (url: string) => {
+    const res = await fetchWithAuth(url);
+
+    if (res.status === 401) {
+      // Should have been handled by fetchWithAuth, but if still 401, return error
+      const error: any = new Error('User not authorized');
+      error.status = 'unauthorized';
+      throw error;
+    }
+
+    if (!res.ok) {
+      const error: any = new Error('API returned HTTP ' + res.status);
+      error.status = res.status;
+      throw error;
+    }
+
+    return res.json();
+  };
+  const { data, error, isLoading, mutate } = useSWR(key, fetcher, options);
+
   return {
     data,
-    error,
     isLoading,
+    isError: error,
     mutate,
   };
 }

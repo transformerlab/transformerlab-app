@@ -23,6 +23,7 @@ import {
 } from '@mui/joy';
 import { useAPI } from '../../../lib/transformerlab-api-sdk';
 import TranscriptionHistory from './TranscriptionHistory';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 export async function sendAndReceiveTranscription(
   currentModel: string,
@@ -38,7 +39,7 @@ export async function sendAndReceiveTranscription(
 
   let response;
   try {
-    response = await fetch(
+    response = await fetchWithAuth(
       `${chatAPI.INFERENCE_SERVER_URL()}v1/audio/transcriptions`,
       {
         method: 'POST',
@@ -70,7 +71,9 @@ export async function sendAndReceiveTranscription(
 
 export default function Audio() {
   const { experimentInfo } = useExperimentInfo();
-  const currentModel = experimentInfo?.config?.foundation;
+  const currentModel = experimentInfo?.config?.foundation_filename
+    ? experimentInfo?.config?.foundation_filename
+    : experimentInfo?.config?.foundation;
 
   const { data: transcriptionHistory, mutate: mutateHistory } = useAPI(
     'conversations',
@@ -101,7 +104,7 @@ export default function Audio() {
       formData.append('audio', file);
 
       try {
-        const response = await fetch(
+        const response = await fetchWithAuth(
           `${chatAPI.INFERENCE_SERVER_URL()}v1/audio/upload_reference?experimentId=${experimentInfo?.id}`,
           {
             method: 'POST',

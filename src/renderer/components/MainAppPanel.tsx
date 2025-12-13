@@ -11,7 +11,7 @@ import {
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useCallback, useEffect, useState, useMemo } from 'react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import Data from './Data/Data';
@@ -21,9 +21,9 @@ import Welcome from './Welcome/Welcome';
 import ModelZoo from './ModelZoo/ModelZoo';
 import Plugins from './Plugins/Plugins';
 import PluginDetails from './Plugins/PluginDetails';
-import TasksGallery from './TaskLibrary/TasksGallery';
 
 import Computer from './Computer';
+import Compute from './Compute/Compute';
 import Eval from './Experiment/Eval/Eval';
 import Generate from './Experiment/Generate/Generate';
 import Export from './Experiment/Export/Export';
@@ -38,7 +38,7 @@ import Diffusion from './Experiment/Diffusion/Diffusion';
 import Audio from './Experiment/Audio/Audio';
 import AudioSTT from './Experiment/Audio/AudioSTT';
 import ExperimentNotes from './Experiment/ExperimentNotes';
-import UserLoginTest from './Welcome/UserLoginTest';
+import UserSettings from './User/UserSettings';
 import TransformerLabSettings from './Settings/TransformerLabSettings';
 import Logs from './Logs';
 import FoundationHome from './Experiment/Foundation';
@@ -48,6 +48,7 @@ import { useAnalytics } from './Shared/analytics/AnalyticsContext';
 import SafeJSONParse from './Shared/SafeJSONParse';
 import Tasks from './Experiment/Tasks/Tasks';
 import Team from './Team/Team';
+import TasksGallery from './TasksGallery/TasksGallery';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -83,10 +84,7 @@ export const PageTracker = () => {
 // This component renders the main content of the app that is shown
 // On the rightmost side, regardless of what menu items are selected
 // On the leftmost panel.
-export default function MainAppPanel({
-  setLogsDrawerOpen = null,
-  gpuOrchestrationServer = '',
-}) {
+export default function MainAppPanel({ setLogsDrawerOpen = null }) {
   const { experimentInfo, experimentInfoMutate, setExperimentId } =
     useExperimentInfo();
   const location = useLocation();
@@ -387,37 +385,16 @@ export default function MainAppPanel({
         />
         <Route path="/experiment/embeddings" element={<Embeddings />} />
         <Route path="/experiment/tokenize" element={<Tokenize />} />
-        <Route
-          path="/experiment/training"
-          element={
-            gpuOrchestrationServer !== '' ? (
-              <Tasks subtype="Train" />
-            ) : (
-              <TrainLoRA />
-            )
-          }
-        />
+        <Route path="/experiment/training" element={<TrainLoRA />} />
         <Route path="/experiment/tasks" element={<Tasks />} />
 
         <Route
           path="/experiment/eval"
-          element={
-            gpuOrchestrationServer !== '' ? (
-              <Tasks subtype="Eval" />
-            ) : (
-              <Eval addEvaluation={experimentAddEvaluation} />
-            )
-          }
+          element={<Eval addEvaluation={experimentAddEvaluation} />}
         />
         <Route
           path="/experiment/generate"
-          element={
-            gpuOrchestrationServer !== '' ? (
-              <Tasks subtype="Generate" />
-            ) : (
-              <Generate addGeneration={experimentAddGeneration} />
-            )
-          }
+          element={<Generate addGeneration={experimentAddGeneration} />}
         />
         <Route path="/experiment/documents" element={<Documents />} />
         <Route
@@ -433,63 +410,20 @@ export default function MainAppPanel({
           element={<Plugins setLogsDrawerOpen={setLogsDrawerOpen} />}
         />
         <Route path="/plugins/:pluginName" element={<PluginDetails />} />
-        <Route path="/task_library" element={<TasksGallery />} />
         <Route path="/api" element={<Api />} />
         <Route path="/experiment/settings" element={<Settings />} />
-        <Route
-          path="/zoo"
-          element={
-            <ModelZoo
-              tab="groups"
-              gpuOrchestrationServer={gpuOrchestrationServer}
-            />
-          }
-        />
-        <Route
-          path="/zoo/local"
-          element={
-            <ModelZoo
-              tab="local"
-              gpuOrchestrationServer={gpuOrchestrationServer}
-            />
-          }
-        />
-        <Route
-          path="/zoo/generated"
-          element={
-            <ModelZoo
-              tab="generated"
-              gpuOrchestrationServer={gpuOrchestrationServer}
-            />
-          }
-        />
-        <Route
-          path="/zoo/store"
-          element={
-            <ModelZoo
-              tab="store"
-              gpuOrchestrationServer={gpuOrchestrationServer}
-            />
-          }
-        />
-        <Route
-          path="/zoo/groups"
-          element={
-            <ModelZoo
-              tab="groups"
-              gpuOrchestrationServer={gpuOrchestrationServer}
-            />
-          }
-        />
-        <Route
-          path="/data"
-          element={<Data gpuOrchestrationServer={gpuOrchestrationServer} />}
-        />
-        <Route path="/task_library" element={<TasksGallery />} />
+        <Route path="/zoo" element={<ModelZoo tab="groups" />} />
+        <Route path="/zoo/local" element={<ModelZoo tab="local" />} />
+        <Route path="/zoo/generated" element={<ModelZoo tab="generated" />} />
+        <Route path="/zoo/store" element={<ModelZoo tab="store" />} />
+        <Route path="/zoo/groups" element={<ModelZoo tab="groups" />} />
+        <Route path="/data" element={<Data />} />
+        <Route path="/tasks-gallery" element={<TasksGallery />} />
         <Route path="/computer" element={<Computer />} />
+        <Route path="/compute" element={<Compute />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />
-        <Route path="/user_info_test" element={<UserLoginTest />} />
+        <Route path="/user" element={<UserSettings />} />
         <Route path="/team" element={<Team />} />
       </Routes>
     </>

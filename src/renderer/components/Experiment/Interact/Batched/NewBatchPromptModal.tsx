@@ -38,6 +38,7 @@ import NewChatForm from './NewChatForm';
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import { IoCloudUploadOutline } from 'react-icons/io5';
 import { Form } from 'react-router-dom';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 export default function NewBatchModal({
   open,
@@ -71,14 +72,14 @@ export default function NewBatchModal({
   const uploadFiles = async (formData) => {
     setUploading(true); //This is for the loading spinner
     //Create the dataset before uploading
-    const response = await fetch(
+    const response = await fetchWithAuth(
       chatAPI.Endpoints.Dataset.Create('testali123'),
     );
     const data = await response.json();
     if (data.status == 'error') {
       alert(data.message);
     } else {
-      fetch(chatAPI.Endpoints.Dataset.FileUpload('testali123'), {
+      fetchWithAuth(chatAPI.Endpoints.Dataset.FileUpload('testali123'), {
         method: 'POST',
         body: formData,
       })

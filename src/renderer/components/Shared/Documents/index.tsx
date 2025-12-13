@@ -44,7 +44,10 @@ import {
   LinkIcon,
 } from 'lucide-react';
 
-import useSWR from 'swr';
+import {
+  useSWRWithAuth as useSWR,
+  fetchWithAuth,
+} from 'renderer/lib/authContext';
 
 import { formatBytes } from 'renderer/lib/utils';
 
@@ -54,7 +57,6 @@ import { FaRegFilePdf } from 'react-icons/fa6';
 import { LuFileJson } from 'react-icons/lu';
 import TinyButton from 'renderer/components/Shared/TinyButton';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import { fetcher } from '../../../lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
@@ -326,6 +328,10 @@ export default function Documents({
   const [open, setOpen] = React.useState(false);
   const [dropzoneActive, setDropzoneActive] = React.useState(false);
   const [previewFile, setPreviewFile] = React.useState<string | null>(null);
+  const [previewBlobUrl, setPreviewBlobUrl] = React.useState<string | null>(
+    null,
+  );
+  const previewBlobUrlRef = React.useRef<string | null>(null);
   const [showFolderModal, setShowFolderModal] = React.useState(false);
   const [showWebpageModal, setShowWebpageModal] = React.useState(false);
   const [webpageUrls, setWebpageUrls] = React.useState(['']);
@@ -357,8 +363,9 @@ export default function Documents({
     isLoading,
     mutate,
   } = useSWR(
-    chatAPI.Endpoints.Documents.List(experimentInfo?.id, currentFolder),
-    fetcher,
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Documents.List(experimentInfo.id, currentFolder)
+      : null,
   );
 
   const uploadFiles = async (currentFolder, formData) => {
@@ -406,6 +413,51 @@ export default function Documents({
     }
   };
 
+  // Fetch document with authentication when preview opens
+  React.useEffect(() => {
+    // Cleanup previous blob URL
+    if (previewBlobUrlRef.current) {
+      URL.revokeObjectURL(previewBlobUrlRef.current);
+      previewBlobUrlRef.current = null;
+      setPreviewBlobUrl(null);
+    }
+
+    if (previewFile && experimentInfo?.id) {
+      const fetchDocument = async () => {
+        try {
+          const documentUrl = chatAPI.Endpoints.Documents.Open(
+            experimentInfo.id,
+            previewFile,
+            currentFolder,
+          );
+          const response = await fetchWithAuth(documentUrl);
+          if (response.ok) {
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            previewBlobUrlRef.current = blobUrl;
+            setPreviewBlobUrl(blobUrl);
+          } else {
+            console.error('Failed to fetch document:', response.status);
+            setPreviewBlobUrl(null);
+          }
+        } catch (error) {
+          console.error('Error fetching document:', error);
+          setPreviewBlobUrl(null);
+        }
+      };
+
+      fetchDocument();
+    }
+
+    // Cleanup blob URL when modal closes or previewFile changes
+    return () => {
+      if (previewBlobUrlRef.current) {
+        URL.revokeObjectURL(previewBlobUrlRef.current);
+        previewBlobUrlRef.current = null;
+      }
+    };
+  }, [previewFile, experimentInfo?.id, currentFolder]);
+
   const renderFilters = () => (
     <React.Fragment>
       <FormControl size="sm">
@@ -432,6 +484,11 @@ export default function Documents({
       <Modal
         open={previewFile != null}
         onClose={() => {
+          if (previewBlobUrlRef.current) {
+            URL.revokeObjectURL(previewBlobUrlRef.current);
+            previewBlobUrlRef.current = null;
+            setPreviewBlobUrl(null);
+          }
           setPreviewFile(null);
         }}
       >
@@ -439,14 +496,24 @@ export default function Documents({
           <ModalClose />
           <Typography level="title-lg">Document: {previewFile}</Typography>
 
-          <iframe
-            src={chatAPI.Endpoints.Documents.Open(
-              experimentInfo?.id,
-              previewFile,
-              currentFolder,
-            )}
-            style={{ width: '100%', height: '100%' }}
-          ></iframe>
+          {previewBlobUrl ? (
+            <iframe
+              src={previewBlobUrl}
+              style={{ width: '100%', height: '100%' }}
+              title={`Preview of ${previewFile}`}
+            ></iframe>
+          ) : (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: '100%',
+              }}
+            >
+              <CircularProgress />
+            </Box>
+          )}
         </ModalDialog>
       </Modal>
       <Modal open={showFolderModal} onClose={() => setShowFolderModal(false)}>

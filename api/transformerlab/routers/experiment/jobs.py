@@ -3,25 +3,33 @@ from fnmatch import fnmatch
 import json
 import os
 import csv
+from typing import List, Optional
 import pandas as pd
-from fastapi import APIRouter, Body, Response, Request
+from fastapi import APIRouter, Response, Request, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse, FileResponse
 from lab import storage
 
 from transformerlab.shared import shared
-from typing import Annotated
 from json import JSONDecodeError
 
 from werkzeug.utils import secure_filename
 
 from transformerlab.routers.serverinfo import watch_file
 
-from transformerlab.db.db import get_training_template
 from datetime import datetime
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import transformerlab.services.job_service as job_service
 from transformerlab.services.job_service import job_update_status
-from lab import dirs, Job
+from transformerlab.services.provider_service import (
+    get_team_provider,
+    get_provider_instance,
+)
+from transformerlab.routers.auth import get_user_and_team
+from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.compute_providers.models import JobState
+from lab import Job
 from lab.dirs import get_workspace_dir
 
 router = APIRouter(prefix="/jobs", tags=["train"])
@@ -77,23 +85,47 @@ async def job_update(job_id: str, status: str, experimentId: str):
 
 
 async def start_next_job():
-    num_running_jobs = job_service.job_count_running()
+    # Count running jobs across all organizations
+    num_running_jobs = job_service.job_count_running_across_all_orgs()
     if num_running_jobs > 0:
         return {"message": "A job is already running"}
-    nextjob = job_service.jobs_get_next_queued_job()
+
+    # Get next queued job across all organizations
+    nextjob, org_id = job_service.jobs_get_next_queued_job_across_all_orgs()
+
     if nextjob:
         print(f"Starting Next Job in Queue: {nextjob}")
+        print(f"Job belongs to organization: {org_id}")
         print("Starting job: " + str(nextjob["id"]))
-        nextjob_data = nextjob["job_data"]
-        if not isinstance(nextjob_data, dict):
-            job_config = json.loads(nextjob["job_data"])
-        else:
-            job_config = nextjob_data
-        experiment_name = nextjob["experiment_id"]  # Note: experiment_id and experiment_name are the same
-        await shared.run_job(
-            job_id=nextjob["id"], job_config=job_config, experiment_name=experiment_name, job_details=nextjob
-        )
-        return nextjob
+
+        # Set organization context before running the job
+        # Note: This is safe because:
+        # 1. This function runs in a background task with its own async context (isolated from request handlers)
+        # 2. Request handlers have their own middleware that sets/clears org context per request
+        # 3. The try/finally block ensures cleanup even if run_job() raises an exception
+        if org_id:
+            from lab.dirs import set_organization_id
+
+            set_organization_id(org_id)
+            print(f"Set organization context to: {org_id}")
+
+        try:
+            nextjob_data = nextjob["job_data"]
+            if not isinstance(nextjob_data, dict):
+                job_config = json.loads(nextjob["job_data"])
+            else:
+                job_config = nextjob_data
+            experiment_name = nextjob["experiment_id"]  # Note: experiment_id and experiment_name are the same
+            await shared.run_job(
+                job_id=nextjob["id"], job_config=job_config, experiment_name=experiment_name, job_details=nextjob
+            )
+            return nextjob
+        finally:
+            # Clear organization context after running job
+            if org_id:
+                from lab.dirs import set_organization_id
+
+                set_organization_id(None)
     else:
         return {"message": "No jobs in queue"}
 
@@ -118,54 +150,6 @@ async def get_training_job(job_id: str):
     if job is None:
         return Response("Job not found", status_code=404)
     return job
-
-
-@router.get("/{job_id}/output")
-async def get_training_job_output(job_id: str, sweeps: bool = False):
-    # First get the template Id from this job:
-    job = job_service.job_get(job_id)
-    if job is None:
-        return {"checkpoints": []}
-    job_data = job["job_data"]
-
-    if not isinstance(job_data, dict):
-        try:
-            job_data = json.loads(job_data)
-        except JSONDecodeError:
-            print(f"Error decoding job_data for job {job_id}. Using empty job_data.")
-            job_data = {}
-
-    if sweeps:
-        output_file = job_data.get("sweep_output_file", None)
-        if output_file is not None and storage.exists(output_file):
-            with storage.open(output_file, "r") as f:
-                output = f.read()
-            return output
-
-    if "template_id" not in job_data:
-        return {"error": "true"}
-
-    template_id = job_data["template_id"]
-    # Then get the template:
-    template = await get_training_template(template_id)
-    # Then get the plugin name from the template:
-    if not isinstance(template["config"], dict):
-        template_config = json.loads(template["config"])
-    else:
-        template_config = template["config"]
-    if "plugin_name" not in template_config:
-        return {"error": "true"}
-
-    plugin_name = template_config["plugin_name"]
-
-    # Now we can get the output.txt from the plugin which is stored in
-    # /workspace/experiments/{experiment_name}/plugins/{plugin_name}/output.txt
-    output_file = storage.join(dirs.plugin_dir_by_name(plugin_name), "output.txt")
-    if storage.exists(output_file):
-        with storage.open(output_file, "r") as f:
-            output = f.read()
-        return output
-    return ""
 
 
 @router.get("/{job_id}/tasks_output")
@@ -248,33 +232,136 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
         return ["An internal error has occurred!"]
 
 
+@router.get("/{job_id}/provider_logs")
+async def get_provider_job_logs(
+    experimentId: str,
+    job_id: str,
+    tail_lines: int = Query(400, ge=100, le=2000),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Fetch the raw job logs directly from the underlying compute provider for a REMOTE job.
+    """
+
+    job = job_service.job_get(job_id)
+    if not job or str(job.get("experiment_id")) != str(experimentId):
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job_data = job.get("job_data") or {}
+    if not isinstance(job_data, dict):
+        try:
+            job_data = json.loads(job_data)
+        except JSONDecodeError:
+            job_data = {}
+
+    provider_id = job_data.get("provider_id")
+    cluster_name = job_data.get("cluster_name")
+    if not provider_id or not cluster_name:
+        raise HTTPException(
+            status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
+        )
+
+    provider = await get_team_provider(session, user_and_team["team_id"], provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        provider_instance = get_provider_instance(provider)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
+
+    # Figure out which provider-side job_id to query logs for
+    provider_job_id: Optional[str | int] = job_data.get("provider_job_id")
+
+    provider_job_candidates: List[dict] = []
+    if provider_job_id is None:
+        provider_job_ids = job_data.get("provider_job_ids")
+        if isinstance(provider_job_ids, list) and provider_job_ids:
+            provider_job_id = provider_job_ids[-1]
+
+    if provider_job_id is None:
+        try:
+            provider_jobs = provider_instance.list_jobs(cluster_name)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Failed to enumerate provider jobs: {exc}") from exc
+
+        if provider_jobs:
+            running_states = {JobState.RUNNING, JobState.PENDING}
+            chosen_job = next((job for job in provider_jobs if job.state in running_states), provider_jobs[-1])
+            provider_job_id = chosen_job.job_id
+            provider_job_candidates = [
+                {
+                    "job_id": str(job.job_id),
+                    "state": job.state.value if isinstance(job.state, JobState) else str(job.state),
+                    "submitted_at": job.submitted_at,
+                    "started_at": job.started_at,
+                    "finished_at": job.finished_at,
+                }
+                for job in provider_jobs
+            ]
+
+    if provider_job_id is None:
+        raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
+
+    try:
+        raw_logs = provider_instance.get_job_logs(
+            cluster_name,
+            provider_job_id,
+            tail_lines=tail_lines or None,
+            follow=False,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
+
+    if isinstance(raw_logs, (bytes, bytearray)):
+        logs_text = raw_logs.decode("utf-8", errors="replace")
+    elif isinstance(raw_logs, str):
+        logs_text = raw_logs
+    else:
+        try:
+            logs_text = json.dumps(raw_logs, indent=2)
+        except TypeError:
+            logs_text = str(raw_logs)
+
+    return {
+        "cluster_name": cluster_name,
+        "provider_id": provider_id,
+        "provider_job_id": str(provider_job_id),
+        "provider_name": job_data.get("provider_name"),
+        "tail_lines": tail_lines,
+        "logs": logs_text,
+        "job_candidates": provider_job_candidates,
+    }
+
+
 # Templates
 
 
-@router.get("/template/{template_id}")
-async def get_train_template(template_id: str):
-    return await get_training_template(template_id)
+# @router.get("/template/{template_id}")
+# async def get_train_template(template_id: str):
+#     return await get_training_template(template_id)
 
 
-@router.put("/template/update")
-async def update_training_template(
-    template_id: str,
-    name: str,
-    description: str,
-    type: str,
-    config: Annotated[str, Body(embed=True)],
-):
-    try:
-        configObject = json.loads(config)
-        datasets = configObject["dataset_name"]
-        job_service.update_training_template(template_id, name, description, type, datasets, config)
-    except JSONDecodeError as e:
-        print(f"JSON decode error: {e}")
-        return {"status": "error", "message": "An error occurred while processing the request."}
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-        return {"status": "error", "message": "An internal error has occurred."}
-    return {"status": "success"}
+# @router.put("/template/update")
+# async def update_training_template(
+#     template_id: str,
+#     name: str,
+#     description: str,
+#     type: str,
+#     config: Annotated[str, Body(embed=True)],
+# ):
+#     try:
+#         configObject = json.loads(config)
+#         datasets = configObject["dataset_name"]
+#         job_service.update_training_template(template_id, name, description, type, datasets, config)
+#     except JSONDecodeError as e:
+#         print(f"JSON decode error: {e}")
+#         return {"status": "error", "message": "An error occurred while processing the request."}
+#     except Exception as e:
+#         print(f"Unexpected error: {e}")
+#         return {"status": "error", "message": "An internal error has occurred."}
+#     return {"status": "success"}
 
 
 @router.get("/{job_id}/stream_output")
@@ -464,7 +551,7 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
         file_index = 0
     file_path = eval_results_list[file_index]
 
-    if not os.path.exists(file_path):
+    if not storage.exists(file_path):
         return Response("Evaluation results file not found", media_type="text/csv")
 
     # Determine file format
@@ -479,11 +566,27 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
         filename = f"eval_results_{job_id}.txt"
 
     if task == "download":
-        return FileResponse(file_path, filename=filename, media_type=file_format)
+        # Use StreamingResponse to support both local and remote files
+        def generate():
+            with storage.open(file_path, "rb") as f:
+                while True:
+                    chunk = f.read(8192)  # Read in 8KB chunks
+                    if not chunk:
+                        break
+                    yield chunk
+
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        }
+        return StreamingResponse(
+            generate(),
+            media_type=file_format,
+            headers=headers,
+        )
 
     # For view, convert CSV to JSON format
     if file_path.endswith(".csv"):
-        with open(file_path, "r") as csvfile:
+        with storage.open(file_path, "r") as csvfile:
             contents = csv.reader(csvfile, delimiter=",", quotechar='"')
             csv_content = {"header": [], "body": []}
             for i, row in enumerate(contents):
@@ -493,7 +596,7 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
                     csv_content["body"].append(row)
             return csv_content
     elif file_path.endswith(".json"):
-        with open(file_path, "r") as jsonfile:
+        with storage.open(file_path, "r") as jsonfile:
             content = json.load(jsonfile)
             # If it's a list of records, convert to header/body format
             if isinstance(content, list) and len(content) > 0:
@@ -504,7 +607,7 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
             return content
     else:
         # For other file types, just return as text
-        with open(file_path, "r") as f:
+        with storage.open(file_path, "r") as f:
             return f.read()
 
 
@@ -931,7 +1034,12 @@ async def get_artifacts(job_id: str, request: Request):
                             filesize = None
 
                     filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
-                    artifacts.append({"filename": filename, "date": formatted_time, "size": filesize})
+                    artifact_dict = {"filename": filename}
+                    if formatted_time is not None:
+                        artifact_dict["date"] = formatted_time
+                    if filesize is not None:
+                        artifact_dict["size"] = filesize
+                    artifacts.append(artifact_dict)
                 except Exception as e:
                     print(f"Error getting stat for artifact {artifact_path}: {e}")
                     continue
@@ -994,7 +1102,12 @@ async def get_artifacts(job_id: str, request: Request):
                     print(f"Error getting stat for file {file_path}: {e}")
                     formatted_time = None
                     filesize = None
-                artifacts.append({"filename": filename, "date": formatted_time, "size": filesize})
+                artifact_dict = {"filename": filename}
+                if formatted_time is not None:
+                    artifact_dict["date"] = formatted_time
+                if filesize is not None:
+                    artifact_dict["size"] = filesize
+                artifacts.append(artifact_dict)
     except Exception as e:
         print(f"Error reading artifacts directory {artifacts_dir}: {e}")
 

@@ -1,150 +1,13 @@
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { API_URL } from './urls';
-
-export async function login(username: string, password: string) {
-  const loginURL = getAPIFullPath('auth', ['login'], {});
-
-  // Login data needs to be provided as form data
-  const formData = new FormData();
-  formData.append('username', username);
-  formData.append('password', password);
-
-  let result = {};
-  try {
-    const response = await fetch(loginURL, {
-      method: 'POST',
-      body: formData,
-    });
-    result = await response.json();
-
-    // Error during fetch
-  } catch (error) {
-    return {
-      status: 'error',
-      message: 'Login exception: ' + error,
-    };
-  }
-
-  // API Successfully returned, but was the authentication successful?
-  const accessToken = result?.access_token;
-  if (accessToken) {
-    await setAccessToken(accessToken);
-    return {
-      status: 'success',
-      message: 'Logged in as ' + username,
-    };
-  } else {
-    return {
-      status: 'unauthorized',
-      message: 'Username or password incorrect',
-    };
-  }
-}
-
-export async function setAccessToken(token: string) {
-  if (!token) {
-    await window.storage.delete('accessToken');
-    return;
-  }
-  await window.storage.set('accessToken', token);
-}
-
-export async function getAccessToken() {
-  const access_token = await window.storage.get('accessToken');
-  return access_token || '';
-}
+import { fetchWithAuth } from '../authContext';
 
 // Helper function to create authenticated fetch requests
 export async function authenticatedFetch(
   url: string,
   options: RequestInit = {},
 ) {
-  const accessToken = await getAccessToken();
-
-  const headers: Record<string, string> = {
-    ...(options.headers as Record<string, string>),
-  };
-
-  if (accessToken) {
-    headers.Authorization = `Bearer ${accessToken}`;
-  }
-
-  return fetch(url, {
-    ...options,
-    headers,
-    credentials: 'include',
-  });
-}
-
-export async function logout() {
-  try {
-    const apiBase = API_URL();
-    if (apiBase) {
-      await fetch(`${apiBase}auth/logout`, {
-        method: 'GET',
-        credentials: 'include',
-        redirect: 'follow',
-      });
-    }
-  } catch (e) {
-    // ignore network errors; proceed to clear local tokens
-  } finally {
-    await window.storage.delete('accessToken');
-    await window.storage.delete('refreshToken');
-  }
-}
-
-export async function setRefreshToken(token: string | null | undefined) {
-  if (!token) {
-    await window.storage.delete('refreshToken');
-    return;
-  }
-  await window.storage.set('refreshToken', token);
-}
-
-export async function registerUser(
-  name: string,
-  email: string,
-  password: string,
-) {
-  const registerURL = getAPIFullPath('auth', ['register'], {});
-  const userJSON = {
-    name: name,
-    email: email,
-    password: password,
-  };
-
-  let result = {};
-  try {
-    const response = await fetch(registerURL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(userJSON),
-    });
-    result = await response.json();
-
-    // Error during fetch
-  } catch (error) {
-    return {
-      status: 'error',
-      message: 'Register user exception: ' + error,
-    };
-  }
-
-  console.log(result);
-  if (result?.email) {
-    return {
-      status: 'success',
-      message: `User ${result?.email} added.`,
-    };
-  } else {
-    return {
-      status: 'error',
-      message: result?.message,
-    };
-  }
+  return fetchWithAuth(url, options);
 }
 
 export async function downloadModelFromHuggingFace(
@@ -162,9 +25,7 @@ export async function downloadModelFromHuggingFace(
 
   let result = {};
   try {
-    const response = await fetch(requestString, {
-      credentials: 'include', // Send cookies with the request
-    });
+    const response = await authenticatedFetch(requestString);
     result = await response.json();
 
     // Error during fetch
@@ -192,9 +53,7 @@ export async function downloadGGUFFile(
 
   let result = {};
   try {
-    const response = await fetch(requestString, {
-      credentials: 'include', // Send cookies with the request
-    });
+    const response = await authenticatedFetch(requestString);
     result = await response.json();
 
     // Error during fetch
@@ -220,9 +79,7 @@ export async function downloadModelFromGallery(
   if (job_id) {
     requestString += `&job_id=${job_id}`;
   }
-  const response = await fetch(requestString, {
-    credentials: 'include', // Send cookies with the request
-  });
+  const response = await authenticatedFetch(requestString);
   const result = await response.json();
 
   return result;

@@ -27,7 +27,7 @@ import {
   DownloadIcon,
   CheckIcon,
 } from 'lucide-react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import {
   getAPIFullPath,
@@ -40,11 +40,12 @@ import ModelProvenanceTimeline from './ModelProvenanceTimeline';
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 const DEFAULT_EMBEDDING_MODEL = 'BAAI/bge-base-en-v1.5';
 
 const fetchWithPost = ({ url, post }) =>
-  fetch(url, {
+  fetchWithAuth(url, {
     method: 'POST',
     body: post,
   }).then((res) => res.json());
@@ -152,7 +153,7 @@ export default function CurrentFoundationInfo({
   const pollJobStatus = (jobId) => {
     const intervalId = setInterval(async () => {
       try {
-        const response = await fetch(
+        const response = await fetchWithAuth(
           chatAPI.Endpoints.Jobs.Get(experimentInfo.id, jobId),
         );
         const result = await response.json();
@@ -196,7 +197,7 @@ export default function CurrentFoundationInfo({
       alert('Please enter an adapter ID.');
       return;
     }
-    const installedResponse = await fetch(
+    const installedResponse = await fetchWithAuth(
       chatAPI.Endpoints.Models.GetPeftsForModel(),
       {
         method: 'POST',
@@ -213,7 +214,7 @@ export default function CurrentFoundationInfo({
       if (!shouldReplace) return;
 
       // Delete existing adapter first
-      await fetch(
+      await fetchWithAuth(
         getAPIFullPath('models', ['deletePeft'], {
           modelId: experimentInfo.config.foundation,
           peft: secureAdapterId,
@@ -224,7 +225,7 @@ export default function CurrentFoundationInfo({
     setCurrentlyInstalling(adapterId); // track progress immediately
 
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         getAPIFullPath('models', ['installPeft'], {
           modelId: experimentInfo?.config?.foundation,
           peft: adapterId,
@@ -264,7 +265,7 @@ export default function CurrentFoundationInfo({
   const handleCancelDownload = async () => {
     if (jobId) {
       setCanceling(true);
-      const response = await fetch(
+      const response = await fetchWithAuth(
         getAPIFullPath('jobs', ['stop'], {
           id: jobId,
           experimentId: experimentInfo?.id,
@@ -283,7 +284,7 @@ export default function CurrentFoundationInfo({
   const resetToDefaultEmbedding = async () => {
     setEmbeddingModel(DEFAULT_EMBEDDING_MODEL);
     try {
-      await fetch(
+      await fetchWithAuth(
         chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
         {
           method: 'POST',
@@ -577,7 +578,7 @@ export default function CurrentFoundationInfo({
                         color="primary"
                         onClick={() => {
                           if (adaptor === peft) {
-                            fetch(
+                            fetchWithAuth(
                               chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
                                 experimentInfo?.id,
                                 'adaptor',
@@ -587,7 +588,7 @@ export default function CurrentFoundationInfo({
                               setAdaptor('');
                             });
                           } else {
-                            fetch(
+                            fetchWithAuth(
                               chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
                                 experimentInfo?.id,
                                 'adaptor',
@@ -610,7 +611,7 @@ export default function CurrentFoundationInfo({
                               'Are you sure you want to delete this adaptor?',
                             )
                           ) {
-                            fetch(
+                            fetchWithAuth(
                               getAPIFullPath('models', ['deletePeft'], {
                                 modelId: experimentInfo?.config?.foundation,
                                 peft,

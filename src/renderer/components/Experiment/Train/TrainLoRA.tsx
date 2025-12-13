@@ -1,5 +1,5 @@
 import { ReactElement, useEffect, useState } from 'react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 import Sheet from '@mui/joy/Sheet';

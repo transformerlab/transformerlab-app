@@ -74,7 +74,6 @@ title() {
 load_env_from_file() {
   local env_path="$1"
   if [ -f "$env_path" ]; then
-    ohai "Loading environment from $env_path"
     set -a
     # shellcheck disable=SC1090
     source "$env_path"
@@ -201,6 +200,26 @@ download_transformer_lab() {
   rm "${TLAB_DIR}/transformerlab.tar.gz"
   # Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
   echo "${LATEST_RELEASE_VERSION}" > "${TLAB_CODE_DIR}/LATEST_VERSION"
+
+
+  # Generate and save JWT secrets to .env file
+  ENV_FILE="${TLAB_DIR}/.env"
+
+  # Only generate and save secrets if .env file doesn't exist
+  if [ ! -f "${ENV_FILE}" ]; then
+    ohai "Generating JWT secrets..."
+    # Generate random 64-byte secrets (128 hex characters) using /dev/urandom
+    JWT_SECRET=$(od -An -N 64 -tx1 /dev/urandom | tr -d ' \n')
+    REFRESH_SECRET=$(od -An -N 64 -tx1 /dev/urandom | tr -d ' \n')
+
+    # Create new .env file with generated secrets
+    echo "TRANSFORMERLAB_JWT_SECRET=${JWT_SECRET}" > "${ENV_FILE}"
+    echo "TRANSFORMERLAB_REFRESH_SECRET=${REFRESH_SECRET}" >> "${ENV_FILE}"
+    ohai "✅ JWT secrets generated and saved to ${ENV_FILE}"
+  else
+    ohai "✅ ${ENV_FILE} already exists, skipping secret generation"
+  fi
+
 
   # Now do the same thing for the web app which is in a different repo called https://github.com/transformerlab/transformerlab-app
   # Step 1: First get the latest release version:
@@ -374,36 +393,29 @@ install_dependencies() {
   echo "HAS_NVIDIA=$HAS_NVIDIA, HAS_AMD=$HAS_AMD"
   PIP_WHEEL_FLAGS="--upgrade"
 
+  # Determine the directory containing pyproject.toml
+  if [ -e "$RUN_DIR/pyproject.toml" ]; then
+    PROJECT_DIR="$RUN_DIR"
+  elif [ -e "$TLAB_CODE_DIR/pyproject.toml" ]; then
+    PROJECT_DIR="$TLAB_CODE_DIR"
+  else
+    echo "Error: pyproject.toml not found in run directory or src location."
+    exit 1
+  fi
+
   if [ "$HAS_NVIDIA" = true ]; then
       echo "Your computer has a GPU; installing cuda:"
       conda install -y cuda==12.8.1 --force-reinstall -c nvidia/label/cuda-12.8.1
 
-      echo "Installing requirements:"
-      # Install the python requirements
-      if [ -e "$RUN_DIR/requirements-uv.txt" ]; then
-        REQS_PATH="$RUN_DIR/requirements-uv.txt"
-      elif [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
-        REQS_PATH="$TLAB_CODE_DIR/requirements-uv.txt"
-      else
-        echo "Error: requirements-uv.txt not found in run directory or src location."
-        exit 1
-      fi
-
-      uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
+      echo "Installing requirements with NVIDIA support:"
+      cd "$PROJECT_DIR"
+      uv pip install ${PIP_WHEEL_FLAGS} .[nvidia]
 
   elif [ "$HAS_AMD" = true ]; then
       echo "Installing requirements for ROCm:"
-      if [ -e "$RUN_DIR/requirements-rocm-uv.txt" ]; then
-        REQS_PATH="$RUN_DIR/requirements-rocm-uv.txt"
-      elif [ -e "$TLAB_CODE_DIR/requirements-rocm-uv.txt" ]; then
-        REQS_PATH="$TLAB_CODE_DIR/requirements-rocm-uv.txt"
-      else
-        echo "Error: requirements-rocm-uv.txt not found in run directory or src location."
-        exit 1
-      fi
-
+      cd "$PROJECT_DIR"
       PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match"
-      uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
+      uv pip install ${PIP_WHEEL_FLAGS} .[rocm]
 
       if [ "$TLAB_ON_WSL" = 1 ]; then
         location=$(pip show torch | grep Location | awk -F ": " '{print $2}')
@@ -417,25 +429,16 @@ install_dependencies() {
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
-      echo "Installing Tranformer Lab requirements without GPU support"
+      echo "Installing Transformer Lab requirements without GPU support"
 
-      if [ -e "$RUN_DIR/requirements-no-gpu-uv.txt" ]; then
-        REQS_PATH="$RUN_DIR/requirements-no-gpu-uv.txt"
-      elif [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
-        REQS_PATH="$TLAB_CODE_DIR/requirements-no-gpu-uv.txt"
-      else
-        echo "Error: requirements-no-gpu-uv.txt not found in run directory or src location."
-        exit 1
-      fi
-
+      cd "$PROJECT_DIR"
       if [[ -z "${TLAB_ON_MACOS}" ]]; then
           # Add the CPU-specific PyTorch index for non-macOS systems
           PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
       fi
 
-      echo "Using requirements from ${REQS_PATH}"
-      # Run the installation with dynamic flags
-      uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
+      echo "Installing with CPU support"
+      uv pip install ${PIP_WHEEL_FLAGS} .[cpu]
   fi
 
   # Check if the uvicorn command works:
@@ -449,6 +452,31 @@ install_dependencies() {
   PIP_LIST=$(pip list --format json)
   echo "${PIP_LIST}" > "${TLAB_CODE_DIR}/INSTALLED_DEPENDENCIES"
   echo "🌕 Step 4: COMPLETE"
+}
+
+##############################
+## Step 5: Install SkyPilot
+##############################
+
+install_skypilot() {
+  title "Step 5: Install SkyPilot"
+  echo "🌘 Step 5: START"
+
+  unset_conda_for_sure
+  eval "$(${CONDA_BIN} shell.bash hook)"
+  conda activate "$ENV_DIR"
+
+  check_python
+
+  # Install uv if not already installed
+  if ! command -v uv &> /dev/null; then
+    pip install uv
+  fi
+
+  echo "Installing SkyPilot with Kubernetes support..."
+  uv pip install "skypilot[kubernetes]==0.10.5"
+
+  echo "🌕 Step 5: COMPLETE"
 }
 
 list_installed_packages() {
@@ -505,10 +533,6 @@ print_success_message() {
   echo
 }
 
-# Load .env configuration (prefer current dir, then fallback to app src dir)
-load_env_from_file "${RUN_DIR}/.env"
-load_env_from_file "${TLAB_CODE_DIR}/.env"
-
 # Check if there are positional arguments; if not, perform full install
 if [[ "$#" -eq 0 ]]; then
   title "Performing a full installation of Transformer Lab."
@@ -532,6 +556,9 @@ else
       install_dependencies)
         install_dependencies
         ;;
+      install_skypilot)
+        install_skypilot
+        ;;
       doctor)
         doctor
         ;;
@@ -543,7 +570,7 @@ else
         ;;
       *)
         # Print allowed arguments
-        echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies] or leave blank to perform a full installation."
+        echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies, install_skypilot] or leave blank to perform a full installation."
         abort "❌ Unknown argument: $arg"
         ;;
     esac

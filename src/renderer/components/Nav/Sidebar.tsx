@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useMemo, CSSProperties } from 'react';
 
 import {
   CodeIcon,
@@ -18,8 +18,6 @@ import {
   SquareStackIcon,
   FileIcon,
   ChartColumnIncreasingIcon,
-  UserIcon,
-  LogOutIcon,
   AudioLinesIcon,
   StretchHorizontalIcon,
 } from 'lucide-react';
@@ -27,111 +25,120 @@ import {
 import { RiImageAiLine } from 'react-icons/ri';
 
 import {
-  Alert,
-  Box,
   ButtonGroup,
-  Button,
   Divider,
-  FormControl,
-  FormLabel,
   IconButton,
-  Input,
   List,
-  Modal,
-  ModalClose,
-  ModalDialog,
-  Option,
-  Select,
   Sheet,
-  Stack,
   Tooltip,
-  Typography,
 } from '@mui/joy';
 
 import {
   useModelStatus,
   usePluginStatus,
-  useAPI,
-  logout,
   getAPIFullPath,
-  getAccessToken,
-  setAccessToken,
-  setRefreshToken,
-  API_URL,
+  apiHealthz,
 } from 'renderer/lib/transformerlab-api-sdk';
 
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
-import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import LoginChip from './UserWidget';
 
-function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
-  const [pipelineTag, setPipelineTag] = useState<string | null>(null);
+interface ExperimentMenuItemsProps {
+  experimentInfo: any;
+  models: any;
+  mode: string;
+}
 
+function ExperimentMenuItems({
+  experimentInfo,
+  models,
+  mode,
+}: ExperimentMenuItemsProps) {
+  const { team } = useAuth();
+  const isS3Mode = mode === 's3';
+  const [pipelineTag, setPipelineTag] = useState<string | null>(null);
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
   >(null);
+  const experimentReady = Boolean(experimentInfo?.name);
+  const hasFoundation = Boolean(experimentInfo?.config?.foundation);
 
-  function activeModelIsNotSameAsFoundation() {
-    if (models === null) {
-      return true;
-    }
+  const { data: providerListData } = useAPI('compute_provider', ['list'], {
+    teamId: team?.id ?? null,
+  });
 
-    if (!experimentInfo?.name) {
-      return true;
-    }
+  const providers = useMemo(
+    () => (Array.isArray(providerListData) ? providerListData : []),
+    [providerListData],
+  );
+  const hasProviders = providers.length > 0;
 
-    // The API may respond with the ID of the model, or the model filename or the adaptor
+  const pipelineIsTTS = pipelineTag === 'text-to-speech';
+  const pipelineIsSTT = pipelineTag === 'speech-to-text';
+  const isDiffusionModel = isValidDiffusionModel === true;
+  const showInteractTab =
+    !isS3Mode && !isDiffusionModel && !pipelineIsTTS && !pipelineIsSTT;
+  const showDiffusionTab = !isS3Mode && isDiffusionModel;
+  const showAudioTTSTab = !isS3Mode && pipelineIsTTS;
+  const showAudioSTTTab = !isS3Mode && pipelineIsSTT;
+
+  const isActiveModelDifferent = useMemo(() => {
+    if (!models || !experimentReady) return true;
+
+    const activeModelId = models[0]?.id;
+    const normalize = (value?: string | null) =>
+      value?.split?.('/')?.slice(-1)?.[0] ?? value;
+    const config = experimentInfo?.config;
+
     return (
-      models?.[0]?.id !==
-        experimentInfo?.config?.foundation?.split('/').slice(-1)[0] &&
-      models?.[0]?.id !==
-        experimentInfo?.config?.foundation_filename?.split('/').slice(-1)[0] &&
-      models?.[0]?.id !== experimentInfo?.config.adaptor
+      activeModelId !== normalize(config?.foundation) &&
+      activeModelId !== normalize(config?.foundation_filename) &&
+      activeModelId !== config?.adaptor
     );
-  }
+  }, [models, experimentReady, experimentInfo?.config]);
 
-  // Check if the current foundation model is a diffusion model and fetch pipeline_tag in the same effect
+  const disableInteract = !experimentReady || isActiveModelDifferent;
+  const disableEval = !experimentReady || isDiffusionModel;
+  const disableExport = !experimentReady || !hasFoundation;
+
   useEffect(() => {
+    if (!experimentInfo?.id || !hasFoundation) {
+      setIsValidDiffusionModel(false);
+      setPipelineTag(null);
+      return;
+    }
+
+    let isMounted = true;
+    setIsValidDiffusionModel(null);
+
     const checkValidDiffusionAndPipelineTag = async () => {
-      if (!experimentInfo?.config?.foundation) {
-        setIsValidDiffusionModel(false);
-        setPipelineTag(null);
-        return;
-      }
-
-      let pipelineTagResult = null;
-
-      // Check pipeline_tag first
       try {
-        const url = getAPIFullPath('models', ['pipeline_tag'], {
-          modelName: experimentInfo.config.foundation,
-        });
-        const response = await fetch(url, { method: 'GET' });
-        if (!response.ok) {
-          setPipelineTag(null);
-        } else {
-          const data = await response.json();
-          console.log('Pipeline tag data:', data);
-          pipelineTagResult = data?.data || null;
-          setPipelineTag(pipelineTagResult);
+        const pipelineResponse = await fetchWithAuth(
+          getAPIFullPath('models', ['pipeline_tag'], {
+            modelName: experimentInfo.config.foundation,
+          }),
+          { method: 'GET' },
+        );
+
+        if (!isMounted) return;
+
+        const pipelineData = pipelineResponse.ok
+          ? ((await pipelineResponse.json())?.data ?? null)
+          : null;
+
+        setPipelineTag(pipelineData);
+
+        if (pipelineData === 'text-to-speech') {
+          setIsValidDiffusionModel(false);
+          return;
         }
-      } catch (e) {
-        setPipelineTag(null);
-        console.error('Error fetching pipeline tag:', e);
-      }
 
-      // If pipelineTag is text-to-speech, never show diffusion tab
-      if (pipelineTagResult === 'text-to-speech') {
-        setIsValidDiffusionModel(false);
-        return;
-      }
-
-      // Otherwise, check diffusion
-      try {
-        const response = await fetch(
+        const diffusionResponse = await fetchWithAuth(
           getAPIFullPath('diffusion', ['checkValidDiffusion'], {
             experimentId: experimentInfo.id,
           }),
@@ -142,18 +149,32 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
           },
         );
 
-        if (!response.ok) {
+        if (!isMounted) return;
+
+        if (!diffusionResponse.ok) {
           setIsValidDiffusionModel(false);
-        } else {
-          const data = await response.json();
-          setIsValidDiffusionModel(data.is_valid_diffusion_model ?? false);
+          return;
         }
-      } catch (e) {
-        setIsValidDiffusionModel(false);
+
+        const diffusionData = await diffusionResponse.json();
+        setIsValidDiffusionModel(
+          diffusionData?.is_valid_diffusion_model ?? false,
+        );
+      } catch {
+        if (isMounted) {
+          setPipelineTag(null);
+          setIsValidDiffusionModel(false);
+        }
       }
     };
+
     checkValidDiffusionAndPipelineTag();
-  }, [experimentInfo?.config?.foundation]);
+
+    // eslint-disable-next-line consistent-return
+    return function cleanup() {
+      isMounted = false;
+    };
+  }, [experimentInfo?.id, experimentInfo?.config?.foundation, hasFoundation]);
 
   return (
     <List
@@ -165,104 +186,117 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
       }}
     >
       <>
-        <SubNavItem
-          title="Foundation"
-          path="/experiment/model"
-          icon={<LayersIcon strokeWidth={1} />}
-          disabled={!experimentInfo?.name}
-        />
-        {(isValidDiffusionModel === false || isValidDiffusionModel === null) &&
-          pipelineTag !== 'text-to-speech' &&
-          pipelineTag !== 'speech-to-text' && (
-            <SubNavItem
-              title="Interact"
-              path="/experiment/chat"
-              icon={<MessageCircleIcon strokeWidth={9} />}
-              disabled={
-                !experimentInfo?.name || activeModelIsNotSameAsFoundation()
-              }
-            />
-          )}
-        {/* Show Diffusion tab only if the model IS a diffusion model */}
-        {isValidDiffusionModel === true && (
+        {!isS3Mode && (
+          <SubNavItem
+            title="Foundation"
+            path="/experiment/model"
+            icon={<LayersIcon strokeWidth={1} />}
+            disabled={!experimentReady}
+          />
+        )}
+        {showInteractTab && (
+          <SubNavItem
+            title="Interact"
+            path="/experiment/chat"
+            icon={<MessageCircleIcon strokeWidth={9} />}
+            disabled={disableInteract}
+          />
+        )}
+        {showDiffusionTab && (
           <SubNavItem
             title="Diffusion"
             path="/experiment/diffusion"
             icon={<RiImageAiLine />}
-            disabled={!experimentInfo?.name}
+            disabled={!experimentReady}
           />
         )}
-        {/* Show Audio tab only if pipelineTag is text-to-speech */}
-        {pipelineTag === 'text-to-speech' && (
+        {showAudioTTSTab && (
           <SubNavItem
             title="Audio"
             path="/experiment/audio"
             icon={<AudioLinesIcon />}
-            disabled={
-              !experimentInfo?.name || activeModelIsNotSameAsFoundation()
-            }
+            disabled={disableInteract}
           />
         )}
-        {pipelineTag === 'speech-to-text' && (
+        {showAudioSTTTab && (
           <SubNavItem
             title="Audio"
             path="/experiment/audio-stt"
             icon={<AudioLinesIcon />}
-            disabled={
-              !experimentInfo?.name || activeModelIsNotSameAsFoundation()
-            }
+            disabled={disableInteract}
           />
         )}
-        {/* <SubNavItem
-            title="Workflows"
-            path="/experiment/workflows"
-            icon={<WorkflowIcon />}
-            disabled={!experimentInfo?.name}
-          /> */}
-        <SubNavItem
-          title="Train"
-          path="/experiment/training"
-          icon={<GraduationCapIcon />}
-          disabled={!experimentInfo?.name}
-        />
-        <SubNavItem
-          title="Generate"
-          path="/experiment/generate"
-          icon={<SquareStackIcon />}
-          disabled={!experimentInfo?.name}
-        />
-        <SubNavItem
-          title="Evaluate"
-          path="/experiment/eval"
-          icon={<ChartColumnIncreasingIcon />}
-          disabled={!experimentInfo?.name || isValidDiffusionModel === true}
-        />
+        {!isS3Mode && (
+          <SubNavItem
+            title="Train"
+            path="/experiment/training"
+            icon={<GraduationCapIcon />}
+            disabled={!experimentReady}
+          />
+        )}
+        {hasProviders && (
+          <SubNavItem
+            title="Tasks"
+            path="/experiment/tasks"
+            icon={<StretchHorizontalIcon />}
+            disabled={!experimentReady}
+          />
+        )}
+        {!isS3Mode && (
+          <SubNavItem
+            title="Generate"
+            path="/experiment/generate"
+            icon={<SquareStackIcon />}
+            disabled={!experimentReady}
+          />
+        )}
+        {!isS3Mode && (
+          <SubNavItem
+            title="Evaluate"
+            path="/experiment/eval"
+            icon={<ChartColumnIncreasingIcon />}
+            disabled={disableEval}
+          />
+        )}
         <SubNavItem
           title="Documents"
           path="/experiment/documents"
           icon={<FileIcon />}
-          disabled={!experimentInfo?.name}
+          disabled={!experimentReady}
         />
-        <SubNavItem
-          title="Export"
-          path="/experiment/export"
-          icon={<ArrowRightFromLineIcon />}
-          disabled={
-            !experimentInfo?.name || !experimentInfo?.config?.foundation
-          }
-        />
+        {!isS3Mode && (
+          <SubNavItem
+            title="Export"
+            path="/experiment/export"
+            icon={<ArrowRightFromLineIcon />}
+            disabled={disableExport}
+          />
+        )}
         <SubNavItem
           title="Notes"
           path="/experiment/notes"
           icon={<FlaskConicalIcon />}
-          disabled={!experimentInfo?.name}
+          disabled={!experimentReady}
         />
       </>
     </List>
   );
 }
 
-function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
+interface GlobalMenuItemsProps {
+  outdatedPluginsCount: number | undefined;
+  mode: string;
+  hasProviders: boolean;
+  experimentInfo: any;
+}
+
+function GlobalMenuItems({
+  outdatedPluginsCount,
+  mode,
+  hasProviders,
+  experimentInfo,
+}: GlobalMenuItemsProps) {
+  const isS3Mode = mode === 's3';
   return (
     <List
       sx={{
@@ -274,459 +308,53 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
     >
       <Divider sx={{ marginBottom: 1 }} />
 
-      <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
+      <SubNavItem title="Model Registry" path="/zoo" icon={<BoxesIcon />} />
       <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
-      <SubNavItem
-        title="API"
-        path="/api"
-        icon={<CodeIcon />}
-        disabled={!experimentInfo?.name}
-      />
-      <SubNavItem title="Logs" path="/logs" icon={<TextIcon />} />
-      <SubNavItem
-        title="Plugins"
-        path="/plugins"
-        icon={<PlugIcon />}
-        counter={outdatedPluginsCount}
-      />
-      <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
+      {hasProviders && (
+        <SubNavItem
+          title="Tasks Gallery"
+          path="/tasks-gallery"
+          icon={<StretchHorizontalIcon />}
+        />
+      )}
+      {!isS3Mode && (
+        <SubNavItem
+          title="API"
+          path="/api"
+          icon={<CodeIcon />}
+          disabled={!experimentInfo?.name}
+        />
+      )}
+      {!isS3Mode && (
+        <SubNavItem title="Logs" path="/logs" icon={<TextIcon />} />
+      )}
+      {!isS3Mode && (
+        <SubNavItem
+          title="Plugins"
+          path="/plugins"
+          icon={<PlugIcon />}
+          counter={outdatedPluginsCount}
+        />
+      )}
+      {hasProviders && (
+        <SubNavItem title="Compute" path="/compute" icon={<MonitorIcon />} />
+      )}
+      {!isS3Mode && (
+        <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
+      )}
     </List>
   );
 }
 
-function extractWorkOSDetails(userDetails: any) {
-  const accounts = Array.isArray(userDetails?.oauth_accounts)
-    ? userDetails.oauth_accounts
-    : [];
-  const workosAccount = accounts.find(
-    (account: any) =>
-      account?.oauth_name === 'workos' || account?.oauth_name === 'openid',
-  );
-
-  if (!workosAccount) {
-    return {
-      account: null,
-      organizationId: null,
-      organizationSlug: null,
-      organizations: [],
-    };
-  }
-
-  const accountData = (workosAccount?.account_data || {}) as any;
-  const workosMeta = (accountData?.workos || {}) as any;
-  const userinfo = (accountData?.userinfo || {}) as any;
-
-  const organizationId =
-    workosMeta?.organization_id ||
-    userinfo?.organization_id ||
-    userinfo?.org_id ||
-    null;
-
-  const organizationSlug =
-    workosMeta?.organization_slug ||
-    userinfo?.organization_slug ||
-    (typeof userinfo?.organization === 'object'
-      ? userinfo.organization?.slug || userinfo.organization?.name
-      : null) ||
-    null;
-
-  const organizationName =
-    workosMeta?.organization_name ||
-    (typeof userinfo?.organization === 'object'
-      ? userinfo.organization?.name || userinfo.organization?.slug
-      : null) ||
-    (typeof userinfo?.organization === 'string'
-      ? userinfo.organization
-      : null) ||
-    userinfo?.organization_name ||
-    null;
-
-  const rawOrganizations = [
-    ...(Array.isArray(userinfo?.organizations) ? userinfo.organizations : []),
-    ...(userinfo?.organization ? [userinfo.organization] : []),
-  ];
-
-  const organizations = rawOrganizations
-    .map((raw: any) => {
-      if (!raw || typeof raw !== 'object') {
-        if (typeof raw === 'string') {
-          return { id: raw, slug: null, name: null };
-        }
-        return null;
-      }
-      const id =
-        raw.id || raw.organization_id || raw.org_id || raw.profile_id || null;
-      const slug = raw.slug || raw.organization_slug || null;
-      const name = raw.name || raw.organization_name || raw.profile || null;
-      if (!id && !slug && !name) {
-        return null;
-      }
-      return { id, slug, name };
-    })
-    .filter((item: any) => item);
-
-  const deduped = organizations.reduce((acc: any[], org: any) => {
-    const key = org?.id || org?.slug || org?.name;
-    if (!key) {
-      return acc;
-    }
-    if (
-      !acc.some(
-        (existing) =>
-          (org?.id && existing?.id === org?.id) ||
-          (org?.slug && existing?.slug === org?.slug) ||
-          (org?.name && existing?.name === org?.name),
-      )
-    ) {
-      acc.push(org);
-    }
-    return acc;
-  }, [] as any[]);
-
-  const fallbackOrg =
-    organizationId || organizationSlug || organizationName
-      ? {
-          id: organizationId,
-          slug: organizationSlug,
-          name: organizationName || organizationSlug || organizationId || null,
-        }
-      : null;
-
-  if (
-    fallbackOrg &&
-    !deduped.some(
-      (existing) =>
-        (fallbackOrg.id && existing?.id === fallbackOrg.id) ||
-        (fallbackOrg.slug && existing?.slug === fallbackOrg.slug) ||
-        (fallbackOrg.name && existing?.name === fallbackOrg.name),
-    )
-  ) {
-    deduped.push(fallbackOrg);
-  }
-
-  return {
-    account: workosAccount,
-    organizationId,
-    organizationSlug,
-    organizationName,
-    organizations: deduped,
-  };
+interface BottomMenuItemsProps {
+  navigate: (path: string) => void;
+  themeSetter: (theme: string) => void;
 }
 
-function UserDetailsPanel({ userDetails, mutate, onManageWorkOS }) {
-  const workosDetails = extractWorkOSDetails(userDetails);
-  const organizationDisplayParts: string[] = [];
-  if (workosDetails?.organizationName) {
-    organizationDisplayParts.push(workosDetails.organizationName);
-  }
-  const organizationIdentifier =
-    workosDetails?.organizationSlug || workosDetails?.organizationId;
-  if (
-    organizationIdentifier &&
-    (!workosDetails?.organizationName ||
-      workosDetails.organizationName !== organizationIdentifier)
-  ) {
-    organizationDisplayParts.push(organizationIdentifier);
-  }
-  const organizationDisplay =
-    organizationDisplayParts.length > 0
-      ? organizationDisplayParts.join(' / ')
-      : null;
-
-  // Extract user display information
-  const firstName = userDetails?.first_name || '';
-  const lastName = userDetails?.last_name || '';
-  const profilePictureUrl = userDetails?.profile_picture_url;
-
-  // Create display name - prefer first/last name, fallback to full name, then email
-  const displayName =
-    firstName && lastName
-      ? `${firstName} ${lastName}`.trim()
-      : userDetails?.name || userDetails?.email || 'User';
-
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        width: '100%',
-      }}
-    >
-      <Tooltip
-        title={
-          <Stack spacing={1} sx={{ p: 1 }}>
-            {profilePictureUrl && (
-              <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                <img
-                  src={profilePictureUrl}
-                  alt="Profile"
-                  style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                  }}
-                />
-              </Box>
-            )}
-            <Typography level="title-sm" sx={{ textAlign: 'center' }}>
-              {displayName}
-            </Typography>
-            {userDetails?.email && (
-              <Typography level="body-xs" sx={{ textAlign: 'center' }}>
-                {userDetails.email}
-              </Typography>
-            )}
-            {userDetails?.organization_id && (
-              <Typography level="body-xs" sx={{ textAlign: 'center' }}>
-                Org ID: {userDetails.organization_id}
-              </Typography>
-            )}
-            {organizationDisplay && (
-              <Typography level="body-xs" sx={{ textAlign: 'center' }}>
-                WorkOS: {organizationDisplay}
-              </Typography>
-            )}
-          </Stack>
-        }
-        placement="top"
-        variant="outlined"
-        sx={{ maxWidth: 300 }}
-      >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            cursor: 'pointer',
-            flex: 1,
-            minWidth: 0,
-          }}
-        >
-          {profilePictureUrl ? (
-            <img
-              src={profilePictureUrl}
-              alt="Profile"
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                objectFit: 'cover',
-              }}
-            />
-          ) : (
-            <UserIcon size="32px" />
-          )}
-          <Typography
-            level="title-sm"
-            sx={{
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              maxWidth: '120px',
-            }}
-          >
-            {firstName || userDetails?.name || 'User'}
-          </Typography>
-        </Box>
-      </Tooltip>
-
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        {workosDetails?.account ? (
-          <Tooltip title="Manage WorkOS organization scope">
-            <IconButton
-              size="sm"
-              variant="plain"
-              color="neutral"
-              onClick={onManageWorkOS}
-              sx={{
-                cursor: 'pointer',
-                '&:hover': {
-                  backgroundColor: 'var(--joy-palette-neutral-100)',
-                  borderRadius: 'sm',
-                },
-              }}
-            >
-              <SettingsIcon size="18px" />
-            </IconButton>
-          </Tooltip>
-        ) : null}
-        <IconButton
-          size="sm"
-          variant="plain"
-          color="neutral"
-          onClick={async () => {
-            await logout();
-            await Promise.all([
-              window.storage.delete('accessToken'),
-              window.storage.delete('userName'),
-              window.storage.delete('userEmail'),
-            ]);
-            mutate();
-            alert('User logged out.');
-          }}
-          sx={{
-            cursor: 'pointer',
-            '&:hover': {
-              backgroundColor: 'var(--joy-palette-neutral-100)',
-              borderRadius: 'sm',
-            },
-          }}
-        >
-          <LogOutIcon size="18px" />
-        </IconButton>
-      </Box>
-    </Box>
-  );
-}
-
-function BottomMenuItems({ navigate, themeSetter }) {
-  const [workosScopeModalOpen, setWorkosScopeModalOpen] = useState(false);
-  const [selectedOrgOption, setSelectedOrgOption] = useState<string | null>(
-    null,
-  );
-  const [organizationInput, setOrganizationInput] = useState('');
-  const [scopeError, setScopeError] = useState<string | null>(null);
-  const [scopeSuccess, setScopeSuccess] = useState<string | null>(null);
-  const [isScoping, setIsScoping] = useState(false);
-  const {
-    data: userInfo,
-    error: userError,
-    mutate: userMutate,
-  } = useAPI('auth', ['me'], {});
-
-  const workosDetails = userInfo ? extractWorkOSDetails(userInfo) : null;
-  const availableOrganizations = workosDetails?.organizations || [];
-  const currentOrgLabel =
-    workosDetails?.organizationName ||
-    workosDetails?.organizationSlug ||
-    workosDetails?.organizationId ||
-    'Not scoped';
-  const hasWorkOSAccount = Boolean(workosDetails?.account);
-
-  useEffect(() => {
-    if (workosScopeModalOpen) {
-      const defaultOrg = workosDetails?.organizationId || '';
-      setSelectedOrgOption(defaultOrg || null);
-      setOrganizationInput(defaultOrg || '');
-      setScopeError(null);
-      setScopeSuccess(null);
-    }
-  }, [workosScopeModalOpen, workosDetails?.organizationId]);
-
-  useEffect(() => {
-    if (!workosDetails?.account && workosScopeModalOpen) {
-      setWorkosScopeModalOpen(false);
-    }
-  }, [workosDetails?.account, workosScopeModalOpen]);
-
-  const handleScopeSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmed = organizationInput.trim();
-    if (!trimmed) {
-      setScopeError('Organization ID is required.');
-      setScopeSuccess(null);
-      return;
-    }
-
-    const apiBase = API_URL();
-    if (!apiBase) {
-      setScopeError('API URL is not configured. Set API URL before scoping.');
-      setScopeSuccess(null);
-      return;
-    }
-
-    setIsScoping(true);
-    setScopeError(null);
-    setScopeSuccess(null);
-
-    try {
-      const token = await getAccessToken();
-      if (!token) {
-        setScopeError('You must be logged in to scope your WorkOS session.');
-        setIsScoping(false);
-        return;
-      }
-
-      const response = await fetch(`${apiBase}auth/workos/scope`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ organization_id: trimmed }),
-      });
-
-      const rawText = await response.text();
-      let payload: any = null;
-      if (rawText) {
-        try {
-          payload = JSON.parse(rawText);
-        } catch (err) {
-          payload = null;
-        }
-      }
-
-      if (!response.ok) {
-        const detail =
-          (payload && (payload.detail || payload.message)) ||
-          rawText ||
-          `Failed with status ${response.status}`;
-        setScopeError(
-          typeof detail === 'string'
-            ? detail
-            : 'Failed to scope WorkOS session.',
-        );
-        setIsScoping(false);
-        return;
-      }
-
-      setScopeSuccess(
-        payload?.organization_slug
-          ? `Session scoped to ${payload.organization_slug}.`
-          : `Session scoped to ${payload?.organization_id || trimmed}.`,
-      );
-      setSelectedOrgOption(trimmed);
-      setOrganizationInput(trimmed);
-      if (payload?.access_token) {
-        await setAccessToken(payload.access_token);
-      }
-      if (payload?.refresh_token !== undefined) {
-        await setRefreshToken(payload.refresh_token);
-      }
-      await userMutate();
-    } catch (error: any) {
-      setScopeError(error?.message || 'Failed to scope WorkOS session.');
-    } finally {
-      setIsScoping(false);
-    }
-  };
-
-  if (userError) {
-    console.log(userError);
-  }
-
+function BottomMenuItems({ navigate, themeSetter }: BottomMenuItemsProps) {
   return (
     <>
       <Divider sx={{ my: 1 }} />
-      <Box
-        sx={{
-          display: window.platform?.appmode === 'cloud' ? 'flex' : 'none',
-          gap: 1,
-          alignItems: 'center',
-          mb: 1,
-          maxWidth: '180px',
-        }}
-      >
-        {userInfo && userInfo.id && (
-          <UserDetailsPanel
-            userDetails={userInfo}
-            mutate={userMutate}
-            onManageWorkOS={() => setWorkosScopeModalOpen(true)}
-          />
-        )}
-      </Box>
       <ButtonGroup
         sx={{
           display: 'flex',
@@ -763,107 +391,58 @@ function BottomMenuItems({ navigate, themeSetter }) {
           </IconButton>
         </Tooltip>
       </ButtonGroup>
-      <Modal
-        open={workosScopeModalOpen && hasWorkOSAccount}
-        onClose={() => setWorkosScopeModalOpen(false)}
-      >
-        <ModalDialog
-          aria-labelledby="workos-scope-title"
-          sx={{ maxWidth: 420 }}
-        >
-          <ModalClose />
-          <Typography id="workos-scope-title" level="title-lg">
-            WorkOS Organization Scope
-          </Typography>
-          <Typography level="body-sm" sx={{ mt: 1 }}>
-            Current organization:{' '}
-            <Typography component="span" level="body-sm" fontWeight="lg">
-              {currentOrgLabel}
-            </Typography>
-          </Typography>
-          {availableOrganizations.length > 0 ? (
-            <FormControl sx={{ mt: 2 }}>
-              <FormLabel>Choose an organization</FormLabel>
-              <Select
-                placeholder="Select organization"
-                value={selectedOrgOption || null}
-                onChange={(_event, value) => {
-                  const next = (value as string) || '';
-                  setSelectedOrgOption(next || null);
-                  setOrganizationInput(next);
-                }}
-              >
-                {availableOrganizations.map((org: any) => {
-                  const value = org?.id || org?.slug || org?.name;
-                  if (!value) {
-                    return null;
-                  }
-                  const labelParts = [org?.slug || org?.name].filter(Boolean);
-                  if (org?.id && org?.id !== value) {
-                    labelParts.push(`(${org.id})`);
-                  }
-                  const label = labelParts.join(' ');
-                  return (
-                    <Option key={value} value={value}>
-                      {label || value}
-                    </Option>
-                  );
-                })}
-              </Select>
-            </FormControl>
-          ) : (
-            <Typography level="body-xs" sx={{ mt: 2 }}>
-              We could not discover additional organizations automatically. You
-              can still paste an organization ID manually below.
-            </Typography>
-          )}
-          <form onSubmit={handleScopeSubmit}>
-            <Stack spacing={1.5} sx={{ mt: 2 }}>
-              <FormControl>
-                <FormLabel>Organization ID</FormLabel>
-                <Input
-                  placeholder="org_123"
-                  value={organizationInput}
-                  onChange={(event) => {
-                    setOrganizationInput(event.target.value);
-                    setSelectedOrgOption(event.target.value || null);
-                  }}
-                  autoFocus={availableOrganizations.length === 0}
-                />
-              </FormControl>
-              {scopeError ? (
-                <Alert color="danger" variant="soft">
-                  {scopeError}
-                </Alert>
-              ) : null}
-              {scopeSuccess ? (
-                <Alert color="success" variant="soft">
-                  {scopeSuccess}
-                </Alert>
-              ) : null}
-              <Button type="submit" disabled={isScoping}>
-                {isScoping ? 'Scoping...' : 'Update scope'}
-              </Button>
-            </Stack>
-          </form>
-        </ModalDialog>
-      </Modal>
     </>
   );
 }
 
+interface SidebarProps {
+  logsDrawerOpen?: boolean;
+  setLogsDrawerOpen?: (open: boolean) => void;
+  themeSetter: (theme: string) => void;
+}
+
 export default function Sidebar({
-  logsDrawerOpen,
-  setLogsDrawerOpen,
+  logsDrawerOpen: _logsDrawerOpen, // eslint-disable-line @typescript-eslint/no-unused-vars
+  setLogsDrawerOpen: _setLogsDrawerOpen, // eslint-disable-line @typescript-eslint/no-unused-vars
   themeSetter,
-}) {
-  const { experimentInfo, setExperimentId } = useExperimentInfo();
-  const { models, isError, isLoading } = useModelStatus();
+}: SidebarProps) {
+  const { experimentInfo } = useExperimentInfo();
+  const { models } = useModelStatus();
   const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
+  const [mode, setMode] = useState<string>('local');
 
   const navigate = useNavigate();
+  const isDevExperiment = experimentInfo?.name === 'dev';
 
-  const DEV_MODE = experimentInfo?.name === 'dev';
+  const { team } = useAuth();
+
+  // Fetch compute_provider to determine if Tasks tab should be visible
+  const { data: providerListData } = useAPI('compute_provider', ['list'], {
+    teamId: team?.id ?? null,
+  });
+
+  const providers = useMemo(
+    () => (Array.isArray(providerListData) ? providerListData : []),
+    [providerListData],
+  );
+
+  const hasProviders = providers.length > 0;
+
+  // Fetch healthz to get the mode
+  useEffect(() => {
+    const fetchHealthz = async () => {
+      try {
+        const data = await apiHealthz();
+        if (data?.mode) {
+          setMode(data.mode);
+        }
+      } catch (error) {
+        console.error('Failed to fetch healthz data:', error);
+      }
+    };
+
+    fetchHealthz();
+  }, []);
 
   return (
     <Sheet
@@ -897,32 +476,33 @@ export default function Sidebar({
       }}
     >
       <div
-        style={{
-          width: '100%',
-          height: '52px',
-          '-webkit-app-region': 'drag',
-          display: 'flex',
-          alignItems: 'flex-end',
-          justifyContent: 'center',
-          color: 'var(--joy-palette-neutral-plainDisabledColor)',
-        }}
+        style={
+          {
+            width: '100%',
+            height: '52px',
+            WebkitAppRegion: 'drag',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            color: 'var(--joy-palette-neutral-plainDisabledColor)',
+          } as CSSProperties
+        }
       >
-        {DEV_MODE && <>v{window.platform?.version}</>}
+        {isDevExperiment && <>v{(window as any).platform?.version}</>}
       </div>
       <SelectExperimentMenu models={models} />
       <ExperimentMenuItems
-        DEV_MODE={DEV_MODE}
         experimentInfo={experimentInfo}
         models={models}
+        mode={mode}
       />
       <GlobalMenuItems
-        DEV_MODE={DEV_MODE}
-        experimentInfo={experimentInfo}
         outdatedPluginsCount={outdatedPlugins?.length}
+        mode={mode}
+        hasProviders={hasProviders}
+        experimentInfo={experimentInfo}
       />
-      {typeof process !== 'undefined' && process.env?.MULTIUSER === 'true' && (
-        <LoginChip />
-      )}
+      {process.env.MULTIUSER === 'true' && <LoginChip />}
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
     </Sheet>
   );
