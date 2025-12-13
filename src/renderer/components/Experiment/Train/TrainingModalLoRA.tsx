@@ -895,7 +895,7 @@ export default function TrainingModalLoRA({
                     />
                     <br />
                     <br />
-                    The Avaiable Fields will change dynamically based on the
+                    The Available Fields will change dynamically based on the
                     columns in your selected dataset.
                   </OneTimePopup>
                 )}

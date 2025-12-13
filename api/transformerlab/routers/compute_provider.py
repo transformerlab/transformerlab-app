@@ -1,10 +1,13 @@
 """Router for managing team-scoped compute providers."""
 
 import os
+import uuid
+import configparser
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Tuple
 from pydantic import BaseModel, Field
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
@@ -60,6 +63,9 @@ class ProviderTaskLaunchRequest(BaseModel):
         description="File mounts in the form {<remote_path>: <local_path>}",
     )
     provider_name: Optional[str] = None
+    github_enabled: Optional[bool] = None
+    github_repo_url: Optional[str] = None
+    github_directory: Optional[str] = None
 
 
 class ProviderTaskFileUploadResponse(BaseModel):
@@ -183,6 +189,41 @@ async def list_providers(
         )
 
     return result
+
+
+@router.get("/clusters")
+async def get_clusters(
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get all running clusters across all providers.
+    Requires X-Team-Id header and team membership.
+    """
+    team_id = user_and_team["team_id"]
+
+    providers = await list_team_providers(session, team_id)
+    clusters = []
+    for provider in providers:
+        try:
+            provider_instance = get_provider_instance(provider)
+            # Use the provider's list_clusters method (all providers inherit this from base class)
+            provider_clusters = provider_instance.list_clusters()
+            for cluster_status in provider_clusters:
+                clusters.append(
+                    {
+                        "cluster_name": cluster_status.cluster_name,
+                        "state": cluster_status.state.value,
+                        "resources_str": cluster_status.resources_str,
+                        "provider_id": provider.id,
+                    }
+                )
+        except Exception as e:
+            # Skip providers that fail
+            print(f"Error getting clusters for provider {provider.id}: {e}")
+            pass
+
+    return {"clusters": clusters}
 
 
 @router.post("/", response_model=ProviderRead)
@@ -346,15 +387,18 @@ async def delete_provider(
     return {"message": "Provider deleted successfully"}
 
 
-@router.post("/{provider_id}/verify")
-async def verify_provider(
+@router.get("/{provider_id}/check")
+async def check_provider(
     provider_id: str,
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Verify that a provider is properly configured and accessible.
+    Check if a compute provider is active and accessible.
     Requires X-Team-Id header and team membership.
+
+    Returns:
+        {"status": True} if the provider is active, {"status": False} otherwise
     """
     team_id = user_and_team["team_id"]
 
@@ -366,32 +410,14 @@ async def verify_provider(
         # Try to instantiate the provider
         provider_instance = get_provider_instance(provider)
 
-        # Try to get cluster status (this will test connectivity)
-        # Use a dummy cluster name for testing
-        test_cluster_name = "__test_connection__"
-        try:
-            provider_instance.get_cluster_status(test_cluster_name)
-            # If we get here, the provider is at least configured correctly
-            # (even if the cluster doesn't exist, we got a response)
-            return {
-                "status": "success",
-                "message": "Provider is properly configured and accessible",
-                "provider_type": provider.type,
-            }
-        except Exception:
-            # Provider instantiated but connection test failed
-            return {
-                "status": "warning",
-                "message": "Provider is configured but connection test failed",
-                "provider_type": provider.type,
-            }
-    except Exception:
-        # Provider failed to instantiate
-        return {
-            "status": "error",
-            "message": "Provider configuration is invalid",
-            "provider_type": provider.type,
-        }
+        # Call the check method
+        is_active = provider_instance.check()
+
+        return {"status": is_active}
+    except Exception as e:
+        print(f"Failed to check provider: {e}")
+        # If instantiation or check fails, provider is not active
+        return {"status": False}
 
 
 # ============================================================================
@@ -435,9 +461,37 @@ async def launch_cluster(
             "cluster_name": cluster_name,
             "result": result,
         }
-    except Exception as e:
-        print(f"Failed to launch cluster: {str(e)}")
+    except Exception:
         raise HTTPException(status_code=500, detail="Failed to launch cluster")
+
+
+def _get_aws_credentials_from_file(profile_name: str = "transformerlab-s3") -> Tuple[Optional[str], Optional[str]]:
+    """
+    Read AWS credentials from ~/.aws/credentials file for the specified profile.
+
+    Args:
+        profile_name: AWS profile name (default: "transformerlab-s3")
+
+    Returns:
+        Tuple of (aws_access_key_id, aws_secret_access_key) or (None, None) if not found
+    """
+    credentials_path = Path.home() / ".aws" / "credentials"
+
+    if not credentials_path.exists():
+        return None, None
+
+    try:
+        config = configparser.ConfigParser()
+        config.read(credentials_path)
+
+        if profile_name in config:
+            access_key = config[profile_name].get("aws_access_key_id")
+            secret_key = config[profile_name].get("aws_secret_access_key")
+            return access_key, secret_key
+    except Exception:
+        pass
+
+    return None, None
 
 
 def _generate_aws_credentials_setup(
@@ -478,6 +532,66 @@ def _generate_aws_credentials_setup(
         f"chmod 600 ~/.aws/credentials; "
         f"echo 'AWS credentials configured successfully'"
     )
+    return setup_script
+
+
+def _read_github_pat_from_workspace(workspace_dir: str) -> Optional[str]:
+    """Read GitHub PAT from workspace/github_pat.txt file."""
+    try:
+        pat_path = storage.join(workspace_dir, "github_pat.txt")
+        if storage.exists(pat_path):
+            with storage.open(pat_path, "r") as f:
+                pat = f.read().strip()
+                if pat:
+                    return pat
+    except Exception as e:
+        print(f"Error reading GitHub PAT from workspace: {e}")
+    return None
+
+
+def _generate_github_clone_setup(
+    repo_url: str,
+    directory: Optional[str] = None,
+    github_pat: Optional[str] = None,
+) -> str:
+    """
+    Generate bash script to clone a GitHub repository.
+    Supports both public and private repos (with PAT).
+    Supports cloning entire repo or specific directory (sparse checkout).
+    """
+    clone_dir = f"~/tmp/git-clone-{uuid.uuid4().hex[:8]}"
+
+    if github_pat:
+        if repo_url.startswith("https://github.com/"):
+            repo_url_with_auth = repo_url.replace("https://github.com/", f"https://{github_pat}@github.com/")
+        elif repo_url.startswith("https://"):
+            repo_url_with_auth = repo_url.replace("https://", f"https://{github_pat}@")
+        else:
+            repo_url_with_auth = repo_url
+    else:
+        repo_url_with_auth = repo_url
+
+    def escape_bash(s: str) -> str:
+        return s.replace("'", "'\"'\"'").replace("\\", "\\\\").replace("$", "\\$")
+
+    escaped_directory = escape_bash(directory) if directory else None
+
+    if directory:
+        setup_script = (
+            f"TEMP_CLONE_DIR={clone_dir}; "
+            f"CURRENT_DIR=$HOME; "
+            f"mkdir -p $TEMP_CLONE_DIR; "
+            f"cd $TEMP_CLONE_DIR; "
+            f"git init; "
+            f"git remote add origin {repo_url_with_auth}; "
+            f"git config core.sparseCheckout true; "
+            f"echo '{escaped_directory}/' > .git/info/sparse-checkout; "
+            f"git pull origin main || git pull origin master || git pull origin HEAD; "
+            f"if [ -d '{escaped_directory}' ]; then cp -r {escaped_directory} $CURRENT_DIR/; cd $CURRENT_DIR; rm -rf $TEMP_CLONE_DIR; else echo 'Warning: Directory {escaped_directory} not found in repository'; cd $CURRENT_DIR; rm -rf $TEMP_CLONE_DIR; fi"
+        )
+    else:
+        setup_script = f"git clone {repo_url_with_auth} {clone_dir}; cp -r {clone_dir}/* .; rm -rf {clone_dir}"
+
     return setup_script
 
 
@@ -524,16 +638,29 @@ async def launch_task_on_provider(
     # Prepare environment variables - start with a copy of requested env_vars
     env_vars = request.env_vars.copy() if request.env_vars else {}
 
-    # Extract AWS credentials from env_vars if present (keep them in env_vars for setup script access)
-    aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
-    aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    aws_profile = os.getenv("AWS_PROFILE")
+    # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
+    aws_profile = "transformerlab-s3"
+    if os.getenv("TFL_API_STORAGE_URI"):
+        aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
+    else:
+        aws_access_key_id, aws_secret_access_key = None, None
 
     # Build setup script - prepend AWS credentials setup if credentials are provided
     setup_commands = []
     if aws_access_key_id and aws_secret_access_key:
         aws_setup = _generate_aws_credentials_setup(aws_access_key_id, aws_secret_access_key, aws_profile)
         setup_commands.append(aws_setup)
+
+    # Add GitHub clone setup if enabled
+    if request.github_enabled and request.github_repo_url:
+        workspace_dir = get_workspace_dir()
+        github_pat = _read_github_pat_from_workspace(workspace_dir)
+        github_setup = _generate_github_clone_setup(
+            repo_url=request.github_repo_url,
+            directory=request.github_directory,
+            github_pat=github_pat,
+        )
+        setup_commands.append(github_setup)
 
     # Add user-provided setup if any
     if request.setup:
@@ -543,21 +670,17 @@ async def launch_task_on_provider(
 
     # Add default environment variables
     env_vars["_TFL_JOB_ID"] = str(job_id)
+    env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
 
-    # Get TFL_STORAGE_URI from environment or storage context
-    # Check environment variable first, then try to get from storage context
-    tfl_storage_uri = os.getenv("TFL_URI")
-    if not tfl_storage_uri:
-        # Try to get from storage root_uri if it's a remote URI (s3://, gs://, etc.)
-        try:
-            storage_root = storage.root_uri()
-            # Check if it's a remote URI (not a local path)
-            if storage_root and any(
-                storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")
-            ):
-                tfl_storage_uri = storage_root
-        except Exception:
-            pass
+    # Get TFL_STORAGE_URI from storage context
+    tfl_storage_uri = None
+    try:
+        storage_root = storage.root_uri()
+        # Check if it's a remote URI (not a local path)
+        if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
+            tfl_storage_uri = storage_root
+    except Exception:
+        pass
 
     if tfl_storage_uri:
         env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
@@ -774,14 +897,9 @@ async def stop_cluster(
         # Stop cluster
         result = provider_instance.stop_cluster(cluster_name)
 
-        return {
-            "status": "success",
-            "message": f"Cluster '{cluster_name}' stop initiated",
-            "cluster_name": cluster_name,
-            "result": result,
-        }
-    except Exception as e:
-        print(f"Failed to stop cluster: {str(e)}")
+        # Return the result directly from the provider
+        return result
+    except Exception:
         raise HTTPException(status_code=500, detail="Failed to stop cluster")
 
 

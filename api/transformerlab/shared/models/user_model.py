@@ -4,10 +4,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
 from fastapi_users.db import SQLAlchemyUserDatabase
+from sqlalchemy.dialects.sqlite import insert
 from fastapi import Depends
+from os import getenv
 
 from transformerlab.db.constants import DATABASE_URL
 from transformerlab.shared.models.models import Base, Team, User, OAuthAccount
+from transformerlab.shared.s3_bucket import create_s3_bucket_for_team
 
 
 # 3. Setup the Async Engine and Session
@@ -49,7 +52,28 @@ class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
             .where(OAuthAccount.oauth_name == oauth, OAuthAccount.account_id == account_id)
         )
         result = await self.session.execute(statement)
-        user = result.scalar_one_or_none()
+        # The unique() is used to ensure that we only get one user back. The `lazy=joined` in the table definition makes sure it returns a collection and we need to pick a single user.
+        user = result.unique().scalar_one_or_none()
+        return user
+
+    async def add_oauth_account(self, user, create_dict: dict):
+        """
+        Override add_oauth_account to perform upsert instead of insert to handle
+        IntegrityError when re-authenticating after revoking OAuth access.
+        """
+        # Perform an upsert: insert if not exists, update if conflict on unique constraint
+        stmt = (
+            insert(OAuthAccount)
+            .values(user_id=user.id, **create_dict)
+            .on_conflict_do_update(
+                index_elements=["oauth_name", "account_id"],  # Unique index on these columns
+                set_={k: v for k, v in create_dict.items() if k not in ["id"]},  # Update all fields except primary key
+            )
+        )
+        await self.session.execute(stmt)
+
+        # Refresh the user to include the updated oauth_accounts
+        await self.session.refresh(user)
         return user
 
 
@@ -84,6 +108,15 @@ async def create_personal_team(session: AsyncSession, user) -> Team:
     session.add(team)
     await session.commit()
     await session.refresh(team)
+
+    # Create S3 bucket if TFL_API_STORAGE_URI is set
+    if getenv("TFL_API_STORAGE_URI"):
+        try:
+            create_s3_bucket_for_team(team.id, profile_name="transformerlab-s3")
+        except Exception as e:
+            # Log error but don't fail team creation if bucket creation fails
+            print(f"Warning: Failed to create S3 bucket for team {team.id}: {e}")
+
     return team
 
 

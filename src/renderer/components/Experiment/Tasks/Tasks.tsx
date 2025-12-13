@@ -49,6 +49,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const { addNotification } = useNotification();
   const { fetchWithAuth, team } = useAuth();
 
+  // Trigger to force re-render when localStorage changes (minimal state to avoid interfering with useSWR)
+  const [pendingIdsTrigger, setPendingIdsTrigger] = useState(0);
+
   const {
     data: providerListData,
     error: providerListError,
@@ -75,10 +78,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         : 'pendingJobIds:unknown',
     [experimentInfo?.id],
   );
-  useEffect(() => {
-    // Debug storage key per experiment
-    // eslint-disable-next-line no-console
-  }, [pendingJobsStorageKey]);
 
   const getPendingJobIds = useCallback((): string[] => {
     try {
@@ -86,7 +85,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       if (!raw) return [];
       const parsed = JSON.parse(raw);
       const result = Array.isArray(parsed) ? parsed : [];
-      // eslint-disable-next-line no-console
       return result;
     } catch {
       return [];
@@ -97,13 +95,34 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     (ids: string[]) => {
       try {
         window.localStorage.setItem(pendingJobsStorageKey, JSON.stringify(ids));
-        // eslint-disable-next-line no-console
+        // Trigger re-render by updating counter
+        setPendingIdsTrigger((prev) => prev + 1);
       } catch {
         // ignore storage failures
       }
     },
     [pendingJobsStorageKey],
   );
+
+  // Listen for localStorage changes to pick up pending job IDs from other tabs/windows
+  // Using storage event to avoid interfering with useSWR polling
+  useEffect(() => {
+    // Listen for storage events (works across tabs/windows)
+    // Note: storage event only fires for changes from OTHER tabs, not same tab
+    // Same-tab changes are handled by setPendingJobIds which updates trigger directly
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === pendingJobsStorageKey) {
+        // Trigger re-render by updating counter
+        setPendingIdsTrigger((prev) => prev + 1);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [pendingJobsStorageKey]);
 
   const handleOpen = () => setModalOpen(true);
   const handleClose = () => setModalOpen(false);
@@ -134,6 +153,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       refreshInterval: 3000, // Poll every 3 seconds for job status updates
       revalidateOnFocus: false, // Don't refetch when window regains focus
       revalidateOnReconnect: true, // Refetch when network reconnects
+      refreshWhenHidden: true, // Continue polling even when tab is hidden
+      refreshWhenOffline: false, // Don't poll when offline
     },
   );
 
@@ -217,12 +238,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     if (pending.length === 0) return;
     const existingIds = new Set((jobs as any[]).map((j: any) => String(j.id)));
     const stillPending = pending.filter((id) => !existingIds.has(String(id)));
-    // eslint-disable-next-line no-console
-    console.log('[Tasks] prune pending vs jobs', {
-      jobsCount: jobs?.length,
-      pending,
-      stillPending,
-    });
     if (stillPending.length !== pending.length) {
       setPendingJobIds(stillPending);
     }
@@ -242,11 +257,20 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       });
     }
 
+    // Read directly from localStorage to avoid state dependency issues
+    // The pendingIdsTrigger ensures this recalculates when localStorage changes
     const pending = getPendingJobIds();
+
     if (!pending.length) return filteredJobs;
-    const existingIds = new Set(filteredJobs.map((j: any) => String(j.id)));
+
+    // Check against ALL jobs (not just filtered) to see if pending IDs exist
+    // This ensures placeholders are removed once the job appears in the API response,
+    // regardless of whether it matches the current subtype filter
+    const allExistingIds = new Set(baseJobs.map((j: any) => String(j.id)));
+
+    // Create placeholders for pending IDs that don't exist in the full jobs list yet
     const placeholders = pending
-      .filter((id) => !existingIds.has(String(id)))
+      .filter((id) => !allExistingIds.has(String(id)))
       .map((id) => ({
         id: String(id),
         type: 'REMOTE',
@@ -255,10 +279,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         job_data: subtype ? { subtype } : {},
         placeholder: true,
       }));
+
     // Show newest first consistent with existing ordering if any
     const combined = [...placeholders, ...filteredJobs];
     return combined;
-  }, [jobs, getPendingJobIds, subtype]);
+  }, [jobs, getPendingJobIds, subtype, pendingIdsTrigger]);
 
   const handleDeleteTask = async (taskId: string) => {
     if (!experimentInfo?.id) return;
@@ -336,6 +361,42 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     }
   };
 
+  const handleExportToTeamGallery = async (taskId: string) => {
+    try {
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Tasks.ExportToTeamGallery(),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ task_id: taskId }),
+        },
+      );
+
+      if (!response.ok) {
+        const txt = await response.text();
+        addNotification({
+          type: 'danger',
+          message: `Failed to export task: ${txt}`,
+        });
+        return;
+      }
+
+      const result = await response.json();
+      addNotification({
+        type: 'success',
+        message: result?.message || 'Task exported to team gallery.',
+      });
+    } catch (error) {
+      console.error('Error exporting task:', error);
+      addNotification({
+        type: 'danger',
+        message: 'Failed to export task. Please try again.',
+      });
+    }
+  };
+
   const handleSubmit = async (data: any) => {
     if (!experimentInfo?.id) {
       addNotification({ type: 'warning', message: 'No experiment selected' });
@@ -377,6 +438,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         setup: data.setup || undefined,
         env_vars: data.env_vars || undefined,
         file_mounts: data.file_mounts || undefined,
+        github_enabled: data.github_enabled || undefined,
+        github_repo_url: data.github_repo_url || undefined,
+        github_directory: data.github_directory || undefined,
       };
 
       config.provider_id = providerMeta.id;
@@ -495,6 +559,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         env_vars: cfg.env_vars || {},
         file_mounts: cfg.file_mounts,
         provider_name: providerMeta.name,
+        github_enabled: cfg.github_enabled,
+        github_repo_url: cfg.github_repo_url,
+        github_directory: cfg.github_directory,
       };
 
       const response = await fetchWithAuth(
@@ -607,6 +674,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             onDeleteTask={handleDeleteTask}
             onQueueTask={handleQueue}
             onEditTask={handleEditTask}
+            onExportTask={handleExportToTeamGallery}
           />
         )}
       </Sheet>

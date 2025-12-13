@@ -85,23 +85,47 @@ async def job_update(job_id: str, status: str, experimentId: str):
 
 
 async def start_next_job():
-    num_running_jobs = job_service.job_count_running()
+    # Count running jobs across all organizations
+    num_running_jobs = job_service.job_count_running_across_all_orgs()
     if num_running_jobs > 0:
         return {"message": "A job is already running"}
-    nextjob = job_service.jobs_get_next_queued_job()
+
+    # Get next queued job across all organizations
+    nextjob, org_id = job_service.jobs_get_next_queued_job_across_all_orgs()
+
     if nextjob:
         print(f"Starting Next Job in Queue: {nextjob}")
+        print(f"Job belongs to organization: {org_id}")
         print("Starting job: " + str(nextjob["id"]))
-        nextjob_data = nextjob["job_data"]
-        if not isinstance(nextjob_data, dict):
-            job_config = json.loads(nextjob["job_data"])
-        else:
-            job_config = nextjob_data
-        experiment_name = nextjob["experiment_id"]  # Note: experiment_id and experiment_name are the same
-        await shared.run_job(
-            job_id=nextjob["id"], job_config=job_config, experiment_name=experiment_name, job_details=nextjob
-        )
-        return nextjob
+
+        # Set organization context before running the job
+        # Note: This is safe because:
+        # 1. This function runs in a background task with its own async context (isolated from request handlers)
+        # 2. Request handlers have their own middleware that sets/clears org context per request
+        # 3. The try/finally block ensures cleanup even if run_job() raises an exception
+        if org_id:
+            from lab.dirs import set_organization_id
+
+            set_organization_id(org_id)
+            print(f"Set organization context to: {org_id}")
+
+        try:
+            nextjob_data = nextjob["job_data"]
+            if not isinstance(nextjob_data, dict):
+                job_config = json.loads(nextjob["job_data"])
+            else:
+                job_config = nextjob_data
+            experiment_name = nextjob["experiment_id"]  # Note: experiment_id and experiment_name are the same
+            await shared.run_job(
+                job_id=nextjob["id"], job_config=job_config, experiment_name=experiment_name, job_details=nextjob
+            )
+            return nextjob
+        finally:
+            # Clear organization context after running job
+            if org_id:
+                from lab.dirs import set_organization_id
+
+                set_organization_id(None)
     else:
         return {"message": "No jobs in queue"}
 
@@ -527,7 +551,7 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
         file_index = 0
     file_path = eval_results_list[file_index]
 
-    if not os.path.exists(file_path):
+    if not storage.exists(file_path):
         return Response("Evaluation results file not found", media_type="text/csv")
 
     # Determine file format
@@ -542,11 +566,27 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
         filename = f"eval_results_{job_id}.txt"
 
     if task == "download":
-        return FileResponse(file_path, filename=filename, media_type=file_format)
+        # Use StreamingResponse to support both local and remote files
+        def generate():
+            with storage.open(file_path, "rb") as f:
+                while True:
+                    chunk = f.read(8192)  # Read in 8KB chunks
+                    if not chunk:
+                        break
+                    yield chunk
+
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        }
+        return StreamingResponse(
+            generate(),
+            media_type=file_format,
+            headers=headers,
+        )
 
     # For view, convert CSV to JSON format
     if file_path.endswith(".csv"):
-        with open(file_path, "r") as csvfile:
+        with storage.open(file_path, "r") as csvfile:
             contents = csv.reader(csvfile, delimiter=",", quotechar='"')
             csv_content = {"header": [], "body": []}
             for i, row in enumerate(contents):
@@ -556,7 +596,7 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
                     csv_content["body"].append(row)
             return csv_content
     elif file_path.endswith(".json"):
-        with open(file_path, "r") as jsonfile:
+        with storage.open(file_path, "r") as jsonfile:
             content = json.load(jsonfile)
             # If it's a list of records, convert to header/body format
             if isinstance(content, list) and len(content) > 0:
@@ -567,7 +607,7 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
             return content
     else:
         # For other file types, just return as text
-        with open(file_path, "r") as f:
+        with storage.open(file_path, "r") as f:
             return f.read()
 
 
@@ -994,7 +1034,12 @@ async def get_artifacts(job_id: str, request: Request):
                             filesize = None
 
                     filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
-                    artifacts.append({"filename": filename, "date": formatted_time, "size": filesize})
+                    artifact_dict = {"filename": filename}
+                    if formatted_time is not None:
+                        artifact_dict["date"] = formatted_time
+                    if filesize is not None:
+                        artifact_dict["size"] = filesize
+                    artifacts.append(artifact_dict)
                 except Exception as e:
                     print(f"Error getting stat for artifact {artifact_path}: {e}")
                     continue
@@ -1057,7 +1102,12 @@ async def get_artifacts(job_id: str, request: Request):
                     print(f"Error getting stat for file {file_path}: {e}")
                     formatted_time = None
                     filesize = None
-                artifacts.append({"filename": filename, "date": formatted_time, "size": filesize})
+                artifact_dict = {"filename": filename}
+                if formatted_time is not None:
+                    artifact_dict["date"] = formatted_time
+                if filesize is not None:
+                    artifact_dict["size"] = filesize
+                artifacts.append(artifact_dict)
     except Exception as e:
         print(f"Error reading artifacts directory {artifacts_dir}: {e}")
 

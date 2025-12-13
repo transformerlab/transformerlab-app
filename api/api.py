@@ -62,6 +62,7 @@ from transformerlab.routers import (  # noqa: E402
     teams,
     compute_provider,
     auth,
+    api_keys,
 )
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
 import torch  # noqa: E402
@@ -104,12 +105,6 @@ os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 # The temporary image directory for transformerlab (default; per-request overrides computed in routes)
 temp_image_dir = storage.join(get_workspace_dir(), "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
-
-# Check if anything is stored in GPU_ORCHESTRATION_SERVER, and if so, print a message
-if os.getenv("GPU_ORCHESTRATION_SERVER"):
-    print(
-        f"🚀 GPU Orchestration Server mode enabled. Using server: {os.getenv('GPU_ORCHESTRATION_SERVER')}:{os.getenv('GPU_ORCHESTRATION_SERVER_PORT', '80')}"
-    )
 
 
 @asynccontextmanager
@@ -188,19 +183,36 @@ app = fastapi.FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    # Restrict origins so credentialed requests (cookies) are allowed
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
 # Middleware to set context var for organization id per request (multitenant)
+# Determines team_id from X-Team-Id header or API key, and sets context early.
 @app.middleware("http")
 async def set_org_context(request: Request, call_next):
     try:
+        org_id = None
+
+        # First check X-Team-Id header (fastest path)
         org_id = request.headers.get("X-Team-Id")
+
+        # If no X-Team-Id, try to determine from API key
+        if not org_id:
+            from transformerlab.shared.api_key_auth import determine_team_id_from_request
+            from transformerlab.db.session import async_session
+
+            # Create a session for the middleware check
+            async with async_session() as session:
+                try:
+                    org_id = await determine_team_id_from_request(request, session)
+                except Exception:
+                    # If determination fails, leave as None (will be handled by dependency)
+                    pass
+
         set_current_org_id(org_id)
         if lab_set_org_id is not None:
             lab_set_org_id(org_id)
@@ -240,6 +252,7 @@ app.include_router(fastchat_openai_api.router, dependencies=[Depends(get_user_an
 app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(compute_provider.router)
 app.include_router(auth.router)
+app.include_router(api_keys.router)
 
 controller_process = None
 worker_process = None
@@ -389,11 +402,20 @@ async def server_worker_start(
     with storage.open(get_global_log_path(), "a") as global_log:
         global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
+    # Pass organization_id as environment variable to subprocess
+    from transformerlab.shared.request_context import get_current_org_id
+
+    org_id = get_current_org_id()
+    subprocess_env = {}
+    if org_id:
+        subprocess_env["_TFL_ORG_ID"] = org_id
+
     process = await shared.async_run_python_daemon_and_update_status(
         python_script=params,
         job_id=job_id,
         begin_string="Application startup complete.",
         set_process_id_function=set_worker_process_id,
+        env=subprocess_env,
     )
     exitcode = process.returncode
     if exitcode == 99:
@@ -492,17 +514,17 @@ async def healthz():
     """
     Health check endpoint to verify server status and mode.
     """
-    gpu_orchestration_server = os.getenv("GPU_ORCHESTRATION_SERVER", "")
-    mode = "gpu_orchestration" if gpu_orchestration_server else "local"
+    tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
 
-    # Get the port from the environment or use default
-    port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT", "")
+    # Determine mode: s3 or local
+    if tfl_api_storage_uri:
+        mode = "s3"
+    else:
+        mode = "local"
 
     return {
         "message": "OK",
         "mode": mode,
-        "gpu_orchestration_server": gpu_orchestration_server,
-        "gpu_orchestration_server_port": port,
     }
 
 
@@ -563,7 +585,7 @@ def print_launch_message():
     with open(os.path.join(os.path.dirname(__file__), "transformerlab/launch_header_text.txt"), "r") as f:
         text = f.read()
         shared.print_in_rainbow(text)
-    print("http://www.transformerlab.ai\nhttps://github.com/transformerlab/transformerlab-api\n")
+    print("https://www.lab.cloud\nhttps://github.com/transformerlab/transformerlab-api\n")
 
 
 def run():

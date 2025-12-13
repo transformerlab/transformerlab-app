@@ -11,13 +11,27 @@ import {
   Stack,
   Table,
   Sheet,
+  CircularProgress,
+  Alert,
+  Chip,
+  IconButton,
+  FormControl,
+  FormLabel,
 } from '@mui/joy';
-import { NetworkIcon, PlusIcon, ServerIcon, User2Icon } from 'lucide-react';
+import {
+  NetworkIcon,
+  PlusIcon,
+  ServerIcon,
+  User2Icon,
+  ActivityIcon,
+  GithubIcon,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import RenameTeamModal from './RenameTeamModal';
 import InviteUserModal from './InviteUserModal';
 import ProviderDetailsModal from './ProviderDetailsModal';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 /*
   Minimal in-file auth utilities and request helpers.
@@ -37,6 +51,17 @@ export default function UserLoginTest(): JSX.Element {
   const [openProviderDetailsModal, setOpenProviderDetailsModal] =
     useState<boolean>(false);
   const [providerId, setProviderId] = useState<string>('');
+  const [checkingProviderId, setCheckingProviderId] = useState<string | null>(
+    null,
+  );
+  const [providerCheckStatus, setProviderCheckStatus] = useState<
+    Record<string, boolean | null>
+  >({});
+  const [githubPAT, setGithubPAT] = useState<string>('');
+  const [githubPATMasked, setGithubPATMasked] = useState<string>('');
+  const [githubPATExists, setGithubPATExists] = useState<boolean>(false);
+  const [savingPAT, setSavingPAT] = useState<boolean>(false);
+  const [loadingPAT, setLoadingPAT] = useState<boolean>(true);
 
   // Get teams list (unchanged)
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
@@ -67,6 +92,74 @@ export default function UserLoginTest(): JSX.Element {
   useEffect(() => {
     providersMutate();
   }, [authContext?.team?.id]);
+
+  // Fetch GitHub PAT when team changes
+  useEffect(() => {
+    const fetchGitHubPAT = async () => {
+      if (!authContext?.team?.id) {
+        setLoadingPAT(false);
+        return;
+      }
+      setLoadingPAT(true);
+      try {
+        const res = await authContext.fetchWithAuth(
+          `teams/${authContext.team.id}/github_pat`,
+          { method: 'GET' },
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setGithubPATExists(data.pat_exists || false);
+          setGithubPATMasked(data.masked_pat || '');
+          if (!data.pat_exists) {
+            setGithubPAT('');
+          }
+        }
+      } catch (e: any) {
+        console.error('Error fetching GitHub PAT:', e);
+      } finally {
+        setLoadingPAT(false);
+      }
+    };
+    fetchGitHubPAT();
+  }, [authContext?.team?.id]);
+
+  const handleSaveGitHubPAT = async () => {
+    if (!authContext?.team?.id || !iAmOwner) return;
+    setSavingPAT(true);
+    try {
+      const res = await authContext.fetchWithAuth(
+        `teams/${authContext.team.id}/github_pat`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ pat: githubPAT || '' }),
+        },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        // Refresh PAT display
+        const fetchRes = await authContext.fetchWithAuth(
+          `teams/${authContext.team.id}/github_pat`,
+          { method: 'GET' },
+        );
+        if (fetchRes.ok) {
+          const fetchData = await fetchRes.json();
+          setGithubPATExists(fetchData.pat_exists || false);
+          setGithubPATMasked(fetchData.masked_pat || '');
+          if (!fetchData.pat_exists) {
+            setGithubPAT('');
+          }
+        }
+      }
+    } catch (e: any) {
+      console.error('Error saving GitHub PAT:', e);
+      alert(`Failed to save GitHub PAT: ${e?.message || String(e)}`);
+    } finally {
+      setSavingPAT(false);
+    }
+  };
 
   // Clear all role errors or add an error text
   function handleSetRoleError(message?: string) {
@@ -171,9 +264,14 @@ export default function UserLoginTest(): JSX.Element {
     }
 
     try {
-      const res = await authContext.fetchWithAuth(`providers/${id}`, {
-        method: 'DELETE',
-      });
+      const res = await authContext.fetchWithAuth(
+        chatAPI.getAPIFullPath('compute_provider', ['delete'], {
+          providerId: id,
+        }),
+        {
+          method: 'DELETE',
+        },
+      );
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({
@@ -191,6 +289,35 @@ export default function UserLoginTest(): JSX.Element {
     } catch (e: any) {
       // eslint-disable-next-line no-alert
       alert(`Error deleting provider: ${e?.message ?? String(e)}`);
+    }
+  }
+
+  async function handleCheckProvider(id: string) {
+    setCheckingProviderId(id);
+    setProviderCheckStatus((prev) => ({ ...prev, [id]: null }));
+
+    try {
+      const res = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.ComputeProvider.Check(id),
+        {
+          method: 'GET',
+        },
+      );
+
+      if (!res.ok) {
+        setProviderCheckStatus((prev) => ({ ...prev, [id]: false }));
+        return;
+      }
+
+      const data = await res.json();
+      setProviderCheckStatus((prev) => ({
+        ...prev,
+        [id]: data.status === true,
+      }));
+    } catch (e: any) {
+      setProviderCheckStatus((prev) => ({ ...prev, [id]: false }));
+    } finally {
+      setCheckingProviderId(null);
     }
   }
 
@@ -380,61 +507,127 @@ export default function UserLoginTest(): JSX.Element {
             Compute Providers: ({providers?.length ?? 0})
           </Typography>
 
-          <Table variant="soft" sx={{ mb: 2 }}>
+          <Table
+            variant="soft"
+            sx={{
+              mb: 2,
+              '& th, & td': { padding: '8px 12px' },
+              width: '100%',
+              tableLayout: 'auto',
+            }}
+          >
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th style={{ width: '80px' }}>&nbsp;</th>
-                <th style={{ width: '80px' }}>&nbsp;</th>
+                <th style={{ width: 'auto' }}>Name</th>
+                <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Type</th>
+                <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Status</th>
+                <th
+                  style={{
+                    width: 'auto',
+                    whiteSpace: 'nowrap',
+                    textAlign: 'right',
+                  }}
+                >
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
-              {providers?.map((provider: any) => (
-                <tr key={provider.id}>
-                  <td>
-                    <Stack direction="row" alignItems="center" gap={1}>
-                      <NetworkIcon />
-                      <Box>
-                        <Typography fontWeight="md">
+              {providers?.map((provider: any) => {
+                const status = providerCheckStatus[provider.id];
+                const isChecking = checkingProviderId === provider.id;
+
+                return (
+                  <tr key={provider.id}>
+                    <td>
+                      <Stack direction="row" alignItems="center" gap={1}>
+                        <NetworkIcon size={16} />
+                        <Typography fontWeight="md" level="body-sm">
                           {provider?.name ?? '—'}
                         </Typography>
-                      </Box>
-                    </Stack>
-                  </td>
-                  <td>{provider?.type}</td>
-                  <td>
-                    <Box
-                      sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
-                    >
-                      <Button
-                        onClick={() => {
-                          setProviderId(provider.id);
-                          setOpenProviderDetailsModal(true);
-                        }}
+                      </Stack>
+                    </td>
+                    <td>
+                      <Typography level="body-sm">{provider?.type}</Typography>
+                    </td>
+                    <td>
+                      <Stack direction="row" alignItems="center" gap={0.5}>
+                        {isChecking ? (
+                          <CircularProgress size="sm" />
+                        ) : status === true ? (
+                          <Chip
+                            variant="soft"
+                            color="success"
+                            size="sm"
+                            sx={{ fontSize: '0.7rem', px: 0.5 }}
+                          >
+                            Active
+                          </Chip>
+                        ) : status === false ? (
+                          <Chip
+                            variant="soft"
+                            color="danger"
+                            size="sm"
+                            sx={{ fontSize: '0.7rem', px: 0.5 }}
+                          >
+                            Inactive
+                          </Chip>
+                        ) : (
+                          <Chip
+                            variant="soft"
+                            color="neutral"
+                            size="sm"
+                            sx={{ fontSize: '0.7rem', px: 0.5 }}
+                          >
+                            Unknown
+                          </Chip>
+                        )}
+                        <IconButton
+                          size="sm"
+                          variant="outlined"
+                          onClick={() => handleCheckProvider(provider.id)}
+                          disabled={isChecking}
+                          sx={{ ml: 0.5 }}
+                          title="Check provider status"
+                        >
+                          <ActivityIcon size={16} />
+                        </IconButton>
+                      </Stack>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <Stack
+                        direction="row"
+                        gap={0.5}
+                        justifyContent="flex-end"
                       >
-                        Edit
-                      </Button>
-                    </Box>
-                  </td>
-                  <td>
-                    <Box
-                      sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
-                    >
-                      <Button
-                        color="danger"
-                        variant="outlined"
-                        onClick={() =>
-                          handleDeleteProvider(provider.id, provider.name)
-                        }
-                        disabled={!iAmOwner}
-                      >
-                        Delete
-                      </Button>
-                    </Box>
-                  </td>
-                </tr>
-              ))}
+                        <Button
+                          size="sm"
+                          variant="outlined"
+                          onClick={() => {
+                            setProviderId(provider.id);
+                            setOpenProviderDetailsModal(true);
+                          }}
+                          sx={{ minWidth: '60px', fontSize: '0.75rem' }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          color="danger"
+                          variant="outlined"
+                          onClick={() =>
+                            handleDeleteProvider(provider.id, provider.name)
+                          }
+                          disabled={!iAmOwner}
+                          sx={{ minWidth: '60px', fontSize: '0.75rem' }}
+                        >
+                          Delete
+                        </Button>
+                      </Stack>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </Table>
           <Button
@@ -445,6 +638,72 @@ export default function UserLoginTest(): JSX.Element {
           >
             Add Provider {!iAmOwner ? '(Only owners can add providers)' : ''}
           </Button>
+        </Box>
+        <Box sx={{ mt: 4 }}>
+          <Typography level="title-lg" mb={1} startDecorator={<GithubIcon />}>
+            GitHub Integration
+          </Typography>
+          <Stack spacing={2} maxWidth={500}>
+            <Alert color="neutral" variant="soft">
+              Set a GitHub Personal Access Token (PAT) to enable cloning private
+              repositories in tasks. The PAT is stored securely in your team's
+              workspace and shared across all team members.
+            </Alert>
+            {loadingPAT ? (
+              <CircularProgress size="sm" />
+            ) : (
+              <>
+                {githubPATExists && (
+                  <Alert color="success" variant="soft">
+                    GitHub PAT is configured. Last 4 characters:{' '}
+                    {githubPATMasked}
+                  </Alert>
+                )}
+                <FormControl>
+                  <Input
+                    type="password"
+                    placeholder={
+                      githubPATExists
+                        ? 'Enter new PAT to update'
+                        : 'Enter GitHub Personal Access Token'
+                    }
+                    value={githubPAT}
+                    onChange={(e) => setGithubPAT(e.target.value)}
+                    disabled={!iAmOwner || savingPAT}
+                    sx={{ fontFamily: 'monospace' }}
+                  />
+                  <Typography level="body-sm" sx={{ mt: 0.5 }}>
+                    {iAmOwner
+                      ? 'Only team owners can set or update the GitHub PAT.'
+                      : 'Only team owners can manage the GitHub PAT.'}
+                  </Typography>
+                </FormControl>
+                <Stack direction="row" spacing={2}>
+                  <Button
+                    variant="solid"
+                    onClick={handleSaveGitHubPAT}
+                    disabled={!iAmOwner || savingPAT || loadingPAT}
+                    loading={savingPAT}
+                  >
+                    {githubPATExists ? 'Update PAT' : 'Save PAT'}
+                  </Button>
+                  {githubPATExists && (
+                    <Button
+                      variant="outlined"
+                      color="danger"
+                      onClick={async () => {
+                        setGithubPAT('');
+                        await handleSaveGitHubPAT();
+                      }}
+                      disabled={!iAmOwner || savingPAT || loadingPAT}
+                    >
+                      Remove PAT
+                    </Button>
+                  )}
+                </Stack>
+              </>
+            )}
+          </Stack>
         </Box>
       </Box>
       <RenameTeamModal

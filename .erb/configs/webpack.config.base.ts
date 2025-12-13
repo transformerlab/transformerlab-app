@@ -56,6 +56,7 @@ const configuration: webpack.Configuration = {
       MULTIUSER: 'false',
       TL_API_URL: '',
       TL_FORCE_API_URL: 'false',
+      EMAIL_AUTH_ENABLED: 'true',
     }),
   ],
 };

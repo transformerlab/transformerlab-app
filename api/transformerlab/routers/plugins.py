@@ -261,36 +261,49 @@ async def install_plugin(plugin_id: str):
 
         await proc.wait()
 
-        # Run uv sync after setup script, also with environment activated
-        print("Running uv sync to install dependencies...")
-        await log_file.write(f"## Running uv sync for {plugin_id}...\n")
+        # Install API dependencies using pyproject.toml
+        print("Installing API dependencies...")
+        await log_file.write(f"## Installing API dependencies for {plugin_id}...\n")
+        source_code_dir = os.environ["_TFL_SOURCE_CODE_DIR"]
+        pyproject_path = os.path.join(source_code_dir, "pyproject.toml")
+
+        if not os.path.exists(pyproject_path):
+            error_msg = f"pyproject.toml not found at {pyproject_path}"
+            print(error_msg)
+            await log_file.write(f"## {error_msg}\n")
+            await delete_plugin_files_from_workspace(plugin_id)
+            return {"status": "error", "message": error_msg}
+
         additional_flags = ""
+        extra = ""
 
         if check_nvidia_gpu():
-            # If we have a GPU, use the requirements file for GPU
-            print("NVIDIA GPU detected, using GPU requirements file.")
-            requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-uv.txt")
+            # If we have a GPU, use the nvidia extra
+            print("NVIDIA GPU detected, using nvidia extra.")
+            extra = "[nvidia]"
             additional_flags = ""
         elif check_amd_gpu():
-            # If we have an AMD GPU, use the requirements file for AMD
-            requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-rocm-uv.txt")
-            additional_flags = "--index 'https://download.pytorch.org/whl/rocm6.4' --index-strategy unsafe-best-match"
+            # If we have an AMD GPU, use the rocm extra
+            print("AMD GPU detected, using rocm extra.")
+            extra = "[rocm]"
+            additional_flags = "--index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match"
         # Check if system is MacOS with Apple Silicon
         elif sys.platform == "darwin":
-            # If we have a MacOS with Apple Silicon, use the requirements file for MacOS
-            print("Apple Silicon detected, using MacOS requirements file.")
-            requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-no-gpu-uv.txt")
+            # If we have a MacOS with Apple Silicon, use the cpu extra
+            print("Apple Silicon detected, using cpu extra.")
+            extra = "[cpu]"
             additional_flags = ""
         else:
-            # If we don't have a GPU, use the requirements file for CPU
-            requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-no-gpu-uv.txt")
-            additional_flags = "--index 'https://download.pytorch.org/whl/cpu' --index-strategy unsafe-best-match"
+            # If we don't have a GPU, use the cpu extra
+            print("No GPU detected, using cpu extra.")
+            extra = "[cpu]"
+            additional_flags = "--index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
 
-        print(f"Using requirements file: {requirements_file_path}")
+        print(f"Installing from pyproject.toml with extra: {extra}")
         proc = await asyncio.create_subprocess_exec(
             "/bin/bash",
             "-c",
-            f"source {venv_path}/bin/activate && uv pip sync {requirements_file_path} {additional_flags}",
+            f"source {venv_path}/bin/activate && cd {source_code_dir} && uv pip install --upgrade {additional_flags} .{extra}",
             cwd=new_directory,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
@@ -304,7 +317,7 @@ async def install_plugin(plugin_id: str):
             await log_file.write(line.decode())
             await log_file.flush()
         returncode = await proc.wait()
-        await log_file.write(f"## uv pip sync completed with return code {returncode}\n")
+        await log_file.write(f"## uv pip install completed with return code {returncode}\n")
         if returncode == 0:
             if is_wsl() and check_amd_gpu():
                 response = patch_rocm_runtime_for_venv(venv_path=venv_path)
@@ -341,11 +354,6 @@ async def list_plugins() -> list[object]:
     from lab.dirs import get_plugin_dir
 
     local_workspace_gallery_directory = get_plugin_dir()
-
-    # Return empty if multitenant mode is enabled as we don't need plugins in this mode.
-    # TODO: Optimize this later on with similar index as jobs.json
-    if os.getenv("TFL_MULTITENANT") == "true":
-        return []
 
     # now get the local workspace gallery
     workspace_gallery = []

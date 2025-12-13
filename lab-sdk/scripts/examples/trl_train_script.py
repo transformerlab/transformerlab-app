@@ -80,11 +80,7 @@ class LabCallback(TrainerCallback):
             checkpoint_dir = None
             # Find the most recent checkpoint
             if os.path.exists(args.output_dir):
-                checkpoints = [
-                    d
-                    for d in os.listdir(args.output_dir)
-                    if d.startswith("checkpoint-")
-                ]
+                checkpoints = [d for d in os.listdir(args.output_dir) if d.startswith("checkpoint-")]
                 if checkpoints:
                     # Sort by checkpoint number
                     checkpoints.sort(key=lambda x: int(x.split("-")[1]))
@@ -93,9 +89,7 @@ class LabCallback(TrainerCallback):
 
                     # Save checkpoint to TransformerLab
                     try:
-                        saved_path = lab.save_checkpoint(
-                            checkpoint_dir, f"checkpoint-{state.global_step}"
-                        )
+                        saved_path = lab.save_checkpoint(checkpoint_dir, f"checkpoint-{state.global_step}")
                         lab.log(f"✅ Saved checkpoint to TransformerLab: {saved_path}")
                     except Exception as e:
                         lab.log(f"⚠️  Could not save checkpoint to TransformerLab: {e}")
@@ -146,9 +140,7 @@ def train_with_trl(quick_test=True):
         "_config": {
             "dataset_name": "Trelis/touch-rugby-rules",
             "lr": 2e-5,
-            "num_train_epochs": 1
-            if not quick_test
-            else 0.01,  # Very short training for quick test
+            "num_train_epochs": 1 if not quick_test else 0.01,  # Very short training for quick test
             "batch_size": 2,  # Small batch size for testing
             "gradient_accumulation_steps": 1,
             "warmup_ratio": 0.03,
@@ -191,9 +183,7 @@ def train_with_trl(quick_test=True):
 
             # For quick test, use only a small subset
             if quick_test:
-                dataset["train"] = dataset["train"].select(
-                    range(10)
-                )  # Use only 10 examples
+                dataset["train"] = dataset["train"].select(range(10))  # Use only 10 examples
                 lab.log(f"Quick test mode: Using only {len(dataset['train'])} examples")
 
         except Exception as e:
@@ -250,9 +240,7 @@ def train_with_trl(quick_test=True):
                 output_dir=training_config["output_dir"],
                 num_train_epochs=training_config["_config"]["num_train_epochs"],
                 per_device_train_batch_size=training_config["_config"]["batch_size"],
-                gradient_accumulation_steps=training_config["_config"][
-                    "gradient_accumulation_steps"
-                ],
+                gradient_accumulation_steps=training_config["_config"]["gradient_accumulation_steps"],
                 learning_rate=training_config["_config"]["lr"],
                 warmup_ratio=training_config["_config"]["warmup_ratio"],
                 weight_decay=training_config["_config"]["weight_decay"],
@@ -284,9 +272,7 @@ def train_with_trl(quick_test=True):
                 callbacks=[transformerlab_callback],  # Add our custom callback
             )
 
-            lab.log(
-                "✅ SFTTrainer created - wandb should be initialized automatically!"
-            )
+            lab.log("✅ SFTTrainer created - wandb should be initialized automatically!")
             lab.log("🔍 Checking for wandb URL detection...")
 
         except Exception as e:
@@ -298,9 +284,7 @@ def train_with_trl(quick_test=True):
 
         # Start training - this is where wandb will be initialized if using SFTTrainer
         if quick_test:
-            lab.log(
-                "🚀 Quick test mode: Initializing SFTTrainer and testing wandb detection..."
-            )
+            lab.log("🚀 Quick test mode: Initializing SFTTrainer and testing wandb detection...")
         else:
             lab.log("Starting training...")
 
@@ -310,9 +294,7 @@ def train_with_trl(quick_test=True):
                 if quick_test:
                     lab.log("✅ SFTTrainer initialized successfully...")
                     # Just test that wandb is initialized, don't actually train
-                    lab.log(
-                        "Quick test: Skipping actual training, just testing wandb URL detection"
-                    )
+                    lab.log("Quick test: Skipping actual training, just testing wandb URL detection")
                 else:
                     # Training will automatically save checkpoints via the callback
                     trainer.train()
@@ -320,9 +302,7 @@ def train_with_trl(quick_test=True):
 
                     # Create 2 additional artifacts for full training
                     # Artifact 1: Training progress summary
-                    progress_file = os.path.join(
-                        training_config["output_dir"], "training_progress_summary.json"
-                    )
+                    progress_file = os.path.join(training_config["output_dir"], "training_progress_summary.json")
                     with open(progress_file, "w") as f:
                         f.write("{\n")
                         f.write('  "training_type": "SFTTrainer",\n')
@@ -334,50 +314,28 @@ def train_with_trl(quick_test=True):
                         f.write(f'  "completed_at": "{datetime.now().isoformat()}"\n')
                         f.write("}\n")
 
-                    progress_artifact_path = lab.save_artifact(
-                        progress_file, "training_progress_summary.json"
-                    )
+                    progress_artifact_path = lab.save_artifact(progress_file, "training_progress_summary.json")
                     lab.log(f"Saved training progress: {progress_artifact_path}")
 
                     # Artifact 2: Model performance metrics
-                    metrics_file = os.path.join(
-                        training_config["output_dir"], "model_performance_metrics.json"
-                    )
+                    metrics_file = os.path.join(training_config["output_dir"], "model_performance_metrics.json")
                     with open(metrics_file, "w") as f:
                         f.write("{\n")
                         f.write('  "performance_metrics": {\n')
-                        f.write(
-                            '    "training_loss": [0.45, 0.37, 0.29, 0.21, 0.10],\n'
-                        )
-                        f.write(
-                            '    "training_accuracy": [0.68, 0.76, 0.84, 0.91, 0.95],\n'
-                        )
-                        f.write(
-                            '    "validation_loss": [0.48, 0.40, 0.32, 0.24, 0.12],\n'
-                        )
-                        f.write(
-                            '    "validation_accuracy": [0.65, 0.73, 0.81, 0.88, 0.93]\n'
-                        )
+                        f.write('    "training_loss": [0.45, 0.37, 0.29, 0.21, 0.10],\n')
+                        f.write('    "training_accuracy": [0.68, 0.76, 0.84, 0.91, 0.95],\n')
+                        f.write('    "validation_loss": [0.48, 0.40, 0.32, 0.24, 0.12],\n')
+                        f.write('    "validation_accuracy": [0.65, 0.73, 0.81, 0.88, 0.93]\n')
                         f.write("  },\n")
                         f.write('  "training_config": {\n')
-                        f.write(
-                            f'    "learning_rate": {training_config["_config"]["lr"]},\n'
-                        )
-                        f.write(
-                            f'    "batch_size": {training_config["_config"]["batch_size"]},\n'
-                        )
-                        f.write(
-                            f'    "num_epochs": {training_config["_config"]["num_train_epochs"]},\n'
-                        )
-                        f.write(
-                            f'    "warmup_ratio": {training_config["_config"]["warmup_ratio"]}\n'
-                        )
+                        f.write(f'    "learning_rate": {training_config["_config"]["lr"]},\n')
+                        f.write(f'    "batch_size": {training_config["_config"]["batch_size"]},\n')
+                        f.write(f'    "num_epochs": {training_config["_config"]["num_train_epochs"]},\n')
+                        f.write(f'    "warmup_ratio": {training_config["_config"]["warmup_ratio"]}\n')
                         f.write("  }\n")
                         f.write("}\n")
 
-                    metrics_artifact_path = lab.save_artifact(
-                        metrics_file, "model_performance_metrics.json"
-                    )
+                    metrics_artifact_path = lab.save_artifact(metrics_file, "model_performance_metrics.json")
                     lab.log(f"Saved performance metrics: {metrics_artifact_path}")
             else:
                 # Simulate training
@@ -402,9 +360,7 @@ def train_with_trl(quick_test=True):
                             f.write(f"Timestamp: {datetime.now()}\n")
 
                         # Save checkpoint using lab facade
-                        saved_checkpoint_path = lab.save_checkpoint(
-                            checkpoint_file, f"step_{i + 1}_checkpoint.txt"
-                        )
+                        saved_checkpoint_path = lab.save_checkpoint(checkpoint_file, f"step_{i + 1}_checkpoint.txt")
                         lab.log(f"Saved checkpoint: {saved_checkpoint_path}")
 
                         # Save some fake artifacts
@@ -417,19 +373,13 @@ def train_with_trl(quick_test=True):
                             f.write(f'  "step": {i + 1},\n')
                             f.write(f'  "loss": {0.5 - (i + 1) * 0.1:.3f},\n')
                             f.write(f'  "accuracy": {0.6 + (i + 1) * 0.1:.3f},\n')
-                            f.write(
-                                f'  "learning_rate": {training_config["_config"]["lr"]},\n'
-                            )
-                            f.write(
-                                f'  "batch_size": {training_config["_config"]["batch_size"]},\n'
-                            )
+                            f.write(f'  "learning_rate": {training_config["_config"]["lr"]},\n')
+                            f.write(f'  "batch_size": {training_config["_config"]["batch_size"]},\n')
                             f.write(f'  "timestamp": "{datetime.now().isoformat()}"\n')
                             f.write("}\n")
 
                         # Save artifact using lab facade
-                        saved_artifact_path = lab.save_artifact(
-                            artifact_file, f"metrics_step_{i + 1}.json"
-                        )
+                        saved_artifact_path = lab.save_artifact(artifact_file, f"metrics_step_{i + 1}.json")
                         lab.log(f"Saved artifact: {saved_artifact_path}")
 
                     # Log some fake metrics to wandb if available
@@ -446,9 +396,7 @@ def train_with_trl(quick_test=True):
                                     "step": i + 1,
                                 }
                             )
-                            lab.log(
-                                f"📈 Logged metrics to wandb: loss={fake_loss:.3f}, accuracy={fake_accuracy:.3f}"
-                            )
+                            lab.log(f"📈 Logged metrics to wandb: loss={fake_loss:.3f}, accuracy={fake_accuracy:.3f}")
                     except Exception:
                         pass
 
@@ -464,9 +412,7 @@ def train_with_trl(quick_test=True):
         lab.log(f"Training completed in {training_duration}")
 
         # Save final artifacts
-        final_model_file = os.path.join(
-            training_config["output_dir"], "final_model_summary.txt"
-        )
+        final_model_file = os.path.join(training_config["output_dir"], "final_model_summary.txt")
         with open(final_model_file, "w") as f:
             f.write("Final Model Summary\n")
             f.write("==================\n")
@@ -478,15 +424,11 @@ def train_with_trl(quick_test=True):
             f.write(f"Completed at: {end_time}\n")
 
         # Save final model as artifact
-        final_model_path = lab.save_artifact(
-            final_model_file, "final_model_summary.txt"
-        )
+        final_model_path = lab.save_artifact(final_model_file, "final_model_summary.txt")
         lab.log(f"Saved final model summary: {final_model_path}")
 
         # Save training configuration as artifact
-        config_file = os.path.join(
-            training_config["output_dir"], "training_config.json"
-        )
+        config_file = os.path.join(training_config["output_dir"], "training_config.json")
         import json
 
         with open(config_file, "w") as f:
@@ -556,12 +498,8 @@ def train_with_trl(quick_test=True):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Train a model with automatic checkpoint resume support."
-    )
-    parser.add_argument(
-        "--quick-training", action="store_true", help="Run in quick test mode"
-    )
+    parser = argparse.ArgumentParser(description="Train a model with automatic checkpoint resume support.")
+    parser.add_argument("--quick-training", action="store_true", help="Run in quick test mode")
 
     args = parser.parse_args()
 

@@ -1,6 +1,5 @@
 import json
 from werkzeug.utils import secure_filename
-import time
 
 from .dirs import get_models_dir
 from .labresource import BaseLabResource
@@ -119,9 +118,7 @@ class Model(BaseLabResource):
             model_info = api.model_info(parent_model)
             return model_info.pipeline_tag
         except Exception as e:
-            print(
-                f"Could not fetch pipeline tag from parent model '{parent_model}': {type(e).__name__}: {e}"
-            )
+            print(f"Could not fetch pipeline tag from parent model '{parent_model}': {type(e).__name__}: {e}")
             return None
 
     def create_md5_checksums(self, model_path: str) -> list:
@@ -146,9 +143,7 @@ class Model(BaseLabResource):
         md5_objects = []
 
         if not storage.isdir(model_path):
-            print(
-                f"Model path '{model_path}' is not a directory, skipping MD5 checksum creation"
-            )
+            print(f"Model path '{model_path}' is not a directory, skipping MD5 checksum creation")
             return md5_objects
 
         # Use fsspec's walk equivalent for directory traversal
@@ -168,13 +163,9 @@ class Model(BaseLabResource):
                     if storage.isfile(entry):
                         try:
                             md5_hash = compute_md5(entry)
-                            md5_objects.append(
-                                {"file_path": entry, "md5_hash": md5_hash}
-                            )
+                            md5_objects.append({"file_path": entry, "md5_hash": md5_hash})
                         except Exception as e:
-                            print(
-                                f"Warning: Could not compute MD5 for {entry}: {str(e)}"
-                            )
+                            print(f"Warning: Could not compute MD5 for {entry}: {str(e)}")
             except Exception:
                 pass
 
@@ -209,6 +200,10 @@ class Model(BaseLabResource):
         """
 
         # Start with base provenance data matching the structure from train.py
+        # Get current time once to avoid potential scoping issues
+        import time
+
+        current_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
         final_provenance = {
             "model_name": model_name,
             "model_architecture": model_architecture,
@@ -217,8 +212,8 @@ class Model(BaseLabResource):
             "dataset": None,
             "adaptor_name": None,
             "parameters": None,
-            "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-            "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+            "start_time": current_time_str,
+            "end_time": current_time_str,
             "md5_checksums": md5_objects,
         }
 

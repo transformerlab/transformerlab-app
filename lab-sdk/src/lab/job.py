@@ -71,9 +71,7 @@ class Job(BaseLabResource):
             from .dirs import get_workspace_dir
 
             exp = Experiment(experiment_id)
-            exp._trigger_cache_rebuild(
-                workspace_dir=get_workspace_dir(), sync=sync_rebuild
-            )
+            exp._trigger_cache_rebuild(workspace_dir=get_workspace_dir(), sync=sync_rebuild)
         except Exception:
             # Don't fail if cache rebuild trigger fails
             pass
@@ -257,9 +255,7 @@ class Job(BaseLabResource):
                     job_data = job.get_json_data()
                     if job_data.get("status") == "QUEUED":
                         # Without ctime in object stores, sort lexicographically by job id
-                        queued_jobs.append(
-                            (int(entry) if entry.isdigit() else 0, job_data)
-                        )
+                        queued_jobs.append((int(entry) if entry.isdigit() else 0, job_data))
                 except Exception:
                     pass
 

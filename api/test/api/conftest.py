@@ -9,7 +9,6 @@ os.makedirs("test/tmp/", exist_ok=True)
 os.environ["TFL_HOME_DIR"] = "test/tmp/"
 # Note: TFL_WORKSPACE_DIR is not set so that get_workspace_dir() will use the org-based
 # workspace directory (test/tmp/orgs/<team-id>/workspace) after migration
-os.environ["TFL_MULTITENANT"] = "false"
 
 # Create dummy controller.log file for tests (tests don't actually use FastChat controller)
 # This prevents FileNotFoundError when spawn_fastchat_controller_subprocess() runs at startup

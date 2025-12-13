@@ -4,21 +4,11 @@
   "description": "Exports the current model to a fully contained self-executing llamafile.",
   "plugin-format": "python",
   "type": "exporter",
-  "version": "0.1.8",
-  "model_architectures": [
-    "GGUF"
-  ],
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx",
-    "amd"
-  ],
+  "version": "0.1.9",
+  "model_architectures": ["GGUF"],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "export_architecture": "llamafile",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {}
 }

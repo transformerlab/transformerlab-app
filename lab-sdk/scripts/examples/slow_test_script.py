@@ -59,9 +59,7 @@ def train():
 
             # Save fake checkpoint every 2 iterations
             if (i + 1) % 2 == 0:
-                checkpoint_file = os.path.join(
-                    training_config["output_dir"], f"checkpoint_epoch_{i + 1}.txt"
-                )
+                checkpoint_file = os.path.join(training_config["output_dir"], f"checkpoint_epoch_{i + 1}.txt")
                 with open(checkpoint_file, "w") as f:
                     f.write(f"Fake checkpoint for epoch {i + 1}\n")
                     f.write(f"Model state: iteration_{i + 1}\n")
@@ -70,9 +68,7 @@ def train():
                     f.write(f"Timestamp: {datetime.now()}\n")
 
                 # Save checkpoint using lab facade
-                saved_checkpoint_path = lab.save_checkpoint(
-                    checkpoint_file, f"epoch_{i + 1}_checkpoint.txt"
-                )
+                saved_checkpoint_path = lab.save_checkpoint(checkpoint_file, f"epoch_{i + 1}_checkpoint.txt")
                 lab.log(f"Saved checkpoint: {saved_checkpoint_path}")
 
                 # Save some fake artifacts
@@ -91,9 +87,7 @@ def train():
                     f.write("}\n")
 
                 # Save artifact using lab facade
-                saved_artifact_path = lab.save_artifact(
-                    artifact_file, f"metrics_epoch_{i + 1}.json"
-                )
+                saved_artifact_path = lab.save_artifact(artifact_file, f"metrics_epoch_{i + 1}.json")
                 lab.log(f"Saved artifact: {saved_artifact_path}")
 
             if i == 3:  # Initialize wandb halfway through training
@@ -107,9 +101,7 @@ def train():
                             name=f"test-run-{lab.job.id}",
                             config=training_config["_config"],
                         )
-                        lab.log(
-                            "✅ Wandb initialized - URL should be auto-detected on next progress update!"
-                        )
+                        lab.log("✅ Wandb initialized - URL should be auto-detected on next progress update!")
                 except ImportError:
                     lab.log("⚠️  Wandb not available")
                 except Exception as e:
@@ -132,9 +124,7 @@ def train():
                         }
                     )
 
-                    lab.log(
-                        f"📈 Logged metrics to wandb: loss={fake_loss:.3f}, accuracy={fake_accuracy:.3f}"
-                    )
+                    lab.log(f"📈 Logged metrics to wandb: loss={fake_loss:.3f}, accuracy={fake_accuracy:.3f}")
             except Exception:
                 pass
 
@@ -144,9 +134,7 @@ def train():
         lab.log(f"Training completed in {training_duration}")
 
         # Save final artifacts
-        final_model_file = os.path.join(
-            training_config["output_dir"], "final_model_summary.txt"
-        )
+        final_model_file = os.path.join(training_config["output_dir"], "final_model_summary.txt")
         with open(final_model_file, "w") as f:
             f.write("Final Model Summary\n")
             f.write("==================\n")
@@ -158,15 +146,11 @@ def train():
             f.write(f"Completed at: {end_time}\n")
 
         # Save final model as artifact
-        final_model_path = lab.save_artifact(
-            final_model_file, "final_model_summary.txt"
-        )
+        final_model_path = lab.save_artifact(final_model_file, "final_model_summary.txt")
         lab.log(f"Saved final model summary: {final_model_path}")
 
         # Save training configuration as artifact
-        config_file = os.path.join(
-            training_config["output_dir"], "training_config.json"
-        )
+        config_file = os.path.join(training_config["output_dir"], "training_config.json")
         import json
 
         with open(config_file, "w") as f:
@@ -199,9 +183,7 @@ def train():
             "status": "success",
             "job_id": lab.job.id,
             "duration": str(training_duration),
-            "output_dir": os.path.join(
-                training_config["output_dir"], f"final_model_{lab.job.id}"
-            ),
+            "output_dir": os.path.join(training_config["output_dir"], f"final_model_{lab.job.id}"),
             "wandb_url": captured_wandb_url,
         }
 

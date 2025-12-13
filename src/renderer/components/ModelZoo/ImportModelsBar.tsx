@@ -81,7 +81,7 @@ export default function ImportModelsBar({ jobId, setJobId }) {
         >
           <FormControl>
             <Input
-              placeholder="decapoda-research/llama-30b-hf"
+              placeholder="Enter Hugging Face ID (e.g. google/gemma-2b)"
               name="download-model-name"
               endDecorator={
                 <Button
@@ -136,7 +136,7 @@ export default function ImportModelsBar({ jobId, setJobId }) {
                   {jobId ? 'Downloading' : 'Download 🤗 Model'}
                 </Button>
               }
-              sx={{ width: '500px' }}
+              sx={{ width: '540px' }}
               disabled={jobId != null}
             />
           </FormControl>

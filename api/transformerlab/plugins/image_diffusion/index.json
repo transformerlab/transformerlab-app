@@ -4,18 +4,11 @@
   "description": "Generate images in the Diffusion tab using this plugin",
   "plugin-format": "python",
   "type": "diffusion",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "git": "",
   "url": "",
-  "files": [
-    "main.py",
-    "diffusion_worker.py",
-    "setup.sh"
-  ],
-  "supported_hardware_architectures": [
-    "cuda",
-    "amd"
-  ],
+  "files": ["main.py", "diffusion_worker.py", "setup.sh"],
+  "supported_hardware_architectures": ["cuda", "amd"],
   "_dataset": false,
   "setup-script": "setup.sh",
   "parameters": {},
