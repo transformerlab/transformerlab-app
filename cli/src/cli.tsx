@@ -20,6 +20,7 @@ import {
   TaskDelete,
   InstallFromGallery,
   ExportToGallery,
+  TaskList,
 } from './commands/tasks';
 import { JobList, JobInfo, JobLogs } from './commands/jobs';
 
@@ -184,6 +185,7 @@ const App = ({ command, args }: { command: string; args: any }) => {
   }
   if (command === 'task:info') return <TaskInfo taskId={args.id} />;
   if (command === 'task:gallery') return <TaskGallery />;
+  if (command === 'task:list') return <TaskList />;
   if (command === 'task:delete') return <TaskDelete taskId={args.id} />;
   if (command === 'task:install') return <InstallFromGallery />;
   if (command === 'task:export') return <ExportToGallery />;

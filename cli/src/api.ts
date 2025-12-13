@@ -7,7 +7,14 @@ import { getPath, handleError as handleErrorUtil } from './endpoints';
 const LAB_DIR = path.join(os.homedir(), '.lab');
 const CREDENTIALS_PATH = path.join(LAB_DIR, 'credentials');
 const CONFIG_PATH = path.join(LAB_DIR, 'config.json');
-
+const ENDPOINT_OVERRIDES: Record<string, string> = {
+  // Fixes the 404 on Get Task
+  'tasks:get': '/tasks/{id}/get',
+  // Fixes the 404 on List Experiments (trailing slash issue)
+  'experiment:list': '/experiment/',
+  // Fixes the missing 'inputs' error if needed (by ensuring correct create path)
+  'tasks:create': '/tasks/create',
+};
 function getStoredToken(): string | null {
   try {
     if (fs.existsSync(CREDENTIALS_PATH)) {
@@ -101,13 +108,25 @@ class TransformerLabAPI {
     params: any,
     fallback: string,
   ): string {
+    // 1. Check for manual overrides first (Robust Fix)
+    const overrideKey = `${resource}:${pathArr.join(':')}`;
+    if (ENDPOINT_OVERRIDES[overrideKey]) {
+      let url = ENDPOINT_OVERRIDES[overrideKey];
+      // Simple param replacement for overrides
+      for (const [key, value] of Object.entries(params)) {
+        url = url.replace(`{${key}}`, String(value));
+      }
+      return url;
+    }
+
+    // 2. Try the dynamic getPath
     try {
       return getPath(resource, pathArr, params);
     } catch (e) {
+      // 3. Use the fallback provided by the caller
       return fallback;
     }
   }
-
   // --- AUTH ---
 
   async verifyToken(token: string) {
@@ -148,7 +167,7 @@ class TransformerLabAPI {
       'tasks',
       ['get'],
       { id: taskId },
-      `/tasks/${taskId}`,
+      `/tasks/${taskId}/get`,
     );
     const res = await this.fetchWithAuth(url);
     return await this.handleResponse<any>(res);
@@ -192,116 +211,32 @@ class TransformerLabAPI {
   }
 
   async queueTask(taskId: string, overrides: any = {}) {
-    const task = await this.getTask(taskId);
+    // 1. Hardcode the URL
+    const url = `/tasks/${taskId}/queue`;
 
-    if (task.type === 'REMOTE' || task.remote_task) {
-      // Remote Execution Logic
-      let configObj = task.config || {};
-      if (typeof configObj === 'string') {
-        try {
-          configObj = JSON.parse(configObj);
-        } catch (e) {}
-      }
+    // 2. Prepare Query Parameters
+    const params = new URLSearchParams();
 
-      const providers = await this.listProviders();
-      let providerId = configObj.provider_id;
-
-      if (!providerId && providers && providers.length > 0) {
-        providerId = providers[0].id;
-      }
-      if (!providerId) throw new Error('Task has no Provider set.');
-
-      const provider = providers.find((p: any) => p.id === providerId);
-      if (!provider) throw new Error(`Provider ${providerId} not found.`);
-
-      let cmd = configObj.command || '';
-      if (overrides && Object.keys(overrides).length > 0) {
-        const flags = Object.entries(overrides)
-          .map(([k, v]) => `--${k}=${v}`)
-          .join(' ');
-        cmd = `${cmd} ${flags}`;
-      }
-
-      const payload = {
-        experiment_id: task.experiment_id || 'global',
-        task_name: task.name,
-        cluster_name: configObj.cluster_name,
-        command: cmd,
-        subtype: configObj.subtype,
-        cpus: configObj.cpus ? String(configObj.cpus) : '',
-        memory: configObj.memory ? String(configObj.memory) : '',
-        disk_space: configObj.disk_space ? String(configObj.disk_space) : '',
-        accelerators: configObj.accelerators
-          ? String(configObj.accelerators)
-          : '',
-        num_nodes: configObj.num_nodes || 1,
-        setup: configObj.setup,
-        env_vars: configObj.env_vars || {},
-        file_mounts: configObj.file_mounts,
-        provider_name: provider.name,
-      };
-
-      // Try specialized launch first
-      try {
-        const launchUrl = this.safeGetPath(
-          'compute_provider',
-          ['launch'],
-          { id: providerId },
-          `/compute_provider/${providerId}/launch`,
-        );
-        const res = await this.fetchWithAuth(launchUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        return await this.handleResponse(res);
-      } catch (e: any) {
-        // Fallback to generic launch remote
-        if (
-          e.message &&
-          (e.message.includes('404') || e.message.includes('405'))
-        ) {
-          const fallbackUrl = this.safeGetPath(
-            'tasks',
-            ['launch_remote'],
-            {},
-            '/tasks/launch_remote',
-          );
-          const res = await this.fetchWithAuth(fallbackUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...payload, provider_id: providerId }),
-          });
-          return await this.handleResponse(res);
-        }
-        throw e;
-      }
-    } else {
-      // Local Execution Logic
-      const url = this.safeGetPath(
-        'tasks',
-        ['queue'],
-        { id: taskId },
-        `/tasks/queue/${taskId}`,
-      );
-      const params = new URLSearchParams(overrides).toString();
-      const fullUrl = params ? `${url}?${params}` : url;
-
-      const res = await this.fetchWithAuth(fullUrl);
-      return await this.handleResponse(res);
+    // API expects 'input_override' as a JSON string in query params
+    if (overrides && Object.keys(overrides).length > 0) {
+      params.append('input_override', JSON.stringify(overrides));
     }
+
+    // 3. Construct Full URL
+    const fullUrl = params.toString() ? `${url}?${params.toString()}` : url;
+
+    // 4. Send Request (GET)
+    const res = await this.fetchWithAuth(fullUrl, {
+      method: 'GET',
+    });
+
+    return await this.handleResponse(res);
   }
 
   // --- PROVIDERS & EXPERIMENTS ---
-
   async listProviders() {
-    const url = this.safeGetPath(
-      'compute_provider',
-      ['list'],
-      {},
-      '/compute_provider/list',
-    );
-    const res = await this.fetchWithAuth(url);
+    // Fixed: Use exact endpoint from documentation
+    const res = await this.fetchWithAuth('/compute_provider/');
     return await this.handleResponse<any[]>(res);
   }
 
@@ -349,6 +284,15 @@ class TransformerLabAPI {
     return await this.handleResponse(res);
   }
 
+  async launchTask(providerId: string, payload: any) {
+    const url = `/compute_provider/${providerId}/tasks/launch`;
+    const res = await this.fetchWithAuth(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return await this.handleResponse(res);
+  }
   // --- JOBS ---
 
   async listJobs(experimentId: string = 'global') {

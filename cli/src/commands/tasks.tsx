@@ -6,6 +6,7 @@ import { api } from '../api';
 import { getGitContext, loadLabConfig, LabConfig } from '../utils';
 import { Loading, ErrorMsg, SuccessMsg, Logo, Panel } from '../ui';
 import { GenericList } from './list_commands';
+import Table from 'ink-table';
 
 export const TaskList = () => (
   <GenericList
@@ -15,13 +16,89 @@ export const TaskList = () => (
     noTruncate={['id']}
   />
 );
-export const TaskGallery = () => (
-  <GenericList
-    fetcher={() => api.getTaskGallery()}
-    columns={['id', 'name', 'description']}
-    labelMap={{ id: 'ID', name: 'Task', description: 'Desc' }}
-  />
-);
+
+export const TaskGallery = () => {
+  const [items, setItems] = useState<any[] | null>(null);
+  const [rawDebug, setRawDebug] = useState<any>(null); // To store raw data for debugging
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    api
+      .getTaskGallery()
+      .then((res) => {
+        if (!isMounted) return;
+
+        const raw = Array.isArray(res) ? res : (res as any).data || [];
+
+        if (raw.length > 0) {
+          setRawDebug(raw[0]); // Capture the first item to see its structure
+        }
+
+        const mapped = raw.map((t: any) => ({
+          // We are trying to find the ID.
+          // If this is still '?', look at the debug output above the table.
+          ID: t.id || t.slug || t.task_id || t.key || '?',
+
+          // Display Name
+          Task: t.title || t.display_name || t.name || 'Untitled',
+
+          // Description
+          Desc: t.description
+            ? t.description.length > 50
+              ? t.description.substring(0, 47) + '...'
+              : t.description
+            : '',
+        }));
+
+        setItems(mapped);
+      })
+      .catch((e) => {
+        if (!isMounted) return;
+        setError(e.message);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (error) return <ErrorMsg text="Gallery Error" detail={error} />;
+  if (!items) return <Loading text="Fetching gallery..." />;
+
+  if (items.length === 0) {
+    return (
+      <Box flexDirection="column">
+        <Text>No tasks found in gallery.</Text>
+      </Box>
+    );
+  }
+
+  return (
+    <Box flexDirection="column">
+      <Text bold color="cyan">
+        Task Gallery
+      </Text>
+
+      {/* DEBUG SECTION: This will show us the keys we need */}
+      {rawDebug && (
+        <Panel title="DEBUG: First Item Schema" color="yellow">
+          <Text>{JSON.stringify(rawDebug, null, 2)}</Text>
+        </Panel>
+      )}
+
+      <Box borderStyle="single" borderColor="gray" paddingX={1}>
+        <Table data={items} />
+      </Box>
+      <Text dimColor>
+        To install a task run:{' '}
+        <Text bold color="white">
+          lab task install [ID]
+        </Text>
+      </Text>
+    </Box>
+  );
+};
 
 export const TaskInfo = ({ taskId }: { taskId: string }) => {
   const { exit } = useApp();
@@ -361,90 +438,185 @@ interface TaskRunProps {
 
 export const TaskRun = ({ taskName, cliParams }: TaskRunProps) => {
   const { exit } = useApp();
-  const [status, setStatus] = useState<
-    'FETCHING' | 'VALIDATING' | 'RUNNING' | 'SUCCESS' | 'ERROR'
-  >('FETCHING');
 
+  // State Machine
+  const [step, setStep] = useState<
+    'INIT' | 'SELECT_PROVIDER' | 'RUNNING' | 'SUCCESS' | 'ERROR'
+  >('INIT');
+
+  const [loadingMsg, setLoadingMsg] = useState('Initializing...');
   const [errorObj, setErrorObj] = useState<{
     message: string;
     detail?: string;
   } | null>(null);
+
+  // Data State
+  const [task, setTask] = useState<any>(null);
+  const [providers, setProviders] = useState<any[]>([]);
   const [jobId, setJobId] = useState<string>('');
 
   useEffect(() => {
     let isMounted = true;
 
-    const executeRun = async () => {
+    const initRun = async () => {
       try {
-        const task = await api.getTask(taskName);
+        setLoadingMsg(`Fetching task '${taskName}'...`);
+        const taskData = await api.getTask(taskName);
         if (!isMounted) return;
 
-        if (!task) throw new Error(`Task '${taskName}' not found.`);
+        if (!taskData) throw new Error(`Task '${taskName}' not found.`);
+        setTask(taskData);
 
-        const definedParams = task.parameters || {};
-        const finalParams: Record<string, any> = {};
+        // Check if Remote Task
+        if (taskData.type === 'REMOTE' || taskData.remote_task) {
+          setLoadingMsg('Fetching compute providers...');
+          const provs = await api.listProviders();
 
-        if (isMounted) setStatus('VALIDATING');
+          if (!isMounted) return;
 
-        for (const [key, schema] of Object.entries(definedParams) as [
-          string,
-          any,
-        ][]) {
-          const userValue = cliParams[key];
-
-          if (userValue === undefined) {
-            if (schema.default !== undefined) {
-              finalParams[key] = schema.default;
-            } else {
-              throw new Error(`Missing required parameter: --${key}`);
-            }
-          } else {
-            if (schema.type === 'integer' && isNaN(parseInt(userValue, 10))) {
-              throw new Error(`Parameter --${key} must be an integer.`);
-            }
-            finalParams[key] = userValue;
+          if (!provs || provs.length === 0) {
+            throw new Error(
+              'No compute providers found. Please configure one in Settings first.',
+            );
           }
-        }
 
-        if (isMounted) setStatus('RUNNING');
-        const result: any = await api.queueTask(taskName, finalParams);
+          setProviders(provs);
 
-        if (!isMounted) return;
-
-        if (result.status === 'success') {
-          setJobId(result.job_id);
-          setStatus('SUCCESS');
-          setTimeout(() => {
-            if (isMounted) exit();
-          }, 2500);
+          // If only one provider, auto-select?
+          // For safety/clarity, let's just ask unless you want auto-select.
+          // We'll proceed to selection.
+          setStep('SELECT_PROVIDER');
         } else {
-          throw new Error(result.message || 'Failed to queue job.');
+          // Local Task - Execute Immediately
+          await runLocalTask(taskData);
         }
       } catch (e: any) {
         if (!isMounted) return;
         const err = api.handleError(e);
         setErrorObj(err);
-        setStatus('ERROR');
+        setStep('ERROR');
       }
     };
 
-    executeRun();
-
+    initRun();
     return () => {
       isMounted = false;
     };
-  }, [taskName, cliParams, exit]);
+  }, []);
 
-  if (status === 'FETCHING')
-    return <Loading text={`Looking up task '${taskName}'...`} />;
-  if (status === 'VALIDATING')
-    return <Loading text="Validating parameters..." />;
-  if (status === 'RUNNING') return <Loading text="Triggering run..." />;
+  const prepareCommandWithOverrides = (baseCommand: string, params: any) => {
+    let cmd = baseCommand || '';
+    // Validate and append CLI params as flags
+    if (params && Object.keys(params).length > 0) {
+      // Note: In a real app we would validate against task.parameters schema here
+      const flags = Object.entries(params)
+        .map(([k, v]) => `--${k}=${v}`)
+        .join(' ');
+      cmd = `${cmd} ${flags}`;
+    }
+    return cmd;
+  };
 
-  if (status === 'SUCCESS') {
+  const runLocalTask = async (taskData: any) => {
+    setLoadingMsg('Queuing local task...');
+    setStep('RUNNING');
+
+    // For local, we pass overrides directly
+    const result: any = await api.queueTask(
+      taskData.name || taskName,
+      cliParams,
+    );
+
+    if (result.status === 'success' || result.job_id) {
+      setJobId(result.job_id);
+      setStep('SUCCESS');
+      setTimeout(() => exit(), 2500);
+    } else {
+      throw new Error(result.message || 'Failed to queue job.');
+    }
+  };
+
+  const handleProviderSelect = async (item: any) => {
+    const provider = providers.find((p) => p.id === item.value);
+    if (!provider) return;
+
+    setStep('RUNNING');
+    setLoadingMsg(`Launching on ${provider.name}...`);
+
+    try {
+      const config = task.config || {};
+      const cmd = prepareCommandWithOverrides(config.command, cliParams);
+
+      const payload = {
+        experiment_id: task.experiment_id || 'global',
+        task_name: task.name,
+        cluster_name: config.cluster_name || `cluster-${task.name}`,
+        command: cmd,
+        subtype: config.subtype || 'generic',
+        cpus: config.cpus ? String(config.cpus) : undefined,
+        memory: config.memory ? String(config.memory) : undefined,
+        disk_space: config.disk_space ? String(config.disk_space) : undefined,
+        accelerators:
+          config.accelerators || config.gpu_count
+            ? String(config.accelerators || config.gpu_count)
+            : undefined,
+        num_nodes: config.num_nodes || 1,
+        setup: config.setup,
+        env_vars: config.env_vars || {},
+        file_mounts: config.file_mounts || {},
+
+        provider_name: provider.name,
+
+        // Github info from Task metadata
+        github_enabled: true,
+        github_repo_url: task.repo || task.git_repo_url,
+        github_directory: task.git_repo_dir || config.git_repo_dir,
+      };
+
+      const res: any = await api.launchTask(provider.id, payload);
+
+      if (res.job_id) {
+        setJobId(res.job_id);
+        setStep('SUCCESS');
+        setTimeout(() => exit(), 2500);
+      } else {
+        throw new Error('Launch successful but no Job ID returned.');
+      }
+    } catch (e: any) {
+      const err = api.handleError(e);
+      setErrorObj(err);
+      setStep('ERROR');
+    }
+  };
+
+  if (step === 'INIT' || step === 'RUNNING') {
+    return <Loading text={loadingMsg} />;
+  }
+
+  if (step === 'SELECT_PROVIDER') {
+    const items = providers.map((p) => ({
+      label: `${p.name} (${p.type})`,
+      value: p.id,
+    }));
+
     return (
       <Box flexDirection="column">
-        <SuccessMsg text="Job Queued Successfully!" />
+        <Panel title="Remote Task Launch" color="blue">
+          <Text>
+            Task: <Text bold>{task.name}</Text>
+          </Text>
+          <Text>Command: {task.config?.command}</Text>
+        </Panel>
+        <Text bold>Select Compute Provider:</Text>
+        <SelectInput items={items} onSelect={handleProviderSelect} />
+      </Box>
+    );
+  }
+
+  if (step === 'SUCCESS') {
+    return (
+      <Box flexDirection="column">
+        <SuccessMsg text="Job Launched Successfully!" />
         <Text>
           Job ID:{' '}
           <Text bold color="cyan">
@@ -456,7 +628,7 @@ export const TaskRun = ({ taskName, cliParams }: TaskRunProps) => {
     );
   }
 
-  if (status === 'ERROR') {
+  if (step === 'ERROR') {
     return (
       <Box flexDirection="column">
         <ErrorMsg text="Run Failed" />
@@ -470,11 +642,6 @@ export const TaskRun = ({ taskName, cliParams }: TaskRunProps) => {
             </Box>
           )}
         </Panel>
-        <Box marginTop={1}>
-          <Text dimColor>
-            Tip: Verify your Compute Provider ID and API URL.
-          </Text>
-        </Box>
       </Box>
     );
   }
