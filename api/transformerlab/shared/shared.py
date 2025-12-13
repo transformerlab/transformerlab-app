@@ -66,9 +66,6 @@ def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs
         popenKWArgs["stdout"] = log
         popenKWArgs["stderr"] = log
 
-        print("FINAL popenKWArgs:", popenKWArgs)
-        print("FINAL popenArgs:", popenArgs)
-
         proc = subprocess.Popen(popenArgs, **popenKWArgs)
         proc.communicate(input=input.encode("utf-8"))
         proc.wait()
@@ -490,7 +487,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if not storage.exists(evals_output_file):
             with storage.open(evals_output_file, "w") as f:
                 f.write("")
-        await run_evaluation_script(experiment_name, plugin_name, eval_name, job_id)
+        await run_evaluation_script(experiment_name, plugin_name, eval_name, job_id, org_id=org_id)
         # Check if stop button was clicked and update status accordingly
         job_row = job_service.job_get(job_id)
         job_data = job_row.get("job_data", None)
@@ -522,7 +519,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             with storage.open(gen_output_file, "w") as f:
                 f.write("")
 
-        await run_generation_script(experiment_name, plugin_name, generation_name, job_id)
+        await run_generation_script(experiment_name, plugin_name, generation_name, job_id, org_id=org_id)
 
         # Check should_stop flag and update status accordingly
         job_row = job_service.job_get(job_id)
@@ -576,6 +573,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             plugin_architecture=plugin_architecture,
             plugin_params=plugin_params,
             job_id=job_id,
+            org_id=org_id,
         )
 
         # Check the result and update job status accordingly

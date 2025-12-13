@@ -109,9 +109,9 @@ echo "▶️ Starting the API server:"
 if [ "$RELOAD" = true ]; then
     echo "🔁 Reload the server on file changes"
     if [ "$HTTPS" = true ]; then
-        python api.py --https --reload --port ${PORT} --host ${TLABHOST}
+        python api.py --https --reload --port ${PORT} --host ${TLABHOST} --timeout-graceful-shutdown 1
     else
-        uvicorn api:app --reload --port ${PORT} --host ${TLABHOST}
+        uvicorn api:app --reload --port ${PORT} --host ${TLABHOST} --timeout-graceful-shutdown 1
     fi
 else
     if [ "$HTTPS" = true ]; then
