@@ -107,9 +107,7 @@ class Experiment(BaseLabResource):
 
                             # If both name and id are missing, skip this experiment
                             if not name and not exp_id:
-                                print(
-                                    f"Experiment at {exp_path} missing required 'name' and 'id' fields; skipping"
-                                )
+                                print(f"Experiment at {exp_path} missing required 'name' and 'id' fields; skipping")
                                 continue
 
                             # If name missing but id present, copy id -> name and persist
