@@ -439,7 +439,6 @@ interface TaskRunProps {
 export const TaskRun = ({ taskName, cliParams }: TaskRunProps) => {
   const { exit } = useApp();
 
-  // State Machine
   const [step, setStep] = useState<
     'INIT' | 'SELECT_PROVIDER' | 'RUNNING' | 'SUCCESS' | 'ERROR'
   >('INIT');
@@ -450,7 +449,6 @@ export const TaskRun = ({ taskName, cliParams }: TaskRunProps) => {
     detail?: string;
   } | null>(null);
 
-  // Data State
   const [task, setTask] = useState<any>(null);
   const [providers, setProviders] = useState<any[]>([]);
   const [jobId, setJobId] = useState<string>('');
@@ -467,13 +465,11 @@ export const TaskRun = ({ taskName, cliParams }: TaskRunProps) => {
         if (!taskData) throw new Error(`Task '${taskName}' not found.`);
         setTask(taskData);
 
-        // Check if Remote Task
         if (taskData.type === 'REMOTE' || taskData.remote_task) {
           setLoadingMsg('Fetching compute providers...');
           const provs = await api.listProviders();
 
           if (!isMounted) return;
-
           if (!provs || provs.length === 0) {
             throw new Error(
               'No compute providers found. Please configure one in Settings first.',
@@ -481,13 +477,8 @@ export const TaskRun = ({ taskName, cliParams }: TaskRunProps) => {
           }
 
           setProviders(provs);
-
-          // If only one provider, auto-select?
-          // For safety/clarity, let's just ask unless you want auto-select.
-          // We'll proceed to selection.
           setStep('SELECT_PROVIDER');
         } else {
-          // Local Task - Execute Immediately
           await runLocalTask(taskData);
         }
       } catch (e: any) {
@@ -506,9 +497,7 @@ export const TaskRun = ({ taskName, cliParams }: TaskRunProps) => {
 
   const prepareCommandWithOverrides = (baseCommand: string, params: any) => {
     let cmd = baseCommand || '';
-    // Validate and append CLI params as flags
     if (params && Object.keys(params).length > 0) {
-      // Note: In a real app we would validate against task.parameters schema here
       const flags = Object.entries(params)
         .map(([k, v]) => `--${k}=${v}`)
         .join(' ');
@@ -521,7 +510,6 @@ export const TaskRun = ({ taskName, cliParams }: TaskRunProps) => {
     setLoadingMsg('Queuing local task...');
     setStep('RUNNING');
 
-    // For local, we pass overrides directly
     const result: any = await api.queueTask(
       taskData.name || taskName,
       cliParams,
@@ -567,9 +555,10 @@ export const TaskRun = ({ taskName, cliParams }: TaskRunProps) => {
 
         provider_name: provider.name,
 
-        // Github info from Task metadata
         github_enabled: true,
         github_repo_url: task.repo || task.git_repo_url,
+        github_branch: task.branch || task.git_branch,
+        github_sha: task.commit || task.git_sha,
         github_directory: task.git_repo_dir || config.git_repo_dir,
       };
 
@@ -606,6 +595,7 @@ export const TaskRun = ({ taskName, cliParams }: TaskRunProps) => {
             Task: <Text bold>{task.name}</Text>
           </Text>
           <Text>Command: {task.config?.command}</Text>
+          <Text>Repo: {task.repo || 'N/A'}</Text>
         </Panel>
         <Text bold>Select Compute Provider:</Text>
         <SelectInput items={items} onSelect={handleProviderSelect} />

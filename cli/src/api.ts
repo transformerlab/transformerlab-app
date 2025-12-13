@@ -174,7 +174,7 @@ class TransformerLabAPI {
   }
 
   async createTask(taskId: string, name: string, payload: any) {
-    const url = this.safeGetPath('tasks', ['create'], {}, '/tasks/create');
+    const url = '/tasks/new_task';
     const urlWithParams = `${url}?id=${encodeURIComponent(taskId)}&name=${encodeURIComponent(name)}`;
 
     const res = await this.fetchWithAuth(urlWithParams, {

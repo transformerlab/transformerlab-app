@@ -6,326 +6,202 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import duration from 'dayjs/plugin/duration';
 import { api } from '../api';
 import { Loading, ErrorMsg, Panel } from '../ui';
+import { GenericList } from './list_commands';
 
 dayjs.extend(relativeTime);
 dayjs.extend(duration);
 
-export const JobList = () => {
-  const { exit } = useApp();
-  const [jobs, setJobs] = useState<any[] | null>(null);
-  const [status, setStatus] = useState('Initializing...');
-  const [fatalError, setFatalError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        setStatus('Fetching experiment list...');
-        let experiments = [];
-        try {
-          const expResponse: any = await api.listExperiments();
-          experiments = Array.isArray(expResponse)
-            ? expResponse
-            : expResponse?.data || [];
-        } catch (e: any) {
-          setFatalError(`Failed to list experiments: ${e.message}`);
-          return;
-        }
-
-        const expIds = experiments.map((e: any) => e.id);
-        if (!expIds.includes('global')) expIds.push('global');
-
-        setStatus(`Scanning ${expIds.length} contexts for jobs...`);
-
-        const results = await Promise.allSettled(
-          expIds.map((id: string) => api.listJobs(id)),
-        );
-
-        const successfulJobs: any[] = [];
-
-        results.forEach((result) => {
-          if (result.status === 'fulfilled') {
-            const jobData: any = result.value;
-            const jobList = Array.isArray(jobData)
-              ? jobData
-              : jobData?.jobs || [];
-            successfulJobs.push(...jobList);
-          }
-        });
-
-        const uniqueJobs = Array.from(
-          new Map(
-            successfulJobs.map((item: any) => [item.id || item.job_id, item]),
-          ).values(),
-        );
-
-        uniqueJobs.sort((a: any, b: any) => {
-          const idA = parseInt(a.id || a.job_id || '0', 10);
-          const idB = parseInt(b.id || b.job_id || '0', 10);
-          return idB - idA;
-        });
-
-        setJobs(uniqueJobs);
-      } catch (e: any) {
-        setFatalError(`Unexpected crash: ${e.message}`);
-      } finally {
-        exit();
-      }
-    };
-    fetchAll();
-  }, [exit]);
-
-  if (fatalError) return <ErrorMsg text="List Failed" detail={fatalError} />;
-  if (!jobs) return <Loading text={status} />;
-
-  if (jobs.length === 0) {
-    return (
-      <Box flexDirection="column" paddingY={1}>
-        <Text>No jobs found.</Text>
-      </Box>
-    );
+const getStatusColor = (status: string) => {
+  switch (status?.toUpperCase()) {
+    case 'RUNNING':
+      return 'green';
+    case 'COMPLETED':
+      return 'green';
+    case 'SUCCESS':
+      return 'green';
+    case 'FAILED':
+      return 'red';
+    case 'ERROR':
+      return 'red';
+    case 'QUEUED':
+      return 'yellow';
+    case 'LAUNCHING':
+      return 'cyan';
+    case 'STOPPED':
+      return 'red';
+    default:
+      return 'white';
   }
-
-  const tableData = jobs.map((j) => {
-    let jobData = j.job_data || {};
-    if (typeof jobData === 'string') {
-      try {
-        jobData = JSON.parse(jobData);
-      } catch (e) {
-        /* empty */
-      }
-    }
-
-    const name =
-      jobData.task_name ||
-      j.task_name ||
-      j.config?.name ||
-      j.task_id ||
-      'Unknown';
-
-    let dur = 'N/A';
-    if (j.created_at) {
-      const start = dayjs(j.created_at);
-      const end = j.ended_at ? dayjs(j.ended_at) : dayjs();
-
-      if (start.isValid()) {
-        const diffMs = end.diff(start);
-        if (diffMs < 1000 && diffMs >= 0) dur = '< 1s';
-        else dur = dayjs.duration(diffMs).humanize();
-      }
-    }
-
-    return {
-      ID: String(j.id || j.job_id),
-      Task: name.length > 25 ? `${name.substring(0, 22)}...` : name,
-      Status: j.status || 'UNKNOWN',
-      Duration: j.status === 'running' ? `Running (${dur})` : dur,
-      Exp: j.experiment_id || 'global',
-    };
-  });
-
-  return (
-    <Box flexDirection="column">
-      <Table data={tableData} />
-      <Box marginTop={1}>
-        <Text dimColor>Total: {jobs.length} jobs</Text>
-      </Box>
-    </Box>
-  );
 };
+
+// --- COMPONENTS ---
+
+export const JobList = () => (
+  <GenericList
+    fetcher={() => api.listJobs()}
+    columns={['id', 'status', 'type', 'experiment_id']}
+    labelMap={{
+      id: 'ID',
+      status: 'Status',
+      type: 'Type',
+      experiment_id: 'Experiment',
+    }}
+    noTruncate={['id', 'status']}
+  />
+);
 
 export const JobInfo = ({ jobId }: { jobId: string }) => {
   const { exit } = useApp();
-  const [data, setData] = useState<any>(null);
+  const [job, setJob] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
     api
       .getJob(jobId)
-      .then((d) => {
-        const job: any = (d as any).job || d;
-        setData(job);
-        exit();
+      .then((data) => {
+        if (isMounted) {
+          setJob(data);
+          exit(); // We exit ink's rendering loop but keep the output
+        }
       })
       .catch((e) => {
-        setError(api.handleError(e).message);
-        exit();
+        if (isMounted) setError(api.handleError(e).message);
       });
-  }, [exit, jobId]);
+    return () => {
+      isMounted = false;
+    };
+  }, [jobId]);
 
-  if (error) return <ErrorMsg text="Fetch Failed" detail={error} />;
-  if (!data) return <Loading text="Fetching info..." />;
+  if (error) return <ErrorMsg text="Failed to fetch job" detail={error} />;
+  if (!job) return <Loading text={`Fetching info for job ${jobId}...`} />;
 
-  const parse = (val: any) => {
-    if (typeof val === 'string') {
-      try {
-        return JSON.parse(val);
-      } catch (e) {
-        return {};
-      }
-    }
-    return val || {};
-  };
+  // Parse Data based on Python Job Class structure
+  const meta = job.job_data || {};
+  const statusColor = getStatusColor(job.status);
 
-  const config = parse(data.config);
-  const jobData = parse(data.job_data);
+  // Extract specific fields commonly used in Remote/Local jobs
+  const taskName = meta.task_name || meta.name || 'N/A';
+  const provider = meta.provider_name || 'Local';
+  const command = meta.command || 'N/A';
 
-  const id = data.id || data.job_id || 'Unknown';
-  const statusColor =
-    (data.status || '').toUpperCase() === 'COMPLETED' ? 'green' : 'yellow';
+  // Git Info (often nested in job_data for remote jobs)
+  const repo = meta.github_repo_url || meta.repo || 'N/A';
+  const branch = meta.github_branch || meta.branch || 'N/A';
+  const commit = meta.github_sha || meta.commit || 'N/A';
 
-  // Deep Search for Git Info
-  const repo =
-    data.repo ||
-    data.git_repo_url ||
-    jobData.github_repo_url ||
-    jobData.repo ||
-    config.repo ||
-    'N/A';
-  const branch =
-    data.branch || data.git_branch || jobData.branch || config.branch || 'N/A';
-  const sha =
-    data.commit || data.git_sha || jobData.commit || config.commit || 'N/A';
+  // Resources
+  const resources = [
+    meta.cpus ? `CPUs: ${meta.cpus}` : null,
+    meta.memory ? `Mem: ${meta.memory}` : null,
+    meta.accelerators ? `Accel: ${meta.accelerators}` : null,
+    meta.gpu_count ? `GPUs: ${meta.gpu_count}` : null,
+  ]
+    .filter(Boolean)
+    .join(' | ');
 
   return (
     <Box flexDirection="column">
-      <Panel title={`Job: ${id}`} color={statusColor}>
-        <Text>
-          Status:{' '}
+      {/* Header Panel */}
+      <Box
+        borderStyle="round"
+        borderColor={statusColor}
+        flexDirection="column"
+        paddingX={1}
+      >
+        <Box justifyContent="space-between">
+          <Text bold>
+            Job ID: <Text color="white">{job.id}</Text>
+          </Text>
           <Text bold color={statusColor}>
-            {data.status}
+            {job.status}
+          </Text>
+        </Box>
+        <Box justifyContent="space-between">
+          <Text>Type: {job.type}</Text>
+          <Text>Exp: {job.experiment_id || 'Global'}</Text>
+        </Box>
+        {job.progress > 0 && <Text>Progress: {job.progress}%</Text>}
+      </Box>
+
+      {/* Details Panel */}
+      <Box flexDirection="column" marginTop={1}>
+        <Panel title="Execution Context" color="blue">
+          <Text>
+            Task Name: <Text bold>{taskName}</Text>
+          </Text>
+          <Text>Provider: {provider}</Text>
+          {resources && <Text>Resources: {resources}</Text>}
+          <Box marginTop={1}>
+            <Text bold>Command:</Text>
+            <Text dimColor>{command}</Text>
+          </Box>
+        </Panel>
+
+        <Panel title="Source Context" color="magenta">
+          <Text>Repo: {repo}</Text>
+          <Text>Branch: {branch}</Text>
+          <Text>Commit: {commit.substring(0, 8)}</Text>
+        </Panel>
+
+        {meta.error_msg && (
+          <Panel title="Error Message" color="red">
+            <Text color="red">{meta.error_msg}</Text>
+          </Panel>
+        )}
+      </Box>
+
+      {/* Footer Hints */}
+      <Box marginTop={1}>
+        <Text dimColor>
+          View logs:{' '}
+          <Text bold color="white">
+            lab job logs {job.id}
           </Text>
         </Text>
-        <Text>Task: {data.task_name || data.task_id}</Text>
-
-        <Box height={1} />
-        <Text bold>Git Context:</Text>
-        <Text>Repo: {repo}</Text>
-        <Text>Branch: {branch}</Text>
-        <Text>SHA: {sha}</Text>
-
-        <Box height={1} />
-        <Text bold>Config Dump:</Text>
-        <Text dimColor>{JSON.stringify(config, null, 2)}</Text>
-      </Panel>
+      </Box>
+      <Text dimColor>
+        Stop job:{' '}
+        <Text bold color="white">
+          lab job stop {job.id}
+        </Text>
+      </Text>
     </Box>
   );
 };
 
 export const JobLogs = ({ jobId }: { jobId: string }) => {
-  useApp();
+  const { exit } = useApp();
   const [logs, setLogs] = useState<string>('');
-  const [status, setStatus] = useState('CONNECTING');
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let stream: any = null;
-
-    const fetchLogs = async () => {
-      try {
-        setStatus('FETCHING_INFO');
-        const job = await api.getJob(jobId);
-        const isFinished = ['STOPPED', 'COMPLETED', 'FAILED'].includes(
-          (job as any).status?.toUpperCase(),
-        );
-        const expId = (job as any).experiment_id || 'global';
-
-        if (isFinished) {
-          try {
-            setStatus('FETCHING_ARCHIVE');
-            const output = await api.getTasksOutput(jobId);
-            const content =
-              typeof output === 'object'
-                ? (output as any).output ||
-                  (output as any).logs ||
-                  JSON.stringify(output, null, 2)
-                : output;
-
-            if (content) {
-              setLogs(content);
-              setStatus(`ARCHIVED (${(job as any).status})`);
-
-              return;
-            }
-          } catch (e) {}
-        }
-
-        try {
-          setStatus('FETCHING_PROVIDER');
-          const remoteLogs = await api.getJobLogs(jobId, expId);
-          if (remoteLogs) {
-            let content: string;
-            if (typeof remoteLogs === 'object' && (remoteLogs as any).logs) {
-              content = (remoteLogs as any).logs;
-            } else if (typeof remoteLogs === 'string') {
-              content = remoteLogs;
-            } else {
-              content = JSON.stringify(remoteLogs);
-            }
-
-            if (content) {
-              setLogs(content);
-              setStatus('REMOTE_SNAPSHOT');
-              return;
-            }
-          }
-        } catch (e) {}
-
-        setStatus('STREAMING');
-        const response = await api.getJobStream(jobId);
-        stream = (response as any).data;
-
-        stream.on('data', (chunk: Buffer) => {
-          let text = chunk.toString();
-
-          if (text.startsWith('data: ')) {
-            try {
-              const jsonStr = text.replace('data: ', '').trim();
-              const parsed = JSON.parse(jsonStr);
-              if (Array.isArray(parsed) && parsed.length === 0) return;
-              text = `${jsonStr}\n`;
-            } catch {
-              text = text.replace('data: ', '');
-            }
-          }
-
-          setLogs((prev) => (prev + text).slice(-10000));
-        });
-
-        stream.on('end', () =>
-          setStatus(
-            isFinished ? `FINISHED (${(job as any).status})` : 'STREAM_ENDED',
-          ),
-        );
-        stream.on('error', () => setStatus('STREAM_ERROR'));
-      } catch (e: any) {
+    api
+      .getJobLogs(jobId)
+      .then((data: any) => {
+        // Handle different log response formats
+        if (typeof data === 'string') setLogs(data);
+        else if (data.logs) setLogs(data.logs);
+        else if (data.content) setLogs(data.content);
+        else setLogs(JSON.stringify(data, null, 2));
+        setLoading(false);
+        exit();
+      })
+      .catch((e) => {
         setError(api.handleError(e).message);
-        setStatus('ERROR');
-      }
-    };
-
-    fetchLogs();
-
-    return () => {
-      if (stream)
-        try {
-          stream.destroy();
-        } catch (e) {}
-    };
+        setLoading(false);
+      });
   }, [jobId]);
 
-  if (error) return <ErrorMsg text="Log Error" detail={error} />;
+  if (error) return <ErrorMsg text="Log Fetch Failed" detail={error} />;
+  if (loading) return <Loading text={`Fetching logs for ${jobId}...`} />;
 
   return (
     <Box flexDirection="column">
-      <Panel title={`Logs: ${jobId} [${status}]`} color="white">
-        <Text>
-          {logs ||
-            (status === 'STREAMING'
-              ? 'Waiting for output...'
-              : 'No logs found.')}
-        </Text>
+      <Panel title={`Logs: ${jobId}`} color="gray">
+        <Text>{logs || 'No logs found.'}</Text>
       </Panel>
-      <Text dimColor>Press Ctrl+C to exit.</Text>
     </Box>
   );
 };
