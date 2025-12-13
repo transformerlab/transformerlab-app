@@ -162,7 +162,9 @@ async def get_generation_plugin_file_contents(experimentId: str, plugin_name: st
 
 
 @router.get("/run_generation_script")
-async def run_generation_script(experimentId: str, plugin_name: str, generation_name: str, job_id: str):
+async def run_generation_script(
+    experimentId: str, plugin_name: str, generation_name: str, job_id: str, org_id: str = None
+):
     job_config = (job_get(job_id))["job_data"]
     generation_config = job_config.get("config", {})
     print(generation_config)
@@ -273,8 +275,17 @@ async def run_generation_script(experimentId: str, plugin_name: str, generation_
 
     print(f">GENERATION Output file: {job_output_file}")
 
+    # Prepare environment variables for subprocess
+    # Pass organization_id via environment variable if provided
+    process_env = None
+    if org_id:
+        process_env = os.environ.copy()
+        process_env["_TFL_ORG_ID"] = org_id
+
     with storage.open(job_output_file, "w") as f:
-        process = await asyncio.create_subprocess_exec(*subprocess_command, stdout=f, stderr=subprocess.PIPE)
+        process = await asyncio.create_subprocess_exec(
+            *subprocess_command, stdout=f, stderr=subprocess.PIPE, env=process_env
+        )
         await process.communicate()
 
     with storage.open(output_file, "w") as f:

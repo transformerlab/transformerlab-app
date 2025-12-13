@@ -13,6 +13,11 @@ import sys
 import argparse
 import traceback
 
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--plugin_dir", type=str, required=True)
+args, unknown = parser.parse_known_args()
+
 # Set organization context from environment variable if provided
 # This allows plugins to have the correct org context without leaking to the API
 org_id = os.environ.get("_TFL_ORG_ID")
@@ -23,11 +28,6 @@ if org_id:
         set_organization_id(org_id)
     except Exception as e:
         print(f"Warning: Could not set organization context: {e}")
-
-
-parser = argparse.ArgumentParser()
-parser.add_argument("--plugin_dir", type=str, required=True)
-args, unknown = parser.parse_known_args()
 
 # Add the plugin directory to the path
 # Note that this will allow the plugin to import files in this file's directory

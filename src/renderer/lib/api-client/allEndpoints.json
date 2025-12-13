@@ -250,6 +250,10 @@
       "method": "GET",
       "path": "compute_provider/jobs/{jobId}/check-status"
     },
+    "clusters": {
+      "method": "GET",
+      "path": "compute_provider/clusters"
+    },
     "stopCluster": {
       "method": "POST",
       "path": "compute_provider/{providerId}/clusters/{clusterName}/stop"
@@ -279,6 +283,28 @@
     "forgotPassword": {
       "method": "POST",
       "path": "auth/forgot_password"
+    },
+    "apiKeys": {
+      "list": {
+        "method": "GET",
+        "path": "auth/api-keys"
+      },
+      "create": {
+        "method": "POST",
+        "path": "auth/api-keys"
+      },
+      "get": {
+        "method": "GET",
+        "path": "auth/api-keys/{key_id}"
+      },
+      "update": {
+        "method": "PATCH",
+        "path": "auth/api-keys/{key_id}"
+      },
+      "delete": {
+        "method": "DELETE",
+        "path": "auth/api-keys/{key_id}"
+      }
     },
     "verify": {
       "method": "POST",
