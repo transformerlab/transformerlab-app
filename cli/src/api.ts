@@ -2,7 +2,6 @@ import { API_URL, config } from './utils';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { pipeline } from 'stream/promises';
 import { getPath, handleError as handleErrorUtil } from './endpoints';
 
 const LAB_DIR = path.join(os.homedir(), '.lab');

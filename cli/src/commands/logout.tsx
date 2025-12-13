@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Box, Text, useApp } from 'ink';
 import { config } from '../utils';
-import { Logo, SuccessMsg } from '../ui';
+import { SuccessMsg } from '../ui';
 
 export const LogoutCommand = () => {
   const { exit } = useApp();

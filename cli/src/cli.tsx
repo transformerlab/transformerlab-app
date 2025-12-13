@@ -23,7 +23,6 @@ import {
 } from './commands/tasks';
 import { JobList, JobInfo, JobLogs } from './commands/jobs';
 
-// --- Helper: Check Login Status Correctly ---
 const getLocalStatus = () => {
   try {
     const credsPath = path.join(os.homedir(), '.lab', 'credentials');
@@ -32,19 +31,16 @@ const getLocalStatus = () => {
     let hasToken = false;
     let email = null;
 
-    // Check for Credentials
     if (fs.existsSync(credsPath)) {
       const creds = JSON.parse(fs.readFileSync(credsPath, 'utf-8'));
       if (creds.access_token) hasToken = true;
     }
 
-    // Check for Config (User Email)
     if (fs.existsSync(configPath)) {
       const conf = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       email = conf.user_email;
     }
 
-    // Fallback
     if (!email) email = config.get('user_email');
 
     return { hasToken, email };

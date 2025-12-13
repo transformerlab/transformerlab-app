@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Text, useApp } from 'ink';
 import SelectInput from 'ink-select-input';
 import TextInput from 'ink-text-input';
