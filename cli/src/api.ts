@@ -306,12 +306,7 @@ class TransformerLabAPI {
   }
 
   async listExperiments() {
-    const url = this.safeGetPath(
-      'experiment',
-      ['list'],
-      {},
-      '/experiment/list',
-    );
+    const url = this.safeGetPath('experiment', ['list'], {}, '/experiment/');
     const res = await this.fetchWithAuth(url);
     return await this.handleResponse(res);
   }
