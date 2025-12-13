@@ -5,7 +5,7 @@
   "description": "Evaluating outputs of LLMs using basic defined metrics",
   "plugin-format": "python",
   "type": "evaluator",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "git": "",
   "url": "",
   "files": [

@@ -30,14 +30,23 @@ class Lab:
         self._job: Optional[Job] = None
 
     # ------------- lifecycle -------------
-    def init(
-        self, experiment_id: str = "alpha", config: Optional[Dict[str, Any]] = None
-    ) -> None:
+    def init(self, experiment_id: str | None = None, config: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize a job under the given experiment.
         If _TFL_JOB_ID environment variable is set, uses that existing job.
+        If _TFL_EXPERIMENT_ID environment variable is set and experiment_id is not specified (defaults to "alpha"),
+        uses the environment variable value as the experiment_id.
         Otherwise, creates the experiment structure if needed and creates a new job.
         """
+        # Check if we should use experiment_id from environment variable
+        # If experiment_id is the default "alpha" and _TFL_EXPERIMENT_ID is set, use the env var
+        if not experiment_id:
+            env_experiment_id = os.environ.get("_TFL_EXPERIMENT_ID")
+            if env_experiment_id:
+                experiment_id = env_experiment_id
+            else:
+                experiment_id = "alpha"
+
         # Check if we should use an existing job from environment variable
         existing_job_id = os.environ.get("_TFL_JOB_ID")
 
@@ -47,17 +56,13 @@ class Lab:
             self._experiment = Experiment(experiment_id, create_new=False)
             self._job = Job.get(existing_job_id)
             if self._job is None:
-                raise RuntimeError(
-                    f"Job with ID {existing_job_id} not found. Check _TFL_JOB_ID environment variable."
-                )
+                raise RuntimeError(f"Job with ID {existing_job_id} not found. Check _TFL_JOB_ID environment variable.")
             print(f"Using existing job ID: {existing_job_id}")
         else:
             # Create new job as before
             self._experiment = Experiment(experiment_id, create_new=True)
             self._job = self._experiment.create_job()
-            self._job.update_job_data_field(
-                "start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-            )
+            self._job.update_job_data_field("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
             self._job.set_experiment(experiment_id)
             print(f"Created new job ID: {self._job.id}")
 
@@ -77,11 +82,7 @@ class Lab:
         """
         self._ensure_initialized()
         # Ensure experiment_name present for downstream consumers
-        if (
-            isinstance(config, dict)
-            and "experiment_name" not in config
-            and self._experiment is not None
-        ):
+        if isinstance(config, dict) and "experiment_name" not in config and self._experiment is not None:
             config = {**config, "experiment_name": self._experiment.id}
         # keep the existing config with fields that are not in the new config
         config_old = self._job.get_job_data()
@@ -130,9 +131,7 @@ class Lab:
             return None
 
         # Build the checkpoint path from parent job's checkpoints directory
-        checkpoint_path = self.get_parent_job_checkpoint_path(
-            parent_job_id, checkpoint_name
-        )
+        checkpoint_path = self.get_parent_job_checkpoint_path(parent_job_id, checkpoint_name)
 
         # Verify the checkpoint exists
         if checkpoint_path and storage.exists(checkpoint_path):
@@ -140,9 +139,7 @@ class Lab:
 
         return None
 
-    def get_parent_job_checkpoint_path(
-        self, parent_job_id: str, checkpoint_name: str
-    ) -> Optional[str]:
+    def get_parent_job_checkpoint_path(self, parent_job_id: str, checkpoint_name: str) -> Optional[str]:
         """
         Get the full path to a checkpoint from a parent job.
 
@@ -167,9 +164,7 @@ class Lab:
 
             # Check if checkpoint path is strictly within checkpoints directory (not the directory itself)
             # For remote storage (s3://, etc.), ensure we're checking within the same bucket/path
-            if not checkpoint_path_normalized.startswith(
-                checkpoints_dir_normalized + "/"
-            ):
+            if not checkpoint_path_normalized.startswith(checkpoints_dir_normalized + "/"):
                 return None
 
             if storage.exists(checkpoint_path_normalized):
@@ -199,9 +194,7 @@ class Lab:
         if score is not None:
             self._job.update_job_data_field("score", score)  # type: ignore[union-attr]
         if additional_output_path is not None and additional_output_path.strip() != "":
-            self._job.update_job_data_field(
-                "additional_output_path", additional_output_path
-            )  # type: ignore[union-attr]
+            self._job.update_job_data_field("additional_output_path", additional_output_path)  # type: ignore[union-attr]
         if plot_data_path is not None and plot_data_path.strip() != "":
             self._job.update_job_data_field("plot_data_path", plot_data_path)  # type: ignore[union-attr]
 
@@ -281,9 +274,7 @@ class Lab:
             output_path = self.save_dataset(
                 df=df,
                 dataset_id=dataset_id,
-                additional_metadata=additional_metadata
-                if additional_metadata
-                else None,
+                additional_metadata=additional_metadata if additional_metadata else None,
                 suffix=suffix,
                 is_image=is_image,
             )
@@ -297,15 +288,11 @@ class Lab:
                     if isinstance(existing, list):
                         generated_datasets_list = existing
                 generated_datasets_list.append(dataset_id)
-                self._job.update_job_data_field(
-                    "generated_datasets", generated_datasets_list
-                )
+                self._job.update_job_data_field("generated_datasets", generated_datasets_list)
             except Exception:
                 pass
 
-            self.log(
-                f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id}'"
-            )
+            self.log(f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id}'")
             return output_path
 
         # Handle DataFrame input when type="evals"
@@ -344,9 +331,7 @@ class Lab:
 
             missing_columns = [col for col in required_columns if col not in df.columns]
             if missing_columns:
-                raise ValueError(
-                    f"Missing required columns in DataFrame: {missing_columns}"
-                )
+                raise ValueError(f"Missing required columns in DataFrame: {missing_columns}")
 
             # Determine destination directory and filename
             dest_dir = dirs.get_job_eval_results_dir(job_id)
@@ -378,9 +363,7 @@ class Lab:
                 with storage.open(dest, "w", encoding="utf-8") as f:
                     f.write(buffer.getvalue())
             except Exception as e:
-                raise RuntimeError(
-                    f"Failed to save evaluation results to {dest}: {str(e)}"
-                )
+                raise RuntimeError(f"Failed to save evaluation results to {dest}: {str(e)}")
 
             # Track in job_data
             try:
@@ -401,17 +384,20 @@ class Lab:
         # Handle file path input when type="model"
         if type == "model":
             if not isinstance(source_path, str) or source_path.strip() == "":
-                raise ValueError(
-                    "source_path must be a non-empty string when type='model'"
-                )
+                raise ValueError("source_path must be a non-empty string when type='model'")
             src = source_path
             # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
-            if not src.startswith(
-                ("s3://", "gs://", "abfs://", "gcs://", "http://", "https://")
-            ):
+            is_remote = src.startswith(("s3://", "gs://", "abfs://", "gcs://", "http://", "https://"))
+            if not is_remote:
                 src = os.path.abspath(src)
-            if not storage.exists(src):
-                raise FileNotFoundError(f"Model source does not exist: {src}")
+
+            # Check source existence: use local filesystem for local paths, storage backend for remote
+            if is_remote:
+                if not storage.exists(src):
+                    raise FileNotFoundError(f"Model source does not exist: {src}")
+            else:
+                if not os.path.exists(src):
+                    raise FileNotFoundError(f"Model source does not exist: {src}")
 
             # Get model-specific parameters from config
             model_config = {}
@@ -450,8 +436,14 @@ class Lab:
             # Create parent directories
             storage.makedirs(models_dir, exist_ok=True)
 
-            # Copy file or directory using storage module
-            if storage.isdir(src):
+            # Copy file or directory
+            # Check if source is directory: use local filesystem for local paths, storage backend for remote
+            if is_remote:
+                src_is_dir = storage.isdir(src)
+            else:
+                src_is_dir = os.path.isdir(src)
+
+            if src_is_dir:
                 if storage.exists(dest):
                     storage.rm_tree(dest)
                 storage.copy_dir(src, dest)
@@ -517,9 +509,7 @@ class Lab:
                     "dataset": job_data.get("dataset"),
                     "adaptor_name": job_data.get("adaptor_name", None),
                     "parameters": job_data.get("_config", {}),
-                    "start_time": job_data.get(
-                        "start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-                    ),
+                    "start_time": job_data.get("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())),
                     "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
                     "md5_checksums": md5_objects,
                 }
@@ -534,9 +524,7 @@ class Lab:
                 )
                 self.log(f"Provenance file created at: {provenance_file}")
             except Exception as e:
-                self.log(
-                    f"Warning: Model saved but provenance creation failed: {str(e)}"
-                )
+                self.log(f"Warning: Model saved but provenance creation failed: {str(e)}")
 
             # Track in job_data
             try:
@@ -558,12 +546,17 @@ class Lab:
             raise ValueError("source_path must be a non-empty string")
         src = source_path
         # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
-        if not src.startswith(
-            ("s3://", "gs://", "abfs://", "gcs://", "http://", "https://")
-        ):
+        is_remote = src.startswith(("s3://", "gs://", "abfs://", "gcs://", "http://", "https://"))
+        if not is_remote:
             src = os.path.abspath(src)
-        if not storage.exists(src):
-            raise FileNotFoundError(f"Artifact source does not exist: {src}")
+
+        # Check source existence: use local filesystem for local paths, storage backend for remote
+        if is_remote:
+            if not storage.exists(src):
+                raise FileNotFoundError(f"Artifact source does not exist: {src}")
+        else:
+            if not os.path.exists(src):
+                raise FileNotFoundError(f"Artifact source does not exist: {src}")
 
         # Determine destination directory based on type
         if type == "evals":
@@ -571,18 +564,20 @@ class Lab:
         else:
             dest_dir = dirs.get_job_artifacts_dir(job_id)
 
-        base_name = (
-            name
-            if (isinstance(name, str) and name.strip() != "")
-            else posixpath.basename(src)
-        )
+        base_name = name if (isinstance(name, str) and name.strip() != "") else posixpath.basename(src)
         dest = storage.join(dest_dir, base_name)
 
         # Create parent directories
         storage.makedirs(dest_dir, exist_ok=True)
 
         # Copy file or directory
-        if storage.isdir(src):
+        # Check if source is directory: use local filesystem for local paths, storage backend for remote
+        if is_remote:
+            src_is_dir = storage.isdir(src)
+        else:
+            src_is_dir = os.path.isdir(src)
+
+        if src_is_dir:
             if storage.exists(dest):
                 storage.rm_tree(dest)
             storage.copy_dir(src, dest)
@@ -671,9 +666,7 @@ class Lab:
         # Persist dataframe
         try:
             if not hasattr(df, "to_json"):
-                raise TypeError(
-                    "df must be a pandas DataFrame or a Hugging Face datasets.Dataset"
-                )
+                raise TypeError("df must be a pandas DataFrame or a Hugging Face datasets.Dataset")
             # Write DataFrame to StringIO buffer first (pandas doesn't support fsspec handles directly)
             buffer = io.StringIO()
             df.to_json(buffer, orient="records", lines=lines)
@@ -720,9 +713,7 @@ class Lab:
         except Exception as e:
             print(f"Warning: Failed to track dataset in job_data: {str(e)}")
 
-        self.log(
-            f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_safe}'"
-        )
+        self.log(f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_safe}'")
         return output_path
 
     def save_checkpoint(self, source_path: str, name: Optional[str] = None) -> str:
@@ -735,27 +726,34 @@ class Lab:
             raise ValueError("source_path must be a non-empty string")
         src = source_path
         # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
-        if not src.startswith(
-            ("s3://", "gs://", "abfs://", "gcs://", "http://", "https://")
-        ):
+        is_remote = src.startswith(("s3://", "gs://", "abfs://", "gcs://", "http://", "https://"))
+        if not is_remote:
             src = os.path.abspath(src)
-        if not storage.exists(src):
-            raise FileNotFoundError(f"Checkpoint source does not exist: {src}")
+
+        # Check source existence: use local filesystem for local paths, storage backend for remote
+        if is_remote:
+            if not storage.exists(src):
+                raise FileNotFoundError(f"Checkpoint source does not exist: {src}")
+        else:
+            if not os.path.exists(src):
+                raise FileNotFoundError(f"Checkpoint source does not exist: {src}")
 
         job_id = self._job.id  # type: ignore[union-attr]
         ckpts_dir = dirs.get_job_checkpoints_dir(job_id)
-        base_name = (
-            name
-            if (isinstance(name, str) and name.strip() != "")
-            else posixpath.basename(src)
-        )
+        base_name = name if (isinstance(name, str) and name.strip() != "") else posixpath.basename(src)
         dest = storage.join(ckpts_dir, base_name)
 
         # Create parent directories
         storage.makedirs(ckpts_dir, exist_ok=True)
 
         # Copy file or directory
-        if storage.isdir(src):
+        # Check if source is directory: use local filesystem for local paths, storage backend for remote
+        if is_remote:
+            src_is_dir = storage.isdir(src)
+        else:
+            src_is_dir = os.path.isdir(src)
+
+        if src_is_dir:
             if storage.exists(dest):
                 storage.rm_tree(dest)
             storage.copy_dir(src, dest)
@@ -935,9 +933,7 @@ class Lab:
     # ------------- helpers -------------
     def _ensure_initialized(self) -> None:
         if self._experiment is None or self._job is None:
-            raise RuntimeError(
-                "lab not initialized. Call lab.init(experiment_id=...) first."
-            )
+            raise RuntimeError("lab not initialized. Call lab.init(experiment_id=...) first.")
 
     @property
     def job(self) -> Job:

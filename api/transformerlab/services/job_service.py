@@ -70,6 +70,13 @@ def job_get(job_id):
         return job.get_json_data()
     except Exception as e:
         print("Error getting job data", e)
+        if "Etag" in str(e):
+            try:
+                job = Job.get(job_id)
+                return job.get_json_data(uncached=True)
+            except Exception as e:
+                print("Error getting job data (uncached)", e)
+                return None
         return None
 
 

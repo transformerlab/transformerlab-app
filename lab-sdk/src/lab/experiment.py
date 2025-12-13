@@ -23,12 +23,12 @@ class Experiment(BaseLabResource):
     _cache_rebuild_thread = None
 
     def __init__(self, experiment_id, create_new=False):
-        self.id = experiment_id
+        # For consistency and simplicity, let's edit experiment name to match
+        # the directory (which requires experiment_id)
+        self.id = secure_filename(str(experiment_id))
+
         # Auto-initialize if create_new=True and experiment doesn't exist
-        if create_new and (
-            not storage.exists(self.get_dir())
-            or not storage.exists(self._get_json_file())
-        ):
+        if create_new and (not storage.exists(self.get_dir()) or not storage.exists(self._get_json_file())):
             self._initialize()
 
     def get_dir(self):
@@ -152,8 +152,6 @@ class Experiment(BaseLabResource):
 
         # Get cached job data from jobs.json
         cached_jobs = self._get_cached_jobs_data()
-        # print(f"Cached jobs: {cached_jobs}")
-        # print(f"Job list: {job_list}")
 
         # Iterate through the job list to return Job objects for valid jobs.
         # Also filter for status if that parameter was passed.
@@ -173,19 +171,21 @@ class Experiment(BaseLabResource):
                         old_status = job_json.get("status", "")
                         del cached_jobs[job_id]
                         job = Job.get(job_id)
-                        job_json = job.get_json_data()
+                        job_json = job.get_json_data(uncached=True)
                         # Trigger rebuild cache if old status and new status are different
                         if old_status != job_json.get("status", ""):
                             self._trigger_cache_rebuild(get_workspace_dir())
+                        cached_jobs[job_id] = job_json
 
                 else:
                     # Job not in cache
                     job = Job.get(job_id)
-                    job_json = job.get_json_data()
+                    job_json = job.get_json_data(uncached=True)
                     # Check if job is COMPLETE, STOPPED or FAILED, then update cache
                     if job_json.get("status", "") in ["COMPLETE", "STOPPED", "FAILED"]:
                         self._trigger_cache_rebuild(get_workspace_dir())
-            except Exception:
+            except Exception as e:
+                print("ERROR getting job", job_id, e)
                 continue
 
             # Filter for status
@@ -207,14 +207,61 @@ class Experiment(BaseLabResource):
     # Index for tracking which jobs belong to this Experiment
     ###############################
 
+    def _read_jobs_json_file(self, jobs_json_path, max_retries=5):
+        """
+        Read jobs.json file with retry logic for Etag mismatch errors.
+        This handles race conditions where the file is being rebuilt while being read.
+        Uses an uncached filesystem to avoid stale Etag issues.
+
+        Args:
+            jobs_json_path: Path to the jobs.json file
+            max_retries: Maximum number of retries (default: 5)
+
+        Returns:
+            dict: The parsed JSON data from jobs.json
+        """
+        for attempt in range(max_retries):
+            try:
+                # Use uncached=True to avoid Etag caching issues
+                with storage.open(jobs_json_path, "r", uncached=True) as f:
+                    jobs_data = json.load(f)
+                    return jobs_data
+            except FileNotFoundError:
+                # File doesn't exist, let caller handle it
+                raise
+            except Exception as e:
+                # Check if this is the Etag mismatch error
+                # Error message: "The remote file corresponding to filename ... and Etag ... no longer exists"
+                error_str = str(e)
+                has_errno_16 = (
+                    (hasattr(e, "errno") and e.errno == 16) or "Errno 16" in error_str or "[Errno 16]" in error_str
+                )
+                is_etag_error = "Etag" in error_str and "no longer exists" in error_str and has_errno_16
+
+                if is_etag_error:
+                    if attempt < max_retries - 1:
+                        # Wait a short time before retrying (exponential backoff)
+                        # Start with 0.5s and increase to give cache rebuild time
+                        time.sleep(0.5 * (2**attempt))
+                        continue
+                    else:
+                        # Last attempt failed, try one more time
+                        try:
+                            with storage.open(jobs_json_path, "r", uncached=True) as f:
+                                jobs_data = json.load(f)
+                                return jobs_data
+                        except Exception:
+                            raise e
+                else:
+                    # Different exception, re-raise it
+                    raise
+
     def _jobs_json_file(self, workspace_dir=None, experiment_id=None):
         """
         Path to jobs.json index file for this experiment.
         """
         if workspace_dir and experiment_id:
-            return storage.join(
-                workspace_dir, "experiments", experiment_id, "jobs.json"
-            )
+            return storage.join(workspace_dir, "experiments", experiment_id, "jobs.json")
 
         return storage.join(self.get_dir(), "jobs.json")
 
@@ -224,15 +271,11 @@ class Experiment(BaseLabResource):
 
         # Create filesystem override if workspace_dir is an S3 URI (for background threads)
         fs_override = None
-        if workspace_dir and workspace_dir.startswith(
-            ("s3://", "gs://", "abfs://", "gcs://")
-        ):
+        if workspace_dir and workspace_dir.startswith(("s3://", "gs://", "abfs://", "gcs://")):
             from .storage import _AWS_PROFILE
 
             storage_options = {"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-            fs_override, _token, _paths = fsspec.get_fs_token_paths(
-                workspace_dir, storage_options=storage_options
-            )
+            fs_override, _token, _paths = fsspec.get_fs_token_paths(workspace_dir, storage_options=storage_options)
 
         try:
             # Use provided jobs_dir or get current one
@@ -244,9 +287,7 @@ class Experiment(BaseLabResource):
             # Iterate through jobs directories and check for index.json
             # Sort entries numerically since job IDs are numeric strings (descending order)
             try:
-                job_entries_full = storage.ls(
-                    jobs_directory, detail=False, fs=fs_override
-                )
+                job_entries_full = storage.ls(jobs_directory, detail=False, fs=fs_override)
             except Exception as e:
                 print(f"Error getting job entries full: {e}")
                 job_entries_full = []
@@ -270,9 +311,7 @@ class Experiment(BaseLabResource):
                 # Prefer the latest snapshot if available; fall back to index.json
                 index_file = storage.join(entry_path, "index.json")
                 try:
-                    with storage.open(
-                        index_file, "r", encoding="utf-8", fs=fs_override
-                    ) as lf:
+                    with storage.open(index_file, "r", encoding="utf-8", fs=fs_override, uncached=True) as lf:
                         content = lf.read().strip()
                         if not content:
                             # Skip empty files
@@ -303,9 +342,7 @@ class Experiment(BaseLabResource):
             if results:
                 try:
                     with storage.open(
-                        self._jobs_json_file(
-                            workspace_dir=workspace_dir, experiment_id=self.id
-                        ),
+                        self._jobs_json_file(workspace_dir=workspace_dir, experiment_id=self.id),
                         "w",
                         fs=fs_override,
                     ) as out:
@@ -324,25 +361,23 @@ class Experiment(BaseLabResource):
         """
         jobs_json_path = self._jobs_json_file()
         try:
-            with storage.open(jobs_json_path, "r") as f:
-                jobs_data = json.load(f)
-                # Handle both old format (just index) and new format (with cached_jobs)
-                if "cached_jobs" in jobs_data:
-                    return jobs_data["cached_jobs"]
-                else:
-                    # Old format - return empty dict
-                    return {}
+            jobs_data = self._read_jobs_json_file(jobs_json_path)
+            # Handle both old format (just index) and new format (with cached_jobs)
+            if "cached_jobs" in jobs_data:
+                return jobs_data["cached_jobs"]
+            else:
+                # Old format - return empty dict
+                return {}
         except FileNotFoundError:
             # Rebuild jobs index to discover and create jobs.json
             self.rebuild_jobs_index()
             # Try to read the newly created file
             try:
-                with storage.open(jobs_json_path, "r") as f:
-                    jobs_data = json.load(f)
-                    if "cached_jobs" in jobs_data:
-                        return jobs_data["cached_jobs"]
-                    else:
-                        return {}
+                jobs_data = self._read_jobs_json_file(jobs_json_path)
+                if "cached_jobs" in jobs_data:
+                    return jobs_data["cached_jobs"]
+                else:
+                    return {}
             except Exception:
                 return {}
         except Exception:
@@ -355,34 +390,32 @@ class Experiment(BaseLabResource):
         """
         jobs_json_path = self._jobs_json_file()
         try:
-            with storage.open(jobs_json_path, "r") as f:
-                jobs_data = json.load(f)
-                # Handle both old format (just index) and new format (with index key)
-                if "index" in jobs_data:
-                    jobs = jobs_data["index"]
-                else:
-                    jobs = jobs_data  # Old format
-                results = []
-                for key, value in jobs.items():
-                    if isinstance(value, list):
-                        results.extend(value)
-                return results
+            jobs_data = self._read_jobs_json_file(jobs_json_path)
+            # Handle both old format (just index) and new format (with index key)
+            if "index" in jobs_data:
+                jobs = jobs_data["index"]
+            else:
+                jobs = jobs_data  # Old format
+            results = []
+            for key, value in jobs.items():
+                if isinstance(value, list):
+                    results.extend(value)
+            return results
         except FileNotFoundError:
             # Rebuild jobs index to discover and create jobs.json
             self.rebuild_jobs_index()
             # Try to read the newly created file
             try:
-                with storage.open(jobs_json_path, "r") as f:
-                    jobs_data = json.load(f)
-                    if "index" in jobs_data:
-                        jobs = jobs_data["index"]
-                    else:
-                        jobs = jobs_data
-                    results = []
-                    for key, value in jobs.items():
-                        if isinstance(value, list):
-                            results.extend(value)
-                    return results
+                jobs_data = self._read_jobs_json_file(jobs_json_path)
+                if "index" in jobs_data:
+                    jobs = jobs_data["index"]
+                else:
+                    jobs = jobs_data
+                results = []
+                for key, value in jobs.items():
+                    if isinstance(value, list):
+                        results.extend(value)
+                return results
             except Exception:
                 return []
         except Exception:
@@ -395,38 +428,57 @@ class Experiment(BaseLabResource):
         """
         jobs_json_path = self._jobs_json_file()
         try:
-            with storage.open(jobs_json_path, "r") as f:
-                jobs_data = json.load(f)
-                # Handle both old format (just index) and new format (with index key)
-                if "index" in jobs_data:
-                    jobs = jobs_data["index"]
-                else:
-                    jobs = jobs_data  # Old format
-                result = jobs.get(type, [])
-                return result
+            jobs_data = self._read_jobs_json_file(jobs_json_path)
+            # Handle both old format (just index) and new format (with index key)
+            if "index" in jobs_data:
+                jobs = jobs_data["index"]
+            else:
+                jobs = jobs_data  # Old format
+            result = jobs.get(type, [])
+            return result
         except FileNotFoundError:
             # Rebuild jobs index to discover and create jobs.json
             self.rebuild_jobs_index()
             # Try to read the newly created file
             try:
-                with storage.open(jobs_json_path, "r") as f:
-                    jobs_data = json.load(f)
+                jobs_data = self._read_jobs_json_file(jobs_json_path)
+                if "index" in jobs_data:
+                    jobs = jobs_data["index"]
+                else:
+                    jobs = jobs_data
+                result = jobs.get(type, [])
+                return result
+            except Exception:
+                return []
+        except Exception as e:
+            # Check if this is the Etag mismatch error and retry once more
+            error_str = str(e)
+            has_errno_16 = (
+                (hasattr(e, "errno") and e.errno == 16) or "Errno 16" in error_str or "[Errno 16]" in error_str
+            )
+            is_etag_error = "Etag" in error_str and "no longer exists" in error_str and has_errno_16
+
+            if is_etag_error:
+                # Wait a bit longer for cache rebuild to complete, then retry
+                time.sleep(0.5)
+                try:
+                    jobs_data = self._read_jobs_json_file(jobs_json_path)
                     if "index" in jobs_data:
                         jobs = jobs_data["index"]
                     else:
                         jobs = jobs_data
                     result = jobs.get(type, [])
                     return result
-            except Exception:
+                except Exception:
+                    # If retry also fails, return empty list instead of printing error
+                    return []
+            else:
+                print("Failed getting jobs:", e)
                 return []
-        except Exception as e:
-            print("Failed getting jobs:", e)
-            return []
 
     def _add_job(self, job_id, type):
         try:
-            with storage.open(self._jobs_json_file(), "r") as f:
-                jobs_data = json.load(f)
+            jobs_data = self._read_jobs_json_file(self._jobs_json_file())
         except Exception:
             jobs_data = {"index": {}, "cached_jobs": {}}
 
@@ -453,13 +505,8 @@ class Experiment(BaseLabResource):
     def _start_background_cache_rebuild(cls):
         """Start the background cache rebuild thread if not already running."""
         with cls._cache_rebuild_lock:
-            if (
-                cls._cache_rebuild_thread is None
-                or not cls._cache_rebuild_thread.is_alive()
-            ):
-                cls._cache_rebuild_thread = threading.Thread(
-                    target=cls._background_cache_rebuild_worker, daemon=True
-                )
+            if cls._cache_rebuild_thread is None or not cls._cache_rebuild_thread.is_alive():
+                cls._cache_rebuild_thread = threading.Thread(target=cls._background_cache_rebuild_worker, daemon=True)
                 cls._cache_rebuild_thread.start()
 
     @classmethod

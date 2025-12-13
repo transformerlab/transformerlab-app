@@ -12,6 +12,12 @@ on:
   release:
     types: [published]
 
+  push:
+    branches:
+      - main
+    paths:
+      - "lab-sdk/**"
+
 permissions:
   contents: read
 

@@ -588,7 +588,7 @@ export default function LocalModelsTable({
                     download a model by going to the{' '}
                     <ReactRouterLink to="/zoo">
                       <StoreIcon />
-                      Model Store
+                      Model Registry
                     </ReactRouterLink>
                     .
                   </Typography>
@@ -600,7 +600,7 @@ export default function LocalModelsTable({
       </Sheet>
       <Typography mt={2} level="body-sm">
         Looking for more models? Go to the{' '}
-        <ReactRouterLink to="/zoo">Model Store</ReactRouterLink>
+        <ReactRouterLink to="/zoo">Model Registry</ReactRouterLink>
       </Typography>
     </>
   );

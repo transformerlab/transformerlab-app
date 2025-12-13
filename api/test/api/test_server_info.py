@@ -64,47 +64,25 @@ def test_is_wsl_false(monkeypatch):
 
 
 def test_healthz_local_mode(client, monkeypatch):
-    """Test healthz endpoint in local mode (no GPU orchestration)"""
-    # Ensure GPU orchestration env vars are not set
-    monkeypatch.delenv("GPU_ORCHESTRATION_SERVER", raising=False)
-    monkeypatch.delenv("GPU_ORCHESTRATION_SERVER_PORT", raising=False)
+    """Test healthz endpoint in local mode"""
+    # Ensure TFL_API_STORAGE_URI is not set
+    monkeypatch.delenv("TFL_API_STORAGE_URI", raising=False)
 
     response = client.get("/healthz")
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "OK"
     assert data["mode"] == "local"
-    assert data["gpu_orchestration_server"] == ""
-    assert data["gpu_orchestration_server_port"] == ""
 
 
-def test_healthz_gpu_orchestration_mode(client, monkeypatch):
-    """Test healthz endpoint in GPU orchestration mode"""
-    # Set GPU orchestration env vars
-    monkeypatch.setenv("GPU_ORCHESTRATION_SERVER", "http://orchestrator.example.com")
-    monkeypatch.setenv("GPU_ORCHESTRATION_SERVER_PORT", "8080")
+def test_healthz_s3_mode(client, monkeypatch):
+    """Test healthz endpoint in s3 mode"""
+    # Set TFL_API_STORAGE_URI to enable s3 mode
+    monkeypatch.setenv("TFL_API_STORAGE_URI", "true")
 
     # The healthz endpoint reads env vars at request time, so monkeypatch should work
     response = client.get("/healthz")
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "OK"
-    assert data["mode"] == "gpu_orchestration"
-    assert data["gpu_orchestration_server"] == "http://orchestrator.example.com"
-    assert data["gpu_orchestration_server_port"] == "8080"
-
-
-def test_healthz_gpu_orchestration_mode_no_port(client, monkeypatch):
-    """Test healthz endpoint in GPU orchestration mode without port"""
-    # Set only GPU orchestration server URL
-    monkeypatch.setenv("GPU_ORCHESTRATION_SERVER", "http://orchestrator.example.com")
-    monkeypatch.delenv("GPU_ORCHESTRATION_SERVER_PORT", raising=False)
-
-    # The healthz endpoint reads env vars at request time, so monkeypatch should work
-    response = client.get("/healthz")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["message"] == "OK"
-    assert data["mode"] == "gpu_orchestration"
-    assert data["gpu_orchestration_server"] == "http://orchestrator.example.com"
-    assert data["gpu_orchestration_server_port"] == ""
+    assert data["mode"] == "s3"

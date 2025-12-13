@@ -147,9 +147,12 @@ export default function PluginCard({
           justifyItems="center"
           justifyContent="space-between"
           alignItems="center"
+          sx={{ flexWrap: 'wrap', minWidth: 0 }}
         >
           {plugin?.supported_hardware_architectures && (
-            <Box sx={{ mt: 1 }}>
+            <Box
+              sx={{ mt: 1, minWidth: 0, flex: '1 1 auto', maxWidth: '100%' }}
+            >
               {Array.isArray(plugin?.supported_hardware_architectures) &&
               plugin?.supported_hardware_architectures.length === 0 ? (
                 <Chip color="warning" variant="soft">
@@ -163,7 +166,12 @@ export default function PluginCard({
                   <Stack
                     flexDirection={'row'}
                     gap={1}
-                    sx={{ alignItems: 'center' }}
+                    sx={{
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      minWidth: 0,
+                      maxWidth: '100%',
+                    }}
                   >
                     <ShowArchitectures
                       architectures={plugin?.supported_hardware_architectures}

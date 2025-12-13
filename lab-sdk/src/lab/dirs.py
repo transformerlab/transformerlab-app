@@ -7,9 +7,7 @@ from . import storage
 from .storage import _current_tfl_storage_uri
 
 # TFL_HOME_DIR
-if "TFL_HOME_DIR" in os.environ and not (
-    _current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")
-):
+if "TFL_HOME_DIR" in os.environ and not (_current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")):
     HOME_DIR = os.environ["TFL_HOME_DIR"]
     if not os.path.exists(HOME_DIR):
         print(f"Error: Home directory {HOME_DIR} does not exist")
@@ -27,15 +25,19 @@ else:
         print(f"Using default home directory: {HOME_DIR}")
 
 # Context var for organization id (set by host app/session)
-_current_org_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "current_org_id", default=None
-)
+_current_org_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("current_org_id", default=None)
 
 
 def set_organization_id(organization_id: str | None) -> None:
     _current_org_id.set(organization_id)
     if organization_id is not None:
-        _current_tfl_storage_uri.set(os.getenv("TFL_API_STORAGE_URI"))
+        # If TFL_API_STORAGE_URI is set, use s3://workspace_<team_id> instead of the value itself
+        tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI")
+        if tfl_api_storage_uri:
+            # Use s3://workspace_<team_id> format
+            _current_tfl_storage_uri.set(f"s3://workspace-{organization_id}")
+        else:
+            _current_tfl_storage_uri.set(None)
     else:
         _current_tfl_storage_uri.set(None)
 
@@ -51,8 +53,7 @@ def get_workspace_dir() -> str:
 
     # Explicit override wins
     if "TFL_WORKSPACE_DIR" in os.environ and not (
-        _current_tfl_storage_uri.get() is not None
-        and os.getenv("TFL_STORAGE_URI") is not None
+        _current_tfl_storage_uri.get() is not None and os.getenv("TFL_STORAGE_URI") is not None
     ):
         value = os.environ["TFL_WORKSPACE_DIR"]
         if not os.path.exists(value):
@@ -99,9 +100,7 @@ ROOT_DIR is a legacy variable that we should replace with the above, eventually.
 """
 
 # FASTCHAT LOGDIR
-os.environ["LOGDIR"] = os.getenv(
-    "TFL_HOME_DIR", os.path.join(str(os.path.expanduser("~")), ".transformerlab")
-)
+os.environ["LOGDIR"] = os.getenv("TFL_HOME_DIR", os.path.join(str(os.path.expanduser("~")), ".transformerlab"))
 
 
 def get_experiments_dir() -> str:
@@ -193,8 +192,9 @@ def get_batched_prompts_dir() -> str:
 
 
 def get_galleries_cache_dir() -> str:
-    path = storage.join(get_workspace_dir(), "galleries")
-    storage.makedirs(path, exist_ok=True)
+    path = storage.join(HOME_DIR, "galleries")
+    # Using os here since this would always be on local filesystem
+    os.makedirs(path, exist_ok=True)
     return path
 
 
