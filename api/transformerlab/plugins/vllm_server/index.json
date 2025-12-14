@@ -4,7 +4,7 @@
   "description": "vLLM is a fast and easy-to-use library for LLM inference and serving.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.23",
+  "version": "1.0.24",
   "supports": [
     "chat",
     "completion",
@@ -31,6 +31,7 @@
     "Qwen2VLForConditionalGeneration",
     "Gemma3ForConditionalGeneration",
     "PaliGemmaForConditionalGeneration",
+    "Mistral3ForConditionalGeneration",
     "DeepseekV2ForCausalLM",
     "LlavaLlamaForCausalLM",
     "LlavaQwenForCausalLM",
