@@ -130,7 +130,7 @@ spinning gradient border effect */
 }
 
 .MuiSheet-root.Sidebar {
-  background-color: rgb(214, 207, 225, 1);
+  /* background-color: rgb(214, 207, 225, 1); */
 }
 
 html[data-joy-color-scheme='dark'] .MuiSheet-root.Sidebar {
