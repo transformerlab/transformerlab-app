@@ -41,6 +41,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
+import { useNotification } from '../Shared/NotificationSystem';
 
 function ListPluginFiles({
   files,
@@ -149,6 +150,7 @@ function setTheme(editor: any, monaco: any) {
 
 export default function PluginDetails() {
   const { experimentInfo } = useExperimentInfo();
+  const { addNotification } = useNotification();
   let { pluginName } = useParams();
   let { state: plugin } = useLocation();
 
@@ -244,7 +246,6 @@ export default function PluginDetails() {
           headers: {
             'Content-Type': 'application/json',
           },
-          // API expects root-level JSON string
           body: JSON.stringify(content),
         },
       );
@@ -253,10 +254,16 @@ export default function PluginDetails() {
         throw new Error(errorText || 'Failed to save file');
       }
       mutate();
-      alert('File has been saved successfully');
-    } catch (err) {
+      addNotification({
+        type: 'success',
+        message: 'File has been saved successfully',
+      });
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to save file');
+      addNotification({
+        type: 'danger',
+        message: `Failed to save file${err?.message ? `: ${err.message}` : ''}`,
+      });
     } finally {
       setIsSaving(false);
     }
