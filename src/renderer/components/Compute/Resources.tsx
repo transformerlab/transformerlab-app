@@ -236,22 +236,27 @@ const Resources = () => {
                     <tbody>
                       {sshClusters.map((cluster) => {
                         // Calculate totals from nodes
-                        const totalGPUs = cluster.nodes.reduce((sum, node) => {
-                          const nodeGPUCount = Object.values(
-                            node.resources.gpus,
-                          ).reduce((a, b) => a + b, 0);
-                          return sum + nodeGPUCount;
-                        }, 0);
+                        const totalGPUs = cluster.nodes
+                          .filter((node) => node.is_fixed === true)
+                          .reduce((sum, node) => {
+                            const nodeGPUCount = Object.values(
+                              node.resources.gpus,
+                            ).reduce((a, b) => a + b, 0);
+                            return sum + nodeGPUCount;
+                          }, 0);
 
-                        const freeGPUs = cluster.nodes.reduce((sum, node) => {
-                          const nodeFreeGPUCount = node.resources.gpus_free
-                            ? Object.values(node.resources.gpus_free).reduce(
-                                (a, b) => a + b,
-                                0,
-                              )
-                            : 0;
-                          return sum + nodeFreeGPUCount;
-                        }, 0);
+                        // Get free GPUs from the pool capacity node
+                        const freeGPUs = cluster.nodes
+                          .filter((node) => node.is_fixed === true)
+                          .reduce((sum, node) => {
+                            const nodeFreeGPUCount = node.resources.gpus_free
+                              ? Object.values(node.resources.gpus_free).reduce(
+                                  (a, b) => a + b,
+                                  0,
+                                )
+                              : 0;
+                            return sum + nodeFreeGPUCount;
+                          }, 0);
 
                         const gpuTypes = new Set<string>();
                         cluster.nodes.forEach((node) => {
