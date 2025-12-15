@@ -1093,7 +1093,7 @@ class SkyPilotProvider(ComputeProvider):
         """
         clusters = self.list_clusters()
         detailed = []
-        
+
         # Track SSH clusters - map pool name to list of running clusters
         ssh_running_clusters = {}  # pool_name -> [cluster_info, ...]
 
@@ -1101,7 +1101,7 @@ class SkyPilotProvider(ComputeProvider):
             try:
                 provider_data = cluster.provider_data or {}
                 cloud = provider_data.get("cloud", "").lower()
-                
+
                 # Check if this is a cluster running on an SSH pool
                 if cloud == "ssh":
                     # The region field contains the SSH pool context (e.g., "ssh-ml-nvidia-001")
@@ -1113,7 +1113,7 @@ class SkyPilotProvider(ComputeProvider):
                             ssh_running_clusters[pool_name] = []
                         ssh_running_clusters[pool_name].append(cluster)
                         continue  # Don't add to detailed list yet
-                
+
                 # For non-SSH clusters (cloud clusters), add them normally
                 cluster_detail = self._build_cluster_detail(cluster)
                 detailed.append(cluster_detail)
@@ -1201,13 +1201,13 @@ class SkyPilotProvider(ComputeProvider):
             pool_name = pool.get("name", "ssh")
             pool_nodes = pool.get("nodes", [])
             total_gpus = pool.get("total_gpus", {})
-            
+
             # Get running clusters on this pool
             running_on_pool = ssh_running_clusters.get(pool_name, [])
-            
+
             # Build the SSH pool entry
             nodes = []
-            
+
             # Don't add the physical SSH nodes as separate entries
             # They are just the underlying infrastructure
             # Only show running clusters as nodes
@@ -1215,15 +1215,15 @@ class SkyPilotProvider(ComputeProvider):
             # Add running clusters as active nodes
             for cluster in running_on_pool:
                 resources = self.get_cluster_resources(cluster.cluster_name)
-                
+
                 # A cluster is considered active if it's in INIT or UP state
                 # INIT means it's being provisioned (active but not ready)
                 # UP means it's fully running
                 is_active = cluster.state in (ClusterState.INIT, ClusterState.UP)
-                
+
                 # Allocate resources if the cluster is UP (fully running)
                 is_running = cluster.state == ClusterState.UP
-                
+
                 # Create active node entry for the running cluster
                 cluster_node = {
                     "node_name": cluster.cluster_name,
@@ -1247,26 +1247,28 @@ class SkyPilotProvider(ComputeProvider):
                 gpu_summary = {}
                 total_gpu_count = 0
                 free_gpu_count = 0
-                
+
                 for node_data in pool_nodes:
                     gpu_type = node_data.get("gpu_type")
                     gpu_count = node_data.get("gpu_count", 0)
                     gpu_free = node_data.get("gpu_free", 0)
-                    
+
                     if gpu_type and gpu_count > 0:
                         if gpu_type not in gpu_summary:
                             gpu_summary[gpu_type] = 0
                         gpu_summary[gpu_type] += gpu_count
                         total_gpu_count += gpu_count
                         free_gpu_count += gpu_free
-                
+
                 nodes.append(
                     {
                         "node_name": pool_name,
                         "is_fixed": True,
                         "is_active": False,
                         "state": "AVAILABLE",
-                        "reason": f"{free_gpu_count} of {total_gpu_count} GPUs available" if total_gpu_count > 0 else "Available for use",
+                        "reason": f"{free_gpu_count} of {total_gpu_count} GPUs available"
+                        if total_gpu_count > 0
+                        else "Available for use",
                         "resources": {
                             "cpus_total": 0,
                             "cpus_allocated": 0,
