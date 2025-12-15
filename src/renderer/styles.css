@@ -247,8 +247,10 @@ code if we want */
 
 .react-flow__node-customNode {
   padding: 0px;
-  border-radius: var(--xy-node-border-radius,
-      var(--xy-node-border-radius-default));
+  border-radius: var(
+    --xy-node-border-radius,
+    var(--xy-node-border-radius-default)
+  );
   font-size: 12px;
   min-width: 200px;
   color: var(--xy-node-color, var(--xy-node-color-default));
