@@ -560,11 +560,10 @@ async def launch_task_on_provider(
 
     provider_instance = get_provider_instance(provider)
 
-    job_id = job_service.job_create(
-        type="REMOTE",
-        status="LAUNCHING",
-        experiment_id=request.experiment_id,
-    )
+    # Interactive tasks should start directly in INTERACTIVE state instead of LAUNCHING
+    initial_status = "INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING"
+
+    job_id = job_service.job_create(type="REMOTE", status=initial_status, experiment_id=request.experiment_id)
 
     base_name = request.cluster_name or request.task_name or provider.name
     formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{job_id}"

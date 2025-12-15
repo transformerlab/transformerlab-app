@@ -5,7 +5,7 @@ import { Button, LinearProgress, Stack, Typography } from '@mui/joy';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { PlusIcon } from 'lucide-react';
+import { PlusIcon, TerminalIcon } from 'lucide-react';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -16,6 +16,8 @@ import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
+import NewInteractiveTaskModal from './NewInteractiveTaskModal';
+import InteractiveVSCodeModal from './InteractiveVSCodeModal';
 import EditTaskModal from './EditTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
@@ -30,6 +32,7 @@ dayjs.extend(relativeTime);
 
 export default function Tasks({ subtype }: { subtype?: string }) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskBeingEdited, setTaskBeingEdited] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,6 +44,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
   const [viewEvalResultsFromJob, setViewEvalResultsFromJob] = useState(-1);
+  const [interactiveJobForModal, setInteractiveJobForModal] = useState(-1);
   const [previewDatasetModal, setPreviewDatasetModal] = useState<{
     open: boolean;
     datasetId: string | null;
@@ -125,6 +129,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   }, [pendingJobsStorageKey]);
 
   const handleOpen = () => setModalOpen(true);
+  const handleOpenInteractive = () => setInteractiveModalOpen(true);
   const handleClose = () => setModalOpen(false);
   const handleEditClose = () => {
     setEditModalOpen(false);
@@ -498,6 +503,102 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     }
   };
 
+  const handleSubmitInteractive = async (data: any) => {
+    if (!experimentInfo?.id) {
+      addNotification({ type: 'warning', message: 'No experiment selected' });
+      return;
+    }
+
+    if (!providers.length) {
+      addNotification({
+        type: 'danger',
+        message:
+          'No providers available. Add a provider in the team settings first.',
+      });
+      return;
+    }
+
+    const providerMeta = providers[0];
+
+    setIsSubmitting(true);
+    try {
+      const defaultSetup = `
+sudo snap install --classic code || true
+# If snap is not available, try deb-based install
+if ! command -v code >/dev/null 2>&1; then
+  sudo apt-get update -y || true
+  wget https://go.microsoft.com/fwlink/?LinkID=760868 -O vscode.deb
+  sudo apt-get install ./vscode.deb -y
+  rm vscode.deb
+fi
+`.trim();
+
+      const defaultCommand =
+        'code tunnel --accept-server-license-terms'.trim();
+
+      const config: any = {
+        cluster_name: data.title,
+        command: defaultCommand,
+        cpus: data.cpus || undefined,
+        memory: data.memory || undefined,
+        accelerators: data.accelerators || undefined,
+        setup: defaultSetup,
+        subtype: 'interactive',
+        interactive_type: data.interactive_type || 'vscode',
+        github_enabled: false,
+      };
+
+      config.provider_id = providerMeta.id;
+      config.provider_name = providerMeta.name;
+
+      const payload = {
+        name: data.title,
+        type: 'REMOTE',
+        inputs: {},
+        config,
+        plugin: 'remote_orchestrator',
+        outputs: {},
+        experiment_id: experimentInfo.id,
+        remote_task: true,
+      } as any;
+
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Tasks.NewTask(),
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (response.ok) {
+        setInteractiveModalOpen(false);
+        await tasksMutate();
+        addNotification({
+          type: 'success',
+          message:
+            'Interactive task created. Use Queue to launch the VS Code tunnel.',
+        });
+      } else {
+        const txt = await response.text();
+        addNotification({
+          type: 'danger',
+          message: `Failed to create interactive task: ${txt}`,
+        });
+      }
+    } catch (error) {
+      console.error('Error creating interactive task:', error);
+      addNotification({
+        type: 'danger',
+        message: 'Failed to create interactive task. Please try again.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleQueue = async (task: any) => {
     if (!experimentInfo?.id) return;
 
@@ -634,6 +735,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         providers={providers}
         isProvidersLoading={providersIsLoading}
       />
+      <NewInteractiveTaskModal
+        open={interactiveModalOpen}
+        onClose={() => setInteractiveModalOpen(false)}
+        onSubmit={handleSubmitInteractive}
+        isSubmitting={isSubmitting}
+      />
       <EditTaskModal
         open={editModalOpen}
         onClose={handleEditClose}
@@ -651,9 +758,18 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         gap={2}
       >
         <Typography level="title-md">Task Templates</Typography>
-        <Button startDecorator={<PlusIcon />} onClick={handleOpen}>
-          New
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button startDecorator={<PlusIcon />} onClick={handleOpen}>
+            New
+          </Button>
+          <Button
+            variant="outlined"
+            startDecorator={<TerminalIcon />}
+            onClick={handleOpenInteractive}
+          >
+            New Interactive Task
+          </Button>
+        </Stack>
       </Stack>
       <Sheet
         variant="soft"
@@ -709,6 +825,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               setViewOutputFromSweepJob(true);
               setViewOutputFromJob(parseInt(jobId));
             }}
+            onViewInteractive={(jobId) =>
+              setInteractiveJobForModal(parseInt(jobId))
+            }
           />
         )}
       </Sheet>
@@ -730,6 +849,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewEvalResultsFromJob !== -1}
         onClose={() => setViewEvalResultsFromJob(-1)}
         jobId={viewEvalResultsFromJob}
+      />
+      <InteractiveVSCodeModal
+        jobId={interactiveJobForModal}
+        setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
       />
       <PreviewDatasetModal
         open={previewDatasetModal.open}
