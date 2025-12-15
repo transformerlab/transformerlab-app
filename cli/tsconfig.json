@@ -4,12 +4,13 @@
     "module": "commonjs",
     "jsx": "react-jsx",
     "strict": false,
+    "sourceMap": true,
     "noImplicitAny": false,
     "strictNullChecks": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "outDir": "dist"
+    "outDir": "./dist"
   },
   "include": ["src/**/*"],
   "exclude": ["../src/renderer/lib/api-client/chat.ts", "../src/renderer/lib/api-client/functions.ts", "../src/renderer/lib/api-client/hooks.ts", "../src/renderer/lib/authContext.ts"]

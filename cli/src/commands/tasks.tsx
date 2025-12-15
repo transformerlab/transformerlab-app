@@ -4,10 +4,11 @@ import SelectInput from 'ink-select-input';
 import TextInput from 'ink-text-input';
 import { api } from '../api';
 import path from 'path';
-import { getGitContext, loadLabConfig, LabConfig } from '../utils';
-import { Loading, ErrorMsg, SuccessMsg, Logo, Panel } from '../ui';
+import { getGitContext, loadLabConfig } from '../utils';
+import { Loading, ErrorMsg, SuccessMsg, Panel } from '../ui';
 import { GenericList } from './list_commands';
-// import Table from 'ink-table';
+import Table from 'ink-table';
+import fs from 'fs';
 
 export const TaskList = () => (
   <GenericList
@@ -81,12 +82,11 @@ export const TaskGallery = () => {
         Task Gallery
       </Text>
 
-      {/* DEBUG SECTION: This will show us the keys we need */}
-      {rawDebug && (
+      {/* {rawDebug && (
         <Panel title="DEBUG: First Item Schema" color="yellow">
           <Text>{JSON.stringify(rawDebug, null, 2)}</Text>
         </Panel>
-      )}
+      )} */}
 
       <Box borderStyle="single" borderColor="gray" paddingX={1}>
         {/* <Table data={items} /> */}
@@ -110,7 +110,7 @@ export const TaskInfo = ({ taskId }: { taskId: string }) => {
     api.getTask(taskId).then((d) => {
       if (isMounted) {
         setData(d);
-        exit(); // Exit CLI process after render
+        exit();
       }
     });
     return () => {
@@ -120,10 +120,6 @@ export const TaskInfo = ({ taskId }: { taskId: string }) => {
 
   if (!data) return <Loading text="Fetching details..." />;
 
-  // RESOLUTION LOGIC:
-  // 1. Try top-level keys (legacy/standard)
-  // 2. Try config keys (remote_orchestrator specific)
-  // 3. Fallback to defaults
   const repo = data.repo || data.config?.github_repo_url || 'Local / N/A';
 
   const branch = data.branch || data.config?.github_branch || 'HEAD'; // Defaults to HEAD if not stored
@@ -178,9 +174,7 @@ export const TaskAdd = ({
   const [providers, setProviders] = useState<any[]>([]);
   const [experiments, setExperiments] = useState<any[]>([]);
 
-  // The calculated relative path. "" or "." means root.
   const [subDirectory, setSubDirectory] = useState<string>('');
-
   const [selectedExperiment, setSelectedExperiment] =
     useState<string>('global');
   const [selectedSubtype, setSelectedSubtype] = useState<string>('generic');
@@ -194,9 +188,10 @@ export const TaskAdd = ({
 
     const analyzeContext = async () => {
       try {
-        // Resolve absolute path of target
+        // 1. Resolve Target Path
         const resolvedPath = path.resolve(process.cwd(), targetPath);
 
+        // 2. Fetch Data
         const [gitContext, provs, exps] = await Promise.all([
           getGitContext(resolvedPath),
           api.listProviders(),
@@ -213,36 +208,37 @@ export const TaskAdd = ({
         if (repoArg) finalGit.repo = repoArg;
         if (branchArg) finalGit.branch = branchArg;
 
-        // --- IMPROVED DIRECTORY DETECTION ---
-        let relativeDir = '.';
-
+        // Calculate subdirectory relative to git root
+        let relativeDir = '';
         if (finalGit.dir) {
-          // 1. Try standard relative calculation
-          const rel = path.relative(finalGit.dir, resolvedPath);
+          // getGitContext may return an incorrect dir, so let's find the actual git root
+          let gitRoot = finalGit.dir;
 
-          // 2. Check if valid (not outside repo with '..')
-          if (!rel.startsWith('..') && !path.isAbsolute(rel)) {
-            relativeDir = rel;
-          } else {
-            // 3. Fallback for macOS/Windows casing or symlink mismatches
-            // e.g. /Users/josh vs /Users/Josh
-            const lowerGit = finalGit.dir.toLowerCase();
-            const lowerTarget = resolvedPath.toLowerCase();
-
-            if (lowerTarget.startsWith(lowerGit)) {
-              // If it matches case-insensitively, manually slice the string
-              // from the original resolvedPath to preserve correct casing for the subdir
-              const cleanRel = resolvedPath
-                .slice(finalGit.dir.length)
-                .replace(/^[\/\\]/, '');
-              relativeDir = cleanRel || '.';
+          // Walk up from the resolved path to find .git directory
+          let currentPath = resolvedPath;
+          while (currentPath !== path.dirname(currentPath)) {
+            if (fs.existsSync(path.join(currentPath, '.git'))) {
+              gitRoot = currentPath;
+              break;
             }
+            currentPath = path.dirname(currentPath);
           }
-        }
 
-        // Normalize empty string to dot
-        if (!relativeDir || relativeDir.trim() === '') {
-          relativeDir = '.';
+          const targetDir = path.resolve(resolvedPath);
+          relativeDir = path.relative(gitRoot, targetDir);
+
+          // Normalize to use forward slashes for consistency
+          relativeDir = relativeDir.split(path.sep).join('/');
+
+          // Only clear if it's explicitly the current directory marker
+          if (relativeDir === '.') {
+            relativeDir = '';
+          }
+
+          // If path goes backwards, something is wrong
+          if (relativeDir.startsWith('..')) {
+            relativeDir = '';
+          }
         }
 
         setSubDirectory(relativeDir);
@@ -288,22 +284,20 @@ export const TaskAdd = ({
       // Determine Task Name
       const taskName =
         config?.name ||
-        (subDirectory && subDirectory !== '.'
-          ? subDirectory.split(path.sep).pop()
-          : null) ||
+        (subDirectory ? subDirectory.split('/').pop() : null) ||
         (git.repo ? git.repo.split('/').pop()?.replace('.git', '') : null) ||
         'my-task';
 
       const taskId = taskName.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
-      const userConfig = config?.config || {};
+
+      // Extract config from labConfig - it can be at root level or nested
+      const userConfig = config?.config || config || {};
+
       const selectedProviderObj = providers.find(
         (p) => p.id === selectedProvider,
       );
 
-      // Check if root
-      const isRoot =
-        !subDirectory || subDirectory === '.' || subDirectory.trim() === '';
-
+      // Construct backend config from user's task.json
       const backendConfig = {
         cluster_name: userConfig.cluster_name || taskId,
         command: userConfig.command || '',
@@ -319,15 +313,12 @@ export const TaskAdd = ({
         num_nodes: userConfig.num_nodes || undefined,
         setup: userConfig.setup || undefined,
         env_vars: userConfig.env_vars || undefined,
-
         provider_id: selectedProvider,
         provider_name: selectedProviderObj?.name || 'rig',
         subtype: selectedSubtype,
-
         github_enabled: true,
         github_repo_url: git.repo || '',
-        // Only send if not root
-        github_directory: isRoot ? undefined : subDirectory,
+        github_directory: subDirectory || undefined,
       };
 
       const payload = {
@@ -338,15 +329,7 @@ export const TaskAdd = ({
         plugin: 'remote_orchestrator',
         remote_task: true,
         experiment_id: selectedExperiment,
-
         config: backendConfig,
-
-        repo: git.repo || '',
-        branch: git.branch || '',
-        commit: git.sha || '',
-        git_repo_dir: isRoot ? undefined : subDirectory,
-
-        parameters: config?.parameters || {},
       };
 
       await api.createTask(taskId, taskName, payload);
@@ -384,9 +367,7 @@ export const TaskAdd = ({
 
   if (step === 'CONFIRM_CONTEXT') {
     const isRepoMissing = !git.repo;
-    // Display Logic: Show full path if it's a subdir, otherwise Root
-    const displayDir =
-      !subDirectory || subDirectory === '.' ? './ (Root)' : subDirectory;
+    const displayDir = subDirectory ? subDirectory : './ (Root)';
 
     return (
       <Box flexDirection="column">

@@ -5,10 +5,10 @@ set -euo pipefail
 # Config
 #############################################
 
+APP_NAME="lab"
 ENTRY_FILE="src/cli.tsx"
 DIST_DIR="dist"
 BUNDLE_OUT="$DIST_DIR/cli.js"
-APP_NAME="lab"
 
 #############################################
 # Detect platform
@@ -55,29 +55,19 @@ else
 fi
 
 #############################################
-# Helpers
+# Info
 #############################################
 
-echo_step () {
-  echo ""
-  echo "▶ $1"
-}
-
-require_command () {
-  if ! command -v "$1" >/dev/null 2>&1; then
-    echo "❌ Required command not found: $1"
-    exit 1
-  fi
-}
+echo ""
+echo "▶ Building ${APP_NAME}"
+echo "  Platform: ${PLATFORM}"
+echo "  Arch:     ${ARCH}"
+echo "  Target:   ${PKG_TARGET}"
+echo ""
 
 #############################################
 # Sanity checks
 #############################################
-
-echo_step "Detected platform"
-echo "OS:      $PLATFORM"
-echo "ARCH:    $ARCH"
-echo "Target:  $PKG_TARGET"
 
 if [ ! -f "$ENTRY_FILE" ]; then
   echo "❌ Entry file not found: $ENTRY_FILE"
@@ -89,43 +79,42 @@ fi
 #############################################
 
 if [ -f "bun.lockb" ]; then
-  echo_step "Installing dependencies with Bun"
-  require_command bun
+  echo "▶ Installing dependencies (bun)"
+  command -v bun >/dev/null 2>&1 || {
+    echo "❌ bun.lockb present but bun is not installed"
+    exit 1
+  }
   bun install
 else
-  echo_step "Installing dependencies with npm"
-  require_command npm
+  echo "▶ Installing dependencies (npm)"
+  command -v npm >/dev/null 2>&1 || {
+    echo "❌ npm not found"
+    exit 1
+  }
   npm install
 fi
 
 #############################################
-# Bundle CLI
+# Bundle (Node 18 safe)
 #############################################
 
-echo_step "Bundling CLI"
+echo ""
+echo "▶ Bundling CLI (Node 18 target)"
 
 mkdir -p "$DIST_DIR"
 
-if command -v bun >/dev/null 2>&1; then
-  echo "Using Bun bundler"
-  bun build "$ENTRY_FILE" \
-    --bundle \
-    --target=node \
-    --outfile="$BUNDLE_OUT"
-else
-  echo "Using esbuild"
-  npx esbuild "$ENTRY_FILE" \
-    --bundle \
-    --platform=node \
-    --target=node18 \
-    --outfile="$BUNDLE_OUT"
-fi
+npx esbuild "$ENTRY_FILE" \
+  --bundle \
+  --platform=node \
+  --target=node18 \
+  --outfile="$BUNDLE_OUT"
 
 #############################################
 # Ensure pkg
 #############################################
 
-echo_step "Ensuring pkg is available"
+echo ""
+echo "▶ Ensuring pkg is available"
 
 if ! command -v pkg >/dev/null 2>&1; then
   npm install --save-dev pkg
@@ -138,7 +127,8 @@ fi
 # Build executable
 #############################################
 
-echo_step "Building executable"
+echo ""
+echo "▶ Building executable"
 
 $PKG_CMD "$BUNDLE_OUT" \
   --targets "$PKG_TARGET" \
@@ -151,3 +141,8 @@ $PKG_CMD "$BUNDLE_OUT" \
 echo ""
 echo "✅ Build complete"
 echo "Binary: ./$OUTPUT"
+echo ""
+echo "⚠️  Runtime constraints:"
+echo "   - Node 18 embedded (pkg)"
+echo "   - Do NOT use global fetch"
+echo "   - Do NOT use node:sqlite"
