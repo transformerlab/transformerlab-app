@@ -981,8 +981,6 @@ class SkyPilotProvider(ComputeProvider):
                         # Add this node pool
                         ssh_node_pools.append({"name": pool_name, "nodes": nodes, "total_gpus": total_gpus})
 
-                        print(f"DEBUG: Successfully retrieved SSH node pool '{pool_name}' with {len(nodes)} nodes")
-
                 except Exception as e:
                     print(f"Could not get node info for SSH pool '{pool_name}': {e}")
                     # Add pool without detailed node info
@@ -1175,29 +1173,56 @@ class SkyPilotProvider(ComputeProvider):
         """Add SSH node pool information to the detailed clusters list."""
         ssh_node_pools = self._get_ssh_node_pool_info()
 
-        # Track which SSH nodes are already in detailed list (running clusters)
-        ssh_in_use = set()
-        for cluster in detailed:
+        # Track running SSH clusters by their node pool and calculate GPU usage
+        ssh_clusters_by_pool = {}  # pool_name -> list of running clusters
+        ssh_clusters_to_remove = []  # indices of clusters to remove from detailed list
+        
+        for idx, cluster in enumerate(detailed):
             provider_data = cluster.get("provider_data", {})
             if isinstance(provider_data, dict):
                 cloud = provider_data.get("cloud", "").lower()
                 if "ssh" in cloud:
-                    # Mark this SSH resource as in use
-                    ssh_in_use.add(cluster.get("cluster_name", ""))
+                    # This is an SSH cluster - identify which pool it belongs to
+                    # The zone field contains the pool name (e.g., "ml-nvidia-001")
+                    pool_name = provider_data.get("zone", "ssh")
+                    
+                    if pool_name not in ssh_clusters_by_pool:
+                        ssh_clusters_by_pool[pool_name] = []
+                    
+                    ssh_clusters_by_pool[pool_name].append({
+                        "cluster_name": cluster.get("cluster_name"),
+                        "cluster_data": cluster
+                    })
+                    
+                    # Mark this cluster for removal - we'll add it under the pool instead
+                    ssh_clusters_to_remove.append(idx)
 
-        # Add SSH node pools (available SSH resources)
+        # Remove SSH clusters from the main list (in reverse order to maintain indices)
+        for idx in reversed(ssh_clusters_to_remove):
+            detailed.pop(idx)
+
+        # Add SSH node pools with updated availability
         if ssh_node_pools:
             for pool in ssh_node_pools:
                 pool_name = pool.get("name", "ssh")
                 pool_nodes = pool.get("nodes", [])
                 total_gpus = pool.get("total_gpus", {})
+                
+                # Get running clusters for this pool
+                running_clusters = ssh_clusters_by_pool.get(pool_name, [])
+                num_active_clusters = len(running_clusters)
+                
+                # Calculate GPU usage from running clusters
+                gpus_allocated = {}
+                for cluster_info in running_clusters:
+                    cluster_data = cluster_info["cluster_data"]
+                    for node in cluster_data.get("nodes", []):
+                        node_gpus = node.get("resources", {}).get("gpus", {})
+                        for gpu_type, count in node_gpus.items():
+                            gpus_allocated[gpu_type] = gpus_allocated.get(gpu_type, 0) + count
 
-                # Skip if this pool is already listed as a running cluster
-                if pool_name in ssh_in_use:
-                    continue
-
-                # Create nodes for this SSH pool
-                nodes = self._build_ssh_pool_nodes(pool_name, pool_nodes, total_gpus)
+                # Create nodes for this SSH pool with updated availability
+                nodes = self._build_ssh_pool_nodes(pool_name, pool_nodes, total_gpus, gpus_allocated)
 
                 ssh_cluster = {
                     "cluster_id": f"ssh-{pool_name}",
@@ -1207,34 +1232,51 @@ class SkyPilotProvider(ComputeProvider):
                     "max_nodes": len(nodes),
                     "head_node_ip": None,
                     "nodes": nodes,
+                    "active_clusters": num_active_clusters,
+                    "running_clusters": [c["cluster_name"] for c in running_clusters],
                 }
                 detailed.append(ssh_cluster)
 
-    def _build_ssh_pool_nodes(self, pool_name: str, pool_nodes: List[Dict], total_gpus: Dict) -> List[Dict[str, Any]]:
+    def _build_ssh_pool_nodes(self, pool_name: str, pool_nodes: List[Dict], total_gpus: Dict, gpus_allocated: Dict = None) -> List[Dict[str, Any]]:
         """Build nodes list for an SSH pool."""
+        if gpus_allocated is None:
+            gpus_allocated = {}
+            
         nodes = []
         for node_data in pool_nodes:
             node_name = node_data.get("name", pool_name)
             gpu_type = node_data.get("gpu_type")
             gpu_count = node_data.get("gpu_count", 0)
             gpu_free = node_data.get("gpu_free", 0)
+            
+            # Calculate actual free GPUs based on allocations
+            # If we have allocation data, use that; otherwise use the reported free count
+            if gpu_type and gpu_type in gpus_allocated:
+                allocated_count = gpus_allocated[gpu_type]
+                actual_free = max(0, gpu_count - allocated_count)
+            else:
+                actual_free = gpu_free
 
             # Build GPU dict for this node
             node_gpus = {}
             if gpu_type and gpu_count > 0:
                 node_gpus[gpu_type] = gpu_count
+            
+            # Determine if node is active (has running workloads)
+            is_active = gpu_type and gpu_type in gpus_allocated and gpus_allocated[gpu_type] > 0
 
             node = {
                 "node_name": node_name,
                 "is_fixed": True,
-                "is_active": False,  # Not currently in use
-                "state": "AVAILABLE",
-                "reason": f"{gpu_free} of {gpu_count} free" if gpu_type else "Available for use",
+                "is_active": is_active,
+                "state": "IN_USE" if is_active else "AVAILABLE",
+                "reason": f"{actual_free} of {gpu_count} free" if gpu_type else "Available for use",
                 "resources": {
                     "cpus_total": 0,
                     "cpus_allocated": 0,
                     "gpus": node_gpus,
-                    "gpus_free": {gpu_type: gpu_free} if gpu_type and gpu_free > 0 else {},
+                    "gpus_allocated": {gpu_type: gpus_allocated.get(gpu_type, 0)} if gpu_type else {},
+                    "gpus_free": {gpu_type: actual_free} if gpu_type and actual_free >= 0 else {},
                     "memory_gb_total": 0,
                     "memory_gb_allocated": 0,
                 },
@@ -1243,17 +1285,28 @@ class SkyPilotProvider(ComputeProvider):
 
         # If no nodes were added, create at least one placeholder
         if not nodes:
+            # Calculate free GPUs for placeholder
+            placeholder_gpus_free = {}
+            for gpu_type, total_count in total_gpus.items():
+                allocated = gpus_allocated.get(gpu_type, 0)
+                free_count = max(0, total_count - allocated)
+                placeholder_gpus_free[gpu_type] = free_count
+            
+            is_active = any(count > 0 for count in gpus_allocated.values())
+            
             nodes.append(
                 {
                     "node_name": pool_name,
                     "is_fixed": True,
-                    "is_active": False,
-                    "state": "AVAILABLE",
+                    "is_active": is_active,
+                    "state": "IN_USE" if is_active else "AVAILABLE",
                     "reason": "Available for use",
                     "resources": {
                         "cpus_total": 0,
                         "cpus_allocated": 0,
                         "gpus": total_gpus,
+                        "gpus_allocated": gpus_allocated,
+                        "gpus_free": placeholder_gpus_free,
                         "memory_gb_total": 0,
                         "memory_gb_allocated": 0,
                     },
@@ -1264,6 +1317,11 @@ class SkyPilotProvider(ComputeProvider):
 
     def _add_available_cloud_backends(self, detailed: List[Dict[str, Any]]) -> None:
         """Add available cloud backends with zero clusters."""
+        # Skip for remote servers - this queries local Kubernetes which isn't accessible
+        is_remote = self.server_url and "localhost" not in self.server_url and "127.0.0.1" not in self.server_url
+        if is_remote:
+            return
+        
         try:
             # Get enabled clouds with COMPUTE capability using SkyPilot's Python API
             enabled_cloud_objects = get_cached_enabled_clouds_or_refresh(
