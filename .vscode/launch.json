@@ -21,19 +21,27 @@
       "timeout": 15000
     },
     {
-      "name": "API: FastAPI (uvicorn)",
+      "name": "API: FastAPI (TransformerLab)",
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
       "cwd": "${workspaceFolder}/api",
+      "python": "${userHome}/.transformerlab/envs/transformerlab/bin/python",
       "args": [
         "api:app",
         "--reload",
         "--port",
         "8338",
         "--host",
-        "0.0.0.0"
+        "0.0.0.0",
+        "--timeout-graceful-shutdown",
+        "1"
       ],
+      "env": {
+        "TLAB_DIR": "${userHome}/.transformerlab",
+        "LD_LIBRARY_PATH": "${userHome}/.transformerlab/envs/transformerlab/lib:${env:LD_LIBRARY_PATH}"
+      },
+      "envFile": "${workspaceFolder}/.env",
       "jinja": true
     }
   ],
