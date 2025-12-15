@@ -233,6 +233,30 @@ class TransformerLabAPI {
     return await this.handleResponse(res);
   }
 
+  async fetchTaskJson(repoUrl: string, directory?: string) {
+    // Resolve the endpoint URL
+    const url = this.safeGetPath(
+      'tasks',
+      ['fetch_task_json'],
+      {},
+      '/tasks/fetch_task_json',
+    );
+
+    // Construct query parameters
+    const params = new URLSearchParams();
+    params.append('repo_url', repoUrl);
+
+    if (directory && directory !== '.' && directory.trim() !== '') {
+      params.append('directory', directory);
+    }
+
+    // Make the authenticated request
+    // fetchWithAuth handles standard headers like Authorization and likely X-Team-Id if configured globally
+    const res = await this.fetchWithAuth(`${url}?${params.toString()}`);
+
+    return await this.handleResponse(res);
+  }
+
   // --- PROVIDERS & EXPERIMENTS ---
   async listProviders() {
     // Fixed: Use exact endpoint from documentation
@@ -324,15 +348,29 @@ class TransformerLabAPI {
     return await this.handleResponse(res);
   }
 
-  async getJobLogs(id: string, experimentId: string = 'global') {
-    const url = this.safeGetPath(
-      'jobs',
-      ['provider_logs'],
-      { id },
-      `/jobs/provider_logs/${id}`,
-    );
-    const res = await this.fetchWithAuth(`${url}?experimentId=${experimentId}`);
-    return await this.handleResponse(res);
+  async getJobLogs(
+    jobId: string,
+    experimentId: string = 'global',
+    tailLines: number = 400,
+  ) {
+    const url = `/experiment/${experimentId}/jobs/${jobId}/provider_logs`;
+    const res = await this.fetchWithAuth(`${url}?tail_lines=${tailLines}`);
+
+    if (!res.ok) {
+      let errorMessage = `Request failed: ${res.status} ${res.statusText}`;
+      try {
+        // Try to parse the specific backend error message
+        const err = await res.json();
+        if (err.detail) {
+          errorMessage = err.detail;
+        }
+      } catch (e) {
+        // If JSON parsing fails, stick with the default status text
+      }
+      throw new Error(errorMessage);
+    }
+
+    return await res.text();
   }
 
   async getTasksOutput(id: string) {

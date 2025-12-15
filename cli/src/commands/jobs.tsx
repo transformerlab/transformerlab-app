@@ -189,6 +189,8 @@ export const JobInfo = ({ jobId }: { jobId: string }) => {
 
   // --- DATA PARSING ---
   const meta = job.job_data || {};
+
+  // Check multiple possible locations for config
   const config = meta.config || {};
 
   const statusColor = getStatusColor(job.status);
@@ -198,54 +200,17 @@ export const JobInfo = ({ jobId }: { jobId: string }) => {
   const provider = meta.provider_name || config.provider_name || 'Local';
   const command = meta.command || config.command || 'N/A';
 
-  // --- GIT INFO RESOLUTION ---
-
-  // 1. Try standard fields
-  let repo =
-    meta.repo ||
-    meta.github_repo_url ||
-    config.github_repo_url ||
-    config.repo ||
-    'N/A';
-
-  // 2. Fallback: Parse 'setup' script if repo is still missing
-  if (repo === 'N/A' && meta.setup) {
-    const extracted = extractRepoFromSetup(meta.setup);
-    if (extracted) repo = extracted + ' (Extracted)';
-  }
-
-  const branch =
-    meta.branch ||
-    meta.github_branch ||
-    config.github_branch ||
-    config.branch ||
-    'N/A';
-
-  const commit =
-    meta.commit ||
-    meta.sha ||
-    meta.github_sha ||
-    config.commit ||
-    config.sha ||
-    'N/A';
-
-  const directory =
-    meta.git_repo_dir ||
-    meta.github_directory ||
-    config.github_directory ||
-    null;
-
-  // Resources
+  // Resources - check config first
   const resources = [
-    meta.cpus || config.cpus ? `CPUs: ${meta.cpus || config.cpus}` : null,
-    meta.memory || config.memory
-      ? `Mem: ${meta.memory || config.memory}`
+    config.cpus || meta.cpus ? `CPUs: ${config.cpus || meta.cpus}` : null,
+    config.memory || meta.memory
+      ? `Mem: ${config.memory || meta.memory}`
       : null,
-    meta.accelerators || config.accelerators
-      ? `Accel: ${meta.accelerators || config.accelerators}`
-      : null,
-    meta.gpu_count || config.gpu_count
-      ? `GPUs: ${meta.gpu_count || config.gpu_count}`
+    config.accelerators ||
+    meta.accelerators ||
+    config.gpu_count ||
+    meta.gpu_count
+      ? `Accel: ${config.accelerators || meta.accelerators || config.gpu_count || meta.gpu_count}`
       : null,
   ]
     .filter(Boolean)
@@ -284,27 +249,14 @@ export const JobInfo = ({ jobId }: { jobId: string }) => {
           <Text>Provider: {provider}</Text>
           {resources && <Text>Resources: {resources}</Text>}
           <Box marginTop={1}>
-            <Text bold>Command:</Text>
+            <Text bold>Command: </Text>
             <Text dimColor>{command}</Text>
           </Box>
         </Panel>
 
-        <Panel title="Source Context" color="magenta">
-          <Text>
-            Repo: <Text color="green">{repo}</Text>
-          </Text>
-          <Text>
-            Branch: <Text color="yellow">{branch}</Text>
-          </Text>
-          <Text>
-            Commit: {commit !== 'N/A' ? commit.substring(0, 8) : 'N/A'}
-          </Text>
-          {directory && directory !== '.' && <Text>Dir: {directory}</Text>}
-        </Panel>
-
-        {meta.error_msg && (
+        {(config.error_msg || meta.error_msg) && (
           <Panel title="Error Message" color="red">
-            <Text color="red">{meta.error_msg}</Text>
+            <Text color="red">{config.error_msg || meta.error_msg}</Text>
           </Panel>
         )}
       </Box>
@@ -331,35 +283,90 @@ export const JobInfo = ({ jobId }: { jobId: string }) => {
 export const JobLogs = ({ jobId }: { jobId: string }) => {
   const { exit } = useApp();
   const [logs, setLogs] = useState<string>('');
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<string>('LOADING');
   const [error, setError] = useState<string | null>(null);
+  const [jobContext, setJobContext] = useState<any>(null);
 
   useEffect(() => {
-    api
-      .getJobLogs(jobId)
-      .then((data: any) => {
-        // Handle different log response formats
-        if (typeof data === 'string') setLogs(data);
-        else if (data.logs) setLogs(data.logs);
-        else if (data.content) setLogs(data.content);
-        else setLogs(JSON.stringify(data, null, 2));
-        setLoading(false);
-        exit();
-      })
-      .catch((e) => {
-        setError(api.handleError(e).message);
-        setLoading(false);
-      });
+    let isMounted = true;
+    let pollTimer: NodeJS.Timeout;
+
+    const fetchLogSequence = async () => {
+      try {
+        // 1. Fetch Job Info
+        const job = (await api.getJob(jobId)) as any;
+
+        if (!isMounted) return;
+        setJobContext(job);
+
+        // 2. Resolve Experiment ID
+        const expId = job.experiment_id || 'global';
+
+        // 3. Fetch Logs
+        const logText = await api.getJobLogs(jobId, expId);
+
+        if (isMounted) {
+          setLogs(logText);
+          setStatus('SUCCESS');
+        }
+
+        // Poll if active
+        const jobStatus = job.status?.toUpperCase();
+        if (['RUNNING', 'LAUNCHING', 'PENDING'].includes(jobStatus)) {
+          pollTimer = setTimeout(fetchLogSequence, 3000);
+        }
+      } catch (e: any) {
+        if (isMounted) {
+          setError(e.message); // This will now contain the real backend error
+          setStatus('ERROR');
+        }
+      }
+    };
+
+    fetchLogSequence();
+
+    return () => {
+      isMounted = false;
+      if (pollTimer) clearTimeout(pollTimer);
+    };
   }, [jobId]);
 
-  if (error) return <ErrorMsg text="Log Fetch Failed" detail={error} />;
-  if (loading) return <Loading text={`Fetching logs for ${jobId}...`} />;
+  if (status === 'LOADING') {
+    return <Loading text={`Fetching logs for Job ${jobId}...`} />;
+  }
+
+  if (status === 'ERROR') {
+    // If the error is specifically about missing provider ID, give a helpful hint
+    const isProviderError = error?.toLowerCase().includes('provider job id');
+
+    return (
+      <Box flexDirection="column">
+        <ErrorMsg text="Log Fetch Failed" detail={error || ''} />
+        {isProviderError && (
+          <Text color="yellow" italic>
+            Hint: The job may have failed during setup (e.g., git clone) before
+            submitting to the compute cluster.
+          </Text>
+        )}
+      </Box>
+    );
+  }
 
   return (
     <Box flexDirection="column">
-      <Panel title={`Logs: ${jobId}`} color="gray">
-        <Text>{logs || 'No logs found.'}</Text>
+      <Panel
+        title={`Logs: Job ${jobId} (${jobContext?.experiment_id || 'Global'})`}
+        color="blue"
+      >
+        {logs ? (
+          <Text>{logs}</Text>
+        ) : (
+          <Text dimColor>No logs available yet.</Text>
+        )}
       </Panel>
+      <Text dimColor>
+        Press <Text bold>Ctrl+C</Text> to exit.
+      </Text>
     </Box>
   );
 };
