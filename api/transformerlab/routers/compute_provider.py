@@ -418,7 +418,8 @@ async def check_provider(
 
         return {"status": is_active}
     except Exception as e:
-        print(f"Failed to check provider: {e}")
+        error_msg = str(e)
+        print(f"Failed to check provider: {error_msg}")
         # If instantiation or check fails, provider is not active
         return {"status": False}
 
