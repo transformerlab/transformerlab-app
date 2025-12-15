@@ -31,6 +31,7 @@ import {
   List,
   Sheet,
   Tooltip,
+  Box,
 } from '@mui/joy';
 
 import {
@@ -473,6 +474,8 @@ export default function Sidebar({
         '& .MuiBadge-root': {},
       }}
     >
+      {/* TEMP spacer to ensure sidebar content starts below the header */}
+      <Box sx={{ height: '56px' }} />
       <SelectExperimentMenu models={models} />
       <ExperimentMenuItems
         experimentInfo={experimentInfo}
