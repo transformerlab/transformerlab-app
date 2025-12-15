@@ -887,32 +887,32 @@ class SkyPilotProvider(ComputeProvider):
         Uses the /ssh_node_pools and /kubernetes_node_info endpoints.
         """
         ssh_node_pools = []
-        
+
         try:
             # First, get the list of SSH node pools
             response = self._make_authenticated_request("GET", "/ssh_node_pools", json_data=None, timeout=10)
-            
+
             if hasattr(response, "json"):
                 pools_data = response.json()
             else:
                 print("Could not get SSH node pools from remote server")
                 return ssh_node_pools
-            
+
             # Parse the pools data
             # Format: {"pool_name": {"hosts": [{"ip": "...", "user": "...", "identity_file": "..."}]}, ...}
             for pool_name, pool_info in pools_data.items():
                 # Skip non-pool entries (env_vars, override_skypilot_config, etc.)
                 if not isinstance(pool_info, dict) or "hosts" not in pool_info:
                     continue
-                
+
                 # For each pool, get detailed node info using kubernetes_node_info endpoint
                 context_name = f"ssh-{pool_name}"
-                
+
                 try:
                     # Build KubernetesNodeInfoRequestBody
                     body = payloads.KubernetesNodeInfoRequestBody(context=context_name)
                     body_json = json.loads(body.model_dump_json())
-                    
+
                     # Add default env_vars
                     if self.default_env_vars:
                         body_json.setdefault("env_vars", {}).update(self.default_env_vars)
@@ -920,12 +920,12 @@ class SkyPilotProvider(ComputeProvider):
                         body_json.setdefault("entrypoint_command", self.default_entrypoint_command)
                     body_json.setdefault("using_remote_api_server", False)
                     body_json.setdefault("override_skypilot_config", {})
-                    
+
                     # Make the request
                     node_info_response = self._make_authenticated_request(
                         "POST", "/kubernetes_node_info", json_data=body_json, timeout=30
                     )
-                    
+
                     # Get request ID
                     request_id = None
                     if self._server_common:
@@ -933,92 +933,92 @@ class SkyPilotProvider(ComputeProvider):
                             request_id = self._server_common.get_request_id(node_info_response)
                         except Exception:
                             pass
-                    
+
                     if not request_id and hasattr(node_info_response, "headers"):
                         request_id = node_info_response.headers.get("x-skypilot-request-id")
-                    
+
                     if request_id:
                         # Wait and get result
                         time.sleep(3)
                         node_info_result = self._get_request_result(request_id)
-                        
+
                         # Parse node info
                         nodes = []
                         total_gpus = {}
-                        
+
                         if isinstance(node_info_result, dict) and "node_info_dict" in node_info_result:
                             node_dict = node_info_result["node_info_dict"]
-                            
+
                             for node_name, node_info in node_dict.items():
                                 # Extract GPU information
                                 gpu_type = node_info.get("accelerator_type")
                                 total_accel = node_info.get("total", {})
                                 free_accel = node_info.get("free", {})
-                                
-                                gpu_count = total_accel.get("accelerator_count", 0) if isinstance(total_accel, dict) else 0
-                                free_count = free_accel.get("accelerators_available", 0) if isinstance(free_accel, dict) else 0
-                                
+
+                                gpu_count = (
+                                    total_accel.get("accelerator_count", 0) if isinstance(total_accel, dict) else 0
+                                )
+                                free_count = (
+                                    free_accel.get("accelerators_available", 0) if isinstance(free_accel, dict) else 0
+                                )
+
                                 if gpu_type and gpu_count > 0:
                                     if gpu_type not in total_gpus:
                                         total_gpus[gpu_type] = 0
                                     total_gpus[gpu_type] += gpu_count
-                                
+
                                 # Add node information
-                                nodes.append({
-                                    "name": node_info.get("name", node_name),
-                                    "ip": node_info.get("ip_address", node_name),
-                                    "gpu_type": gpu_type,
-                                    "gpu_count": gpu_count,
-                                    "gpu_free": free_count,
-                                })
-                        
+                                nodes.append(
+                                    {
+                                        "name": node_info.get("name", node_name),
+                                        "ip": node_info.get("ip_address", node_name),
+                                        "gpu_type": gpu_type,
+                                        "gpu_count": gpu_count,
+                                        "gpu_free": free_count,
+                                    }
+                                )
+
                         # Add this node pool
-                        ssh_node_pools.append({
-                            "name": pool_name,
-                            "nodes": nodes,
-                            "total_gpus": total_gpus
-                        })
-                        
+                        ssh_node_pools.append({"name": pool_name, "nodes": nodes, "total_gpus": total_gpus})
+
                         print(f"DEBUG: Successfully retrieved SSH node pool '{pool_name}' with {len(nodes)} nodes")
-                    
+
                 except Exception as e:
                     print(f"Could not get node info for SSH pool '{pool_name}': {e}")
                     # Add pool without detailed node info
                     hosts = pool_info.get("hosts", [])
                     nodes = []
                     for host in hosts:
-                        nodes.append({
-                            "name": host.get("ip", "unknown"),
-                            "ip": host.get("ip", "unknown"),
-                            "gpu_type": None,
-                            "gpu_count": 0,
-                            "gpu_free": 0,
-                        })
-                    
-                    ssh_node_pools.append({
-                        "name": pool_name,
-                        "nodes": nodes,
-                        "total_gpus": {}
-                    })
-            
+                        nodes.append(
+                            {
+                                "name": host.get("ip", "unknown"),
+                                "ip": host.get("ip", "unknown"),
+                                "gpu_type": None,
+                                "gpu_count": 0,
+                                "gpu_free": 0,
+                            }
+                        )
+
+                    ssh_node_pools.append({"name": pool_name, "nodes": nodes, "total_gpus": {}})
+
         except Exception as e:
             print(f"Error getting SSH node pools from remote server: {e}")
-        
+
         return ssh_node_pools
-    
+
     def _get_ssh_node_pool_info(self) -> List[Dict[str, Any]]:
         """
         Get SSH node pool information with GPU details using SkyPilot's API.
         Similar to 'sky show-gpus --cloud ssh' command.
         Returns a list of SSH node pools with their GPU information.
-        
+
         Works both locally and with remote SkyPilot servers.
         """
         ssh_node_pools = []
-        
+
         # Check if we're using a remote server
         is_remote = self.server_url and "localhost" not in self.server_url and "127.0.0.1" not in self.server_url
-        
+
         if is_remote:
             # For remote servers, use the /ssh_node_pools and /kubernetes_node_info endpoints
             try:
