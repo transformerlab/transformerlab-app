@@ -1208,11 +1208,48 @@ class SkyPilotProvider(ComputeProvider):
             # Build the SSH pool entry
             nodes = []
 
-            # Don't add the physical SSH nodes as separate entries
-            # They are just the underlying infrastructure
-            # Only show running clusters as nodes
+            # First, add a fixed node representing the pool's total capacity
+            # This shows the total available resources in the pool
+            gpu_summary = {}  # Total GPUs by type
+            gpu_free_summary = {}  # Free GPUs by type
+            total_gpu_count = 0
+            free_gpu_count = 0
 
-            # Add running clusters as active nodes
+            for node_data in pool_nodes:
+                gpu_type = node_data.get("gpu_type")
+                gpu_count = node_data.get("gpu_count", 0)
+                gpu_free = node_data.get("gpu_free", 0)
+
+                if gpu_type and gpu_count > 0:
+                    if gpu_type not in gpu_summary:
+                        gpu_summary[gpu_type] = 0
+                        gpu_free_summary[gpu_type] = 0
+                    gpu_summary[gpu_type] += gpu_count
+                    gpu_free_summary[gpu_type] += gpu_free
+                    total_gpu_count += gpu_count
+                    free_gpu_count += gpu_free
+
+            # Add the pool capacity node (fixed infrastructure)
+            pool_capacity_node = {
+                "node_name": f"{pool_name}-pool",
+                "is_fixed": True,
+                "is_active": False,
+                "state": "AVAILABLE",
+                "reason": f"{free_gpu_count} of {total_gpu_count} GPUs available"
+                if total_gpu_count > 0
+                else "Available for use",
+                "resources": {
+                    "cpus_total": 0,
+                    "cpus_allocated": 0,
+                    "gpus": gpu_summary or total_gpus,
+                    "gpus_free": gpu_free_summary,
+                    "memory_gb_total": 0,
+                    "memory_gb_allocated": 0,
+                },
+            }
+            nodes.append(pool_capacity_node)
+
+            # Then add running clusters as active nodes
             for cluster in running_on_pool:
                 resources = self.get_cluster_resources(cluster.cluster_name)
 
@@ -1240,45 +1277,6 @@ class SkyPilotProvider(ComputeProvider):
                     },
                 }
                 nodes.append(cluster_node)
-
-            # If no nodes were added (no running clusters), create a placeholder showing available resources
-            if not nodes:
-                # Extract GPU info from pool nodes for display
-                gpu_summary = {}
-                total_gpu_count = 0
-                free_gpu_count = 0
-
-                for node_data in pool_nodes:
-                    gpu_type = node_data.get("gpu_type")
-                    gpu_count = node_data.get("gpu_count", 0)
-                    gpu_free = node_data.get("gpu_free", 0)
-
-                    if gpu_type and gpu_count > 0:
-                        if gpu_type not in gpu_summary:
-                            gpu_summary[gpu_type] = 0
-                        gpu_summary[gpu_type] += gpu_count
-                        total_gpu_count += gpu_count
-                        free_gpu_count += gpu_free
-
-                nodes.append(
-                    {
-                        "node_name": pool_name,
-                        "is_fixed": True,
-                        "is_active": False,
-                        "state": "AVAILABLE",
-                        "reason": f"{free_gpu_count} of {total_gpu_count} GPUs available"
-                        if total_gpu_count > 0
-                        else "Available for use",
-                        "resources": {
-                            "cpus_total": 0,
-                            "cpus_allocated": 0,
-                            "gpus": gpu_summary or total_gpus,
-                            "gpus_free": gpu_summary or total_gpus,  # All GPUs free when no clusters running
-                            "memory_gb_total": 0,
-                            "memory_gb_allocated": 0,
-                        },
-                    }
-                )
 
             ssh_cluster = {
                 "cluster_id": f"ssh-{pool_name}",
