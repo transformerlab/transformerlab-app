@@ -128,8 +128,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     };
   }, [pendingJobsStorageKey]);
 
-  const handleOpen = () => setModalOpen(true);
-  const handleOpenInteractive = () => setInteractiveModalOpen(true);
+  const isInteractivePage = subtype === 'interactive';
+
+  const handleOpen = () => {
+    if (isInteractivePage) {
+      setInteractiveModalOpen(true);
+    } else {
+      setModalOpen(true);
+    }
+  };
   const handleClose = () => setModalOpen(false);
   const handleEditClose = () => {
     setEditModalOpen(false);
@@ -724,22 +731,26 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         overflow: 'hidden',
       }}
     >
-      <NewTaskModal
-        open={modalOpen}
-        onClose={handleClose}
-        onSubmit={handleSubmit}
-        isSubmitting={isSubmitting}
-        providers={providers}
-        isProvidersLoading={providersIsLoading}
-      />
-      <NewInteractiveTaskModal
-        open={interactiveModalOpen}
-        onClose={() => setInteractiveModalOpen(false)}
-        onSubmit={handleSubmitInteractive}
-        isSubmitting={isSubmitting}
-        providers={providers}
-        isProvidersLoading={providersIsLoading}
-      />
+      {!isInteractivePage && (
+        <NewTaskModal
+          open={modalOpen}
+          onClose={handleClose}
+          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
+          providers={providers}
+          isProvidersLoading={providersIsLoading}
+        />
+      )}
+      {isInteractivePage && (
+        <NewInteractiveTaskModal
+          open={interactiveModalOpen}
+          onClose={() => setInteractiveModalOpen(false)}
+          onSubmit={handleSubmitInteractive}
+          isSubmitting={isSubmitting}
+          providers={providers}
+          isProvidersLoading={providersIsLoading}
+        />
+      )}
       <EditTaskModal
         open={editModalOpen}
         onClose={handleEditClose}
@@ -757,18 +768,12 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         gap={2}
       >
         <Typography level="title-md">Task Templates</Typography>
-        <Stack direction="row" spacing={1}>
-          <Button startDecorator={<PlusIcon />} onClick={handleOpen}>
-            New
-          </Button>
-          <Button
-            variant="outlined"
-            startDecorator={<TerminalIcon />}
-            onClick={handleOpenInteractive}
-          >
-            New Interactive Task
-          </Button>
-        </Stack>
+        <Button
+          startDecorator={isInteractivePage ? <TerminalIcon /> : <PlusIcon />}
+          onClick={handleOpen}
+        >
+          New
+        </Button>
       </Stack>
       <Sheet
         variant="soft"

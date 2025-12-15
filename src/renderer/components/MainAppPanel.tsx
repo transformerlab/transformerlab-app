@@ -387,6 +387,10 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/experiment/tokenize" element={<Tokenize />} />
         <Route path="/experiment/training" element={<TrainLoRA />} />
         <Route path="/experiment/tasks" element={<Tasks />} />
+        <Route
+          path="/experiment/interactive"
+          element={<Tasks subtype="interactive" />}
+        />
 
         <Route
           path="/experiment/eval"
