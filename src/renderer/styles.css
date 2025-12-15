@@ -130,7 +130,7 @@ spinning gradient border effect */
 }
 
 .MuiSheet-root.Sidebar {
-  background-color: rgb(214, 207, 225, 1);
+  /* background-color: rgb(214, 207, 225, 1); */
 }
 
 html[data-joy-color-scheme='dark'] .MuiSheet-root.Sidebar {
@@ -176,8 +176,6 @@ textarea {
   border: 1px solid rgb(209, 213, 219);
   color: var(--joy-palette-text-tertiary);
   font-family:
-    Inter,
-    ui-sans-serif,
     system-ui,
     -apple-system,
     'Segoe UI';
