@@ -3,6 +3,7 @@ import { Box, Text, useApp } from 'ink';
 import SelectInput from 'ink-select-input';
 import TextInput from 'ink-text-input';
 import { api } from '../api';
+import path from 'path';
 import { getGitContext, loadLabConfig, LabConfig } from '../utils';
 import { Loading, ErrorMsg, SuccessMsg, Logo, Panel } from '../ui';
 import { GenericList } from './list_commands';
@@ -109,7 +110,7 @@ export const TaskInfo = ({ taskId }: { taskId: string }) => {
     api.getTask(taskId).then((d) => {
       if (isMounted) {
         setData(d);
-        exit();
+        exit(); // Exit CLI process after render
       }
     });
     return () => {
@@ -118,18 +119,45 @@ export const TaskInfo = ({ taskId }: { taskId: string }) => {
   }, [taskId, exit]);
 
   if (!data) return <Loading text="Fetching details..." />;
+
+  // RESOLUTION LOGIC:
+  // 1. Try top-level keys (legacy/standard)
+  // 2. Try config keys (remote_orchestrator specific)
+  // 3. Fallback to defaults
+  const repo = data.repo || data.config?.github_repo_url || 'Local / N/A';
+
+  const branch = data.branch || data.config?.github_branch || 'HEAD'; // Defaults to HEAD if not stored
+
+  const commit =
+    data.commit || data.config?.commit || data.config?.github_sha || '';
+
   return (
     <Box flexDirection="column">
       <Panel title={`Task: ${data.name}`}>
-        <Text>Repo: {data.repo}</Text>
         <Text>
-          Branch: {data.branch} @ {data.commit}
+          Repo: <Text color="green">{repo}</Text>
         </Text>
+        <Text>
+          Branch: <Text color="yellow">{branch}</Text>{' '}
+          {commit ? `@ ${commit.slice(0, 7)}` : ''}
+        </Text>
+        {/* Show Directory if it exists and isn't root */}
+        {data.config?.github_directory && (
+          <Text>Dir: {data.config.github_directory}</Text>
+        )}
       </Panel>
       <Text dimColor>{JSON.stringify(data, null, 2)}</Text>
     </Box>
   );
 };
+
+interface GitContext {
+  repo?: string;
+  branch?: string;
+  sha?: string;
+  dirty?: boolean;
+  dir?: string; // Absolute path to git root
+}
 
 interface TaskAddProps {
   path?: string;
@@ -137,25 +165,21 @@ interface TaskAddProps {
   branch?: string;
 }
 
-type AddStep =
-  | 'INIT'
-  | 'DIRTY_CHECK'
-  | 'CONFIRM_CONTEXT'
-  | 'EXPERIMENT_SELECT'
-  | 'SUBTYPE_SELECT'
-  | 'PROVIDER_SELECT'
-  | 'SUBMITTING'
-  | 'SUCCESS'
-  | 'ERROR';
-
-export const TaskAdd = ({ path: targetPath, repo, branch }: TaskAddProps) => {
+export const TaskAdd = ({
+  path: targetPath = '.',
+  repo: repoArg,
+  branch: branchArg,
+}: TaskAddProps) => {
   const { exit } = useApp();
-  const [step, setStep] = useState<AddStep>('INIT');
+  const [step, setStep] = useState<string>('INIT');
 
-  const [git, setGit] = useState<any>(null);
-  const [config, setConfig] = useState<LabConfig | null>(null);
+  const [git, setGit] = useState<GitContext>({});
+  const [config, setConfig] = useState<any>(null);
   const [providers, setProviders] = useState<any[]>([]);
   const [experiments, setExperiments] = useState<any[]>([]);
+
+  // The calculated relative path. "" or "." means root.
+  const [subDirectory, setSubDirectory] = useState<string>('');
 
   const [selectedExperiment, setSelectedExperiment] =
     useState<string>('global');
@@ -170,23 +194,64 @@ export const TaskAdd = ({ path: targetPath, repo, branch }: TaskAddProps) => {
 
     const analyzeContext = async () => {
       try {
-        const gitContext = await getGitContext(targetPath || '.');
-        const provs = await api.listProviders();
-        const exps = await api.listExperiments();
-        const labConfig = loadLabConfig(targetPath || '.');
+        // Resolve absolute path of target
+        const resolvedPath = path.resolve(process.cwd(), targetPath);
+
+        const [gitContext, provs, exps] = await Promise.all([
+          getGitContext(resolvedPath),
+          api.listProviders(),
+          api.listExperiments(),
+        ]);
+
+        const labConfig = loadLabConfig(resolvedPath);
 
         if (!isMounted) return;
 
         setConfig(labConfig);
 
-        if (repo) gitContext.repo = repo;
-        if (branch) gitContext.branch = branch;
-        setGit(gitContext);
+        const finalGit = { ...gitContext };
+        if (repoArg) finalGit.repo = repoArg;
+        if (branchArg) finalGit.branch = branchArg;
+
+        // --- IMPROVED DIRECTORY DETECTION ---
+        let relativeDir = '.';
+
+        if (finalGit.dir) {
+          // 1. Try standard relative calculation
+          const rel = path.relative(finalGit.dir, resolvedPath);
+
+          // 2. Check if valid (not outside repo with '..')
+          if (!rel.startsWith('..') && !path.isAbsolute(rel)) {
+            relativeDir = rel;
+          } else {
+            // 3. Fallback for macOS/Windows casing or symlink mismatches
+            // e.g. /Users/josh vs /Users/Josh
+            const lowerGit = finalGit.dir.toLowerCase();
+            const lowerTarget = resolvedPath.toLowerCase();
+
+            if (lowerTarget.startsWith(lowerGit)) {
+              // If it matches case-insensitively, manually slice the string
+              // from the original resolvedPath to preserve correct casing for the subdir
+              const cleanRel = resolvedPath
+                .slice(finalGit.dir.length)
+                .replace(/^[\/\\]/, '');
+              relativeDir = cleanRel || '.';
+            }
+          }
+        }
+
+        // Normalize empty string to dot
+        if (!relativeDir || relativeDir.trim() === '') {
+          relativeDir = '.';
+        }
+
+        setSubDirectory(relativeDir);
+        setGit(finalGit);
 
         if (
-          gitContext.repo &&
-          (gitContext.repo.startsWith('git@') ||
-            !gitContext.repo.includes('github.com'))
+          finalGit.repo &&
+          (finalGit.repo.startsWith('git@') ||
+            !finalGit.repo.includes('github.com'))
         ) {
           setPrivateRepoWarn(true);
         }
@@ -198,14 +263,14 @@ export const TaskAdd = ({ path: targetPath, repo, branch }: TaskAddProps) => {
           setSelectedProvider(provs[0].id);
         }
 
-        if (gitContext.dirty) {
+        if (finalGit.dirty) {
           setStep('DIRTY_CHECK');
         } else {
           setStep('CONFIRM_CONTEXT');
         }
       } catch (e: any) {
         if (!isMounted) return;
-        setError(e.message);
+        setError(e.message || 'Unknown error');
         setStep('ERROR');
       }
     };
@@ -215,63 +280,72 @@ export const TaskAdd = ({ path: targetPath, repo, branch }: TaskAddProps) => {
     return () => {
       isMounted = false;
     };
-  }, [targetPath, repo, branch]);
+  }, [targetPath, repoArg, branchArg]);
 
   const submitTask = async () => {
     setStep('SUBMITTING');
     try {
+      // Determine Task Name
       const taskName =
         config?.name ||
-        git.repo.split('/').pop().replace('.git', '') ||
+        (subDirectory && subDirectory !== '.'
+          ? subDirectory.split(path.sep).pop()
+          : null) ||
+        (git.repo ? git.repo.split('/').pop()?.replace('.git', '') : null) ||
         'my-task';
+
       const taskId = taskName.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+      const userConfig = config?.config || {};
+      const selectedProviderObj = providers.find(
+        (p) => p.id === selectedProvider,
+      );
 
-      // FIX: Cast to 'any' to avoid TS errors for properties missing in LabConfig interface
-      const taskConfig = (config?.config || {}) as any;
-
-      // 1. Construct Nested Config (Resources & Provider)
-      const selectedProviderName =
-        providers.find((p) => p.id === selectedProvider)?.name || '';
+      // Check if root
+      const isRoot =
+        !subDirectory || subDirectory === '.' || subDirectory.trim() === '';
 
       const backendConfig = {
-        cluster_name: taskConfig.cluster_name || '',
-        command: taskConfig.command || '',
-        cpus: taskConfig.cpus ? String(taskConfig.cpus) : undefined,
-        memory: taskConfig.memory ? String(taskConfig.memory) : undefined,
-        disk_space: taskConfig.disk_space
-          ? String(taskConfig.disk_space)
+        cluster_name: userConfig.cluster_name || taskId,
+        command: userConfig.command || '',
+        cpus: userConfig.cpus ? String(userConfig.cpus) : undefined,
+        memory: userConfig.memory ? String(userConfig.memory) : undefined,
+        disk_space: userConfig.disk_space
+          ? String(userConfig.disk_space)
           : undefined,
         accelerators:
-          taskConfig.accelerators || taskConfig.gpu_count
-            ? String(taskConfig.accelerators || taskConfig.gpu_count)
+          userConfig.accelerators || userConfig.gpu_count
+            ? String(userConfig.accelerators || userConfig.gpu_count)
             : undefined,
-        num_nodes: taskConfig.num_nodes || undefined,
-        setup: taskConfig.setup || undefined,
-        env_vars: taskConfig.env_vars || undefined,
-        file_mounts: taskConfig.file_mounts || undefined,
+        num_nodes: userConfig.num_nodes || undefined,
+        setup: userConfig.setup || undefined,
+        env_vars: userConfig.env_vars || undefined,
+
         provider_id: selectedProvider,
-        provider_name: selectedProviderName,
+        provider_name: selectedProviderObj?.name || 'rig',
         subtype: selectedSubtype,
+
+        github_enabled: true,
+        github_repo_url: git.repo || '',
+        // Only send if not root
+        github_directory: isRoot ? undefined : subDirectory,
       };
 
-      // 2. Construct Full Payload matching 'Remote Orchestrator' schema
       const payload = {
         name: taskName,
-        type: 'REMOTE', // Required
-        inputs: {}, // Required
-        outputs: {}, // Required
-        plugin: 'remote_orchestrator', // Required
+        type: 'REMOTE',
+        inputs: {},
+        outputs: {},
+        plugin: 'remote_orchestrator',
         remote_task: true,
         experiment_id: selectedExperiment,
 
-        config: backendConfig, // Nested Config
+        config: backendConfig,
 
-        repo: git.repo,
-        branch: git.branch,
-        commit: git.sha, // Backend expects 'commit' for SHA
+        repo: git.repo || '',
+        branch: git.branch || '',
+        commit: git.sha || '',
+        git_repo_dir: isRoot ? undefined : subDirectory,
 
-        // Extra metadata that might be useful
-        git_repo_dir: git.dir,
         parameters: config?.parameters || {},
       };
 
@@ -284,24 +358,21 @@ export const TaskAdd = ({ path: targetPath, repo, branch }: TaskAddProps) => {
     }
   };
 
+  // --- RENDER ---
   if (step === 'INIT') return <Loading text="Analyzing directory..." />;
 
   if (step === 'DIRTY_CHECK') {
     return (
       <Box flexDirection="column">
         <Panel title="⚠️  Uncommitted Changes Detected" color="yellow">
-          <Text>
-            You have changes to the current branch that you haven't pushed.
-          </Text>
-          <Text>
-            Proceeding will run the task against the last committed SHA.
-          </Text>
+          <Text>Changes detected. Using last commit:</Text>
+          <Text dimColor>SHA: {git.sha?.slice(0, 7)}</Text>
         </Panel>
         <Text bold>Continue? </Text>
         <SelectInput
           items={[
-            { label: 'Yes, use last commit', value: 'yes' },
-            { label: 'No, cancel', value: 'no' },
+            { label: 'Yes', value: 'yes' },
+            { label: 'No', value: 'no' },
           ]}
           onSelect={(item) =>
             item.value === 'yes' ? setStep('CONFIRM_CONTEXT') : exit()
@@ -312,22 +383,48 @@ export const TaskAdd = ({ path: targetPath, repo, branch }: TaskAddProps) => {
   }
 
   if (step === 'CONFIRM_CONTEXT') {
+    const isRepoMissing = !git.repo;
+    // Display Logic: Show full path if it's a subdir, otherwise Root
+    const displayDir =
+      !subDirectory || subDirectory === '.' ? './ (Root)' : subDirectory;
+
     return (
       <Box flexDirection="column">
         <Panel title="Verify Task Context" color="blue">
-          <Text>Repo: {git.repo || 'Local (No Remote)'}</Text>
-          <Text>
-            Branch: {git.branch} @ {git.sha.slice(0, 7)}
-          </Text>
-          <Text>
-            Config: {config ? 'Found config' : 'None (Using defaults)'}
-          </Text>
+          <Box flexDirection="column">
+            <Text>
+              Repo:{' '}
+              <Text color={isRepoMissing ? 'red' : 'green'}>
+                {git.repo || 'MISSING'}
+              </Text>
+            </Text>
+            <Text>
+              Branch: <Text color="green">{git.branch || 'HEAD'}</Text>
+            </Text>
+            <Text>
+              Dir:{' '}
+              <Text color="green" bold>
+                {displayDir}
+              </Text>
+            </Text>
+            <Text>
+              Config: {config ? 'Found config' : 'None (Using defaults)'}
+            </Text>
+          </Box>
         </Panel>
+
         {privateRepoWarn && (
           <Text color="yellow">
-            ⚠ Private Repo: Ensure server has Git keys.
+            ⚠ Private Repo: Ensure cluster has git credentials.
           </Text>
         )}
+
+        {isRepoMissing && (
+          <Text color="red" bold>
+            Warning: No remote repository detected.
+          </Text>
+        )}
+
         <Text bold>Register this task?</Text>
         <SelectInput
           items={[
@@ -345,7 +442,6 @@ export const TaskAdd = ({ path: targetPath, repo, branch }: TaskAddProps) => {
   if (step === 'EXPERIMENT_SELECT') {
     const items = experiments.map((e: any) => ({ label: e.name, value: e.id }));
     items.unshift({ label: 'Global (No Experiment)', value: 'global' });
-
     return (
       <Box flexDirection="column">
         <Text bold>Select Experiment:</Text>
@@ -367,7 +463,6 @@ export const TaskAdd = ({ path: targetPath, repo, branch }: TaskAddProps) => {
       { label: 'Evaluation (Evaluation tab)', value: 'eval' },
       { label: 'Generation (Generation tab)', value: 'generate' },
     ];
-
     return (
       <Box flexDirection="column">
         <Text bold>Select Task Type:</Text>
@@ -385,21 +480,13 @@ export const TaskAdd = ({ path: targetPath, repo, branch }: TaskAddProps) => {
   if (step === 'PROVIDER_SELECT') {
     if (providers.length === 0)
       return (
-        <Box flexDirection="column">
-          <ErrorMsg
-            text="No Providers"
-            detail="Configure a compute provider in settings."
-          />
-        </Box>
+        <ErrorMsg text="No Providers" detail="Configure a provider first." />
       );
-
-    const items = providers.map((p: any) => ({ label: p.name, value: p.id }));
-
     return (
       <Box flexDirection="column">
-        <Text bold>Select Default Compute Provider:</Text>
+        <Text bold>Select Compute Provider:</Text>
         <SelectInput
-          items={items}
+          items={providers.map((p: any) => ({ label: p.name, value: p.id }))}
           onSelect={(item) => {
             setSelectedProvider(item.value);
             submitTask();
@@ -410,22 +497,7 @@ export const TaskAdd = ({ path: targetPath, repo, branch }: TaskAddProps) => {
   }
 
   if (step === 'SUBMITTING') return <Loading text="Registering task..." />;
-
-  if (step === 'SUCCESS') {
-    const displayName =
-      config?.name ||
-      git.repo.split('/').pop()?.replace('.git', '') ||
-      'new-task';
-    return (
-      <Box flexDirection="column">
-        <SuccessMsg text="Task successfully added!" />
-        <Text>
-          ID: <Text bold>{displayName}</Text>
-        </Text>
-      </Box>
-    );
-  }
-
+  if (step === 'SUCCESS') return <SuccessMsg text="Task successfully added!" />;
   if (step === 'ERROR') return <ErrorMsg text="Error" detail={error || ''} />;
 
   return null;

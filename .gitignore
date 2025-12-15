@@ -209,3 +209,7 @@ api/unsloth_compiled_cache/
 # Python SDK (lab-sdk) specific ignores
 # --------------------------------
 lab-sdk/src/transformerlab.egg-info/
+
+# CLI executables
+cli/cli
+cli/lab
