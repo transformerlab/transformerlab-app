@@ -76,10 +76,7 @@ type NewTaskModalProps = {
 
 type TaskMode = 'github-with-json' | 'github-manual' | 'no-github';
 
-type Phase =
-  | 'github-selection'
-  | 'task-config'
-  | 'provider-env';
+type Phase = 'github-selection' | 'task-config' | 'provider-env';
 
 // Helper function to fetch task.json from GitHub via backend API
 async function fetchTaskJsonFromGitHub(
@@ -246,9 +243,7 @@ export default function NewTaskModal({
               }),
             );
             setEnvVars(
-              envVarsArray.length > 0
-                ? envVarsArray
-                : [{ key: '', value: '' }],
+              envVarsArray.length > 0 ? envVarsArray : [{ key: '', value: '' }],
             );
           }
           addNotification({
