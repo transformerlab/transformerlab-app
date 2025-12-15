@@ -196,7 +196,7 @@ const Resources = () => {
               </Typography>
               {sshClusters.length === 0 ? (
                 <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
-                  No SSH nodes found.
+                  No Fixed Compute nodes found.
                 </Typography>
               ) : (
                 <Sheet
