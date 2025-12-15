@@ -647,6 +647,7 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         cluster_name: cfg.cluster_name,
         command: cfg.command,
         subtype: cfg.subtype,
+        interactive_type: cfg.interactive_type,
         cpus: cfg.cpus,
         memory: cfg.memory,
         disk_space: cfg.disk_space,

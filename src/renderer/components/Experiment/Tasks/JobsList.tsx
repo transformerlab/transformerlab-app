@@ -259,15 +259,16 @@ const JobsList: React.FC<JobsListProps> = ({
                       Sweep Output
                     </Button>
                   )}
-                  {job?.status === 'INTERACTIVE' && (
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => onViewInteractive?.(job?.id)}
-                    >
-                      Interactive Modal
-                    </Button>
-                  )}
+                  {job?.status === 'INTERACTIVE' &&
+                    job?.job_data?.interactive_type === 'vscode' && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewInteractive?.(job?.id)}
+                      >
+                        Interactive Setup
+                      </Button>
+                    )}
                   {job?.job_data?.checkpoints && (
                     <Button
                       size="sm"

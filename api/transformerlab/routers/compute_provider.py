@@ -53,6 +53,7 @@ class ProviderTaskLaunchRequest(BaseModel):
     cluster_name: Optional[str] = Field(None, description="Base cluster name, suffix is appended automatically")
     command: str = Field(..., description="Command to execute on the cluster")
     subtype: Optional[str] = Field(None, description="Optional subtype for filtering")
+    interactive_type: Optional[str] = Field(None, description="Interactive task type (e.g. vscode)")
     cpus: Optional[str] = None
     memory: Optional[str] = None
     disk_space: Optional[str] = None
@@ -637,6 +638,7 @@ async def launch_task_on_provider(
         "command": request.command,
         "cluster_name": formatted_cluster_name,
         "subtype": request.subtype,
+        "interactive_type": request.interactive_type,
         "cpus": request.cpus,
         "memory": request.memory,
         "disk_space": request.disk_space,
