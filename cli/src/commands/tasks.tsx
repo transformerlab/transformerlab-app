@@ -320,7 +320,7 @@ export const TaskAdd = ({ path: targetPath, repo, branch }: TaskAddProps) => {
             Branch: {git.branch} @ {git.sha.slice(0, 7)}
           </Text>
           <Text>
-            Config: {config ? 'Found lab.json' : 'None (Using defaults)'}
+            Config: {config ? 'Found config' : 'None (Using defaults)'}
           </Text>
         </Panel>
         {privateRepoWarn && (

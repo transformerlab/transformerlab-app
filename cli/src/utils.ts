@@ -97,7 +97,7 @@ export const getJsonFiles = (dir: string) => {
 };
 
 export const loadLabConfig = (dir: string = '.'): LabConfig | null => {
-  const searchOrder = ['lab.json', 'index.json'];
+  const searchOrder = ['task.json', 'lab.json', 'index.json'];
   const absoluteDir = path.resolve(process.cwd(), dir);
 
   for (const file of searchOrder) {
