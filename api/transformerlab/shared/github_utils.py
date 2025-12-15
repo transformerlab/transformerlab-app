@@ -97,8 +97,6 @@ async def _fetch_task_json_impl(
         Tuple of (task_json_dict, owner, repo, file_path) or (None, None, None, None) on error.
         If raise_on_error is True, raises HTTPException instead of returning None.
     """
-    from fastapi import HTTPException
-
     # Extract owner and repo from URL
     repo_url_clean = repo_url.replace(".git", "").strip()
     if not repo_url_clean.startswith("https://github.com/"):
