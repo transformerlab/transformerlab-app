@@ -7,7 +7,7 @@ import { render, Box, Text, useApp } from 'ink';
 import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
 import open from 'open';
-import Table from 'ink-table';
+// import Table from 'ink-table';
 import { config, getGitContext, WEB_URL, API_URL, IS_LOCAL } from './utils';
 import { Logo, Panel, SuccessMsg, ErrorMsg, Loading } from './ui';
 import { LoginCommand } from './commands/login';
@@ -148,7 +148,7 @@ const App = ({ command, args }: { command: string; args: any }) => {
           )}
         </Panel>
         <Text bold>Quick Start:</Text>
-        <Table data={commandsData} />
+        {/* <Table data={commandsData} /> */}
         <Box marginTop={1}>
           <Text>
             Run{' '}

@@ -6,7 +6,7 @@ import { api } from '../api';
 import { getGitContext, loadLabConfig, LabConfig } from '../utils';
 import { Loading, ErrorMsg, SuccessMsg, Logo, Panel } from '../ui';
 import { GenericList } from './list_commands';
-import Table from 'ink-table';
+// import Table from 'ink-table';
 
 export const TaskList = () => (
   <GenericList
@@ -88,7 +88,7 @@ export const TaskGallery = () => {
       )}
 
       <Box borderStyle="single" borderColor="gray" paddingX={1}>
-        <Table data={items} />
+        {/* <Table data={items} /> */}
       </Box>
       <Text dimColor>
         To install a task run:{' '}

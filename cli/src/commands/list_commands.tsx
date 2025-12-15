@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Box, Text, useApp } from 'ink';
-import Table from 'ink-table';
+// import Table from 'ink-table';
 import { api } from '../api';
 import { Loading, ErrorMsg } from '../ui';
 
@@ -80,7 +80,7 @@ export const GenericList = ({
 
   return (
     <Box flexDirection="column" paddingBottom={1}>
-      <Table data={tableData} />
+      {/* <Table data={tableData} /> */}
       <Box marginTop={1}>
         <Text dimColor>Total: {data.length} items</Text>
       </Box>
