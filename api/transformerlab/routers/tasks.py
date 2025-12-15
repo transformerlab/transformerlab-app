@@ -602,6 +602,8 @@ async def delete_team_task_from_gallery(
         }
     else:
         raise HTTPException(status_code=404, detail="Task not found in team gallery")
+
+
 @router.get("/fetch_task_json", summary="Fetch task.json from a GitHub repository")
 async def fetch_task_json_from_github(
     repo_url: str = Query(..., description="GitHub repository URL"),
