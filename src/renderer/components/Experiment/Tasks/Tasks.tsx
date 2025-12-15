@@ -139,7 +139,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   // Fetch jobs with automatic polling
   const {
     data: jobs,
-    error: jobsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
   } = useSWR(
@@ -166,7 +165,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   // Fetch tasks with useSWR
   const {
     data: allTasks,
-    error: tasksError,
     isLoading: tasksIsLoading,
     mutate: tasksMutate,
   } = useSWR(
@@ -518,23 +516,21 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       return;
     }
 
-    const providerMeta = providers[0];
+    const providerMeta =
+      providers.find((p) => p.id === data.provider_id) || providers[0];
 
     setIsSubmitting(true);
     try {
       const defaultSetup = `
-sudo snap install --classic code || true
-# If snap is not available, try deb-based install
-if ! command -v code >/dev/null 2>&1; then
-  sudo apt-get update -y || true
-  wget https://go.microsoft.com/fwlink/?LinkID=760868 -O vscode.deb
-  sudo apt-get install ./vscode.deb -y
-  rm vscode.deb
-fi
-`.trim();
+export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gnupg software-properties-common apt-transport-https wget \
+&& wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg \
+&& sudo install -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/ \
+&& echo "deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
+| sudo tee /etc/apt/sources.list.d/vscode.list \
+&& sudo apt update && sudo apt install -y code;`.trim();
 
       const defaultCommand =
-        'code tunnel --accept-server-license-terms'.trim();
+        'code tunnel --accept-server-license-terms --disable-telemetry'.trim();
 
       const config: any = {
         cluster_name: data.title,
@@ -740,6 +736,8 @@ fi
         onClose={() => setInteractiveModalOpen(false)}
         onSubmit={handleSubmitInteractive}
         isSubmitting={isSubmitting}
+        providers={providers}
+        isProvidersLoading={providersIsLoading}
       />
       <EditTaskModal
         open={editModalOpen}

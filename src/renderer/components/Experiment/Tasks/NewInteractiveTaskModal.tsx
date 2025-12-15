@@ -15,8 +15,15 @@ import {
   RadioGroup,
   FormHelperText,
   Typography,
+  Select,
+  Option,
 } from '@mui/joy';
 import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react';
+
+type ProviderOption = {
+  id: string;
+  name: string;
+};
 
 type NewInteractiveTaskModalProps = {
   open: boolean;
@@ -27,8 +34,11 @@ type NewInteractiveTaskModalProps = {
     memory?: string;
     accelerators?: string;
     interactive_type: 'vscode' | 'jupyter';
+    provider_id?: string;
   }) => void;
   isSubmitting?: boolean;
+  providers: ProviderOption[];
+  isProvidersLoading?: boolean;
 };
 
 export default function NewInteractiveTaskModal({
@@ -36,13 +46,17 @@ export default function NewInteractiveTaskModal({
   onClose,
   onSubmit,
   isSubmitting = false,
+  providers,
+  isProvidersLoading = false,
 }: NewInteractiveTaskModalProps) {
   const [title, setTitle] = React.useState('');
   const [cpus, setCpus] = React.useState('');
   const [memory, setMemory] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
-  const [interactiveType, setInteractiveType] =
-    React.useState<'vscode' | 'jupyter'>('vscode');
+  const [interactiveType, setInteractiveType] = React.useState<
+    'vscode' | 'jupyter'
+  >('vscode');
+  const [selectedProviderId, setSelectedProviderId] = React.useState('');
 
   React.useEffect(() => {
     if (!open) {
@@ -51,12 +65,33 @@ export default function NewInteractiveTaskModal({
       setMemory('');
       setAccelerators('');
       setInteractiveType('vscode');
+      setSelectedProviderId(providers[0]?.id || '');
+    } else if (open && providers.length && !selectedProviderId) {
+      setSelectedProviderId(providers[0].id);
     }
-  }, [open]);
+  }, [open, providers, selectedProviderId]);
+
+  React.useEffect(() => {
+    if (!providers.length) {
+      setSelectedProviderId('');
+      return;
+    }
+    if (!selectedProviderId) {
+      setSelectedProviderId(providers[0].id);
+      return;
+    }
+    if (!providers.find((p) => p.id === selectedProviderId)) {
+      setSelectedProviderId(providers[0].id);
+    }
+  }, [providers, selectedProviderId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
+      return;
+    }
+
+    if (!selectedProviderId) {
       return;
     }
 
@@ -66,22 +101,25 @@ export default function NewInteractiveTaskModal({
       memory: memory || undefined,
       accelerators: accelerators || undefined,
       interactive_type: interactiveType,
+      provider_id: selectedProviderId,
     });
   };
 
-  const canSubmit = title.trim().length > 0;
+  const canSubmit = title.trim().length > 0 && !!selectedProviderId;
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog sx={{ maxHeight: '80vh', width: '60vw', overflow: 'hidden' }}>
+      <ModalDialog
+        sx={{ maxHeight: '80vh', width: '60vw', overflow: 'hidden' }}
+      >
         <ModalClose />
         <DialogTitle>New Interactive Task</DialogTitle>
         <form onSubmit={handleSubmit}>
           <DialogContent sx={{ maxHeight: '60vh', overflow: 'auto' }}>
             <Stack spacing={3}>
               <Typography level="body-sm">
-                Create a lightweight interactive task template that will launch a
-                VS Code tunnel on a remote provider. For this demo, GitHub
+                Create a lightweight interactive task template that will launch
+                a VS Code tunnel on a remote provider. For this demo, GitHub
                 options are disabled; only basic resources and type selection
                 are supported.
               </Typography>
@@ -94,6 +132,34 @@ export default function NewInteractiveTaskModal({
                   placeholder="Interactive session name"
                   autoFocus
                 />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>Provider</FormLabel>
+                <Select
+                  placeholder={
+                    providers.length
+                      ? 'Select a provider'
+                      : 'No providers configured'
+                  }
+                  value={selectedProviderId || null}
+                  onChange={(_, value) => setSelectedProviderId(value || '')}
+                  disabled={
+                    isSubmitting || isProvidersLoading || providers.length === 0
+                  }
+                  slotProps={{
+                    listbox: { sx: { maxHeight: 240 } },
+                  }}
+                >
+                  {providers.map((provider) => (
+                    <Option key={provider.id} value={provider.id}>
+                      {provider.name}
+                    </Option>
+                  ))}
+                </Select>
+                <FormHelperText>
+                  Choose which provider should run this interactive session.
+                </FormHelperText>
               </FormControl>
 
               <FormControl>
@@ -187,5 +253,3 @@ export default function NewInteractiveTaskModal({
     </Modal>
   );
 }
-
-

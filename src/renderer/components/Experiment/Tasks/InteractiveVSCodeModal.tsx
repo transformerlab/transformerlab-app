@@ -120,8 +120,15 @@ export default function InteractiveVSCodeModal({
             <Typography level="title-md">Step 1: Authorize VS Code</Typography>
             <Typography level="body-sm" sx={{ mt: 0.5 }}>
               When the VS Code tunnel starts, it prints an authorization code.
-              Copy the code below (when available) and complete the sign-in flow
-              in your browser.
+              Copy the code below (when available), go to{' '}
+              <Link
+                href="https://github.com/login/device"
+                target="_blank"
+                rel="noreferrer"
+              >
+                https://github.com/login/device
+              </Link>{' '}
+              and complete the sign-in flow in your browser.
             </Typography>
 
             <Box
@@ -238,5 +245,3 @@ export default function InteractiveVSCodeModal({
     </Modal>
   );
 }
-
-

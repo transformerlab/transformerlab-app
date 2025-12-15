@@ -138,9 +138,7 @@ const JobsList: React.FC<JobsListProps> = ({
                   sx={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}
                 >
                   {job?.placeholder && (
-                    <>
-                      <Skeleton variant="rectangular" width={100} height={28} />
-                    </>
+                    <Skeleton variant="rectangular" width={100} height={28} />
                   )}
                   {job?.job_data?.tensorboard_output_dir && (
                     <Button
@@ -261,16 +259,15 @@ const JobsList: React.FC<JobsListProps> = ({
                       Sweep Output
                     </Button>
                   )}
-                  {job?.status === 'INTERACTIVE' &&
-                    job?.job_data?.interactive_type === 'vscode' && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => onViewInteractive?.(job?.id)}
-                      >
-                        Interactive Modal
-                      </Button>
-                    )}
+                  {job?.status === 'INTERACTIVE' && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => onViewInteractive?.(job?.id)}
+                    >
+                      Interactive Modal
+                    </Button>
+                  )}
                   {job?.job_data?.checkpoints && (
                     <Button
                       size="sm"
