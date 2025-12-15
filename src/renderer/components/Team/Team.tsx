@@ -48,6 +48,10 @@ export default function UserLoginTest(): JSX.Element {
   const authContext = useAuth();
   const [loading, setLoading] = useState<boolean>(false);
   const [newTeamName, setNewTeamName] = useState<string>('');
+  const [newTeamLogo, setNewTeamLogo] = useState<File | null>(null);
+  const [newTeamLogoPreview, setNewTeamLogoPreview] = useState<string | null>(
+    null,
+  );
   const [openNewTeamModal, setOpenNewTeamModal] = useState<boolean>(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [openInviteModal, setOpenInviteModal] = useState<boolean>(false);
@@ -65,6 +69,12 @@ export default function UserLoginTest(): JSX.Element {
   const [githubPATExists, setGithubPATExists] = useState<boolean>(false);
   const [savingPAT, setSavingPAT] = useState<boolean>(false);
   const [loadingPAT, setLoadingPAT] = useState<boolean>(true);
+  const [teamLogo, setTeamLogo] = useState<string | null>(null);
+  const [teamLogoFile, setTeamLogoFile] = useState<File | null>(null);
+  const [teamLogoPreview, setTeamLogoPreview] = useState<string | null>(null);
+  const [openSetLogoModal, setOpenSetLogoModal] = useState<boolean>(false);
+  const [uploadingLogo, setUploadingLogo] = useState<boolean>(false);
+  const [teamLogos, setTeamLogos] = useState<Record<string, string>>({});
 
   // Get teams list (unchanged)
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
@@ -126,6 +136,71 @@ export default function UserLoginTest(): JSX.Element {
     fetchGitHubPAT();
   }, [authContext?.team?.id]);
 
+  // Fetch team logo when team changes
+  useEffect(() => {
+    const fetchTeamLogo = async () => {
+      if (!authContext?.team?.id) {
+        setTeamLogo(null);
+        return;
+      }
+      try {
+        const res = await authContext.fetchWithAuth(
+          `teams/${authContext.team.id}/logo`,
+          { method: 'GET' },
+        );
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          setTeamLogo(url);
+        } else {
+          setTeamLogo(null);
+        }
+      } catch (e: any) {
+        // Logo not found is expected if no logo is set
+        setTeamLogo(null);
+      }
+    };
+    fetchTeamLogo();
+  }, [authContext?.team?.id]);
+
+  // Fetch logos for all teams for the dropdown
+  useEffect(() => {
+    if (!teams?.teams || !authContext?.fetchWithAuth) return;
+
+    const fetchLogos = async () => {
+      const logoMap: Record<string, string> = {};
+      const promises = teams.teams.map(async (team: any) => {
+        try {
+          const res = await authContext.fetchWithAuth(`teams/${team.id}/logo`, {
+            method: 'GET',
+          });
+          if (res.ok) {
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            logoMap[team.id] = url;
+          }
+        } catch (e) {
+          // Logo not found is expected if no logo is set
+        }
+      });
+      await Promise.all(promises);
+      setTeamLogos(logoMap);
+    };
+
+    fetchLogos();
+  }, [teams?.teams, authContext?.fetchWithAuth]);
+
+  // Cleanup object URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      Object.values(teamLogos).forEach((url) => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [teamLogos]);
+
   const handleSaveGitHubPAT = async () => {
     if (!authContext?.team?.id || !iAmOwner) return;
     setSavingPAT(true);
@@ -176,12 +251,15 @@ export default function UserLoginTest(): JSX.Element {
   async function handleNewTeam() {
     setLoading(true);
     try {
+      const formData = new FormData();
+      formData.append('name', newTeamName);
+      if (newTeamLogo) {
+        formData.append('logo', newTeamLogo);
+      }
+
       const res = await authContext.fetchWithAuth('teams', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name: newTeamName }),
+        body: formData,
       });
 
       if (!res.ok) {
@@ -198,8 +276,30 @@ export default function UserLoginTest(): JSX.Element {
 
       const data = await res.json();
       setNewTeamName('');
+      setNewTeamLogo(null);
+      setNewTeamLogoPreview(null);
 
       teamsMutate();
+
+      // If logo was uploaded, fetch it for the new team
+      if (newTeamLogo && data.id) {
+        try {
+          const logoRes = await authContext.fetchWithAuth(
+            `teams/${data.id}/logo`,
+            { method: 'GET' },
+          );
+          if (logoRes.ok) {
+            const blob = await logoRes.blob();
+            const url = URL.createObjectURL(blob);
+            setTeamLogos((prev) => ({
+              ...prev,
+              [data.id]: url,
+            }));
+          }
+        } catch (e) {
+          // Logo might not be ready yet, ignore
+        }
+      }
     } catch (e: any) {
       console.error('Error creating team:', e);
     } finally {
@@ -352,12 +452,43 @@ export default function UserLoginTest(): JSX.Element {
             aria-label="Select team"
             sx={{ minWidth: 300 }}
           >
-            {teams?.teams.map((team: any) => (
-              <Option key={team.id} value={team.id}>
-                {team.name}
-                {/* — {team.id} */}
-              </Option>
-            ))}
+            {teams?.teams.map((team: any) => {
+              const teamLogoUrl = teamLogos[team.id];
+              return (
+                <Option key={team.id} value={team.id}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    {teamLogoUrl ? (
+                      <Box
+                        component="img"
+                        src={teamLogoUrl}
+                        alt={`${team.name} logo`}
+                        sx={{
+                          width: 20,
+                          height: 20,
+                          objectFit: 'contain',
+                          borderRadius: 'sm',
+                        }}
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: 'sm',
+                          bgcolor: 'neutral.200',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <User2Icon size={12} />
+                      </Box>
+                    )}
+                    <Typography>{team.name}</Typography>
+                  </Stack>
+                </Option>
+              );
+            })}
           </Select>
 
           <Box sx={{ mt: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -372,7 +503,11 @@ export default function UserLoginTest(): JSX.Element {
 
             <Modal
               open={openNewTeamModal}
-              onClose={() => setOpenNewTeamModal(false)}
+              onClose={() => {
+                setOpenNewTeamModal(false);
+                setNewTeamLogo(null);
+                setNewTeamLogoPreview(null);
+              }}
             >
               <ModalDialog
                 aria-labelledby="new-team-title"
@@ -380,20 +515,84 @@ export default function UserLoginTest(): JSX.Element {
               >
                 <ModalClose />
                 <Typography id="new-team-title" level="h4">
-                  New Team Name
+                  New Team
                 </Typography>
 
                 <Box sx={{ mt: 2 }}>
-                  <Input
-                    placeholder="Team name"
-                    value={newTeamName}
-                    onChange={(e: any) => setNewTeamName(e.target.value)}
-                    disabled={loading}
-                    aria-label="New team name"
-                    size="sm"
-                    autoFocus
-                  />
+                  <FormControl>
+                    <FormLabel>Team Name</FormLabel>
+                    <Input
+                      placeholder="Team name"
+                      value={newTeamName}
+                      onChange={(e: any) => setNewTeamName(e.target.value)}
+                      disabled={loading}
+                      aria-label="New team name"
+                      size="sm"
+                      autoFocus
+                    />
+                  </FormControl>
                 </Box>
+
+                <Box sx={{ mt: 2 }}>
+                  <FormControl>
+                    <FormLabel>Team Logo (optional)</FormLabel>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                      {newTeamLogoPreview && (
+                        <Box
+                          component="img"
+                          src={newTeamLogoPreview}
+                          alt="Logo preview"
+                          sx={{
+                            width: 64,
+                            height: 64,
+                            objectFit: 'contain',
+                            borderRadius: 'sm',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                          }}
+                        />
+                      )}
+                      <Button
+                        component="label"
+                        variant="outlined"
+                        size="sm"
+                        disabled={loading}
+                      >
+                        {newTeamLogo ? 'Change Logo' : 'Upload Logo'}
+                        <input
+                          type="file"
+                          hidden
+                          accept="image/*"
+                          onChange={(e: any) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setNewTeamLogo(file);
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setNewTeamLogoPreview(reader.result as string);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </Button>
+                      {newTeamLogo && (
+                        <Button
+                          variant="plain"
+                          size="sm"
+                          onClick={() => {
+                            setNewTeamLogo(null);
+                            setNewTeamLogoPreview(null);
+                          }}
+                          disabled={loading}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </Box>
+                  </FormControl>
+                </Box>
+
                 <Box
                   sx={{
                     display: 'flex',
@@ -404,7 +603,11 @@ export default function UserLoginTest(): JSX.Element {
                 >
                   <Button
                     variant="plain"
-                    onClick={() => setOpenNewTeamModal(false)}
+                    onClick={() => {
+                      setOpenNewTeamModal(false);
+                      setNewTeamLogo(null);
+                      setNewTeamLogoPreview(null);
+                    }}
                     disabled={loading}
                   >
                     Cancel
@@ -447,6 +650,88 @@ export default function UserLoginTest(): JSX.Element {
           >
             Usage Report {!iAmOwner ? '(Only owners can view)' : ''}
           </Button>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            {teamLogo && (
+              <Box
+                component="img"
+                src={teamLogo}
+                alt="Team logo"
+                sx={{
+                  width: 64,
+                  height: 64,
+                  objectFit: 'contain',
+                  borderRadius: 'sm',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              />
+            )}
+            {!teamLogo && (
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 'sm',
+                  bgcolor: 'neutral.200',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <User2Icon size={32} />
+              </Box>
+            )}
+            <Stack gap={1}>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setRenameModalOpen(true);
+                }}
+                disabled={!iAmOwner}
+              >
+                Rename Team
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => setOpenSetLogoModal(true)}
+                disabled={!iAmOwner}
+              >
+                {teamLogo ? 'Change Logo' : 'Set Logo'}
+              </Button>
+              {teamLogo && (
+                <Button
+                  variant="outlined"
+                  color="danger"
+                  onClick={async () => {
+                    if (!authContext?.team?.id || !iAmOwner) return;
+                    try {
+                      const res = await authContext.fetchWithAuth(
+                        `teams/${authContext.team.id}/logo`,
+                        { method: 'DELETE' },
+                      );
+                      if (res.ok) {
+                        setTeamLogo(null);
+                        // Remove logo from teamLogos map
+                        const teamId = authContext.team?.id;
+                        if (teamId) {
+                          setTeamLogos((prev) => {
+                            const updated = { ...prev };
+                            delete updated[teamId];
+                            return updated;
+                          });
+                        }
+                      }
+                    } catch (e: any) {
+                      console.error('Error deleting logo:', e);
+                    }
+                  }}
+                  disabled={!iAmOwner}
+                >
+                  Remove Logo
+                </Button>
+              )}
+            </Stack>
+          </Box>
         </Stack>
 
         <Box sx={{ mt: 3 }}>
@@ -741,6 +1026,152 @@ export default function UserLoginTest(): JSX.Element {
         teamId={authContext.team?.id || ''}
         providerId={providerId}
       />
+      <Modal
+        open={openSetLogoModal}
+        onClose={() => {
+          setOpenSetLogoModal(false);
+          setTeamLogoFile(null);
+          setTeamLogoPreview(null);
+        }}
+      >
+        <ModalDialog aria-labelledby="set-logo-title" sx={{ minWidth: 320 }}>
+          <ModalClose />
+          <Typography id="set-logo-title" level="h4">
+            Set Team Logo
+          </Typography>
+
+          <Box sx={{ mt: 2 }}>
+            <FormControl>
+              <FormLabel>Team Logo</FormLabel>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                {teamLogoPreview && (
+                  <Box
+                    component="img"
+                    src={teamLogoPreview}
+                    alt="Logo preview"
+                    sx={{
+                      width: 64,
+                      height: 64,
+                      objectFit: 'contain',
+                      borderRadius: 'sm',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  />
+                )}
+                <Button
+                  component="label"
+                  variant="outlined"
+                  size="sm"
+                  disabled={uploadingLogo}
+                >
+                  {teamLogoPreview ? 'Change Logo' : 'Upload Logo'}
+                  <input
+                    type="file"
+                    hidden
+                    accept="image/*"
+                    onChange={(e: any) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setTeamLogoFile(file);
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setTeamLogoPreview(reader.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </Button>
+                {teamLogoPreview && (
+                  <Button
+                    variant="plain"
+                    size="sm"
+                    onClick={() => {
+                      setTeamLogoFile(null);
+                      setTeamLogoPreview(null);
+                    }}
+                    disabled={uploadingLogo}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </Box>
+            </FormControl>
+          </Box>
+
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              justifyContent: 'flex-end',
+              mt: 2,
+            }}
+          >
+            <Button
+              variant="plain"
+              onClick={() => {
+                setOpenSetLogoModal(false);
+                setTeamLogoFile(null);
+                setTeamLogoPreview(null);
+              }}
+              disabled={uploadingLogo}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!authContext?.team?.id || !teamLogoFile || !iAmOwner)
+                  return;
+                setUploadingLogo(true);
+                try {
+                  const formData = new FormData();
+                  formData.append('logo', teamLogoFile);
+
+                  const res = await authContext.fetchWithAuth(
+                    `teams/${authContext.team.id}/logo`,
+                    {
+                      method: 'PUT',
+                      body: formData,
+                    },
+                  );
+
+                  if (res.ok) {
+                    // Refresh logo display
+                    const logoRes = await authContext.fetchWithAuth(
+                      `teams/${authContext.team.id}/logo`,
+                      { method: 'GET' },
+                    );
+                    if (logoRes.ok) {
+                      const blob = await logoRes.blob();
+                      const url = URL.createObjectURL(blob);
+                      setTeamLogo(url);
+                      // Update the logo in the teamLogos map for dropdown
+                      const teamId = authContext.team?.id;
+                      if (teamId) {
+                        setTeamLogos((prev) => ({
+                          ...prev,
+                          [teamId]: url,
+                        }));
+                      }
+                    }
+                    setOpenSetLogoModal(false);
+                    setTeamLogoFile(null);
+                    setTeamLogoPreview(null);
+                  }
+                } catch (e: any) {
+                  console.error('Error uploading logo:', e);
+                } finally {
+                  setUploadingLogo(false);
+                }
+              }}
+              disabled={uploadingLogo || !teamLogoFile}
+            >
+              {uploadingLogo ? 'Uploading...' : 'Save'}
+            </Button>
+          </Box>
+        </ModalDialog>
+      </Modal>
     </Sheet>
   );
 }
