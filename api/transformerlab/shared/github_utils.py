@@ -4,6 +4,8 @@ import base64
 import json
 import uuid
 from typing import Optional, Tuple
+from fastapi import HTTPException
+
 
 import httpx
 from lab import storage
