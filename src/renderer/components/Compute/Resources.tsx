@@ -192,7 +192,7 @@ const Resources = () => {
           <Card>
             <CardContent>
               <Typography level="title-lg" mb={2}>
-                SSH Node Pool
+                Fixed Compute
               </Typography>
               {sshClusters.length === 0 ? (
                 <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
