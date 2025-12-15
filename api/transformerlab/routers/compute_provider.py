@@ -2,7 +2,6 @@
 
 import os
 import time
-import uuid
 import configparser
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
