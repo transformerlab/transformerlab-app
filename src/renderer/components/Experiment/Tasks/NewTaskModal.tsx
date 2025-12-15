@@ -318,6 +318,19 @@ export default function NewTaskModal({
         setCurrentPhase('task-config');
       }
     } else if (currentPhase === 'task-config') {
+      // Save editor values to state before moving to next phase
+      try {
+        const setupValue = setupEditorRef?.current?.getValue?.();
+        const commandValue = commandEditorRef?.current?.getValue?.();
+        if (setupValue !== undefined) {
+          setSetup(setupValue);
+        }
+        if (commandValue !== undefined) {
+          setCommand(commandValue);
+        }
+      } catch (e) {
+        // Silently fail if editor not ready
+      }
       setCurrentPhase('provider-env');
     }
   };
@@ -505,6 +518,47 @@ export default function NewTaskModal({
   function handleSetupEditorDidMount(editor: any, monaco: any) {
     setupEditorRef.current = editor;
     setTheme(editor, monaco);
+
+    // Prevent browser extension interference - try multiple times with delays
+    // Monaco Editor's textarea might not exist immediately
+    const applyAttributes = () => {
+      try {
+        const domNode = editor.getDomNode();
+        if (domNode) {
+          domNode.setAttribute('autocomplete', 'off');
+          domNode.setAttribute('data-form-type', 'other');
+          domNode.setAttribute('data-lpignore', 'true');
+          domNode.setAttribute('data-1p-ignore', 'true');
+
+          // Find the textarea element that Monaco creates and add attributes
+          const textarea = domNode.querySelector('textarea');
+          if (textarea) {
+            textarea.setAttribute('autocomplete', 'off');
+            textarea.setAttribute('data-form-type', 'other');
+            textarea.setAttribute('data-lpignore', 'true');
+            textarea.setAttribute('data-1p-ignore', 'true');
+            textarea.setAttribute('data-bwignore', 'true');
+            textarea.setAttribute('data-dashlane-ignore', 'true');
+            textarea.setAttribute('data-lastpass-icon-root', 'true');
+            return true; // Success
+          }
+        }
+      } catch (e) {
+        // Silently fail if DOM manipulation isn't possible
+      }
+      return false; // Not ready yet
+    };
+
+    // Try immediately
+    if (!applyAttributes()) {
+      // If not ready, try again after delays
+      setTimeout(() => {
+        if (!applyAttributes()) {
+          setTimeout(() => applyAttributes(), 200);
+        }
+      }, 50);
+    }
+
     // Set initial value if setup state exists
     if (setup) {
       try {
@@ -528,6 +582,47 @@ export default function NewTaskModal({
   function handleCommandEditorDidMount(editor: any, monaco: any) {
     commandEditorRef.current = editor;
     setTheme(editor, monaco);
+
+    // Prevent browser extension interference - try multiple times with delays
+    // Monaco Editor's textarea might not exist immediately
+    const applyAttributes = () => {
+      try {
+        const domNode = editor.getDomNode();
+        if (domNode) {
+          domNode.setAttribute('autocomplete', 'off');
+          domNode.setAttribute('data-form-type', 'other');
+          domNode.setAttribute('data-lpignore', 'true');
+          domNode.setAttribute('data-1p-ignore', 'true');
+
+          // Find the textarea element that Monaco creates and add attributes
+          const textarea = domNode.querySelector('textarea');
+          if (textarea) {
+            textarea.setAttribute('autocomplete', 'off');
+            textarea.setAttribute('data-form-type', 'other');
+            textarea.setAttribute('data-lpignore', 'true');
+            textarea.setAttribute('data-1p-ignore', 'true');
+            textarea.setAttribute('data-bwignore', 'true');
+            textarea.setAttribute('data-dashlane-ignore', 'true');
+            textarea.setAttribute('data-lastpass-icon-root', 'true');
+            return true; // Success
+          }
+        }
+      } catch (e) {
+        // Silently fail if DOM manipulation isn't possible
+      }
+      return false; // Not ready yet
+    };
+
+    // Try immediately
+    if (!applyAttributes()) {
+      // If not ready, try again after delays
+      setTimeout(() => {
+        if (!applyAttributes()) {
+          setTimeout(() => applyAttributes(), 200);
+        }
+      }, 50);
+    }
+
     // Set initial value if command state exists
     if (command) {
       try {
@@ -788,20 +883,27 @@ export default function NewTaskModal({
 
             <FormControl>
               <FormLabel>Setup Command</FormLabel>
-              <Editor
-                defaultLanguage="shell"
-                theme="my-theme"
-                height="6rem"
-                options={{
-                  minimap: {
-                    enabled: false,
-                  },
-                  fontSize: 18,
-                  cursorStyle: 'block',
-                  wordWrap: 'on',
-                }}
-                onMount={handleSetupEditorDidMount}
-              />
+              <div
+                data-form-type="other"
+                data-lpignore="true"
+                data-1p-ignore="true"
+                style={{ position: 'relative' }}
+              >
+                <Editor
+                  defaultLanguage="shell"
+                  theme="my-theme"
+                  height="6rem"
+                  options={{
+                    minimap: {
+                      enabled: false,
+                    },
+                    fontSize: 18,
+                    cursorStyle: 'block',
+                    wordWrap: 'on',
+                  }}
+                  onMount={handleSetupEditorDidMount}
+                />
+              </div>
               <FormHelperText>
                 e.g. <code>pip install -r requirements.txt</code>
               </FormHelperText>
@@ -809,20 +911,27 @@ export default function NewTaskModal({
 
             <FormControl required>
               <FormLabel>Command</FormLabel>
-              <Editor
-                defaultLanguage="shell"
-                theme="my-theme"
-                height="8rem"
-                options={{
-                  minimap: {
-                    enabled: false,
-                  },
-                  fontSize: 18,
-                  cursorStyle: 'block',
-                  wordWrap: 'on',
-                }}
-                onMount={handleCommandEditorDidMount}
-              />
+              <div
+                data-form-type="other"
+                data-lpignore="true"
+                data-1p-ignore="true"
+                style={{ position: 'relative' }}
+              >
+                <Editor
+                  defaultLanguage="shell"
+                  theme="my-theme"
+                  height="8rem"
+                  options={{
+                    minimap: {
+                      enabled: false,
+                    },
+                    fontSize: 18,
+                    cursorStyle: 'block',
+                    wordWrap: 'on',
+                  }}
+                  onMount={handleCommandEditorDidMount}
+                />
+              </div>
               <FormHelperText>
                 e.g. <code>python train.py --epochs 10</code>
               </FormHelperText>
