@@ -6,6 +6,9 @@ import re
 import time
 import logging
 import warnings
+import sys
+import os
+from io import StringIO
 from contextlib import contextmanager
 from typing import Dict, Any, Optional, Union, List
 
@@ -49,7 +52,9 @@ def suppress_warnings_and_logs():
     """
     Context manager to suppress warnings and verbose logging from SkyPilot and urllib3.
     This is useful when checking for optional resources like Kubernetes clusters or SSH pools.
+    Also suppresses Rich console output and stdout/stderr from SkyPilot operations.
     """
+    
     # Save original logging levels
     loggers_to_suppress = [
         'urllib3.connectionpool',
@@ -62,14 +67,26 @@ def suppress_warnings_and_logs():
     for logger_name in loggers_to_suppress:
         logger = logging.getLogger(logger_name)
         original_levels[logger_name] = logger.level
-        logger.setLevel(logging.ERROR)
+        logger.setLevel(logging.CRITICAL)  # Use CRITICAL instead of ERROR to suppress more
+    
+    # Save original stdout/stderr
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
     
     # Suppress Python warnings
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
         try:
+            # Redirect stdout/stderr to suppress Rich output and sky-payload messages
+            sys.stdout = StringIO()
+            sys.stderr = StringIO()
+            
             yield
         finally:
+            # Restore stdout/stderr
+            sys.stdout = original_stdout
+            sys.stderr = original_stderr
+            
             # Restore original logging levels
             for logger_name, level in original_levels.items():
                 logging.getLogger(logger_name).setLevel(level)
@@ -1056,7 +1073,7 @@ class SkyPilotProvider(ComputeProvider):
             try:
                 ssh_node_pools = self._get_ssh_node_pools_from_remote()
             except Exception as e:
-                print(f"Error getting SSH node pools from remote server: {e}")
+                print(f"Error getting SSH node pools from remote server")
         else:
             # For local SkyPilot, use direct SDK calls
             # Suppress warnings from Kubernetes checks for non-existent clusters
@@ -1704,7 +1721,7 @@ class SkyPilotProvider(ComputeProvider):
                 elif "does not exist" in str(e):
                     pass
                 else:
-                    print(f"Error getting job records from request payload: {e}")
+                    print(f"Error getting job records from request payload")
                 # Fallback: try to parse response directly
                 try:
                     if hasattr(response, "json"):
