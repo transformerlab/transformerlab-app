@@ -7,7 +7,7 @@ from lab import lab
 
 def train():
     """Fake training function that runs locally but reports to TransformerLab.
-    
+
     This version uses lab.get_config() to read parameters from the task configuration,
     which can be set via the UI when creating/launching the task.
     """
@@ -189,7 +189,7 @@ def train():
 
         config_artifact_path = lab.save_artifact(config_file, "training_config.json")
         lab.log(f"Saved training config: {config_artifact_path}")
-        
+
         # Get the captured wandb URL from job data for reporting
         job_data = lab.job.get_job_data()
         captured_wandb_url = job_data.get("wandb_run_url", "None")
@@ -251,4 +251,3 @@ def train():
 if __name__ == "__main__":
     result = train()
     print(result)
-
