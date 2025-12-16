@@ -59,5 +59,5 @@ lab job info job-17098235
 4. Interface
 ```bash
 # Open the web dashboard
-lab gui
+lab web
 ```

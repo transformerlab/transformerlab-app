@@ -43,10 +43,7 @@ export const NotImplemented = ({ feature }: { feature: string }) => (
 
 export const Logo = () => (
   <Box flexDirection="column" paddingBottom={1}>
-    <Gradient name="rainbow">
-      <Text>{CUSTOM_ASCII}</Text>
-    </Gradient>
-    <Text color="gray"> The AI Experimentation Platform</Text>
+    <Text>🔬 Transformer Lab</Text>
   </Box>
 );
 

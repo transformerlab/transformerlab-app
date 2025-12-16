@@ -149,6 +149,7 @@ const App = ({ command, args }: { command: string; args: any }) => {
 
     return (
       <Box flexDirection="column" paddingBottom={1}>
+        <Logo />
         <Panel
           title={`Environment: ${target}`}
           color={IS_LOCAL ? 'yellow' : 'cyan'}
@@ -179,7 +180,7 @@ const App = ({ command, args }: { command: string; args: any }) => {
   if (command === 'login') return <LoginCommand />;
   if (command === 'logout') return <LogoutCommand />;
   if (command === 'context') return <ContextView />;
-  if (command === 'gui') {
+  if (command === 'web') {
     const { exit } = useApp();
     useEffect(() => {
       open(WEB_URL).then(() => exit());
@@ -234,14 +235,8 @@ const run = () => {
     .command('logout', 'Log out', {}, (argv) => {
       render(<App command="logout" args={argv} />);
     })
-    .command('settings', 'Configure Settings', {}, (argv) => {
-      render(<App command="settings" args={argv} />);
-    })
-    .command('context', 'Show context', {}, (argv) => {
-      render(<App command="context" args={argv} />);
-    })
-    .command('gui', 'Open Web UI', {}, (argv) => {
-      render(<App command="gui" args={argv} />);
+    .command('web', 'Open Transformer Lab in your Browser', {}, (argv) => {
+      render(<App command="web" args={argv} />);
     })
 
     .command(
