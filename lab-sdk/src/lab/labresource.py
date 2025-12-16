@@ -76,30 +76,56 @@ class BaseLabResource(ABC):
         """Get json file containing metadata for this resource."""
         return storage.join(self.get_dir(), "index.json")
 
-    def get_json_data(self, uncached: bool = False):
+    def get_json_data(self, uncached: bool = False, max_retries: int = 5):
         """
         Return the JSON data that is stored for this resource in the filesystem.
         If the file doesn't exist then return an empty dict.
 
         Args:
             uncached: If True, use an uncached filesystem to avoid Etag caching issues
+            max_retries: Maximum number of retries for Etag errors (default: 5)
         """
+        import time
 
         json_file = self._get_json_file()
 
         # Try opening this file location and parsing the json inside
         # On any error return an empty dict
-        try:
-            with storage.open(json_file, "r", encoding="utf-8", uncached=uncached) as f:
-                content = f.read()
-                # Clean the content - remove trailing whitespace and extra characters
-                content = content.strip()
-                # Remove any trailing % characters (common in some shell outputs)
-                content = content.rstrip("%")
-                content = content.strip()
-                return json.loads(content)
-        except (FileNotFoundError, json.JSONDecodeError):
-            return {}
+        for attempt in range(max_retries):
+            try:
+                with storage.open(json_file, "r", encoding="utf-8", uncached=uncached) as f:
+                    content = f.read()
+                    # Clean the content - remove trailing whitespace and extra characters
+                    content = content.strip()
+                    # Remove any trailing % characters (common in some shell outputs)
+                    content = content.rstrip("%")
+                    content = content.strip()
+                    return json.loads(content)
+            except FileNotFoundError:
+                # File doesn't exist, return empty dict
+                return {}
+            except json.JSONDecodeError:
+                # Invalid JSON, return empty dict
+                return {}
+            except Exception as e:
+                # Check if this is the Etag mismatch error
+                error_str = str(e)
+                has_errno_16 = (
+                    (hasattr(e, "errno") and e.errno == 16) or "Errno 16" in error_str or "[Errno 16]" in error_str
+                )
+                is_etag_error = "Etag" in error_str and "no longer exists" in error_str and has_errno_16
+
+                if is_etag_error:
+                    if attempt < max_retries - 1:
+                        # Wait a short time before retrying (exponential backoff)
+                        time.sleep(0.5 * (2**attempt))
+                        continue
+                    else:
+                        # Last attempt failed, return empty dict
+                        return {}
+                else:
+                    # Different exception, return empty dict
+                    return {}
 
     def _set_json_data(self, json_data):
         """
@@ -120,12 +146,12 @@ class BaseLabResource(ABC):
 
     def _get_json_data_field(self, key, default=""):
         """Gets the value of a single top-level field in a JSON object"""
-        json_data = self.get_json_data()
+        json_data = self.get_json_data(uncached=True)
         return json_data.get(key, default)
 
     def _update_json_data_field(self, key: str, value):
         """Sets the value of a single top-level field in a JSON object"""
-        json_data = self.get_json_data()
+        json_data = self.get_json_data(uncached=True)
         json_data[key] = value
         self._set_json_data(json_data)
 
