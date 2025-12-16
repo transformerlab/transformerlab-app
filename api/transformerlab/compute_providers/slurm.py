@@ -236,6 +236,31 @@ class SLURMProvider(ComputeProvider):
         script_content += f"#SBATCH --job-name={cluster_name}\n"
         script_content += "#SBATCH --requeue\n"
 
+        # Extract partition name from cluster_name or use provider config
+        partition = config.provider_config.get("partition") if config.provider_config else None
+
+        # If no partition in config, try to get from extra_config
+        if not partition and self.extra_config:
+            partition = self.extra_config.get("default_partition")
+
+        # If still no partition, try to detect from cluster_name
+        if not partition:
+            if cluster_name.startswith("slurm_partition_"):
+                partition = cluster_name.replace("slurm_partition_", "")
+            else:
+                # Try to query for first available partition
+                try:
+                    if self.mode == "ssh":
+                        output = self._ssh_execute("sinfo -h -o '%P' | head -1")
+                        partition = output.strip().rstrip("*")
+                    if not partition:
+                        partition = "normal"
+                except Exception:
+                    partition = "normal"
+
+        # Add partition specification
+        script_content += f"#SBATCH --partition={partition}\n"
+
         if config.num_nodes and config.num_nodes > 1:
             script_content += f"#SBATCH --nodes={config.num_nodes}\n"
 
@@ -429,7 +454,9 @@ class SLURMProvider(ComputeProvider):
                     reason = node_data.get("reason", "N/A")
 
                     # Determine if node is active (allocated or mixed)
-                    is_active = state.upper() in ["ALLOCATED", "MIXED", "COMPLETING"]
+                    # Strip SLURM state suffixes: ~ (powered down), # (powering up), etc.
+                    base_state = state.rstrip("~#@$%*!").upper()
+                    is_active = base_state in ["ALLOCATED", "MIXED", "COMPLETING"]
                     if is_active:
                         total_active_nodes += 1
 
@@ -682,6 +709,35 @@ class SLURMProvider(ComputeProvider):
         # Create a temporary SLURM script
         script_content = "#!/bin/bash\n"
         script_content += "#SBATCH --requeue\n"
+
+        # Extract partition name from cluster_name or use provider config
+        # cluster_name might be a job identifier like "slurm-test-job-15"
+        # Check if we have a partition specified in provider_config
+        partition = job_config.provider_config.get("partition") if job_config.provider_config else None
+
+        # If no partition in config, try to get from extra_config
+        if not partition and self.extra_config:
+            partition = self.extra_config.get("default_partition")
+
+        # If still no partition, try to detect from cluster_name
+        # If cluster_name looks like "slurm_partition_X", extract the partition
+        if not partition:
+            if cluster_name.startswith("slurm_partition_"):
+                partition = cluster_name.replace("slurm_partition_", "")
+            else:
+                # Default to "normal" or query sinfo to get the first available partition
+                try:
+                    if self.mode == "ssh":
+                        # Get first available partition
+                        output = self._ssh_execute("sinfo -h -o '%P' | head -1")
+                        partition = output.strip().rstrip("*")  # Remove trailing asterisk if default
+                    if not partition:
+                        partition = "normal"  # Fallback default
+                except Exception:
+                    partition = "normal"  # Fallback if query fails
+
+        # Add partition specification
+        script_content += f"#SBATCH --partition={partition}\n"
 
         if job_config.job_name:
             script_content += f"#SBATCH --job-name={job_config.job_name}\n"
