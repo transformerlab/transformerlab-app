@@ -2,6 +2,8 @@
 The Entrypoint File for Transformer Lab's API Server.
 """
 
+from transformerlab.services.logger import setup_logging
+from transformerlab.middleware.monitoring import MonitoringMiddleware
 import os
 import argparse
 import asyncio
@@ -588,10 +590,16 @@ def print_launch_message():
     print("https://www.lab.cloud\nhttps://github.com/transformerlab/transformerlab-api\n")
 
 
+setup_logging(service_name="transformerlab-api")
+
+
 def run():
     args = parse_args()
 
     print(f"args: {args}")
+
+    app.add_middleware(MonitoringMiddleware)
+
     if args.allowed_origins == ["*"]:
         args.allowed_credentials = False
 
@@ -603,13 +611,26 @@ def run():
         allow_headers=args.allowed_headers,
     )
 
+    # We create a config dictionary to ensure Uvicorn uses our JSON logging
+    # instead of reverting to its default text logger.
+    log_config = uvicorn.config.LOGGING_CONFIG
+    log_config["formatters"]["default"]["fmt"] = "%(message)s"
+    log_config["formatters"]["access"]["fmt"] = "%(message)s"
+
+    print("Starting Server with New Relic + JSON Logging...")
+
     if args.https:
         cert_path, key_path = ensure_persistent_self_signed_cert()
         uvicorn.run(
-            "api:app", host=args.host, port=args.port, log_level="warning", ssl_certfile=cert_path, ssl_keyfile=key_path
+            app,
+            host=args.host,
+            port=args.port,
+            log_config=log_config,
+            ssl_certfile=cert_path,
+            ssl_keyfile=key_path,
         )
     else:
-        uvicorn.run("api:app", host=args.host, port=args.port, log_level="warning")
+        uvicorn.run(app, host=args.host, port=args.port, log_config=log_config)
 
 
 if __name__ == "__main__":
