@@ -53,39 +53,39 @@ def suppress_warnings_and_logs():
     This is useful when checking for optional resources like Kubernetes clusters or SSH pools.
     Also suppresses Rich console output and stdout/stderr from SkyPilot operations.
     """
-    
+
     # Save original logging levels
     loggers_to_suppress = [
-        'urllib3.connectionpool',
-        'sky',
-        'kubernetes',
-        'rich',
+        "urllib3.connectionpool",
+        "sky",
+        "kubernetes",
+        "rich",
     ]
     original_levels = {}
-    
+
     for logger_name in loggers_to_suppress:
         logger = logging.getLogger(logger_name)
         original_levels[logger_name] = logger.level
         logger.setLevel(logging.CRITICAL)  # Use CRITICAL instead of ERROR to suppress more
-    
+
     # Save original stdout/stderr
     original_stdout = sys.stdout
     original_stderr = sys.stderr
-    
+
     # Suppress Python warnings
     with warnings.catch_warnings():
-        warnings.filterwarnings('ignore')
+        warnings.filterwarnings("ignore")
         try:
             # Redirect stdout/stderr to suppress Rich output and sky-payload messages
             sys.stdout = StringIO()
             sys.stderr = StringIO()
-            
+
             yield
         finally:
             # Restore stdout/stderr
             sys.stdout = original_stdout
             sys.stderr = original_stderr
-            
+
             # Restore original logging levels
             for logger_name, level in original_levels.items():
                 logging.getLogger(logger_name).setLevel(level)
@@ -1405,7 +1405,9 @@ class SkyPilotProvider(ComputeProvider):
                     capability=CloudCapability.COMPUTE, raise_if_no_cloud_access=False
                 )
                 # Convert cloud objects to lowercase strings and exclude SSH (handled separately)
-                enabled_clouds = [str(cloud).lower() for cloud in enabled_cloud_objects if "ssh" not in str(cloud).lower()]
+                enabled_clouds = [
+                    str(cloud).lower() for cloud in enabled_cloud_objects if "ssh" not in str(cloud).lower()
+                ]
 
                 # For each enabled cloud without an active cluster, add a placeholder
                 existing_cloud_providers = {c.get("cloud_provider") for c in detailed if c.get("elastic_enabled")}

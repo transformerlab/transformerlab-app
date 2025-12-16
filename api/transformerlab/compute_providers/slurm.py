@@ -401,13 +401,13 @@ class SLURMProvider(ComputeProvider):
     def get_clusters_detailed(self) -> List[Dict[str, Any]]:
         """
         Get detailed cluster information for SLURM.
-        
+
         For SLURM, we treat each partition as a cluster and get detailed node information.
         """
         try:
             # Get detailed node information from SLURM
             nodes_data = self._get_slurm_nodes_detailed()
-            
+
             # Group nodes by partition
             partitions = {}
             for node_data in nodes_data:
@@ -415,24 +415,24 @@ class SLURMProvider(ComputeProvider):
                 if partition not in partitions:
                     partitions[partition] = []
                 partitions[partition].append(node_data)
-            
+
             # Build cluster details for each partition
             clusters = []
             for partition_name, partition_nodes in partitions.items():
                 nodes = []
                 total_nodes = len(partition_nodes)
                 total_active_nodes = 0
-                
+
                 for node_data in partition_nodes:
                     node_name = node_data.get("node_name", "unknown")
                     state = node_data.get("state", "UNKNOWN")
                     reason = node_data.get("reason", "N/A")
-                    
+
                     # Determine if node is active (allocated or mixed)
                     is_active = state.upper() in ["ALLOCATED", "MIXED", "COMPLETING"]
                     if is_active:
                         total_active_nodes += 1
-                    
+
                     # Parse resources
                     cpus_total = node_data.get("cpus_total", 0)
                     cpus_allocated = node_data.get("cpus_allocated", 0)
@@ -440,7 +440,7 @@ class SLURMProvider(ComputeProvider):
                     memory_allocated = node_data.get("memory_allocated", 0)
                     gpus = node_data.get("gpus", {})
                     gpus_free = node_data.get("gpus_free", {})
-                    
+
                     node = {
                         "node_name": node_name,
                         "is_fixed": True,  # SLURM nodes are fixed infrastructure
@@ -457,7 +457,7 @@ class SLURMProvider(ComputeProvider):
                         },
                     }
                     nodes.append(node)
-                
+
                 cluster_detail = {
                     "cluster_id": f"slurm_partition_{partition_name}",
                     "cluster_name": partition_name,
@@ -468,48 +468,48 @@ class SLURMProvider(ComputeProvider):
                     "nodes": nodes,
                 }
                 clusters.append(cluster_detail)
-            
+
             return clusters
         except Exception as e:
             print(f"Failed to get SLURM cluster details: {e}")
             import traceback
+
             traceback.print_exc()
             return []
-    
+
     def _get_slurm_nodes_detailed(self) -> List[Dict[str, Any]]:
         """
         Get detailed node information from SLURM using sinfo and scontrol.
-        
+
         Returns a list of node dictionaries with detailed resource and state information.
         """
         nodes = []
-        
+
         if self.mode == "ssh":
             # Use sinfo to get detailed node information
             # Format: NodeName|Partition|State|Reason|CPUs|AllocCPUs|Memory|AllocMem|Gres|GresUsed
             command = (
-                "sinfo -N -h -o '%N|%P|%T|%E|%c|%C|%m|%e|%G|%b' 2>/dev/null || "
-                "sinfo -N -h -o '%N|%P|%T|%E|%c||%m||%G|'"
+                "sinfo -N -h -o '%N|%P|%T|%E|%c|%C|%m|%e|%G|%b' 2>/dev/null || sinfo -N -h -o '%N|%P|%T|%E|%c||%m||%G|'"
             )
             output = self._ssh_execute(command)
-            
+
             for line in output.strip().split("\n"):
                 if not line.strip():
                     continue
-                
+
                 parts = line.split("|")
                 if len(parts) < 5:
                     continue
-                
+
                 node_name = parts[0].strip()
                 partition = parts[1].strip()
                 state = parts[2].strip()
                 reason = parts[3].strip() if len(parts) > 3 and parts[3].strip() else "N/A"
-                
+
                 # Parse CPUs
                 cpus_str = parts[4].strip() if len(parts) > 4 else "0"
                 cpus_total = int(cpus_str) if cpus_str.isdigit() else 0
-                
+
                 # Parse allocated CPUs (may be in format "A/I/O/T" = Allocated/Idle/Other/Total)
                 cpus_allocated = 0
                 if len(parts) > 5 and parts[5].strip():
@@ -521,7 +521,7 @@ class SLURMProvider(ComputeProvider):
                             cpus_allocated = int(alloc_parts[0])
                     elif alloc_str.isdigit():
                         cpus_allocated = int(alloc_str)
-                
+
                 # Parse Memory (in MB from sinfo)
                 memory_str = parts[6].strip() if len(parts) > 6 else "0"
                 memory_total = 0
@@ -530,32 +530,32 @@ class SLURMProvider(ComputeProvider):
                     memory_str = memory_str.rstrip("+M")
                     if memory_str.isdigit():
                         memory_total = float(memory_str) / 1024.0  # Convert MB to GB
-                
+
                 # Parse allocated memory
                 memory_allocated = 0
                 if len(parts) > 7 and parts[7].strip():
                     alloc_mem_str = parts[7].strip().rstrip("+M")
                     if alloc_mem_str.isdigit():
                         memory_allocated = float(alloc_mem_str) / 1024.0
-                
+
                 # Parse GPUs (Gres format: gpu:type:count or gpu:count)
                 gpus = {}
                 gpus_free = {}
                 if len(parts) > 8 and parts[8].strip():
                     gres_str = parts[8].strip()
                     gpus = self._parse_gres(gres_str)
-                
+
                 # Parse GPU usage (GresUsed)
                 gpus_used = {}
                 if len(parts) > 9 and parts[9].strip():
                     gres_used_str = parts[9].strip()
                     gpus_used = self._parse_gres(gres_used_str)
-                
+
                 # Calculate free GPUs
                 for gpu_type, total_count in gpus.items():
                     used_count = gpus_used.get(gpu_type, 0)
                     gpus_free[gpu_type] = max(0, total_count - used_count)
-                
+
                 node = {
                     "node_name": node_name,
                     "partition": partition,
@@ -574,20 +574,26 @@ class SLURMProvider(ComputeProvider):
             try:
                 result = self._rest_request("GET", "/slurm/v0.0.39/nodes")
                 node_list = result.get("nodes", [])
-                
+
                 for node_data in node_list:
                     node_name = node_data.get("name", "unknown")
-                    partition = node_data.get("partitions", ["default"])[0] if node_data.get("partitions") else "default"
-                    state = node_data.get("state", ["UNKNOWN"])[0] if isinstance(node_data.get("state"), list) else node_data.get("state", "UNKNOWN")
+                    partition = (
+                        node_data.get("partitions", ["default"])[0] if node_data.get("partitions") else "default"
+                    )
+                    state = (
+                        node_data.get("state", ["UNKNOWN"])[0]
+                        if isinstance(node_data.get("state"), list)
+                        else node_data.get("state", "UNKNOWN")
+                    )
                     reason = node_data.get("reason", "N/A")
-                    
+
                     cpus_total = node_data.get("cpus", 0)
                     cpus_allocated = node_data.get("alloc_cpus", 0)
-                    
+
                     # Memory in MB, convert to GB
                     memory_total = node_data.get("real_memory", 0) / 1024.0
                     memory_allocated = node_data.get("alloc_memory", 0) / 1024.0
-                    
+
                     # Parse GPUs from gres
                     gpus = {}
                     gpus_free = {}
@@ -598,7 +604,7 @@ class SLURMProvider(ComputeProvider):
                         for gpu_type, total_count in gpus.items():
                             used_count = gpus_used.get(gpu_type, 0)
                             gpus_free[gpu_type] = max(0, total_count - used_count)
-                    
+
                     node = {
                         "node_name": node_name,
                         "partition": partition,
@@ -614,43 +620,43 @@ class SLURMProvider(ComputeProvider):
                     nodes.append(node)
             except Exception as e:
                 print(f"Failed to get nodes via REST API: {e}")
-        
+
         return nodes
-    
+
     def _parse_gres(self, gres_str: str) -> Dict[str, int]:
         """
         Parse SLURM GRES (Generic Resources) string to extract GPU information.
-        
+
         Examples:
             "gpu:2" -> {"GPU": 2}
             "gpu:a100:4" -> {"A100": 4}
             "gpu:v100:2,gpu:a100:1" -> {"V100": 2, "A100": 1}
             "(null)" or "N/A" -> {}
-        
+
         Args:
             gres_str: GRES string from sinfo/scontrol
-            
+
         Returns:
             Dictionary mapping GPU type to count
         """
         gpus = {}
-        
+
         if not gres_str or gres_str.lower() in ["(null)", "n/a", "none", ""]:
             return gpus
-        
+
         # Handle multiple GRES entries separated by comma
         gres_entries = gres_str.split(",")
-        
+
         for entry in gres_entries:
             entry = entry.strip()
             if not entry or "gpu" not in entry.lower():
                 continue
-            
+
             # Split by colon: gpu:type:count or gpu:count
             parts = entry.split(":")
             if len(parts) < 2:
                 continue
-            
+
             if len(parts) == 2:
                 # Format: gpu:count
                 try:
@@ -668,7 +674,7 @@ class SLURMProvider(ComputeProvider):
                     gpus[gpu_type] = gpus.get(gpu_type, 0) + count
                 except ValueError:
                     continue
-        
+
         return gpus
 
     def submit_job(self, cluster_name: str, job_config: JobConfig) -> Dict[str, Any]:
