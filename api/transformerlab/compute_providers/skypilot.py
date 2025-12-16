@@ -7,7 +7,6 @@ import time
 import logging
 import warnings
 import sys
-import os
 from io import StringIO
 from contextlib import contextmanager
 from typing import Dict, Any, Optional, Union, List
@@ -1072,8 +1071,8 @@ class SkyPilotProvider(ComputeProvider):
             # For remote servers, use the /ssh_node_pools and /kubernetes_node_info endpoints
             try:
                 ssh_node_pools = self._get_ssh_node_pools_from_remote()
-            except Exception as e:
-                print(f"Error getting SSH node pools from remote server")
+            except Exception:
+                print("Error getting SSH node pools from remote server")
         else:
             # For local SkyPilot, use direct SDK calls
             # Suppress warnings from Kubernetes checks for non-existent clusters
@@ -1132,11 +1131,11 @@ class SkyPilotProvider(ComputeProvider):
                             # Add this node pool
                             ssh_node_pools.append({"name": pool_name, "nodes": nodes, "total_gpus": total_gpus})
 
-                        except Exception as e:
+                        except Exception:
                             # Silently skip contexts that fail - they may not be available
                             pass
 
-                except Exception as e:
+                except Exception:
                     # Silently skip if SSH contexts are not available
                     pass
 
@@ -1427,7 +1426,7 @@ class SkyPilotProvider(ComputeProvider):
                             "nodes": [],  # Empty nodes list for zero clusters
                         }
                         detailed.append(cluster_detail)
-            except Exception as e:
+            except Exception:
                 # Silently skip if cloud checks fail
                 pass
 
@@ -1721,7 +1720,7 @@ class SkyPilotProvider(ComputeProvider):
                 elif "does not exist" in str(e):
                     pass
                 else:
-                    print(f"Error getting job records from request payload")
+                    print("Error getting job records from request payload")
                 # Fallback: try to parse response directly
                 try:
                     if hasattr(response, "json"):
