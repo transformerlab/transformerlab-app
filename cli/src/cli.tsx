@@ -24,6 +24,18 @@ import {
 } from './commands/tasks';
 import { JobList, JobInfo, JobLogs } from './commands/jobs';
 
+const IS_DEBUG_MODE = true;
+
+/**
+ * Logs a message only if IS_DEBUG_MODE is true.
+ * @param {...any} args - The arguments to pass to console.log
+ */
+function debugLog(...args: unknown[]) {
+  if (IS_DEBUG_MODE) {
+    console.log('DEBUG:', ...args);
+  }
+}
+
 const getLocalStatus = () => {
   try {
     const credsPath = path.join(os.homedir(), '.lab', 'credentials');
@@ -35,17 +47,24 @@ const getLocalStatus = () => {
     if (fs.existsSync(credsPath)) {
       const creds = JSON.parse(fs.readFileSync(credsPath, 'utf-8'));
       if (creds.access_token) hasToken = true;
+      debugLog('Found access token in credentials.');
+    } else {
+      debugLog('No credentials file found.');
     }
 
     if (fs.existsSync(configPath)) {
       const conf = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       email = conf.user_email;
+      console.log('Found user email in config.');
     }
 
     if (!email) email = config.get('user_email');
 
+    debugLog('hasToken:', hasToken, 'email:', email);
+
     return { hasToken, email };
   } catch (e) {
+    debugLog('Error reading local status:', e);
     return { hasToken: false, email: null };
   }
 };
@@ -135,7 +154,6 @@ const App = ({ command, args }: { command: string; args: any }) => {
 
     return (
       <Box flexDirection="column" paddingBottom={1}>
-        <Logo />
         <Panel
           title={`Environment: ${target}`}
           color={IS_LOCAL ? 'yellow' : 'cyan'}
@@ -248,6 +266,10 @@ const run = () => {
       return (
         y
           .usage('$0 task <cmd> [args]')
+          .demandCommand(
+            1,
+            'Please specify a task subcommand. Use "lab task --help" for a list of available subcommands.',
+          )
           .command(
             'add [dir]',
             'Register current directory',
