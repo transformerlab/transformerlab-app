@@ -44,7 +44,6 @@ export const GenericList = ({
 
         setData(list);
         debugLog('GenericList fetched items:', list.length);
-        exit();
       })
       .catch((e) => {
         debugLog('Error in GenericList fetcher:', e);

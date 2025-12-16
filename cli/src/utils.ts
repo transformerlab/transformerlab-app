@@ -156,7 +156,7 @@ export const getGitContext = async (cwd: string = '.') => {
   };
 };
 
-const IS_DEBUG_MODE = false;
+const IS_DEBUG_MODE = true;
 
 /**
  * Logs a message only if IS_DEBUG_MODE is true.
