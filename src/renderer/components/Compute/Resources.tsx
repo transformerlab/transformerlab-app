@@ -518,12 +518,13 @@ const Resources = () => {
                       {activeNodesWithCluster.map(({ node, cluster }) => {
                         // Determine if this is a fixed infrastructure (SSH, SLURM, etc.) or cloud
                         const isFixed = !cluster.elastic_enabled;
-                        
+
                         // Get backend type for display
-                        const backendType = cluster.backend_type || 
+                        const backendType =
+                          cluster.backend_type ||
                           cluster.cloud_provider?.toUpperCase() ||
                           'UNKNOWN';
-                        
+
                         const cloudType = isFixed
                           ? backendType
                           : cluster.cloud_provider?.toUpperCase() ||
