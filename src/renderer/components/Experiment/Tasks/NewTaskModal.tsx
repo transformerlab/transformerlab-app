@@ -148,6 +148,9 @@ export default function NewTaskModal({
   const [envVars, setEnvVars] = React.useState<
     Array<{ key: string; value: string }>
   >([{ key: '', value: '' }]);
+  const [parameters, setParameters] = React.useState<
+    Array<{ key: string; value: string; valueType: 'string' | 'json' }>
+  >([{ key: '', value: '', valueType: 'string' }]);
   const [fileMounts, setFileMounts] = React.useState<
     Array<{
       remotePath: string;
@@ -182,6 +185,7 @@ export default function NewTaskModal({
       setNumNodes('');
       setSetup('');
       setEnvVars([{ key: '', value: '' }]);
+      setParameters([{ key: '', value: '', valueType: 'string' }]);
       setFileMounts([
         { remotePath: '', file: null, uploading: false, storedPath: undefined },
       ]);
@@ -244,6 +248,27 @@ export default function NewTaskModal({
             );
             setEnvVars(
               envVarsArray.length > 0 ? envVarsArray : [{ key: '', value: '' }],
+            );
+          }
+          if (data.parameters && typeof data.parameters === 'object') {
+            const parametersArray = Object.entries(data.parameters).map(
+              ([key, value]) => {
+                // Try to determine if value is JSON or string
+                let valueStr = '';
+                let valueType: 'string' | 'json' = 'string';
+                if (typeof value === 'object') {
+                  valueStr = JSON.stringify(value, null, 2);
+                  valueType = 'json';
+                } else {
+                  valueStr = String(value);
+                }
+                return { key, value: valueStr, valueType };
+              },
+            );
+            setParameters(
+              parametersArray.length > 0
+                ? parametersArray
+                : [{ key: '', value: '', valueType: 'string' }],
             );
           }
           addNotification({
@@ -381,6 +406,36 @@ export default function NewTaskModal({
       }
     });
 
+    // Convert parameters array to object, parsing JSON values
+    const parametersObj: Record<string, any> = {};
+    parameters.forEach(({ key, value, valueType }) => {
+      if (key.trim() && value.trim()) {
+        try {
+          if (valueType === 'json') {
+            // Parse JSON value
+            parametersObj[key.trim()] = JSON.parse(value);
+          } else {
+            // Try to parse as number or boolean, otherwise keep as string
+            const trimmedValue = value.trim();
+            if (trimmedValue === 'true') {
+              parametersObj[key.trim()] = true;
+            } else if (trimmedValue === 'false') {
+              parametersObj[key.trim()] = false;
+            } else if (trimmedValue === 'null') {
+              parametersObj[key.trim()] = null;
+            } else if (!isNaN(Number(trimmedValue)) && trimmedValue !== '') {
+              parametersObj[key.trim()] = Number(trimmedValue);
+            } else {
+              parametersObj[key.trim()] = trimmedValue;
+            }
+          }
+        } catch (e) {
+          // If JSON parsing fails, treat as string
+          parametersObj[key.trim()] = value.trim();
+        }
+      }
+    });
+
     // Upload any files for file mounts and build mapping {remotePath: storedPath}
     const fileMountsObj: Record<string, string> = {};
     for (let i = 0; i < fileMounts.length; i += 1) {
@@ -447,6 +502,8 @@ export default function NewTaskModal({
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
       setup: setupValue || undefined,
       env_vars: Object.keys(envVarsObj).length > 0 ? envVarsObj : undefined,
+      parameters:
+        Object.keys(parametersObj).length > 0 ? parametersObj : undefined,
       provider_id: selectedProviderId,
       file_mounts:
         Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
@@ -471,9 +528,10 @@ export default function NewTaskModal({
     setDiskSpace('');
     setAccelerators('');
     setNumNodes('');
-    setSetup('');
-    setEnvVars([{ key: '', value: '' }]);
-    setFileMounts([
+      setSetup('');
+      setEnvVars([{ key: '', value: '' }]);
+      setParameters([{ key: '', value: '', valueType: 'string' }]);
+      setFileMounts([
       { remotePath: '', file: null, uploading: false, storedPath: undefined },
     ]);
     setSelectedProviderId(providers[0]?.id || '');
@@ -1038,6 +1096,108 @@ export default function NewTaskModal({
                 {taskMode === 'github-with-json' && taskJsonData?.env_vars
                   ? 'Environment variables from task.json are shown above. You can edit them or add additional variables. All will be merged together.'
                   : 'Optional environment variables to set when launching the cluster'}
+              </FormHelperText>
+            </FormControl>
+
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>Parameters</FormLabel>
+              <Stack spacing={1}>
+                {parameters.map((param, index) => (
+                  <Stack key={index} spacing={1}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Input
+                        placeholder="Parameter name (e.g., learning_rate)"
+                        value={param.key}
+                        onChange={(e) => {
+                          const newParams = [...parameters];
+                          newParams[index].key = e.target.value;
+                          setParameters(newParams);
+                        }}
+                        sx={{ flex: 1 }}
+                      />
+                      <Select
+                        value={param.valueType}
+                        onChange={(_, newValue) => {
+                          if (newValue) {
+                            const newParams = [...parameters];
+                            newParams[index].valueType = newValue;
+                            setParameters(newParams);
+                          }
+                        }}
+                        sx={{ minWidth: 100 }}
+                      >
+                        <Option value="string">String</Option>
+                        <Option value="json">JSON</Option>
+                      </Select>
+                      <IconButton
+                        color="danger"
+                        variant="plain"
+                        onClick={() => {
+                          if (parameters.length > 1) {
+                            setParameters(
+                              parameters.filter((_, i) => i !== index),
+                            );
+                          } else {
+                            setParameters([
+                              { key: '', value: '', valueType: 'string' },
+                            ]);
+                          }
+                        }}
+                      >
+                        <Trash2Icon size={16} />
+                      </IconButton>
+                    </Stack>
+                    {param.valueType === 'json' ? (
+                      <Editor
+                        height="120px"
+                        defaultLanguage="json"
+                        value={param.value}
+                        onChange={(value) => {
+                          const newParams = [...parameters];
+                          newParams[index].value = value || '';
+                          setParameters(newParams);
+                        }}
+                        theme="my-theme"
+                        onMount={setTheme}
+                        options={{
+                          minimap: { enabled: false },
+                          scrollBeyondLastLine: false,
+                          fontSize: 12,
+                          lineNumbers: 'off',
+                          wordWrap: 'on',
+                        }}
+                      />
+                    ) : (
+                      <Input
+                        placeholder="Value (e.g., 0.001, true, false, or any string)"
+                        value={param.value}
+                        onChange={(e) => {
+                          const newParams = [...parameters];
+                          newParams[index].value = e.target.value;
+                          setParameters(newParams);
+                        }}
+                      />
+                    )}
+                  </Stack>
+                ))}
+                <Button
+                  variant="outlined"
+                  size="sm"
+                  startDecorator={<PlusIcon size={16} />}
+                  onClick={() =>
+                    setParameters([
+                      ...parameters,
+                      { key: '', value: '', valueType: 'string' },
+                    ])
+                  }
+                >
+                  Add Parameter
+                </Button>
+              </Stack>
+              <FormHelperText>
+                {taskMode === 'github-with-json' && taskJsonData?.parameters
+                  ? 'Parameters from task.json are shown above. You can edit them or add additional parameters. All will be merged together.'
+                  : 'Task parameters accessible via lab.get_config() in your script. Use JSON type for complex objects.'}
               </FormHelperText>
             </FormControl>
           </Stack>

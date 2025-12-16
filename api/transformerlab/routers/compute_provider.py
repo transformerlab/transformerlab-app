@@ -42,6 +42,7 @@ from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
     generate_github_clone_setup,
 )
+from typing import Any
 
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
 
@@ -65,6 +66,10 @@ class ProviderTaskLaunchRequest(BaseModel):
     file_mounts: Optional[Dict[str, str]] = Field(
         default=None,
         description="File mounts in the form {<remote_path>: <local_path>}",
+    )
+    parameters: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Task parameters (hyperparameters, config, etc.) that will be accessible via lab.get_config()",
     )
     provider_name: Optional[str] = None
     github_enabled: Optional[bool] = None
@@ -844,6 +849,7 @@ async def launch_task_on_provider(
         "setup": final_setup,
         "env_vars": env_vars if env_vars else None,
         "file_mounts": request.file_mounts or None,
+        "parameters": request.parameters or None,
         "provider_id": provider.id,
         "provider_type": provider.type,
         "provider_name": provider_display_name,
