@@ -398,6 +398,53 @@ class SLURMProvider(ComputeProvider):
             num_nodes=num_nodes,
         )
 
+    def get_clusters_detailed(self) -> List[Dict[str, Any]]:
+        """
+        Get detailed cluster information for SLURM.
+        
+        For SLURM, we treat the entire SLURM system as a single cluster.
+        """
+        try:
+            # Get resource info for the default cluster
+            resources = self.get_cluster_resources("default")
+            
+            # Build cluster detail similar to SkyPilot
+            nodes = []
+            for i in range(resources.num_nodes or 1):
+                node_name = f"slurm-node-{i + 1}" if resources.num_nodes and resources.num_nodes > 1 else "slurm-node"
+                node = {
+                    "node_name": node_name,
+                    "is_fixed": True,  # SLURM nodes are typically fixed
+                    "is_active": True,  # Assume active if we can get resources
+                    "state": "UP",
+                    "reason": "N/A",
+                    "resources": {
+                        "cpus_total": resources.cpus or 0,
+                        "cpus_allocated": 0,  # SLURM doesn't provide allocated directly here
+                        "gpus": {gpu["type"]: gpu["count"] for gpu in resources.gpus} if resources.gpus else {},
+                        "memory_gb_total": resources.memory_gb or 0,
+                        "memory_gb_allocated": 0,
+                    },
+                }
+                nodes.append(node)
+            
+            cluster_detail = {
+                "cluster_id": "slurm-cluster",
+                "cluster_name": "SLURM Cluster",
+                "cloud_provider": "SLURM",
+                "backend_type": "SLURM",
+                "elastic_enabled": False,
+                "max_nodes": resources.num_nodes or 1,
+                "head_node_ip": self.ssh_host if self.mode == "ssh" else None,
+                "nodes": nodes,
+                "provider_data": {},
+            }
+            
+            return [cluster_detail]
+        except Exception as e:
+            print(f"Failed to get SLURM cluster details: {e}")
+            return []
+
     def submit_job(self, cluster_name: str, job_config: JobConfig) -> Dict[str, Any]:
         """Submit a job using sbatch."""
         # Create a temporary SLURM script
