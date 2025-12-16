@@ -139,7 +139,7 @@ export const LoginCommand = () => {
   if (view === 'INPUT') {
     return (
       <Box flexDirection="column">
-        <Header />
+        {/* <Header /> */}
         <Panel title="API Login" color="blue">
           <Text>Authentication is required.</Text>
           <Box marginTop={1}>
