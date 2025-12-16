@@ -1,6 +1,6 @@
 
     
-# TransformerLab CLI
+# Transformer Lab CLI
 
 Transformer Lab CLI
 

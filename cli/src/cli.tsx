@@ -8,7 +8,14 @@ import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
 import open from 'open';
 import Table from './ink-table';
-import { config, getGitContext, WEB_URL, API_URL, IS_LOCAL } from './utils';
+import {
+  config,
+  getGitContext,
+  WEB_URL,
+  API_URL,
+  IS_LOCAL,
+  debugLog,
+} from './utils';
 import { Logo, Panel, SuccessMsg, ErrorMsg, Loading } from './ui';
 import { LoginCommand } from './commands/login';
 import { LogoutCommand } from './commands/logout';
@@ -23,18 +30,6 @@ import {
   TaskList,
 } from './commands/tasks';
 import { JobList, JobInfo, JobLogs } from './commands/jobs';
-
-const IS_DEBUG_MODE = true;
-
-/**
- * Logs a message only if IS_DEBUG_MODE is true.
- * @param {...any} args - The arguments to pass to console.log
- */
-function debugLog(...args: unknown[]) {
-  if (IS_DEBUG_MODE) {
-    console.log('DEBUG:', ...args);
-  }
-}
 
 const getLocalStatus = () => {
   try {
@@ -141,7 +136,7 @@ const ContextView = () => {
 const App = ({ command, args }: { command: string; args: any }) => {
   // Root Command
   if (command === 'default') {
-    const target = IS_LOCAL ? 'Local Development' : 'TransformerLab Cloud';
+    const target = IS_LOCAL ? 'Local Development' : 'Transformer Lab Cloud';
     const { hasToken, email } = getLocalStatus();
 
     const commandsData = [

@@ -160,3 +160,15 @@ export const getGitContext = async (cwd: string = '.') => {
     mock: false,
   };
 };
+
+const IS_DEBUG_MODE = true;
+
+/**
+ * Logs a message only if IS_DEBUG_MODE is true.
+ * @param {...any} args - The arguments to pass to console.log
+ */
+export function debugLog(...args: unknown[]) {
+  if (IS_DEBUG_MODE) {
+    console.log('DEBUG:', ...args);
+  }
+}

@@ -3,6 +3,7 @@ import { Box, Text, useApp } from 'ink';
 // import Table from 'ink-table';
 import { api } from '../api';
 import { Loading, ErrorMsg } from '../ui';
+import { debugLog } from '../utils';
 
 const truncate = (str: string, length: number = 30) => {
   if (!str) return '';
@@ -43,6 +44,7 @@ export const GenericList = ({
         exit();
       })
       .catch((e) => {
+        debugLog('Error in GenericList fetcher:', e);
         setError(api.handleError(e));
         exit();
       });
