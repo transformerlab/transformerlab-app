@@ -749,7 +749,8 @@ export default function EditTaskModal({
                 </Button>
               </Stack>
               <FormHelperText>
-                Task parameters accessible via lab.get_config() in your script. Use JSON type for complex objects.
+                Task parameters accessible via lab.get_config() in your script.
+                Use JSON type for complex objects.
               </FormHelperText>
             </FormControl>
             <FormControl sx={{ mt: 2 }}>

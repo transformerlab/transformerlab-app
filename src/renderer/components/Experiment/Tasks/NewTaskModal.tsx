@@ -528,10 +528,10 @@ export default function NewTaskModal({
     setDiskSpace('');
     setAccelerators('');
     setNumNodes('');
-      setSetup('');
-      setEnvVars([{ key: '', value: '' }]);
-      setParameters([{ key: '', value: '', valueType: 'string' }]);
-      setFileMounts([
+    setSetup('');
+    setEnvVars([{ key: '', value: '' }]);
+    setParameters([{ key: '', value: '', valueType: 'string' }]);
+    setFileMounts([
       { remotePath: '', file: null, uploading: false, storedPath: undefined },
     ]);
     setSelectedProviderId(providers[0]?.id || '');
