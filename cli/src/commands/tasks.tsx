@@ -161,6 +161,26 @@ interface TaskAddProps {
   branch?: string;
 }
 
+// Helper function to normalize GitHub URLs to HTTPS format
+function normalizeGitHubUrl(repoUrl: string): string {
+  if (!repoUrl) return '';
+
+  // Convert SSH format to HTTPS
+  // git@github.com:user/repo.git -> https://github.com/user/repo
+  if (repoUrl.startsWith('git@github.com:')) {
+    return repoUrl
+      .replace('git@github.com:', 'https://github.com/')
+      .replace(/\.git$/, '');
+  }
+
+  // Remove .git suffix from HTTPS URLs
+  if (repoUrl.startsWith('https://github.com/')) {
+    return repoUrl.replace(/\.git$/, '');
+  }
+
+  return repoUrl;
+}
+
 export const TaskAdd = ({
   path: targetPath = '.',
   repo: repoArg,
@@ -315,9 +335,8 @@ export const TaskAdd = ({
         env_vars: userConfig.env_vars || undefined,
         provider_id: selectedProvider,
         provider_name: selectedProviderObj?.name || 'rig',
-        subtype: selectedSubtype,
         github_enabled: true,
-        github_repo_url: git.repo || '',
+        github_repo_url: normalizeGitHubUrl(git.repo || ''),
         github_directory: subDirectory || undefined,
       };
 

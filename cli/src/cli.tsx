@@ -62,7 +62,7 @@ const TargetSwitch = ({ mode }: { mode: 'local' | 'cloud' }) => {
       <SuccessMsg text={`Environment switched to: ${mode.toUpperCase()}`} />
       <Text dimColor>
         Target URL:{' '}
-        {mode === 'local' ? `http://localhost:8338` : `https://api.lab.cloud`}
+        {mode === 'local' ? `http://localhost:8338` : `https://alpha.lab.cloud`}
       </Text>
     </Box>
   );
