@@ -23,13 +23,8 @@ export const DOMAIN_PROD = 'lab.cloud';
 export const DOMAIN_LOCAL = 'localhost';
 export const PORT_LOCAL = '8338';
 
-export const WEB_URL = IS_LOCAL
-  ? `http://${DOMAIN_LOCAL}:1212`
-  : `https://${DOMAIN_PROD}`;
-
-export const API_URL = IS_LOCAL
-  ? `http://${DOMAIN_LOCAL}:${PORT_LOCAL}`
-  : `https://api.${DOMAIN_PROD}`;
+export const WEB_URL = 'http://alpha.lab.cloud:8338/';
+export const API_URL = 'http://alpha.lab.cloud:8338/';
 
 // --- State Management ---
 interface LabState {
@@ -161,7 +156,7 @@ export const getGitContext = async (cwd: string = '.') => {
   };
 };
 
-const IS_DEBUG_MODE = true;
+const IS_DEBUG_MODE = false;
 
 /**
  * Logs a message only if IS_DEBUG_MODE is true.

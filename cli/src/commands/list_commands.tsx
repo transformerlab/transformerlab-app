@@ -4,6 +4,7 @@ import { Box, Text, useApp } from 'ink';
 import { api } from '../api';
 import { Loading, ErrorMsg } from '../ui';
 import { debugLog } from '../utils';
+import Table from '../ink-table';
 
 const truncate = (str: string, length: number = 30) => {
   if (!str) return '';
@@ -30,6 +31,7 @@ export const GenericList = ({
   } | null>(null);
 
   useEffect(() => {
+    debugLog('GenericList starting fetcher...');
     fetcher()
       .then((res) => {
         let list = [];
@@ -41,6 +43,7 @@ export const GenericList = ({
           list = res.models;
 
         setData(list);
+        debugLog('GenericList fetched items:', list.length);
         exit();
       })
       .catch((e) => {
@@ -82,7 +85,7 @@ export const GenericList = ({
 
   return (
     <Box flexDirection="column" paddingBottom={1}>
-      {/* <Table data={tableData} /> */}
+      <Table data={tableData} />
       <Box marginTop={1}>
         <Text dimColor>Total: {data.length} items</Text>
       </Box>

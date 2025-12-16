@@ -1,4 +1,4 @@
-import { API_URL, config } from './utils';
+import { API_URL, config, debugLog } from './utils';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -20,6 +20,8 @@ function getStoredToken(): string | null {
     if (fs.existsSync(CREDENTIALS_PATH)) {
       const content = fs.readFileSync(CREDENTIALS_PATH, 'utf-8');
       const data = JSON.parse(content);
+      debugLog('Retrieved stored token from credentials.');
+      debugLog('Token is:', data.access_token);
       return data.access_token || null;
     }
   } catch (e) {
@@ -50,6 +52,13 @@ class TransformerLabAPI {
     const token = getStoredToken();
     const teamId = getStoredTeamId();
 
+    debugLog(
+      'FetchWithAuth: Using token:',
+      token ? 'YES' : 'NO',
+      'Team ID:',
+      teamId,
+    );
+
     const headers: HeadersInit = {
       ...(options.headers || {}),
     };
@@ -69,6 +78,19 @@ class TransformerLabAPI {
     }
 
     const response = await fetch(url, { ...options, headers });
+    debugLog(
+      `FetchWithAuth: ${options.method || 'GET'} ${url} - Status: ${response.status}`,
+    );
+    debugLog('Response Headers:', Array.from(response.headers.entries()));
+    debugLog('Response OK:', response.ok);
+    debugLog('Response Status Text:', response.statusText);
+    debugLog(
+      'Response:',
+      await response
+        .clone()
+        .text()
+        .catch(() => '<non-textual content>'),
+    );
     return response;
   }
 
