@@ -36,7 +36,7 @@
     "LlavaLlamaForCausalLM",
     "LlavaQwenForCausalLM",
     "Qwen3VLForConditionalGeneration",
-    "GLM4MoeForCausalLM"
+    "Glm4MoeForCausalLM"
   ],
   "supported_hardware_architectures": ["cuda"],
   "files": ["main.py", "setup.sh"],

@@ -1,7 +1,6 @@
 """Router for managing team-scoped compute providers."""
 
 import os
-import uuid
 import configparser
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
@@ -38,6 +37,10 @@ from transformerlab.compute_providers.models import (
 from transformerlab.services import job_service
 from lab import storage
 from lab.dirs import get_workspace_dir
+from transformerlab.shared.github_utils import (
+    read_github_pat_from_workspace,
+    generate_github_clone_setup,
+)
 
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
 
@@ -415,7 +418,8 @@ async def check_provider(
 
         return {"status": is_active}
     except Exception as e:
-        print(f"Failed to check provider: {e}")
+        error_msg = str(e)
+        print(f"Failed to check provider: {error_msg}")
         # If instantiation or check fails, provider is not active
         return {"status": False}
 
@@ -535,66 +539,6 @@ def _generate_aws_credentials_setup(
     return setup_script
 
 
-def _read_github_pat_from_workspace(workspace_dir: str) -> Optional[str]:
-    """Read GitHub PAT from workspace/github_pat.txt file."""
-    try:
-        pat_path = storage.join(workspace_dir, "github_pat.txt")
-        if storage.exists(pat_path):
-            with storage.open(pat_path, "r") as f:
-                pat = f.read().strip()
-                if pat:
-                    return pat
-    except Exception as e:
-        print(f"Error reading GitHub PAT from workspace: {e}")
-    return None
-
-
-def _generate_github_clone_setup(
-    repo_url: str,
-    directory: Optional[str] = None,
-    github_pat: Optional[str] = None,
-) -> str:
-    """
-    Generate bash script to clone a GitHub repository.
-    Supports both public and private repos (with PAT).
-    Supports cloning entire repo or specific directory (sparse checkout).
-    """
-    clone_dir = f"~/tmp/git-clone-{uuid.uuid4().hex[:8]}"
-
-    if github_pat:
-        if repo_url.startswith("https://github.com/"):
-            repo_url_with_auth = repo_url.replace("https://github.com/", f"https://{github_pat}@github.com/")
-        elif repo_url.startswith("https://"):
-            repo_url_with_auth = repo_url.replace("https://", f"https://{github_pat}@")
-        else:
-            repo_url_with_auth = repo_url
-    else:
-        repo_url_with_auth = repo_url
-
-    def escape_bash(s: str) -> str:
-        return s.replace("'", "'\"'\"'").replace("\\", "\\\\").replace("$", "\\$")
-
-    escaped_directory = escape_bash(directory) if directory else None
-
-    if directory:
-        setup_script = (
-            f"TEMP_CLONE_DIR={clone_dir}; "
-            f"CURRENT_DIR=$HOME; "
-            f"mkdir -p $TEMP_CLONE_DIR; "
-            f"cd $TEMP_CLONE_DIR; "
-            f"git init; "
-            f"git remote add origin {repo_url_with_auth}; "
-            f"git config core.sparseCheckout true; "
-            f"echo '{escaped_directory}/' > .git/info/sparse-checkout; "
-            f"git pull origin main || git pull origin master || git pull origin HEAD; "
-            f"if [ -d '{escaped_directory}' ]; then cp -r {escaped_directory} $CURRENT_DIR/; cd $CURRENT_DIR; rm -rf $TEMP_CLONE_DIR; else echo 'Warning: Directory {escaped_directory} not found in repository'; cd $CURRENT_DIR; rm -rf $TEMP_CLONE_DIR; fi"
-        )
-    else:
-        setup_script = f"git clone {repo_url_with_auth} {clone_dir}; cp -r {clone_dir}/* .; rm -rf {clone_dir}"
-
-    return setup_script
-
-
 @router.post("/{provider_id}/tasks/launch")
 async def launch_task_on_provider(
     provider_id: str,
@@ -654,8 +598,8 @@ async def launch_task_on_provider(
     # Add GitHub clone setup if enabled
     if request.github_enabled and request.github_repo_url:
         workspace_dir = get_workspace_dir()
-        github_pat = _read_github_pat_from_workspace(workspace_dir)
-        github_setup = _generate_github_clone_setup(
+        github_pat = read_github_pat_from_workspace(workspace_dir)
+        github_setup = generate_github_clone_setup(
             repo_url=request.github_repo_url,
             directory=request.github_directory,
             github_pat=github_pat,
@@ -961,6 +905,35 @@ async def get_cluster_resources(
     except Exception as e:
         print(f"Failed to get cluster resources: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to get cluster resources")
+
+
+@router.get("/{provider_id}/clusters")
+async def list_clusters_detailed(
+    provider_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get detailed list of clusters for a provider, including nodes and resources.
+    Requires X-Team-Id header and team membership.
+    """
+    team_id = user_and_team["team_id"]
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        # Get provider instance
+        provider_instance = get_provider_instance(provider)
+
+        # Get detailed clusters
+        clusters = provider_instance.get_clusters_detailed()
+
+        return clusters
+    except Exception as e:
+        print(f"Failed to list clusters: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to list clusters")
 
 
 # ============================================================================
