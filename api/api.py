@@ -106,6 +106,11 @@ os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 temp_image_dir = storage.join(get_workspace_dir(), "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
+_HEALTH_RESPONSE = {
+    "message": "OK",
+    "mode": "s3" if os.getenv("TFL_API_STORAGE_URI", "") else "local",
+}
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -512,20 +517,11 @@ async def server_worker_health(request: Request):
 @app.get("/healthz")
 async def healthz():
     """
-    Health check endpoint to verify server status and mode.
+    Health check endpoint - minimal overhead.
+    Removed getenv call from execution, determined once at startup.
     """
-    tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
-
-    # Determine mode: s3 or local
-    if tfl_api_storage_uri:
-        mode = "s3"
-    else:
-        mode = "local"
-
-    return {
-        "message": "OK",
-        "mode": mode,
-    }
+    # Cache this at module level instead of checking every request
+    return _HEALTH_RESPONSE
 
 
 # Add an endpoint that serves the static files in the ~/.transformerlab/webapp directory:
