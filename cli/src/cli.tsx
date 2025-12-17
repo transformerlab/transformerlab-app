@@ -109,7 +109,7 @@ const App = ({ command, args }: { command: string; args: any }) => {
   if (command === 'job:info') return <JobInfo jobId={args.id} />;
   if (command === 'job:logs') return <JobLogs jobId={args.id} />;
 
-  return <Text color="red">Unknown command</Text>;
+  return <Text color="red">Unsupported command</Text>;
 };
 
 /*
@@ -222,7 +222,14 @@ const run = () => {
           })
       );
     })
-
+    .command(
+      '*',
+      'Handle unsupported commands',
+      () => {},
+      (argv) => {
+        render(<App command="unsupported" args={argv} />);
+      },
+    )
     .help()
     .parse();
 };
