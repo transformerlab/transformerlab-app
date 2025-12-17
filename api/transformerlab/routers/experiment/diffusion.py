@@ -635,13 +635,28 @@ async def get_image_by_id(
         if storage.isdir(image_item.image_path):
             # New format: folder with numbered images (or zero-padded names like 0000.png).
             try:
-                # Prefer storage listing when available; fallback to os.listdir
+                # Prefer storage.ls (returns either paths or dicts) used across the codebase & tests,
+                # then fallback to storage.listdir, then os.listdir.
                 try:
-                    entries = storage.listdir(image_item.image_path)
+                    entries = storage.ls(image_item.image_path, detail=False)
                 except Exception:
-                    entries = os.listdir(image_item.image_path)
+                    try:
+                        entries = storage.listdir(image_item.image_path)
+                    except Exception:
+                        entries = os.listdir(image_item.image_path)
 
-                image_files = [f for f in entries if f.lower().endswith((".png", ".jpg", ".jpeg"))]
+                # Normalize entries to basenames (support full paths, dicts, or plain names)
+                def _basename(entry):
+                    if isinstance(entry, dict):
+                        p = entry.get("name") or entry.get("path") or ""
+                        return p.rstrip("/").split("/")[-1] if p else ""
+                    if isinstance(entry, str):
+                        return entry.rstrip("/").split("/")[-1]
+                    return str(entry)
+
+                image_files = [
+                    f for f in (_basename(e) for e in entries) if f.lower().endswith((".png", ".jpg", ".jpeg"))
+                ]
                 image_files.sort()
             except Exception as e:
                 raise HTTPException(status_code=404, detail=f"Failed to list images folder: {str(e)}")
@@ -649,7 +664,7 @@ async def get_image_by_id(
             if index < 0 or index >= len(image_files):
                 raise HTTPException(
                     status_code=404,
-                    detail=f"Image index out of range (index={index}, available={len(image_files)})",
+                    detail=f"Image index {index} out of range (available={len(image_files)})",
                 )
 
             file_name = image_files[index]
