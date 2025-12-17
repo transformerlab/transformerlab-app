@@ -1,7 +1,6 @@
 from watchfiles import awatch
 import json
 import os
-import time
 import platform
 import asyncio
 import sys
@@ -162,57 +161,38 @@ async def get_macmon_data():
     return None
 
 
-_info_cache = None
-_info_cache_time = None
-_INFO_CACHE_TTL = 5  # seconds
-
-
 @router.get("/info")
 async def get_computer_information():
-    """
-    Optimized with 5-second cache - system metrics don't need real-time updates.
-    """
-    global _info_cache, _info_cache_time
+    # start with our static system information and add current performance details
+    r = system_info
 
-    now = time.time()
+    # Get the current disk usage if its a mac
+    mac_disk_usage = await get_mac_disk_usage()
 
-    # Return cached data if still valid
-    if _info_cache is not None and _info_cache_time is not None:
-        if (now - _info_cache_time) < _INFO_CACHE_TTL:
-            return _info_cache
+    # Get data from macmon if its a mac
+    macmon_data = await get_macmon_data()
 
-    # Build response
-    r = system_info.copy()
+    disk_usage = psutil.disk_usage("/")._asdict()
+    if mac_disk_usage:
+        disk_usage["used"] = mac_disk_usage
+        disk_usage["free"] = disk_usage["total"] - mac_disk_usage
+        disk_usage["percent"] = round((mac_disk_usage / disk_usage["total"]) * 100, 2)
 
-    # Get disk usage (potentially slow on network mounts)
-    try:
-        mac_disk_usage = await get_mac_disk_usage()
-        macmon_data = await get_macmon_data()
+    r.update(
+        {
+            "cpu_percent": psutil.cpu_percent(),
+            "cpu_count": psutil.cpu_count(),
+            "memory": psutil.virtual_memory()._asdict(),
+            "disk": disk_usage,
+            "gpu_memory": "",
+        }
+    )
 
-        disk_usage = psutil.disk_usage("/")._asdict()
-        if mac_disk_usage:
-            disk_usage["used"] = mac_disk_usage
-            disk_usage["free"] = disk_usage["total"] - mac_disk_usage
-            disk_usage["percent"] = round((mac_disk_usage / disk_usage["total"]) * 100, 2)
-
-        r.update(
-            {
-                "cpu_percent": psutil.cpu_percent(interval=0),  # Non-blocking
-                "cpu_count": psutil.cpu_count(),
-                "memory": psutil.virtual_memory()._asdict(),
-                "disk": disk_usage,
-                "gpu_memory": "",
-            }
-        )
-
-        if macmon_data:
-            r["mac_metrics"] = macmon_data
-    except Exception as e:
-        print(f"Error getting system metrics: {e}")
-        # Return partial data rather than failing
-
-    # GPU info
     g = []
+
+    if macmon_data:
+        r["mac_metrics"] = macmon_data
+
     try:
         if HAS_AMD and not IS_WSL_SYSTEM:
             deviceCount = rocml.smi_get_device_count()
@@ -220,7 +200,7 @@ async def get_computer_information():
             deviceCount = torch.cuda.device_count()
         else:
             deviceCount = nvmlDeviceGetCount()
-
+        # print('device count: ', deviceCount)
         for i in range(deviceCount):
             info = {}
             if HAS_AMD and not IS_WSL_SYSTEM:
@@ -230,6 +210,8 @@ async def get_computer_information():
             else:
                 handle = nvmlDeviceGetHandleByIndex(i)
 
+            # Certain versions of the NVML library on WSL return a byte string,
+            # and this creates a utf error. This is a workaround:
             if not HAS_AMD:
                 device_name = nvmlDeviceGetName(handle)
             elif HAS_AMD and not IS_WSL_SYSTEM:
@@ -238,17 +220,19 @@ async def get_computer_information():
                 device_name = torch.cuda.get_device_name(i)
             else:
                 raise Exception("Unsupported GPU type for rocm-smi")
+            # print('device name: ', device_name)
 
+            # check if device_name is a byte string, if so convert to string:
             if isinstance(device_name, bytes):
                 device_name = device_name.decode(errors="ignore")
 
             info["name"] = device_name
-
             if not HAS_AMD:
                 memory = nvmlDeviceGetMemoryInfo(handle)
                 info["total_memory"] = memory.total
                 info["free_memory"] = memory.free
                 info["used_memory"] = memory.used
+
                 u = nvmlDeviceGetUtilizationRates(handle)
                 info["utilization"] = u.gpu
             elif HAS_AMD and not IS_WSL_SYSTEM:
@@ -265,8 +249,9 @@ async def get_computer_information():
             else:
                 raise Exception("Unsupported GPU type")
 
+            # info["temp"] = nvmlDeviceGetTemperature(handle)
             g.append(info)
-    except Exception:
+    except Exception:  # Catch all exceptions and print them
         g.append(
             {
                 "name": "cpu",
@@ -278,10 +263,6 @@ async def get_computer_information():
         )
 
     r["gpu"] = g
-
-    # Cache the result
-    _info_cache = r
-    _info_cache_time = now
 
     return r
 

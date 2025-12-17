@@ -37,34 +37,23 @@ router = APIRouter(prefix="/jobs", tags=["train"])
 
 @router.get("/list")
 async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subtype: str = ""):
-    """
-    Optimized job listing with efficient filtering.
-    """
-    # If job_service.jobs_get_all is slow, that needs optimization in the service layer
     jobs = job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
 
-    # Early return if no subtype filter
-    if not subtype:
-        return jobs
+    # Optional filter by job_data.subtype
+    if subtype:
+        filtered = []
+        for job in jobs:
+            job_data = job.get("job_data", {})
+            if not isinstance(job_data, dict):
+                try:
+                    job_data = json.loads(job_data)
+                except Exception:
+                    job_data = {}
+            if job_data.get("subtype") == subtype:
+                filtered.append(job)
+        return filtered
 
-    # Optimized filtering - single pass
-    filtered = []
-    for job in jobs:
-        job_data = job.get("job_data", {})
-
-        # Handle both dict and string job_data
-        if isinstance(job_data, str):
-            try:
-                job_data = json.loads(job_data)
-            except Exception:
-                continue
-        elif not isinstance(job_data, dict):
-            continue
-
-        if job_data.get("subtype") == subtype:
-            filtered.append(job)
-
-    return filtered
+    return jobs
 
 
 @router.get("/delete/{job_id}")
