@@ -35,62 +35,11 @@ import {
 } from './commands/tasks';
 import { JobList, JobInfo, JobLogs } from './commands/jobs';
 
-const ContextView = () => {
-  const { exit } = useApp();
-  const [git, setGit] = useState<any>(null);
-
-  const { hasAPIKey, email } = getCredentials();
-
-  useEffect(() => {
-    getGitContext().then((g) => {
-      setGit(g);
-      exit();
-    });
-  }, [exit]);
-
-  if (!git) return <Loading text="Loading context..." />;
-
-  return (
-    <Box flexDirection="column">
-      <Panel title="System Context" color="magenta">
-        <Box>
-          <Text bold>API Endpoint: </Text>
-          <Text>{API_URL}</Text>
-        </Box>
-        <Box>
-          <Text bold>Web Interface: </Text>
-          <Text>{WEB_URL}</Text>
-        </Box>
-        <Box>
-          <Text bold>Logged in as: </Text>
-          <Text>
-            {hasAPIKey ? email || 'Authenticated (API Key)' : 'Not logged in'}
-          </Text>
-        </Box>
-        <Box height={1} />
-        <Box>
-          <Text bold>Git Repo: </Text>
-          <Text>{git.repo}</Text>
-        </Box>
-        <Box>
-          <Text bold>Git Ref: </Text>
-          <Text>
-            {git.branch} @ {git.sha.slice(0, 7)}
-          </Text>
-        </Box>
-        {git.dirty && (
-          <Text color="yellow">⚠ Uncommitted changes detected</Text>
-        )}
-      </Panel>
-    </Box>
-  );
-};
-
 const App = ({ command, args }: { command: string; args: any }) => {
   // Root Command
   if (command === 'default') {
     const target = IS_LOCAL ? 'Local Development' : 'Transformer Lab Cloud';
-    const { hasToken, email } = getCredentials();
+    const { hasAPIKey, email } = getCredentials();
 
     const commandsData = [
       { Command: 'lab login', Description: 'Connect to your account' },
@@ -108,7 +57,7 @@ const App = ({ command, args }: { command: string; args: any }) => {
           color={IS_LOCAL ? 'yellow' : 'cyan'}
         >
           <Text>API: {API_URL}</Text>
-          {hasToken ? (
+          {hasAPIKey ? (
             <Text>User: {email || 'Authenticated'}</Text>
           ) : (
             <Text dimColor>Status: Not logged in</Text>
@@ -132,7 +81,6 @@ const App = ({ command, args }: { command: string; args: any }) => {
   // Auth
   if (command === 'login') return <LoginCommand />;
   if (command === 'logout') return <LogoutCommand />;
-  if (command === 'context') return <ContextView />;
   if (command === 'web') {
     const { exit } = useApp();
     useEffect(() => {
@@ -165,7 +113,13 @@ const App = ({ command, args }: { command: string; args: any }) => {
   return <Text color="red">Unknown command</Text>;
 };
 
-// --- Yargs ---
+/*
+  This is the main function that runs our CLI
+  It uses yargs to parse commands and render the appropriate component
+  which right now is always the app with a command but
+  later we could make each subsection it's own
+  component
+*/
 const run = () => {
   yargs(hideBin(process.argv))
     .scriptName('lab')
