@@ -169,6 +169,8 @@ export default function NewTaskModal({
   const [sweepParams, setSweepParams] = useState<
     Array<{ paramName: string; values: string }>
   >([]);
+  const [sweepMetric, setSweepMetric] = useState('eval/loss');
+  const [lowerIsBetter, setLowerIsBetter] = useState(true);
 
   // Editor refs
   const setupEditorRef = useRef<any>(null);
@@ -201,6 +203,8 @@ export default function NewTaskModal({
       setSelectedProviderId(providers[0]?.id || '');
       setEnableSweeps(false);
       setSweepParams([]);
+      setSweepMetric('eval/loss');
+      setLowerIsBetter(true);
       try {
         setupEditorRef?.current?.setValue?.('');
         commandEditorRef?.current?.setValue?.('');
@@ -545,6 +549,8 @@ export default function NewTaskModal({
         useGithub && githubDirectory ? githubDirectory : undefined,
       run_sweeps: enableSweeps && sweepConfig ? true : undefined,
       sweep_config: sweepConfig,
+      sweep_metric: enableSweeps && sweepConfig ? sweepMetric || 'eval/loss' : undefined,
+      lower_is_better: enableSweeps && sweepConfig ? lowerIsBetter : undefined,
     });
 
     // Reset form
@@ -1327,6 +1333,35 @@ export default function NewTaskModal({
                         job(s) (one for each combination)
                       </FormHelperText>
                     )}
+
+                    <FormControl>
+                      <FormLabel>Optimization Metric</FormLabel>
+                      <Input
+                        placeholder="eval/loss"
+                        value={sweepMetric}
+                        onChange={(e) => setSweepMetric(e.target.value)}
+                      />
+                      <FormHelperText>
+                        Metric name to optimize (e.g., eval/loss, accuracy,
+                        f1_score). Used to determine the best configuration.
+                      </FormHelperText>
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Optimization Direction</FormLabel>
+                      <Select
+                        value={lowerIsBetter ? 'lower' : 'higher'}
+                        onChange={(_, newValue) =>
+                          setLowerIsBetter(newValue === 'lower')
+                        }
+                      >
+                        <Option value="lower">Lower is better (e.g., loss)</Option>
+                        <Option value="higher">Higher is better (e.g., accuracy)</Option>
+                      </Select>
+                      <FormHelperText>
+                        Whether to minimize or maximize the metric value.
+                      </FormHelperText>
+                    </FormControl>
                   </Stack>
                 )}
               </Stack>

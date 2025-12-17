@@ -512,7 +512,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         github_directory: data.github_directory || undefined,
         run_sweeps: data.run_sweeps || undefined,
         sweep_config: data.sweep_config || undefined,
-        sweep_metric: data.sweep_metric || undefined,
+        sweep_metric:
+          data.sweep_metric || (data.run_sweeps ? 'eval/loss' : undefined),
         lower_is_better:
           data.lower_is_better !== undefined ? data.lower_is_better : undefined,
       };
@@ -639,7 +640,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         github_directory: cfg.github_directory,
         run_sweeps: cfg.run_sweeps || undefined,
         sweep_config: cfg.sweep_config || undefined,
-        sweep_metric: cfg.sweep_metric || undefined,
+        sweep_metric:
+          cfg.sweep_metric || (cfg.run_sweeps ? 'eval/loss' : undefined),
         lower_is_better:
           cfg.lower_is_better !== undefined ? cfg.lower_is_better : undefined,
       };
