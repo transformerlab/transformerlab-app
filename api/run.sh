@@ -18,6 +18,9 @@ HTTPS=false
 
 # Load environment variables from .env files
 load_env_files() {
+    # Load .env files in order of priority (later files override earlier ones)
+    # First: base config from TLAB_DIR (lowest priority)
+    # Then: local .env files (higher priority, can override base)
     local env_files=(
         "${TLAB_DIR}/.env"
         "../.env"
@@ -26,13 +29,15 @@ load_env_files() {
     for env_file in "${env_files[@]}"; do
         if [ -f "$env_file" ]; then
             echo "📄 Loading environment variables from $env_file"
-            set -a
+            # Export variables from .env file, ignoring comments and empty lines
+            set -a  # automatically export all variables
             source "$env_file"
-            set +a
+            set +a  # stop automatically exporting
         fi
     done
 }
 
+# Load environment variables
 load_env_files
 
 if ! command -v ${CONDA_BIN} &> /dev/null; then
@@ -61,18 +66,18 @@ else
     conda activate "${ENV_DIR}"
 fi
 
-# Check for uvicorn
+# Check if the uvicorn command works:
 if ! command -v uvicorn &> /dev/null; then
-    echo "❌ Uvicorn is not installed."
+    echo "❌ Uvicorn is not installed. This usually means that the installation of dependencies failed. Run ./install.sh to install the dependencies."
     exit 1
 fi
 
-# GPU checks
+# Check if NVIDIA GPU is available and add necessary paths
 if command -v nvidia-smi &> /dev/null; then
-    echo "✅ NVIDIA GPU detected"
+    echo "✅ NVIDIA GPU detected, adding CUDA libraries to path"
     export LD_LIBRARY_PATH=${ENV_DIR}/lib:$LD_LIBRARY_PATH
 elif command -v rocminfo &> /dev/null; then
-    echo "✅ AMD GPU detected"
+    echo "✅ AMD GPU detected, adding appropriate libraries to path"
     export PATH=$PATH:/opt/rocm/bin:/opt/rocm/rocprofiler/bin:/opt/rocm/opencl/bin
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/rocm/lib:/opt/rocm/lib64
 fi
@@ -108,7 +113,7 @@ fi
 echo "▶️ Starting the API server:"
 
 if [ "$RELOAD" = true ]; then
-    echo "🔁 Reload enabled"
+    echo "🔁 Reload the server on file changes"
     if [ "$HTTPS" = true ]; then
         # Use the prefix
         $RUN_PREFIX python api.py --https --reload --port ${PORT} --host ${TLABHOST} --timeout-graceful-shutdown 1
