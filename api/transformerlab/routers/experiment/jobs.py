@@ -279,6 +279,11 @@ async def get_provider_job_logs(
         provider_job_ids = job_data.get("provider_job_ids")
         if isinstance(provider_job_ids, list) and provider_job_ids:
             provider_job_id = provider_job_ids[-1]
+    
+    if provider_job_id is None:
+        provider_launch_result = job_data.get("provider_launch_result")
+        if isinstance(provider_launch_result, dict):
+            provider_job_id = provider_launch_result.get("job_id")
 
     if provider_job_id is None:
         try:
