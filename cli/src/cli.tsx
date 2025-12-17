@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
 import { useEffect, useState } from 'react';
 // @ts-ignore (otherwise the import of ink gives a li)
 import { render, Box, Text, useApp } from 'ink';
@@ -17,7 +14,7 @@ import {
   WEB_URL,
   API_URL,
   IS_LOCAL,
-  debugLog,
+  getCredentials,
 } from './utils';
 
 /* Import common UI components */
@@ -38,66 +35,11 @@ import {
 } from './commands/tasks';
 import { JobList, JobInfo, JobLogs } from './commands/jobs';
 
-const getLocalStatus = () => {
-  try {
-    const credsPath = path.join(os.homedir(), '.lab', 'credentials');
-    const configPath = path.join(os.homedir(), '.lab', 'config.json');
-
-    let hasToken = false;
-    let email = null;
-
-    if (fs.existsSync(credsPath)) {
-      const creds = JSON.parse(fs.readFileSync(credsPath, 'utf-8'));
-      if (creds.api_key) hasToken = true;
-      if (hasToken) {
-        debugLog('Found API key in credentials.');
-      } else {
-        debugLog('No API key found in credentials.');
-      }
-    } else {
-      debugLog('No credentials file found.');
-    }
-
-    if (fs.existsSync(configPath)) {
-      const conf = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-      email = conf.user_email;
-      console.log('Found user email in config.');
-    }
-
-    if (!email) email = config.get('user_email');
-
-    debugLog('hasToken:', hasToken, 'email:', email);
-
-    return { hasToken, email };
-  } catch (e) {
-    debugLog('Error reading local status:', e);
-    return { hasToken: false, email: null };
-  }
-};
-
-const TargetSwitch = ({ mode }: { mode: 'local' | 'cloud' }) => {
-  const { exit } = useApp();
-  useEffect(() => {
-    config.set('target', mode);
-    setTimeout(exit, 500);
-  }, [exit, mode]);
-  return (
-    <Box flexDirection="column">
-      <Logo />
-      <SuccessMsg text={`Environment switched to: ${mode.toUpperCase()}`} />
-      <Text dimColor>
-        Target URL:{' '}
-        {mode === 'local' ? `http://localhost:8338` : `https://alpha.lab.cloud`}
-      </Text>
-    </Box>
-  );
-};
-
 const ContextView = () => {
   const { exit } = useApp();
   const [git, setGit] = useState<any>(null);
 
-  const { hasToken, email } = getLocalStatus();
+  const { hasAPIKey, email } = getCredentials();
 
   useEffect(() => {
     getGitContext().then((g) => {
@@ -122,7 +64,7 @@ const ContextView = () => {
         <Box>
           <Text bold>Logged in as: </Text>
           <Text>
-            {hasToken ? email || 'Authenticated (API Key)' : 'Not logged in'}
+            {hasAPIKey ? email || 'Authenticated (API Key)' : 'Not logged in'}
           </Text>
         </Box>
         <Box height={1} />
@@ -148,7 +90,7 @@ const App = ({ command, args }: { command: string; args: any }) => {
   // Root Command
   if (command === 'default') {
     const target = IS_LOCAL ? 'Local Development' : 'Transformer Lab Cloud';
-    const { hasToken, email } = getLocalStatus();
+    const { hasToken, email } = getCredentials();
 
     const commandsData = [
       { Command: 'lab login', Description: 'Connect to your account' },
@@ -249,18 +191,6 @@ const run = () => {
     .command('web', 'Open Transformer Lab in your Browser', {}, (argv) => {
       render(<App command="web" args={argv} />);
     })
-
-    .command(
-      'target <env>',
-      'Switch environment',
-      (y) => {
-        return y.positional('env', { choices: ['local', 'cloud'] as const });
-      },
-      (argv) => {
-        // @ts-ignore
-        render(<TargetSwitch mode={argv.env} />);
-      },
-    )
 
     // Task
     .command('task', 'Manage tasks', (y) => {

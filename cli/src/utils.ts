@@ -2,6 +2,7 @@ import execa from 'execa';
 import Conf from 'conf';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 export const config = new Conf<LabState>({
   projectName: 'transformerlab',
@@ -165,5 +166,45 @@ const IS_DEBUG_MODE = true;
 export function debugLog(...args: unknown[]) {
   if (IS_DEBUG_MODE) {
     console.log('DEBUG:', ...args);
+  }
+}
+
+/**
+ * Retrieves user credentials from a local file and checks for the presence of an API key.
+ *
+ * @returns An object containing:
+ * - `hasToken` (boolean): Indicates whether an API key was found in the credentials file.
+ * - `email` (string | null): Reserved for future use, currently always returns `null`.
+ *
+ * The function attempts to read a credentials file located at `~/.lab/credentials`.
+ * If the file exists and contains an `api_key`, it sets `hasToken` to `true`.
+ * Debug logs are generated to indicate the presence or absence of the API key,
+ * or if the credentials file is missing.
+ *
+ * In case of an error while reading the file, the function logs the error and
+ * returns default values (`hasToken: false, email: null`).
+ */
+export function getCredentials(): { hasAPIKey: boolean; email: string | null } {
+  try {
+    const credsPath = path.join(os.homedir(), '.lab', 'credentials');
+
+    let hasAPIKey = false;
+    let email = null;
+
+    if (fs.existsSync(credsPath)) {
+      const creds = JSON.parse(fs.readFileSync(credsPath, 'utf-8'));
+      if (creds.api_key) hasAPIKey = true;
+      if (hasAPIKey) {
+        debugLog('Found API key in credentials.');
+      } else {
+        debugLog('No API key found in credentials.');
+      }
+    } else {
+      debugLog('No credentials file found.');
+    }
+    return { hasAPIKey: hasAPIKey, email };
+  } catch (e) {
+    debugLog('Error reading local credentials file:', e);
+    return { hasAPIKey: false, email: null };
   }
 }
