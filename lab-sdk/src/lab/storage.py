@@ -10,8 +10,9 @@ _current_tfl_storage_uri: contextvars.ContextVar[str | None] = contextvars.Conte
     "current_tfl_storage_uri", default=None
 )
 
-_AWS_PROFILE = os.getenv("AWS_PROFILE", "transformerlab-s3")
 CLOUD_HOST = os.getenv("CLOUD_HOST", "aws")
+_AWS_PROFILE = os.getenv("AWS_PROFILE", "transformerlab-s3")
+_GCP_PROJECT - os.getenv("GCP_PROJECT", "transformerlab")
 
 
 def _get_storage_options() -> dict:
@@ -19,7 +20,7 @@ def _get_storage_options() -> dict:
     if CLOUD_HOST == "aws":
         return {"profile": _AWS_PROFILE} if _AWS_PROFILE else {}
     elif CLOUD_HOST == "gcp":
-        project = os.getenv("GCP_PROJECT")
+        project = os.getenv("_GCP_PROJECT")
         return {"project": project} if project else {}
     else:
         return {}
