@@ -22,16 +22,7 @@ import { Logo, Panel, SuccessMsg, ErrorMsg, Loading } from './ui';
 /* Import all of our Tasks */
 import { LoginCommand } from './commands/login';
 import { LogoutCommand } from './commands/logout';
-import {
-  TaskAdd,
-  TaskRun,
-  TaskInfo,
-  TaskGallery,
-  TaskDelete,
-  InstallFromGallery,
-  ExportToGallery,
-  TaskList,
-} from './commands/tasks';
+import { TaskInfo, TaskGallery, TaskList } from './commands/tasks';
 import { JobList, JobInfo, JobLogs } from './commands/jobs';
 
 const App = ({ command, args }: { command: string; args: any }) => {
@@ -89,20 +80,20 @@ const App = ({ command, args }: { command: string; args: any }) => {
   }
 
   // Task
-  if (command === 'task:add') {
-    const dir = args.dir || '.';
-    return <TaskAdd path={dir} repo={args.repo} branch={args.branch} />;
-  }
-  if (command === 'task:run') {
-    const { _, $0, name, ...params } = args;
-    return <TaskRun taskName={name} cliParams={params} />;
-  }
+  // if (command === 'task:add') {
+  //   const dir = args.dir || '.';
+  //   return <TaskAdd path={dir} repo={args.repo} branch={args.branch} />;
+  // }
+  // if (command === 'task:run') {
+  //   const { _, $0, name, ...params } = args;
+  //   return <TaskRun taskName={name} cliParams={params} />;
+  // }
   if (command === 'task:info') return <TaskInfo taskId={args.id} />;
   if (command === 'task:gallery') return <TaskGallery />;
   if (command === 'task:list') return <TaskList />;
-  if (command === 'task:delete') return <TaskDelete taskId={args.id} />;
-  if (command === 'task:install') return <InstallFromGallery />;
-  if (command === 'task:export') return <ExportToGallery />;
+  // if (command === 'task:delete') return <TaskDelete taskId={args.id} />;
+  // if (command === 'task:install') return <InstallFromGallery />;
+  // if (command === 'task:export') return <ExportToGallery />;
 
   // Job
   if (command === 'job:list') return <JobList />;
