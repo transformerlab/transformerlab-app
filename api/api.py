@@ -108,7 +108,7 @@ os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
 _HEALTH_RESPONSE = {
     "message": "OK",
-    "mode": "s3" if os.getenv("TFL_API_STORAGE_URI", "") else "local",
+    "mode": "s3" if os.getenv("TFL_API_STORAGE_URI", "true") else "local",
 }
 
 
