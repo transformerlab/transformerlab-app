@@ -63,7 +63,7 @@ def create_bucket_for_team(team_id: str, cloud_provider: str = "aws", profile_na
     elif cloud_provider == "gcp":
         return _create_gcs_bucket(bucket_name, team_id)
     else:
-        print(f"Unsupported cloud provider: {provider}")
+        print(f"Unsupported cloud provider: {cloud_provider}")
         return False
 
 
