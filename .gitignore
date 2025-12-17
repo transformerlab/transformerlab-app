@@ -213,3 +213,4 @@ lab-sdk/src/transformerlab.egg-info/
 # CLI executables
 cli/cli
 cli/lab
+cli/dist/*
