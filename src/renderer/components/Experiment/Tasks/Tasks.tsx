@@ -134,7 +134,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   // Fetch jobs with automatic polling
   const {
     data: jobs,
-    error: jobsError,
+    isError: jobsIsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
   } = useSWR(
@@ -161,7 +161,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   // Fetch tasks with useSWR
   const {
     data: allTasks,
-    error: tasksError,
+    isError: tasksIsError,
     isLoading: tasksIsLoading,
     mutate: tasksMutate,
   } = useSWR(
@@ -442,6 +442,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         github_enabled: data.github_enabled || undefined,
         github_repo_url: data.github_repo_url || undefined,
         github_directory: data.github_directory || undefined,
+        run_sweeps: data.run_sweeps || undefined,
+        sweep_config: data.sweep_config || undefined,
+        sweep_metric: data.sweep_metric || undefined,
+        lower_is_better:
+          data.lower_is_better !== undefined ? data.lower_is_better : undefined,
       };
 
       config.provider_id = providerMeta.id;
@@ -564,6 +569,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         github_enabled: cfg.github_enabled,
         github_repo_url: cfg.github_repo_url,
         github_directory: cfg.github_directory,
+        run_sweeps: cfg.run_sweeps || undefined,
+        sweep_config: cfg.sweep_config || undefined,
+        sweep_metric: cfg.sweep_metric || undefined,
+        lower_is_better:
+          cfg.lower_is_better !== undefined ? cfg.lower_is_better : undefined,
       };
 
       const response = await fetchWithAuth(

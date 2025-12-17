@@ -140,7 +140,7 @@ export default function JobProgress({ job }: JobProps) {
             </>
           )}
         </>
-      ) : job?.status === 'RUNNING' ? (
+      ) : job?.status === 'RUNNING' || job?.status === 'LAUNCHING' ? (
         <>
           <Stack direction="row" alignItems="center" gap={1}>
             <Chip
@@ -151,8 +151,33 @@ export default function JobProgress({ job }: JobProps) {
             >
               {job.status}
             </Chip>
-            {progress === -1 ? '' : `${progress.toFixed(1)}%`}
-            <LinearProgress determinate value={progress} sx={{ my: 1 }} />
+            {/* For sweep parent jobs, show sweep progress instead of regular progress */}
+            {(job?.job_data?.sweep_parent || job?.type === 'SWEEP') &&
+            job?.job_data?.sweep_total ? (
+              <>
+                Sweep {job.job_data.sweep_completed || 0}/
+                {job.job_data.sweep_total} complete
+                {job.job_data.sweep_running
+                  ? ` (${job.job_data.sweep_running} running)`
+                  : ''}
+                {job.job_data.sweep_failed
+                  ? ` (${job.job_data.sweep_failed} failed)`
+                  : ''}
+              </>
+            ) : progress === -1 ? (
+              ''
+            ) : (
+              `${progress.toFixed(1)}%`
+            )}
+            <LinearProgress
+              determinate
+              value={
+                job?.job_data?.sweep_parent || job?.type === 'SWEEP'
+                  ? job?.job_data?.sweep_progress || 0
+                  : progress
+              }
+              sx={{ my: 1 }}
+            />
             <IconButton color="danger" onClick={handleStopJob}>
               <StopCircleIcon size="20px" />
             </IconButton>

@@ -221,8 +221,30 @@ def train():
 
         print("Complete")
 
+        # Calculate final metrics for sweep optimization
+        # These metrics will be used to determine the best configuration in a sweep
+        final_loss = 0.5 - num_iterations * 0.05
+        final_accuracy = 0.6 + num_iterations * 0.04
+        
+        # Simulate that better hyperparameters lead to better results
+        # Lower learning rate and higher batch size might give better loss
+        # This is just for demonstration - adjust the metric calculation as needed
+        eval_loss = final_loss * (1.0 + learning_rate / 1e-4) * (1.0 - batch_size / 32.0)
+        
+        lab.log(f"Final metrics - Loss: {final_loss:.4f}, Accuracy: {final_accuracy:.4f}, Eval Loss: {eval_loss:.4f}")
+
         # Complete the job in TransformerLab via facade
-        lab.finish("Training completed successfully")
+        # Pass score/metrics for sweep optimization (sweep_metric defaults to "eval/loss")
+        lab.finish(
+            "Training completed successfully",
+            score={
+                "eval/loss": eval_loss,  # Default metric for sweeps (lower is better)
+                "train/loss": final_loss,
+                "accuracy": final_accuracy,
+                "learning_rate": learning_rate,
+                "batch_size": batch_size,
+            }
+        )
 
         return {
             "status": "success",
@@ -231,6 +253,11 @@ def train():
             "output_dir": os.path.join(output_dir, f"final_model_{lab.job.id}"),
             "saved_model_path": saved_path,
             "wandb_url": captured_wandb_url,
+            "metrics": {
+                "eval/loss": eval_loss,
+                "train/loss": final_loss,
+                "accuracy": final_accuracy,
+            }
         }
 
     except KeyboardInterrupt:

@@ -45,6 +45,45 @@ const JobsList: React.FC<JobsListProps> = ({
   const formatJobConfig = (job: any) => {
     const jobData = job?.job_data || {};
 
+    // Handle sweep child jobs
+    if (jobData?.parent_sweep_job_id) {
+      const runIndex = jobData.sweep_run_index || 0;
+      const total = jobData.sweep_total || 0;
+      const sweepParams = jobData.sweep_params || {};
+      const paramStr = Object.entries(sweepParams)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(', ');
+      return (
+        <>
+          <b>Sweep Run {runIndex}/{total}</b>
+          {paramStr && (
+            <>
+              <br />
+              <small>{paramStr}</small>
+            </>
+          )}
+        </>
+      );
+    }
+
+    // Handle sweep parent jobs
+    if (jobData?.sweep_parent || job?.type === 'SWEEP') {
+      const total = jobData.sweep_total || 0;
+      const sweepConfig = jobData.sweep_config || {};
+      const configStr = Object.keys(sweepConfig).join(' × ');
+      return (
+        <>
+          <b>Sweep: {total} configurations</b>
+          {configStr && (
+            <>
+              <br />
+              <small>{configStr}</small>
+            </>
+          )}
+        </>
+      );
+    }
+
     // Prefer showing Cluster Name (if present) and the user identifier (name/email)
     const clusterName = jobData?.cluster_name;
 

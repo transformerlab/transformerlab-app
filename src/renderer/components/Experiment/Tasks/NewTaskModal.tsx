@@ -21,6 +21,7 @@ import {
   Typography,
   Divider,
   CircularProgress,
+  Switch,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
@@ -68,6 +69,10 @@ type NewTaskModalProps = {
     github_enabled?: boolean;
     github_repo_url?: string;
     github_directory?: string;
+    run_sweeps?: boolean;
+    sweep_config?: Record<string, string[]>;
+    sweep_metric?: string;
+    lower_is_better?: boolean;
   }) => void;
   isSubmitting?: boolean;
   providers: ProviderOption[];
@@ -160,6 +165,10 @@ export default function NewTaskModal({
     }>
   >([{ remotePath: '', file: null, uploading: false, storedPath: undefined }]);
   const [selectedProviderId, setSelectedProviderId] = useState('');
+  const [enableSweeps, setEnableSweeps] = useState(false);
+  const [sweepParams, setSweepParams] = useState<
+    Array<{ paramName: string; values: string }>
+  >([]);
 
   // Editor refs
   const setupEditorRef = useRef<any>(null);
@@ -190,6 +199,8 @@ export default function NewTaskModal({
         { remotePath: '', file: null, uploading: false, storedPath: undefined },
       ]);
       setSelectedProviderId(providers[0]?.id || '');
+      setEnableSweeps(false);
+      setSweepParams([]);
       try {
         setupEditorRef?.current?.setValue?.('');
         commandEditorRef?.current?.setValue?.('');
@@ -436,6 +447,27 @@ export default function NewTaskModal({
       }
     });
 
+    // Build sweep_config if sweeps are enabled
+    let sweepConfig: Record<string, string[]> | undefined = undefined;
+    if (enableSweeps && sweepParams.length > 0) {
+      sweepConfig = {};
+      sweepParams.forEach((sp) => {
+        if (sp.paramName && sp.values) {
+          const values = sp.values
+            .split(',')
+            .map((v) => v.trim())
+            .filter((v) => v);
+          if (values.length > 0) {
+            sweepConfig![sp.paramName] = values;
+          }
+        }
+      });
+      // Only set if we have at least one valid parameter
+      if (Object.keys(sweepConfig).length === 0) {
+        sweepConfig = undefined;
+      }
+    }
+
     // Upload any files for file mounts and build mapping {remotePath: storedPath}
     const fileMountsObj: Record<string, string> = {};
     for (let i = 0; i < fileMounts.length; i += 1) {
@@ -511,6 +543,8 @@ export default function NewTaskModal({
       github_repo_url: useGithub && githubRepoUrl ? githubRepoUrl : undefined,
       github_directory:
         useGithub && githubDirectory ? githubDirectory : undefined,
+      run_sweeps: enableSweeps && sweepConfig ? true : undefined,
+      sweep_config: sweepConfig,
     });
 
     // Reset form
@@ -1199,6 +1233,103 @@ export default function NewTaskModal({
                   ? 'Parameters from task.json are shown above. You can edit them or add additional parameters. All will be merged together.'
                   : 'Task parameters accessible via lab.get_config() in your script. Use JSON type for complex objects.'}
               </FormHelperText>
+            </FormControl>
+
+            <Divider sx={{ my: 2 }} />
+
+            <FormControl>
+              <Stack spacing={2}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <FormLabel>Enable Parameter Sweeps</FormLabel>
+                  <Switch
+                    checked={enableSweeps}
+                    onChange={(e) => setEnableSweeps(e.target.checked)}
+                  />
+                </Stack>
+                {enableSweeps && (
+                  <Stack spacing={2}>
+                    <FormHelperText>
+                      Define parameters to sweep. Each parameter will be tried
+                      with all specified values. All combinations will be
+                      created.
+                    </FormHelperText>
+
+                    {sweepParams.map((sp, index) => (
+                      <Stack direction="row" spacing={1} key={index}>
+                        <Input
+                          placeholder="Parameter name (e.g., learning_rate)"
+                          value={sp.paramName}
+                          onChange={(e) => {
+                            const newSweepParams = [...sweepParams];
+                            newSweepParams[index].paramName = e.target.value;
+                            setSweepParams(newSweepParams);
+                          }}
+                          sx={{ flex: 1 }}
+                        />
+                        <Input
+                          placeholder="Values (comma-separated, e.g., 1e-5,3e-5,5e-5)"
+                          value={sp.values}
+                          onChange={(e) => {
+                            const newSweepParams = [...sweepParams];
+                            newSweepParams[index].values = e.target.value;
+                            setSweepParams(newSweepParams);
+                          }}
+                          sx={{ flex: 1 }}
+                        />
+                        <IconButton
+                          color="danger"
+                          variant="plain"
+                          onClick={() => {
+                            if (sweepParams.length > 1) {
+                              setSweepParams(
+                                sweepParams.filter((_, i) => i !== index)
+                              );
+                            } else {
+                              setSweepParams([]);
+                            }
+                          }}
+                        >
+                          <Trash2Icon size={16} />
+                        </IconButton>
+                      </Stack>
+                    ))}
+
+                    <Button
+                      variant="outlined"
+                      size="sm"
+                      startDecorator={<PlusIcon size={16} />}
+                      onClick={() =>
+                        setSweepParams([
+                          ...sweepParams,
+                          { paramName: '', values: '' },
+                        ])
+                      }
+                    >
+                      Add Sweep Parameter
+                    </Button>
+
+                    {sweepParams.length > 0 && (
+                      <FormHelperText>
+                        This will create{' '}
+                        {sweepParams.reduce(
+                          (acc, sp) =>
+                            acc *
+                            (sp.values
+                              ? sp.values.split(',').filter((v) => v.trim())
+                                  .length
+                              : 0),
+                          1
+                        )}{' '}
+                        job(s) (one for each combination)
+                      </FormHelperText>
+                    )}
+                  </Stack>
+                )}
+              </Stack>
             </FormControl>
           </Stack>
         );
