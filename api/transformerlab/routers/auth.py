@@ -63,8 +63,6 @@ if EMAIL_AUTH_ENABLED:
         prefix="/auth",
         tags=["auth"],
     )
-# Note: We provide custom /users/me endpoints below instead of using get_users_router()
-# because we need to support both JWT and API key authentication via our custom current_active_user
 
 
 # Check if Google OAuth is enabled
