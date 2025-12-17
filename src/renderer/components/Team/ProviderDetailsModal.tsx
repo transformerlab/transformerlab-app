@@ -130,7 +130,7 @@ export default function ProviderDetailsModal({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog sx={{ gap: 0, minWidth: 500 }}>
+      <ModalDialog sx={{ gap: 0, width: 600, height: 500, overflow: 'auto' }}>
         <DialogTitle>
           {providerId ? 'Edit Compute Provider' : 'Add Compute Provider'}
         </DialogTitle>
@@ -173,6 +173,7 @@ export default function ProviderDetailsModal({
               onChange={(event) => setConfig(event.currentTarget.value)}
               placeholder="JSON sent to provider"
               minRows={5}
+              maxRows={10}
             />
           </FormControl>
         </DialogContent>
