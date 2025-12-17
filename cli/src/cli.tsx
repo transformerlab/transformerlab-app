@@ -49,7 +49,11 @@ const getLocalStatus = () => {
     if (fs.existsSync(credsPath)) {
       const creds = JSON.parse(fs.readFileSync(credsPath, 'utf-8'));
       if (creds.api_key) hasToken = true;
-      debugLog('Found access token in credentials.');
+      if (hasToken) {
+        debugLog('Found API key in credentials.');
+      } else {
+        debugLog('No API key found in credentials.');
+      }
     } else {
       debugLog('No credentials file found.');
     }
