@@ -76,11 +76,7 @@ type NewTaskModalProps = {
 
 type TaskMode = 'github-with-json' | 'github-manual' | 'no-github';
 
-type Phase =
-  | 'github-selection'
-  | 'task-json-selection'
-  | 'task-config'
-  | 'provider-env';
+type Phase = 'github-selection' | 'task-config' | 'provider-env';
 
 // Helper function to fetch task.json from GitHub via backend API
 async function fetchTaskJsonFromGitHub(
@@ -136,7 +132,6 @@ export default function NewTaskModal({
   const [useGithub, setUseGithub] = useState<boolean | null>(null);
   const [githubRepoUrl, setGithubRepoUrl] = useState('');
   const [githubDirectory, setGithubDirectory] = useState('');
-  const [hasTaskJson, setHasTaskJson] = useState<boolean | null>(null);
   const [isLoadingTaskJson, setIsLoadingTaskJson] = useState(false);
   const [taskJsonData, setTaskJsonData] = useState<any | null>(null);
 
@@ -176,7 +171,6 @@ export default function NewTaskModal({
       setUseGithub(null);
       setGithubRepoUrl('');
       setGithubDirectory('');
-      setHasTaskJson(null);
       setTaskJsonData(null);
       setTitle('');
       setClusterName('');
@@ -220,78 +214,69 @@ export default function NewTaskModal({
     }
   }, [providers, selectedProviderId]);
 
-  // Load task.json when user confirms they have one
-  useEffect(() => {
-    if (
-      currentPhase === 'task-json-selection' &&
-      hasTaskJson === true &&
-      githubRepoUrl &&
-      !taskJsonData &&
-      !isLoadingTaskJson
-    ) {
-      setIsLoadingTaskJson(true);
-      fetchTaskJsonFromGitHub(githubRepoUrl, githubDirectory || undefined)
-        .then((data) => {
-          if (data) {
-            setTaskJsonData(data);
-            // Pre-populate fields from task.json
-            if (data.title) setTitle(data.title);
-            if (data.name) setTitle(data.name);
-            if (data.cluster_name) setClusterName(data.cluster_name);
-            if (data.command) setCommand(data.command);
-            if (data.cpus) setCpus(String(data.cpus));
-            if (data.memory) setMemory(String(data.memory));
-            if (data.disk_space) setDiskSpace(String(data.disk_space));
-            if (data.accelerators) setAccelerators(data.accelerators);
-            if (data.num_nodes) setNumNodes(String(data.num_nodes));
-            if (data.setup) setSetup(data.setup);
-            if (data.env_vars && typeof data.env_vars === 'object') {
-              const envVarsArray = Object.entries(data.env_vars).map(
-                ([key, value]) => ({
-                  key,
-                  value: String(value),
-                }),
-              );
-              setEnvVars(
-                envVarsArray.length > 0
-                  ? envVarsArray
-                  : [{ key: '', value: '' }],
-              );
-            }
-            addNotification({
-              type: 'success',
-              message: 'Successfully loaded task.json from GitHub',
-            });
-          } else {
-            addNotification({
-              type: 'warning',
-              message:
-                'Could not find or parse task.json. You can still configure manually.',
-            });
-            setHasTaskJson(false);
+  const loadTaskJsonFromGithub = React.useCallback(() => {
+    if (!githubRepoUrl || isLoadingTaskJson) {
+      return;
+    }
+    setIsLoadingTaskJson(true);
+    fetchTaskJsonFromGitHub(githubRepoUrl, githubDirectory || undefined)
+      .then((data) => {
+        if (data) {
+          setTaskJsonData(data);
+          setTaskMode('github-with-json');
+          // Pre-populate fields from task.json
+          if (data.title) setTitle(data.title);
+          if (data.name) setTitle(data.name);
+          if (data.cluster_name) setClusterName(data.cluster_name);
+          if (data.command) setCommand(data.command);
+          if (data.cpus) setCpus(String(data.cpus));
+          if (data.memory) setMemory(String(data.memory));
+          if (data.disk_space) setDiskSpace(String(data.disk_space));
+          if (data.accelerators) setAccelerators(data.accelerators);
+          if (data.num_nodes) setNumNodes(String(data.num_nodes));
+          if (data.setup) setSetup(data.setup);
+          if (data.env_vars && typeof data.env_vars === 'object') {
+            const envVarsArray = Object.entries(data.env_vars).map(
+              ([key, value]) => ({
+                key,
+                value: String(value),
+              }),
+            );
+            setEnvVars(
+              envVarsArray.length > 0 ? envVarsArray : [{ key: '', value: '' }],
+            );
           }
-        })
-        .catch((error) => {
-          console.error('Error loading task.json:', error);
+          addNotification({
+            type: 'success',
+            message: 'Successfully loaded task.json from GitHub',
+          });
+        } else {
+          setTaskMode('github-manual');
           addNotification({
             type: 'warning',
             message:
-              'Could not load task.json. You can still configure manually.',
+              'Could not find or parse task.json. You can still configure manually.',
           });
-          setHasTaskJson(false);
-        })
-        .finally(() => {
-          setIsLoadingTaskJson(false);
+        }
+      })
+      .catch((error) => {
+        console.error('Error loading task.json:', error);
+        setTaskMode('github-manual');
+        addNotification({
+          type: 'warning',
+          message:
+            'Could not load task.json. You can still configure manually.',
         });
-    }
+      })
+      .finally(() => {
+        setIsLoadingTaskJson(false);
+      });
   }, [
-    currentPhase,
-    hasTaskJson,
-    githubRepoUrl,
-    githubDirectory,
-    taskJsonData,
-    isLoadingTaskJson,
     addNotification,
+    githubDirectory,
+    githubRepoUrl,
+    isLoadingTaskJson,
+    setTaskMode,
   ]);
 
   const handleNextPhase = () => {
@@ -304,17 +289,12 @@ export default function NewTaskModal({
           });
           return;
         }
-        setCurrentPhase('task-json-selection');
+        // Default to manual GitHub mode until/unless task.json is loaded
+        setTaskMode('github-manual');
+        setCurrentPhase('task-config');
+        loadTaskJsonFromGithub();
       } else if (useGithub === false) {
         setTaskMode('no-github');
-        setCurrentPhase('task-config');
-      }
-    } else if (currentPhase === 'task-json-selection') {
-      if (hasTaskJson === true) {
-        setTaskMode('github-with-json');
-        setCurrentPhase('task-config');
-      } else if (hasTaskJson === false) {
-        setTaskMode('github-manual');
         setCurrentPhase('task-config');
       }
     } else if (currentPhase === 'task-config') {
@@ -336,16 +316,8 @@ export default function NewTaskModal({
   };
 
   const handleBackPhase = () => {
-    if (currentPhase === 'task-json-selection') {
+    if (currentPhase === 'task-config') {
       setCurrentPhase('github-selection');
-      setHasTaskJson(null);
-      setTaskJsonData(null);
-    } else if (currentPhase === 'task-config') {
-      if (useGithub) {
-        setCurrentPhase('task-json-selection');
-      } else {
-        setCurrentPhase('github-selection');
-      }
       setTaskMode(null);
     } else if (currentPhase === 'provider-env') {
       setCurrentPhase('task-config');
@@ -490,7 +462,6 @@ export default function NewTaskModal({
     setUseGithub(null);
     setGithubRepoUrl('');
     setGithubDirectory('');
-    setHasTaskJson(null);
     setTaskJsonData(null);
     setTitle('');
     setClusterName('');
@@ -722,20 +693,18 @@ export default function NewTaskModal({
         );
 
       case 'task-json-selection':
+        return null;
+
+      case 'task-config':
         return (
           <Stack spacing={3}>
             <Typography level="title-lg">Task Configuration</Typography>
-            <FormHelperText>
-              Does your GitHub repository have a task.json file that contains
-              the task configuration (cpus, accelerators, setup, command,
-              memory, etc.)?
-            </FormHelperText>
-            {isLoadingTaskJson && (
+            {useGithub && isLoadingTaskJson && (
               <Stack
                 direction="row"
                 spacing={2}
                 alignItems="center"
-                sx={{ mt: 2 }}
+                sx={{ mt: 1 }}
               >
                 <CircularProgress size="sm" />
                 <Typography level="body-sm">
@@ -743,53 +712,6 @@ export default function NewTaskModal({
                 </Typography>
               </Stack>
             )}
-            <RadioGroup
-              value={hasTaskJson === null ? '' : hasTaskJson ? 'yes' : 'no'}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                const value = e.target.value;
-                setHasTaskJson(value === 'yes');
-                if (value === 'no') {
-                  // Clear task.json data if user changes mind
-                  setTaskJsonData(null);
-                }
-              }}
-            >
-              <Radio
-                value="yes"
-                label="Yes, use task.json from the repository"
-                disabled={isLoadingTaskJson}
-              />
-              <Radio
-                value="no"
-                label="No, I'll configure manually"
-                disabled={isLoadingTaskJson}
-              />
-            </RadioGroup>
-            {taskJsonData && (
-              <Stack
-                spacing={1}
-                sx={{
-                  mt: 2,
-                  p: 2,
-                  bgcolor: 'background.level1',
-                  borderRadius: 'sm',
-                }}
-              >
-                <Typography level="body-sm" fontWeight="lg">
-                  Loaded from task.json:
-                </Typography>
-                <Typography level="body-xs" fontFamily="mono">
-                  {JSON.stringify(taskJsonData, null, 2).slice(0, 200)}...
-                </Typography>
-              </Stack>
-            )}
-          </Stack>
-        );
-
-      case 'task-config':
-        return (
-          <Stack spacing={3}>
-            <Typography level="title-lg">Task Configuration</Typography>
             {taskMode === 'github-with-json' && (
               <FormHelperText>
                 Configuration loaded from task.json. You can review and modify
@@ -1130,12 +1052,10 @@ export default function NewTaskModal({
     switch (currentPhase) {
       case 'github-selection':
         return 'Step 1: GitHub Repository';
-      case 'task-json-selection':
-        return 'Step 2: Task Configuration Source';
       case 'task-config':
-        return 'Step 3: Task Configuration';
+        return 'Step 2: Task Configuration';
       case 'provider-env':
-        return 'Step 4: Provider & Environment';
+        return 'Step 3: Provider & Environment';
       default:
         return 'New Task';
     }
@@ -1146,9 +1066,6 @@ export default function NewTaskModal({
       if (useGithub === null) return false;
       if (useGithub === true && !githubRepoUrl.trim()) return false;
       return true;
-    }
-    if (currentPhase === 'task-json-selection') {
-      return hasTaskJson !== null;
     }
     if (currentPhase === 'task-config') {
       return title.trim().length > 0;
