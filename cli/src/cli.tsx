@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { useEffect, useState } from 'react';
-// @ts-ignore (otherwise the import of ink gives a li)
 import { render, Box, Text, useApp } from 'ink';
 import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
