@@ -57,7 +57,9 @@ const JobsList: React.FC<JobsListProps> = ({
         .join(', ');
       return (
         <>
-          <b>Sweep Run {runIndex}/{total}</b>
+          <b>
+            Sweep Run {runIndex}/{total}
+          </b>
           {paramStr && (
             <>
               <br />

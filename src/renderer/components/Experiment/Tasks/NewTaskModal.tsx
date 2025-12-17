@@ -549,7 +549,8 @@ export default function NewTaskModal({
         useGithub && githubDirectory ? githubDirectory : undefined,
       run_sweeps: enableSweeps && sweepConfig ? true : undefined,
       sweep_config: sweepConfig,
-      sweep_metric: enableSweeps && sweepConfig ? sweepMetric || 'eval/loss' : undefined,
+      sweep_metric:
+        enableSweeps && sweepConfig ? sweepMetric || 'eval/loss' : undefined,
       lower_is_better: enableSweeps && sweepConfig ? lowerIsBetter : undefined,
     });
 
@@ -1292,7 +1293,7 @@ export default function NewTaskModal({
                           onClick={() => {
                             if (sweepParams.length > 1) {
                               setSweepParams(
-                                sweepParams.filter((_, i) => i !== index)
+                                sweepParams.filter((_, i) => i !== index),
                               );
                             } else {
                               setSweepParams([]);
@@ -1328,7 +1329,7 @@ export default function NewTaskModal({
                               ? sp.values.split(',').filter((v) => v.trim())
                                   .length
                               : 0),
-                          1
+                          1,
                         )}{' '}
                         job(s) (one for each combination)
                       </FormHelperText>
@@ -1355,8 +1356,12 @@ export default function NewTaskModal({
                           setLowerIsBetter(newValue === 'lower')
                         }
                       >
-                        <Option value="lower">Lower is better (e.g., loss)</Option>
-                        <Option value="higher">Higher is better (e.g., accuracy)</Option>
+                        <Option value="lower">
+                          Lower is better (e.g., loss)
+                        </Option>
+                        <Option value="higher">
+                          Higher is better (e.g., accuracy)
+                        </Option>
                       </Select>
                       <FormHelperText>
                         Whether to minimize or maximize the metric value.

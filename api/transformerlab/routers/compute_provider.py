@@ -774,15 +774,11 @@ async def _create_sweep_parent_job(
     This is fast and allows us to return a response quickly.
     """
     from itertools import product
-    import json
 
     team_id = user_and_team["team_id"]
-    user = user_and_team["user"]
     provider = await get_team_provider(session, team_id, provider_id)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
-
-    provider_instance = get_provider_instance(provider)
 
     # Generate all parameter combinations
     param_names = list(sweep_config.keys())
@@ -1569,7 +1565,6 @@ async def get_sweep_results(
     Get aggregated results from all child jobs in a sweep.
     Extracts metrics from each child job and determines the best configuration.
     """
-    import json
 
     # Get the parent sweep job
     job = job_service.job_get(job_id)

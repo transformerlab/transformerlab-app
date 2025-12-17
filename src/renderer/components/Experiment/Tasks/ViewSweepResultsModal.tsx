@@ -56,7 +56,13 @@ export default function ViewSweepResultsModal({
   const renderResults = () => {
     if (isLoading) {
       return (
-        <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" sx={{ py: 4 }}>
+        <Stack
+          direction="row"
+          spacing={2}
+          alignItems="center"
+          justifyContent="center"
+          sx={{ py: 4 }}
+        >
           <CircularProgress size="sm" />
           <Typography level="body-md">Loading sweep results...</Typography>
         </Stack>
@@ -74,7 +80,8 @@ export default function ViewSweepResultsModal({
     if (!data?.data) {
       return (
         <Typography level="body-md" sx={{ color: 'gray', py: 2 }}>
-          No results available yet. Results will appear when all child jobs complete.
+          No results available yet. Results will appear when all child jobs
+          complete.
         </Typography>
       );
     }
@@ -83,7 +90,8 @@ export default function ViewSweepResultsModal({
     if (results.length === 0) {
       return (
         <Typography level="body-md" sx={{ color: 'gray', py: 2 }}>
-          No results available yet. Results will appear when child jobs complete.
+          No results available yet. Results will appear when child jobs
+          complete.
         </Typography>
       );
     }
@@ -103,12 +111,15 @@ export default function ViewSweepResultsModal({
       });
     } else if (sortBy === 'run_index') {
       sortedResults.sort((a, b) => {
-        return sortOrder === 'asc' ? a.run_index - b.run_index : b.run_index - a.run_index;
+        return sortOrder === 'asc'
+          ? a.run_index - b.run_index
+          : b.run_index - a.run_index;
       });
     }
 
     // Get all parameter names from the first result
-    const paramNames = results.length > 0 ? Object.keys(results[0].config || {}) : [];
+    const paramNames =
+      results.length > 0 ? Object.keys(results[0].config || {}) : [];
 
     return (
       <Box>
@@ -132,7 +143,12 @@ export default function ViewSweepResultsModal({
               </Typography>
               <Box sx={{ mt: 1 }}>
                 {Object.entries(bestConfig).map(([key, value]) => (
-                  <Chip key={key} size="sm" variant="outlined" sx={{ mr: 1, mb: 1 }}>
+                  <Chip
+                    key={key}
+                    size="sm"
+                    variant="outlined"
+                    sx={{ mr: 1, mb: 1 }}
+                  >
                     {key}={String(value)}
                   </Chip>
                 ))}
@@ -174,7 +190,9 @@ export default function ViewSweepResultsModal({
                   <tr
                     key={result.run_index}
                     style={{
-                      backgroundColor: isBest ? 'var(--joy-palette-success-50)' : undefined,
+                      backgroundColor: isBest
+                        ? 'var(--joy-palette-success-50)'
+                        : undefined,
                     }}
                   >
                     <td>
@@ -227,7 +245,10 @@ export default function ViewSweepResultsModal({
         </Box>
 
         {results.length === 0 && (
-          <Typography level="body-md" sx={{ color: 'gray', py: 2, textAlign: 'center' }}>
+          <Typography
+            level="body-md"
+            sx={{ color: 'gray', py: 2, textAlign: 'center' }}
+          >
             No results available yet.
           </Typography>
         )}
@@ -260,4 +281,3 @@ export default function ViewSweepResultsModal({
     </Modal>
   );
 }
-

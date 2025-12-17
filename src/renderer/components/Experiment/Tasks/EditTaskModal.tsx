@@ -182,9 +182,7 @@ export default function EditTaskModal({
       const sweepParamsArray = Object.entries(cfg.sweep_config).map(
         ([paramName, values]) => ({
           paramName,
-          values: Array.isArray(values)
-            ? values.join(',')
-            : String(values),
+          values: Array.isArray(values) ? values.join(',') : String(values),
         }),
       );
       setSweepParams(
@@ -414,7 +412,11 @@ export default function EditTaskModal({
       github_directory:
         existingConfig.github_directory || githubDirectory || undefined,
       // Sweep configuration
-      run_sweeps: enableSweeps && sweepParams.some((sp) => sp.paramName.trim() && sp.values.trim()) ? true : undefined,
+      run_sweeps:
+        enableSweeps &&
+        sweepParams.some((sp) => sp.paramName.trim() && sp.values.trim())
+          ? true
+          : undefined,
       sweep_config: (() => {
         if (!enableSweeps) return undefined;
         const sweepConfig: Record<string, string[]> = {};
@@ -430,8 +432,16 @@ export default function EditTaskModal({
         });
         return Object.keys(sweepConfig).length > 0 ? sweepConfig : undefined;
       })(),
-      sweep_metric: enableSweeps && sweepParams.some((sp) => sp.paramName.trim() && sp.values.trim()) ? (sweepMetric || 'eval/loss') : undefined,
-      lower_is_better: enableSweeps && sweepParams.some((sp) => sp.paramName.trim() && sp.values.trim()) ? lowerIsBetter : undefined,
+      sweep_metric:
+        enableSweeps &&
+        sweepParams.some((sp) => sp.paramName.trim() && sp.values.trim())
+          ? sweepMetric || 'eval/loss'
+          : undefined,
+      lower_is_better:
+        enableSweeps &&
+        sweepParams.some((sp) => sp.paramName.trim() && sp.values.trim())
+          ? lowerIsBetter
+          : undefined,
     } as any;
     const providerMeta = providers.find(
       (provider) => provider.id === selectedProviderId,
@@ -1040,7 +1050,7 @@ export default function EditTaskModal({
                               ? sp.values.split(',').filter((v) => v.trim())
                                   .length
                               : 0),
-                          1
+                          1,
                         )}{' '}
                         job(s) (one for each combination)
                       </FormHelperText>
@@ -1067,8 +1077,12 @@ export default function EditTaskModal({
                           setLowerIsBetter(newValue === 'lower')
                         }
                       >
-                        <Option value="lower">Lower is better (e.g., loss)</Option>
-                        <Option value="higher">Higher is better (e.g., accuracy)</Option>
+                        <Option value="lower">
+                          Lower is better (e.g., loss)
+                        </Option>
+                        <Option value="higher">
+                          Higher is better (e.g., accuracy)
+                        </Option>
                       </Select>
                       <FormHelperText>
                         Whether to minimize or maximize the metric value.
