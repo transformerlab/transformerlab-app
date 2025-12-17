@@ -25,6 +25,24 @@ interface ProviderDetailsModalProps {
   providerId?: string;
 }
 
+// Default configurations for each provider type
+const DEFAULT_CONFIGS = {
+  skypilot: `{
+  "server_url": "<YOUR SKYPILOT SERVER URL e.g. http://localhost:46580>",
+  "default_env_vars": {
+    "SKYPILOT_USER_ID": "<YOUR SKYPILOT USER ID>",
+    "SKYPILOT_USER": "<YOUR SKYPILOT USER NAME>"
+  },
+  "default_entrypoint_command": ""
+}`,
+  slurm: `{
+  "ssh_host": "<machine ip for the slurm login node>",
+  "ssh_user": "<User name for ssh where slurm login node is, usually slurm>",
+  "ssh_key_path": "<Path to Private key for SSH if present>",
+  "ssh_port": 22
+}`,
+};
+
 export default function ProviderDetailsModal({
   open,
   onClose,
@@ -75,6 +93,13 @@ export default function ProviderDetailsModal({
       setConfig('');
     }
   }, [open]);
+
+  // Populate default config when provider type changes (only when adding new provider)
+  useEffect(() => {
+    if (!providerId && type && type in DEFAULT_CONFIGS) {
+      setConfig(DEFAULT_CONFIGS[type as keyof typeof DEFAULT_CONFIGS]);
+    }
+  }, [type, providerId]);
 
   async function createProvider(name: String, type: String, config: String) {
     return await fetchWithAuth(
