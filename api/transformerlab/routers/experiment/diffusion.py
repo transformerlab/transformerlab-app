@@ -633,7 +633,15 @@ async def get_image_by_id(
         # Return the generated output image (default behavior)
         # Check if image_path is a folder (new format) or a file (old format)
         if storage.isdir(image_item.image_path):
-            # New format: folder with numbered images (or zero-padded names like 0000.png).
+            num_images_val = getattr(image_item, "num_images", None)
+            try:
+                num_images_int = int(num_images_val) if num_images_val is not None else None
+            except Exception:
+                num_images_int = None
+
+            if num_images_int is not None:
+                if index < 0 or index >= num_images_int:
+                    raise HTTPException(status_code=404, detail=f"Image index {index} out of range")
             try:
                 # Prefer storage.ls (returns either paths or dicts) used across the codebase & tests,
                 # then fallback to storage.listdir, then os.listdir.
