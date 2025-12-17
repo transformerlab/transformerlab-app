@@ -53,7 +53,7 @@ export const GenericList = ({
   }, [exit, fetcher]);
 
   if (error) return <ErrorMsg text={error.message} detail={error.detail} />;
-  if (!data) return <Loading text="Fetching data..." />;
+  if (!data) return <Loading text="Fetching Task List" />;
   if (data.length === 0) return <Text italic>No items found.</Text>;
 
   const tableData = data.map((item) => {

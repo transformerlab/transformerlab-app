@@ -145,7 +145,7 @@ export const LoginCommand = () => {
           <Box marginTop={1}>
             <Text dimColor>1. Go to: </Text>
             <Text color="cyan" underline>
-              {WEB_URL}/settings/api-keys
+              {WEB_URL}/#/user
             </Text>
           </Box>
           <Text dimColor>2. Generate/Copy your API Key.</Text>
