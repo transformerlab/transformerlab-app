@@ -11,6 +11,18 @@ _current_tfl_storage_uri: contextvars.ContextVar[str | None] = contextvars.Conte
 )
 
 _AWS_PROFILE = os.getenv("AWS_PROFILE", "transformerlab-s3")
+CLOUD_HOST = os.getenv("CLOUD_HOST", "aws")
+
+
+def _get_storage_options() -> dict:
+    """Get storage options based on CLOUD_HOST."""
+    if CLOUD_HOST == "aws":
+        return {"profile": _AWS_PROFILE} if _AWS_PROFILE else {}
+    elif CLOUD_HOST == "gcp":
+        project = os.getenv("GCP_PROJECT")
+        return {"project": project} if project else {}
+    else:
+        return {}
 
 
 def _get_fs_and_root():
@@ -29,10 +41,11 @@ def _get_fs_and_root():
         fs = fsspec.filesystem("file")
         return fs, root
 
+    # Get storage options based on cloud provider
+    storage_options = _get_storage_options()
+
     # Let fsspec parse the URI
-    fs, _token, paths = fsspec.get_fs_token_paths(
-        tfl_uri, storage_options={"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-    )
+    fs, _token, paths = fsspec.get_fs_token_paths(tfl_uri, storage_options=storage_options)
     # For S3 and other remote filesystems, we need to maintain the full URI format
     if tfl_uri.startswith(("s3://", "gs://", "abfs://", "gcs://")):
         root = tfl_uri.rstrip("/")
@@ -60,6 +73,7 @@ def debug_info() -> dict:
         "TFL_STORAGE_URI_context": context_uri,
         "TFL_STORAGE_URI_env": env_uri,
         "AWS_PROFILE": _AWS_PROFILE,
+        "CLOUD_HOST": CLOUD_HOST,
         "root_uri": root,
         "filesystem_type": type(fs).__name__,
     }
@@ -225,6 +239,8 @@ def _get_uncached_filesystem(path: str, fs=None):
                         storage_options["profile"] = _AWS_PROFILE
                 elif _AWS_PROFILE:
                     storage_options["profile"] = _AWS_PROFILE
+            elif protocol:
+                storage_options = _get_storage_options()
 
             if protocol:
                 # Create a new uncached filesystem with the same protocol and options
@@ -246,9 +262,7 @@ def _get_uncached_filesystem(path: str, fs=None):
         protocol = path.split("://")[0]
 
         # Build storage options
-        storage_options = {}
-        if _AWS_PROFILE:
-            storage_options["profile"] = _AWS_PROFILE
+        storage_options = _get_storage_options()
 
         # Create a new filesystem instance with caching disabled
         fs_uncached = fsspec.filesystem(
@@ -265,9 +279,7 @@ def _get_uncached_filesystem(path: str, fs=None):
         if tfl_uri and tfl_uri.startswith(("s3://", "gs://", "abfs://", "gcs://")):
             # Path is relative but we're using remote storage
             protocol = tfl_uri.split("://")[0]
-            storage_options = {}
-            if _AWS_PROFILE:
-                storage_options["profile"] = _AWS_PROFILE
+            storage_options = _get_storage_options()
             fs_uncached = fsspec.filesystem(
                 protocol,
                 skip_instance_cache=True,
