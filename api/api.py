@@ -516,11 +516,6 @@ async def server_worker_health(request: Request):
 
 @app.get("/healthz")
 async def healthz():
-    """
-    Health check endpoint - minimal overhead.
-    Removed getenv call from execution, determined once at startup.
-    """
-    # Cache this at module level instead of checking every request
     return _HEALTH_RESPONSE
 
 
