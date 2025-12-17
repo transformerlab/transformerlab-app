@@ -41,8 +41,14 @@ router.include_router(router=jobs.router, prefix="/{experimentId}", tags=["jobs"
 
 @router.get("/", summary="Get all Experiments", tags=["experiment"])
 def experiments_get_all():
-    """Get a list of all experiments"""
-    return experiment_service.experiment_get_all()
+    try:
+        return experiment_service.experiment_get_all()
+
+    except Exception:
+        import traceback
+
+        traceback.print_exc()
+        raise
 
 
 @router.get("/create", summary="Create Experiment", tags=["experiment"])

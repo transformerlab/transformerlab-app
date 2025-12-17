@@ -5,7 +5,7 @@ The Entrypoint File for Transformer Lab's API Server.
 import os
 import argparse
 import asyncio
-
+import time
 import json
 import signal
 import subprocess
@@ -488,44 +488,56 @@ async def server_worker_stop():
     return {"message": "OK"}
 
 
+# Global cache storage
+_models_cache = {"data": [], "expires_at": 0}
+CACHE_TTL_SECONDS = 30  # Adjust this based on how often models actually change
+
+
 @app.get("/server/worker_healthz", tags=["serverinfo"])
 async def server_worker_health(request: Request):
-    models = []
-    result = []
+    global _models_cache
+    current_time = time.time()
+
+    # 1. Check if we have valid cached data
+    if _models_cache["data"] and current_time < _models_cache["expires_at"]:
+        return _models_cache["data"]
+
+    # 2. If cache expired or empty, fetch new data
     try:
         models = await fastchat_openai_api.show_available_models()
     except httpx.HTTPError as exc:
         print(f"HTTP Exception for {exc.request.url} - {exc}")
+
+        # Optional: Return stale cache if upstream fails?
+        # if _models_cache["data"]: return _models_cache["data"]
+
         raise HTTPException(status_code=503, detail="No worker")
 
-    # We create a new object with JUST the id of the models
-    # we do this so that we get a clean object that can be used
-    # by react to see if the object changed. If we returned the whole
-    # model object, you would see some changes in the object that are
-    # not relevant to the user -- triggering renders in React
-    for model_data in models.data:
-        result.append({"id": model_data.id})
+    # 3. Optimize the data transformation (List Comprehension is faster than .append loop)
+    # We extract the logic to a clean list comprehension
+    result = [{"id": model_data.id} for model_data in models.data]
+
+    # 4. Update Cache
+    _models_cache["data"] = result
+    _models_cache["expires_at"] = current_time + CACHE_TTL_SECONDS
 
     return result
+
+
+_HEALTH_RESPONSE = {
+    "message": "OK",
+    "mode": "s3" if os.getenv("TFL_API_STORAGE_URI", "") else "local",
+}
 
 
 @app.get("/healthz")
 async def healthz():
     """
-    Health check endpoint to verify server status and mode.
+    Health check endpoint - minimal overhead.
+    Removed getenv call from execution, determined once at startup.
     """
-    tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
-
-    # Determine mode: s3 or local
-    if tfl_api_storage_uri:
-        mode = "s3"
-    else:
-        mode = "local"
-
-    return {
-        "message": "OK",
-        "mode": mode,
-    }
+    # Cache this at module level instead of checking every request
+    return _HEALTH_RESPONSE
 
 
 # Add an endpoint that serves the static files in the ~/.transformerlab/webapp directory:

@@ -1,39 +1,78 @@
 import json
 
+from datetime import datetime
+
 from lab import Experiment
 from lab import dirs as lab_dirs
 from lab import storage
 
+# Simple in-memory cache
+_experiments_cache = None
+_cache_timestamp = None
+_cache_ttl = 30  # seconds
+
 
 def experiment_get_all():
-    experiments = []
+    global _experiments_cache, _cache_timestamp
+
+    # Check cache
+    now = datetime.now()
+    if _experiments_cache is not None and _cache_timestamp is not None:
+        if (now - _cache_timestamp).total_seconds() < _cache_ttl:
+            return _experiments_cache
+
     experiments_dir = lab_dirs.get_experiments_dir()
-    if storage.exists(experiments_dir):
-        try:
-            exp_dirs = storage.ls(experiments_dir, detail=False)
-            # Sort the directories
-            exp_dirs = sorted(exp_dirs)
-            for exp_path in exp_dirs:
-                # Skip if this is the experiments directory itself (shouldn't happen but safety check)
-                if exp_path.rstrip("/") == experiments_dir.rstrip("/"):
-                    continue
-                if storage.isdir(exp_path):
-                    # Check if this directory is actually a valid experiment by checking for index.json
-                    index_file = storage.join(exp_path, "index.json")
-                    if not storage.exists(index_file):
-                        # Skip directories that don't have index.json (not valid experiments)
-                        continue
-                    # Extract the directory name from the path
-                    exp_dir = exp_path.rstrip("/").split("/")[-1]
-                    # Skip if the extracted name is the experiments directory itself (shouldn't happen but safety check)
-                    if exp_dir == "experiments":
-                        continue
-                    exp_dict = experiment_get(exp_dir)
-                    if exp_dict:
-                        experiments.append(exp_dict)
-        except Exception:
-            pass
+    dir_exists = storage.exists(experiments_dir)
+
+    if not dir_exists:
+        _experiments_cache = []
+        _cache_timestamp = now
+
+        return []
+
+    experiments = []
+
+    try:
+        exp_dirs = storage.ls(experiments_dir, detail=False)
+        processed = 0
+
+        for i, exp_path in enumerate(exp_dirs):
+            if not storage.isdir(exp_path):
+                continue
+
+            exp_dir = exp_path.rstrip("/").split("/")[-1]
+            if exp_dir == "experiments":
+                continue
+
+            experiments.append(
+                {
+                    "id": exp_dir,
+                    "name": exp_dir,
+                }
+            )
+            processed += 1
+
+        experiments.sort(key=lambda x: x["id"])
+        _experiments_cache = experiments
+        _cache_timestamp = now
+
+    except Exception:
+        import traceback
+
+        traceback.print_exc()
+        if _experiments_cache is not None:
+            return _experiments_cache
+        return []
+
     return experiments
+
+
+def clear_experiments_cache():
+    """Call when experiments are modified"""
+    global _experiments_cache, _cache_timestamp
+    print("Clearing experiments cache")
+    _experiments_cache = None
+    _cache_timestamp = None
 
 
 def experiment_create(name: str, config: dict) -> str:
