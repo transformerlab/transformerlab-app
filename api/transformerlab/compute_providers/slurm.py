@@ -792,7 +792,8 @@ class SLURMProvider(ComputeProvider):
                 f"find /home/{self.ssh_user} -name 'slurm-{job_id}.out' -type f 2>/dev/null",
                 f"find /tmp -name 'slurm-{job_id}.out' -type f 2>/dev/null",
                 f"find . -name 'slurm-{job_id}.out' -type f 2>/dev/null",
-                f"find /var/log/slurm -name 'slurm-{job_id}.out' -type f 2>/dev/null"            ]
+                f"find /var/log/slurm -name 'slurm-{job_id}.out' -type f 2>/dev/null",
+            ]
 
             log_file_path = None
             for find_cmd in find_commands:
@@ -800,7 +801,7 @@ class SLURMProvider(ComputeProvider):
                     output = self._ssh_execute(find_cmd)
                     if output.strip():
                         # Take the first match
-                        log_file_path = output.strip().split('\n')[0]
+                        log_file_path = output.strip().split("\n")[0]
                         break
                 except Exception:
                     continue
@@ -839,13 +840,13 @@ class SLURMProvider(ComputeProvider):
         """List jobs using squeue for active jobs and log files for completed jobs."""
         jobs = []
         seen_job_ids = set()
-        
+
         if self.mode == "ssh":
             # Step 1: Get active jobs from squeue
             print(f"[SLURM] Checking active jobs with squeue for user: {self.ssh_user}")
             squeue_command = f'squeue -u {self.ssh_user} -o "%i %j %T" --noheader'
             squeue_output = self._ssh_execute(squeue_command)
-            
+
             # Parse active jobs from squeue
             active_job_count = 0
             for line in squeue_output.strip().split("\n"):
@@ -856,12 +857,12 @@ class SLURMProvider(ComputeProvider):
                     job_id = parts[0]
                     job_name = parts[1]
                     state_str = parts[2].upper()
-                    
+
                     try:
                         state = JobState[state_str]
                     except KeyError:
                         state = JobState.UNKNOWN
-                    
+
                     jobs.append(
                         JobInfo(
                             job_id=job_id,
@@ -872,19 +873,19 @@ class SLURMProvider(ComputeProvider):
                     )
                     seen_job_ids.add(job_id)
                     active_job_count += 1
-            
+
             # Step 2: Find completed jobs by scanning log files
             find_command = f"find /home/{self.ssh_user} -maxdepth 1 -name 'slurm-*.out' -type f -mtime -1 2>/dev/null"
             find_output = self._ssh_execute(find_command)
-            
+
             completed_job_count = 0
-            for line in find_output.strip().split('\n'):
+            for line in find_output.strip().split("\n"):
                 if not line.strip():
                     continue
-                
+
                 # Extract job ID from filename: slurm-{job_id}.out
-                filename = line.split('/')[-1]
-                if filename.startswith('slurm-') and filename.endswith('.out'):
+                filename = line.split("/")[-1]
+                if filename.startswith("slurm-") and filename.endswith(".out"):
                     try:
                         job_id = filename[6:-4]  # Remove 'slurm-' and '.out'
                         if job_id.isdigit() and job_id not in seen_job_ids:
@@ -900,7 +901,7 @@ class SLURMProvider(ComputeProvider):
                             completed_job_count += 1
                     except (ValueError, IndexError):
                         continue
-            
+
         else:
             # REST API mode
             result = self._rest_request("GET", "/slurm/v0.0.39/jobs")
@@ -924,7 +925,7 @@ class SLURMProvider(ComputeProvider):
                         provider_data=job_data,
                     )
                 )
-        
+
         return jobs
 
     def check(self) -> bool:
