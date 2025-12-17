@@ -82,18 +82,16 @@ elif command -v rocminfo &> /dev/null; then
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/rocm/lib:/opt/rocm/lib64
 fi
 
-# ---------------------------------------------------------
-# 🔍 NEW RELIC INTEGRATION START
-# ---------------------------------------------------------
+# New Relic integration
 RUN_PREFIX=""
 
-# We check if the New Relic config file exists OR if License Key is set in env
-if [ -n "$NEW_RELIC_LICENSE_KEY" ] || [ -f "newrelic.ini" ]; then
+# We ONLY enable New Relic if the License Key is present in the environment
+if [ -n "$NEW_RELIC_LICENSE_KEY" ]; then
     # Check if the python package is installed
     if pip show newrelic > /dev/null 2>&1; then
-        echo "🚀 New Relic detected. Wrapping application..."
+        echo "🚀 New Relic detected (Key found). Wrapping application..."
 
-        # If using a file, ensure the env var is set
+        # We still look for the config file for non-secret settings (logging, app_name)
         if [ -z "$NEW_RELIC_CONFIG_FILE" ] && [ -f "newrelic.ini" ]; then
             export NEW_RELIC_CONFIG_FILE="newrelic.ini"
         fi
@@ -104,11 +102,8 @@ if [ -n "$NEW_RELIC_LICENSE_KEY" ] || [ -f "newrelic.ini" ]; then
         echo "   Run: pip install newrelic"
     fi
 else
-    echo "ℹ️  No New Relic configuration found. Running in standard mode."
+    echo "ℹ️  NEW_RELIC_LICENSE_KEY not set. Running in standard mode."
 fi
-# ---------------------------------------------------------
-# 🔍 NEW RELIC INTEGRATION END
-# ---------------------------------------------------------
 
 echo "▶️ Starting the API server:"
 
