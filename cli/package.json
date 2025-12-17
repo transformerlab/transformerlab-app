@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "bun run src/cli.tsx",
-    "build": "bun build ./src/cli.tsx --outfile ./dist/lab --compile && mkdir -p ./dist/yoga-wasm-web/dist && cp node_modules/yoga-wasm-web/dist/yoga.wasm ./dist/yoga-wasm-web/dist/yoga.wasm"
+    "build": "bun build ./src/cli.tsx --outfile ./dist/lab --compile"
   },
   "devDependencies": {
     "@types/bun": "latest"
