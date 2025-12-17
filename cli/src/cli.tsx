@@ -100,6 +100,22 @@ const App = ({ command, args }: { command: string; args: any }) => {
   if (command === 'job:info') return <JobInfo jobId={args.id} />;
   if (command === 'job:logs') return <JobLogs jobId={args.id} />;
 
+  // If there is no command, then
+  if (command === 'unsupported') {
+    return (
+      <Box flexDirection="column">
+        <Text color="red">Error: Unsupported command</Text>
+        <Text>
+          Run{' '}
+          <Text bold color="green">
+            lab --help
+          </Text>{' '}
+          to see the list of available commands.
+        </Text>
+      </Box>
+    );
+  }
+
   return <Text color="red">Unsupported command</Text>;
 };
 
@@ -218,12 +234,18 @@ const run = () => {
           })
       );
     })
+    // Fallback for unsupported commands
     .command(
       '*',
-      false, // Hide the command from the help menu
+      'Handle unsupported commands',
       () => {},
       (argv) => {
-        render(<App command="unsupported" args={argv} />);
+        // Check if no arguments were passed
+        if (argv._.length === 0) {
+          render(<App command="default" args={argv} />);
+        } else {
+          render(<App command="unsupported" args={argv} />);
+        }
       },
     )
     .help()
