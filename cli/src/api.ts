@@ -21,14 +21,12 @@ function getStoredToken(): string | null {
       const content = fs.readFileSync(CREDENTIALS_PATH, 'utf-8');
       const data = JSON.parse(content);
       debugLog('Retrieved stored token from credentials.');
-      debugLog('Token is:', data.access_token);
-      return data.access_token || null;
+      debugLog('Token is:', data.api_key);
+      return data.api_key || null;
     }
   } catch (e) {
-    // Ignore read errors
+    debugLog('Error reading stored token:', e);
   }
-  // Fallback to legacy config if needed
-  return config.get('access_token') || null;
 }
 
 function getStoredTeamId(): string | null {
@@ -170,7 +168,7 @@ class TransformerLabAPI {
 
     const data = await res.json();
     return {
-      access_token: token,
+      api_key: token,
       teams: data.teams || [],
       user: { email: 'API User' },
     };

@@ -3,11 +3,14 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { useEffect, useState } from 'react';
+// @ts-ignore (otherwise the import of ink gives a li)
 import { render, Box, Text, useApp } from 'ink';
 import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
-import open from 'open';
-import Table from './ink-table';
+import open from 'open'; // We use this to open a URL in the browser
+import Table from './ink-table'; // Custom Table component to fix issues with ink-table + bun
+
+/* Import utility functions */
 import {
   config,
   getGitContext,
@@ -16,7 +19,11 @@ import {
   IS_LOCAL,
   debugLog,
 } from './utils';
+
+/* Import common UI components */
 import { Logo, Panel, SuccessMsg, ErrorMsg, Loading } from './ui';
+
+/* Import all of our Tasks */
 import { LoginCommand } from './commands/login';
 import { LogoutCommand } from './commands/logout';
 import {
@@ -41,7 +48,7 @@ const getLocalStatus = () => {
 
     if (fs.existsSync(credsPath)) {
       const creds = JSON.parse(fs.readFileSync(credsPath, 'utf-8'));
-      if (creds.access_token) hasToken = true;
+      if (creds.api_key) hasToken = true;
       debugLog('Found access token in credentials.');
     } else {
       debugLog('No credentials file found.');

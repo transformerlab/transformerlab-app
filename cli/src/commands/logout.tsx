@@ -7,7 +7,7 @@ export const LogoutCommand = () => {
   const { exit } = useApp();
 
   useEffect(() => {
-    config.delete('access_token');
+    config.delete('api_key');
     config.delete('user_email');
     config.delete('team_id');
     config.delete('team_name');

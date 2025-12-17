@@ -39,10 +39,10 @@ export const LoginCommand = () => {
   }, []);
 
   // 2. Persist Data: Saves token and context to disk
-  const persistLoginData = (accessToken: string, teamData: any) => {
+  const persistLoginData = (apiKey: string, teamData: any) => {
     try {
       // Save Token (securely with 600 permissions)
-      const creds = JSON.stringify({ access_token: accessToken }, null, 2);
+      const creds = JSON.stringify({ api_key: apiKey }, null, 2);
       fs.writeFileSync(CREDENTIALS_PATH, creds, { mode: 0o600 });
 
       // Save Config (merging with existing if present)

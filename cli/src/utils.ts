@@ -6,7 +6,7 @@ import path from 'path';
 export const config = new Conf<LabState>({
   projectName: 'transformerlab',
   defaults: {
-    access_token: undefined,
+    api_key: undefined,
     user_email: undefined,
     team_id: undefined,
     target: undefined,
@@ -28,7 +28,7 @@ export const API_URL = 'http://alpha.lab.cloud:8338/';
 
 // --- State Management ---
 interface LabState {
-  access_token?: string;
+  api_key?: string;
   refresh_token?: string;
   user_email?: string;
   team_id?: string;
@@ -37,7 +37,7 @@ interface LabState {
 }
 
 interface LabState {
-  access_token?: string;
+  api_key?: string;
   user_email?: string;
   team_id?: string;
   team_name?: string;
