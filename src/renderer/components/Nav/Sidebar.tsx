@@ -448,9 +448,10 @@ export default function Sidebar({
     <Sheet
       className="Sidebar"
       sx={{
+        backgroundColor: '#f0f1f3ff',
         gridArea: 'sidebar',
-        borderRight: '1px solid',
-        borderColor: 'divider',
+        // borderRight: '1px solid',
+        // borderColor: 'divider',
         transition: 'transform 0.4s',
         zIndex: 100,
         height: '100%',

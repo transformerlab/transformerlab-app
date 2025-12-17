@@ -72,6 +72,10 @@ export default function Computer() {
 
   const { data: pythonLibraries } = useAPI('server', ['pythonLibraries']);
 
+  const pythonLibrariesList = Array.isArray(pythonLibraries)
+    ? pythonLibraries
+    : [];
+
   return (
     <Sheet
       sx={{
@@ -432,7 +436,7 @@ export default function Computer() {
                 startDecorator={<SearchIcon />}
               />
             </FormControl>
-            {pythonLibraries && (
+            {pythonLibrariesList.length > 0 && (
               <>
                 <Sheet sx={{ overflow: 'auto', width: 'fit-content' }}>
                   <Table borderAxis="both" sx={{ width: 'auto' }}>
@@ -451,7 +455,7 @@ export default function Computer() {
                         )
                         .map((lib) => {
                           return (
-                            <tr>
+                            <tr key={lib.name}>
                               <td>{lib.name}</td>
                               <td>{lib.version}</td>
                             </tr>

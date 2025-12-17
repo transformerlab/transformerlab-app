@@ -254,6 +254,10 @@
       "method": "GET",
       "path": "compute_provider/clusters"
     },
+    "providerClusters": {
+      "method": "GET",
+      "path": "compute_provider/{providerId}/clusters"
+    },
     "stopCluster": {
       "method": "POST",
       "path": "compute_provider/{providerId}/clusters/{clusterName}/stop"
@@ -261,6 +265,10 @@
     "uploadTaskFile": {
       "method": "POST",
       "path": "compute_provider/{providerId}/tasks/{taskId}/file-upload"
+    },
+    "usage-report": {
+      "method": "GET",
+      "path": "compute_provider/usage-report"
     }
   },
   "auth": {
