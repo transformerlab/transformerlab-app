@@ -36,7 +36,7 @@ def create_bucket_for_team(team_id: str, cloud_provider: str = "aws", profile_na
     # Determine provider based on URI
     # Validate provider parameter
     if cloud_provider not in ["aws", "gcp"]:
-        print(f"Unsupported cloud provider: {provider}")
+        print(f"Unsupported cloud provider: {cloud_provider}")
         return False
 
     # Validate bucket name (common rules for S3 and GCS)
