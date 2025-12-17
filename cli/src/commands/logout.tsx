@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
+import fs from 'fs';
 import { Box, Text, useApp } from 'ink';
-import { config } from '../utils';
+import { config, CREDENTIALS_PATH } from '../utils';
 import { SuccessMsg } from '../ui';
 
 export const LogoutCommand = () => {
@@ -11,6 +12,9 @@ export const LogoutCommand = () => {
     config.delete('user_email');
     config.delete('team_id');
     config.delete('team_name');
+
+    const creds = JSON.stringify({ api_key: '' }, null, 2);
+    fs.writeFileSync(CREDENTIALS_PATH, creds, { mode: 0o600 });
 
     setTimeout(() => exit(), 800);
   }, [exit]);

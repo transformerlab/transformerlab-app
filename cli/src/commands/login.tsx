@@ -6,15 +6,9 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { api } from '../api';
-import { WEB_URL } from '../utils';
+import { WEB_URL, LAB_DIR, CREDENTIALS_PATH, CONFIG_PATH } from '../utils';
 import { Logo, Loading, ErrorMsg, SuccessMsg, Panel } from '../ui';
 import { debugLog } from '../utils';
-
-// --- STORAGE CONSTANTS ---
-const HOME_DIR = os.homedir();
-const LAB_DIR = path.join(HOME_DIR, '.lab');
-const CREDENTIALS_PATH = path.join(LAB_DIR, 'credentials');
-const CONFIG_PATH = path.join(LAB_DIR, 'config.json');
 
 type ViewState = 'INIT' | 'INPUT' | 'VERIFYING' | 'SELECT_TEAM' | 'SUCCESS';
 

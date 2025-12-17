@@ -27,6 +27,11 @@ export const PORT_LOCAL = '8338';
 export const WEB_URL = 'http://localhost:8338';
 export const API_URL = 'http://localhost:8338';
 
+export const HOME_DIR = os.homedir();
+export const LAB_DIR = path.join(HOME_DIR, '.lab');
+export const CREDENTIALS_PATH = path.join(LAB_DIR, 'credentials');
+export const CONFIG_PATH = path.join(LAB_DIR, 'config.json');
+
 // --- State Management ---
 interface LabState {
   api_key?: string;
