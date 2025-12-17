@@ -37,7 +37,7 @@ const DEFAULT_CONFIGS = {
 }`,
   slurm: `{
   "ssh_host": "<Machine IP for the SLURM login node>",
-  "ssh_user": "<User name for SSH where SLURM login node is, usually SLURM>",
+  "ssh_user": "<User name for SSH to the SLURM login node, usually SLURM>",
   "ssh_key_path": "<Path to private key for SSH if present>",
   "ssh_port": 22
 }`,
