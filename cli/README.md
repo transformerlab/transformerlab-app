@@ -22,7 +22,19 @@ bun run build
   
 ## Usage
 
-Once installed, you can access the CLI using the lab command.
+### Development
+
+When developing, you can run commands like this:
+
+`bun run src/cli.tsx task list`
+
+And you can turn on DEBUG mode like this:
+
+`DEBUG=true bun run src/cli.tsx task list`
+
+### Production
+
+Once built, you can access the CLI using the lab command.
 1. Basics
 ```bash
 # Check status and help
