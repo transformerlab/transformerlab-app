@@ -229,7 +229,7 @@ const run = () => {
     })
     .command(
       '*',
-      'Handle unsupported commands',
+      false, // Hide the command from the help menu
       () => {},
       (argv) => {
         render(<App command="unsupported" args={argv} />);
