@@ -160,10 +160,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     },
   );
 
-  // Also fetch SWEEP jobs (parent sweep jobs)
-  const { data: jobsSweep, mutate: jobsSweepMutate } = useSWR(
+  // Fetch SWEEP jobs using sweep-status endpoint (which also updates their status)
+  const { data: sweepStatusData, mutate: jobsSweepMutate } = useSWR(
     experimentInfo?.id
-      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'SWEEP', '')
+      ? chatAPI.Endpoints.ComputeProvider.CheckSweepStatus(experimentInfo.id)
       : null,
     fetcher,
     {
@@ -174,6 +174,17 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       refreshWhenOffline: false,
     },
   );
+
+  // Extract SWEEP jobs from the sweep-status response
+  const jobsSweep = useMemo(() => {
+    if (
+      sweepStatusData?.status === 'success' &&
+      Array.isArray(sweepStatusData.jobs)
+    ) {
+      return sweepStatusData.jobs;
+    }
+    return [];
+  }, [sweepStatusData]);
 
   // Combine REMOTE and SWEEP jobs (SWEEP jobs first)
   const jobs = useMemo(() => {
@@ -253,49 +264,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     return () => clearInterval(interval);
   }, [jobs, fetchWithAuth, jobsMutate]);
 
-  // Check SWEEP jobs status to update progress
-  useEffect(() => {
-    if (!jobs || !Array.isArray(jobs)) return;
-
-    const runningSweepJobs = jobs.filter(
-      (job: any) =>
-        (job.type === 'SWEEP' || job.job_data?.sweep_parent) &&
-        (job.status === 'RUNNING' || job.status === 'LAUNCHING'),
-    );
-
-    if (runningSweepJobs.length === 0) return;
-
-    // Check each sweep job status
-    const checkSweepJobs = async () => {
-      for (const job of runningSweepJobs) {
-        try {
-          const response = await fetchWithAuth(
-            chatAPI.Endpoints.ComputeProvider.CheckSweepStatus(String(job.id)),
-            { method: 'GET' },
-          );
-          if (response.ok) {
-            const result = await response.json();
-            // Refresh jobs list to get updated progress
-            if (result.status === 'success') {
-              setTimeout(() => {
-                jobsMutate();
-                jobsSweepMutate();
-              }, 0);
-            }
-          }
-        } catch (error) {
-          // Silently ignore errors for individual sweep job checks
-          console.error(`Failed to check sweep job ${job.id}:`, error);
-        }
-      }
-    };
-
-    // Check immediately and then every 10 seconds
-    checkSweepJobs();
-    const interval = setInterval(checkSweepJobs, 10000);
-
-    return () => clearInterval(interval);
-  }, [jobs, fetchWithAuth, jobsMutate]);
+  // Note: SWEEP job status is automatically updated when fetching via sweep-status endpoint
+  // No separate status check needed - the endpoint updates and returns all SWEEP jobs
 
   const loading = tasksIsLoading || jobsIsLoading;
 
