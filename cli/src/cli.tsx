@@ -212,28 +212,28 @@ const run = () => {
         );
     })
 
-    // Job
-    .command('job', 'Manage jobs', (y) => {
-      return (
-        y
-          // FIXED: Wrapped render calls in curly braces to return void
-          .command('list', 'List jobs', {}, (argv) => {
-            render(<App command="job:list" args={argv} />);
-          })
-          .command('info <id>', 'Job info', {}, (argv) => {
-            render(<App command="job:info" args={argv} />);
-          })
-          .command('logs <id>', 'Job logs', {}, (argv) => {
-            render(<App command="job:logs" args={argv} />);
-          })
-          .command('stop <id>', 'Stop job', {}, (argv) => {
-            render(<App command="job:stop" args={argv} />);
-          })
-          .command('delete <id>', 'Delete job', {}, (argv) => {
-            render(<App command="job:delete" args={argv} />);
-          })
-      );
-    })
+    // // Job
+    // .command('job', 'Manage jobs', (y) => {
+    //   return (
+    //     y
+    //       // FIXED: Wrapped render calls in curly braces to return void
+    //       .command('list', 'List jobs', {}, (argv) => {
+    //         render(<App command="job:list" args={argv} />);
+    //       })
+    //       .command('info <id>', 'Job info', {}, (argv) => {
+    //         render(<App command="job:info" args={argv} />);
+    //       })
+    //       .command('logs <id>', 'Job logs', {}, (argv) => {
+    //         render(<App command="job:logs" args={argv} />);
+    //       })
+    //       .command('stop <id>', 'Stop job', {}, (argv) => {
+    //         render(<App command="job:stop" args={argv} />);
+    //       })
+    //       .command('delete <id>', 'Delete job', {}, (argv) => {
+    //         render(<App command="job:delete" args={argv} />);
+    //       })
+    //   );
+    // })
     // Fallback for unsupported commands
     .command(
       '*',

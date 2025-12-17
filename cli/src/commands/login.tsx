@@ -8,6 +8,7 @@ import os from 'os';
 import { api } from '../api';
 import { WEB_URL } from '../utils';
 import { Logo, Loading, ErrorMsg, SuccessMsg, Panel } from '../ui';
+import { debugLog } from '../utils';
 
 // --- STORAGE CONSTANTS ---
 const HOME_DIR = os.homedir();
@@ -73,6 +74,7 @@ export const LoginCommand = () => {
 
   // 3. Verify Token: Calls API
   const verifyToken = async () => {
+    debugLog('Starting token verification');
     const cleanToken = token.trim();
     if (!cleanToken) {
       setError('Token cannot be empty.');
@@ -80,29 +82,29 @@ export const LoginCommand = () => {
     }
 
     setView('VERIFYING');
+
     setError(null);
 
     try {
-      // NOTE: Ensure your api.verifyToken handles the "Path not found" internally
-      // as discussed, or this call will throw.
       const res = await api.verifyToken(cleanToken);
       setAuthResult(res);
-      setView('SELECT_TEAM');
+      // setView('SELECT_TEAM');
+      // Now save:
+      const success = persistLoginData(cleanToken, {
+        label: 'No Team Selected',
+        value: '',
+      });
+      if (success) {
+        setView('SUCCESS'); // we remove the set team functionality for now
+      } else {
+        setError('Failed to save credentials.');
+        setView('INPUT');
+      }
     } catch (e: any) {
       // Logic to handle specific API errors gracefully
       let msg = e.message || 'Unknown error occurred';
 
-      if (msg.includes('Path me/teams not found') || msg.includes('404')) {
-        msg =
-          'API Endpoint not found. Please check your token and CLI version.';
-      } else if (msg.includes('401') || msg.includes('403')) {
-        msg = 'Invalid API Key. Please check your settings and try again.';
-      } else if (msg.includes('fetch failed') || msg.includes('ECONNREFUSED')) {
-        msg = 'Could not connect to the server. Is it running?';
-      }
-
       setError(msg);
-      // We do NOT clear the token here, allowing the user to fix a typo
       setView('INPUT');
     }
   };
@@ -112,14 +114,13 @@ export const LoginCommand = () => {
     const success = persistLoginData(token.trim(), item);
     if (success) {
       setView('SUCCESS');
-      setTimeout(() => exit(), 1500);
     }
   };
 
   // --- RENDERING ---
 
   const Header = () => (
-    <Box flexDirection="column" marginBottom={1}>
+    <Box flexDirection="column">
       <Logo />
       {error ? <ErrorMsg text="Login Failed" detail={error} /> : null}
     </Box>
@@ -163,7 +164,6 @@ export const LoginCommand = () => {
             }}
             onSubmit={verifyToken}
             placeholder="Paste key here..."
-            mask="*"
           />
         </Box>
       </Box>
@@ -206,6 +206,7 @@ export const LoginCommand = () => {
         <Header />
         <SuccessMsg text="Successfully authenticated." />
         <Text dimColor>Credentials saved to {CREDENTIALS_PATH}</Text>
+        <Text dimColor>You may now use the lab cli</Text>
       </Box>
     );
   }

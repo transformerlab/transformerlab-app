@@ -24,8 +24,8 @@ export const DOMAIN_PROD = 'lab.cloud';
 export const DOMAIN_LOCAL = 'localhost';
 export const PORT_LOCAL = '8338';
 
-export const WEB_URL = 'http://alpha.lab.cloud:8338';
-export const API_URL = 'http://alpha.lab.cloud:8338';
+export const WEB_URL = 'http://localhost:8338';
+export const API_URL = 'http://localhost:8338';
 
 // --- State Management ---
 interface LabState {

@@ -150,12 +150,9 @@ class TransformerLabAPI {
   // --- AUTH ---
 
   async verifyToken(token: string) {
-    // We do NOT use safeGetPath here because verifyToken usually runs
-    // before we have a full environment setup, so we want to be explicit.
-    let pathPart = '/users/me/teams';
-    try {
-      pathPart = getPath('users', ['me', 'teams'], {});
-    } catch (e) {}
+    let pathPart = '/server/info';
+
+    debugLog('Verifying token with endpoint:', `${API_URL}${pathPart}`);
 
     const res = await fetch(`${API_URL}${pathPart}`, {
       headers: { Authorization: `Bearer ${token}` },
