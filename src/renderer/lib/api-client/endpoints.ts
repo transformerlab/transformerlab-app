@@ -49,6 +49,10 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/${providerId}/tasks/launch`,
   CheckJobStatus: (jobId: string) =>
     `${API_URL()}compute_provider/jobs/${jobId}/check-status`,
+  CheckSweepStatus: (jobId: string) =>
+    `${API_URL()}compute_provider/jobs/${jobId}/sweep-status`,
+  GetSweepResults: (jobId: string) =>
+    `${API_URL()}compute_provider/jobs/${jobId}/sweep-results`,
   StopCluster: (providerId: string, clusterName: string) =>
     `${API_URL()}compute_provider/${providerId}/clusters/${clusterName}/stop`,
   UploadTaskFile: (providerId: string, taskId: string | number) =>

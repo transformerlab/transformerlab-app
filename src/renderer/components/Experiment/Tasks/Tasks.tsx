@@ -22,6 +22,7 @@ import ViewArtifactsModal from '../Train/ViewArtifactsModal';
 import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
+import ViewSweepResultsModal from './ViewSweepResultsModal';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -40,6 +41,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [viewArtifactsFromJob, setViewArtifactsFromJob] = useState(-1);
   const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
+  const [viewSweepResultsFromJob, setViewSweepResultsFromJob] = useState(-1);
   const [viewEvalResultsFromJob, setViewEvalResultsFromJob] = useState(-1);
   const [previewDatasetModal, setPreviewDatasetModal] = useState<{
     open: boolean;
@@ -159,7 +161,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   );
 
   // Also fetch SWEEP jobs (parent sweep jobs)
-  const { data: jobsSweep } = useSWR(
+  const { data: jobsSweep, mutate: jobsSweepMutate } = useSWR(
     experimentInfo?.id
       ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'SWEEP', '')
       : null,
@@ -247,6 +249,50 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     // Check immediately and then every 10 seconds
     checkJobs();
     const interval = setInterval(checkJobs, 10000);
+
+    return () => clearInterval(interval);
+  }, [jobs, fetchWithAuth, jobsMutate]);
+
+  // Check SWEEP jobs status to update progress
+  useEffect(() => {
+    if (!jobs || !Array.isArray(jobs)) return;
+
+    const runningSweepJobs = jobs.filter(
+      (job: any) =>
+        (job.type === 'SWEEP' || job.job_data?.sweep_parent) &&
+        (job.status === 'RUNNING' || job.status === 'LAUNCHING'),
+    );
+
+    if (runningSweepJobs.length === 0) return;
+
+    // Check each sweep job status
+    const checkSweepJobs = async () => {
+      for (const job of runningSweepJobs) {
+        try {
+          const response = await fetchWithAuth(
+            chatAPI.Endpoints.ComputeProvider.CheckSweepStatus(String(job.id)),
+            { method: 'GET' },
+          );
+          if (response.ok) {
+            const result = await response.json();
+            // Refresh jobs list to get updated progress
+            if (result.status === 'success') {
+              setTimeout(() => {
+                jobsMutate();
+                jobsSweepMutate();
+              }, 0);
+            }
+          }
+        } catch (error) {
+          // Silently ignore errors for individual sweep job checks
+          console.error(`Failed to check sweep job ${job.id}:`, error);
+        }
+      }
+    };
+
+    // Check immediately and then every 10 seconds
+    checkSweepJobs();
+    const interval = setInterval(checkSweepJobs, 10000);
 
     return () => clearInterval(interval);
   }, [jobs, fetchWithAuth, jobsMutate]);
@@ -743,9 +789,16 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               setViewOutputFromSweepJob(true);
               setViewOutputFromJob(parseInt(jobId));
             }}
+            onViewSweepResults={(jobId) => {
+              setViewSweepResultsFromJob(parseInt(jobId));
+            }}
           />
         )}
       </Sheet>
+      <ViewSweepResultsModal
+        jobId={viewSweepResultsFromJob}
+        setJobId={(jobId: number) => setViewSweepResultsFromJob(jobId)}
+      />
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={(jobId: number) => setViewOutputFromJob(jobId)}

@@ -26,6 +26,7 @@ interface JobsListProps {
   onViewArtifacts?: (jobId: string) => void;
   onViewEvalImages?: (jobId: string) => void;
   onViewSweepOutput?: (jobId: string) => void;
+  onViewSweepResults?: (jobId: string) => void;
   onViewEvalResults?: (jobId: string) => void;
   onViewGeneratedDataset?: (jobId: string, datasetId: string) => void;
 }
@@ -39,6 +40,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewArtifacts,
   onViewEvalImages,
   onViewSweepOutput,
+  onViewSweepResults,
   onViewEvalResults,
   onViewGeneratedDataset,
 }) => {
@@ -286,6 +288,27 @@ const JobsList: React.FC<JobsListProps> = ({
                           }}
                         >
                           Preview Dataset
+                        </Box>
+                      </Button>
+                    )}
+                  {(job?.type === 'SWEEP' || job?.job_data?.sweep_parent) &&
+                    job?.status === 'COMPLETE' && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewSweepResults?.(job?.id)}
+                        startDecorator={<LineChartIcon />}
+                      >
+                        <Box
+                          sx={{
+                            display: {
+                              xs: 'none',
+                              sm: 'none',
+                              md: 'inline-flex',
+                            },
+                          }}
+                        >
+                          Sweep Results
                         </Box>
                       </Button>
                     )}

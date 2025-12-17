@@ -277,10 +277,7 @@ export default function JobProgress({ job }: JobProps) {
                 )
               ) : (
                 /* If we don't have a status, assume it failed */
-                <Typography level="body-sm" color="neutral">
-                  No job completion status. Task may have failed. View output
-                  for details
-                </Typography>
+                <Typography level="body-sm" color="neutral" />
               ))}
           </>
         </Stack>
