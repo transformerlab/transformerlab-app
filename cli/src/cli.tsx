@@ -147,57 +147,62 @@ const run = () => {
 
     // Task
     .command('task', 'Manage tasks', (y) => {
-      return (
-        y
-          .usage('$0 task <cmd> [args]')
-          .demandCommand(
-            1,
-            'Please specify a task subcommand. Use "lab task --help" for a list of available subcommands.',
-          )
-          .command(
-            'add [dir]',
-            'Register current directory',
-            (y) => {
-              return y
-                .option('repo', { type: 'string' })
-                .option('branch', { type: 'string' });
-            },
-            (argv) => {
-              render(<App command="task:add" args={argv} />);
-            },
-          )
-          .command(
-            'run <name>',
-            'Trigger a task run',
-            (y) => {
-              return y
-                .positional('name', { type: 'string' })
-                .parserConfiguration({ 'unknown-options-as-args': true });
-            },
-            (argv) => {
-              render(<App command="task:run" args={argv} />);
-            },
-          )
-          // FIXED: Wrapped render calls in curly braces to return void
-          .command('list', 'List tasks', {}, (argv) => {
-            render(<App command="task:list" args={argv} />);
-          })
-          .command('info <id>', 'Task Info', {}, (argv) => {
-            render(<App command="task:info" args={argv} />);
-          })
-          .command('delete <id>', 'Delete task', {}, (argv) => {
-            render(<App command="task:delete" args={argv} />);
-          })
-          .command('gallery', 'Browse Gallery', {}, (argv) => {
-            render(<App command="task:gallery" args={argv} />);
-          })
-          .command('install [id]', 'Install from Gallery', {}, (argv) => {
-            render(<App command="task:install" args={argv} />);
-          })
-          .command('export', 'Export to Gallery', {}, (argv) => {
-            render(<App command="task:export" args={argv} />);
-          })
-      );
+      return y
+        .usage('$0 task <cmd> [args]')
+        .demandCommand(
+          1,
+          'Please specify a task subcommand. Use "lab task --help" for a list of available subcommands.',
+        )
+        .command(
+          'add [dir]',
+          'Register current directory',
+          (y) => {
+            return y
+              .option('repo', { type: 'string' })
+              .option('branch', { type: 'string' });
+          },
+          (argv) => {
+            render(<App command="task:add" args={argv} />);
+          },
+        )
+        .command(
+          'run <name>',
+          'Trigger a task run',
+          (y) => {
+            return y
+              .positional('name', { type: 'string' })
+              .parserConfiguration({ 'unknown-options-as-args': true });
+          },
+          (argv) => {
+            render(<App command="task:run" args={argv} />);
+          },
+        )
+        .command('list', 'List tasks', {}, (argv) => {
+          render(<App command="task:list" args={argv} />);
+        })
+        .command('info <id>', 'Task Info', {}, (argv) => {
+          render(<App command="task:info" args={argv} />);
+        })
+        .command('delete <id>', 'Delete task', {}, (argv) => {
+          render(<App command="task:delete" args={argv} />);
+        })
+        .command('gallery', 'Browse Gallery', {}, (argv) => {
+          render(<App command="task:gallery" args={argv} />);
+        })
+        .command('install [id]', 'Install from Gallery', {}, (argv) => {
+          render(<App command="task:install" args={argv} />);
+        })
+        .command('export', 'Export to Gallery', {}, (argv) => {
+          render(<App command="task:export" args={argv} />);
+        })
+        .command(
+          '*',
+          'Handle unsupported task subcommands',
+          () => {},
+          (argv) => {
+            render(<App command="unsupported" args={argv} />);
+          },
+        );
     })
 
     // Job
