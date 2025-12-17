@@ -131,9 +131,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     setTaskBeingEdited(null);
   };
 
-  // Fetch jobs with automatic polling
+  // Fetch REMOTE jobs with automatic polling
   const {
-    data: jobs,
+    data: jobsRemote,
     isError: jobsIsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
@@ -157,6 +157,28 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       refreshWhenOffline: false, // Don't poll when offline
     },
   );
+
+  // Also fetch SWEEP jobs (parent sweep jobs)
+  const { data: jobsSweep } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'SWEEP', '')
+      : null,
+    fetcher,
+    {
+      refreshInterval: 3000,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      refreshWhenHidden: true,
+      refreshWhenOffline: false,
+    },
+  );
+
+  // Combine REMOTE and SWEEP jobs (SWEEP jobs first)
+  const jobs = useMemo(() => {
+    const remoteJobs = Array.isArray(jobsRemote) ? jobsRemote : [];
+    const sweepJobs = Array.isArray(jobsSweep) ? jobsSweep : [];
+    return [...sweepJobs, ...remoteJobs];
+  }, [jobsRemote, jobsSweep]);
 
   // Fetch tasks with useSWR
   const {

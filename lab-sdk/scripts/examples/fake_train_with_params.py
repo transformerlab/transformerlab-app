@@ -26,8 +26,16 @@ def train():
         dataset = config.get("dataset", "Trelis/touch-rugby-rules")
         output_dir = config.get("output_dir", "./output")
         num_iterations = config.get("num_iterations", 8)
-        learning_rate = config.get("learning_rate", 2e-5)
-        batch_size = config.get("batch_size", 8)
+
+        # Convert string values to appropriate types (parameters from sweeps may come as strings)
+        learning_rate_raw = config.get("learning_rate", 2e-5)
+        learning_rate = (
+            float(learning_rate_raw) if isinstance(learning_rate_raw, (str, int, float)) else learning_rate_raw
+        )
+
+        batch_size_raw = config.get("batch_size", 8)
+        batch_size = int(batch_size_raw) if isinstance(batch_size_raw, (str, int, float)) else batch_size_raw
+
         num_train_epochs = config.get("num_train_epochs", 1)
         gradient_accumulation_steps = config.get("gradient_accumulation_steps", 1)
         warmup_ratio = config.get("warmup_ratio", 0.03)
@@ -225,12 +233,12 @@ def train():
         # These metrics will be used to determine the best configuration in a sweep
         final_loss = 0.5 - num_iterations * 0.05
         final_accuracy = 0.6 + num_iterations * 0.04
-        
+
         # Simulate that better hyperparameters lead to better results
         # Lower learning rate and higher batch size might give better loss
         # This is just for demonstration - adjust the metric calculation as needed
         eval_loss = final_loss * (1.0 + learning_rate / 1e-4) * (1.0 - batch_size / 32.0)
-        
+
         lab.log(f"Final metrics - Loss: {final_loss:.4f}, Accuracy: {final_accuracy:.4f}, Eval Loss: {eval_loss:.4f}")
 
         # Complete the job in TransformerLab via facade
@@ -243,7 +251,7 @@ def train():
                 "accuracy": final_accuracy,
                 "learning_rate": learning_rate,
                 "batch_size": batch_size,
-            }
+            },
         )
 
         return {
@@ -257,7 +265,7 @@ def train():
                 "eval/loss": eval_loss,
                 "train/loss": final_loss,
                 "accuracy": final_accuracy,
-            }
+            },
         }
 
     except KeyboardInterrupt:
