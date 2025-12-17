@@ -28,17 +28,17 @@ interface ProviderDetailsModalProps {
 // Default configurations for each provider type
 const DEFAULT_CONFIGS = {
   skypilot: `{
-  "server_url": "<YOUR SKYPILOT SERVER URL e.g. http://localhost:46580>",
+  "server_url": "<Your SkyPilot server URL e.g. http://localhost:46580>",
   "default_env_vars": {
-    "SKYPILOT_USER_ID": "<YOUR SKYPILOT USER ID>",
-    "SKYPILOT_USER": "<YOUR SKYPILOT USER NAME>"
+    "SKYPILOT_USER_ID": "<Your SkyPilot user ID>",
+    "SKYPILOT_USER": "<Your SkyPilot user name>"
   },
   "default_entrypoint_command": ""
 }`,
   slurm: `{
-  "ssh_host": "<machine ip for the slurm login node>",
-  "ssh_user": "<User name for ssh where slurm login node is, usually slurm>",
-  "ssh_key_path": "<Path to Private key for SSH if present>",
+  "ssh_host": "<Machine IP for the SLURM login node>",
+  "ssh_user": "<User name for SSH where SLURM login node is, usually SLURM>",
+  "ssh_key_path": "<Path to private key for SSH if present>",
   "ssh_port": 22
 }`,
 };
