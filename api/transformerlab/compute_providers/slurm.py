@@ -898,7 +898,7 @@ class SLURMProvider(ComputeProvider):
                             )
                             seen_job_ids.add(job_id)
                             completed_job_count += 1
-                    except (ValueError, IndexError) as e:
+                    except (ValueError, IndexError):
                         continue
             
         else:
