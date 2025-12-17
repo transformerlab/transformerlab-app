@@ -46,7 +46,6 @@ from diffusers import (
     FluxPipeline,
     FluxTransformer2DModel,
     AutoencoderKL,
-    DiffusionPipeline,
 )
 from diffusers.models.controlnets.controlnet_flux import (
     FluxControlNetModel,
@@ -187,21 +186,6 @@ def flush_memory():
         torch.cuda.reset_peak_memory_stats()
         torch.cuda.ipc_collect()
     print("Memory flushed")
-
-
-def is_zimage_model(model: str) -> bool:
-    """Return True if the model architecture is ZImagePipeline."""
-    try:
-        info = model_info(model)
-        config = getattr(info, "config", {})
-        diffusers_config = config.get("diffusers", {})
-        architectures = diffusers_config.get("_class_name", "")
-        if isinstance(architectures, str):
-            architectures = [architectures]
-        return any(arch == "ZImagePipeline" for arch in architectures)
-    except Exception as e:
-        print(f"Error checking model {model} for Z-Image: {e}")
-        return False
 
 
 def is_flux_model(model_path):
@@ -614,7 +598,6 @@ def load_pipeline_with_device_map(
             torch.cuda.empty_cache()
 
     # Load appropriate pipeline
-    is_zimage = is_zimage_model(model_path)
     if is_controlnet:
         CONTROLNET_PIPELINE_MAP = {
             "StableDiffusionPipeline": StableDiffusionControlNetPipeline,
@@ -657,16 +640,6 @@ def load_pipeline_with_device_map(
             requires_safety_checker=False,
             use_safetensors=True,
         )
-
-    elif is_zimage:
-        pipe = DiffusionPipeline.from_pretrained(
-            model_path,
-            torch_dtype=torch.bfloat16 if device != "cpu" else torch.float32,
-            low_cpu_mem_usage=False,
-            trust_remote_code=True,
-        )
-        pipe = pipe.to("cuda" if device == "auto" else device)
-        print(f"Loaded Z-Image pipeline for model: {model_path}")
 
     elif is_inpainting:
         pipe = AutoPipelineForInpainting.from_pretrained(model_path, **pipeline_kwargs)
