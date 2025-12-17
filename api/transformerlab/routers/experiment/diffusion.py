@@ -84,6 +84,8 @@ ALLOWED_TEXT2IMG_ARCHITECTURES = [
     "StableDiffusionXLControlNetInpaintPipeline",
     "IFInpaintingPipeline",
     "IFPipeline",
+    "DiffusionPipeline",
+    "WanPipeline",
 ]
 
 # Allowed architectures for img2img pipelines
@@ -118,6 +120,7 @@ ALLOWED_IMG2IMG_ARCHITECTURES = [
     "StableDiffusionXLControlNetPAGPipeline",
     "LatentConsistencyModelImg2ImgPipeline",
     "LatentConsistencyModelPipeline",
+    "DiffusionPipeline",
 ]
 
 # Allowed architectures for inpainting pipelines
@@ -630,16 +633,30 @@ async def get_image_by_id(
         # Return the generated output image (default behavior)
         # Check if image_path is a folder (new format) or a file (old format)
         if storage.isdir(image_item.image_path):
-            # New format: folder with numbered images
-            if index < 0 or index >= (image_item.num_images if hasattr(image_item, "num_images") else 1):
+            # New format: folder with numbered images (or zero-padded names like 0000.png).
+            try:
+                # Prefer storage listing when available; fallback to os.listdir
+                try:
+                    entries = storage.listdir(image_item.image_path)
+                except Exception:
+                    entries = os.listdir(image_item.image_path)
+
+                image_files = [f for f in entries if f.lower().endswith((".png", ".jpg", ".jpeg"))]
+                image_files.sort()
+            except Exception as e:
+                raise HTTPException(status_code=404, detail=f"Failed to list images folder: {str(e)}")
+
+            if index < 0 or index >= len(image_files):
                 raise HTTPException(
                     status_code=404,
-                    detail=f"Image index {index} out of range. Available: 0-{(image_item.num_images if hasattr(image_item, 'num_images') else 1) - 1}",
+                    detail=f"Image index out of range (index={index}, available={len(image_files)})",
                 )
 
-            # Sanitize the filename and construct the path
-            sanitized_filename = secure_filename(f"{index}.png")
-            image_path = storage.join(image_item.image_path, sanitized_filename)
+            file_name = image_files[index]
+            image_path = storage.join(image_item.image_path, file_name)
+            if not storage.exists(image_path):
+                raise HTTPException(status_code=404, detail=f"Image file not found: {file_name}")
+            return FileResponse(image_path)
         else:
             # Old format: single image file
             if index != 0:
