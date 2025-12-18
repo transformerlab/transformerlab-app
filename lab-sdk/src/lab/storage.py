@@ -10,16 +10,16 @@ _current_tfl_storage_uri: contextvars.ContextVar[str | None] = contextvars.Conte
     "current_tfl_storage_uri", default=None
 )
 
-CLOUD_PROVIDER = os.getenv("CLOUD_PROVIDER", "aws")
+REMOTE_WORKSPACE_HOST = os.getenv("REMOTE_WORKSPACE_HOST", "aws")
 _AWS_PROFILE = os.getenv("AWS_PROFILE", "transformerlab-s3")
 _GCP_PROJECT = os.getenv("GCP_PROJECT", "transformerlab-workspace")
 
 
 def _get_storage_options() -> dict:
-    """Get storage options based on CLOUD_PROVIDER."""
-    if CLOUD_PROVIDER == "aws":
+    """Get storage options based on REMOTE_WORKSPACE_HOST."""
+    if REMOTE_WORKSPACE_HOST == "aws":
         return {"profile": _AWS_PROFILE} if _AWS_PROFILE else {}
-    elif CLOUD_PROVIDER == "gcp":
+    elif REMOTE_WORKSPACE_HOST == "gcp":
         return {"project": _GCP_PROJECT} if _GCP_PROJECT else {}
     else:
         return {}
@@ -73,7 +73,8 @@ def debug_info() -> dict:
         "TFL_STORAGE_URI_context": context_uri,
         "TFL_STORAGE_URI_env": env_uri,
         "AWS_PROFILE": _AWS_PROFILE,
-        "CLOUD_PROVIDER": CLOUD_PROVIDER,
+        "GCP_PROJECT": _GCP_PROJECT,
+        "REMOTE_WORKSPACE_HOST": REMOTE_WORKSPACE_HOST,
         "root_uri": root,
         "filesystem_type": type(fs).__name__,
     }

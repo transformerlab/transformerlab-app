@@ -4,7 +4,7 @@ import os
 import contextvars
 from werkzeug.utils import secure_filename
 from . import storage
-from .storage import _current_tfl_storage_uri, CLOUD_PROVIDER
+from .storage import _current_tfl_storage_uri, REMOTE_WORKSPACE_HOST
 
 # TFL_HOME_DIR
 if "TFL_HOME_DIR" in os.environ and not (_current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")):
@@ -34,8 +34,8 @@ def set_organization_id(organization_id: str | None) -> None:
         # If TFL_API_STORAGE_URI is set, use <cloud_protocol>://workspace_<team_id> instead of the value itself
         tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI")
         if tfl_api_storage_uri:
-            # Determine protocol based on CLOUD_PROVIDER
-            protocol = "gs://" if CLOUD_PROVIDER == "gcp" else "s3://"
+            # Determine protocol based on REMOTE_WORKSPACE_HOST
+            protocol = "gs://" if REMOTE_WORKSPACE_HOST == "gcp" else "s3://"
 
             # Use cloud://workspace_<team_id> format
             _current_tfl_storage_uri.set(f"{protocol}workspace-{organization_id}")

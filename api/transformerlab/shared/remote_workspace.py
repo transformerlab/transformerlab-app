@@ -8,7 +8,7 @@ TFL_API_STORAGE_URI is enabled. Supports both S3 and GCS.
 import os
 import re
 
-from lab.storage import CLOUD_PROVIDER
+from lab.storage import REMOTE_WORKSPACE_HOST
 
 
 def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3") -> bool:
@@ -48,12 +48,12 @@ def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3"
         print(f"Team ID '{team_id}' cannot be converted to a valid bucket name")
         return False
 
-    if CLOUD_PROVIDER == "aws":
+    if REMOTE_WORKSPACE_HOST == "aws":
         return _create_s3_bucket(bucket_name, team_id, profile_name)
-    elif CLOUD_PROVIDER == "gcp":
+    elif REMOTE_WORKSPACE_HOST == "gcp":
         return _create_gcs_bucket(bucket_name, team_id)
     else:
-        print(f"Unsupported cloud provider: {CLOUD_PROVIDER}")
+        print(f"Unsupported remote workspace host: {REMOTE_WORKSPACE_HOST}")
         return False
 
 
