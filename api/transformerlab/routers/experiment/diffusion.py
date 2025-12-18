@@ -974,7 +974,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
             "image_count": total_image_count,
             "created_from_image_ids": image_ids,
         }
-        new_dataset = create_local_dataset(dataset_id, json_data=json_data)
+        new_dataset = await create_local_dataset(dataset_id, json_data=json_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create dataset: {str(e)}")
 

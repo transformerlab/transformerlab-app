@@ -96,7 +96,7 @@ async def dataset_info(dataset_id: str):
     if d.get("location") == "local":
         try:
             dataset_dir = await dirs.dataset_dir_by_id(dataset_id)
-            dataset = dataset_service_module.load_local_dataset(dataset_dir)
+            dataset = await dataset_service_module.load_local_dataset(dataset_dir)
         except EmptyDatasetError:
             return {"status": "error", "message": "The dataset is empty."}
         split = list(dataset.keys())[0]
@@ -174,7 +174,7 @@ async def dataset_preview(
     try:
         if d.get("location") == "local":
             dataset_dir = await dirs.dataset_dir_by_id(dataset_id)
-            dataset = dataset_service_module.load_local_dataset(dataset_dir, streaming=streaming)
+            dataset = await dataset_service_module.load_local_dataset(dataset_dir, streaming=streaming)
         else:
             dataset_config = (d.get("json_data") or {}).get("dataset_config", None)
             config_name = (d.get("json_data") or {}).get("config_name", None)
@@ -327,7 +327,7 @@ async def load_and_slice_dataset(dataset_id: str, offset: int, limit: int):
     if d and d.get("location") == "local":
         try:
             dataset_dir = await dirs.dataset_dir_by_id(dataset_id)
-            dataset = dataset_service_module.load_local_dataset(dataset_dir)
+            dataset = await dataset_service_module.load_local_dataset(dataset_dir)
         except Exception as e:
             print(f"Error loading dataset: {type(e).__name__}: {e}")
             return {"status": "error", "message": "An internal error has occurred."}
