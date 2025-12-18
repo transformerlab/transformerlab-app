@@ -102,9 +102,6 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # used internally to set constants that are shared between separate processes. They are not meant to be
 # to be overriden by the user.
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
-# The temporary image directory for transformerlab (default; per-request overrides computed in routes)
-temp_image_dir = storage.join(get_workspace_dir(), "temp", "images")
-os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
 
 @asynccontextmanager
@@ -114,7 +111,12 @@ async def lifespan(app: FastAPI):
     print_launch_message()
     # Initialize directories early
     from transformerlab.shared import dirs as shared_dirs
+
     await shared_dirs.initialize_dirs()
+
+    # Set the temporary image directory for transformerlab (computed async)
+    temp_image_dir = storage.join(await get_workspace_dir(), "temp", "images")
+    os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
     await galleries.update_gallery_cache()
     spawn_fastchat_controller_subprocess()
     await db.init()  # This now runs Alembic migrations internally

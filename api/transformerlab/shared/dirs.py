@@ -50,24 +50,25 @@ STATIC_FILES_DIR = get_static_files_dir_sync()
 async def initialize_dirs():
     """Initialize directories asynchronously. Should be called at app startup."""
     global FASTCHAT_LOGS_DIR, STATIC_FILES_DIR
-    
+
     # Compute FASTCHAT_LOGS_DIR using async storage
     workspace_dir = await get_workspace_dir()
-    FASTCHAT_LOGS_DIR = await storage.join(workspace_dir, "logs")
+    FASTCHAT_LOGS_DIR = storage.join(workspace_dir, "logs")
     if not await storage.exists(FASTCHAT_LOGS_DIR):
         await storage.makedirs(FASTCHAT_LOGS_DIR, exist_ok=True)
-    
+
     # Ensure STATIC_FILES_DIR exists
-    STATIC_FILES_DIR = await storage.join(HOME_DIR, "webapp")
+    STATIC_FILES_DIR = storage.join(HOME_DIR, "webapp")
     await storage.makedirs(STATIC_FILES_DIR, exist_ok=True)
-    
+
     # Create default index.html if missing
-    index_html_path = await storage.join(STATIC_FILES_DIR, "index.html")
+    index_html_path = storage.join(STATIC_FILES_DIR, "index.html")
     if not await storage.exists(index_html_path):
         async with await storage.open(index_html_path, "w") as f:
             await f.write(
                 "<html><body><p>Transformer Lab Cloud App Files Missing. Run <pre>curl https://raw.githubusercontent.com/transformerlab/transformerlab-app/main/api/install.sh | bash</pre> to install.</p></body></html>"
             )
+
 
 # TFL_SOURCE_CODE_DIR
 api_py_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

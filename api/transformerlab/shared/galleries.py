@@ -167,7 +167,7 @@ async def delete_team_task_from_gallery(task_id: str):
 async def gallery_cache_file_path(filename: str):
     from lab.dirs import get_galleries_cache_dir
 
-    return os.path.join(await get_galleries_cache_dir(), filename)
+    return os.path.join(get_galleries_cache_dir(), filename)
 
 
 async def update_gallery_cache_file(filename: str):
