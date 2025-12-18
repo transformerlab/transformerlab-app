@@ -12,6 +12,7 @@ from lab import HOME_DIR, Experiment
 from lab import storage
 from lab.dirs import get_workspace_dir
 from lab.dataset import Dataset as dataset_service
+import aiofiles
 
 # useful constants
 # Use shared constant as sole source of truth
@@ -211,7 +212,7 @@ def generate_model_json(
         nonlocal output_directory
         if not output_directory:
             output_directory = storage.join(await get_workspace_dir(), "models", model_id)
-        async with await storage.open(storage.join(output_directory, "index.json"), "w") as outfile:
+        async with aiofiles.open(storage.join(output_directory, "index.json"), "w") as outfile:
             await outfile.write(json.dumps(model_description))
 
     asyncio.run(_write())
@@ -237,7 +238,7 @@ def prepare_dataset_files(
             print(f"Processing {split_name} dataset with {len(dataset_split)} examples.")
 
             output_file = storage.join(data_directory, f"{split_name}.jsonl")
-            async with await storage.open(output_file, "w") as f:
+            async with aiofiles.open(output_file, "w") as f:
                 for i in range(len(dataset_split)):
                     example = dataset_split[i]
                     try:
@@ -256,7 +257,7 @@ def prepare_dataset_files(
 
             # Print one example from the written jsonl file
             try:
-                async with await storage.open(output_file, "r") as f:
+                async with aiofiles.open(output_file, "r") as f:
                     first_line = await f.readline()
                     if first_line:
                         parsed = json.loads(first_line)

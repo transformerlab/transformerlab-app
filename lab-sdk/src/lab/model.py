@@ -1,5 +1,6 @@
 import json
 from werkzeug.utils import secure_filename
+import aiofiles
 
 from .dirs import get_models_dir
 from .labresource import BaseLabResource
@@ -92,7 +93,7 @@ class Model(BaseLabResource):
             config_path = storage.join(model_path, "config.json")
             if await storage.exists(config_path):
                 try:
-                    async with await storage.open(config_path, "r") as f:
+                    async with aiofiles.open(config_path, "r") as f:
                         content = await f.read()
                         config = json.loads(content)
                         architectures = config.get("architectures", [])
@@ -137,7 +138,7 @@ class Model(BaseLabResource):
 
         async def compute_md5(file_path):
             md5 = hashlib.md5()
-            async with await storage.open(file_path, "rb") as f:
+            async with aiofiles.open(file_path, "rb") as f:
                 while chunk := await f.read(8192):
                     md5.update(chunk)
             return md5.hexdigest()
@@ -225,7 +226,7 @@ class Model(BaseLabResource):
 
         # Write provenance to file
         provenance_path = storage.join(model_path, "_tlab_provenance.json")
-        async with await storage.open(provenance_path, "w") as f:
+        async with aiofiles.open(provenance_path, "w") as f:
             await f.write(json.dumps(final_provenance, indent=2))
 
         return provenance_path
@@ -268,7 +269,7 @@ class Model(BaseLabResource):
 
         # Output the json to the file
         model_dir = await self.get_dir()
-        async with await storage.open(storage.join(model_dir, "index.json"), "w") as outfile:
+        async with aiofiles.open(storage.join(model_dir, "index.json"), "w") as outfile:
             await outfile.write(json.dumps(model_description))
 
         return model_description

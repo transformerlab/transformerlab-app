@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, List, Optional, Union, Tuple
 from pydantic import BaseModel, Field
+import aiofiles
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.services.provider_service import (
@@ -148,7 +149,7 @@ async def upload_task_file_for_provider(
         # Persist file contents
         await file.seek(0)
         content = await file.read()
-        async with await storage.open(stored_path, "wb") as f:
+        async with aiofiles.open(stored_path, "wb") as f:
             await f.write(content)
 
         return ProviderTaskFileUploadResponse(

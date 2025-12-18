@@ -4,6 +4,7 @@ import os
 from lab import HOME_DIR
 from lab.dirs import get_workspace_dir
 from lab import storage
+import aiofiles
 
 
 """
@@ -64,7 +65,7 @@ async def initialize_dirs():
     # Create default index.html if missing
     index_html_path = storage.join(STATIC_FILES_DIR, "index.html")
     if not await storage.exists(index_html_path):
-        async with await storage.open(index_html_path, "w") as f:
+        async with aiofiles.open(index_html_path, "w") as f:
             await f.write(
                 "<html><body><p>Transformer Lab Cloud App Files Missing. Run <pre>curl https://raw.githubusercontent.com/transformerlab/transformerlab-app/main/api/install.sh | bash</pre> to install.</p></body></html>"
             )

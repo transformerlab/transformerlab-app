@@ -127,7 +127,7 @@ async def lifespan(app: FastAPI):
     # Seed default admin user
     await seed_default_admin_user()
     # Cancel any running jobs
-    cancel_in_progress_jobs()
+    await cancel_in_progress_jobs()
 
     if "--reload" in sys.argv:
         await install_all_plugins()

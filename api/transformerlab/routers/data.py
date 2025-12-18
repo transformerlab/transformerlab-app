@@ -29,6 +29,7 @@ from werkzeug.utils import secure_filename
 from jinja2 import Environment
 from jinja2.sandbox import SandboxedEnvironment
 from transformerlab.services import dataset_service as dataset_service_module
+import aiofiles
 
 
 jinja_environment = Environment()
@@ -37,7 +38,7 @@ sandboxed_jinja2_environment = SandboxedEnvironment()
 
 async def log(msg):
     global_log_path = await get_global_log_path()
-    async with await storage.open(global_log_path, "a") as f:
+    async with aiofiles.open(global_log_path, "a") as f:
         await f.write(msg + "\n")
 
 
@@ -473,17 +474,17 @@ async def dataset_edit_with_template(
                 metadata_path = storage.join(root, file)
                 try:
                     if file.endswith(".jsonl"):
-                        async with await storage.open(metadata_path, "r", encoding="utf-8") as f:
+                        async with aiofiles.open(metadata_path, "r", encoding="utf-8") as f:
                             content = await f.read()
                             data = [json.loads(line) for line in content.splitlines()]
                     elif file.endswith(".json"):
-                        async with await storage.open(metadata_path, "r", encoding="utf-8") as f:
+                        async with aiofiles.open(metadata_path, "r", encoding="utf-8") as f:
                             content = await f.read()
                             data = json.loads(content)
                             if isinstance(data, dict):
                                 data = [data]
                     elif file.endswith(".csv"):
-                        async with await storage.open(metadata_path, "r", encoding="utf-8") as f:
+                        async with aiofiles.open(metadata_path, "r", encoding="utf-8") as f:
                             content = await f.read()
                             reader = csv.DictReader(content.splitlines())
                             data = [row for row in reader]
@@ -520,7 +521,7 @@ async def dataset_edit_with_template(
                     try:
                         # For PIL, we need a local file, not a storage URI
                         # Download to temp if needed or use PIL directly with storage
-                        async with await storage.open(image_path, "rb") as f:
+                        async with aiofiles.open(image_path, "rb") as f:
                             img_bytes = await f.read()
                         img = PILImage.open(BytesIO(img_bytes))
                         buffer = BytesIO()
@@ -600,17 +601,17 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
                 metadata_path = storage.join(root, f)
                 try:
                     if f.endswith(".jsonl"):
-                        async with await storage.open(metadata_path, "r", encoding="utf-8") as meta_file:
+                        async with aiofiles.open(metadata_path, "r", encoding="utf-8") as meta_file:
                             content = await meta_file.read()
                             data = [json.loads(line) for line in content.splitlines()]
                     elif f.endswith(".json"):
-                        async with await storage.open(metadata_path, "r", encoding="utf-8") as meta_file:
+                        async with aiofiles.open(metadata_path, "r", encoding="utf-8") as meta_file:
                             content = await meta_file.read()
                             data = json.loads(content)
                             if isinstance(data, dict):
                                 data = [data]
                     elif f.endswith(".csv"):
-                        async with await storage.open(metadata_path, "r", encoding="utf-8") as meta_file:
+                        async with aiofiles.open(metadata_path, "r", encoding="utf-8") as meta_file:
                             content = await meta_file.read()
                             reader = csv.DictReader(content.splitlines())
                             data = [row for row in reader]
@@ -693,7 +694,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
         folder = storage.join(new_dataset_dir, split, label)
         metadata_file = storage.join(folder, "metadata.jsonl")
         try:
-            async with await storage.open(metadata_file, "w", encoding="utf-8") as f:
+            async with aiofiles.open(metadata_file, "w", encoding="utf-8") as f:
                 for entry in entries:
                     full_entry = {col: entry.get(col, "") for col in all_columns}
                     await f.write(json.dumps(full_entry) + "\n")
@@ -943,7 +944,7 @@ async def create_upload_file(dataset_id: str, files: list[UploadFile]):
             target_path = storage.join(dataset_dir, str(file.filename))
             # aiofiles doesn't support URIs, so we need to use storage.open instead
             await storage.makedirs(dataset_dir, exist_ok=True)
-            async with await storage.open(target_path, "wb") as out_file:
+            async with aiofiles.open(target_path, "wb") as out_file:
                 await out_file.write(content)
             uploaded_filenames.append(str(file.filename))
         except Exception:

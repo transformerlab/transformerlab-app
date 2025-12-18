@@ -8,6 +8,7 @@ from lab import Experiment, storage
 
 from werkzeug.utils import secure_filename
 from fastapi.responses import FileResponse
+import aiofiles
 
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
@@ -39,7 +40,7 @@ async def get_conversations(experimentId: str):
     # now read each conversation and create a list of all conversations
     # and their contents
     for i in range(len(conversations_files)):
-        async with await storage.open(storage.join(conversation_dir, conversations_files[i]), "r") as f:
+        async with aiofiles.open(storage.join(conversation_dir, conversations_files[i]), "r") as f:
             new_conversation = {}
             new_conversation["id"] = conversations_files[i]
             # remove .json from end of id
@@ -72,7 +73,7 @@ async def save_conversation(
     final_path = storage.join(conversation_dir, conversation_id + ".json")
 
     # now save the conversation
-    async with await storage.open(final_path, "w") as f:
+    async with aiofiles.open(final_path, "w") as f:
         await f.write(conversation)
 
     return {"message": f"Conversation {conversation_id} saved"}
@@ -109,7 +110,7 @@ async def list_audio(experimentId: str):
             filename = entry.rstrip("/").split("/")[-1]
             if filename.endswith(".json"):
                 file_path = storage.join(audio_dir, filename)
-                async with await storage.open(file_path, "r") as f:
+                async with aiofiles.open(file_path, "r") as f:
                     try:
                         content = await f.read()
                         data = json.loads(content)
@@ -222,7 +223,7 @@ async def list_transcription(experimentId: str):
                     # Use the full path from entry if available, otherwise construct it
                     if not file_path or file_path == filename:
                         file_path = storage.join(transcription_dir, filename)
-                    async with await storage.open(file_path, "r") as f:
+                    async with aiofiles.open(file_path, "r") as f:
                         try:
                             content = await f.read()
                             data = json.loads(content)
@@ -239,7 +240,7 @@ async def list_transcription(experimentId: str):
                 filename = entry.rstrip("/").split("/")[-1] if "/" in entry else entry
                 if filename.endswith(".json"):
                     file_path = storage.join(transcription_dir, filename)
-                    async with await storage.open(file_path, "r") as f:
+                    async with aiofiles.open(file_path, "r") as f:
                         try:
                             content = await f.read()
                             data = json.loads(content)

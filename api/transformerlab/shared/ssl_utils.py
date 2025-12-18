@@ -13,6 +13,7 @@ from filelock import FileLock
 
 from lab.dirs import get_workspace_dir
 from lab import storage
+import aiofiles
 
 __all__ = [
     "ensure_persistent_self_signed_cert",
@@ -55,9 +56,9 @@ async def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
         cert = cert_builder.sign(key, hashes.SHA256())
         # Write via fsspec storage
         await storage.makedirs(str(cert_dir), exist_ok=True)
-        async with await storage.open(str(cert_path), "wb") as f:
+        async with aiofiles.open(str(cert_path), "wb") as f:
             await f.write(cert.public_bytes(serialization.Encoding.PEM))
-        async with await storage.open(str(key_path), "wb") as f:
+        async with aiofiles.open(str(key_path), "wb") as f:
             await f.write(
                 key.private_bytes(
                     serialization.Encoding.PEM,

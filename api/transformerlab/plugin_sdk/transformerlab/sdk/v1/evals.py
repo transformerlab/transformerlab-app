@@ -6,6 +6,7 @@ import time
 from transformerlab.plugin import test_wandb_login
 from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 from lab import storage
+import aiofiles
 
 
 class EvalsTLabPlugin(TLabPlugin):
@@ -201,7 +202,7 @@ class EvalsTLabPlugin(TLabPlugin):
         # Save full DataFrame to CSV
         async def _save_results():
             output_path = self.get_output_file_path()
-            async with await storage.open(output_path, "w", encoding="utf-8") as f:
+            async with aiofiles.open(output_path, "w", encoding="utf-8") as f:
                 await f.write(metrics_df.to_csv(index=False))
             print(f"Saved detailed evaluation results to {output_path}")
 
@@ -215,7 +216,7 @@ class EvalsTLabPlugin(TLabPlugin):
             plotting_data["metric_name"] = plotting_data["metric_name"].apply(lambda x: x.replace("_", " ").title())
 
             # Save as JSON
-            async with await storage.open(plot_data_path, "w", encoding="utf-8") as f:
+            async with aiofiles.open(plot_data_path, "w", encoding="utf-8") as f:
                 await f.write(plotting_data.to_json(orient="records", lines=False))
             print(f"Saved plotting data to {plot_data_path}")
 
@@ -318,7 +319,7 @@ class EvalsTLabPlugin(TLabPlugin):
             existing_provenance = {}
             if await storage.exists(provenance_path):
                 try:
-                    async with await storage.open(provenance_path, "r", encoding="utf-8") as f:
+                    async with aiofiles.open(provenance_path, "r", encoding="utf-8") as f:
                         existing_provenance = json.loads(await f.read())
                 except Exception as e:
                     print(f"Error loading existing provenance: {e}")
@@ -332,7 +333,7 @@ class EvalsTLabPlugin(TLabPlugin):
             existing_provenance["evaluations"].append(evaluation_data)
 
             # Write updated provenance file
-            async with await storage.open(provenance_path, "w", encoding="utf-8") as f:
+            async with aiofiles.open(provenance_path, "w", encoding="utf-8") as f:
                 await f.write(json.dumps(existing_provenance, indent=2))
 
             print(f"Evaluation data added to provenance file: {provenance_path}")

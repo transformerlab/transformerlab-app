@@ -11,6 +11,7 @@ from huggingface_hub import hf_hub_download
 from transformerlab.models import modelstore
 from werkzeug.utils import secure_filename
 from lab import storage
+import aiofiles
 
 
 async def is_sentence_transformer_model(
@@ -272,7 +273,7 @@ class LocalModelStore(modelstore.ModelStore):
         # Load the tlab_complete_provenance.json file if it exists
         complete_provenance_file = await storage.join(models_dir, "_tlab_complete_provenance.json")
         if await storage.exists(complete_provenance_file):
-            async with await storage.open(complete_provenance_file, "r") as f:
+            async with aiofiles.open(complete_provenance_file, "r") as f:
                 try:
                     provenance = json.loads(await f.read())
                 except json.JSONDecodeError:
@@ -285,7 +286,7 @@ class LocalModelStore(modelstore.ModelStore):
             provenance, local_added_count = await self.check_provenance_for_local_models(provenance)
             if local_added_count != 0:
                 # Save new provenance mapping
-                async with await storage.open(complete_provenance_file, "w") as f:
+                async with aiofiles.open(complete_provenance_file, "w") as f:
                     await f.write(json.dumps(provenance))
             # Check if the provenance mapping is up to date
             # The -1 here indicates that we are not counting the _tlab_complete_provenance.json file in models_dir
@@ -309,7 +310,7 @@ class LocalModelStore(modelstore.ModelStore):
                     provenance_file = await storage.join(models_dir, entry_name, "_tlab_provenance.json")
                     try:
                         if await storage.exists(provenance_file):
-                            async with await storage.open(provenance_file, "r") as f:
+                            async with aiofiles.open(provenance_file, "r") as f:
                                 prov_data = json.loads(await f.read())
                                 if "md5_checksums" in prov_data:
                                     prov_data["parameters"]["md5_checksums"] = prov_data["md5_checksums"]
@@ -354,7 +355,7 @@ class LocalModelStore(modelstore.ModelStore):
                     provenance_file = await storage.join(source_path, "_tlab_provenance.json")
                     if await storage.exists(provenance_file):
                         # Load the provenance file
-                        async with await storage.open(provenance_file, "r") as f:
+                        async with aiofiles.open(provenance_file, "r") as f:
                             prov_data = json.loads(await f.read())
                             if "md5_checksums" in prov_data:
                                 prov_data["parameters"]["md5_checksums"] = prov_data["md5_checksums"]
@@ -433,7 +434,7 @@ class LocalModelStore(modelstore.ModelStore):
             provenance_file = await storage.join(model_dir, "_tlab_provenance.json")
             if await storage.exists(provenance_file):
                 try:
-                    async with await storage.open(provenance_file, "r") as f:
+                    async with aiofiles.open(provenance_file, "r") as f:
                         provenance_data = json.loads(await f.read())
 
                         # Get evaluations from the same file
@@ -481,7 +482,7 @@ class LocalModelStore(modelstore.ModelStore):
             from lab.dirs import get_models_dir
 
             provenance_file = await storage.join(await get_models_dir(), "_tlab_complete_provenance.json")
-            async with await storage.open(provenance_file, "w") as f:
+            async with aiofiles.open(provenance_file, "w") as f:
                 await f.write(json.dumps(provenance_mapping))
 
         # Trace the provenance chain leading to the given model

@@ -10,6 +10,7 @@ from fastapi import HTTPException
 import httpx
 from lab import storage
 from lab.dirs import get_workspace_dir
+import aiofiles
 
 
 async def read_github_pat_from_workspace(workspace_dir: str) -> Optional[str]:
@@ -24,7 +25,7 @@ async def read_github_pat_from_workspace(workspace_dir: str) -> Optional[str]:
     try:
         pat_path = storage.join(workspace_dir, "github_pat.txt")
         if await storage.exists(pat_path):
-            async with await storage.open(pat_path, "r") as f:
+            async with aiofiles.open(pat_path, "r") as f:
                 pat = (await f.read()).strip()
                 if pat:
                     return pat

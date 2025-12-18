@@ -1,5 +1,6 @@
 import posixpath
 from werkzeug.utils import secure_filename
+import aiofiles
 
 from . import dirs
 from .labresource import BaseLabResource
@@ -45,7 +46,7 @@ class Job(BaseLabResource):
         # Make sure whatever log_path we return actually exists
         # Put an empty file there if not
         if not await storage.exists(log_path):
-            async with await storage.open(log_path, "w") as f:
+            async with aiofiles.open(log_path, "w") as f:
                 await f.write("")
 
         return log_path
@@ -178,7 +179,7 @@ class Job(BaseLabResource):
             # Read existing content if file exists
             existing_content = ""
             if await storage.exists(log_path):
-                async with await storage.open(log_path, "r", encoding="utf-8") as f:
+                async with aiofiles.open(log_path, "r", encoding="utf-8") as f:
                     existing_content = await f.read()
 
             # Append new message to existing content on a new line
@@ -187,7 +188,7 @@ class Job(BaseLabResource):
             new_content = existing_content + message_str
 
             # Write back the complete content
-            async with await storage.open(log_path, "w", encoding="utf-8") as f:
+            async with aiofiles.open(log_path, "w", encoding="utf-8") as f:
                 await f.write(new_content)
                 # Note: async file objects may not have flush()
         except Exception:

@@ -13,6 +13,7 @@ except ModuleNotFoundError:
     from transformerlab.plugin_sdk.transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
     from transformerlab.plugin_sdk.transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 from lab import storage
+import aiofiles
 
 
 class DotDict(dict):
@@ -176,7 +177,7 @@ class TrainerTLabPlugin(TLabPlugin):
 
             # Load configuration from file
             async def _load_config():
-                async with await storage.open(self.params.input_file, "r", encoding="utf-8") as json_file:
+                async with aiofiles.open(self.params.input_file, "r", encoding="utf-8") as json_file:
                     return json.loads(await json_file.read())
 
             input_config = asyncio.run(_load_config())
@@ -302,7 +303,7 @@ class TrainerTLabPlugin(TLabPlugin):
                 if output_dir and await storage.exists(output_dir):
                     # Save metrics to a JSON file
                     metrics_path = storage.join(output_dir, "metrics.json")
-                    async with await storage.open(metrics_path, "w", encoding="utf-8") as f:
+                    async with aiofiles.open(metrics_path, "w", encoding="utf-8") as f:
                         await f.write(json.dumps(self._metrics, indent=2))
                 else:
                     print(f"Output directory not found or not specified: {output_dir}")
@@ -389,7 +390,7 @@ class TrainerTLabPlugin(TLabPlugin):
     def create_md5_checksum_model_files(self, fused_model_location):
         async def compute_md5(file_path):
             md5 = hashlib.md5()
-            async with await storage.open(file_path, "rb") as f:
+            async with aiofiles.open(file_path, "rb") as f:
                 while True:
                     chunk = await f.read(8192)
                     if not chunk:
@@ -443,7 +444,7 @@ class TrainerTLabPlugin(TLabPlugin):
         # Write provenance to file
         async def _write_provenance():
             provenance_path = storage.join(model_location, "_tlab_provenance.json")
-            async with await storage.open(provenance_path, "w", encoding="utf-8") as f:
+            async with aiofiles.open(provenance_path, "w", encoding="utf-8") as f:
                 await f.write(json.dumps(provenance_data, indent=2))
             return provenance_path
 

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import json
+import aiofiles
 from . import storage
 
 
@@ -36,12 +37,12 @@ class BaseLabResource(ABC):
         If the entity's metadata file does not exist then create a default.
         """
         newobj = cls(id)
-        resource_dir = newobj.get_dir()
+        resource_dir = await newobj.get_dir()
         if not await storage.isdir(resource_dir):
             raise FileNotFoundError(f"Directory for {cls.__name__} with id '{id}' not found")
-        json_file = newobj._get_json_file()
+        json_file = await newobj._get_json_file()
         if not await storage.exists(json_file):
-            async with await storage.open(json_file, "w", encoding="utf-8") as f:
+            async with aiofiles.open(json_file, "w", encoding="utf-8") as f:
                 await f.write(json.dumps(newobj._default_json()))
         return newobj
 
@@ -57,24 +58,24 @@ class BaseLabResource(ABC):
         """
 
         # Create directory for this resource
-        dir = self.get_dir()
+        dir = await self.get_dir()
         await storage.makedirs(dir, exist_ok=True)
         print(f"Created directory for {type(self).__name__} with id '{self.id}'")
 
         # Create a default json file. Throw an error if one already exists.
-        json_file = self._get_json_file()
+        json_file = await self._get_json_file()
         if await storage.exists(json_file):
             raise FileExistsError(f"{type(self).__name__} with id '{self.id}' already exists")
-        async with await storage.open(json_file, "w", encoding="utf-8") as f:
+        async with aiofiles.open(json_file, "w", encoding="utf-8") as f:
             await f.write(json.dumps(self._default_json()))
 
     def _default_json(self):
         """Override in subclasses to support the initialize method."""
         return {"id": self.id}
 
-    def _get_json_file(self):
+    async def _get_json_file(self):
         """Get json file containing metadata for this resource."""
-        return storage.join(self.get_dir(), "index.json")
+        return storage.join(await self.get_dir(), "index.json")
 
     async def get_json_data(self, uncached: bool = False, max_retries: int = 5):
         """
@@ -87,13 +88,13 @@ class BaseLabResource(ABC):
         """
         import asyncio
 
-        json_file = self._get_json_file()
+        json_file = await self._get_json_file()
 
         # Try opening this file location and parsing the json inside
         # On any error return an empty dict
         for attempt in range(max_retries):
             try:
-                async with await storage.open(json_file, "r", encoding="utf-8", uncached=uncached) as f:
+                async with aiofiles.open(json_file, "r", encoding="utf-8") as f:
                     content = await f.read()
                     # Clean the content - remove trailing whitespace and extra characters
                     content = content.strip()
@@ -140,8 +141,8 @@ class BaseLabResource(ABC):
             raise TypeError("json_data must be a dict")
 
         # Write directly to index.json
-        json_file = self._get_json_file()
-        async with await storage.open(json_file, "w", encoding="utf-8") as f:
+        json_file = await self._get_json_file()
+        async with aiofiles.open(json_file, "w", encoding="utf-8") as f:
             await f.write(json.dumps(json_data, ensure_ascii=False))
 
     async def _get_json_data_field(self, key, default=""):
@@ -160,6 +161,6 @@ class BaseLabResource(ABC):
         Delete this resource by deleting the containing directory.
         TODO: We should change to soft delete
         """
-        resource_dir = self.get_dir()
+        resource_dir = await self.get_dir()
         if await storage.exists(resource_dir):
             await storage.rm_tree(resource_dir)
