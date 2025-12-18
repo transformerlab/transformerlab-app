@@ -9,13 +9,7 @@ import os
 import re
 
 
-# TEMPORARY LEGACY FUNCTION SIGNATURE
-# (Until all calls in the app are updated)
-def create_s3_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3") -> bool:
-    return create_bucket_for_team(team_id, "aws", profile_name)
-
-
-def create_bucket_for_team(team_id: str, cloud_provider: str = "aws", profile_name: str = "transformerlab-s3") -> bool:
+def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3") -> bool:
     """
     Create a bucket (S3 or GCS) for a team using the appropriate cloud provider.
 
@@ -27,17 +21,28 @@ def create_bucket_for_team(team_id: str, cloud_provider: str = "aws", profile_na
     Returns:
         True if bucket was created successfully or already exists, False otherwise
     """
+
     # Check if TFL_API_STORAGE_URI is set
     tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")
     if not tfl_storage_uri:
         print("TFL_API_STORAGE_URI is not set, skipping bucket creation")
         return False
 
-    # Determine provider based on URI
-    # Validate provider parameter
+    # Determine cloud provider from storage URI
+    protocol = tfl_storage_uri.split("://")[0] if "://" in tfl_storage_uri else "unknown"
+    if protocol in ["gs", "gcs"]:
+        cloud_provider = "gcp"
+    elif protocol == "s3":
+        cloud_provider = "aws"
+    elif protocol == "abfs":
+        cloud_provider = "azure"
+    else:
+        cloud_provider = "unknown"
     if cloud_provider not in ["aws", "gcp"]:
-        print(f"Unsupported cloud provider: {cloud_provider}")
+        print(f"Failed to create bucket using protocol: {protocol}")
         return False
+
+    print(f"Creating bucket '{team_id}' on '{cloud_provider}'")
 
     # Validate bucket name (common rules for S3 and GCS)
     # Bucket names must be 3-63 characters, lowercase, and can contain only letters, numbers, dots, and hyphens
@@ -137,9 +142,9 @@ def _create_gcs_bucket(bucket_name: str, team_id: str) -> bool:
         print("google-cloud-storage is not installed. Cannot create GCS bucket.")
         return False
 
-    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
+    project_id = os.getenv("GCP_PROJECT")
     if not project_id:
-        print("GOOGLE_CLOUD_PROJECT is not set. Cannot create GCS bucket.")
+        print("GCP_PROJECT is not set. Cannot create GCS bucket.")
         return False
 
     try:
