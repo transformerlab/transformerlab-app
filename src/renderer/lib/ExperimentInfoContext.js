@@ -71,14 +71,9 @@ export function ExperimentInfoProvider({ connection, children }) {
   // or if current experiment doesn't exist in the new team's experiments
   useEffect(() => {
     const currentTeamId = authContext?.team?.id;
-    
+
     // Only run if we have a team, connection, and experiments are loaded
-    if (
-      !currentTeamId ||
-      !connection ||
-      connection === '' ||
-      !allExperiments
-    ) {
+    if (!currentTeamId || !connection || connection === '' || !allExperiments) {
       return;
     }
 
@@ -109,7 +104,10 @@ export function ExperimentInfoProvider({ connection, children }) {
 
     // If no experiment is selected, or current experiment doesn't exist in new team,
     // auto-select the first one
-    if ((!experimentId || !currentExperimentExists) && allExperiments.length > 0) {
+    if (
+      (!experimentId || !currentExperimentExists) &&
+      allExperiments.length > 0
+    ) {
       const firstExperiment = allExperiments[0];
       setExperimentId(firstExperiment.name || firstExperiment.id);
       lastAutoSelectedTeamId.current = currentTeamId;
