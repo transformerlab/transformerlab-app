@@ -825,22 +825,21 @@ async def get_github_pat(
     if team_id != user_and_team["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
-    workspace_dir = get_workspace_dir()
-    pat_path = storage.join(workspace_dir, "github_pat.txt")
+    pat_path = storage.join(get_workspace_dir(), "github_pat.txt")
 
-    if storage.exists(pat_path):
-        try:
-            with storage.open(pat_path, "r") as f:
-                pat = f.read().strip()
-                if pat:
-                    # Return masked version for security (only show last 4 chars)
-                    masked_pat = mask_key(pat)
-                    return {"status": "success", "pat_exists": True, "masked_pat": masked_pat}
-        except Exception as e:
-            print(f"Error reading GitHub PAT: {e}")
-            return {"status": "error", "message": "Failed to read GitHub PAT"}
+    try:
+        with storage.open(pat_path, "r") as f:
+            raw_pat = f.read().rstrip("\n")
+    except FileNotFoundError:
+        return {"status": "success", "pat_exists": False}
+    except Exception:
+        return {"status": "error", "message": "Failed to read GitHub PAT"}
 
-    return {"status": "success", "pat_exists": False}
+    return {
+        "status": "success",
+        "pat_exists": True,
+        "masked_pat": mask_key(raw_pat),
+    }
 
 
 @router.put("/teams/{team_id}/github_pat")
