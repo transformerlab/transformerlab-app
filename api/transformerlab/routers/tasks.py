@@ -1,6 +1,4 @@
 import json
-import base64
-import httpx
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from typing import Optional
@@ -8,12 +6,14 @@ from werkzeug.utils import secure_filename
 from pydantic import BaseModel
 
 from lab import Dataset
-from lab.dirs import get_workspace_dir
 from transformerlab.services.job_service import job_create
 from transformerlab.models import model_helper
 from transformerlab.services.tasks_service import tasks_service
 from transformerlab.shared import galleries
-from transformerlab.shared.github_utils import read_github_pat_from_workspace
+from transformerlab.shared.github_utils import (
+    fetch_task_json_from_github_helper,
+    fetch_task_json_from_github,
+)
 from transformerlab.routers.auth import get_user_and_team
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -356,24 +356,33 @@ async def import_task_from_gallery(
         except Exception:
             config = {}
 
-    # Get task name from config or use title
-    task_name = config.get("name") or config.get("cluster_name") or title
+    # Try to fetch task.json from GitHub repository
+    task_json = None
+    if github_repo_url:
+        task_json = await fetch_task_json_from_github_helper(github_repo_url, github_repo_dir)
 
-    # Build the task config, merging gallery config with GitHub info
+    # Build the task config, merging gallery config with task.json (task.json takes precedence)
     task_config = {
         **config,  # Start with gallery config
         "github_enabled": True,
         "github_repo_url": github_repo_url,
     }
 
+    # Merge task.json if found (overrides gallery config)
+    if task_json:
+        task_config.update(task_json)
+
     if github_repo_dir:
         task_config["github_directory"] = github_repo_dir
+
+    # Get task name from config or use title
+    task_name = task_config.get("name") or task_config.get("cluster_name") or title
 
     # Ensure required fields are set with defaults if not in config
     if "cluster_name" not in task_config:
         task_config["cluster_name"] = task_name
     if "command" not in task_config:
-        task_config["command"] = config.get("command", "echo 'No command specified'")
+        task_config["command"] = "echo 'No command specified'"
 
     # Create the task
     new_task = {
@@ -452,13 +461,19 @@ async def import_task_from_team_gallery(
         except Exception:
             config = {}
 
-    # Get task name from config or use title
-    task_name = config.get("name") or config.get("cluster_name") or title
+    # Try to fetch task.json from GitHub repository if repo URL is provided
+    task_json = None
+    if github_repo_url:
+        task_json = await fetch_task_json_from_github_helper(github_repo_url, github_repo_dir)
 
-    # Build the task config, merging gallery config with GitHub info
+    # Build the task config, merging gallery config with task.json (task.json takes precedence)
     task_config = {
         **config,  # Start with gallery config
     }
+
+    # Merge task.json if found (overrides gallery config)
+    if task_json:
+        task_config.update(task_json)
 
     if github_repo_url:
         task_config["github_enabled"] = True
@@ -466,11 +481,14 @@ async def import_task_from_team_gallery(
     if github_repo_dir:
         task_config["github_directory"] = github_repo_dir
 
+    # Get task name from config or use title
+    task_name = task_config.get("name") or task_config.get("cluster_name") or title
+
     # Ensure required fields are set with defaults if not in config
     if "cluster_name" not in task_config:
         task_config["cluster_name"] = task_name
     if "command" not in task_config:
-        task_config["command"] = config.get("command", "echo 'No command specified'")
+        task_config["command"] = "echo 'No command specified'"
 
     # Create the task
     new_task = {
@@ -605,7 +623,7 @@ async def delete_team_task_from_gallery(
 
 
 @router.get("/fetch_task_json", summary="Fetch task.json from a GitHub repository")
-async def fetch_task_json_from_github(
+async def fetch_task_json_endpoint(
     repo_url: str = Query(..., description="GitHub repository URL"),
     directory: Optional[str] = Query(None, description="Optional subdirectory path"),
     user_and_team=Depends(get_user_and_team),
@@ -621,127 +639,20 @@ async def fetch_task_json_from_github(
     Returns:
         JSON object containing the task.json content, or error if not found
     """
-    # Extract owner and repo from URL
+    # Use the shared helper function which handles all the logic and error handling
+    task_json = await fetch_task_json_from_github(repo_url, directory)
+
+    # Extract repo info for the response
     repo_url_clean = repo_url.replace(".git", "").strip()
-    if not repo_url_clean.startswith("https://github.com/"):
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid GitHub repository URL. Must start with https://github.com/",
-        )
-
-    # Extract owner/repo from URL (e.g., https://github.com/owner/repo -> owner/repo)
     parts = repo_url_clean.replace("https://github.com/", "").split("/")
-    if len(parts) < 2:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid GitHub repository URL format",
-        )
-
-    owner = parts[0]
-    repo = parts[1]
-
-    # Build file path
+    owner = parts[0] if len(parts) > 0 else ""
+    repo = parts[1] if len(parts) > 1 else ""
     file_path = f"{directory}/task.json" if directory else "task.json"
-    # Normalize path (remove leading/trailing slashes)
     file_path = file_path.strip("/")
 
-    # Get GitHub PAT from workspace
-    workspace_dir = get_workspace_dir()
-    github_pat = read_github_pat_from_workspace(workspace_dir)
-
-    # Build GitHub API URL
-    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
-
-    # Prepare headers
-    headers = {
-        "Accept": "application/vnd.github.v3+json",
-        "User-Agent": "TransformerLab",
+    return {
+        "status": "success",
+        "data": task_json,
+        "repo": f"{owner}/{repo}",
+        "path": file_path,
     }
-
-    # Add authentication if PAT is available
-    if github_pat:
-        headers["Authorization"] = f"token {github_pat}"
-
-    try:
-        # Fetch file from GitHub API
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(api_url, headers=headers)
-
-            if response.status_code == 404:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"task.json not found at {file_path} in repository {owner}/{repo}",
-                )
-
-            if response.status_code == 403:
-                # Could be rate limit or private repo without auth
-                if github_pat:
-                    raise HTTPException(
-                        status_code=403,
-                        detail="Access denied. Please check your GitHub PAT permissions.",
-                    )
-                else:
-                    raise HTTPException(
-                        status_code=403,
-                        detail="Repository is private. Please configure a GitHub PAT in team settings.",
-                    )
-
-            if response.status_code != 200:
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=f"Failed to fetch task.json: {response.text}",
-                )
-
-            # Parse response
-            file_data = response.json()
-
-            # GitHub API returns base64-encoded content
-            if "content" not in file_data:
-                raise HTTPException(
-                    status_code=500,
-                    detail="GitHub API response missing content field",
-                )
-
-            # Decode base64 content
-            try:
-                content = base64.b64decode(file_data["content"]).decode("utf-8")
-            except Exception as e:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to decode file content: {str(e)}",
-                )
-
-            # Parse JSON
-            try:
-                task_json = json.loads(content)
-            except json.JSONDecodeError as e:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"task.json is not valid JSON: {str(e)}",
-                )
-
-            return {
-                "status": "success",
-                "data": task_json,
-                "repo": f"{owner}/{repo}",
-                "path": file_path,
-            }
-
-    except httpx.TimeoutException:
-        raise HTTPException(
-            status_code=504,
-            detail="Request to GitHub API timed out",
-        )
-    except httpx.RequestError as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to connect to GitHub API: {str(e)}",
-        )
-    except HTTPException:
-        # Re-raise HTTP exceptions
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Unexpected error fetching task.json: {str(e)}",
-        )

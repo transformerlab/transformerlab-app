@@ -67,16 +67,9 @@ def jobs_get_by_experiment(experiment_id):
 def job_get(job_id):
     try:
         job = Job.get(job_id)
-        return job.get_json_data()
+        return job.get_json_data(uncached=True)
     except Exception as e:
         print("Error getting job data", e)
-        if "Etag" in str(e):
-            try:
-                job = Job.get(job_id)
-                return job.get_json_data(uncached=True)
-            except Exception as e:
-                print("Error getting job data (uncached)", e)
-                return None
         return None
 
 
@@ -211,7 +204,7 @@ def jobs_get_next_queued_job_across_all_orgs() -> Tuple[Optional[dict], Optional
                                     try:
                                         job_id = int(job_id_str) if job_id_str.isdigit() else 0
                                         job = Job.get(job_id_str)
-                                        job_data = job.get_json_data()
+                                        job_data = job.get_json_data(uncached=True)
                                         if job_data.get("status") == "QUEUED":
                                             queued_jobs.append((job_id, job_data, org_id))
                                     except Exception:
