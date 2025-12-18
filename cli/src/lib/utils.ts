@@ -3,11 +3,12 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-export const API_URL = getConfig()?.server || 'http://alpha.lab.cloud:8338';
+const DEBUG = process.env.DEBUG === 'true';
 export const HOME_DIR = os.homedir();
 export const LAB_DIR = path.join(HOME_DIR, '.lab');
 export const CREDENTIALS_PATH = path.join(LAB_DIR, 'credentials');
 export const CONFIG_PATH = path.join(LAB_DIR, 'config.json');
+export const API_URL = getConfig()?.server || 'http://alpha.lab.cloud:8338';
 
 export interface LabConfig {
   name?: string;
@@ -157,8 +158,6 @@ export const getGitContext = async (cwd: string = '.') => {
     mock: false,
   };
 };
-
-const DEBUG = process.env.DEBUG === 'true';
 
 /**
  * Logs a message only if IS_DEBUG_MODE is true.
