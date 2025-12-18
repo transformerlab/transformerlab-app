@@ -1,17 +1,17 @@
 import { useEffect } from 'react';
 import fs from 'fs';
 import { Box, Text, useApp } from 'ink';
-import { config, CREDENTIALS_PATH } from '../utils';
+import { CREDENTIALS_PATH } from '../utils';
 import { SuccessMsg } from '../ui';
 
 export const LogoutCommand = () => {
   const { exit } = useApp();
 
   useEffect(() => {
-    config.delete('api_key');
-    config.delete('user_email');
-    config.delete('team_id');
-    config.delete('team_name');
+    // config.delete('api_key');
+    // config.delete('user_email');
+    // config.delete('team_id');
+    // config.delete('team_name');
 
     const creds = JSON.stringify({ api_key: '' }, null, 2);
     fs.writeFileSync(CREDENTIALS_PATH, creds, { mode: 0o600 });

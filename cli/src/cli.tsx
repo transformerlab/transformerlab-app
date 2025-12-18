@@ -7,7 +7,7 @@ import open from 'open'; // We use this to open a URL in the browser
 import Table from './ink-table'; // Custom Table component to fix issues with ink-table + bun
 
 /* Import utility functions */
-import { API_URL, IS_LOCAL, getCredentials } from './utils';
+import { API_URL, getCredentials } from './utils';
 
 /* Import common UI components */
 import { Logo, Panel, SuccessMsg } from './ui';
@@ -21,7 +21,7 @@ import { JobList, JobInfo, JobLogs } from './commands/jobs';
 const App = ({ command, args }: { command: string; args: any }) => {
   // Root Command
   if (command === 'default') {
-    const target = IS_LOCAL ? 'Local Development' : 'Transformer Lab Cloud';
+    const target = 'Transformer Lab Cloud';
     const { hasAPIKey, email } = getCredentials();
 
     const commandsData = [
@@ -35,10 +35,7 @@ const App = ({ command, args }: { command: string; args: any }) => {
     return (
       <Box flexDirection="column" paddingBottom={1}>
         <Logo />
-        <Panel
-          title={`Environment: ${target}`}
-          color={IS_LOCAL ? 'yellow' : 'cyan'}
-        >
+        <Panel title={`Environment: ${target}`} color={'cyan'}>
           <Text>API: {API_URL}</Text>
           {hasAPIKey ? (
             <Text>User: {email || 'Authenticated'}</Text>

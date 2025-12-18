@@ -3,9 +3,14 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-configOnDisk =
-export const API_URL = storedServer || 'http://alpha.lab.cloud:8338';
+// Fetch the global config on disk
+const configPath = path.join(os.homedir(), '.lab', 'config.json');
+let configOnDisk: any = {};
+if (fs.existsSync(configPath)) {
+  configOnDisk = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+}
 
+export const API_URL = configOnDisk?.server || 'http://alpha.lab.cloud:8338';
 export const HOME_DIR = os.homedir();
 export const LAB_DIR = path.join(HOME_DIR, '.lab');
 export const CREDENTIALS_PATH = path.join(LAB_DIR, 'credentials');

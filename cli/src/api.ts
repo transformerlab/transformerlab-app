@@ -1,4 +1,4 @@
-import { API_URL, config, debugLog } from './utils';
+import { API_URL, debugLog } from './utils';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -29,18 +29,18 @@ function getStoredToken(): string | null {
   }
 }
 
-function getStoredTeamId(): string | null {
-  try {
-    if (fs.existsSync(CONFIG_PATH)) {
-      const content = fs.readFileSync(CONFIG_PATH, 'utf-8');
-      const data = JSON.parse(content);
-      return data.team_id || null;
-    }
-  } catch (e) {
-    // Ignore
-  }
-  return config.get('team_id') || null;
-}
+// function getStoredTeamId(): string | null {
+//   try {
+//     if (fs.existsSync(CONFIG_PATH)) {
+//       const content = fs.readFileSync(CONFIG_PATH, 'utf-8');
+//       const data = JSON.parse(content);
+//       return data.team_id || null;
+//     }
+//   } catch (e) {
+//     // Ignore
+//   }
+//   return config.get('team_id') || null;
+// }
 
 class TransformerLabAPI {
   private async fetchWithAuth(
