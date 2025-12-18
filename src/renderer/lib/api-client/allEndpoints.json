@@ -254,10 +254,6 @@
       "method": "GET",
       "path": "compute_provider/jobs/{jobId}/check-status"
     },
-    "clusters": {
-      "method": "GET",
-      "path": "compute_provider/clusters"
-    },
     "providerClusters": {
       "method": "GET",
       "path": "compute_provider/{providerId}/clusters"
