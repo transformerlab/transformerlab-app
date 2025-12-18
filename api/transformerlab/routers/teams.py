@@ -6,7 +6,7 @@ from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole, 
 from transformerlab.models.users import current_active_user
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
-from transformerlab.shared.s3_bucket import create_bucket_for_team
+from transformerlab.shared.remote_workspace import create_bucket_for_team
 
 from pydantic import BaseModel, EmailStr
 from typing import Optional

@@ -10,7 +10,7 @@ from os import getenv
 
 from transformerlab.db.constants import DATABASE_URL
 from transformerlab.shared.models.models import Base, Team, User, OAuthAccount
-from transformerlab.shared.s3_bucket import create_bucket_for_team
+from transformerlab.shared.remote_workspace import create_bucket_for_team
 
 
 # 3. Setup the Async Engine and Session
