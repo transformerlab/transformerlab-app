@@ -130,40 +130,48 @@ export const App = ({ command, args }: { command: string; args: any }) => {
 
   if (command === 'config:set') {
     const { key, value } = args;
+    let saved = false;
+    let error = false;
 
-    if (!key && !value) {
-      const config = getConfig();
-      const configData = defaultKeys.map((key) => ({
-        Key: key,
-        Value: config[key] ?? 'Not set',
-      }));
-      return (
-        <Box flexDirection="column">
-          <Text bold>Current Configuration:</Text>
-          <Table data={configData} />
-        </Box>
-      );
+    if (key && value) {
+      debugLog(`Setting config ${key} = ${value}...`);
+      saveConfig({ [key]: value });
+      saved = true;
     }
 
     // Validate that there are both key and value and that key belongs to allowed set
     // of server, team_id, team_name, user_email
-    if (!key || !value || !defaultKeys.includes(key)) {
-      return (
-        <Box flexDirection="column">
-          <Text color="red">Error: Invalid configuration key or value</Text>
-          <Text>
-            Allowed keys are{' '}
-            <Text bold color="green">
-              server, team_id, team_name, user_email
-            </Text>
-            .
-          </Text>
-        </Box>
-      );
+    if (key && !defaultKeys.includes(key)) {
+      error = true;
     }
-    debugLog(`Setting config ${key} = ${value}...`);
-    saveConfig({ [key]: value });
-    return <SuccessMsg text="Configuration updated successfully." />;
+
+    const config = getConfig();
+    const configData = defaultKeys.map((key) => ({
+      Key: key,
+      Value: config[key] ?? 'Not set',
+    }));
+
+    return (
+      <Box flexDirection="column">
+        {saved && <SuccessMsg text="Configuration updated successfully." />}
+        {error && (
+          <>
+            <Box flexDirection="column" marginBottom={1}>
+              <Text color="red">Error: Invalid configuration key or value</Text>
+              <Text>
+                Allowed keys are{' '}
+                <Text bold color="green">
+                  server, team_id, team_name, user_email
+                </Text>
+                .
+              </Text>
+            </Box>
+          </>
+        )}
+        <Text bold>Current Configuration:</Text>
+        <Table data={configData} />
+      </Box>
+    );
   }
 
   return <Text color="red">Unsupported command</Text>;

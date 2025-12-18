@@ -79,7 +79,7 @@ export const ErrorMsg = ({
 );
 
 export const SuccessMsg = ({ text }: { text: string }) => (
-  <Box paddingY={0} marginBottom={1}>
+  <Box paddingY={0} marginBottom={2}>
     <Text color="green">✔ {text}</Text>
   </Box>
 );
