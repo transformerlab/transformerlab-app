@@ -25,7 +25,7 @@ async def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
     cert_dir = Path(workspace_dir) / "certs"
     cert_path = cert_dir / "server-cert.pem"
     key_path = cert_dir / "server-key.pem"
-    
+
     lock = cert_dir / ".cert.lock"
     with FileLock(str(lock)):
         if await storage.exists(str(cert_path)) and await storage.exists(str(key_path)):
