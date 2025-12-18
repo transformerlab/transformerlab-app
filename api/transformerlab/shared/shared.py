@@ -50,18 +50,19 @@ def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs
 
         # -------- OUTPUT FILE SETUP --------
         if output_file is not None:
-            # Use asyncio.run to open file in thread context
-            async def _open_log():
-                return await storage.open(output_file, "a")
-
-            log = asyncio.run(_open_log())
+            # For subprocess, we need a regular file handle (not async)
+            # Write header using async storage, then open regular file for subprocess
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
 
-            async def _write_log():
-                await log.write(f"\n\n-- RUN {current_time} --\n")
-                await log.flush()
+            async def _write_header():
+                async with await storage.open(output_file, "a") as f:
+                    await f.write(f"\n\n-- RUN {current_time} --\n")
+                    await f.flush()
 
-            asyncio.run(_write_log())
+            asyncio.run(_write_header())
+
+            # Open regular file handle for subprocess
+            log = open(output_file, "a")
         else:
             log = subprocess.PIPE
 
@@ -440,7 +441,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     exp_obj = await Experiment.create_or_get(experiment_name)
     output_temp_file_dir = await job_obj.get_dir()
 
-    experiment_details = experiment_get(experiment_name)
+    experiment_details = await experiment_get(experiment_name)
 
     # Extract plugin name consistently across all job types
     plugin_name = None
@@ -759,8 +760,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             venv_python = os.path.join(venv_path, "bin", "python")
 
         tempdir = storage.join(workspace_dir, "temp")
-        if not storage.exists(tempdir):
-            storage.makedirs(tempdir, exist_ok=True)
+        if not await storage.exists(tempdir):
+            await storage.makedirs(tempdir, exist_ok=True)
         # Check if hyperparameter sweep is requested
         run_sweeps = template_config.get("run_sweeps", False)
         # if run_sweeps in ["on", "true", "yes"]:
@@ -813,7 +814,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             print(f"Generated {total_configs} configurations for sweep")
 
             # Initialize sweep tracking
-            await job_service.job_update_job_data_insert_key_value(job_id, "sweep_total", str(total_configs), experiment_name)
+            await job_service.job_update_job_data_insert_key_value(
+                job_id, "sweep_total", str(total_configs), experiment_name
+            )
             await job_service.job_update_job_data_insert_key_value(job_id, "sweep_current", "0", experiment_name)
 
             # Get metrics configuration
@@ -859,7 +862,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
                 # Update job progress
                 await job_service.job_update_sweep_progress(job_id, int((i / total_configs) * 100), experiment_name)
-                await job_service.job_update_job_data_insert_key_value(job_id, "sweep_current", str(i + 1), experiment_name)
+                await job_service.job_update_job_data_insert_key_value(
+                    job_id, "sweep_current", str(i + 1), experiment_name
+                )
                 await job_service.job_update_job_data_insert_key_value(
                     job_id, "sweep_running_config", json.dumps(config_params), experiment_name
                 )

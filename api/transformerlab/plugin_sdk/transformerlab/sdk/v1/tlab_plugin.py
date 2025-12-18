@@ -237,17 +237,17 @@ class TLabPlugin:
 
     def progress_update(self, progress: int):
         """Update job progress using SDK directly"""
-        job_data = self.job.get_job_data()
+        job_data = asyncio.run(self.job.get_job_data())
         if job_data.get("sweep_progress") is not None:
             if int(job_data.get("sweep_progress")) != 100:
-                self.job.update_job_data_field("sweep_subprogress", progress)
+                asyncio.run(self.job.update_job_data_field("sweep_subprogress", progress))
                 return
 
-        self.job.update_progress(progress)
+        asyncio.run(self.job.update_progress(progress))
         # Check stop status using SDK
-        job_data = self.job.get_job_data()
+        job_data = asyncio.run(self.job.get_job_data())
         if job_data.get("stop", False):
-            self.job.update_status("STOPPED")
+            asyncio.run(self.job.update_status("STOPPED"))
             raise KeyboardInterrupt("Job stopped by user")
 
     def get_experiment_config(self, experiment_name: str):

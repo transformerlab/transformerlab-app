@@ -89,7 +89,7 @@ async def experiment_delete_eval(experimentId: str, eval_name: str):
 async def edit_evaluation_task(experimentId: str, plugin: Any = Body()):
     """Get the contents of the evaluation"""
     try:
-        experiment = experiment_get(experimentId)
+        experiment = await experiment_get(experimentId)
 
         # if the experiment does not exist, return an error:
         if experiment is None:
@@ -133,7 +133,7 @@ async def edit_evaluation_task(experimentId: str, plugin: Any = Body()):
 @router.get("/get_evaluation_plugin_file_contents")
 async def get_evaluation_plugin_file_contents(experimentId: str, plugin_name: str):
     # first get the experiment name:
-    data = experiment_get(experimentId)
+    data = await experiment_get(experimentId)
 
     # if the experiment does not exist, return an error:
     if data is None:

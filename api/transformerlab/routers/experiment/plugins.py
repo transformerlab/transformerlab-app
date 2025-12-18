@@ -265,7 +265,7 @@ async def plugin_create_new_file(id: str, pluginId: str, filename: str):
 
     filename = secure_filename(filename)
 
-    data = experiment_get(id)
+    data = await experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
@@ -305,7 +305,7 @@ async def plugin_delete_file(id: str, pluginId: str, filename: str):
 
     filename = secure_filename(filename)
 
-    data = experiment_get(id)
+    data = await experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
@@ -341,7 +341,7 @@ async def plugin_delete_file(id: str, pluginId: str, filename: str):
 async def plugin_new_plugin_directory(id: str, pluginId: str):
     global allowed_extensions
 
-    data = experiment_get(id)
+    data = await experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
