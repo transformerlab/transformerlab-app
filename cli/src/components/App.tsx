@@ -126,11 +126,13 @@ export const App = ({ command, args }: { command: string; args: any }) => {
     );
   }
 
+  const defaultKeys = ['server', 'team_id', 'team_name', 'user_email'];
+
   if (command == 'config:list') {
     const config = getConfig();
-    const configData = Object.entries(config).map(([key, value]) => ({
+    const configData = defaultKeys.map((key) => ({
       Key: key,
-      Value: value,
+      Value: config[key] ?? 'Not set',
     }));
     return (
       <Box flexDirection="column">
@@ -144,11 +146,7 @@ export const App = ({ command, args }: { command: string; args: any }) => {
     const { key, value } = args;
     // Validate that there are both key and value and that key belongs to allowed set
     // of server, team_id, team_name, user_email
-    if (
-      !key ||
-      !value ||
-      !['server', 'team_id', 'team_name', 'user_email'].includes(key)
-    ) {
+    if (!key || !value || !defaultKeys.includes(key)) {
       return (
         <Box flexDirection="column">
           <Text color="red">Error: Invalid configuration key or value</Text>
