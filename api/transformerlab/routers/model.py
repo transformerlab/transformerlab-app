@@ -62,7 +62,7 @@ async def get_current_org_id() -> str | None:
     return None
 
 
-def get_model_details_from_gallery(model_id: str):
+async def get_model_details_from_gallery(model_id: str):
     """
     Given a model ID this returns the associated data from the model gallery file.
     Returns None if no such value found.
@@ -196,7 +196,7 @@ async def model_gallery(model_id: str):
     # convert "~~~"" in string to "/":
     model_id = model_id.replace("~~~", "/")
 
-    return get_model_details_from_gallery(model_id)
+    return await get_model_details_from_gallery(model_id)
 
 
 # Should this be a POST request?
@@ -731,7 +731,7 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
 
     # Get model details from the gallery
     # If None then return an error
-    gallery_entry = get_model_details_from_gallery(gallery_id)
+    gallery_entry = await get_model_details_from_gallery(gallery_id)
     if gallery_entry is None:
         return {"status": "error", "message": "Model not found in gallery"}
 
