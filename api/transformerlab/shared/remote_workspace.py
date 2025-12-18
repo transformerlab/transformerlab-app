@@ -15,7 +15,6 @@ def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3"
 
     Args:
         team_id: The team ID to use as the bucket name
-        cloud_provider: Should be one of "aws" or "gcp"
         profile_name: The AWS profile name to use for S3 (ignored for GCS)
 
     Returns:
