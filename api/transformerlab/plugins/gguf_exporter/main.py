@@ -1,4 +1,5 @@
 # This plugin exports a model to GGUF format so you can interact and train on a MBP with Apple Silicon
+import asyncio
 import os
 import subprocess
 import contextlib

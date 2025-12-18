@@ -1,3 +1,4 @@
+import asyncio
 import os
 import yaml
 import subprocess
@@ -140,6 +141,7 @@ def run_yourbench():
     async def _write_config():
         async with await storage.open(config_path, "w") as config_file:
             await config_file.write(yaml.dump(config, default_flow_style=False))
+
     asyncio.run(_write_config())
 
     print(f"Configuration written to {config_path}")

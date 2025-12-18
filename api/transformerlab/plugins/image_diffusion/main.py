@@ -587,9 +587,11 @@ def ensure_directories(experiment_name: str = None):
     asyncio.run(storage.makedirs(diffusion_dir, exist_ok=True))
     asyncio.run(storage.makedirs(images_dir, exist_ok=True))
     if not asyncio.run(storage.exists(history_file_path)):
+
         async def _create_file():
             async with await storage.open(history_file_path, "a"):
                 pass
+
         asyncio.run(_create_file())
 
 
@@ -614,7 +616,7 @@ def save_to_history(item: ImageHistoryItem, experiment_name: str = None):
         # Save updated history
         async with await storage.open(history_file, "w") as f:
             await f.write(json.dumps(history, indent=2))
-    
+
     asyncio.run(_save())
 
 
@@ -689,10 +691,11 @@ async def run_multi_gpu_generation(
     # Save config to temporary file
     ensure_directories(experiment_name)
     config_path = storage.join(get_diffusion_dir(experiment_name), secure_filename(f"config_{generation_id}.json"))
-    
+
     async def _save_config():
         async with await storage.open(config_path, "w") as f:
             await f.write(json.dumps(config, indent=2))
+
     await _save_config()
 
     # Get worker script path
