@@ -1,20 +1,9 @@
 import execa from 'execa';
-import Conf from 'conf';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-export const config = new Conf<LabState>({
-  projectName: 'transformerlab',
-  defaults: {
-    user_email: undefined,
-    team_id: undefined,
-    server: undefined,
-  },
-});
-
-const storedServer = config.get('server');
-
+configOnDisk =
 export const API_URL = storedServer || 'http://alpha.lab.cloud:8338';
 
 export const HOME_DIR = os.homedir();
@@ -69,8 +58,8 @@ export const getJsonFiles = (dir: string) => {
   }
 };
 
-export const loadLabConfig = (dir: string = '.'): LabConfig | null => {
-  const searchOrder = ['task.json', 'lab.json', 'index.json'];
+export const loadTaskConfig = (dir: string = '.'): LabConfig | null => {
+  const searchOrder = ['task.json'];
   const absoluteDir = path.resolve(process.cwd(), dir);
 
   for (const file of searchOrder) {

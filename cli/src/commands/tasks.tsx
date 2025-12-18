@@ -1,14 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Box, Text, useApp } from 'ink';
-import SelectInput from 'ink-select-input';
-import TextInput from 'ink-text-input';
+import { Box, Text } from 'ink';
 import { api } from '../api';
-import path from 'path';
-import { getGitContext, loadLabConfig } from '../utils';
-import { Loading, ErrorMsg, SuccessMsg, Panel } from '../ui';
+import { Loading, ErrorMsg, Panel } from '../ui';
 import { GenericList } from './list_commands';
 import Table from '../ink-table';
-import fs from 'fs';
 
 export const TaskList = () => (
   <GenericList
@@ -184,7 +179,7 @@ export const TaskInfo = ({ taskId }: { taskId: string }) => {
 //           api.listExperiments(),
 //         ]);
 
-//         const labConfig = loadLabConfig(resolvedPath);
+//         const labConfig = loadLTaskConfig(resolvedPath);
 
 //         if (!isMounted) return;
 
