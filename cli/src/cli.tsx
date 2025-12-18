@@ -3,6 +3,7 @@ import { render } from 'ink';
 import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
 import { App } from './components/App';
+import { debugLog } from './lib/utils';
 
 /*
   This is the main function that runs our CLI
@@ -99,8 +100,8 @@ const run = () => {
 
     // Config
     .command(
-      'config <key> <value>',
-      'Set a configuration key-value pair',
+      'config [key] [value]',
+      'Set or view configuration key-value pairs',
       (y) => {
         return y
           .positional('key', { type: 'string', describe: 'Configuration key' })
@@ -111,14 +112,6 @@ const run = () => {
       },
       (argv) => {
         render(<App command="config:set" args={argv} />);
-      },
-    )
-    .command(
-      'config',
-      'Show current configuration',
-      () => {},
-      (argv) => {
-        render(<App command="config:list" args={argv} />);
       },
     )
 

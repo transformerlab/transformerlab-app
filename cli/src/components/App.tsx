@@ -128,22 +128,23 @@ export const App = ({ command, args }: { command: string; args: any }) => {
 
   const defaultKeys = ['server', 'team_id', 'team_name', 'user_email'];
 
-  if (command == 'config:list') {
-    const config = getConfig();
-    const configData = defaultKeys.map((key) => ({
-      Key: key,
-      Value: config[key] ?? 'Not set',
-    }));
-    return (
-      <Box flexDirection="column">
-        <Text bold>Current Configuration:</Text>
-        <Table data={configData} />
-      </Box>
-    );
-  }
-
   if (command === 'config:set') {
     const { key, value } = args;
+
+    if (!key && !value) {
+      const config = getConfig();
+      const configData = defaultKeys.map((key) => ({
+        Key: key,
+        Value: config[key] ?? 'Not set',
+      }));
+      return (
+        <Box flexDirection="column">
+          <Text bold>Current Configuration:</Text>
+          <Table data={configData} />
+        </Box>
+      );
+    }
+
     // Validate that there are both key and value and that key belongs to allowed set
     // of server, team_id, team_name, user_email
     if (!key || !value || !defaultKeys.includes(key)) {
