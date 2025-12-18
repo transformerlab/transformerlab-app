@@ -118,7 +118,7 @@ async def lifespan(app: FastAPI):
     # create_db_and_tables() is deprecated - migrations are handled in db.init()
     print("✅ SEED DATA")
     # Initialize experiments
-    seed_default_experiments()
+    await seed_default_experiments()
     # Seed default admin user
     await seed_default_admin_user()
     # Cancel any running jobs

@@ -107,7 +107,7 @@ async def create_team(
         set_organization_id(team.id)
 
         # Create the default experiment
-        Experiment("alpha", create_new=True)
+        await Experiment.create_or_get("alpha", create_new=True)
 
         # Save logo if provided
         if logo:

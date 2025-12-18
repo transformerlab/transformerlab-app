@@ -20,16 +20,16 @@ class BaseLabResource(ABC):
         pass
 
     @classmethod
-    def create(cls, id):
+    async def create(cls, id):
         """
         Default method to create a new entity and initialize it with defualt metadata.
         """
         newobj = cls(id)
-        newobj._initialize()
+        await newobj._initialize()
         return newobj
 
     @classmethod
-    def get(cls, id):
+    async def get(cls, id):
         """
         Default method to get entity if it exists in the file system.
         If the entity's directory doesn't exist then throw an error.
@@ -37,12 +37,12 @@ class BaseLabResource(ABC):
         """
         newobj = cls(id)
         resource_dir = newobj.get_dir()
-        if not storage.isdir(resource_dir):
+        if not await storage.isdir(resource_dir):
             raise FileNotFoundError(f"Directory for {cls.__name__} with id '{id}' not found")
         json_file = newobj._get_json_file()
-        if not storage.exists(json_file):
-            with storage.open(json_file, "w", encoding="utf-8") as f:
-                json.dump(newobj._default_json(), f)
+        if not await storage.exists(json_file):
+            async with await storage.open(json_file, "w", encoding="utf-8") as f:
+                await f.write(json.dumps(newobj._default_json()))
         return newobj
 
     ###
@@ -50,7 +50,7 @@ class BaseLabResource(ABC):
     # There are used by all subclasses to initialize, get and set JSON data
     ###
 
-    def _initialize(self):
+    async def _initialize(self):
         """
         Default function to initialize the file system and json object.
         To alter the default metadata update the _default_json method.
@@ -58,15 +58,15 @@ class BaseLabResource(ABC):
 
         # Create directory for this resource
         dir = self.get_dir()
-        storage.makedirs(dir, exist_ok=True)
+        await storage.makedirs(dir, exist_ok=True)
         print(f"Created directory for {type(self).__name__} with id '{self.id}'")
 
         # Create a default json file. Throw an error if one already exists.
         json_file = self._get_json_file()
-        if storage.exists(json_file):
+        if await storage.exists(json_file):
             raise FileExistsError(f"{type(self).__name__} with id '{self.id}' already exists")
-        with storage.open(json_file, "w", encoding="utf-8") as f:
-            json.dump(self._default_json(), f)
+        async with await storage.open(json_file, "w", encoding="utf-8") as f:
+            await f.write(json.dumps(self._default_json()))
 
     def _default_json(self):
         """Override in subclasses to support the initialize method."""
@@ -76,7 +76,7 @@ class BaseLabResource(ABC):
         """Get json file containing metadata for this resource."""
         return storage.join(self.get_dir(), "index.json")
 
-    def get_json_data(self, uncached: bool = False, max_retries: int = 5):
+    async def get_json_data(self, uncached: bool = False, max_retries: int = 5):
         """
         Return the JSON data that is stored for this resource in the filesystem.
         If the file doesn't exist then return an empty dict.
@@ -85,7 +85,7 @@ class BaseLabResource(ABC):
             uncached: If True, use an uncached filesystem to avoid Etag caching issues
             max_retries: Maximum number of retries for Etag errors (default: 5)
         """
-        import time
+        import asyncio
 
         json_file = self._get_json_file()
 
@@ -93,8 +93,8 @@ class BaseLabResource(ABC):
         # On any error return an empty dict
         for attempt in range(max_retries):
             try:
-                with storage.open(json_file, "r", encoding="utf-8", uncached=uncached) as f:
-                    content = f.read()
+                async with await storage.open(json_file, "r", encoding="utf-8", uncached=uncached) as f:
+                    content = await f.read()
                     # Clean the content - remove trailing whitespace and extra characters
                     content = content.strip()
                     # Remove any trailing % characters (common in some shell outputs)
@@ -118,7 +118,7 @@ class BaseLabResource(ABC):
                 if is_etag_error:
                     if attempt < max_retries - 1:
                         # Wait a short time before retrying (exponential backoff)
-                        time.sleep(0.5 * (2**attempt))
+                        await asyncio.sleep(0.5 * (2**attempt))
                         continue
                     else:
                         # Last attempt failed, return empty dict
@@ -127,7 +127,7 @@ class BaseLabResource(ABC):
                     # Different exception, return empty dict
                     return {}
 
-    def _set_json_data(self, json_data):
+    async def _set_json_data(self, json_data):
         """
         Sets the entire JSON data that is stored for this resource in the filesystem.
         This will overwrite whatever is stored now.
@@ -141,25 +141,25 @@ class BaseLabResource(ABC):
 
         # Write directly to index.json
         json_file = self._get_json_file()
-        with storage.open(json_file, "w", encoding="utf-8") as f:
-            json.dump(json_data, f, ensure_ascii=False)
+        async with await storage.open(json_file, "w", encoding="utf-8") as f:
+            await f.write(json.dumps(json_data, ensure_ascii=False))
 
-    def _get_json_data_field(self, key, default=""):
+    async def _get_json_data_field(self, key, default=""):
         """Gets the value of a single top-level field in a JSON object"""
-        json_data = self.get_json_data(uncached=True)
+        json_data = await self.get_json_data(uncached=True)
         return json_data.get(key, default)
 
-    def _update_json_data_field(self, key: str, value):
+    async def _update_json_data_field(self, key: str, value):
         """Sets the value of a single top-level field in a JSON object"""
-        json_data = self.get_json_data(uncached=True)
+        json_data = await self.get_json_data(uncached=True)
         json_data[key] = value
-        self._set_json_data(json_data)
+        await self._set_json_data(json_data)
 
-    def delete(self):
+    async def delete(self):
         """
         Delete this resource by deleting the containing directory.
         TODO: We should change to soft delete
         """
         resource_dir = self.get_dir()
-        if storage.exists(resource_dir):
-            storage.rm_tree(resource_dir)
+        if await storage.exists(resource_dir):
+            await storage.rm_tree(resource_dir)

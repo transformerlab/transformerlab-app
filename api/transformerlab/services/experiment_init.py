@@ -338,11 +338,11 @@ def update_diffusion_history_paths(old_workspace: str, new_workspace: str):
         traceback.print_exc()
 
 
-def seed_default_experiments():
+async def seed_default_experiments():
     """Create a few default experiments if they do not exist (filesystem-backed)."""
     # Only seed default experiments if there are no experiments at all
     try:
-        existing_experiments = Experiment.get_all()
+        existing_experiments = await Experiment.get_all()
         if len(existing_experiments) > 0:
             return
     except Exception as e:
@@ -351,7 +351,7 @@ def seed_default_experiments():
 
     for name in ["alpha", "beta", "gamma"]:
         try:
-            exp = Experiment(name, create_new=True)
+            exp = await Experiment.create_or_get(name, create_new=True)
             # Sanity check to make sure nothing went wrong or no Exception was silently passed
             if exp.id != name:
                 raise Exception(f"Error creating experiment {name}: {exp.id} != {name}")
