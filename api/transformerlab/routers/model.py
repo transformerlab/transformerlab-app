@@ -487,9 +487,7 @@ async def download_huggingface_model(
     - message: error message if status is "error"
     """
     if job_id is None:
-        job_id = job_service.job_create(
-            type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id, job_data="{}"
-        )
+        job_id = job_service.job_create(type="DOWNLOAD_MODEL", status="STARTED", job_data="{}")
     else:
         await job_service.job_update(
             job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id
@@ -1006,9 +1004,7 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None, expe
     print(f"Model Details: {model_details}")
     # Create or update job
     if job_id is None:
-        job_id = job_service.job_create(
-            type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id, job_data="{}"
-        )
+        job_id = job_service.job_create(type="DOWNLOAD_MODEL", status="STARTED", job_data="{}")
     else:
         await job_service.job_update(
             job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id
