@@ -274,18 +274,24 @@ class TLabPlugin:
             dataset_target = get_dataset_path(self.params.dataset_name)
 
             # If this is a directory, prepare data_files excluding index.json and hidden files
-            is_dir = isinstance(dataset_target, str) and (
-                storage.isdir(dataset_target) if storage.exists(dataset_target) else os.path.isdir(dataset_target)
-            )
+            async def _check_dir():
+                if await storage.exists(dataset_target):
+                    return await storage.isdir(dataset_target)
+                return os.path.isdir(dataset_target)
+            
+            is_dir = isinstance(dataset_target, str) and asyncio.run(_check_dir())
             data_files_map = None
             if is_dir:
                 try:
-                    if storage.exists(dataset_target):
-                        entries_full = storage.ls(dataset_target)
-                        # normalize to basenames
-                        entries = [e.rstrip("/").split("/")[-1] for e in entries_full]
-                    else:
-                        entries = os.listdir(dataset_target)
+                    async def _get_entries():
+                        if await storage.exists(dataset_target):
+                            entries_full = await storage.ls(dataset_target)
+                            # normalize to basenames
+                            return [e.rstrip("/").split("/")[-1] for e in entries_full]
+                        else:
+                            return os.listdir(dataset_target)
+                    
+                    entries = asyncio.run(_get_entries())
                 except Exception:
                     entries = []
 
@@ -297,17 +303,21 @@ class TLabPlugin:
                     lower = name.lower()
                     if not (lower.endswith(".json") or lower.endswith(".jsonl") or lower.endswith(".csv")):
                         continue
-                    full_path = (
-                        storage.join(dataset_target, name)
-                        if storage.exists(dataset_target)
-                        else os.path.join(dataset_target, name)
-                    )
-                    if storage.exists(dataset_target):
-                        if storage.isfile(full_path):
-                            filtered_files.append(full_path)
-                    else:
-                        if os.path.isfile(full_path):
-                            filtered_files.append(full_path)
+                    
+                    async def _check_file():
+                        if await storage.exists(dataset_target):
+                            full_path = storage.join(dataset_target, name)
+                            if await storage.isfile(full_path):
+                                return full_path
+                        else:
+                            full_path = os.path.join(dataset_target, name)
+                            if os.path.isfile(full_path):
+                                return full_path
+                        return None
+                    
+                    full_path = asyncio.run(_check_file())
+                    if full_path:
+                        filtered_files.append(full_path)
 
                 if len(filtered_files) > 0:
                     data_files_map = {"train": filtered_files}
