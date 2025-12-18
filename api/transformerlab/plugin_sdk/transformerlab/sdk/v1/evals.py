@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import time
@@ -56,24 +57,28 @@ class EvalsTLabPlugin(TLabPlugin):
         today = time.strftime("%Y%m%d-%H%M%S")
         from transformerlab.plugin import WORKSPACE_DIR as workspace_dir
 
-        # Create tensorboard directory structure
-        tensorboard_dir = storage.join(workspace_dir, "experiments", self.params.experiment_name, "tensorboards")
-        storage.makedirs(tensorboard_dir, exist_ok=True)
+        async def _setup_dirs():
+            # Create tensorboard directory structure
+            tensorboard_dir = storage.join(workspace_dir, "experiments", self.params.experiment_name, "tensorboards")
+            await storage.makedirs(tensorboard_dir, exist_ok=True)
 
-        # Find directory based on eval name
-        combined_dir = None
-        for entry in storage.ls(tensorboard_dir):
-            dir_name = entry.rstrip("/").split("/")[-1]
-            if self.params.run_name == dir_name or self.params.run_name == dir_name.lower():
-                if storage.isdir(entry):
-                    combined_dir = storage.join(tensorboard_dir, dir_name)
-                    break
+            # Find directory based on eval name
+            combined_dir = None
+            for entry in await storage.ls(tensorboard_dir):
+                dir_name = entry.rstrip("/").split("/")[-1]
+                if self.params.run_name == dir_name or self.params.run_name == dir_name.lower():
+                    if await storage.isdir(entry):
+                        combined_dir = storage.join(tensorboard_dir, dir_name)
+                        break
 
-        if combined_dir is None:
-            combined_dir = storage.join(tensorboard_dir, self.params.run_name)
+            if combined_dir is None:
+                combined_dir = storage.join(tensorboard_dir, self.params.run_name)
 
-        output_dir = storage.join(combined_dir, f"evaljob_{self.params.job_id}_{today}")
-        storage.makedirs(output_dir, exist_ok=True)
+            output_dir = storage.join(combined_dir, f"evaljob_{self.params.job_id}_{today}")
+            await storage.makedirs(output_dir, exist_ok=True)
+            return output_dir
+        
+        output_dir = asyncio.run(_setup_dirs())
 
         # Store the writer and output directory as instance variables
         self.params["tensorboard_output_dir"] = output_dir
@@ -153,7 +158,7 @@ class EvalsTLabPlugin(TLabPlugin):
         experiment_dir = storage.join(workspace_dir, "experiments", self.params.experiment_name)
         eval_dir = storage.join(experiment_dir, "evals", self.params.eval_name, self.params.job_id)
 
-        storage.makedirs(eval_dir, exist_ok=True)
+        asyncio.run(storage.makedirs(eval_dir, exist_ok=True))
 
         if dir_only:
             return eval_dir
@@ -194,24 +199,29 @@ class EvalsTLabPlugin(TLabPlugin):
             raise ValueError(f"Missing required columns in metrics DataFrame: {missing_columns}")
 
         # Save full DataFrame to CSV
-        output_path = self.get_output_file_path()
-        with storage.open(output_path, "w", encoding="utf-8") as f:
-            metrics_df.to_csv(f, index=False)
-        print(f"Saved detailed evaluation results to {output_path}")
+        async def _save_results():
+            output_path = self.get_output_file_path()
+            async with await storage.open(output_path, "w", encoding="utf-8") as f:
+                await f.write(metrics_df.to_csv(index=False))
+            print(f"Saved detailed evaluation results to {output_path}")
 
-        # Create and save plotting data
-        plot_data_path = self.get_output_file_path(is_plotting=True)
+            # Create and save plotting data
+            plot_data_path = self.get_output_file_path(is_plotting=True)
 
-        # Extract and format plotting data
-        plotting_data = metrics_df[["test_case_id", "metric_name", "score"]].copy()
+            # Extract and format plotting data
+            plotting_data = metrics_df[["test_case_id", "metric_name", "score"]].copy()
 
-        # Format metric names for better display (replace underscores with spaces and capitalize)
-        plotting_data["metric_name"] = plotting_data["metric_name"].apply(lambda x: x.replace("_", " ").title())
+            # Format metric names for better display (replace underscores with spaces and capitalize)
+            plotting_data["metric_name"] = plotting_data["metric_name"].apply(lambda x: x.replace("_", " ").title())
 
-        # Save as JSON
-        with storage.open(plot_data_path, "w", encoding="utf-8") as f:
-            plotting_data.to_json(f, orient="records", lines=False)
-        print(f"Saved plotting data to {plot_data_path}")
+            # Save as JSON
+            async with await storage.open(plot_data_path, "w", encoding="utf-8") as f:
+                await f.write(plotting_data.to_json(orient="records", lines=False))
+            print(f"Saved plotting data to {plot_data_path}")
+            
+            return output_path, plot_data_path
+        
+        output_path, plot_data_path = asyncio.run(_save_results())
 
         self.job.update_job_data_field("additional_output_path", output_path)
         self.job.update_job_data_field("plot_data_path", plot_data_path)
@@ -276,55 +286,58 @@ class EvalsTLabPlugin(TLabPlugin):
 
         # Add evaluation data to the existing provenance file in the model directory
         # Try to find the model directory using environment variables
-        from lab.dirs import get_workspace_dir
+        async def _add_to_provenance():
+            from lab.dirs import get_workspace_dir
 
-        workspace_dir = get_workspace_dir()
+            workspace_dir = await get_workspace_dir()
 
-        models_dir = storage.join(workspace_dir, "models")
+            models_dir = storage.join(workspace_dir, "models")
 
-        # Look for the model directory - since we have the actual model path, we can be more precise
-        model_dir = None
-        for entry in storage.ls(models_dir):
-            entry_name = entry.rstrip("/").split("/")[-1]
-            if storage.isdir(entry):
-                # Exact match first, then check for suffixes
-                if entry_name == model_name:
-                    model_dir = storage.join(models_dir, entry_name)
-                    break
-                elif entry_name.endswith(f"_{model_name}"):
-                    model_dir = storage.join(models_dir, entry_name)
-                    break
+            # Look for the model directory - since we have the actual model path, we can be more precise
+            model_dir = None
+            for entry in await storage.ls(models_dir):
+                entry_name = entry.rstrip("/").split("/")[-1]
+                if await storage.isdir(entry):
+                    # Exact match first, then check for suffixes
+                    if entry_name == model_name:
+                        model_dir = storage.join(models_dir, entry_name)
+                        break
+                    elif entry_name.endswith(f"_{model_name}"):
+                        model_dir = storage.join(models_dir, entry_name)
+                        break
 
-        if not model_dir or not storage.exists(model_dir):
-            print(
-                "Unable to add evaluation details to model provenance file, since that is only supported for fine-tuned (locally trained) models."
-            )
-            return
+            if not model_dir or not await storage.exists(model_dir):
+                print(
+                    "Unable to add evaluation details to model provenance file, since that is only supported for fine-tuned (locally trained) models."
+                )
+                return
 
-        provenance_path = storage.join(model_dir, "_tlab_provenance.json")
+            provenance_path = storage.join(model_dir, "_tlab_provenance.json")
 
-        # Load existing provenance data
-        existing_provenance = {}
-        if storage.exists(provenance_path):
-            try:
-                with storage.open(provenance_path, "r", encoding="utf-8") as f:
-                    existing_provenance = json.load(f)
-            except Exception as e:
-                print(f"Error loading existing provenance: {e}")
-                existing_provenance = {}
+            # Load existing provenance data
+            existing_provenance = {}
+            if await storage.exists(provenance_path):
+                try:
+                    async with await storage.open(provenance_path, "r", encoding="utf-8") as f:
+                        existing_provenance = json.loads(await f.read())
+                except Exception as e:
+                    print(f"Error loading existing provenance: {e}")
+                    existing_provenance = {}
 
-        # Initialize evaluations list if it doesn't exist
-        if "evaluations" not in existing_provenance:
-            existing_provenance["evaluations"] = []
+            # Initialize evaluations list if it doesn't exist
+            if "evaluations" not in existing_provenance:
+                existing_provenance["evaluations"] = []
 
-        # Add new evaluation to the list
-        existing_provenance["evaluations"].append(evaluation_data)
+            # Add new evaluation to the list
+            existing_provenance["evaluations"].append(evaluation_data)
 
-        # Write updated provenance file
-        with storage.open(provenance_path, "w", encoding="utf-8") as f:
-            json.dump(existing_provenance, f, indent=2)
+            # Write updated provenance file
+            async with await storage.open(provenance_path, "w", encoding="utf-8") as f:
+                await f.write(json.dumps(existing_provenance, indent=2))
 
-        print(f"Evaluation data added to provenance file: {provenance_path}")
+            print(f"Evaluation data added to provenance file: {provenance_path}")
+        
+        asyncio.run(_add_to_provenance())
 
 
 tlab_evals = EvalsTLabPlugin()
