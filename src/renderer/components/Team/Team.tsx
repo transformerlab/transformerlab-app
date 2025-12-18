@@ -816,7 +816,7 @@ export default function UserLoginTest(): JSX.Element {
               </tr>
             </thead>
             <tbody>
-              {providers?.map((provider: any) => {
+              {Array.isArray(providers) && providers?.map((provider: any) => {
                 const status = providerCheckStatus[provider.id];
                 const isChecking = checkingProviderId === provider.id;
 
