@@ -53,11 +53,14 @@ def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs
             # Use asyncio.run to open file in thread context
             async def _open_log():
                 return await storage.open(output_file, "a")
+
             log = asyncio.run(_open_log())
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
+
             async def _write_log():
                 await log.write(f"\n\n-- RUN {current_time} --\n")
                 await log.flush()
+
             asyncio.run(_write_log())
         else:
             log = subprocess.PIPE
@@ -361,7 +364,7 @@ async def async_run_python_daemon_and_update_status(
                     pass
             line = await process.stdout.readline()
     finally:
-            # Ensure log file is closed even if there's an error
+        # Ensure log file is closed even if there's an error
         if log:
             try:
                 await log.close()

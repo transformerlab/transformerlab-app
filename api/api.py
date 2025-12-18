@@ -607,6 +607,7 @@ def run():
 
     if args.https:
         import asyncio
+
         cert_path, key_path = asyncio.run(ensure_persistent_self_signed_cert())
         uvicorn.run(
             "api:app", host=args.host, port=args.port, log_level="warning", ssl_certfile=cert_path, ssl_keyfile=key_path

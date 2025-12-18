@@ -28,11 +28,13 @@ STATIC_FILES_DIR = storage.join(HOME_DIR, "webapp")
 asyncio.run(storage.makedirs(STATIC_FILES_DIR, exist_ok=True))
 # if there is no index.html file in the static directory, create blank one
 if not asyncio.run(storage.exists(storage.join(STATIC_FILES_DIR, "index.html"))):
+
     async def _init_index_html():
         async with await storage.open(storage.join(STATIC_FILES_DIR, "index.html"), "w") as f:
             await f.write(
                 "<html><body><p>Transformer Lab Cloud App Files Missing. Run <pre>curl https://raw.githubusercontent.com/transformerlab/transformerlab-app/main/api/install.sh | bash</pre> to install.</p></body></html>"
             )
+
     asyncio.run(_init_index_html())
 
 # TFL_SOURCE_CODE_DIR

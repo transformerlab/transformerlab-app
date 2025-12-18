@@ -74,7 +74,9 @@ async def job_create(
 
 
 async def job_create_task(script: str, job_data: str = "{}", experimentId: str = None):
-    jobid = await job_service.job_create(type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experimentId)
+    jobid = await job_service.job_create(
+        type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experimentId
+    )
     return jobid
 
 

@@ -31,9 +31,7 @@ async def _get_fs_and_root():
 
     # Let fsspec parse the URI - get async filesystem
     fs, _token, paths = fsspec.get_fs_token_paths(
-        tfl_uri, 
-        storage_options={"profile": _AWS_PROFILE} if _AWS_PROFILE else None,
-        asynchronous=True
+        tfl_uri, storage_options={"profile": _AWS_PROFILE} if _AWS_PROFILE else None, asynchronous=True
     )
     # For S3 and other remote filesystems, we need to maintain the full URI format
     if tfl_uri.startswith(("s3://", "gs://", "abfs://", "gcs://")):
@@ -300,7 +298,7 @@ async def copy_file(src: str, dest: str) -> None:
     # Get async filesystems
     src_fs, _ = fsspec.core.url_to_fs(src, asynchronous=True)
     dest_fs, _ = fsspec.core.url_to_fs(dest, asynchronous=True)
-    
+
     async with await src_fs._open(src, "rb") as r:
         async with await dest_fs._open(dest, "wb") as w:
             async for chunk in iter_chunks_async(r):

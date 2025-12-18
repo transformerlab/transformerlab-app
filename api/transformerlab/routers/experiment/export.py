@@ -116,7 +116,9 @@ async def run_exporter_script(
             params=params,
         )
         job_data_json = json.dumps(job_data)
-        job_id = await job_create(type="EXPORT", status="Started", experiment_id=experiment_name, job_data=job_data_json)
+        job_id = await job_create(
+            type="EXPORT", status="Started", experiment_id=experiment_name, job_data=job_data_json
+        )
         return job_id
 
     # Setup arguments to pass to plugin

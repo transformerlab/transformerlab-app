@@ -425,7 +425,9 @@ async def generate_image(experimentId: str, request: DiffusionRequest, http_requ
                 "config": request_dict,
             }
 
-            job_id = await job_create(type="DIFFUSION", status="QUEUED", job_data=job_config, experiment_id=experimentId)
+            job_id = await job_create(
+                type="DIFFUSION", status="QUEUED", job_data=job_config, experiment_id=experimentId
+            )
 
             # Get experiment name for experiment-specific paths
             images_dir = await get_images_dir(experimentId)
