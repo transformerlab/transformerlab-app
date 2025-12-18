@@ -8,6 +8,8 @@ TFL_API_STORAGE_URI is enabled. Supports both S3 and GCS.
 import os
 import re
 
+from lab.storage import CLOUD_PROVIDER
+
 
 def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3") -> bool:
     """
@@ -26,22 +28,6 @@ def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3"
     if not tfl_storage_uri:
         print("TFL_API_STORAGE_URI is not set, skipping bucket creation")
         return False
-
-    # Determine cloud provider from storage URI
-    protocol = tfl_storage_uri.split("://")[0] if "://" in tfl_storage_uri else "unknown"
-    if protocol in ["gs", "gcs"]:
-        cloud_provider = "gcp"
-    elif protocol == "s3":
-        cloud_provider = "aws"
-    elif protocol == "abfs":
-        cloud_provider = "azure"
-    else:
-        cloud_provider = "unknown"
-    if cloud_provider not in ["aws", "gcp"]:
-        print(f"Failed to create bucket using protocol: {protocol}")
-        return False
-
-    print(f"Creating bucket '{team_id}' on '{cloud_provider}'")
 
     # Validate bucket name (common rules for S3 and GCS)
     # Bucket names must be 3-63 characters, lowercase, and can contain only letters, numbers, dots, and hyphens
@@ -62,12 +48,12 @@ def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3"
         print(f"Team ID '{team_id}' cannot be converted to a valid bucket name")
         return False
 
-    if cloud_provider == "aws":
+    if CLOUD_PROVIDER == "aws":
         return _create_s3_bucket(bucket_name, team_id, profile_name)
-    elif cloud_provider == "gcp":
+    elif CLOUD_PROVIDER == "gcp":
         return _create_gcs_bucket(bucket_name, team_id)
     else:
-        print(f"Unsupported cloud provider: {cloud_provider}")
+        print(f"Unsupported cloud provider: {CLOUD_PROVIDER}")
         return False
 
 
