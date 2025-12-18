@@ -7,7 +7,10 @@
       "request": "launch",
       "protocol": "inspector",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "start"],
+      "runtimeArgs": [
+        "run",
+        "start"
+      ],
       "env": {
         "MAIN_ARGS": "--inspect=5858 --remote-debugging-port=9223"
       }
@@ -43,12 +46,45 @@
       },
       "envFile": "${workspaceFolder}/.env",
       "jinja": true
+    },
+    {
+      "name": "CLI: TypeScript (Interactive)",
+      "type": "pwa-node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/cli",
+      "runtimeArgs": [
+        "-r",
+        "ts-node/register"
+      ],
+      "args": [
+        "help"
+      ],
+      "program": "${workspaceFolder}/cli/src/index.ts",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Attach to CLI",
+      "port": 9229,
+      "skipFiles": ["<node_internals>/**"],
+      "outFiles": ["${workspaceFolder}/cli/dist/**/*.js"],
+      "sourceMaps": true,
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/cli/**",
+        "!**/node_modules/**"
+      ],
+      "cwd": "${workspaceFolder}/cli"
     }
   ],
   "compounds": [
     {
       "name": "Electron: All",
-      "configurations": ["Electron: Main", "Electron: Renderer"]
+      "configurations": [
+        "Electron: Main",
+        "Electron: Renderer"
+      ]
     }
   ]
 }

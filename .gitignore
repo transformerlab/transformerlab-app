@@ -60,7 +60,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib/
 lib64/
 parts/
 sdist/
@@ -209,3 +209,8 @@ api/unsloth_compiled_cache/
 # Python SDK (lab-sdk) specific ignores
 # --------------------------------
 lab-sdk/src/transformerlab.egg-info/
+
+# CLI executables
+cli/cli
+cli/lab
+cli/dist/*

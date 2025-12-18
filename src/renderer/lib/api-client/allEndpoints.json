@@ -128,6 +128,10 @@
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/artifacts"
     },
+    "getArtifact": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/artifact/{filename}"
+    },
     "getJobsOfType": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/list?type={type}&status={status}"
