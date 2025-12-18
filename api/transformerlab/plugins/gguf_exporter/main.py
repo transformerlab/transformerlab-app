@@ -30,7 +30,7 @@ def gguf_export():
     output_dir = tlab_exporter.params.get("output_dir")
 
     # Create output file
-    storage.makedirs(output_dir, exist_ok=True)
+    asyncio.run(storage.makedirs(output_dir, exist_ok=True))
 
     plugin_dir = os.path.realpath(os.path.dirname(__file__))
     python_executable = get_python_executable(plugin_dir)
