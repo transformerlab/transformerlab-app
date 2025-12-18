@@ -14,17 +14,12 @@ export const config = new Conf<LabState>({
   },
 });
 
-const storedTarget = config.get('target');
+const storedTarget = config.get('server');
 const envTarget = process.env.TL_ENV;
 
 export const IS_LOCAL =
   storedTarget === 'local' || envTarget?.toLowerCase() === 'local';
 
-export const DOMAIN_PROD = 'lab.cloud';
-export const DOMAIN_LOCAL = 'localhost';
-export const PORT_LOCAL = '8338';
-
-export const WEB_URL = 'http://localhost:8338';
 export const API_URL = 'http://localhost:8338';
 
 export const HOME_DIR = os.homedir();

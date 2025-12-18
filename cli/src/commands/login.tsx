@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { api } from '../api';
-import { WEB_URL, LAB_DIR, CREDENTIALS_PATH, CONFIG_PATH } from '../utils';
+import { LAB_DIR, CREDENTIALS_PATH, CONFIG_PATH, API_URL } from '../utils';
 import { Logo, Loading, ErrorMsg, SuccessMsg, Panel } from '../ui';
 import { debugLog } from '../utils';
 
@@ -140,7 +140,7 @@ export const LoginCommand = () => {
           <Box marginTop={1}>
             <Text dimColor>1. Go to: </Text>
             <Text color="cyan" underline>
-              {WEB_URL}/#/user
+              {API_URL}/#/user
             </Text>
           </Box>
           <Text dimColor>2. Generate/Copy your API Key.</Text>

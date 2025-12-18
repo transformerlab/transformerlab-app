@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { render, Box, Text, useApp } from 'ink';
 import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
@@ -7,17 +7,10 @@ import open from 'open'; // We use this to open a URL in the browser
 import Table from './ink-table'; // Custom Table component to fix issues with ink-table + bun
 
 /* Import utility functions */
-import {
-  config,
-  getGitContext,
-  WEB_URL,
-  API_URL,
-  IS_LOCAL,
-  getCredentials,
-} from './utils';
+import { API_URL, IS_LOCAL, getCredentials } from './utils';
 
 /* Import common UI components */
-import { Logo, Panel, SuccessMsg, ErrorMsg, Loading } from './ui';
+import { Logo, Panel, SuccessMsg } from './ui';
 
 /* Import all of our Tasks */
 import { LoginCommand } from './commands/login';
@@ -74,9 +67,9 @@ const App = ({ command, args }: { command: string; args: any }) => {
   if (command === 'web') {
     const { exit } = useApp();
     useEffect(() => {
-      open(WEB_URL).then(() => exit());
+      open(API_URL).then(() => exit());
     }, []);
-    return <SuccessMsg text={`Opening ${WEB_URL}...`} />;
+    return <SuccessMsg text={`Opening ${API_URL}...`} />;
   }
 
   // Task
