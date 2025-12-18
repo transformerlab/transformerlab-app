@@ -5,7 +5,13 @@ import open from 'open'; // We use this to open a URL in the browser
 import Table from '../ink-table'; // Custom Table component to fix issues with ink-table + bun
 
 /* Import utility functions */
-import { API_URL, getCredentials } from '../lib/utils';
+import {
+  API_URL,
+  debugLog,
+  getConfig,
+  getCredentials,
+  saveConfig,
+} from '../lib/utils';
 
 /* Import common UI components */
 import { Logo, Panel, SuccessMsg } from './ui';
@@ -118,6 +124,47 @@ export const App = ({ command, args }: { command: string; args: any }) => {
         </Text>
       </Box>
     );
+  }
+
+  if (command == 'config:list') {
+    const config = getConfig();
+    const configData = Object.entries(config).map(([key, value]) => ({
+      Key: key,
+      Value: value,
+    }));
+    return (
+      <Box flexDirection="column">
+        <Text bold>Current Configuration:</Text>
+        <Table data={configData} />
+      </Box>
+    );
+  }
+
+  if (command === 'config:set') {
+    const { key, value } = args;
+    // Validate that there are both key and value and that key belongs to allowed set
+    // of server, team_id, team_name, user_email
+    if (
+      !key ||
+      !value ||
+      !['server', 'team_id', 'team_name', 'user_email'].includes(key)
+    ) {
+      return (
+        <Box flexDirection="column">
+          <Text color="red">Error: Invalid configuration key or value</Text>
+          <Text>
+            Allowed keys are{' '}
+            <Text bold color="green">
+              server, team_id, team_name, user_email
+            </Text>
+            .
+          </Text>
+        </Box>
+      );
+    }
+    debugLog(`Setting config ${key} = ${value}...`);
+    saveConfig({ [key]: value });
+    return <SuccessMsg text="Configuration updated successfully." />;
   }
 
   return <Text color="red">Unsupported command</Text>;

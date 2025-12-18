@@ -110,7 +110,15 @@ const run = () => {
           });
       },
       (argv) => {
-        render(<App command="config" args={argv} />);
+        render(<App command="config:set" args={argv} />);
+      },
+    )
+    .command(
+      'config',
+      'Show current configuration',
+      () => {},
+      (argv) => {
+        render(<App command="config:list" args={argv} />);
       },
     )
 
