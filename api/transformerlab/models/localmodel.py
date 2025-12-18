@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from lab import storage
 
 
-def is_sentence_transformer_model(
+async def is_sentence_transformer_model(
     model_name_or_path: str,
     token: bool | str | None = None,
     cache_folder: str | None = None,
@@ -34,7 +34,7 @@ def is_sentence_transformer_model(
         bool: True if the model is a SentenceTransformer model, False otherwise.
     """
     return bool(
-        load_file_path(
+        await load_file_path(
             model_name_or_path,
             "modules.json",
             token=token,
@@ -45,7 +45,7 @@ def is_sentence_transformer_model(
     )
 
 
-def load_file_path(
+async def load_file_path(
     model_name_or_path: str,
     filename: str,
     token: bool | str | None = None,
@@ -68,8 +68,8 @@ def load_file_path(
         Optional[str]: The path to the loaded file, or None if the file could not be found or loaded.
     """
     # If file is local
-    file_path = storage.join(model_name_or_path, filename)
-    if storage.exists(file_path):
+    file_path = await storage.join(model_name_or_path, filename)
+    if await storage.exists(file_path):
         return file_path
 
     # If file is remote
@@ -115,7 +115,7 @@ class LocalModelStore(modelstore.ModelStore):
                 print(model)
                 continue
 
-            if is_sentence_transformer_model(model_id):
+            if await is_sentence_transformer_model(model_id):
                 embedding_models.append(model)
             else:
                 non_embedding_models.append(model)
@@ -130,12 +130,12 @@ class LocalModelStore(modelstore.ModelStore):
         # Use SDK to get all models from the filesystem
         from lab.model import Model as ModelService
 
-        models = ModelService.list_all()
+        models = await ModelService.list_all()
 
         # Add additional metadata to each model
         from lab.dirs import get_models_dir
 
-        models_dir = get_models_dir()
+        models_dir = await get_models_dir()
         for model in models:
             if model == {} or model is None or model == "":
                 print("Model entry not found, skipping")
@@ -154,11 +154,11 @@ class LocalModelStore(modelstore.ModelStore):
             # Determine the potential model directory path
             # This applies to both HuggingFace models stored locally and local models
             model_id = model.get("model_id", "")
-            potential_path = storage.join(models_dir, secure_filename(model_id))
+            potential_path = await storage.join(models_dir, secure_filename(model_id))
             # Check if local path exists
-            if not storage.exists(potential_path):
+            if not await storage.exists(potential_path):
                 # Remove the Starting TransformerLab/ prefix to handle the save_transformerlab_model function
-                potential_path = storage.join(models_dir, secure_filename("/".join(model_id.split("/")[1:])))
+                potential_path = await storage.join(models_dir, secure_filename("/".join(model_id.split("/")[1:])))
 
             # Check if model should be considered local:
             # 1. If it has a model_filename set (and is not a HuggingFace model, OR is a HuggingFace model stored locally), OR
@@ -168,10 +168,10 @@ class LocalModelStore(modelstore.ModelStore):
                 # For non-HuggingFace models, check if it has model_filename or files in directory
                 if has_model_filename:
                     is_local_model = True
-                elif storage.exists(potential_path) and storage.isdir(potential_path):
+                elif await storage.exists(potential_path) and await storage.isdir(potential_path):
                     # Check if directory has files other than index.json
                     try:
-                        files = storage.ls(potential_path, detail=False)
+                        files = await storage.ls(potential_path, detail=False)
                         # Extract basenames from full paths returned by storage.ls()
                         file_basenames = [posixpath.basename(f.rstrip("/")) for f in files]
                         # Filter out index.json and other metadata files
@@ -184,7 +184,7 @@ class LocalModelStore(modelstore.ModelStore):
             elif is_huggingface and has_model_filename:
                 # For HuggingFace models, if they have a model_filename and the file/directory exists locally,
                 # treat them as stored locally (e.g., downloaded GGUF files)
-                if storage.exists(potential_path):
+                if await storage.exists(potential_path):
                     is_local_model = True
 
             if is_local_model:
@@ -200,21 +200,21 @@ class LocalModelStore(modelstore.ModelStore):
                     # GGUF file - append the filename to the model directory
                     # This ensures we get the full path like: /path/to/models/dir/model.gguf
                     base_path = model["local_path"]
-                    model_path = storage.join(base_path, model_filename)
-                    if storage.exists(model_path):
-                        if storage.isdir(model_path):
+                    model_path = await storage.join(base_path, model_filename)
+                    if await storage.exists(model_path):
+                        if await storage.isdir(model_path):
                             # List all files in the directory ending with .gguf
-                            files = storage.ls(model_path, detail=False)
+                            files = await storage.ls(model_path, detail=False)
                             gguf_files = [
                                 posixpath.basename(f.rstrip("/"))
                                 for f in files
                                 if posixpath.basename(f.rstrip("/")).endswith(".gguf")
                             ]
                             if gguf_files:
-                                model_path = storage.join(model_path, gguf_files[0])
+                                model_path = await storage.join(model_path, gguf_files[0])
                     else:
                         # Search for files ending with .gguf in the directory
-                        files = storage.ls(model["local_path"], detail=False)
+                        files = await storage.ls(model["local_path"], detail=False)
                         gguf_files = [
                             posixpath.basename(f.rstrip("/"))
                             for f in files
@@ -222,21 +222,21 @@ class LocalModelStore(modelstore.ModelStore):
                         ]
                         if gguf_files:
                             gguf_file = gguf_files[0]
-                            model_path = storage.join(base_path, gguf_file)
-                            if storage.isdir(model_path):
-                                files = storage.ls(model_path, detail=False)
+                            model_path = await storage.join(base_path, gguf_file)
+                            if await storage.isdir(model_path):
+                                files = await storage.ls(model_path, detail=False)
                                 gguf_files = [
                                     posixpath.basename(f.rstrip("/"))
                                     for f in files
                                     if posixpath.basename(f.rstrip("/")).endswith(".gguf")
                                 ]
                                 if gguf_files:
-                                    model_path = storage.join(model_path, gguf_files[0])
+                                    model_path = await storage.join(model_path, gguf_files[0])
 
                     model["local_path"] = model_path
                 elif model_filename:
                     # Other file-based models - append the filename
-                    model["local_path"] = storage.join(model["local_path"], model_filename)
+                    model["local_path"] = await storage.join(model["local_path"], model_filename)
                 else:
                     # Legacy model without model_filename but with files - use directory path
                     model["local_path"] = model["local_path"]
@@ -267,14 +267,14 @@ class LocalModelStore(modelstore.ModelStore):
         provenance = {}
         from lab.dirs import get_models_dir
 
-        models_dir = get_models_dir()
+        models_dir = await get_models_dir()
 
         # Load the tlab_complete_provenance.json file if it exists
-        complete_provenance_file = storage.join(models_dir, "_tlab_complete_provenance.json")
-        if storage.exists(complete_provenance_file):
-            with storage.open(complete_provenance_file, "r") as f:
+        complete_provenance_file = await storage.join(models_dir, "_tlab_complete_provenance.json")
+        if await storage.exists(complete_provenance_file):
+            async with await storage.open(complete_provenance_file, "r") as f:
                 try:
-                    provenance = json.load(f)
+                    provenance = json.loads(await f.read())
                 except json.JSONDecodeError:
                     print(f"Error loading {complete_provenance_file}: Invalid JSON format.")
                     provenance = {}
@@ -285,13 +285,13 @@ class LocalModelStore(modelstore.ModelStore):
             provenance, local_added_count = await self.check_provenance_for_local_models(provenance)
             if local_added_count != 0:
                 # Save new provenance mapping
-                with storage.open(complete_provenance_file, "w") as f:
-                    json.dump(provenance, f)
+                async with await storage.open(complete_provenance_file, "w") as f:
+                    await f.write(json.dumps(provenance))
             # Check if the provenance mapping is up to date
             # The -1 here indicates that we are not counting the _tlab_complete_provenance.json file in models_dir
             try:
-                entries = storage.ls(models_dir, detail=False)
-                dir_count = sum(1 for entry in entries if storage.isdir(entry))
+                entries = await storage.ls(models_dir, detail=False)
+                dir_count = sum(1 for entry in entries if await storage.isdir(entry))
             except Exception:
                 dir_count = 0
             if len(provenance) > 0 and dir_count + local_added_count - 1 == len(provenance):
@@ -300,17 +300,17 @@ class LocalModelStore(modelstore.ModelStore):
         # If the provenance mapping is not built or models_dir has changed, we need to rebuild it
         # Scan all model directories
         try:
-            entries = storage.ls(models_dir, detail=False)
+            entries = await storage.ls(models_dir, detail=False)
             for entry_path in entries:
-                if storage.isdir(entry_path):
+                if await storage.isdir(entry_path):
                     # Extract entry name from path
                     entry_name = entry_path.rstrip("/").split("/")[-1]
                     # Look for provenance file
-                    provenance_file = storage.join(models_dir, entry_name, "_tlab_provenance.json")
+                    provenance_file = await storage.join(models_dir, entry_name, "_tlab_provenance.json")
                     try:
-                        if storage.exists(provenance_file):
-                            with storage.open(provenance_file, "r") as f:
-                                prov_data = json.load(f)
+                        if await storage.exists(provenance_file):
+                            async with await storage.open(provenance_file, "r") as f:
+                                prov_data = json.loads(await f.read())
                                 if "md5_checksums" in prov_data:
                                     prov_data["parameters"]["md5_checksums"] = prov_data["md5_checksums"]
 
@@ -339,7 +339,7 @@ class LocalModelStore(modelstore.ModelStore):
         # Get the list of all local models
         from lab.model import Model as ModelService
 
-        models = ModelService.list_all()
+        models = await ModelService.list_all()
         models_added_to_provenance = 0
         # Iterate through models and check if they have provenance data and if they exist already in provenance
         for model_dict in models:
@@ -349,13 +349,13 @@ class LocalModelStore(modelstore.ModelStore):
             ):
                 # Check if the model_source is local
                 source_path = model_dict.get("json_data", {}).get("source_id_or_path", "")
-                if model_dict.get("json_data", {}).get("source", "") == "local" and storage.exists(source_path):
+                if model_dict.get("json_data", {}).get("source", "") == "local" and await storage.exists(source_path):
                     # Check if the model has a _tlab_provenance.json file
-                    provenance_file = storage.join(source_path, "_tlab_provenance.json")
-                    if storage.exists(provenance_file):
+                    provenance_file = await storage.join(source_path, "_tlab_provenance.json")
+                    if await storage.exists(provenance_file):
                         # Load the provenance file
-                        with storage.open(provenance_file, "r") as f:
-                            prov_data = json.load(f)
+                        async with await storage.open(provenance_file, "r") as f:
+                            prov_data = json.loads(await f.read())
                             if "md5_checksums" in prov_data:
                                 prov_data["parameters"]["md5_checksums"] = prov_data["md5_checksums"]
 
@@ -401,7 +401,7 @@ class LocalModelStore(modelstore.ModelStore):
         """
         from lab.dirs import get_models_dir
 
-        models_dir = get_models_dir()
+        models_dir = await get_models_dir()
         evaluations_by_model = {}
 
         # Extract just the model name if model_id contains a path
@@ -415,9 +415,9 @@ class LocalModelStore(modelstore.ModelStore):
         # Look for the model directory - prioritize exact matches
         model_dir = None
         try:
-            entries = storage.ls(models_dir, detail=False)
+            entries = await storage.ls(models_dir, detail=False)
             for entry_path in entries:
-                if storage.isdir(entry_path):
+                if await storage.isdir(entry_path):
                     entry = entry_path.rstrip("/").split("/")[-1]
                     # Exact match first, then check for suffixes
                     if entry == search_model_id:
@@ -429,12 +429,12 @@ class LocalModelStore(modelstore.ModelStore):
         except Exception:
             pass
 
-        if model_dir and storage.exists(model_dir):
-            provenance_file = storage.join(model_dir, "_tlab_provenance.json")
-            if storage.exists(provenance_file):
+        if model_dir and await storage.exists(model_dir):
+            provenance_file = await storage.join(model_dir, "_tlab_provenance.json")
+            if await storage.exists(provenance_file):
                 try:
-                    with storage.open(provenance_file, "r") as f:
-                        provenance_data = json.load(f)
+                    async with await storage.open(provenance_file, "r") as f:
+                        provenance_data = json.loads(await f.read())
 
                         # Get evaluations from the same file
                         evaluations = provenance_data.get("evaluations", [])
@@ -480,9 +480,9 @@ class LocalModelStore(modelstore.ModelStore):
             # Save the provenance mapping as a json file
             from lab.dirs import get_models_dir
 
-            provenance_file = storage.join(get_models_dir(), "_tlab_complete_provenance.json")
-            with storage.open(provenance_file, "w") as f:
-                json.dump(provenance_mapping, f)
+            provenance_file = await storage.join(await get_models_dir(), "_tlab_complete_provenance.json")
+            async with await storage.open(provenance_file, "w") as f:
+                await f.write(json.dumps(provenance_mapping))
 
         # Trace the provenance chain leading to the given model
         chain = await self.trace_provenance(model_id, provenance_mapping)

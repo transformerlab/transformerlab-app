@@ -62,10 +62,10 @@ async def migrate_datasets_table_to_filesystem():
 
             try:
                 try:
-                    ds = dataset_service.get(dataset_id)
+                    ds = await dataset_service.get(dataset_id)
                 except FileNotFoundError:
-                    ds = dataset_service.create(dataset_id)
-                ds.set_metadata(
+                    ds = await dataset_service.create(dataset_id)
+                await ds.set_metadata(
                     location=location,
                     description=description,
                     size=size,
@@ -104,7 +104,7 @@ async def migrate_models_table_to_filesystem():
         from sqlalchemy import text as sqlalchemy_text
         from transformerlab.db.session import async_session
 
-        models_dir = get_models_dir()
+        models_dir = await get_models_dir()
 
         # Initialize the exists variable
         exists = False
@@ -159,10 +159,10 @@ async def migrate_models_table_to_filesystem():
 
             try:
                 try:
-                    model = model_service.get(model_id)
+                    model = await model_service.get(model_id)
                 except FileNotFoundError:
-                    model = model_service.create(model_id)
-                model.set_metadata(
+                    model = await model_service.create(model_id)
+                await model.set_metadata(
                     model_id=model_id,
                     name=name,
                     json_data=json_data,
@@ -188,7 +188,7 @@ async def migrate_models_table_to_filesystem():
         try:
             from lab.dirs import get_models_dir
 
-            models_dir = get_models_dir()
+            models_dir = await get_models_dir()
             if os.path.isdir(models_dir):
                 fs_migrated = 0
                 for entry in os.listdir(models_dir):
@@ -215,10 +215,10 @@ async def migrate_models_table_to_filesystem():
 
                         try:
                             try:
-                                model = model_service.get(model_id)
+                                model = await model_service.get(model_id)
                             except FileNotFoundError:
-                                model = model_service.create(model_id)
-                            model.set_metadata(
+                                model = await model_service.create(model_id)
+                            await model.set_metadata(
                                 model_id=model_id,
                                 name=name,
                                 json_data=json_data,
@@ -330,11 +330,11 @@ async def migrate_tasks_table_to_filesystem():
 
             try:
                 try:
-                    task = task_service.get(task_id)
+                    task = await task_service.get(task_id)
                 except FileNotFoundError:
-                    task = task_service.create(task_id)
+                    task = await task_service.create(task_id)
 
-                task.set_metadata(
+                await task.set_metadata(
                     name=name,
                     type=task_type,
                     inputs=inputs,
@@ -345,7 +345,7 @@ async def migrate_tasks_table_to_filesystem():
                 )
 
                 # Set the timestamps manually since they come from the database
-                metadata = task.get_metadata()
+                metadata = await task.get_metadata()
                 if created_at:
                     metadata["created_at"] = (
                         created_at.isoformat() if hasattr(created_at, "isoformat") else str(created_at)
@@ -354,7 +354,7 @@ async def migrate_tasks_table_to_filesystem():
                     metadata["updated_at"] = (
                         updated_at.isoformat() if hasattr(updated_at, "isoformat") else str(updated_at)
                     )
-                task._set_json_data(metadata)
+                await task._set_json_data(metadata)
 
                 migrated += 1
             except Exception as e:
@@ -444,7 +444,7 @@ async def migrate_jobs():
         # the existing directories aside, let the SDK create clean directories with proper structure,
         # then copy back all the existing files (preserving user data like logs, configs, etc.)
         temp_jobs_dir = None
-        jobs_dir = lab_dirs.get_jobs_dir()
+        jobs_dir = await lab_dirs.get_jobs_dir()
         if os.path.exists(jobs_dir):
             temp_jobs_dir = f"{jobs_dir}_migration_temp"
             print(f"Moving existing jobs directory to: {temp_jobs_dir}")
@@ -461,16 +461,16 @@ async def migrate_jobs():
 
             try:
                 # Create SDK Job
-                job_obj = Job.create(job["id"])
+                job_obj = await Job.create(job["id"])
                 # Update the JSON data with DB data
-                job_obj._update_json_data_field(key="id", value=job["id"])
-                job_obj._update_json_data_field(
+                await job_obj._update_json_data_field(key="id", value=job["id"])
+                await job_obj._update_json_data_field(
                     key="experiment_id", value=experiment_name
                 )  # Use name instead of numeric ID
-                job_obj._update_json_data_field(key="job_data", value=job.get("job_data", {}))
-                job_obj._update_json_data_field(key="status", value=job["status"])
-                job_obj._update_json_data_field(key="type", value=job["type"])
-                job_obj._update_json_data_field(key="progress", value=job.get("progress"))
+                await job_obj._update_json_data_field(key="job_data", value=job.get("job_data", {}))
+                await job_obj._update_json_data_field(key="status", value=job["status"])
+                await job_obj._update_json_data_field(key="type", value=job["type"])
+                await job_obj._update_json_data_field(key="progress", value=job.get("progress"))
 
                 # Copy existing files from temp directory if they exist
                 # This preserves all user data (logs, configs, outputs, etc.) that was in the
@@ -478,7 +478,7 @@ async def migrate_jobs():
                 if temp_jobs_dir:
                     old_job_dir = os.path.join(temp_jobs_dir, str(job["id"]))
                     if os.path.exists(old_job_dir):
-                        new_job_dir = job_obj.get_dir()
+                        new_job_dir = await job_obj.get_dir()
                         # Copy all files except index.json (which we just created)
                         for item in os.listdir(old_job_dir):
                             src = os.path.join(old_job_dir, item)
@@ -490,13 +490,13 @@ async def migrate_jobs():
                     else:
                         # Job not found in jobs directory, check if it's in the wrong place
                         # (experiments/{experiment_name}/jobs/{job_id}) from the last month
-                        temp_experiments_dir = f"{lab_dirs.get_experiments_dir()}_migration_temp"
+                        temp_experiments_dir = f"{await lab_dirs.get_experiments_dir()}_migration_temp"
                         if os.path.exists(temp_experiments_dir):
                             wrong_place_job_dir = os.path.join(
                                 temp_experiments_dir, str(experiment_name), "jobs", str(job["id"])
                             )
                             if os.path.exists(wrong_place_job_dir):
-                                new_job_dir = job_obj.get_dir()
+                                new_job_dir = await job_obj.get_dir()
                                 # Copy all files except index.json (which we just created)
                                 for item in os.listdir(wrong_place_job_dir):
                                     src = os.path.join(wrong_place_job_dir, item)
@@ -517,7 +517,7 @@ async def migrate_jobs():
             shutil.rmtree(temp_jobs_dir)
 
         # Clean up temp experiments directory if it was used for job migration
-        temp_experiments_dir = f"{lab_dirs.get_experiments_dir()}_migration_temp"
+        temp_experiments_dir = f"{await lab_dirs.get_experiments_dir()}_migration_temp"
         if os.path.exists(temp_experiments_dir):
             print(f"Cleaning up temp experiments directory after job migration: {temp_experiments_dir}")
             shutil.rmtree(temp_experiments_dir)
@@ -588,7 +588,7 @@ async def migrate_experiments():
         # SDK create clean directories with proper structure, then copy back all the existing files
         # (preserving user data like models, datasets, configs, etc.)
         temp_experiments_dir = None
-        experiments_dir = lab_dirs.get_experiments_dir()
+        experiments_dir = await lab_dirs.get_experiments_dir()
         if os.path.exists(experiments_dir):
             temp_experiments_dir = f"{experiments_dir}_migration_temp"
             print(f"Moving existing experiments directory to: {temp_experiments_dir}")
@@ -598,15 +598,15 @@ async def migrate_experiments():
         for exp in experiments_rows:
             try:
                 # Create SDK Experiment
-                experiment = Experiment.create(exp["name"])
+                experiment = await Experiment.create(exp["name"])
                 # Update the JSON data with DB data
-                experiment._update_json_data_field(key="id", value=exp["name"])
-                experiment._update_json_data_field(key="db_experiment_id", value=exp["id"])
-                experiment._update_json_data_field(key="config", value=exp.get("config", {}))
-                experiment._update_json_data_field(
+                await experiment._update_json_data_field(key="id", value=exp["name"])
+                await experiment._update_json_data_field(key="db_experiment_id", value=exp["id"])
+                await experiment._update_json_data_field(key="config", value=exp.get("config", {}))
+                await experiment._update_json_data_field(
                     key="created_at", value=exp.get("created_at", datetime.now().isoformat())
                 )
-                experiment._update_json_data_field(
+                await experiment._update_json_data_field(
                     key="updated_at", value=exp.get("updated_at", datetime.now().isoformat())
                 )
 
@@ -616,7 +616,7 @@ async def migrate_experiments():
                 if temp_experiments_dir:
                     old_experiment_dir = os.path.join(temp_experiments_dir, exp["name"])
                     if os.path.exists(old_experiment_dir):
-                        new_experiment_dir = experiment.get_dir()
+                        new_experiment_dir = await experiment.get_dir()
                         for item in os.listdir(old_experiment_dir):
                             src = os.path.join(old_experiment_dir, item)
                             dst = os.path.join(new_experiment_dir, item)

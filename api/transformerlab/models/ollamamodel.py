@@ -178,15 +178,15 @@ class OllamaModel(basemodel.BaseModel):
         # Create a directory for the model. Make sure it doesn't exist already.
         from lab.dirs import get_models_dir
 
-        output_path = storage.join(get_models_dir(), output_model_id)
-        if storage.exists(output_path):
+        output_path = await storage.join(await get_models_dir(), output_model_id)
+        if await storage.exists(output_path):
             raise FileExistsError(errno.EEXIST, "Directory already exists", output_path)
-        storage.makedirs(output_path, exist_ok=True)
+        await storage.makedirs(output_path, exist_ok=True)
 
         # Create a link in the directory that points to the source blob
         # Note: symlinks may not work with remote storage, but this is for local filesystem
         # For remote storage, we'd need to copy the file instead
-        link_name = storage.join(output_path, output_filename)
+        link_name = await storage.join(output_path, output_filename)
         # For now, we'll create the symlink using os.symlink since it's a local filesystem operation
         # If the storage backend is remote, this will need special handling
         try:
@@ -196,9 +196,9 @@ class OllamaModel(basemodel.BaseModel):
         except Exception as e:
             # If symlink fails, we could copy the file instead
             print(f"Warning: Could not create symlink, copying file instead: {e}")
-            with storage.open(link_name, "wb") as out_f:
+            async with await storage.open(link_name, "wb") as out_f:
                 with open(input_model_path, "rb") as in_f:
-                    out_f.write(in_f.read())
+                    await out_f.write(in_f.read())
 
         # Create an index.json file so this can be read by the system (SDK format)
         model_description = {
@@ -216,9 +216,9 @@ class OllamaModel(basemodel.BaseModel):
                 "huggingface_repo": "",
             },
         }
-        model_info_file = storage.join(output_path, "index.json")
-        with storage.open(model_info_file, "w") as f:
-            json.dump(model_description, f)
+        model_info_file = await storage.join(output_path, "index.json")
+        async with await storage.open(model_info_file, "w") as f:
+            await f.write(json.dumps(model_description))
 
 
 #########################
