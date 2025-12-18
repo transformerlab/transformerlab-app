@@ -75,6 +75,8 @@ def mask_key(pat: str, max_len: int = 16) -> str:
     """
     if not isinstance(pat, str):
         return "<invalid>"
+    if len(pat) <= 4:
+        return "****"
 
     visible = pat[-4:]
     masked_len = max(min(len(pat), max_len) - len(visible), 0)
