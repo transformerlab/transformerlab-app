@@ -19,6 +19,22 @@ import { JobList, JobInfo, JobLogs } from '../commands/jobs';
 export const App = ({ command, args }: { command: string; args: any }) => {
   // Root Command
   if (command === 'default') {
+    // If there are any args, this is an unsupported command
+    if (args._.length > 0) {
+      return (
+        <Box flexDirection="column">
+          <Text color="red">Error: Unsupported command</Text>
+          <Text>
+            Run{' '}
+            <Text bold color="green">
+              lab --help
+            </Text>{' '}
+            to see the list of available commands.
+          </Text>
+        </Box>
+      );
+    }
+
     const target = 'Transformer Lab Cloud';
     const { hasAPIKey, email } = getCredentials();
 

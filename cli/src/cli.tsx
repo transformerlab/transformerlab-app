@@ -97,6 +97,23 @@ const run = () => {
         );
     })
 
+    // Config
+    .command(
+      'config <key> <value>',
+      'Set a configuration key-value pair',
+      (y) => {
+        return y
+          .positional('key', { type: 'string', describe: 'Configuration key' })
+          .positional('value', {
+            type: 'string',
+            describe: 'Configuration value',
+          });
+      },
+      (argv) => {
+        render(<App command="config" args={argv} />);
+      },
+    )
+
     // // Job
     // .command('job', 'Manage jobs', (y) => {
     //   return (
@@ -120,19 +137,6 @@ const run = () => {
     //   );
     // })
     // Fallback for unsupported commands
-    .command(
-      '*',
-      'Handle unsupported commands',
-      () => {},
-      (argv) => {
-        // Check if no arguments were passed
-        if (argv._.length === 0) {
-          render(<App command="default" args={argv} />);
-        } else {
-          render(<App command="unsupported" args={argv} />);
-        }
-      },
-    )
     .help()
     .parse();
 };
