@@ -3,14 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-// Fetch the global config on disk
-const configPath = path.join(os.homedir(), '.lab', 'config.json');
-let configOnDisk: any = {};
-if (fs.existsSync(configPath)) {
-  configOnDisk = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-}
-
-export const API_URL = configOnDisk?.server || 'http://alpha.lab.cloud:8338';
+export const API_URL = getConfig()?.server || 'http://alpha.lab.cloud:8338';
 export const HOME_DIR = os.homedir();
 export const LAB_DIR = path.join(HOME_DIR, '.lab');
 export const CREDENTIALS_PATH = path.join(LAB_DIR, 'credentials');
@@ -63,7 +56,7 @@ export const getJsonFiles = (dir: string) => {
   }
 };
 
-export function getServerConfig() {
+export function getConfig() {
   try {
     if (fs.existsSync(CONFIG_PATH)) {
       const content = fs.readFileSync(CONFIG_PATH, 'utf-8');
@@ -71,12 +64,12 @@ export function getServerConfig() {
       return config;
     }
   } catch (e) {
-    console.error('Failed to read server config:', e);
+    debugLog('Failed to read server config:', e);
   }
   return {};
 }
 
-export function saveServerConfig(newConfig: any) {
+export function saveConfig(newConfig: any) {
   try {
     let existingConfig = {};
     if (fs.existsSync(CONFIG_PATH)) {
