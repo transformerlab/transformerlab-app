@@ -86,6 +86,7 @@ ALLOWED_TEXT2IMG_ARCHITECTURES = [
     "IFPipeline",
     "DiffusionPipeline",
     "WanPipeline",
+    "ZImagePipeline",
 ]
 
 # Allowed architectures for img2img pipelines

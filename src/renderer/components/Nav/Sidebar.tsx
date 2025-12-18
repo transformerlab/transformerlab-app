@@ -457,10 +457,7 @@ export default function Sidebar({
         height: '100%',
         overflow: 'auto',
         top: 0,
-        pl: 1.2,
-        pr: 1,
-        py: 1,
-        pt: '0',
+        p: '1.1rem 1rem 1rem 1rem',
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
@@ -476,21 +473,6 @@ export default function Sidebar({
         '& .MuiBadge-root': {},
       }}
     >
-      <div
-        style={
-          {
-            width: '100%',
-            height: '52px',
-            WebkitAppRegion: 'drag',
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            color: 'var(--joy-palette-neutral-plainDisabledColor)',
-          } as CSSProperties
-        }
-      >
-        {isDevExperiment && <>v{(window as any).platform?.version}</>}
-      </div>
       <SelectExperimentMenu models={models} />
       <ExperimentMenuItems
         experimentInfo={experimentInfo}
