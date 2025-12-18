@@ -796,26 +796,26 @@ async def dataset_download(dataset_id: str, config_name: str = None):
     # Later on we can move this to a job
     async def load_dataset_thread(dataset_id, config_name=None):
         global_log_path = await get_global_log_path()
-        logFile = await storage.open(global_log_path, "a")
-        flushLogFile = FlushFile(logFile)
-        with contextlib.redirect_stdout(flushLogFile), contextlib.redirect_stderr(flushLogFile):
-            try:
-                if config_name is not None:
-                    dataset = load_dataset(path=dataset_id, name=config_name, trust_remote_code=True)
-                else:
-                    dataset = load_dataset(dataset_id, trust_remote_code=True)
-                print(f"Dataset downloaded for dataset_id: {dataset_id}")
-                return dataset
+        async with await storage.open(global_log_path, "a") as logFile:
+            flushLogFile = FlushFile(logFile)
+            with contextlib.redirect_stdout(flushLogFile), contextlib.redirect_stderr(flushLogFile):
+                try:
+                    if config_name is not None:
+                        dataset = load_dataset(path=dataset_id, name=config_name, trust_remote_code=True)
+                    else:
+                        dataset = load_dataset(dataset_id, trust_remote_code=True)
+                    print(f"Dataset downloaded for dataset_id: {dataset_id}")
+                    return dataset
 
-            except ValueError as e:
-                error_msg = f"{type(e).__name__}: {e}"
-                print(error_msg)
-                raise ValueError(e)
+                except ValueError as e:
+                    error_msg = f"{type(e).__name__}: {e}"
+                    print(error_msg)
+                    raise ValueError(e)
 
-            except Exception as e:
-                error_msg = f"{type(e).__name__}: {e}"
-                print(error_msg)
-                raise
+                except Exception as e:
+                    error_msg = f"{type(e).__name__}: {e}"
+                    print(error_msg)
+                    raise
 
     try:
         dataset = await load_dataset_thread(dataset_id, config_name)
