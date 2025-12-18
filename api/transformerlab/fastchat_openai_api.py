@@ -257,7 +257,9 @@ def log_prompt(prompt):
                 if file_size > MAX_LOG_SIZE_BEFORE_ROTATE:
                     async with await storage.open(prompt_log_path, "w") as f:
                         await f.write("".join(lines[-1000:]))
-                    async with await storage.open(storage.join(logs_dir, f"prompt_{time.strftime('%Y%m%d%H%M%S')}.log"), "w") as f:
+                    async with await storage.open(
+                        storage.join(logs_dir, f"prompt_{time.strftime('%Y%m%d%H%M%S')}.log"), "w"
+                    ) as f:
                         await f.write("".join(lines[:-1000]))
             except Exception:
                 # If we can't read the file, just continue with appending
@@ -269,7 +271,7 @@ def log_prompt(prompt):
             log_entry["log"] = prompt
             log_entry = json.dumps(log_entry)
             await f.write(f"{log_entry}\n")
-    
+
     asyncio.run(_log())
 
 

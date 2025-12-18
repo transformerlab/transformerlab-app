@@ -77,7 +77,7 @@ class EvalsTLabPlugin(TLabPlugin):
             output_dir = storage.join(combined_dir, f"evaljob_{self.params.job_id}_{today}")
             await storage.makedirs(output_dir, exist_ok=True)
             return output_dir
-        
+
         output_dir = asyncio.run(_setup_dirs())
 
         # Store the writer and output directory as instance variables
@@ -218,9 +218,9 @@ class EvalsTLabPlugin(TLabPlugin):
             async with await storage.open(plot_data_path, "w", encoding="utf-8") as f:
                 await f.write(plotting_data.to_json(orient="records", lines=False))
             print(f"Saved plotting data to {plot_data_path}")
-            
+
             return output_path, plot_data_path
-        
+
         output_path, plot_data_path = asyncio.run(_save_results())
 
         self.job.update_job_data_field("additional_output_path", output_path)
@@ -336,7 +336,7 @@ class EvalsTLabPlugin(TLabPlugin):
                 await f.write(json.dumps(existing_provenance, indent=2))
 
             print(f"Evaluation data added to provenance file: {provenance_path}")
-        
+
         asyncio.run(_add_to_provenance())
 
 

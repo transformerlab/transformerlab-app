@@ -278,11 +278,12 @@ class TLabPlugin:
                 if await storage.exists(dataset_target):
                     return await storage.isdir(dataset_target)
                 return os.path.isdir(dataset_target)
-            
+
             is_dir = isinstance(dataset_target, str) and asyncio.run(_check_dir())
             data_files_map = None
             if is_dir:
                 try:
+
                     async def _get_entries():
                         if await storage.exists(dataset_target):
                             entries_full = await storage.ls(dataset_target)
@@ -290,7 +291,7 @@ class TLabPlugin:
                             return [e.rstrip("/").split("/")[-1] for e in entries_full]
                         else:
                             return os.listdir(dataset_target)
-                    
+
                     entries = asyncio.run(_get_entries())
                 except Exception:
                     entries = []
@@ -303,7 +304,7 @@ class TLabPlugin:
                     lower = name.lower()
                     if not (lower.endswith(".json") or lower.endswith(".jsonl") or lower.endswith(".csv")):
                         continue
-                    
+
                     async def _check_file():
                         if await storage.exists(dataset_target):
                             full_path = storage.join(dataset_target, name)
@@ -314,7 +315,7 @@ class TLabPlugin:
                             if os.path.isfile(full_path):
                                 return full_path
                         return None
-                    
+
                     full_path = asyncio.run(_check_file())
                     if full_path:
                         filtered_files.append(full_path)

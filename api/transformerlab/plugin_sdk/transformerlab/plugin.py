@@ -66,6 +66,7 @@ def get_dataset_path(dataset_id: str):
     Returns the ID or filesystem path to pass to load_dataset() for a given ID,
     using the dataset service instead of the deprecated DB table.
     """
+
     async def _get():
         try:
             ds = await dataset_service.get(dataset_id)
@@ -84,7 +85,7 @@ def get_dataset_path(dataset_id: str):
 
         # Otherwise assume it is a HuggingFace dataset id
         return dataset_id
-    
+
     return asyncio.run(_get())
 
 
@@ -128,7 +129,7 @@ def experiment_get(id):
             return await exp_obj.get_json_data()
         except Exception:
             return None
-    
+
     return asyncio.run(_get())
 
 
@@ -136,6 +137,7 @@ def get_experiment_config(name: str):
     """
     Returns the experiment config from the experiment name.
     """
+
     async def _get():
         try:
             exp_obj = await Experiment.get(name)
@@ -144,7 +146,7 @@ def get_experiment_config(name: str):
                 return json_data["config"], name
         except Exception:
             return None, name
-    
+
     return asyncio.run(_get())
 
 
@@ -211,7 +213,7 @@ def generate_model_json(
             output_directory = storage.join(await get_workspace_dir(), "models", model_id)
         async with await storage.open(storage.join(output_directory, "index.json"), "w") as outfile:
             await outfile.write(json.dumps(model_description))
-    
+
     asyncio.run(_write())
     return model_description
 
@@ -264,7 +266,7 @@ def prepare_dataset_files(
                         print(f"Example from {split_name} split: file is empty.")
             except Exception as e:
                 print(f"Error reading example from {output_file}: {e}")
-    
+
     asyncio.run(_process_datasets())
 
 

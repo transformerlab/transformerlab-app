@@ -99,17 +99,17 @@ class GenTLabPlugin(TLabPlugin):
                 metadata_file = storage.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_metadata.json")
             else:
                 metadata_file = storage.join(output_dir, f"{dataset_id}_metadata.json")
-            
+
             async def _save_metadata():
                 async with await storage.open(metadata_file, "w", encoding="utf-8") as f:
                     await f.write(json.dumps(metadata, indent=2))
-            
+
             asyncio.run(_save_metadata())
 
         async def _save_data():
             async with await storage.open(output_file, "w", encoding="utf-8") as f:
                 await f.write(df.to_json(orient="records", lines=lines))
-        
+
         asyncio.run(_save_data())
         print(f"Generated data saved to {output_file}")
 
@@ -136,6 +136,7 @@ class GenTLabPlugin(TLabPlugin):
         Returns:
             bool: Whether upload was successful
         """
+
         async def _upload():
             try:
                 # Determine dataset ID
@@ -187,7 +188,7 @@ class GenTLabPlugin(TLabPlugin):
             except Exception as e:
                 print(f"Error uploading to TransformerLab: {e}")
                 raise
-        
+
         return asyncio.run(_upload())
 
     def get_output_file_path(self, suffix="", dataset_id=None, dir_only=False):
@@ -217,7 +218,7 @@ class GenTLabPlugin(TLabPlugin):
                 gen_dir = storage.join(dataset_dir, dataset_id)
             await storage.makedirs(gen_dir, exist_ok=True)
             return gen_dir
-        
+
         gen_dir = asyncio.run(_get_dir())
 
         if dir_only:
