@@ -279,7 +279,7 @@ async def queue_task(task_id: str, input_override: str = "{}", output_override: 
 @router.get("/gallery", summary="List all tasks from the tasks gallery")
 async def tasks_gallery():
     """Get the tasks gallery from the JSON file"""
-    gallery = galleries.get_tasks_gallery()
+    gallery = await galleries.get_tasks_gallery()
     return {"status": "success", "data": gallery}
 
 
@@ -319,7 +319,7 @@ async def import_task_from_gallery(
     Creates a new task using the gallery entry's config and GitHub info.
     Uses the team's GitHub PAT if available.
     """
-    gallery = galleries.get_tasks_gallery()
+    gallery = await galleries.get_tasks_gallery()
 
     # Find the gallery entry by index or ID
     try:
@@ -416,7 +416,7 @@ async def import_task_from_gallery(
 @router.get("/gallery/team", summary="List team-specific tasks from the team gallery")
 async def team_tasks_gallery():
     """Get the team-specific tasks gallery stored in workspace_dir"""
-    gallery = galleries.get_team_tasks_gallery()
+    gallery = await galleries.get_team_tasks_gallery()
     return {"status": "success", "data": gallery}
 
 
@@ -428,7 +428,7 @@ async def import_task_from_team_gallery(
     """
     Import a task from the team-specific tasks gallery (workspace_dir/team_specific_tasks.json).
     """
-    gallery = galleries.get_team_tasks_gallery()
+    gallery = await galleries.get_team_tasks_gallery()
 
     # Find the gallery entry by index or ID
     try:
@@ -547,7 +547,7 @@ async def export_task_to_team_gallery(
         "github_repo_dir": config.get("github_directory") or config.get("github_repo_dir"),
     }
 
-    galleries.add_team_task_to_gallery(gallery_entry)
+    await galleries.add_team_task_to_gallery(gallery_entry)
 
     return {
         "status": "success",
@@ -595,7 +595,7 @@ async def add_team_task_to_gallery(
         "github_repo_dir": request.github_repo_dir,
     }
 
-    galleries.add_team_task_to_gallery(gallery_entry)
+    await galleries.add_team_task_to_gallery(gallery_entry)
 
     return {
         "status": "success",
@@ -612,7 +612,7 @@ async def delete_team_task_from_gallery(
     """
     Delete a task from the team-specific gallery stored in workspace_dir.
     """
-    success = galleries.delete_team_task_from_gallery(request.task_id)
+    success = await galleries.delete_team_task_from_gallery(request.task_id)
     if success:
         return {
             "status": "success",

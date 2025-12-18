@@ -15,14 +15,14 @@ router = APIRouter(prefix="/recipes", tags=["recipes"])
 @router.get("/list")
 async def list_recipes():
     """List all recipes for a given experiment name."""
-    recipes_gallery = galleries.get_exp_recipe_gallery()
+    recipes_gallery = await galleries.get_exp_recipe_gallery()
     return recipes_gallery
 
 
 @router.get("/{id}")
 async def get_recipe_by_id(id: str):
     """Fetch a recipe by its ID from the experiment recipe gallery."""
-    recipes_gallery = galleries.get_exp_recipe_gallery()
+    recipes_gallery = await galleries.get_exp_recipe_gallery()
     for recipe in recipes_gallery:
         if recipe.get("id") == id:
             return recipe
@@ -33,7 +33,7 @@ async def get_recipe_by_id(id: str):
 async def check_recipe_dependencies(id: str):
     """Check if the dependencies for a recipe are installed for a given environment."""
     # Get the recipe
-    recipes_gallery = galleries.get_exp_recipe_gallery()
+    recipes_gallery = await galleries.get_exp_recipe_gallery()
     recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
     if not recipe:
         return {"error": f"Recipe with id {id} not found."}
@@ -80,7 +80,7 @@ async def _install_recipe_dependencies_job(job_id, id):
         job = job_service.job_get(job_id)
         experiment_id = job["experiment_id"]
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
-        recipes_gallery = galleries.get_exp_recipe_gallery()
+        recipes_gallery = await galleries.get_exp_recipe_gallery()
         recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
         if not recipe:
             await job_update_status(
@@ -140,7 +140,7 @@ async def install_recipe_model_dependencies(id: str):
     import asyncio
 
     # Get the recipe
-    recipes_gallery = galleries.get_exp_recipe_gallery()
+    recipes_gallery = await galleries.get_exp_recipe_gallery()
     recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
     if not recipe:
         return {"error": f"Recipe with id {id} not found."}
@@ -257,7 +257,7 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
     experiment_id = experiment_service.experiment_create(name=experiment_name, config={})
 
     # Get the recipe
-    recipes_gallery = galleries.get_exp_recipe_gallery()
+    recipes_gallery = await galleries.get_exp_recipe_gallery()
     recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
     if not recipe:
         return {"status": "error", "message": f"Recipe with id {id} not found.", "data": {}}

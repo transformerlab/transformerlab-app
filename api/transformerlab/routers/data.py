@@ -68,7 +68,7 @@ class ErrorResponse(BaseModel):
     },
 )
 async def dataset_gallery() -> Any:
-    gallery = galleries.get_data_gallery()
+    gallery = await galleries.get_data_gallery()
     # list datasets from filesystem store
     try:
         local_datasets = await dataset_service.list_all()
@@ -724,7 +724,7 @@ async def dataset_download(dataset_id: str, config_name: str = None):
     # Try to get the dataset info from the gallery
     gallery = []
     json_data = {}
-    gallery = galleries.get_data_gallery()
+    gallery = await galleries.get_data_gallery()
     for dataset in gallery:
         if dataset["huggingfacerepo"] == dataset_id:
             json_data = dataset

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime as _dt
 import ipaddress as _ip
 from pathlib import Path
@@ -21,12 +22,12 @@ __all__ = [
     "ensure_persistent_self_signed_cert",
 ]
 
-CERT_DIR: Path = Path(get_workspace_dir()) / "certs"
+CERT_DIR: Path = Path(asyncio.run(get_workspace_dir())) / "certs"
 CERT_PATH: Path = CERT_DIR / "server-cert.pem"
 KEY_PATH: Path = CERT_DIR / "server-key.pem"
 
 
-def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
+async def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
     lock = CERT_DIR / ".cert.lock"
     with FileLock(str(lock)):
         if CERT_PATH.exists() and KEY_PATH.exists():
@@ -55,11 +56,11 @@ def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
         )
         cert = cert_builder.sign(key, hashes.SHA256())
         # Write via fsspec storage
-        storage.makedirs(str(CERT_DIR), exist_ok=True)
-        with storage.open(str(CERT_PATH), "wb") as f:
-            f.write(cert.public_bytes(serialization.Encoding.PEM))
-        with storage.open(str(KEY_PATH), "wb") as f:
-            f.write(
+        await storage.makedirs(str(CERT_DIR), exist_ok=True)
+        async with await storage.open(str(CERT_PATH), "wb") as f:
+            await f.write(cert.public_bytes(serialization.Encoding.PEM))
+        async with await storage.open(str(KEY_PATH), "wb") as f:
+            await f.write(
                 key.private_bytes(
                     serialization.Encoding.PEM,
                     serialization.PrivateFormat.TraditionalOpenSSL,

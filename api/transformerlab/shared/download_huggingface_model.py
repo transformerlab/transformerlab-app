@@ -1,3 +1,4 @@
+import asyncio
 import json
 import sqlite3
 import time
@@ -200,7 +201,7 @@ def get_downloaded_files_from_cache(repo_id, file_metadata):
 def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files_downloaded=None, files_total=None):
     """Update progress in the database"""
     try:
-        job = Job.get(job_id)
+        job = asyncio.run(Job.get(job_id))
 
         downloaded_mb = downloaded_bytes / 1024 / 1024
         total_mb = total_bytes / 1024 / 1024
@@ -352,7 +353,7 @@ if mode == "adaptor":
     if not os.path.commonpath([target_dir, WORKSPACE_DIR]) == os.path.abspath(WORKSPACE_DIR):
         raise ValueError("Invalid path after sanitization. Potential security risk.")
     print(f"DOWNLOADING TO: {target_dir}")
-    storage.makedirs(target_dir, exist_ok=True)
+    asyncio.run(storage.makedirs(target_dir, exist_ok=True))
 
     print(f"Downloading adaptor {peft} with job_id {job_id}")
 
@@ -397,12 +398,12 @@ def cancel_check(job_id, org_id):
         if org_id:
             set_organization_id(org_id)
         try:
-            job = Job.get(job_id)
+            job = asyncio.run(Job.get(job_id))
 
-            if job.get_status() == "cancelled":
+            if asyncio.run(job.get_status()) == "cancelled":
                 return True
 
-            job_data = job.get_job_data()
+            job_data = asyncio.run(job.get_job_data())
             if job_data.get("stop") is True:
                 return True
 
@@ -502,9 +503,9 @@ def download_blocking(model_is_downloaded, org_id):
         print(job_data)
 
         # Initialize job data using SDK (context is now set in this thread)
-        job = Job.get(job_id)
-        job.update_progress(0)
-        job.set_job_data(job_data)
+        job = asyncio.run(Job.get(job_id))
+        asyncio.run(job.update_progress(0))
+        asyncio.run(job.set_job_data(job_data))
 
         # Check if model is gated before starting download
         if mode == "adaptor":
@@ -571,7 +572,7 @@ def download_blocking(model_is_downloaded, org_id):
                 print("downloading model to workspace/models using filename mode")
                 # Use the model ID (repo name) as the directory name, not the filename
                 location = storage.join(WORKSPACE_DIR, "models", secure_filename(model))
-                storage.makedirs(location, exist_ok=True)
+                asyncio.run(storage.makedirs(location, exist_ok=True))
                 # Get metadata for single file
                 try:
                     fs = HfFileSystem()
@@ -726,7 +727,7 @@ def main():
 
         from lab.dirs import get_workspace_dir
 
-        workspace_dir = get_workspace_dir()
+        workspace_dir = asyncio.run(get_workspace_dir())
         print(f"Workspace dir: {workspace_dir}")
 
         # Simple approach: just run the download with built-in progress tracking
@@ -748,9 +749,9 @@ def main():
             # for the same reason! Better catch and at least print a message.
             try:
                 # Context is already set in main(), so we can get job here
-                job = Job.get(job_id)
-                job.update_status(status)
-                job.update_job_data_field("error_msg", str(error_msg))
+                job = asyncio.run(Job.get(job_id))
+                asyncio.run(job.update_status(status))
+                asyncio.run(job.update_job_data_field("error_msg", str(error_msg)))
             except sqlite3.OperationalError:
                 # NOTE: If we fail to write to the database the app won't get
                 # the right error message. So set a different

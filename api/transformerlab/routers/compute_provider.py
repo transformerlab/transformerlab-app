@@ -796,7 +796,7 @@ async def launch_task_on_provider(
     # Add GitHub clone setup if enabled
     if request.github_enabled and request.github_repo_url:
         workspace_dir = await get_workspace_dir()
-        github_pat = read_github_pat_from_workspace(workspace_dir)
+        github_pat = await read_github_pat_from_workspace(workspace_dir)
         github_setup = generate_github_clone_setup(
             repo_url=request.github_repo_url,
             directory=request.github_directory,

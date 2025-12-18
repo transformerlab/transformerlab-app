@@ -112,7 +112,7 @@ async def lifespan(app: FastAPI):
     """Docs on lifespan events: https://fastapi.tiangolo.com/advanced/events/"""
     # Do the following at API Startup:
     print_launch_message()
-    galleries.update_gallery_cache()
+    await galleries.update_gallery_cache()
     spawn_fastchat_controller_subprocess()
     await db.init()  # This now runs Alembic migrations internally
     # create_db_and_tables() is deprecated - migrations are handled in db.init()
@@ -606,7 +606,8 @@ def run():
     )
 
     if args.https:
-        cert_path, key_path = ensure_persistent_self_signed_cert()
+        import asyncio
+        cert_path, key_path = asyncio.run(ensure_persistent_self_signed_cert())
         uvicorn.run(
             "api:app", host=args.host, port=args.port, log_level="warning", ssl_certfile=cert_path, ssl_keyfile=key_path
         )

@@ -67,7 +67,7 @@ def get_model_details_from_gallery(model_id: str):
     Given a model ID this returns the associated data from the model gallery file.
     Returns None if no such value found.
     """
-    gallery = galleries.get_models_gallery()
+    gallery = await galleries.get_models_gallery()
 
     result = None
 
@@ -81,7 +81,7 @@ def get_model_details_from_gallery(model_id: str):
 
 @router.get("/model/gallery")
 async def model_gallery_list_all():
-    gallery = galleries.get_models_gallery()
+    gallery = await galleries.get_models_gallery()
 
     # Get a list of local models to determine what has been downloaded already
     local_models = await model_helper.list_installed_models()
@@ -113,7 +113,7 @@ async def model_gallery_list_all():
 
 @router.get("/model/model_groups_list", summary="Returns the grouped model gallery from model-group-gallery.json.")
 async def model_groups_list_all():
-    gallery = galleries.get_model_groups_gallery()
+    gallery = await galleries.get_model_groups_gallery()
 
     # Get list of locally installed models
     local_models = await model_helper.list_installed_models()
