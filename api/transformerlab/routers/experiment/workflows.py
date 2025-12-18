@@ -432,7 +432,7 @@ async def workflow_runs_get_by_id(workflow_run_id: str, experimentId: str):
             job_ids = workflow_run.get("job_ids", [])
 
         for job_id in job_ids:
-            job = job_service.job_get(job_id)
+            job = await job_service.job_get(job_id)
             if not job:
                 continue
 
@@ -490,7 +490,7 @@ async def cancel_workflow_run(workflow_run_id: str, experimentId: str):
     cancelled_jobs = []
 
     for job_id in current_job_ids:
-        job_service.job_stop(job_id, experimentId)  # This sets stop=True in job_data
+        await job_service.job_stop(job_id, experimentId)  # This sets stop=True in job_data
         cancelled_jobs.append(job_id)
 
     # The workflow execution engine will automatically detect the stopped jobs
@@ -558,7 +558,7 @@ async def check_current_jobs_status(workflow_run_id, current_job_ids):
         return None
 
     for job_id in current_job_ids:
-        current_job = job_service.job_get(job_id)
+        current_job = await job_service.job_get(job_id)
         if not current_job:
             await workflow_run_update_status(workflow_run_id, "FAILED")
             return f"Could not find job with ID {job_id}"
@@ -686,7 +686,7 @@ async def find_previous_node_and_job(current_node, workflow_run, workflow_config
             ran_jobs = json.loads(ran_jobs_str)
             if previous_node["id"] in ran_nodes:
                 previous_job_ID = ran_jobs[ran_nodes.index(previous_node["id"])]
-                previous_job = job_service.job_get(previous_job_ID)
+                previous_job = await job_service.job_get(previous_job_ID)
 
     return previous_job
 

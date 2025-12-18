@@ -44,6 +44,7 @@ async def job_create(type, status, experiment_id, job_data="{}"):
 
     # Create job through experiment
     job = await exp.create_job()
+    await job.set_experiment(experiment_id)  # Set the experiment_id on the job
     await job.set_type(type)
     await job.update_status(status)
     await job.set_job_data(job_data)

@@ -170,12 +170,12 @@ async def async_run_python_script_and_update_status(
             print(">> " + text)
             if begin_string in text:
                 print(f"Job {job_id} now in progress!")
-                job = job_service.job_get(job_id)
-                experiment_id = job["experiment_id"]
+                job = await job_service.job_get(job_id)
+                experiment_id = job.get("experiment_id") if job else None
                 await job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
 
             # Check the job_data column for the stop flag:
-            job_row = job_service.job_get(job_id)
+            job_row = await job_service.job_get(job_id)
             job_data = job_row.get("job_data", None)
             if job_data and job_data.get("stop", False):
                 print(f"Job {job_id}: 'stop' flag detected. Cancelling job.")
@@ -186,13 +186,13 @@ async def async_run_python_script_and_update_status(
 
         if process.returncode == 0:
             print(f"Job {job_id} completed successfully")
-            job = job_service.job_get(job_id)
-            experiment_id = job["experiment_id"]
+            job = await job_service.job_get(job_id)
+            experiment_id = job.get("experiment_id") if job else None
             await job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
         else:
             print(f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
-            job = job_service.job_get(job_id)
-            experiment_id = job["experiment_id"]
+            job = await job_service.job_get(job_id)
+            experiment_id = job.get("experiment_id") if job else None
             await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
 
         return process
@@ -335,8 +335,8 @@ async def async_run_python_daemon_and_update_status(
                     if set_process_id_function:
                         set_process_id_function(process)
                 print(f"Worker job {job_id} started successfully")
-                job = job_service.job_get(job_id)
-                experiment_id = job["experiment_id"]
+                job = await job_service.job_get(job_id)
+                experiment_id = job.get("experiment_id") if job else None
                 await job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
 
                 # Schedule the read_process_output coroutine in the current event
@@ -383,8 +383,8 @@ async def async_run_python_daemon_and_update_status(
 
     print(f"ERROR: Worker job {job_id} failed with exit code {returncode}.")
     print(error_msg)
-    job = job_service.job_get(job_id)
-    experiment_id = job["experiment_id"]
+    job = await job_service.job_get(job_id)
+    experiment_id = job.get("experiment_id") if job else None
     await job_update_status(job_id=job_id, status="FAILED", error_msg=error_msg, experiment_id=experiment_id)
     return process
 
@@ -472,8 +472,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 await f.write("")
         await run_evaluation_script(experiment_name, plugin_name, eval_name, job_id, org_id=org_id)
         # Check if stop button was clicked and update status accordingly
-        job_row = job_service.job_get(job_id)
-        job_data = job_row.get("job_data", None)
+        job_row = await job_service.job_get(job_id)
+        job_data = job_row.get("job_data", None) if job_row else None
         if job_data is None:
             await job_update_status(job_id, "FAILED", experiment_id=experiment_name)
             return {"status": "error", "job_id": job_id, "message": "Evaluation job failed: No job data found"}
@@ -483,7 +483,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             return {"status": "stopped", "job_id": job_id, "message": "Evaluation job was stopped by user"}
         else:
             # Only set to COMPLETE if not already FAILED
-            job = job_service.job_get(job_id)
+            job = await job_service.job_get(job_id)
             current_status = job.get("status")
             if current_status != "FAILED":
                 await job_update_status(job_id, "COMPLETE", experiment_id=experiment_name)
@@ -505,8 +505,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await run_generation_script(experiment_name, plugin_name, generation_name, job_id, org_id=org_id)
 
         # Check should_stop flag and update status accordingly
-        job_row = job_service.job_get(job_id)
-        job_data = job_row.get("job_data", None)
+        job_row = await job_service.job_get(job_id)
+        job_data = job_row.get("job_data", None) if job_row else None
         if job_data is None:
             await job_update_status(job_id, "FAILED", experiment_id=experiment_name)
             return {"status": "error", "job_id": job_id, "message": "Generation job failed: No job data found"}
@@ -516,7 +516,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             return {"status": "stopped", "job_id": job_id, "message": "Generation job was stopped by user"}
         else:
             # Only set to COMPLETE if not already FAILED
-            job = job_service.job_get(job_id)
+            job = await job_service.job_get(job_id)
             current_status = job.get("status")
             if current_status != "FAILED":
                 await job_update_status(job_id, "COMPLETE", experiment_id=experiment_name)
@@ -562,7 +562,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         # Check the result and update job status accordingly
         if result.get("status") == "success":
             # Only set to COMPLETE if not already FAILED
-            job = job_service.job_get(job_id)
+            job = await job_service.job_get(job_id)
             current_status = job.get("status")
             if current_status != "FAILED":
                 await job_update_status(job_id, "COMPLETE", experiment_id=experiment_name)
@@ -613,8 +613,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
         # Remove input_image and mask_image from job_data['config'] in db if they were present
         if removed_base64_keys:
-            job_row = job_service.job_get(job_id)
-            job_data = job_row.get("job_data", {})
+            job_row = await job_service.job_get(job_id)
+            job_data = job_row.get("job_data", {}) if job_row else {}
             # Handle job_data as str or dict
             if isinstance(job_data, str):
                 try:
@@ -648,7 +648,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             if updated:
                 if double_encoded:
                     config_in_db = json.dumps(config_in_db)
-                job_service.job_update_job_data_insert_key_value(
+                await job_service.job_update_job_data_insert_key_value(
                     job_id, "config", config_in_db, experiment_id=experiment_name
                 )
 
@@ -813,8 +813,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             print(f"Generated {total_configs} configurations for sweep")
 
             # Initialize sweep tracking
-            job_service.job_update_job_data_insert_key_value(job_id, "sweep_total", str(total_configs), experiment_name)
-            job_service.job_update_job_data_insert_key_value(job_id, "sweep_current", "0", experiment_name)
+            await job_service.job_update_job_data_insert_key_value(job_id, "sweep_total", str(total_configs), experiment_name)
+            await job_service.job_update_job_data_insert_key_value(job_id, "sweep_current", "0", experiment_name)
 
             # Get metrics configuration
             metric_name = template_config.get("sweep_metric", "eval/loss")
@@ -858,15 +858,15 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     await outfile.write(json.dumps(run_input_contents, indent=4))
 
                 # Update job progress
-                job_service.job_update_sweep_progress(job_id, int((i / total_configs) * 100), experiment_name)
-                job_service.job_update_job_data_insert_key_value(job_id, "sweep_current", str(i + 1), experiment_name)
-                job_service.job_update_job_data_insert_key_value(
+                await job_service.job_update_sweep_progress(job_id, int((i / total_configs) * 100), experiment_name)
+                await job_service.job_update_job_data_insert_key_value(job_id, "sweep_current", str(i + 1), experiment_name)
+                await job_service.job_update_job_data_insert_key_value(
                     job_id, "sweep_running_config", json.dumps(config_params), experiment_name
                 )
 
                 # Run the training job with this configuration
                 run_output_file = storage.join(sweep_dir, f"output_sweep_{job_id}.txt")
-                job_service.job_update_job_data_insert_key_value(
+                await job_service.job_update_job_data_insert_key_value(
                     job_id, "sweep_output_file", storage.join(sweep_dir, f"output_sweep_{job_id}.txt"), experiment_name
                 )
 
@@ -964,10 +964,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                             best_config = config_params.copy()
 
                             # Update job data with current best
-                            job_service.job_update_job_data_insert_key_value(
+                            await job_service.job_update_job_data_insert_key_value(
                                 job_id, "sweep_best_config", json.dumps(best_config), experiment_name
                             )
-                            job_service.job_update_job_data_insert_key_value(
+                            await job_service.job_update_job_data_insert_key_value(
                                 job_id, "sweep_best_metric", json.dumps({metric_name: best_metric}), experiment_name
                             )
                 except Exception as e:
@@ -990,14 +990,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             async with await storage.open(sweep_results_file, "w") as f:
                 await f.write(json.dumps(sweep_results, indent=2))
 
-            job_service.job_update_job_data_insert_key_value(
+            await job_service.job_update_job_data_insert_key_value(
                 job_id, "sweep_results_file", sweep_results_file, experiment_name
             )
 
             print("\n--- Sweep completed ---")
             print(f"Best configuration: {json.dumps(best_config, indent=2)}")
             print(f"Best {metric_name}: {best_metric}")
-            job_service.job_update_sweep_progress(job_id, 100, experiment_name)
+            await job_service.job_update_sweep_progress(job_id, 100, experiment_name)
 
             # Optionally train final model with best configuration
             train_final_model = template_config.get("train_final_model", True)
@@ -1078,7 +1078,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 await outfile.write(json.dumps(input_contents, indent=4))
 
             start_time = time.strftime("%Y-%m-%d %H:%M:%S")
-            job_service.job_update_job_data_insert_key_value(job_id, "start_time", start_time, experiment_name)
+            await job_service.job_update_job_data_insert_key_value(job_id, "start_time", start_time, experiment_name)
 
             # Check if plugin has a venv directory
             venv_path = os.path.join(plugin_location, "venv")

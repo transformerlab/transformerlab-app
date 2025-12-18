@@ -853,7 +853,7 @@ async def launch_task_on_provider(
 
     for key, value in job_data.items():
         if value is not None:
-            job_service.job_update_job_data_insert_key_value(job_id, key, value, request.experiment_id)
+            await job_service.job_update_job_data_insert_key_value(job_id, key, value, request.experiment_id)
 
     disk_size = None
     if request.disk_space:
@@ -892,7 +892,7 @@ async def launch_task_on_provider(
 
     request_id = None
     if isinstance(launch_result, dict):
-        job_service.job_update_job_data_insert_key_value(
+        await job_service.job_update_job_data_insert_key_value(
             job_id,
             "provider_launch_result",
             launch_result,
@@ -900,7 +900,7 @@ async def launch_task_on_provider(
         )
         request_id = launch_result.get("request_id")
         if request_id:
-            job_service.job_update_job_data_insert_key_value(
+            await job_service.job_update_job_data_insert_key_value(
                 job_id,
                 "orchestrator_request_id",
                 request_id,
@@ -992,7 +992,7 @@ async def check_provider_job_status(
     if jobs_finished:
         try:
             # Set end_time when marking job as complete
-            job_service.job_update_job_data_insert_key_value(
+            await job_service.job_update_job_data_insert_key_value(
                 job_id, "end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), experiment_id
             )
             await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)

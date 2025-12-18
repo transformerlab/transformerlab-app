@@ -206,7 +206,7 @@ def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files
         downloaded_mb = downloaded_bytes / 1024 / 1024
         total_mb = total_bytes / 1024 / 1024
         progress_pct = (downloaded_bytes / total_bytes * 100) if total_bytes > 0 else 0
-        job.update_progress(progress_pct)
+        asyncio.run(job.update_progress(progress_pct))
 
         # Set more data in job_data
         job_data = {
@@ -225,7 +225,7 @@ def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files
             job_data["files_downloaded"] = files_downloaded
             job_data["files_total"] = files_total
 
-        job.set_job_data(job_data)
+        asyncio.run(job.set_job_data(job_data))
 
         if files_downloaded is not None and files_total is not None:
             print(
@@ -530,9 +530,9 @@ def download_blocking(model_is_downloaded, org_id):
                 file_metadata, actual_total_size = get_repo_file_metadata(peft)
 
                 # Update job_data with files_total
-                job_data = job.get_job_data() or {}
+                job_data = asyncio.run(job.get_job_data()) or {}
                 job_data["files_total"] = len(file_metadata)
-                job.set_job_data(job_data)
+                asyncio.run(job.set_job_data(job_data))
 
                 # Start progress monitoring thread
                 # Pass org_id so thread can set context
@@ -584,9 +584,9 @@ def download_blocking(model_is_downloaded, org_id):
                     file_size = total_size_of_model_in_mb * 1024 * 1024
 
                 # Update job_data with files_total (1 file for single file downloads)
-                job_data = job.get_job_data() or {}
+                job_data = asyncio.run(job.get_job_data()) or {}
                 job_data["files_total"] = 1
-                job.set_job_data(job_data)
+                asyncio.run(job.set_job_data(job_data))
 
                 # Start progress monitoring thread
                 # Pass org_id so thread can set context
@@ -638,9 +638,9 @@ def download_blocking(model_is_downloaded, org_id):
                     file_metadata, actual_total_size = get_repo_file_metadata(model, allow_patterns)
 
                     # Update job_data with files_total
-                    job_data = job.get_job_data() or {}
+                    job_data = asyncio.run(job.get_job_data()) or {}
                     job_data["files_total"] = len(file_metadata)
-                    job.set_job_data(job_data)
+                    asyncio.run(job.set_job_data(job_data))
 
                     # Start progress monitoring thread
                     # Pass org_id so thread can set context

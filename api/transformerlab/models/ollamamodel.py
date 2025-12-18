@@ -178,7 +178,7 @@ class OllamaModel(basemodel.BaseModel):
         # Create a directory for the model. Make sure it doesn't exist already.
         from lab.dirs import get_models_dir
 
-        output_path = await storage.join(await get_models_dir(), output_model_id)
+        output_path = storage.join(await get_models_dir(), output_model_id)
         if await storage.exists(output_path):
             raise FileExistsError(errno.EEXIST, "Directory already exists", output_path)
         await storage.makedirs(output_path, exist_ok=True)
@@ -186,7 +186,7 @@ class OllamaModel(basemodel.BaseModel):
         # Create a link in the directory that points to the source blob
         # Note: symlinks may not work with remote storage, but this is for local filesystem
         # For remote storage, we'd need to copy the file instead
-        link_name = await storage.join(output_path, output_filename)
+        link_name = storage.join(output_path, output_filename)
         # For now, we'll create the symlink using os.symlink since it's a local filesystem operation
         # If the storage backend is remote, this will need special handling
         try:
@@ -216,7 +216,7 @@ class OllamaModel(basemodel.BaseModel):
                 "huggingface_repo": "",
             },
         }
-        model_info_file = await storage.join(output_path, "index.json")
+        model_info_file = storage.join(output_path, "index.json")
         async with await storage.open(model_info_file, "w") as f:
             await f.write(json.dumps(model_description))
 

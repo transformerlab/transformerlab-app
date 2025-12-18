@@ -488,7 +488,7 @@ async def download_huggingface_model(
     - message: error message if status is "error"
     """
     if job_id is None:
-        job_id = job_service.job_create(
+        job_id = await job_service.job_create(
             type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id, job_data="{}"
         )
     else:
@@ -553,7 +553,7 @@ async def download_huggingface_model(
         if exitcode == 77:
             # This means we got a GatedRepoError
             # The user needs to agree to terms on HuggingFace to download
-            job = job_service.job_get(job_id)
+            job = await job_service.job_get(job_id)
             error_msg = None
             if job and job.get("job_data"):
                 error_msg = job["job_data"].get("error_msg")
@@ -561,7 +561,7 @@ async def download_huggingface_model(
             return {"status": "unauthorized", "message": error_msg}
 
         elif exitcode != 0:
-            job = job_service.job_get(job_id)
+            job = await job_service.job_get(job_id)
             error_msg = None
             if job and job.get("job_data"):
                 error_msg = job["job_data"].get("error_msg")
@@ -768,7 +768,6 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
                 gallery_entry["pipeline_tag"] = "text-generation"
 
     org_id = await get_current_org_id()
-    print("🔵 CURRENT ORG ID: ", org_id)
 
     return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id, org_id)
 
@@ -1007,7 +1006,7 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None, expe
     print(f"Model Details: {model_details}")
     # Create or update job
     if job_id is None:
-        job_id = job_service.job_create(
+        job_id = await job_service.job_create(
             type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id, job_data="{}"
         )
     else:
