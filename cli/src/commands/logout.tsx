@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import fs from 'fs';
 import { Box, Text, useApp } from 'ink';
 import { CREDENTIALS_PATH } from '../utils';
-import { SuccessMsg } from '../ui';
+import { SuccessMsg } from '../components/ui';
 
 export const LogoutCommand = () => {
   const { exit } = useApp();

@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import duration from 'dayjs/plugin/duration';
 import { api } from '../lib/api';
-import { Loading, ErrorMsg, Panel } from '../ui';
+import { Loading, ErrorMsg, Panel } from '../components/ui';
 import SelectInput from 'ink-select-input';
 import { GenericList } from './list_commands';
 

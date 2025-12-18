@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Box, Text, useApp } from 'ink';
 // import Table from 'ink-table';
 import { api } from '../lib/api';
-import { Loading, ErrorMsg } from '../ui';
+import { Loading, ErrorMsg } from '../components/ui';
 import { debugLog } from '../utils';
 import Table from '../ink-table';
 

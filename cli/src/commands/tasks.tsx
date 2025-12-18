@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { api } from '../lib/api';
-import { Loading, ErrorMsg, Panel } from '../ui';
+import { Loading, ErrorMsg, Panel } from '../components/ui';
 import { GenericList } from './list_commands';
 import Table from '../ink-table';
 

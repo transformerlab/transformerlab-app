@@ -8,7 +8,7 @@ import Table from '../ink-table'; // Custom Table component to fix issues with i
 import { API_URL, getCredentials } from '../utils';
 
 /* Import common UI components */
-import { Logo, Panel, SuccessMsg } from '../ui';
+import { Logo, Panel, SuccessMsg } from './ui';
 
 /* Import all of our Tasks */
 import { LoginCommand } from '../commands/login';
