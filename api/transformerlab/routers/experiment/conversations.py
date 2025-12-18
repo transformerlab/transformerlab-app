@@ -15,19 +15,19 @@ router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 @router.get(path="/list")
 async def get_conversations(experimentId: str):
-    exp_obj = Experiment.get(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    exp_obj = await Experiment.get(experimentId)
+    experiment_dir = await exp_obj.get_dir()
 
     conversation_dir = storage.join(experiment_dir, "conversations")
 
     # make directory if it does not exist:
-    if not storage.exists(conversation_dir):
-        storage.makedirs(conversation_dir, exist_ok=True)
+    if not await storage.exists(conversation_dir):
+        await storage.makedirs(conversation_dir, exist_ok=True)
 
     # now get a list of all the files in the conversations directory
     conversations_files = []
     try:
-        for entry in storage.ls(conversation_dir, detail=False):
+        async for entry in storage.ls(conversation_dir, detail=False):
             filename = entry.rstrip("/").split("/")[-1]
             if filename.endswith(".json"):
                 conversations_files.append(filename)
@@ -39,12 +39,13 @@ async def get_conversations(experimentId: str):
     # now read each conversation and create a list of all conversations
     # and their contents
     for i in range(len(conversations_files)):
-        with storage.open(storage.join(conversation_dir, conversations_files[i]), "r") as f:
+        async with await storage.open(storage.join(conversation_dir, conversations_files[i]), "r") as f:
             new_conversation = {}
             new_conversation["id"] = conversations_files[i]
             # remove .json from end of id
             new_conversation["id"] = new_conversation["id"][:-5]
-            new_conversation["contents"] = json.load(f)
+            content = await f.read()
+            new_conversation["contents"] = json.loads(content)
             # use file timestamp to get a date
             try:
                 # fsspec detail listing could be used; fallback to 0
@@ -64,41 +65,41 @@ async def save_conversation(
     experimentId: str, conversation_id: Annotated[str, Body()], conversation: Annotated[str, Body()]
 ):
     conversation_id = secure_filename(conversation_id)
-    exp_obj = Experiment.get(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    exp_obj = await Experiment.get(experimentId)
+    experiment_dir = await exp_obj.get_dir()
 
     conversation_dir = storage.join(experiment_dir, "conversations")
     final_path = storage.join(conversation_dir, conversation_id + ".json")
 
     # now save the conversation
-    with storage.open(final_path, "w") as f:
-        f.write(conversation)
+    async with await storage.open(final_path, "w") as f:
+        await f.write(conversation)
 
     return {"message": f"Conversation {conversation_id} saved"}
 
 
 @router.delete(path="/delete")
 async def delete_conversation(experimentId: str, conversation_id: str):
-    exp_obj = Experiment.get(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    exp_obj = await Experiment.get(experimentId)
+    experiment_dir = await exp_obj.get_dir()
 
     conversation_id = secure_filename(conversation_id)
     conversation_dir = storage.join(experiment_dir, "conversations")
     final_path = storage.join(conversation_dir, conversation_id + ".json")
 
     # now delete the conversation
-    if storage.exists(final_path):
-        storage.rm(final_path)
+    if await storage.exists(final_path):
+        await storage.rm(final_path)
 
     return {"message": f"Conversation {conversation_id} deleted"}
 
 
 @router.get(path="/list_audio")
 async def list_audio(experimentId: str):
-    exp_obj = Experiment.get(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    exp_obj = await Experiment.get(experimentId)
+    experiment_dir = await exp_obj.get_dir()
     audio_dir = storage.join(experiment_dir, "audio")
-    storage.makedirs(audio_dir, exist_ok=True)
+    await storage.makedirs(audio_dir, exist_ok=True)
 
     # now get a list of all the json files in the audio directory
     audio_files_metadata = []
@@ -108,9 +109,10 @@ async def list_audio(experimentId: str):
             filename = entry.rstrip("/").split("/")[-1]
             if filename.endswith(".json"):
                 file_path = storage.join(audio_dir, filename)
-                with storage.open(file_path, "r") as f:
+                async with await storage.open(file_path, "r") as f:
                     try:
-                        data = json.load(f)
+                        content = await f.read()
+                        data = json.loads(content)
                         # Add the file modification time for sorting
                         data["id"] = filename[:-5]  # Remove .json from the filename
                         # fsspec doesn't always provide mtime, use 0 as fallback
@@ -129,8 +131,8 @@ async def list_audio(experimentId: str):
 
 @router.get(path="/download_audio")
 async def download_audio(experimentId: str, filename: str, audioFolder: str = "audio"):
-    exp_obj = Experiment.get(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    exp_obj = await Experiment.get(experimentId)
+    experiment_dir = await exp_obj.get_dir()
 
     # Use the provided audioFolder parameter, defaulting to "audio"
     audioFolder = secure_filename(audioFolder)
@@ -140,7 +142,7 @@ async def download_audio(experimentId: str, filename: str, audioFolder: str = "a
     filename = secure_filename(filename)
     file_path = storage.join(audio_dir, filename)
 
-    if not storage.exists(file_path):
+    if not await storage.exists(file_path):
         return {"message": f"Audio file {filename} does not exist in experiment {experimentId}"}
 
     # FileResponse needs a local file path, so use the path string directly
@@ -179,8 +181,8 @@ async def delete_audio(experimentId: str, id: str):
                         {"message": "Experiment <experimentId> does not exist"}
                         {"message": "Audio file <filename> does not exist in experiment <experimentId>"}
     """
-    exp_obj = Experiment.get(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    exp_obj = await Experiment.get(experimentId)
+    experiment_dir = await exp_obj.get_dir()
     audio_dir = storage.join(experiment_dir, "audio")
 
     # Delete the metadata file (.json)
@@ -188,12 +190,12 @@ async def delete_audio(experimentId: str, id: str):
     metadata_path = storage.join(audio_dir, id + ".json")
     if not storage.exists(metadata_path):
         return {"message": f"Audio file {id} does not exist in experiment {experimentId}"}
-    storage.rm(metadata_path)
+    await storage.rm(metadata_path)
 
     # Delete the audio file (.wav)
     audio_path = storage.join(audio_dir, id + ".wav")
-    if storage.exists(audio_path):
-        storage.rm(audio_path)
+    if await storage.exists(audio_path):
+        await storage.rm(audio_path)
 
     return {"message": f"Audio file {id} deleted from experiment {experimentId}"}
 
@@ -201,8 +203,8 @@ async def delete_audio(experimentId: str, id: str):
 @router.get("/list_transcription")
 async def list_transcription(experimentId: str):
     # Get experiment object and directory
-    exp_obj = Experiment.get(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    exp_obj = await Experiment.get(experimentId)
+    experiment_dir = await exp_obj.get_dir()
     transcription_dir = storage.join(experiment_dir, "transcriptions")
     storage.makedirs(transcription_dir, exist_ok=True)
 
@@ -222,7 +224,8 @@ async def list_transcription(experimentId: str):
                         file_path = storage.join(transcription_dir, filename)
                     with storage.open(file_path, "r") as f:
                         try:
-                            data = json.load(f)
+                            content = await f.read()
+                        data = json.loads(content)
                             # Add the file modification time for sorting
                             data["id"] = filename[:-5]  # Remove .json from the filename
                             # Extract mtime from file metadata, fallback to 0 if not available
@@ -238,7 +241,8 @@ async def list_transcription(experimentId: str):
                     file_path = storage.join(transcription_dir, filename)
                     with storage.open(file_path, "r") as f:
                         try:
-                            data = json.load(f)
+                            content = await f.read()
+                        data = json.loads(content)
                             data["id"] = filename[:-5]  # Remove .json from the filename
                             # fsspec doesn't always provide mtime, use 0 as fallback
                             data["file_date"] = 0
@@ -253,20 +257,20 @@ async def list_transcription(experimentId: str):
 
 @router.get("/download_transcription")
 async def download_transcription(experimentId: str, filename: str):
-    exp_obj = Experiment.get(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    exp_obj = await Experiment.get(experimentId)
+    experiment_dir = await exp_obj.get_dir()
     text_dir = storage.join(experiment_dir, "transcriptions")
     filename = secure_filename(filename)
     file_path = storage.join(text_dir, filename)
-    if not storage.exists(file_path):
+    if not await storage.exists(file_path):
         return {"message": f"Text file {filename} does not exist in experiment {experimentId}"}
     return FileResponse(path=file_path, filename=filename, media_type="text/plain")
 
 
 @router.delete("/delete_transcription")
 async def delete_transcription(experimentId: str, id: str):
-    exp_obj = Experiment.get(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    exp_obj = await Experiment.get(experimentId)
+    experiment_dir = await exp_obj.get_dir()
     text_dir = storage.join(experiment_dir, "transcriptions")
     id = secure_filename(id)
     text_path = storage.join(text_dir, id + ".json")

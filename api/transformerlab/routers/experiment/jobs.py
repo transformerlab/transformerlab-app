@@ -37,7 +37,7 @@ router = APIRouter(prefix="/jobs", tags=["train"])
 
 @router.get("/list")
 async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subtype: str = ""):
-    jobs = job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
+    jobs = await job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
 
     # Optional filter by job_data.subtype
     if subtype:
@@ -58,7 +58,7 @@ async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subt
 
 @router.get("/delete/{job_id}")
 async def job_delete(job_id: str, experimentId: str):
-    job_service.job_delete(job_id, experiment_id=experimentId)
+    await job_service.job_delete(job_id, experiment_id=experimentId)
     return {"message": "OK"}
 
 
@@ -69,12 +69,12 @@ async def job_create(
     status: str = "CREATED",
     data: str = "{}",
 ):
-    jobid = job_service.job_create(type=type, status=status, job_data=data, experiment_id=experimentId)
+    jobid = await job_service.job_create(type=type, status=status, job_data=data, experiment_id=experimentId)
     return jobid
 
 
 async def job_create_task(script: str, job_data: str = "{}", experimentId: str = None):
-    jobid = job_service.job_create(type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experimentId)
+    jobid = await job_service.job_create(type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experimentId)
     return jobid
 
 
@@ -86,12 +86,12 @@ async def job_update(job_id: str, status: str, experimentId: str):
 
 async def start_next_job():
     # Count running jobs across all organizations
-    num_running_jobs = job_service.job_count_running_across_all_orgs()
+    num_running_jobs = await job_service.job_count_running_across_all_orgs()
     if num_running_jobs > 0:
         return {"message": "A job is already running"}
 
     # Get next queued job across all organizations
-    nextjob, org_id = job_service.jobs_get_next_queued_job_across_all_orgs()
+    nextjob, org_id = await job_service.jobs_get_next_queued_job_across_all_orgs()
 
     if nextjob:
         print(f"Starting Next Job in Queue: {nextjob}")
@@ -134,19 +134,19 @@ async def start_next_job():
 async def stop_job(job_id: str, experimentId: str):
     # The way a job is stopped is simply by adding "stop: true" to the job_data
     # This will be checked by the plugin as it runs
-    job_service.job_stop(job_id, experiment_id=experimentId)
+    await job_service.job_stop(job_id, experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/delete_all")
 async def job_delete_all(experimentId: str):
-    job_service.job_delete_all(experiment_id=experimentId)
+    await job_service.job_delete_all(experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/{job_id}")
 async def get_training_job(job_id: str):
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     return job
@@ -159,7 +159,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
     Uses the same logic as stream_job_output but returns content directly.
     """
     try:
-        job = job_service.job_get(job_id)
+        job = await job_service.job_get(job_id)
         if job is None:
             return "Job not found"
 
@@ -176,7 +176,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
         # Handle sweeps case first
         if sweeps:
             output_file = job_data.get("sweep_output_file", None)
-            if output_file is not None and storage.exists(output_file):
+            if output_file is not None and await storage.exists(output_file):
                 output_file_name = output_file
             else:
                 # Fall back to regular output file logic
@@ -186,10 +186,10 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
             output_file_name = await shared.get_job_output_file_name(job_id)
 
         # Read and return the file content as JSON array of lines
-        if storage.exists(output_file_name):
+        if await storage.exists(output_file_name):
             lines = []
-            with storage.open(output_file_name, "r") as f:
-                for line in f:
+            async with await storage.open(output_file_name, "r") as f:
+                async for line in f:
                     lines.append(line.rstrip("\n"))  # Remove trailing newline
             return lines
         else:
@@ -203,10 +203,10 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
             await asyncio.sleep(4)
             try:
                 output_file_name = await shared.get_job_output_file_name(job_id)
-                if storage.exists(output_file_name):
+                if await storage.exists(output_file_name):
                     lines = []
-                    with storage.open(output_file_name, "r") as f:
-                        for line in f:
+                    async with await storage.open(output_file_name, "r") as f:
+                        async for line in f:
                             lines.append(line.rstrip("\n"))  # Remove trailing newline
                     return lines
                 else:
@@ -216,12 +216,12 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                 print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
                 # Use the Job class to get the proper directory and create the file
                 job_obj = Job(job_id)
-                output_file_name = job_obj.get_log_path()
+                output_file_name = await job_obj.get_log_path()
                 # Get directory by removing filename from path using storage.join
                 output_dir = storage.join(*output_file_name.split("/")[:-1]) if "/" in output_file_name else "."
-                storage.makedirs(output_dir, exist_ok=True)
-                with storage.open(output_file_name, "w") as f:
-                    f.write("")
+                await storage.makedirs(output_dir, exist_ok=True)
+                async with await storage.open(output_file_name, "w") as f:
+                    await f.write("")
                 return []
         else:
             print(f"ValueError in get_tasks_job_output: {e}")
@@ -244,7 +244,7 @@ async def get_provider_job_logs(
     Fetch the raw job logs directly from the underlying compute provider for a REMOTE job.
     """
 
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if not job or str(job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -371,7 +371,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
     Enhanced version combining the best of both train and jobs routers.
     """
     try:
-        job = job_service.job_get(job_id)
+        job = await job_service.job_get(job_id)
 
         job_data = job.get("job_data", {})
 
@@ -386,7 +386,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
         # Handle sweeps case first
         if sweeps:
             output_file = job_data.get("sweep_output_file", None)
-            if output_file is not None and storage.exists(output_file):
+            if output_file is not None and await storage.exists(output_file):
                 output_file_name = output_file
             else:
                 # Fall back to regular output file logic
@@ -408,12 +408,12 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
                 # Use the Job class to get the proper directory and create the file
                 job_obj = Job(job_id)
-                output_file_name = job_obj.get_log_path()
+                output_file_name = await job_obj.get_log_path()
                 # Get directory by removing filename from path using storage.join
                 output_dir = storage.join(*output_file_name.split("/")[:-1]) if "/" in output_file_name else "."
-                storage.makedirs(output_dir, exist_ok=True)
-                with storage.open(output_file_name, "w") as f:
-                    f.write("")
+                await storage.makedirs(output_dir, exist_ok=True)
+                async with await storage.open(output_file_name, "w") as f:
+                    await f.write("")
         else:
             print(f"ValueError in stream_job_output: {e}")
             return StreamingResponse(
@@ -440,7 +440,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
 
 @router.get("/{job_id}/stream_detailed_json_report")
 async def stream_detailed_json_report(job_id: str, file_name: str):
-    if not storage.exists(file_name):
+    if not await storage.exists(file_name):
         print(f"File not found: {file_name}")
         return "File not found", 404
 
@@ -454,7 +454,7 @@ async def stream_detailed_json_report(job_id: str, file_name: str):
 
 @router.get("/{job_id}/get_additional_details")
 async def stream_job_additional_details(job_id: str, task: str = "view"):
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -470,13 +470,14 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
     if task == "download":
         return FileResponse(file_path, filename=filename, media_type=file_format)
 
-    if not storage.exists(file_path):
+    if not await storage.exists(file_path):
         return Response("No additional details found for this evaluation", media_type="text/csv")
 
     # convert csv to JSON, but do not assume that \n marks the end of a row as cells can
     # contain fields that start and end with " and contain \n. Use a CSV parser instead.
-    with storage.open(file_path, "r") as csvfile:
-        contents = csv.reader(csvfile, delimiter=",", quotechar='"')
+    async with await storage.open(file_path, "r") as csvfile:
+        contents_text = await csvfile.read()
+        contents = csv.reader(contents_text.splitlines(), delimiter=",", quotechar='"')
         # convert the csv to a JSON object
         csv_content = {"header": [], "body": []}
         for i, row in enumerate(contents):
@@ -489,23 +490,24 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
 
 @router.get("/{job_id}/get_figure_json")
 async def get_figure_path(job_id: str):
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
     file_path = job_data.get("plot_data_path", None)
 
-    if file_path is None or not storage.exists(file_path):
+    if file_path is None or not await storage.exists(file_path):
         return Response("No plot data found for this evaluation", media_type="text/csv")
 
-    with storage.open(file_path, "r") as f:
-        content = json.loads(f.read())
+    async with await storage.open(file_path, "r") as f:
+        content_str = await f.read()
+        content = json.loads(content_str)
     return content
 
 
 @router.get("/{job_id}/get_generated_dataset")
 async def get_generated_dataset(job_id: str):
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     # Get experiment name
@@ -517,11 +519,12 @@ async def get_generated_dataset(job_id: str):
     else:
         return Response("No dataset found for this evaluation", media_type="text/csv")
 
-    if not storage.exists(json_file_path):
+    if not await storage.exists(json_file_path):
         return Response("No dataset found for this evaluation", media_type="text/csv")
     else:
-        with storage.open(json_file_path, "r") as f:
-            json_content = json.loads(f.read())
+        async with await storage.open(json_file_path, "r") as f:
+            json_content_str = await f.read()
+            json_content = json.loads(json_content_str)
 
         df = pd.DataFrame(json_content)
 
@@ -533,7 +536,7 @@ async def get_generated_dataset(job_id: str):
 @router.get("/{job_id}/get_eval_results")
 async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0):
     """Get evaluation results for a job"""
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -614,7 +617,7 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
 @router.get("/{job_id}/get_eval_images")
 async def get_eval_images(job_id: str):
     """Get list of evaluation images for a job"""
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -701,7 +704,7 @@ async def get_eval_images(job_id: str):
 @router.get("/{job_id}/image/{filename}")
 async def get_eval_image(job_id: str, filename: str):
     """Serve individual evaluation image files"""
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -760,7 +763,7 @@ async def get_checkpoints(job_id: str, request: Request):
         return {"checkpoints": []}
 
     """Get list of checkpoints for a job"""
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return {"checkpoints": []}
 
@@ -975,7 +978,7 @@ async def get_artifacts(job_id: str, request: Request):
         return {"artifacts": []}
 
     """Get list of artifacts for a job"""
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return {"artifacts": []}
 
@@ -1119,13 +1122,13 @@ async def get_artifacts(job_id: str, request: Request):
 
 @router.get("/{job_id}")
 async def get_training_job_by_path(job_id: str):
-    return job_service.job_get(job_id)
+    return await job_service.job_get(job_id)
 
 
 @router.get("/{job_id}/output")
 async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
     try:
-        job = job_service.job_get(job_id)
+        job = await job_service.job_get(job_id)
         if job is None:
             return "Job not found"
 
@@ -1173,7 +1176,7 @@ async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
 @router.get("/{job_id}/sweep_results")
 async def sweep_results(job_id: str):
     try:
-        job = job_service.job_get(job_id)
+        job = await job_service.job_get(job_id)
         if job is None:
             return {"status": "error", "message": "Job not found."}
 

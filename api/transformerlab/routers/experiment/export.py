@@ -37,7 +37,7 @@ async def run_exporter_script(
     """
 
     # Load experiment details into config
-    experiment_details = experiment_get(id=id)
+    experiment_details = await experiment_get(id=id)
     if experiment_details is None:
         return {"message": f"Experiment {id} does not exist"}
 
@@ -93,13 +93,14 @@ async def run_exporter_script(
         output_filename = "."
 
     # Figure out plugin and model output directories
-    script_directory = lab_dirs.plugin_dir_by_name(plugin_name)
+    script_directory = await lab_dirs.plugin_dir_by_name(plugin_name)
 
     output_model_id = secure_filename(output_model_id)
 
     from lab.dirs import get_models_dir
 
-    output_path = storage.join(get_models_dir(), output_model_id)
+    models_dir = await get_models_dir()
+    output_path = storage.join(models_dir, output_model_id)
 
     # Create a job in the DB with the details of this export (only if job_id not provided)
     if job_id is None:
@@ -115,7 +116,7 @@ async def run_exporter_script(
             params=params,
         )
         job_data_json = json.dumps(job_data)
-        job_id = job_create(type="EXPORT", status="Started", experiment_id=experiment_name, job_data=job_data_json)
+        job_id = await job_create(type="EXPORT", status="Started", experiment_id=experiment_name, job_data=job_data_json)
         return job_id
 
     # Setup arguments to pass to plugin
@@ -156,7 +157,7 @@ async def run_exporter_script(
         job_output_file = await shared.get_job_output_file_name(job_id, experiment_name=experiment_name)
 
         # Create the output file and run the process with output redirection
-        with storage.open(job_output_file, "w") as f:
+        async with await storage.open(job_output_file, "w") as f:
             process = await asyncio.create_subprocess_exec(
                 *subprocess_command, stdout=f, stderr=subprocess.PIPE, cwd=script_directory, env=process_env
             )
@@ -169,10 +170,10 @@ async def run_exporter_script(
 
             if stderr_str.strip():
                 print(f"Error: {stderr_str}")
-                f.write(f"\nError:\n{stderr_str}")
+                await f.write(f"\nError:\n{stderr_str}")
 
             if process.returncode != 0:
-                job = job_get(job_id)
+                job = await job_get(job_id)
                 experiment_id = job["experiment_id"]
                 await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
                 return {
@@ -182,7 +183,7 @@ async def run_exporter_script(
 
     except Exception as e:
         print(f"Failed to export model. Exception: {e}")
-        job = job_get(job_id)
+        job = await job_get(job_id)
         experiment_id = job["experiment_id"]
         await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
         return {"message": "Failed to export model due to an internal error."}
@@ -207,7 +208,7 @@ async def run_exporter_script(
         },
     }
     model_description_file_path = storage.join(output_path, "index.json")
-    with storage.open(model_description_file_path, "w") as model_description_file:
-        json.dump(model_description, model_description_file)
+    async with await storage.open(model_description_file_path, "w") as model_description_file:
+        await model_description_file.write(json.dumps(model_description, indent=2))
 
     return {"status": "success", "job_id": job_id}
