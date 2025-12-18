@@ -5,7 +5,7 @@ import TextInput from 'ink-text-input';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { api } from '../api';
+import { api } from '../lib/api';
 import { LAB_DIR, CREDENTIALS_PATH, CONFIG_PATH, API_URL } from '../utils';
 import { Logo, Loading, ErrorMsg, SuccessMsg, Panel } from '../ui';
 import { debugLog } from '../utils';

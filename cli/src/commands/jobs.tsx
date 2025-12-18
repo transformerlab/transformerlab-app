@@ -4,7 +4,7 @@ import Table from 'ink-table';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import duration from 'dayjs/plugin/duration';
-import { api } from '../api';
+import { api } from '../lib/api';
 import { Loading, ErrorMsg, Panel } from '../ui';
 import SelectInput from 'ink-select-input';
 import { GenericList } from './list_commands';
