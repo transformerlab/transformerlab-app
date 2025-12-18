@@ -132,8 +132,21 @@ export const App = ({ command, args }: { command: string; args: any }) => {
     const { key, value } = args;
     let saved = false;
     let error = false;
+    let thatDoesntLookLikeAServerURL = false;
 
-    if (key && value) {
+    if (key == 'server' && value) {
+      // Basic validation for server URL
+      try {
+        const url = new URL(value);
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+          thatDoesntLookLikeAServerURL = true;
+        }
+      } catch (e) {
+        thatDoesntLookLikeAServerURL = true;
+      }
+    }
+
+    if (key && value && thatDoesntLookLikeAServerURL === false) {
       debugLog(`Setting config ${key} = ${value}...`);
       saveConfig({ [key]: value });
       saved = true;
@@ -167,6 +180,17 @@ export const App = ({ command, args }: { command: string; args: any }) => {
               </Text>
             </Box>
           </>
+        )}
+        {thatDoesntLookLikeAServerURL && (
+          <Box flexDirection="column" marginBottom={1}>
+            <Text color="yellow">
+              Warning: The server URL you provided doesn't look valid.
+            </Text>
+            <Text>
+              Make sure to include the protocol (http:// or https://) and a
+              valid domain.
+            </Text>
+          </Box>
         )}
         <Text bold>Current Configuration:</Text>
         <Table data={configData} />
