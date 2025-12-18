@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import datetime as _dt
 import ipaddress as _ip
 from pathlib import Path
@@ -16,23 +15,22 @@ from lab.dirs import get_workspace_dir
 from lab import storage
 
 __all__ = [
-    "CERT_DIR",
-    "CERT_PATH",
-    "KEY_PATH",
     "ensure_persistent_self_signed_cert",
 ]
 
-CERT_DIR: Path = Path(asyncio.run(get_workspace_dir())) / "certs"
-CERT_PATH: Path = CERT_DIR / "server-cert.pem"
-KEY_PATH: Path = CERT_DIR / "server-key.pem"
-
 
 async def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
-    lock = CERT_DIR / ".cert.lock"
+    # Compute paths lazily to avoid asyncio.run() at module level
+    workspace_dir = await get_workspace_dir()
+    cert_dir = Path(workspace_dir) / "certs"
+    cert_path = cert_dir / "server-cert.pem"
+    key_path = cert_dir / "server-key.pem"
+    
+    lock = cert_dir / ".cert.lock"
     with FileLock(str(lock)):
-        if CERT_PATH.exists() and KEY_PATH.exists():
-            return str(CERT_PATH), str(KEY_PATH)
-        CERT_DIR.mkdir(parents=True, exist_ok=True)
+        if await storage.exists(str(cert_path)) and await storage.exists(str(key_path)):
+            return str(cert_path), str(key_path)
+        await storage.makedirs(str(cert_dir), exist_ok=True)
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "TransformerLab-Selfhost")])
         cert_builder = (
@@ -56,10 +54,10 @@ async def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
         )
         cert = cert_builder.sign(key, hashes.SHA256())
         # Write via fsspec storage
-        await storage.makedirs(str(CERT_DIR), exist_ok=True)
-        async with await storage.open(str(CERT_PATH), "wb") as f:
+        await storage.makedirs(str(cert_dir), exist_ok=True)
+        async with await storage.open(str(cert_path), "wb") as f:
             await f.write(cert.public_bytes(serialization.Encoding.PEM))
-        async with await storage.open(str(KEY_PATH), "wb") as f:
+        async with await storage.open(str(key_path), "wb") as f:
             await f.write(
                 key.private_bytes(
                     serialization.Encoding.PEM,
@@ -67,4 +65,4 @@ async def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
                     serialization.NoEncryption(),
                 )
             )
-        return str(CERT_PATH), str(KEY_PATH)
+        return str(cert_path), str(key_path)

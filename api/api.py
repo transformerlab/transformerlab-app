@@ -112,6 +112,9 @@ async def lifespan(app: FastAPI):
     """Docs on lifespan events: https://fastapi.tiangolo.com/advanced/events/"""
     # Do the following at API Startup:
     print_launch_message()
+    # Initialize directories early
+    from transformerlab.shared import dirs as shared_dirs
+    await shared_dirs.initialize_dirs()
     await galleries.update_gallery_cache()
     spawn_fastchat_controller_subprocess()
     await db.init()  # This now runs Alembic migrations internally
