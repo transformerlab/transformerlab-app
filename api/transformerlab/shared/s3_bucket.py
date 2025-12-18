@@ -136,50 +136,34 @@ def _create_s3_bucket(bucket_name: str, team_id: str, profile_name: str) -> bool
 
 def _create_gcs_bucket(bucket_name: str, team_id: str) -> bool:
     try:
-        import boto3
-        from botocore.exceptions import ClientError
+        from google.cloud import storage
+        from google.api_core.exceptions import NotFound
     except ImportError:
-        print("boto3 is not installed. Cannot create GCS bucket.")
+        print("google-cloud-storage is not installed. Cannot create GCS bucket.")
+        return False
+
+    project_id = os.getenv("GCP_PROJECT")
+    if not project_id:
+        print("GCP_PROJECT is not set. Cannot create GCS bucket.")
         return False
 
     try:
-        # Create a session (GCS uses environment variables for credentials)
-        session = boto3.Session()
-        gcs_client = session.client("s3", endpoint_url="https://storage.googleapis.com")
+        client = storage.Client(project=project_id)
+        bucket = client.bucket(bucket_name)
 
-        # Check if bucket already exists
+        # Check if bucket exists
         try:
-            gcs_client.head_bucket(Bucket=bucket_name)
+            bucket.reload()
             print(f"GCS bucket '{bucket_name}' already exists for team {team_id}")
             return True
-        except ClientError as e:
-            error_code = e.response.get("Error", {}).get("Code", "")
-            if error_code == "404":
-                # Bucket doesn't exist, create it
-                pass
-            elif error_code == "403":
-                print(f"Access denied when checking bucket '{bucket_name}'. Check credentials.")
-                return False
-            else:
-                print(f"Error checking bucket '{bucket_name}': {e}")
-                return False
-
-        # Create the bucket
-        try:
-            gcs_client.create_bucket(Bucket=bucket_name)
+        except NotFound:
+            # Bucket doesn't exist, create it
+            bucket.create()
             print(f"Successfully created GCS bucket '{bucket_name}' for team {team_id}")
             return True
-        except ClientError as e:
-            error_code = e.response.get("Error", {}).get("Code", "")
-            if error_code == "BucketAlreadyExists":
-                print(f"GCS bucket '{bucket_name}' already exists for team {team_id}")
-                return True
-            elif error_code == "BucketAlreadyOwnedByYou":
-                print(f"GCS bucket '{bucket_name}' is already owned by you for team {team_id}")
-                return True
-            else:
-                print(f"Failed to create GCS bucket '{bucket_name}' for team {team_id}: {e}")
-                return False
+        except Exception as e:
+            print(f"Error checking GCS bucket '{bucket_name}': {e}")
+            return False
 
     except Exception as e:
         print(f"Unexpected error creating GCS bucket '{bucket_name}' for team {team_id}: {e}")
