@@ -16,10 +16,25 @@ from lab.dataset import Dataset as dataset_service
 # useful constants
 # Use shared constant as sole source of truth
 DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
-WORKSPACE_DIR = asyncio.run(get_workspace_dir())
+
+# Initialize WORKSPACE_DIR synchronously
+# This is called during plugin initialization, not during API runtime
+try:
+    WORKSPACE_DIR = asyncio.run(get_workspace_dir())
+except RuntimeError:
+    # If there's already an event loop running (shouldn't happen in plugin context)
+    # fall back to using the existing loop
+    try:
+        loop = asyncio.get_event_loop()
+        WORKSPACE_DIR = loop.run_until_complete(get_workspace_dir())
+    except Exception as e:
+        print(f"Plugin Harness Error: Could not get WORKSPACE_DIR: {e}")
+        WORKSPACE_DIR = None
+
 if WORKSPACE_DIR is None:
     print("Plugin Harness Error: WORKSPACE_DIR not available. Quitting.")
     exit(1)
+
 TEMP_DIR = storage.join(WORKSPACE_DIR, "temp")
 
 # Maintain a singleton database connection

@@ -109,11 +109,11 @@ class TLabPlugin:
 
                     job_data = self.job.get_json_data()
                     if job_data.get("job_data", {}).get("completion_status", "") != "success":
-                        self.job.update_job_data_field("completion_status", "success")
+                        asyncio.run(self.job.update_job_data_field("completion_status", "success"))
 
                     job_data = self.job.get_json_data()
                     if job_data.get("job_data", {}).get("completion_status", "") != "Job completed successfully":
-                        self.job.update_job_data_field("completion_details", "Job completed successfully")
+                        asyncio.run(self.job.update_job_data_field("completion_details", "Job completed successfully"))
 
                     job_data = self.job.get_json_data()
                     if (
@@ -137,8 +137,10 @@ class TLabPlugin:
                     print(error_msg)
 
                     # Update job with failure status
-                    self.job.update_job_data_field("completion_status", "failed")
-                    self.job.update_job_data_field("completion_details", "Error occurred while executing job")
+                    asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
+                    asyncio.run(
+                        self.job.update_job_data_field("completion_details", "Error occurred while executing job")
+                    )
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                     if manual_logging and getattr(self.params, "wandb_run") is not None:
                         self.wandb_run.finish()
@@ -197,8 +199,8 @@ class TLabPlugin:
 
                         # Update final progress and success status
                         self.progress_update(progress_end)
-                        self.job.update_job_data_field("completion_status", "success")
-                        self.job.update_job_data_field("completion_details", "Job completed successfully")
+                        asyncio.run(self.job.update_job_data_field("completion_status", "success"))
+                        asyncio.run(self.job.update_job_data_field("completion_details", "Job completed successfully"))
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                         if manual_logging and getattr(self, "wandb_run") is not None:
                             self.wandb_run.finish()
@@ -215,8 +217,10 @@ class TLabPlugin:
                         print(error_msg)
 
                         # Update job with failure status
-                        self.job.update_job_data_field("completion_status", "failed")
-                        self.job.update_job_data_field("completion_details", "Error occurred while executing job")
+                        asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
+                        asyncio.run(
+                            self.job.update_job_data_field("completion_details", "Error occurred while executing job")
+                        )
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                         if manual_logging and getattr(self, "wandb_run") is not None:
                             self.wandb_run.finish()
@@ -256,7 +260,7 @@ class TLabPlugin:
 
     def add_job_data(self, key: str, value: Any):
         """Add data to job using SDK directly"""
-        self.job.update_job_data_field(key, value)
+        asyncio.run(self.job.update_job_data_field(key, value))
 
     def load_dataset(self, dataset_types: List[str] = ["train"], config_name: str = None):
         """Decorator for loading datasets with error handling"""
@@ -264,8 +268,8 @@ class TLabPlugin:
         self._ensure_args_parsed()
 
         if not self.params.dataset_name:
-            self.job.update_job_data_field("completion_status", "failed")
-            self.job.update_job_data_field("completion_details", "Dataset name not provided")
+            asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
+            asyncio.run(self.job.update_job_data_field("completion_details", "Dataset name not provided"))
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise ValueError("Dataset name not provided")
 
@@ -401,8 +405,8 @@ class TLabPlugin:
         except Exception as e:
             error_msg = f"Error loading dataset: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)
-            self.job.update_job_data_field("completion_status", "failed")
-            self.job.update_job_data_field("completion_details", "Failed to load dataset")
+            asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
+            asyncio.run(self.job.update_job_data_field("completion_details", "Failed to load dataset"))
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
