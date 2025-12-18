@@ -67,3 +67,15 @@ def is_key_expired(expires_at: Optional[datetime]) -> bool:
     if expires_at is None:
         return False
     return datetime.utcnow() > expires_at
+
+
+def mask_key(pat: str, max_len: int = 16) -> str:
+    """
+    Masks tokens and API keys for secure display.
+    """
+    if not isinstance(pat, str):
+        return "<invalid>"
+
+    visible = pat[-4:]
+    masked_len = max(min(len(pat), max_len) - len(visible), 0)
+    return "*" * masked_len + visible
