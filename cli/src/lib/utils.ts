@@ -10,7 +10,7 @@ export const CREDENTIALS_PATH = path.join(LAB_DIR, 'credentials');
 export const CONFIG_PATH = path.join(LAB_DIR, 'config.json');
 export const API_URL = getConfig()?.server || 'http://alpha.lab.cloud:8338';
 
-export interface LabConfig {
+export interface TaskConfig {
   name?: string;
   description?: string;
   config?: {
@@ -94,7 +94,7 @@ export function saveConfig(newConfig: any) {
   }
 }
 
-export const loadTaskConfig = (dir: string = '.'): LabConfig | null => {
+export const loadTaskConfig = (dir: string = '.'): TaskConfig | null => {
   const searchOrder = ['task.json'];
   const absoluteDir = path.resolve(process.cwd(), dir);
 
