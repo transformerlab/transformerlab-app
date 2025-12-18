@@ -124,18 +124,18 @@ async def upload_task_file_for_provider(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        workspace_dir = get_workspace_dir()
+        workspace_dir = await get_workspace_dir()
         if not workspace_dir:
             raise RuntimeError("Workspace directory is not configured")
 
         # uploads/tasks/{task_id}/
         uploads_root = storage.join(workspace_dir, "uploads", "tasks")
-        storage.makedirs(uploads_root, exist_ok=True)
+        await storage.makedirs(uploads_root, exist_ok=True)
 
         import uuid
 
         task_dir = storage.join(uploads_root, str(task_id))
-        storage.makedirs(task_dir, exist_ok=True)
+        await storage.makedirs(task_dir, exist_ok=True)
 
         # Use original filename with a random suffix to avoid collisions
         original_name = file.filename or "uploaded_file"
@@ -148,8 +148,8 @@ async def upload_task_file_for_provider(
         # Persist file contents
         await file.seek(0)
         content = await file.read()
-        with storage.open(stored_path, "wb") as f:
-            f.write(content)
+        async with await storage.open(stored_path, "wb") as f:
+            await f.write(content)
 
         return ProviderTaskFileUploadResponse(
             status="success",
@@ -321,7 +321,7 @@ async def get_usage_report(
 
     # Get all experiments in the current workspace
     try:
-        experiments_data = Experiment.get_all()
+        experiments_data = await Experiment.get_all()
         experiments = [exp.get("id") for exp in experiments_data if exp.get("id")]
     except Exception as e:
         print(f"Error getting experiments: {e}")
@@ -332,7 +332,7 @@ async def get_usage_report(
 
     for experiment_id in experiments:
         try:
-            jobs = job_service.jobs_get_all(experiment_id=experiment_id, type="REMOTE")
+            jobs = await job_service.jobs_get_all(experiment_id=experiment_id, type="REMOTE")
             for job in jobs:
                 job_data = job.get("job_data", {}) or {}
 
@@ -758,7 +758,7 @@ async def launch_task_on_provider(
 
     provider_instance = get_provider_instance(provider)
 
-    job_id = job_service.job_create(
+    job_id = await job_service.job_create(
         type="REMOTE",
         status="LAUNCHING",
         experiment_id=request.experiment_id,
@@ -795,7 +795,7 @@ async def launch_task_on_provider(
 
     # Add GitHub clone setup if enabled
     if request.github_enabled and request.github_repo_url:
-        workspace_dir = get_workspace_dir()
+        workspace_dir = await get_workspace_dir()
         github_pat = read_github_pat_from_workspace(workspace_dir)
         github_setup = generate_github_clone_setup(
             repo_url=request.github_repo_url,
@@ -817,7 +817,7 @@ async def launch_task_on_provider(
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
     try:
-        storage_root = storage.root_uri()
+        storage_root = await storage.root_uri()
         # Check if it's a remote URI (not a local path)
         if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
             tfl_storage_uri = storage_root
@@ -929,7 +929,7 @@ async def check_provider_job_status(
     team_id = user_and_team["team_id"]
 
     # Get the job
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
