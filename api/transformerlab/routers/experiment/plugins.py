@@ -285,7 +285,7 @@ async def plugin_create_new_file(id: str, pluginId: str, filename: str):
     filename = shared.slugify(filename)
     pluginId = shared.slugify(pluginId)
 
-    script_path = lab_dirs.plugin_dir_by_name(pluginId)
+    script_path = await lab_dirs.plugin_dir_by_name(pluginId)
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):
@@ -325,7 +325,7 @@ async def plugin_delete_file(id: str, pluginId: str, filename: str):
     filename = shared.slugify(filename)
     pluginId = shared.slugify(pluginId)
 
-    script_path = lab_dirs.plugin_dir_by_name(pluginId)
+    script_path = await lab_dirs.plugin_dir_by_name(pluginId)
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):
@@ -351,7 +351,7 @@ async def plugin_new_plugin_directory(id: str, pluginId: str):
     # clean the file name:
     pluginId = shared.slugify(value=pluginId)
 
-    script_path = lab_dirs.plugin_dir_by_name(pluginId)
+    script_path = await lab_dirs.plugin_dir_by_name(pluginId)
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):

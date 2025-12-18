@@ -144,7 +144,7 @@ async def get_evaluation_plugin_file_contents(experimentId: str, plugin_name: st
     # print(f"{EXPERIMENTS_DIR}/{experiment_name}/evals/{eval_name}/main.py")
 
     file_name = "main.py"
-    plugin_path = lab_dirs.plugin_dir_by_name(plugin_name)
+    plugin_path = await lab_dirs.plugin_dir_by_name(plugin_name)
 
     # now get the file contents
     try:

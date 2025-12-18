@@ -153,9 +153,10 @@ def _setup_diffusion_logger():
 
     # File handler
     try:
+        import asyncio
         from lab.dirs import get_global_log_path
 
-        file_handler = logging.FileHandler(get_global_log_path(), encoding="utf-8")
+        file_handler = logging.FileHandler(asyncio.run(get_global_log_path()), encoding="utf-8")
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
     except Exception:

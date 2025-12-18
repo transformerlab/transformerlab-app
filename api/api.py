@@ -375,7 +375,7 @@ async def server_worker_start(
     model_architecture = model_architecture
 
     plugin_name = inference_engine
-    plugin_location = lab_dirs.plugin_dir_by_name(plugin_name)
+    plugin_location = await lab_dirs.plugin_dir_by_name(plugin_name)
 
     model = model_name
     if model_filename is not None and model_filename != "":
@@ -406,8 +406,8 @@ async def server_worker_start(
 
     from lab.dirs import get_global_log_path
 
-    with storage.open(get_global_log_path(), "a") as global_log:
-        global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
+    async with await storage.open(await get_global_log_path(), "a") as global_log:
+        await global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
     # Pass organization_id as environment variable to subprocess
     from transformerlab.shared.request_context import get_current_org_id
@@ -428,8 +428,8 @@ async def server_worker_start(
     if exitcode == 99:
         from lab.dirs import get_global_log_path
 
-        with storage.open(get_global_log_path(), "a") as global_log:
-            global_log.write(
+        async with await storage.open(await get_global_log_path(), "a") as global_log:
+            await global_log.write(
                 "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.\n"
             )
         return {
@@ -439,8 +439,8 @@ async def server_worker_start(
     if exitcode is not None and exitcode != 0:
         from lab.dirs import get_global_log_path
 
-        with storage.open(get_global_log_path(), "a") as global_log:
-            global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
+        async with await storage.open(await get_global_log_path(), "a") as global_log:
+            await global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
         job = job_get(job_id)
         error_msg = None
         if job and job.get("job_data"):
@@ -451,8 +451,8 @@ async def server_worker_start(
         return {"status": "error", "message": error_msg}
     from lab.dirs import get_global_log_path
 
-    with storage.open(get_global_log_path(), "a") as global_log:
-        global_log.write(f"Model loaded successfully: {model_name}\n")
+    async with await storage.open(await get_global_log_path(), "a") as global_log:
+        await global_log.write(f"Model loaded successfully: {model_name}\n")
     return {"status": "success", "job_id": job_id}
 
 

@@ -94,7 +94,7 @@ async def copy_plugin_files_to_workspace(plugin_id: str):
     if not os.path.exists(new_directory):
         os.makedirs(new_directory)
     # Now copy it to the workspace:
-    copy_tree(plugin_path, lab_dirs.plugin_dir_by_name(plugin_id))
+    copy_tree(plugin_path, await lab_dirs.plugin_dir_by_name(plugin_id))
 
 
 async def delete_plugin_files_from_workspace(plugin_id: str):
@@ -200,7 +200,7 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
 
 @router.get(path="/delete_plugin")
 async def delete_plugin(plugin_name: str):
-    final_path = lab_dirs.plugin_dir_by_name(plugin_name)
+    final_path = await lab_dirs.plugin_dir_by_name(plugin_name)
     remove_tree(final_path)
     return {"message": f"Plugin {plugin_name} deleted successfully."}
 
@@ -227,7 +227,7 @@ async def install_plugin(plugin_id: str):
 
     from lab.dirs import get_global_log_path
 
-    global_log_file_name = get_global_log_path()
+    global_log_file_name = await get_global_log_path()
     async with aiofiles.open(global_log_file_name, "a") as log_file:
         # Create virtual environment using uv
         print("Creating virtual environment for plugin...")
@@ -341,7 +341,7 @@ async def install_plugin(plugin_id: str):
 async def run_installer_script(plugin_id: str):
     from lab.dirs import get_global_log_path
 
-    global_log_file_name = get_global_log_path()
+    global_log_file_name = await get_global_log_path()
     async with aiofiles.open(global_log_file_name, "a") as log_file:
         return await run_installer_for_plugin(plugin_id, log_file)
     return {"status": "error", "message": f"Failed to open log file: {global_log_file_name}"}
