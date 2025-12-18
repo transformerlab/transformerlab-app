@@ -5,7 +5,7 @@ import open from 'open'; // We use this to open a URL in the browser
 import Table from '../ink-table'; // Custom Table component to fix issues with ink-table + bun
 
 /* Import utility functions */
-import { API_URL, getCredentials } from '../utils';
+import { API_URL, getCredentials } from '../lib/utils';
 
 /* Import common UI components */
 import { Logo, Panel, SuccessMsg } from './ui';

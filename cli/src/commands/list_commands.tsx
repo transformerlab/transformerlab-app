@@ -3,7 +3,7 @@ import { Box, Text, useApp } from 'ink';
 // import Table from 'ink-table';
 import { api } from '../lib/api';
 import { Loading, ErrorMsg } from '../components/ui';
-import { debugLog } from '../utils';
+import { debugLog } from '../lib/utils';
 import Table from '../ink-table';
 
 const truncate = (str: string, length: number = 30) => {

@@ -6,9 +6,9 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { api } from '../lib/api';
-import { LAB_DIR, CREDENTIALS_PATH, CONFIG_PATH, API_URL } from '../utils';
+import { LAB_DIR, CREDENTIALS_PATH, CONFIG_PATH, API_URL } from '../lib/utils';
 import { Logo, Loading, ErrorMsg, SuccessMsg, Panel } from '../components/ui';
-import { debugLog } from '../utils';
+import { debugLog } from '../lib/utils';
 
 type ViewState = 'INIT' | 'INPUT' | 'VERIFYING' | 'SELECT_TEAM' | 'SUCCESS';
 
