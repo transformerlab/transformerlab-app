@@ -673,7 +673,7 @@ async def get_image_by_id(
             if index < 0 or index >= len(image_files):
                 raise HTTPException(
                     status_code=404,
-                    detail=f"Image index {index} out of range (available={len(image_files)})",
+                    detail=f"Image index {index} out of range. Available: 0-{(image_item.num_images if hasattr(image_item, 'num_images') else 1) - 1}",
                 )
 
             file_name = image_files[index]
