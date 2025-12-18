@@ -7,43 +7,20 @@ import os from 'os';
 export const config = new Conf<LabState>({
   projectName: 'transformerlab',
   defaults: {
-    api_key: undefined,
     user_email: undefined,
     team_id: undefined,
-    target: undefined,
+    server: undefined,
   },
 });
 
-const storedTarget = config.get('server');
-const envTarget = process.env.TL_ENV;
+const storedServer = config.get('server');
 
-export const IS_LOCAL =
-  storedTarget === 'local' || envTarget?.toLowerCase() === 'local';
-
-export const API_URL = 'http://localhost:8338';
+export const API_URL = storedServer || 'http://alpha.lab.cloud:8338';
 
 export const HOME_DIR = os.homedir();
 export const LAB_DIR = path.join(HOME_DIR, '.lab');
 export const CREDENTIALS_PATH = path.join(LAB_DIR, 'credentials');
 export const CONFIG_PATH = path.join(LAB_DIR, 'config.json');
-
-// --- State Management ---
-interface LabState {
-  api_key?: string;
-  refresh_token?: string;
-  user_email?: string;
-  team_id?: string;
-  team_name?: string;
-  target?: 'local' | 'cloud'; // Added this field
-}
-
-interface LabState {
-  api_key?: string;
-  user_email?: string;
-  team_id?: string;
-  team_name?: string;
-  target?: 'local' | 'cloud';
-}
 
 export interface LabConfig {
   name?: string;
