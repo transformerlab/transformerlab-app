@@ -343,7 +343,7 @@ async def server_worker_start(
     # then we check to see if we are an experiment
     elif experiment_id is not None:
         try:
-            experiment = experiment_get(experiment_id)
+            experiment = await experiment_get(experiment_id)
             experiment_config = (
                 experiment["config"]
                 if isinstance(experiment["config"], dict)
@@ -400,7 +400,7 @@ async def server_worker_start(
         json.dumps(inference_params),
     ]
 
-    job_id = job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
+    job_id = await job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
 
     print("Loading plugin loader instead of default worker")
 
@@ -441,13 +441,13 @@ async def server_worker_start(
 
         async with await storage.open(await get_global_log_path(), "a") as global_log:
             await global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
-        job = job_get(job_id)
+        job = await job_get(job_id)
         error_msg = None
         if job and job.get("job_data"):
             error_msg = job["job_data"].get("error_msg")
         if not error_msg:
             error_msg = f"Exit code {exitcode}"
-            job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
+            await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "error", "message": error_msg}
     from lab.dirs import get_global_log_path
 

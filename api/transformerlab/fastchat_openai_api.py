@@ -239,12 +239,12 @@ async def check_model(request, bypass_adaptor=False) -> Optional[JSONResponse]:
     return ret
 
 
-def log_prompt(prompt):
+async def log_prompt(prompt):
     """Log the prompt to the global prompt.log file"""
     MAX_LOG_SIZE_BEFORE_ROTATE = 1000000  # 1MB in bytes
     from lab.dirs import get_logs_dir
 
-    # Run async operations synchronously in this sync function
+    # Run async operations
     async def _log():
         logs_dir = await get_logs_dir()
         prompt_log_path = storage.join(logs_dir, "prompt.log")
@@ -272,7 +272,7 @@ def log_prompt(prompt):
             log_entry = json.dumps(log_entry)
             await f.write(f"{log_entry}\n")
 
-    asyncio.run(_log())
+    await _log()
 
 
 @router.get("/prompt_log", tags=["chat"])
@@ -665,7 +665,7 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
     error_check_ret = await check_length(request, gen_params["prompt"], gen_params["max_new_tokens"])
     if error_check_ret is not None:
         return error_check_ret
-    log_prompt(gen_params)
+    await log_prompt(gen_params)
     if request.stream:
         generator = chat_completion_stream_generator(request.model, gen_params, request.n)
         return StreamingResponse(generator, media_type="text/event-stream")
@@ -819,7 +819,7 @@ async def create_completion(request: ModifiedCompletionRequest):
                 logprobs=request.logprobs,
             )
 
-            log_prompt(gen_params)
+            await log_prompt(gen_params)
 
             for i in range(request.n):
                 content = asyncio.create_task(generate_completion(gen_params))
@@ -992,7 +992,7 @@ async def generate_completion_stream_generator(request: ModifiedCompletionReques
                 logprobs=request.logprobs,
             )
             gen_params["type"] = "completion"
-            log_prompt(gen_params)
+            await log_prompt(gen_params)
 
             async for content in generate_completion_stream(gen_params):
                 if content["error_code"] != 0:
