@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 import json
-import aiofiles
 from . import storage
 
 
@@ -42,7 +41,7 @@ class BaseLabResource(ABC):
             raise FileNotFoundError(f"Directory for {cls.__name__} with id '{id}' not found")
         json_file = await newobj._get_json_file()
         if not await storage.exists(json_file):
-            async with aiofiles.open(json_file, "w", encoding="utf-8") as f:
+            async with await storage.open(json_file, "w", encoding="utf-8") as f:
                 await f.write(json.dumps(newobj._default_json()))
         return newobj
 
@@ -66,7 +65,7 @@ class BaseLabResource(ABC):
         json_file = await self._get_json_file()
         if await storage.exists(json_file):
             raise FileExistsError(f"{type(self).__name__} with id '{self.id}' already exists")
-        async with aiofiles.open(json_file, "w", encoding="utf-8") as f:
+        async with await storage.open(json_file, "w", encoding="utf-8") as f:
             await f.write(json.dumps(self._default_json()))
 
     def _default_json(self):
@@ -94,7 +93,7 @@ class BaseLabResource(ABC):
         # On any error return an empty dict
         for attempt in range(max_retries):
             try:
-                async with aiofiles.open(json_file, "r", encoding="utf-8") as f:
+                async with await storage.open(json_file, "r", encoding="utf-8") as f:
                     content = await f.read()
                     # Clean the content - remove trailing whitespace and extra characters
                     content = content.strip()
@@ -142,7 +141,7 @@ class BaseLabResource(ABC):
 
         # Write directly to index.json
         json_file = await self._get_json_file()
-        async with aiofiles.open(json_file, "w", encoding="utf-8") as f:
+        async with await storage.open(json_file, "w", encoding="utf-8") as f:
             await f.write(json.dumps(json_data, ensure_ascii=False))
 
     async def _get_json_data_field(self, key, default=""):

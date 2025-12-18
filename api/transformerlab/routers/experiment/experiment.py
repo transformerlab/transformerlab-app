@@ -24,7 +24,6 @@ from transformerlab.routers.experiment import (
 from lab.dirs import get_workspace_dir
 
 from werkzeug.utils import secure_filename
-import aiofiles
 
 router = APIRouter(prefix="/experiment")
 
@@ -119,7 +118,7 @@ async def experiment_save_file_contents(id: str, filename: str, file_contents: A
         return {"message": "Invalid file path - path traversal detected"}
 
     # Save the file contents securely
-    async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
+    async with await storage.open(file_path, "w", encoding="utf-8") as f:
         await f.write(file_contents)
 
     return {"message": f"{file_path} file contents saved"}
@@ -153,7 +152,7 @@ async def experiment_get_file_contents(id: str, filename: str):
 
     # now get the file contents
     try:
-        async with aiofiles.open(final_path, "r") as f:
+        async with await storage.open(final_path, "r") as f:
             file_contents = await f.read()
     except FileNotFoundError:
         return ""
@@ -188,7 +187,7 @@ async def export_experiment_to_recipe(id: str, request: Request):
     experiment_dir = await exp_obj.get_dir()
     notes_path = storage.join(experiment_dir, "readme.md")
     try:
-        async with aiofiles.open(notes_path, "r") as f:
+        async with await storage.open(notes_path, "r") as f:
             export_data["notes"] = await f.read()
     except FileNotFoundError:
         # If no notes file exists, leave it as empty string
@@ -275,7 +274,7 @@ async def export_experiment_to_recipe(id: str, request: Request):
     # Write to file in the workspace directory (org-aware via request context)
     workspace_dir = await get_workspace_dir()
     output_file = storage.join(workspace_dir, f"{data['name']}_export.json")
-    async with aiofiles.open(output_file, "w") as f:
+    async with await storage.open(output_file, "w") as f:
         await f.write(json.dumps(export_data, indent=2))
 
     return FileResponse(output_file, filename=output_file)

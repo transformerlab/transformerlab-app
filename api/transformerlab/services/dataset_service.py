@@ -3,7 +3,6 @@ from lab import storage
 import os
 import json
 from datasets import load_dataset, load_from_disk, Dataset as HFDataset, DatasetDict
-import aiofiles
 
 
 async def create_local_dataset(dataset_id, json_data=None):
@@ -82,7 +81,7 @@ async def load_local_dataset(dataset_dir, data_files=None, streaming=False):
                 # Read JSON files from remote storage and create dataset
                 all_data = []
                 for json_file_path in data_file_paths:
-                    async with aiofiles.open(json_file_path, "r", encoding="utf-8") as f:
+                    async with await storage.open(json_file_path, "r", encoding="utf-8") as f:
                         content = await f.read()
                         if json_file_path.endswith(".jsonl"):
                             # JSONL format (one JSON object per line)

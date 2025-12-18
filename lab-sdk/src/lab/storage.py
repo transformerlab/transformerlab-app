@@ -4,6 +4,7 @@ import contextvars
 import inspect
 
 import fsspec
+import aiofiles
 
 
 # Context variable for storage URI (set by host app/session)
@@ -201,6 +202,9 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
     """
     Open a file for reading or writing.
 
+    For local files, uses aiofiles for truly async file I/O.
+    For remote files (S3, GCS, etc.), uses fsspec async file objects.
+
     Args:
         path: Path to the file
         mode: File mode ('r', 'w', etc.)
@@ -217,7 +221,16 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
         filesys = await _get_uncached_filesystem(path, fs=fs)
     else:
         filesys = fs if fs is not None else await filesystem()
-    return await _call_fs_method(filesys, "open", path, mode=mode, **kwargs)
+
+    # Check if this is a local filesystem
+    is_local = isinstance(filesys, fsspec.implementations.local.LocalFileSystem)
+
+    if is_local:
+        # Use aiofiles for local files to get truly async file I/O
+        return aiofiles.open(path, mode=mode, **kwargs)
+    else:
+        # Use fsspec for remote files (S3, GCS, etc.) which have proper async support
+        return await _call_fs_method(filesys, "open", path, mode=mode, **kwargs)
 
 
 async def _get_uncached_filesystem(path: str, fs=None):

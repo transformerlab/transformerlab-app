@@ -7,7 +7,6 @@ from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 from lab import storage
 from lab import dirs
 from lab.dataset import Dataset as dataset_service
-import aiofiles
 
 
 class GenTLabPlugin(TLabPlugin):
@@ -102,13 +101,13 @@ class GenTLabPlugin(TLabPlugin):
                 metadata_file = storage.join(output_dir, f"{dataset_id}_metadata.json")
 
             async def _save_metadata():
-                async with aiofiles.open(metadata_file, "w", encoding="utf-8") as f:
+                async with await storage.open(metadata_file, "w", encoding="utf-8") as f:
                     await f.write(json.dumps(metadata, indent=2))
 
             asyncio.run(_save_metadata())
 
         async def _save_data():
-            async with aiofiles.open(output_file, "w", encoding="utf-8") as f:
+            async with await storage.open(output_file, "w", encoding="utf-8") as f:
                 await f.write(df.to_json(orient="records", lines=lines))
 
         asyncio.run(_save_data())
@@ -175,9 +174,9 @@ class GenTLabPlugin(TLabPlugin):
 
                 # Copy the file to the dataset directory
                 await storage.makedirs(dirs.dataset_dir_by_id(dataset_id_local), exist_ok=True)
-                async with aiofiles.open(output_file_path, "rb") as src_file:
+                async with await storage.open(output_file_path, "rb") as src_file:
                     content = await src_file.read()
-                    async with aiofiles.open(target_path, "wb") as dst_file:
+                    async with await storage.open(target_path, "wb") as dst_file:
                         await dst_file.write(content)
 
                 # Adding dataset so it can be previewed

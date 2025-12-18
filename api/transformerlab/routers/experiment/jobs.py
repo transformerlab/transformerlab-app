@@ -31,7 +31,6 @@ from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.compute_providers.models import JobState
 from lab import Job
 from lab.dirs import get_workspace_dir
-import aiofiles
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -191,7 +190,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
         # Read and return the file content as JSON array of lines
         if await storage.exists(output_file_name):
             lines = []
-            async with aiofiles.open(output_file_name, "r") as f:
+            async with await storage.open(output_file_name, "r") as f:
                 async for line in f:
                     lines.append(line.rstrip("\n"))  # Remove trailing newline
             return lines
@@ -208,7 +207,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                 output_file_name = await shared.get_job_output_file_name(job_id)
                 if await storage.exists(output_file_name):
                     lines = []
-                    async with aiofiles.open(output_file_name, "r") as f:
+                    async with await storage.open(output_file_name, "r") as f:
                         async for line in f:
                             lines.append(line.rstrip("\n"))  # Remove trailing newline
                     return lines
@@ -223,7 +222,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                 # Get directory by removing filename from path using storage.join
                 output_dir = storage.join(*output_file_name.split("/")[:-1]) if "/" in output_file_name else "."
                 await storage.makedirs(output_dir, exist_ok=True)
-                async with aiofiles.open(output_file_name, "w") as f:
+                async with await storage.open(output_file_name, "w") as f:
                     await f.write("")
                 return []
         else:
@@ -415,7 +414,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 # Get directory by removing filename from path using storage.join
                 output_dir = storage.join(*output_file_name.split("/")[:-1]) if "/" in output_file_name else "."
                 await storage.makedirs(output_dir, exist_ok=True)
-                async with aiofiles.open(output_file_name, "w") as f:
+                async with await storage.open(output_file_name, "w") as f:
                     await f.write("")
         else:
             print(f"ValueError in stream_job_output: {e}")
@@ -478,7 +477,7 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
 
     # convert csv to JSON, but do not assume that \n marks the end of a row as cells can
     # contain fields that start and end with " and contain \n. Use a CSV parser instead.
-    async with aiofiles.open(file_path, "r") as csvfile:
+    async with await storage.open(file_path, "r") as csvfile:
         contents_text = await csvfile.read()
         contents = csv.reader(contents_text.splitlines(), delimiter=",", quotechar='"')
         # convert the csv to a JSON object
@@ -502,7 +501,7 @@ async def get_figure_path(job_id: str):
     if file_path is None or not await storage.exists(file_path):
         return Response("No plot data found for this evaluation", media_type="text/csv")
 
-    async with aiofiles.open(file_path, "r") as f:
+    async with await storage.open(file_path, "r") as f:
         content_str = await f.read()
         content = json.loads(content_str)
     return content
@@ -525,7 +524,7 @@ async def get_generated_dataset(job_id: str):
     if not await storage.exists(json_file_path):
         return Response("No dataset found for this evaluation", media_type="text/csv")
     else:
-        async with aiofiles.open(json_file_path, "r") as f:
+        async with await storage.open(json_file_path, "r") as f:
             json_content_str = await f.read()
             json_content = json.loads(json_content_str)
 

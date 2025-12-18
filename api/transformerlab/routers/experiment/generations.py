@@ -15,7 +15,6 @@ from lab import dirs as lab_dirs
 from transformerlab.services.experiment_service import experiment_get, experiment_update_config
 
 from werkzeug.utils import secure_filename
-import aiofiles
 
 router = APIRouter(prefix="/generations", tags=["generations"])
 
@@ -225,7 +224,7 @@ async def run_generation_script(
     job_output_file = await shared.get_job_output_file_name(job_id, plugin_name, experimentId)
 
     input_contents = {"experiment": experiment_details, "config": template_config}
-    async with aiofiles.open(input_file, "w") as outfile:
+    async with await storage.open(input_file, "w") as outfile:
         await outfile.write(json.dumps(input_contents, indent=4))
 
     # For now, even though we have the file above, we are also going to pass all params
@@ -284,15 +283,15 @@ async def run_generation_script(
         process_env = os.environ.copy()
         process_env["_TFL_ORG_ID"] = org_id
 
-    async with aiofiles.open(job_output_file, "w") as f:
+    async with await storage.open(job_output_file, "w") as f:
         process = await asyncio.create_subprocess_exec(
             *subprocess_command, stdout=f, stderr=subprocess.PIPE, env=process_env
         )
         await process.communicate()
 
-    async with aiofiles.open(output_file, "w") as f:
+    async with await storage.open(output_file, "w") as f:
         # Copy all contents from job_output_file to output_file
-        async with aiofiles.open(job_output_file, "r") as job_output:
+        async with await storage.open(job_output_file, "r") as job_output:
             async for line in job_output:
                 await f.write(line)
 

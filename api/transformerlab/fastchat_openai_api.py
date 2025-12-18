@@ -46,7 +46,6 @@ from fastchat.protocol.openai_api_protocol import (
 )
 from pydantic import BaseModel as PydanticBaseModel
 from lab import Experiment, storage
-import aiofiles
 
 WORKER_API_TIMEOUT = 3600
 
@@ -252,13 +251,13 @@ def log_prompt(prompt):
         if await storage.exists(prompt_log_path):
             # Get file size - for remote storage, we may need to read the file to check size
             try:
-                async with aiofiles.open(prompt_log_path, "r") as f:
+                async with await storage.open(prompt_log_path, "r") as f:
                     lines = (await f.read()).splitlines(keepends=True)
                 file_size = sum(len(line.encode("utf-8")) for line in lines)
                 if file_size > MAX_LOG_SIZE_BEFORE_ROTATE:
-                    async with aiofiles.open(prompt_log_path, "w") as f:
+                    async with await storage.open(prompt_log_path, "w") as f:
                         await f.write("".join(lines[-1000:]))
-                    async with aiofiles.open(
+                    async with await storage.open(
                         storage.join(logs_dir, f"prompt_{time.strftime('%Y%m%d%H%M%S')}.log"), "w"
                     ) as f:
                         await f.write("".join(lines[:-1000]))
@@ -266,7 +265,7 @@ def log_prompt(prompt):
                 # If we can't read the file, just continue with appending
                 pass
 
-        async with aiofiles.open(prompt_log_path, "a") as f:
+        async with await storage.open(prompt_log_path, "a") as f:
             log_entry = {}
             log_entry["date"] = time.strftime("%Y-%m-%d %H:%M:%S")
             log_entry["log"] = prompt
@@ -598,7 +597,7 @@ async def upload_audio_reference(experimentId: str, audio: UploadFile = File(...
 
     # Save the uploaded file
     content = await audio.read()
-    async with aiofiles.open(file_path, "wb") as f:
+    async with await storage.open(file_path, "wb") as f:
         await f.write(content)
 
     return JSONResponse({"audioPath": file_path})

@@ -11,7 +11,6 @@ from datetime import datetime
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi import APIRouter, HTTPException
 from typing import AsyncGenerator
-import aiofiles
 
 # Could also use https://github.com/gpuopenanalytics/pynvml but this is simpler
 import psutil
@@ -377,27 +376,27 @@ async def watch_file(filename: str, start_from_beginning=False, force_polling=Tr
 
     # create the file if it doesn't already exist:
     if not await storage.exists(filename):
-        async with aiofiles.open(filename, "w") as f:
+        async with await storage.open(filename, "w") as f:
             await f.write("")
 
     last_position = 0
     if start_from_beginning:
         last_position = 0
-        async with aiofiles.open(filename, "r") as f:
+        async with await storage.open(filename, "r") as f:
             await f.seek(last_position)
             new_lines = await f.readlines()
             yield (f"data: {json.dumps(new_lines)}\n\n")
             last_position = await f.tell()
     else:
         try:
-            async with aiofiles.open(filename, "r") as f:
+            async with await storage.open(filename, "r") as f:
                 await f.seek(0, os.SEEK_END)
                 last_position = await f.tell()
         except Exception as e:
             print(f"Error seeking to end of file: {e}")
 
     async for changes in awatch(filename, force_polling=force_polling, poll_delay_ms=100):
-        async with aiofiles.open(filename, "r") as f:
+        async with await storage.open(filename, "r") as f:
             await f.seek(last_position)
             new_lines = await f.readlines()
             yield (f"data: {json.dumps(new_lines)}\n\n")
@@ -408,14 +407,18 @@ async def watch_file(filename: str, start_from_beginning=False, force_polling=Tr
 async def watch_log():
     global_log_path = await get_global_log_path()
 
-    if not await storage.exists(global_log_path):
-        # Create the file
-        async with aiofiles.open(global_log_path, "w") as f:
-            await f.write("")
-    try:
-        # Check if the path is an S3 or other remote filesystem path
-        is_remote_path = global_log_path.startswith(("s3://", "gs://", "abfs://", "gcs://"))
+    # Check if the path is an S3 or other remote filesystem path
+    is_remote_path = global_log_path.startswith(("s3://", "gs://", "abfs://", "gcs://"))
 
+    if not await storage.exists(global_log_path):
+        # Create the file using appropriate method
+        if is_remote_path:
+            async with await storage.open(global_log_path, "w") as f:
+                await f.write("")
+        else:
+            async with await storage.open(global_log_path, "w") as f:
+                await f.write("")
+    try:
         if is_remote_path:
             # Use S3 polling watcher for remote filesystems
             return StreamingResponse(

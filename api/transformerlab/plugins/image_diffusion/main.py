@@ -48,7 +48,6 @@ from PIL import Image
 from transformerlab.sdk.v1.diffusion import tlab_diffusion
 import numpy as np
 import subprocess
-import aiofiles
 
 scheduler_map = {
     "EulerDiscreteScheduler": EulerDiscreteScheduler,
@@ -590,7 +589,7 @@ def ensure_directories(experiment_name: str = None):
     if not asyncio.run(storage.exists(history_file_path)):
 
         async def _create_file():
-            async with aiofiles.open(history_file_path, "a"):
+            async with await storage.open(history_file_path, "a"):
                 pass
 
         asyncio.run(_create_file())
@@ -606,7 +605,7 @@ def save_to_history(item: ImageHistoryItem, experiment_name: str = None):
         history = []
         if await storage.exists(history_file):
             try:
-                async with aiofiles.open(history_file, "r") as f:
+                async with await storage.open(history_file, "r") as f:
                     history = json.loads(await f.read())
             except (json.JSONDecodeError, FileNotFoundError):
                 history = []
@@ -615,7 +614,7 @@ def save_to_history(item: ImageHistoryItem, experiment_name: str = None):
         history.insert(0, item.model_dump())
 
         # Save updated history
-        async with aiofiles.open(history_file, "w") as f:
+        async with await storage.open(history_file, "w") as f:
             await f.write(json.dumps(history, indent=2))
 
     asyncio.run(_save())
@@ -694,7 +693,7 @@ async def run_multi_gpu_generation(
     config_path = storage.join(get_diffusion_dir(experiment_name), secure_filename(f"config_{generation_id}.json"))
 
     async def _save_config():
-        async with aiofiles.open(config_path, "w") as f:
+        async with await storage.open(config_path, "w") as f:
             await f.write(json.dumps(config, indent=2))
 
     await _save_config()
@@ -763,7 +762,7 @@ async def run_multi_gpu_generation(
                 result_path = os.path.join(images_folder, "result.json")
                 if await storage.exists(result_path):
                     try:
-                        async with aiofiles.open(result_path, "r") as f:
+                        async with await storage.open(result_path, "r") as f:
                             worker_result = json.loads(await f.read())
                         if worker_result.get("error_type") == "OOM":
                             oom_suggestions = worker_result.get("suggestions", [])
@@ -784,7 +783,7 @@ async def run_multi_gpu_generation(
         if not await storage.exists(result_path):
             raise RuntimeError("Worker did not produce result file")
 
-        async with aiofiles.open(result_path, "r") as f:
+        async with await storage.open(result_path, "r") as f:
             worker_result = json.loads(await f.read())
 
         if not worker_result.get("success", False):
@@ -1285,7 +1284,7 @@ async def diffusion_generate_job():
         }
 
         output_path = os.path.join(images_folder, "tmp_json.json")
-        async with aiofiles.open(output_path, "w") as f:
+        async with await storage.open(output_path, "w") as f:
             await f.write(json.dumps(output_data, indent=2))
 
         tlab_diffusion.progress_update(100)

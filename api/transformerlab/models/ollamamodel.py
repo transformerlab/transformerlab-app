@@ -9,7 +9,6 @@ import os
 import json
 import errno
 from lab import storage
-import aiofiles
 
 
 async def list_models():
@@ -197,7 +196,7 @@ class OllamaModel(basemodel.BaseModel):
         except Exception as e:
             # If symlink fails, we could copy the file instead
             print(f"Warning: Could not create symlink, copying file instead: {e}")
-            async with aiofiles.open(link_name, "wb") as out_f:
+            async with await storage.open(link_name, "wb") as out_f:
                 with open(input_model_path, "rb") as in_f:
                     await out_f.write(in_f.read())
 
@@ -218,7 +217,7 @@ class OllamaModel(basemodel.BaseModel):
             },
         }
         model_info_file = await storage.join(output_path, "index.json")
-        async with aiofiles.open(model_info_file, "w") as f:
+        async with await storage.open(model_info_file, "w") as f:
             await f.write(json.dumps(model_description))
 
 

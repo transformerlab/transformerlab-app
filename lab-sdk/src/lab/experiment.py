@@ -1,7 +1,6 @@
 import threading
 import time
 from werkzeug.utils import secure_filename
-import aiofiles
 
 from .dirs import get_experiments_dir, get_jobs_dir, get_workspace_dir
 from .labresource import BaseLabResource
@@ -66,7 +65,7 @@ class Experiment(BaseLabResource):
         # Create a empty jobs index and write
         jobs_json_path = await self._jobs_json_file()
         empty_jobs_data = {"index": self.DEFAULT_JOBS_INDEX, "cached_jobs": {}}
-        async with aiofiles.open(jobs_json_path, "w") as f:
+        async with await storage.open(jobs_json_path, "w") as f:
             await f.write(json.dumps(empty_jobs_data, indent=4))
 
     async def update_config_field(self, key, value):
@@ -120,7 +119,7 @@ class Experiment(BaseLabResource):
                     if await storage.isdir(exp_path):
                         index_file = storage.join(exp_path, "index.json")
                         if await storage.exists(index_file):
-                            async with aiofiles.open(index_file, "r", uncached=True) as f:
+                            async with await storage.open(index_file, "r", uncached=True) as f:
                                 content = await f.read()
                                 data = json.loads(content)
                             experiments.append(data)
@@ -249,7 +248,7 @@ class Experiment(BaseLabResource):
         for attempt in range(max_retries):
             try:
                 # Use uncached=True to avoid Etag caching issues
-                async with aiofiles.open(jobs_json_path, "r", uncached=True) as f:
+                async with await storage.open(jobs_json_path, "r", uncached=True) as f:
                     content = await f.read()
                     jobs_data = json.loads(content)
                     return jobs_data
@@ -274,7 +273,7 @@ class Experiment(BaseLabResource):
                     else:
                         # Last attempt failed, try one more time
                         try:
-                            async with aiofiles.open(jobs_json_path, "r", uncached=True) as f:
+                            async with await storage.open(jobs_json_path, "r", uncached=True) as f:
                                 content = await f.read()
                                 jobs_data = json.loads(content)
                                 return jobs_data
@@ -342,7 +341,7 @@ class Experiment(BaseLabResource):
                 # Prefer the latest snapshot if available; fall back to index.json
                 index_file = storage.join(entry_path, "index.json")
                 try:
-                    async with aiofiles.open(index_file, "r", encoding="utf-8", fs=fs_override, uncached=True) as lf:
+                    async with await storage.open(index_file, "r", encoding="utf-8", fs=fs_override, uncached=True) as lf:
                         content = await lf.read()
                         content = content.strip()
                         if not content:
@@ -374,7 +373,7 @@ class Experiment(BaseLabResource):
             if results:
                 try:
                     jobs_json_path = await self._jobs_json_file(workspace_dir=workspace_dir, experiment_id=self.id)
-                    async with aiofiles.open(
+                    async with await storage.open(
                         jobs_json_path,
                         "w",
                         fs=fs_override,
@@ -532,7 +531,7 @@ class Experiment(BaseLabResource):
 
         # Update the file with new structure
         jobs_json_path = await self._jobs_json_file()
-        async with aiofiles.open(jobs_json_path, "w") as f:
+        async with await storage.open(jobs_json_path, "w") as f:
             await f.write(json.dumps(jobs_data, indent=4))
 
         # Trigger background cache rebuild

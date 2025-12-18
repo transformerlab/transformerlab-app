@@ -14,7 +14,6 @@ from lab.dirs import get_workspace_dir
 from transformerlab.shared.shared import slugify
 from transformerlab.services.job_service import job_create
 import logging
-import aiofiles
 
 
 router = APIRouter(prefix="/diffusion", tags=["diffusion"])
@@ -311,7 +310,7 @@ async def ensure_directories(experiment_name: str = None, workspace_dir: str | N
     await storage.makedirs(diffusion_dir, exist_ok=True)
     await storage.makedirs(images_dir, exist_ok=True)
     if not await storage.exists(history_file_path):
-        async with aiofiles.open(history_file_path, "a"):
+        async with await storage.open(history_file_path, "a"):
             # Create the history file if it doesn't exist
             pass
 
@@ -327,7 +326,7 @@ async def load_history(
         try:
             new_history_file = await get_history_file_path(experiment_name, workspace_dir)
             if await storage.exists(new_history_file):
-                async with aiofiles.open(new_history_file, "r") as f:
+                async with await storage.open(new_history_file, "r") as f:
                     new_history_data = json.loads(await f.read())
                     all_images.extend(new_history_data)
         except (json.JSONDecodeError, FileNotFoundError):
@@ -337,7 +336,7 @@ async def load_history(
     try:
         legacy_history_file = await get_history_file_path(None, workspace_dir)  # No experiment → legacy path
         if await storage.exists(legacy_history_file):
-            async with aiofiles.open(legacy_history_file, "r") as f:
+            async with await storage.open(legacy_history_file, "r") as f:
                 legacy_history_data = json.loads(await f.read())
                 all_images.extend(legacy_history_data)
     except (json.JSONDecodeError, FileNotFoundError):
@@ -374,7 +373,7 @@ async def find_image_by_id(
         try:
             new_history_file = await get_history_file_path(experiment_name, workspace_dir)
             if await storage.exists(new_history_file):
-                async with aiofiles.open(new_history_file, "r") as f:
+                async with await storage.open(new_history_file, "r") as f:
                     history = json.loads(await f.read())
                     for item in history:
                         if item.get("id") == image_id:
@@ -386,7 +385,7 @@ async def find_image_by_id(
     try:
         legacy_history_file = await get_history_file_path(None, workspace_dir)  # No experiment → legacy path
         if await storage.exists(legacy_history_file):
-            async with aiofiles.open(legacy_history_file, "r") as f:
+            async with await storage.open(legacy_history_file, "r") as f:
                 history = json.loads(await f.read())
                 for item in history:
                     if item.get("id") == image_id:
@@ -767,7 +766,7 @@ async def get_all_images(image_id: str, experimentId: str, http_request: Request
                     if filename.endswith(".png") and filename.replace(".png", "").isdigit():
                         file_path = entry  # Use the full path from storage.ls
                         # Download to temp if remote, then add to zip
-                        async with aiofiles.open(file_path, "rb") as remote_file:
+                        async with await storage.open(file_path, "rb") as remote_file:
                             content = await remote_file.read()
                             zipf.writestr(filename, content)
             else:
@@ -776,7 +775,7 @@ async def get_all_images(image_id: str, experimentId: str, http_request: Request
                 # Extract just the filename for the zip
                 filename = file_path.rstrip("/").split("/")[-1]
                 # Download to temp if remote, then add to zip
-                async with aiofiles.open(file_path, "rb") as remote_file:
+                async with await storage.open(file_path, "rb") as remote_file:
                     content = await remote_file.read()
                     zipf.writestr(filename, content)
 
@@ -811,7 +810,7 @@ async def delete_image_from_history(experimentId: str, image_id: str, http_reque
 
     try:
         # Load current history
-        async with aiofiles.open(history_file, "r") as f:
+        async with await storage.open(history_file, "r") as f:
             history = json.loads(await f.read())
 
         # Find and remove the item
@@ -844,7 +843,7 @@ async def delete_image_from_history(experimentId: str, image_id: str, http_reque
             await storage.rm(item_to_remove["processed_image"])
 
         # Save updated history
-        async with aiofiles.open(history_file, "w") as f:
+        async with await storage.open(history_file, "w") as f:
             await f.write(json.dumps(updated_history, indent=2))
 
         return JSONResponse(
@@ -868,7 +867,7 @@ async def clear_history(experimentId: str, http_request: Request = None):
         # Load current history to get image paths
         deleted_count = 0
         if await storage.exists(history_file):
-            async with aiofiles.open(history_file, "r") as f:
+            async with await storage.open(history_file, "r") as f:
                 history = json.loads(await f.read())
 
             # Remove all image files/folders
@@ -894,7 +893,7 @@ async def clear_history(experimentId: str, http_request: Request = None):
                     await storage.rm(item["processed_image"])
 
             # Clear history file
-            async with aiofiles.open(history_file, "w") as f:
+            async with await storage.open(history_file, "w") as f:
                 await f.write(json.dumps([]))
 
         # Remove any remaining files/folders in images directory
@@ -1111,7 +1110,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
         # Make train directory if it doesn't exist
         await storage.makedirs(images_dir, exist_ok=True)
         dataset_file = storage.join(dataset_dir, "train", "metadata.jsonl")
-        async with aiofiles.open(dataset_file, "w") as f:
+        async with await storage.open(dataset_file, "w") as f:
             for record in dataset_records:
                 await f.write(json.dumps(record) + "\n")
     except Exception as e:
@@ -1189,7 +1188,7 @@ async def get_file(experimentId: str, generation_id: str):
         if not await storage.isfile(file_path):
             raise HTTPException(status_code=404, detail="File not found")
 
-        async with aiofiles.open(file_path, "r") as f:
+        async with await storage.open(file_path, "r") as f:
             data = json.loads(await f.read())
 
         return JSONResponse(content=data)

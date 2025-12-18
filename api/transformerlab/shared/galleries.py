@@ -10,7 +10,6 @@ import urllib.request
 import shutil
 
 from transformerlab.shared import dirs
-import aiofiles
 
 # This is the list of galleries that are updated remotely
 MODEL_GALLERY_FILE = "model-gallery.json"
@@ -79,11 +78,11 @@ async def get_team_tasks_gallery():
 
         if not await storage.exists(gallery_path):
             # Initialize an empty gallery file
-            async with aiofiles.open(gallery_path, "w") as f:
+            async with await storage.open(gallery_path, "w") as f:
                 await f.write(json.dumps([]))
             return []
 
-        async with aiofiles.open(gallery_path, "r") as f:
+        async with await storage.open(gallery_path, "r") as f:
             return json.loads(await f.read())
     except Exception as e:
         print(f"❌ Failed to read team tasks gallery: {e}")
@@ -118,7 +117,7 @@ async def add_team_task_to_gallery(entry: dict):
 
         filtered.append(entry)
 
-        async with aiofiles.open(gallery_path, "w") as f:
+        async with await storage.open(gallery_path, "w") as f:
             await f.write(json.dumps(filtered, indent=2))
         return filtered
     except Exception as e:
@@ -151,7 +150,7 @@ async def delete_team_task_from_gallery(task_id: str):
             filtered.append(item)
 
         if found:
-            async with aiofiles.open(gallery_path, "w") as f:
+            async with await storage.open(gallery_path, "w") as f:
                 await f.write(json.dumps(filtered, indent=2))
             return True
         return False

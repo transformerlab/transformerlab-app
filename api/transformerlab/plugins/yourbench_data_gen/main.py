@@ -8,7 +8,6 @@ from transformerlab.sdk.v1.generate import tlab_gen
 from transformerlab.plugin import get_python_executable
 from lab.dirs import get_workspace_dir
 from lab import storage
-import aiofiles
 
 
 def generate_config():
@@ -140,7 +139,7 @@ def run_yourbench():
 
     # Write the configuration to a file
     async def _write_config():
-        async with aiofiles.open(config_path, "w") as config_file:
+        async with await storage.open(config_path, "w") as config_file:
             await config_file.write(yaml.dump(config, default_flow_style=False))
 
     asyncio.run(_write_config())

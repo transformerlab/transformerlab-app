@@ -16,7 +16,6 @@ from transformerlab.shared import dirs, shared
 from transformerlab.services.job_service import job_update_status
 
 from werkzeug.utils import secure_filename
-import aiofiles
 
 router = APIRouter(prefix="/export", tags=["export"])
 
@@ -160,7 +159,7 @@ async def run_exporter_script(
         job_output_file = await shared.get_job_output_file_name(job_id, experiment_name=experiment_name)
 
         # Create the output file and run the process with output redirection
-        async with aiofiles.open(job_output_file, "w") as f:
+        async with await storage.open(job_output_file, "w") as f:
             process = await asyncio.create_subprocess_exec(
                 *subprocess_command, stdout=f, stderr=subprocess.PIPE, cwd=script_directory, env=process_env
             )
@@ -211,7 +210,7 @@ async def run_exporter_script(
         },
     }
     model_description_file_path = storage.join(output_path, "index.json")
-    async with aiofiles.open(model_description_file_path, "w") as model_description_file:
+    async with await storage.open(model_description_file_path, "w") as model_description_file:
         await model_description_file.write(json.dumps(model_description, indent=2))
 
     return {"status": "success", "job_id": job_id}

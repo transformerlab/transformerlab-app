@@ -24,7 +24,6 @@ from lab import dirs as lab_dirs, Job, Experiment
 from lab import storage
 from lab.dirs import get_workspace_dir
 from transformerlab.shared import dirs
-import aiofiles
 
 
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
@@ -226,7 +225,7 @@ async def read_process_output(process, job_id, log_handle=None):
 
     # Wrap log write in try-except to handle errors gracefully during shutdown
     try:
-        async with aiofiles.open(await get_global_log_path(), "a") as log:
+        async with await storage.open(await get_global_log_path(), "a") as log:
             await log.write(f"Inference Server Terminated with {returncode}.\n")
             await log.flush()
     except Exception:
@@ -318,7 +317,7 @@ async def async_run_python_daemon_and_update_status(
         from lab.dirs import get_temp_dir
 
         pid_file = storage.join(await get_temp_dir(), f"worker_job_{job_id}.pid")
-        async with aiofiles.open(pid_file, "w") as f:
+        async with await storage.open(pid_file, "w") as f:
             await f.write(str(pid))
 
         # keep a tail of recent lines so we can show them on failure:
@@ -469,7 +468,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         evals_output_file = storage.join(output_temp_file_dir, f"output_{job_id}.txt")
         # Create output file if it doesn't exist
         if not await storage.exists(evals_output_file):
-            async with aiofiles.open(evals_output_file, "w") as f:
+            async with await storage.open(evals_output_file, "w") as f:
                 await f.write("")
         await run_evaluation_script(experiment_name, plugin_name, eval_name, job_id, org_id=org_id)
         # Check if stop button was clicked and update status accordingly
@@ -500,7 +499,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         gen_output_file = storage.join(output_temp_file_dir, f"output_{job_id}.txt")
         # Create output file if it doesn't exist
         if not await storage.exists(gen_output_file):
-            async with aiofiles.open(gen_output_file, "w") as f:
+            async with await storage.open(gen_output_file, "w") as f:
                 await f.write("")
 
         await run_generation_script(experiment_name, plugin_name, generation_name, job_id, org_id=org_id)
@@ -531,7 +530,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         export_output_file = storage.join(output_temp_file_dir, f"output_{job_id}.txt")
         # Create output file if it doesn't exist
         if not await storage.exists(export_output_file):
-            async with aiofiles.open(export_output_file, "w") as f:
+            async with await storage.open(export_output_file, "w") as f:
                 await f.write("")
 
         # Run the export script using the existing run_exporter_script function
@@ -602,7 +601,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
                     decoded = base64.b64decode(config[base64_key])
                     file_path = storage.join(output_temp_file_dir, f"{file_arg}.png")
-                    async with aiofiles.open(file_path, "wb") as f:
+                    async with await storage.open(file_path, "wb") as f:
                         await f.write(decoded)
 
                     config[file_arg] = file_path
@@ -687,7 +686,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await storage.makedirs(storage.join(output_temp_file_dir), exist_ok=True)
         print(f"[DIFFUSION] Running command: {subprocess_command}")
         try:
-            async with aiofiles.open(output_path, "w") as f:
+            async with await storage.open(output_path, "w") as f:
                 process = await asyncio.create_subprocess_exec(
                     *subprocess_command,
                     stdout=f,
@@ -855,7 +854,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 # Create input file for this run
                 run_input_file = storage.join(tempdir, f"plugin_input_{job_id}_run_{i + 1}.json")
                 run_input_contents = {"experiment": experiment_details, "config": run_config}
-                async with aiofiles.open(run_input_file, "w") as outfile:
+                async with await storage.open(run_input_file, "w") as outfile:
                     await outfile.write(json.dumps(run_input_contents, indent=4))
 
                 # Update job progress
@@ -901,7 +900,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 # Replace synchronous subprocess.run with asyncio
                 async def run_process_async(cmd, output_file):
                     # Open file for writing
-                    async with aiofiles.open(output_file, "a") as f:
+                    async with await storage.open(output_file, "a") as f:
                         # Create subprocess with piped stdout
                         # Pass organization_id via environment variable
                         process_env = {**os.environ, **subprocess_env} if subprocess_env_or_none else None
@@ -937,7 +936,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     # Get latest metrics from job_data (assuming plugin saved metrics there)
                     metrics_path = storage.join(run_dir, "metrics.json")
                     if await storage.exists(metrics_path):
-                        async with aiofiles.open(metrics_path, "r") as f:
+                        async with await storage.open(metrics_path, "r") as f:
                             run_metrics = json.loads(await f.read())
                     else:
                         # Fallback to a default metric value if no metrics found
@@ -988,7 +987,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             }
 
             sweep_results_file = storage.join(sweep_dir, "sweep_results.json")
-            async with aiofiles.open(sweep_results_file, "w") as f:
+            async with await storage.open(sweep_results_file, "w") as f:
                 await f.write(json.dumps(sweep_results, indent=2))
 
             job_service.job_update_job_data_insert_key_value(
@@ -1015,7 +1014,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 # Create input file for final run
                 final_input_file = storage.join(tempdir, f"plugin_input_{job_id}_final.json")
                 final_input_contents = {"experiment": experiment_details, "config": final_config}
-                async with aiofiles.open(final_input_file, "w") as outfile:
+                async with await storage.open(final_input_file, "w") as outfile:
                     await outfile.write(json.dumps(final_input_contents, indent=4))
 
                 # Create command for final training
@@ -1075,7 +1074,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                         experiment_details["config"]["inferenceParams"]
                     )
             input_contents = {"experiment": experiment_details, "config": template_config}
-            async with aiofiles.open(input_file, "w") as outfile:
+            async with await storage.open(input_file, "w") as outfile:
                 await outfile.write(json.dumps(input_contents, indent=4))
 
             start_time = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -1144,7 +1143,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     experiment_details["config"]["inferenceParams"]
                 )
         input_contents = {"experiment": experiment_details, "config": template_config}
-        async with aiofiles.open(input_file, "w") as outfile:
+        async with await storage.open(input_file, "w") as outfile:
             await outfile.write(json.dumps(input_contents, indent=4))
 
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -1198,7 +1197,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         )
 
         if not await storage.exists(output_file):
-            async with aiofiles.open(output_file, "w") as f:
+            async with await storage.open(output_file, "w") as f:
                 await f.write("")
 
         # Create a file in the temp directory to store the inputs:
@@ -1215,7 +1214,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     experiment_details["config"]["inferenceParams"]
                 )
         input_contents = {"experiment": experiment_details, "config": template_config}
-        async with aiofiles.open(input_file, "w") as outfile:
+        async with await storage.open(input_file, "w") as outfile:
             await outfile.write(json.dumps(input_contents, indent=4))
 
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
