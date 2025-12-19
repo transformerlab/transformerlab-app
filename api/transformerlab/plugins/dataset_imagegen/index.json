@@ -7,10 +7,7 @@
   "version": "0.1.6",
   "git": "",
   "url": "",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "files": ["main.py", "setup.sh"],
   "supported_hardware_architectures": [],
   "_dataset": true,
   "setup-script": "setup.sh",

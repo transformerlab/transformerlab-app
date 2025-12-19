@@ -1,9 +1,11 @@
 import os
 import subprocess
+import asyncio
 from functools import partial
 
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
+from transformerlab.plugin import get_python_executable
+from lab.dirs import get_workspace_dir
 
 # Add custom arguments
 tlab_trainer.add_argument(
@@ -383,7 +385,8 @@ def train_model():
 
             adaptor_name = tlab_trainer.params.get("adaptor_name", "default")
             fused_model_name = f"{model_id_short}_{adaptor_name}"
-            fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
+            workspace_dir = asyncio.run(get_workspace_dir())
+            fused_model_location = os.path.join(workspace_dir, "models", fused_model_name)
 
             trainer.save_model(output_dir=fused_model_location)
             if hasattr(trainer, "processing_class") and trainer.processing_class:
