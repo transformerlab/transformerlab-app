@@ -57,6 +57,12 @@
     }
   },
   {
+    "title": "AutoTrain SFT Training Task",
+    "description": "SFT training task using Hugging Face AutoTrain. Requires a Hugging Face token in HF_TOKEN env var for model access.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "autotrain-sft"
+  },
+  {
     "title": "Train GPT OSS 20b with LoRA",
     "description": "LoRA fine-tuning of an open-source GPT-NeoX 20B checkpoint using DeepSpeed ZeRO",
     "github_repo_url": "https://github.com/transformerlab/transformerlab-app.git",

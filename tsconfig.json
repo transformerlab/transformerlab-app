@@ -20,5 +20,6 @@
               "release/app/dist", "release/build",
               "*.css.d.ts",
               "*.sass.d.ts",
-              "*.scss.d.ts"]
+              "*.scss.d.ts",
+              "cli/dist"]
 }
