@@ -1,6 +1,5 @@
 import os
 import asyncio
-import pytest
 import json
 import importlib
 

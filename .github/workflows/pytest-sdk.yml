@@ -38,12 +38,8 @@ jobs:
       - name: Install project with uv
         run: |
           uv venv --python ${{ matrix.python-version }}
-          source .venv/bin/activate
           uv pip install -e .
-          uv pip install --system pytest pytest-asyncio
 
       - name: Run SDK tests (uv)
-        env:
-          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: |
           uv run pytest
