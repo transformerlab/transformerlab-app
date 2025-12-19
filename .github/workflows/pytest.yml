@@ -47,7 +47,7 @@ jobs:
       - name: Install lab-sdk in editable mode
         run: |
           cd ../lab-sdk
-          uv pip install -e .
+          uv pip install --system -e .
       - name: Test with pytest
         run: |
           pytest --cov=transformerlab --cov-branch --cov-report=xml -k 'not test_teams'
