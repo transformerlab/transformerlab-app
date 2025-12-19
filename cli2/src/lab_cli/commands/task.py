@@ -5,7 +5,7 @@ import lab_cli.util.api as api
 console = Console()
 
 
-def list_tasks(output_format: str = "json") -> None:
+def list_tasks(output_format: str = "table") -> None:
     """List all tasks."""
 
     with console.status("[bold green]Fetching tasks...[/bold green]", spinner="dots"):
@@ -13,7 +13,7 @@ def list_tasks(output_format: str = "json") -> None:
 
     if response.status_code == 200:
         tasks = response.json()
-        table_columns = ["ID", "Name", "Type", "Created At", "Updated At"]
+        table_columns = ["id", "name", "type", "created_at", "updated_at"]
 
         render_table(data=tasks, format_type=output_format, table_columns=table_columns, title="Tasks")
     else:
