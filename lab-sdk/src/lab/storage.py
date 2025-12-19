@@ -1,9 +1,112 @@
 import os
 import posixpath
 import contextvars
+from types import TracebackType
+from typing import Optional, Type
 
 import fsspec
 import aiofiles
+
+
+class AsyncFileWrapper:
+    """
+    Wrapper to make sync file objects work with async context managers.
+    This allows sync filesystem file objects to be used with 'async with'.
+    """
+
+    def __init__(self, file_obj):
+        # Store the file object (which may be a context manager)
+        self._file_obj = file_obj
+        self.file_obj = None
+        self._is_context_manager = hasattr(file_obj, "__enter__") and hasattr(file_obj, "__exit__")
+
+    async def __aenter__(self):
+        # Enter the sync context manager if it is one
+        if self._is_context_manager:
+            self.file_obj = self._file_obj.__enter__()
+        else:
+            self.file_obj = self._file_obj
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        if self._is_context_manager:
+            # Exit the sync context manager
+            self._file_obj.__exit__(exc_type, exc_val, exc_tb)
+        elif self.file_obj and hasattr(self.file_obj, "close"):
+            # Just close if no context manager protocol
+            self.file_obj.close()
+        self.file_obj = None
+
+    # Override common I/O methods to make them async-compatible
+    async def read(self, size=-1):
+        """Read from the file (async wrapper for sync read)."""
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return self.file_obj.read(size)
+
+    async def write(self, data):
+        """Write to the file (async wrapper for sync write)."""
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return self.file_obj.write(data)
+
+    async def readline(self, size=-1):
+        """Read a line from the file (async wrapper for sync readline)."""
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return self.file_obj.readline(size)
+
+    async def readlines(self, hint=-1):
+        """Read all lines from the file (async wrapper for sync readlines)."""
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return self.file_obj.readlines(hint)
+
+    async def seek(self, offset, whence=0):
+        """Seek to a position in the file (async wrapper for sync seek)."""
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return self.file_obj.seek(offset, whence)
+
+    async def tell(self):
+        """Get current file position (async wrapper for sync tell)."""
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return self.file_obj.tell()
+
+    async def flush(self):
+        """Flush the file buffer (async wrapper for sync flush)."""
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return self.file_obj.flush()
+
+    def __getattr__(self, name):
+        # Delegate all other attributes to the underlying file object
+        if self.file_obj is None:
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+        return getattr(self.file_obj, name)
+
+    def __iter__(self):
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return iter(self.file_obj)
+
+    def __aiter__(self):
+        # For async iteration, we need to wrap the sync iterator
+        return self
+
+    async def __anext__(self):
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        try:
+            return next(self.file_obj)
+        except StopIteration:
+            raise StopAsyncIteration
 
 
 # Context variable for storage URI (set by host app/session)
@@ -201,8 +304,10 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
         # Use aiofiles for local files to get truly async file I/O
         return aiofiles.open(path, mode=mode, **kwargs)
     else:
-        # Use sync filesystem open method (wrapped in async function for API compatibility)
-        return filesys.open(path, mode=mode, **kwargs)
+        # Use sync filesystem open method, but wrap it in async context manager
+        # so it can be used with 'async with'
+        sync_file = filesys.open(path, mode=mode, **kwargs)
+        return AsyncFileWrapper(sync_file)
 
 
 async def _get_uncached_filesystem(path: str, fs=None):
