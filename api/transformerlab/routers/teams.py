@@ -840,11 +840,7 @@ async def get_github_pat(
             print(f"Error reading GitHub PAT: {e}")
             return {"status": "error", "message": "Failed to read GitHub PAT"}
 
-    return {
-        "status": "success",
-        "pat_exists": True,
-        "masked_pat": mask_key(raw_pat),
-    }
+    return {"status": "error", "message": "GitHub PAT not found"}
 
 
 @router.put("/teams/{team_id}/github_pat")
