@@ -442,25 +442,13 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
 
 @router.get("/{job_id}/stream_detailed_json_report")
 async def stream_detailed_json_report(job_id: str, file_name: str):
-    # Constrain the requested file to the workspace directory to prevent path traversal.
-    workspace_dir = await get_workspace_dir()
-    base_dir = os.path.realpath(workspace_dir)
-    normalized = os.path.normpath(file_name)
-    candidate = os.path.realpath(os.path.join(base_dir, normalized))
-    try:
-        common = os.path.commonpath([base_dir, candidate])
-    except ValueError:
-        common = ""
-    if common != base_dir:
-        raise HTTPException(status_code=400, detail="Invalid file path")
-
-    if not await storage.exists(candidate):
-        print(f"File not found: {candidate}")
+    if not await storage.exists(file_name):
+        print(f"File not found: {file_name}")
         return "File not found", 404
 
     return StreamingResponse(
         # we force polling because i can't get this to work otherwise -- changes aren't detected
-        watch_file(candidate, start_from_beginning=True, force_polling=False),
+        watch_file(file_name, start_from_beginning=True, force_polling=False),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
     )
