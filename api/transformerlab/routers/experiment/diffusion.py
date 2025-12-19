@@ -156,9 +156,20 @@ def _setup_diffusion_logger():
         import asyncio
         from lab.dirs import get_global_log_path
 
-        file_handler = logging.FileHandler(asyncio.run(get_global_log_path()), encoding="utf-8")
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+        # Check if there's already an event loop running
+        # If so, we can't use asyncio.run() and must skip file handler setup
+        # to avoid the "coroutine was never awaited" warning
+        try:
+            asyncio.get_running_loop()
+            # There's a running loop, skip file handler setup
+            # (can't use asyncio.run() when loop is already running)
+        except RuntimeError:
+            # No running event loop, safe to use asyncio.run()
+            # Create and immediately await the coroutine
+            log_path = asyncio.run(get_global_log_path())
+            file_handler = logging.FileHandler(log_path, encoding="utf-8")
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
     except Exception:
         pass  # Continue without file logging if there's an issue
 
