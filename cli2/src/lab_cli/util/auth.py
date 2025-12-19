@@ -1,11 +1,7 @@
-from pathlib import Path
-
 import httpx
 from rich.console import Console
 
-CREDENTIALS_DIR = Path.home() / ".lab"
-CREDENTIALS_FILE = CREDENTIALS_DIR / "credentials"
-AUTH_URL = "http://alpha.lab.cloud:8338/server/info"
+from lab_cli.util.shared import CREDENTIALS_DIR, CREDENTIALS_FILE, AUTH_URL
 
 console = Console()
 

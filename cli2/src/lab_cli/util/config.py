@@ -1,13 +1,11 @@
 import json
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 from rich.console import Console
 from rich.table import Table
 
-CONFIG_DIR = Path.home() / ".lab"
-CONFIG_FILE = CONFIG_DIR / "config.json"
+from lab_cli.util.shared import CONFIG_DIR, CONFIG_FILE
 
 VALID_CONFIG_KEYS = ["server", "team_id", "team_name", "user_email"]
 
