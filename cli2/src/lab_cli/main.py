@@ -4,6 +4,7 @@ from rich.console import Console
 
 from lab_cli.util.logo import show_header
 from lab_cli.util.auth import set_api_key, delete_api_key
+from lab_cli.util.config import list_config, set_config
 from lab_cli import __version__
 
 app = typer.Typer(name="lab", help="Transformer Lab CLI", add_completion=False, no_args_is_help=True)
@@ -32,6 +33,21 @@ def login(
 def logout():
     """Log out from Transformer Lab."""
     delete_api_key()
+
+
+@app.command()
+def config(
+    key: str = typer.Argument(None, help="Config key to set"),
+    value: str = typer.Argument(None, help="Config value to set"),
+):
+    """View or set configuration values."""
+    if key is None and value is None:
+        list_config()
+    elif key is not None and value is not None:
+        set_config(key, value)
+    else:
+        console.print("[red]Error:[/red] Both key and value are required to set a config")
+        raise typer.Exit(1)
 
 
 @task_app.command("list")
