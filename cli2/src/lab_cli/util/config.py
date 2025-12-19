@@ -3,8 +3,8 @@ from typing import Any
 from urllib.parse import urlparse
 
 from rich.console import Console
-from rich.table import Table
 
+from lab_cli.util.ui import render_table
 from lab_cli.util.shared import CONFIG_DIR, CONFIG_FILE
 
 VALID_CONFIG_KEYS = ["server", "team_id", "team_name", "user_email"]
@@ -41,14 +41,14 @@ def list_config() -> None:
         console.print("[yellow]No configuration values set[/yellow]")
         return
 
-    table = Table(title="Configuration")
-    table.add_column("Key", style="cyan")
-    table.add_column("Value", style="green")
+    json_with_key_value = [{"Key": k, "Value": str(v)} for k, v in sorted(config.items())]
 
-    for key, value in sorted(config.items()):
-        table.add_row(key, str(value))
-
-    console.print(table)
+    render_table(
+        data=json_with_key_value,
+        format_type="table",
+        table_columns=["Key", "Value"],
+        title="Configuration",
+    )
 
 
 def get_config(key: str) -> Any | None:

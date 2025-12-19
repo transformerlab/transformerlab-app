@@ -14,7 +14,7 @@ def render_table(data, format_type: str, table_columns: list, title: str) -> Non
             table.add_column(col, style="cyan", no_wrap=True)
 
         for row in data:
-            table.add_row(*[str(row.get(col.lower().replace(" ", "_"), "N/A")) for col in table_columns])
+            table.add_row(*[str(row.get(col.replace(" ", "_"), "N/A")) for col in table_columns])
 
         console.print(table)
 
