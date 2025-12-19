@@ -29,7 +29,6 @@ from werkzeug.utils import secure_filename
 from jinja2 import Environment
 from jinja2.sandbox import SandboxedEnvironment
 from transformerlab.services import dataset_service as dataset_service_module
-import aiofiles
 
 
 jinja_environment = Environment()

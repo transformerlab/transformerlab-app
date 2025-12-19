@@ -341,7 +341,9 @@ class Experiment(BaseLabResource):
                 # Prefer the latest snapshot if available; fall back to index.json
                 index_file = storage.join(entry_path, "index.json")
                 try:
-                    async with await storage.open(index_file, "r", encoding="utf-8", fs=fs_override, uncached=True) as lf:
+                    async with await storage.open(
+                        index_file, "r", encoding="utf-8", fs=fs_override, uncached=True
+                    ) as lf:
                         content = await lf.read()
                         content = content.strip()
                         if not content:
