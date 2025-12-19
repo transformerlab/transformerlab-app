@@ -1122,6 +1122,128 @@ async def get_artifacts(job_id: str, request: Request):
     return {"artifacts": artifacts}
 
 
+@router.get("/{job_id}/artifact/{filename}")
+async def get_artifact(job_id: str, filename: str, task: str = "view"):
+    """
+    Serve individual artifact files for viewing or downloading.
+
+    Args:
+        job_id: The job ID
+        filename: The artifact filename
+        task: Either "view" or "download" (default: "view")
+    """
+    job = job_service.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
+
+    job_data = job["job_data"]
+
+    # First try to use the new SDK method to get artifact paths
+    artifact_file_path = None
+    try:
+        from lab.job import Job
+
+        # Get artifacts using the SDK method
+        sdk_job = Job(job_id)
+        artifact_paths = sdk_job.get_artifact_paths()
+
+        if artifact_paths:
+            # Look for the file in the artifact paths
+            filename_secure = secure_filename(filename)
+            for artifact_path in artifact_paths:
+                # Check if this path matches the filename
+                path_filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
+                if path_filename == filename_secure:
+                    artifact_file_path = artifact_path
+                    break
+    except Exception as e:
+        print(f"Error using SDK method to get artifact paths: {e}")
+
+    # Fallback to checking the artifacts directory
+    if artifact_file_path is None:
+        if "artifacts_dir" not in job_data or not job_data["artifacts_dir"]:
+            return Response("No artifacts directory found for this job", status_code=404)
+
+        artifacts_dir = job_data["artifacts_dir"]
+
+        if not storage.exists(artifacts_dir):
+            return Response("Artifacts directory not found", status_code=404)
+
+        # Secure the filename to prevent directory traversal
+        filename_secure = secure_filename(filename)
+        artifact_file_path = storage.join(artifacts_dir, filename_secure)
+
+    # Ensure the file exists
+    if not storage.exists(artifact_file_path):
+        return Response("Artifact not found", status_code=404)
+
+    # Determine media type based on file extension
+    _, ext = os.path.splitext(filename.lower())
+    media_type_map = {
+        # Images
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+        # Videos
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".ogg": "video/ogg",
+        ".avi": "video/x-msvideo",
+        ".mov": "video/quicktime",
+        # JSON
+        ".json": "application/json",
+        # Text
+        ".txt": "text/plain",
+        ".log": "text/plain",
+        ".csv": "text/csv",
+        # Other
+        ".pdf": "application/pdf",
+        ".zip": "application/zip",
+    }
+
+    media_type = media_type_map.get(ext, "application/octet-stream")
+
+    # For JSON files in view mode, return the parsed content
+    if task == "view" and ext == ".json":
+        try:
+            with storage.open(artifact_file_path, "r") as f:
+                content = json.load(f)
+                return content
+        except Exception as e:
+            print(f"Error reading JSON file: {e}")
+            # Fall back to streaming response
+
+    # For download or other file types, stream the file
+    # Use StreamingResponse to support both local and remote files (e.g., s3://)
+    def generate():
+        with storage.open(artifact_file_path, "rb") as f:
+            while True:
+                chunk = f.read(8192)  # Read in 8KB chunks
+                if not chunk:
+                    break
+                yield chunk
+
+    headers = {}
+    if task == "download":
+        headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    else:
+        headers["Content-Disposition"] = f'inline; filename="{filename}"'
+
+    headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    headers["Pragma"] = "no-cache"
+    headers["Expires"] = "0"
+
+    return StreamingResponse(
+        generate(),
+        media_type=media_type,
+        headers=headers,
+    )
+
+
 @router.get("/{job_id}")
 async def get_training_job_by_path(job_id: str):
     return await job_service.job_get(job_id)
