@@ -47,8 +47,6 @@ jobs:
       - name: Install lab-sdk in editable mode
         run: |
           cd ../lab-sdk
-          eval "$($HOME/.transformerlab/miniforge3/bin/conda shell.bash hook)"
-          conda activate $HOME/.transformerlab/envs/transformerlab
           uv pip install -e .
       - name: Test with pytest
         run: |
