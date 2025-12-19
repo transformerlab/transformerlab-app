@@ -1,12 +1,15 @@
 import json
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from rich.console import Console
 from rich.table import Table
 
 CONFIG_DIR = Path.home() / ".lab"
 CONFIG_FILE = CONFIG_DIR / "config.json"
+
+VALID_CONFIG_KEYS = ["server", "team_id", "team_name", "user_email"]
 
 console = Console()
 
@@ -56,6 +59,20 @@ def get_config(key: str) -> Any | None:
     return config.get(key)
 
 
+def _validate_url(url: str) -> str | None:
+    """Validate URL and ensure trailing slash. Returns normalized URL or None if invalid."""
+    try:
+        parsed = urlparse(url)
+        if not parsed.scheme or not parsed.netloc:
+            return None
+        if parsed.scheme not in ("http", "https"):
+            return None
+        normalized = url if url.endswith("/") else url + "/"
+        return normalized
+    except Exception:
+        return None
+
+
 def set_config(key: str, value: str) -> bool:
     """Set a config value. Returns True on success."""
     if not key:
@@ -64,6 +81,20 @@ def set_config(key: str, value: str) -> bool:
     if not value:
         console.print("[red]Error:[/red] Value cannot be empty")
         return False
+
+    if key not in VALID_CONFIG_KEYS:
+        keys_list = ", ".join(VALID_CONFIG_KEYS)
+        console.print(f"[red]Error:[/red] Invalid config key '{key}'")
+        console.print(f"[yellow]Valid keys:[/yellow] {keys_list}")
+        return False
+
+    if key == "server":
+        normalized_url = _validate_url(value)
+        if normalized_url is None:
+            console.print(f"[red]Error:[/red] Invalid URL '{value}'")
+            console.print("[yellow]URL must start with http:// or https://[/yellow]")
+            return False
+        value = normalized_url
 
     config = _load_config()
     config[key] = value
