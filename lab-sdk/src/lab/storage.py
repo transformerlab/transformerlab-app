@@ -273,44 +273,72 @@ async def rm_tree(path: str) -> None:
                 fs.rm(file_path)
 
 
-def _normalize_local_path(path: str) -> str:
+async def _normalize_local_path(path: str) -> str:
     """
     Normalize a path intended for use on the local filesystem and
-    constrain it to the configured storage root directory.
+    constrain it to the configured storage root or workspace directory.
 
     This prevents path traversal attacks by ensuring all paths stay within
-    the storage root (TFL_HOME_DIR or ~/.transformerlab by default).
-    Both relative and absolute paths are constrained to the root.
+    either the storage root (TFL_HOME_DIR or ~/.transformerlab) or the
+    workspace directory (from get_workspace_dir()).
+    Both relative and absolute paths are constrained to these safe roots.
     """
+    from .dirs import get_workspace_dir
+
     # Get the storage root directory (uses TFL_HOME_DIR or ~/.transformerlab)
     _, root = _get_fs_and_root()
+
+    # Get workspace directory using the same logic as the rest of the codebase
+    workspace_dir = await get_workspace_dir()
 
     # Normalize the input path
     normalized = os.path.normpath(path)
 
-    # Resolve the root to an absolute real path
+    # Resolve both roots to absolute real paths
     base_dir = os.path.realpath(root)
+    try:
+        # Only check workspace if it's a local path (not a remote URI like s3://)
+        if not workspace_dir.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+            workspace_base = os.path.realpath(workspace_dir) if os.path.exists(workspace_dir) else None
+        else:
+            workspace_base = None
+    except (OSError, ValueError):
+        # If workspace directory can't be resolved, skip workspace check
+        workspace_base = None
 
     # Handle both relative and absolute paths
     if os.path.isabs(normalized):
         # For absolute paths, resolve to real path
         candidate = os.path.realpath(normalized)
     else:
-        # For relative paths, join with base_dir and resolve
+        # For relative paths, resolve relative to storage root
         candidate = os.path.realpath(os.path.join(base_dir, normalized))
 
-    # Ensure the candidate path is within the base directory
-    # Use commonpath to check containment
-    try:
-        common = os.path.commonpath([base_dir, candidate])
-        if common != base_dir:
-            raise ValueError(f"Path {path!r} resolves to {candidate!r} which is outside the storage root {base_dir!r}")
-    except ValueError:
-        # If commonpath fails (e.g., different drives on Windows, or no common prefix),
-        # the paths are definitely not in the same hierarchy, so reject
-        raise ValueError(f"Path {path!r} resolves to {candidate!r} which is outside the storage root {base_dir!r}")
+    # Ensure the candidate path is within either the base directory or workspace
+    def _is_within_root(candidate_path: str, root_path: str) -> bool:
+        """Check if candidate_path is within root_path."""
+        try:
+            common = os.path.commonpath([root_path, candidate_path])
+            return common == root_path
+        except ValueError:
+            # commonpath fails if paths are on different drives or have no common prefix
+            return False
 
-    return candidate
+    # Check if path is within storage root
+    if _is_within_root(candidate, base_dir):
+        return candidate
+
+    # Check if path is within workspace directory
+    if workspace_base and _is_within_root(candidate, workspace_base):
+        return candidate
+
+    # Path is outside both safe roots - reject
+    allowed_roots = [base_dir]
+    if workspace_base:
+        allowed_roots.append(workspace_base)
+    raise ValueError(
+        f"Path {path!r} resolves to {candidate!r} which is outside the allowed storage roots: {allowed_roots}"
+    )
 
 
 async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kwargs):
@@ -341,7 +369,7 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
     is_local = isinstance(filesys, fsspec.implementations.local.LocalFileSystem)
 
     if is_local:
-        safe_path = _normalize_local_path(path)
+        safe_path = await _normalize_local_path(path)
         # Use aiofiles for local files to get truly async file I/O
         return aiofiles.open(safe_path, mode=mode, **kwargs)
     else:
