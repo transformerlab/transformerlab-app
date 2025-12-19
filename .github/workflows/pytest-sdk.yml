@@ -44,4 +44,4 @@ jobs:
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: |
-          uv run pytest pytest-asyncio jsonschema requests
+          uv run pytest
