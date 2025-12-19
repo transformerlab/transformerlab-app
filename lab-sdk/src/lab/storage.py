@@ -59,14 +59,13 @@ async def _get_fs_and_root():
         return fs, root
 
     # Let fsspec parse the URI - for remote filesystems, try to get async version
-    fs, _token, paths = fsspec.get_fs_token_paths(
-        tfl_uri, storage_options={"profile": _AWS_PROFILE} if _AWS_PROFILE else None, asynchronous=True
-    )
+    storage_options = {"profile": _AWS_PROFILE} if _AWS_PROFILE else None
+    fs, path = fsspec.core.url_to_fs(tfl_uri, storage_options=storage_options, asynchronous=True)
     # For S3 and other remote filesystems, we need to maintain the full URI format
     if tfl_uri.startswith(("s3://", "gs://", "abfs://", "gcs://")):
         root = tfl_uri.rstrip("/")
     else:
-        root = paths[0] if paths else ""
+        root = path if path else ""
     return fs, root
 
 
