@@ -1,7 +1,6 @@
 import os
 import posixpath
 import contextvars
-import inspect
 
 import fsspec
 import aiofiles
@@ -15,33 +14,7 @@ _current_tfl_storage_uri: contextvars.ContextVar[str | None] = contextvars.Conte
 _AWS_PROFILE = os.getenv("AWS_PROFILE", "transformerlab-s3")
 
 
-def _is_async_fs(fs) -> bool:
-    """Check if filesystem has async implementation."""
-    return getattr(fs, "async_impl", False)
-
-
-async def _call_fs_method(fs, method_name: str, *args, **kwargs):
-    """
-    Call a filesystem method, handling both sync and async filesystems.
-
-    For async filesystems (like S3), use underscore-prefixed methods (_ls, _open, etc.)
-    For sync filesystems (like LocalFileSystem), use regular methods (ls, open, etc.)
-    """
-    if _is_async_fs(fs):
-        # Async filesystem - use underscore-prefixed method and await
-        method = getattr(fs, f"_{method_name}")
-        return await method(*args, **kwargs)
-    else:
-        # Sync filesystem - use regular method
-        method = getattr(fs, method_name)
-        result = method(*args, **kwargs)
-        # If it's a coroutine (shouldn't be for sync fs, but just in case), await it
-        if inspect.iscoroutine(result):
-            return await result
-        return result
-
-
-async def _get_fs_and_root():
+def _get_fs_and_root():
     """
     Initialize filesystem and root path from context variable or TFL_STORAGE_URI.
     Falls back to local ~/.transformerlab or TFL_HOME_DIR when not set.
@@ -54,28 +27,28 @@ async def _get_fs_and_root():
             "TFL_HOME_DIR",
             os.path.join(os.path.expanduser("~"), ".transformerlab"),
         )
-        # LocalFileSystem doesn't have async implementation - use sync version
         fs = fsspec.filesystem("file")
         return fs, root
 
-    # Let fsspec parse the URI - for remote filesystems, try to get async version
-    storage_options = {"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-    fs, path = fsspec.core.url_to_fs(tfl_uri, storage_options=storage_options, asynchronous=True)
+    # Let fsspec parse the URI
+    fs, _token, paths = fsspec.get_fs_token_paths(
+        tfl_uri, storage_options={"profile": _AWS_PROFILE} if _AWS_PROFILE else None
+    )
     # For S3 and other remote filesystems, we need to maintain the full URI format
     if tfl_uri.startswith(("s3://", "gs://", "abfs://", "gcs://")):
         root = tfl_uri.rstrip("/")
     else:
-        root = path if path else ""
+        root = paths[0] if paths else ""
     return fs, root
 
 
 async def root_uri() -> str:
-    _, root = await _get_fs_and_root()
+    _, root = _get_fs_and_root()
     return root
 
 
 async def filesystem():
-    fs, _ = await _get_fs_and_root()
+    fs, _ = _get_fs_and_root()
     return fs
 
 
@@ -83,7 +56,7 @@ async def debug_info() -> dict:
     """Debug information about the current storage configuration."""
     context_uri = _current_tfl_storage_uri.get()
     env_uri = os.getenv("TFL_STORAGE_URI")
-    fs, root = await _get_fs_and_root()
+    fs, root = _get_fs_and_root()
     return {
         "TFL_STORAGE_URI_context": context_uri,
         "TFL_STORAGE_URI_env": env_uri,
@@ -104,13 +77,13 @@ async def root_join(*parts: str) -> str:
 
 async def exists(path: str) -> bool:
     fs = await filesystem()
-    return await _call_fs_method(fs, "exists", path)
+    return fs.exists(path)
 
 
 async def isdir(path: str, fs=None) -> bool:
     try:
         filesys = fs if fs is not None else await filesystem()
-        return await _call_fs_method(filesys, "isdir", path)
+        return filesys.isdir(path)
     except Exception:
         return False
 
@@ -118,7 +91,7 @@ async def isdir(path: str, fs=None) -> bool:
 async def isfile(path: str) -> bool:
     try:
         fs = await filesystem()
-        return await _call_fs_method(fs, "isfile", path)
+        return fs.isfile(path)
     except Exception:
         return False
 
@@ -126,18 +99,18 @@ async def isfile(path: str) -> bool:
 async def makedirs(path: str, exist_ok: bool = True) -> None:
     fs = await filesystem()
     try:
-        await _call_fs_method(fs, "makedirs", path, exist_ok=exist_ok)
+        fs.makedirs(path, exist_ok=exist_ok)
     except TypeError:
         # Some filesystems don't support exist_ok parameter
         if not exist_ok or not await exists(path):
-            await _call_fs_method(fs, "makedirs", path)
+            fs.makedirs(path)
 
 
 async def ls(path: str, detail: bool = False, fs=None):
     # Use provided filesystem or get default
     filesys = fs if fs is not None else await filesystem()
     # Let fsspec parse the URI
-    paths = await _call_fs_method(filesys, "ls", path, detail=detail)
+    paths = filesys.ls(path, detail=detail)
     # Dont include the current path in the list
     # Ensure paths are full URIs for remote filesystems
     if path.startswith(("s3://", "gs://", "abfs://", "gcs://")):
@@ -158,7 +131,7 @@ async def ls(path: str, detail: bool = False, fs=None):
 
 async def find(path: str) -> list[str]:
     fs = await filesystem()
-    return await _call_fs_method(fs, "find", path)
+    return fs.find(path)
 
 
 async def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
@@ -175,26 +148,26 @@ async def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
         (root, dirs, files) tuples similar to os.walk()
     """
     fs = await filesystem()
-    return await _call_fs_method(fs, "walk", path, maxdepth=maxdepth, topdown=topdown, on_error=on_error)
+    return fs.walk(path, maxdepth=maxdepth, topdown=topdown, on_error=on_error)
 
 
 async def rm(path: str) -> None:
     if await exists(path):
         fs = await filesystem()
-        await _call_fs_method(fs, "rm", path)
+        fs.rm(path)
 
 
 async def rm_tree(path: str) -> None:
     if await exists(path):
         fs = await filesystem()
         try:
-            await _call_fs_method(fs, "rm", path, recursive=True)
+            fs.rm(path, recursive=True)
         except TypeError:
             # Some filesystems don't support recursive parameter
             # Use find() to get all files and remove them individually
             files = await find(path)
             for file_path in reversed(files):  # Remove files before directories
-                await _call_fs_method(fs, "rm", file_path)
+                fs.rm(file_path)
 
 
 async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kwargs):
@@ -202,7 +175,7 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
     Open a file for reading or writing.
 
     For local files, uses aiofiles for truly async file I/O.
-    For remote files (S3, GCS, etc.), uses fsspec async file objects.
+    For remote files (S3, GCS, etc.), uses fsspec sync file objects.
 
     Args:
         path: Path to the file
@@ -212,7 +185,7 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
         **kwargs: Additional arguments passed to filesystem.open()
 
     Returns:
-        File-like object (async context manager)
+        File-like object (context manager for remote, async context manager for local)
     """
     if uncached:
         # Create an uncached filesystem instance
@@ -228,8 +201,8 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
         # Use aiofiles for local files to get truly async file I/O
         return aiofiles.open(path, mode=mode, **kwargs)
     else:
-        # Use fsspec for remote files (S3, GCS, etc.) which have proper async support
-        return await _call_fs_method(filesys, "open", path, mode=mode, **kwargs)
+        # Use sync filesystem open method (wrapped in async function for API compatibility)
+        return filesys.open(path, mode=mode, **kwargs)
 
 
 async def _get_uncached_filesystem(path: str, fs=None):
@@ -256,34 +229,18 @@ async def _get_uncached_filesystem(path: str, fs=None):
 
             # Extract storage options from filesystem if possible
             storage_options = {}
-            if protocol == "s3":
-                # For S3, try to get profile from filesystem config
-                if hasattr(fs, "config_kwargs") and fs.config_kwargs:
-                    config = fs.config_kwargs
-                    if "profile" in config:
-                        storage_options["profile"] = config["profile"]
-                    elif "aws_access_key_id" in config:
-                        # If explicit credentials, don't use profile
-                        pass
-                    elif _AWS_PROFILE:
-                        storage_options["profile"] = _AWS_PROFILE
-                elif hasattr(fs, "anon") and not fs.anon:
-                    # Non-anonymous S3, use default profile if available
-                    if _AWS_PROFILE:
-                        storage_options["profile"] = _AWS_PROFILE
-                elif _AWS_PROFILE:
-                    storage_options["profile"] = _AWS_PROFILE
+            if protocol == "s3" and _AWS_PROFILE:
+                storage_options["profile"] = _AWS_PROFILE
 
             if protocol:
                 # Create a new uncached filesystem with the same protocol and options
-                fs_uncached = fsspec.filesystem(
-                    protocol,
-                    skip_instance_cache=True,
-                    default_fill_cache=False,
-                    use_listings_cache=False,
-                    asynchronous=True,
-                    **storage_options,
-                )
+                fs_kwargs = {
+                    "skip_instance_cache": True,
+                    "default_fill_cache": False,
+                    "use_listings_cache": False,
+                }
+                fs_kwargs.update(storage_options)
+                fs_uncached = fsspec.filesystem(protocol, **fs_kwargs)
                 return fs_uncached
         except Exception:
             # If extraction fails, fall through to path-based inference
@@ -293,10 +250,8 @@ async def _get_uncached_filesystem(path: str, fs=None):
     if path.startswith(("s3://", "gs://", "abfs://", "gcs://")):
         # Extract protocol from the path
         protocol = path.split("://")[0]
-
-        # Build storage options
         storage_options = {}
-        if _AWS_PROFILE:
+        if protocol == "s3" and _AWS_PROFILE:
             storage_options["profile"] = _AWS_PROFILE
 
         # Create a new filesystem instance with caching disabled
@@ -305,7 +260,6 @@ async def _get_uncached_filesystem(path: str, fs=None):
             skip_instance_cache=True,
             default_fill_cache=False,
             use_listings_cache=False,
-            asynchronous=True,
             **storage_options,
         )
         return fs_uncached
@@ -316,14 +270,13 @@ async def _get_uncached_filesystem(path: str, fs=None):
             # Path is relative but we're using remote storage
             protocol = tfl_uri.split("://")[0]
             storage_options = {}
-            if _AWS_PROFILE:
+            if protocol == "s3" and _AWS_PROFILE:
                 storage_options["profile"] = _AWS_PROFILE
             fs_uncached = fsspec.filesystem(
                 protocol,
                 skip_instance_cache=True,
                 default_fill_cache=False,
                 use_listings_cache=False,
-                asynchronous=True,
                 **storage_options,
             )
             return fs_uncached
@@ -332,17 +285,29 @@ async def _get_uncached_filesystem(path: str, fs=None):
             return await filesystem()
 
 
+def _get_fs_for_path(path: str):
+    """
+    Get filesystem for a given path, handling S3 storage_options correctly.
+    Returns (filesystem, parsed_path) tuple.
+    """
+    storage_options = {}
+    if path.startswith("s3://") and _AWS_PROFILE:
+        storage_options["profile"] = _AWS_PROFILE
+    return fsspec.core.url_to_fs(path, storage_options=storage_options if storage_options else None)
+
+
 async def copy_file(src: str, dest: str) -> None:
     """Copy a single file from src to dest across arbitrary filesystems."""
     # Use streaming copy to be robust across different filesystems
-    # Get async filesystems
-    src_fs, _ = fsspec.core.url_to_fs(src, asynchronous=True)
-    dest_fs, _ = fsspec.core.url_to_fs(dest, asynchronous=True)
+    # Get sync filesystems with proper storage_options handling
+    src_fs, _ = _get_fs_for_path(src)
+    dest_fs, _ = _get_fs_for_path(dest)
 
-    async with await _call_fs_method(src_fs, "open", src, "rb") as r:
-        async with await _call_fs_method(dest_fs, "open", dest, "wb") as w:
-            async for chunk in iter_chunks_async(r):
-                await w.write(chunk)
+    # Use sync filesystem methods (wrapped in async function for API compatibility)
+    with src_fs.open(src, "rb") as r:
+        with dest_fs.open(dest, "wb") as w:
+            for chunk in iter_chunks(r):
+                w.write(chunk)
 
 
 def iter_chunks(file_obj, chunk_size: int = 8 * 1024 * 1024):
@@ -354,26 +319,17 @@ def iter_chunks(file_obj, chunk_size: int = 8 * 1024 * 1024):
         yield data
 
 
-async def iter_chunks_async(file_obj, chunk_size: int = 8 * 1024 * 1024):
-    """Helper to read file in chunks (asynchronous)."""
-    while True:
-        data = await file_obj.read(chunk_size)
-        if not data:
-            break
-        yield data
-
-
 async def copy_dir(src_dir: str, dest_dir: str) -> None:
     """Recursively copy a directory tree across arbitrary filesystems."""
     await makedirs(dest_dir, exist_ok=True)
     # Determine the source filesystem independently of destination
-    src_fs, _ = fsspec.core.url_to_fs(src_dir, asynchronous=True)
+    src_fs, _ = _get_fs_for_path(src_dir)
     try:
-        src_files = await _call_fs_method(src_fs, "find", src_dir)
+        src_files = src_fs.find(src_dir)
     except Exception:
         # If find is not available, fall back to listing via walk
         src_files = []
-        async for _, _, files in await _call_fs_method(src_fs, "walk", src_dir):
+        for _, _, files in src_fs.walk(src_dir):
             for f in files:
                 src_files.append(f)
 
