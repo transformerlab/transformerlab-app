@@ -1,11 +1,23 @@
 from rich.console import Console
+from lab_cli.util.ui import render_table
+import lab_cli.util.api as api
 
 console = Console()
 
 
-def list_tasks() -> None:
+def list_tasks(output_format: str = "json") -> None:
     """List all tasks."""
-    console.print("[yellow]Task list - not implemented[/yellow]")
+
+    with console.status("[bold green]Fetching tasks...[/bold green]", spinner="dots"):
+        response = api.get("/tasks/list")
+
+    if response.status_code == 200:
+        tasks = response.json()
+        table_columns = ["ID", "Name", "Type", "Created At", "Updated At"]
+
+        render_table(data=tasks, format_type=output_format, table_columns=table_columns, title="Tasks")
+    else:
+        console.print(f"[red]Error:[/red] Failed to fetch tasks. Status code: {response.status_code}")
 
 
 def add_task() -> None:
