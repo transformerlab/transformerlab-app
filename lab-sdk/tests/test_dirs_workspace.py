@@ -1,5 +1,6 @@
 import os
 import importlib
+import pytest
 
 
 def test_default_dirs_created(monkeypatch, tmp_path):
@@ -45,7 +46,8 @@ def test_env_override_existing_paths(monkeypatch, tmp_path):
     assert dirs_workspace.WORKSPACE_DIR == str(ws)
 
 
-def test_org_scoped_workspace_dir(monkeypatch, tmp_path):
+@pytest.mark.asyncio
+async def test_org_scoped_workspace_dir(monkeypatch, tmp_path):
     # Ensure no explicit WS override and set a custom home
     monkeypatch.delenv("TFL_WORKSPACE_DIR", raising=False)
     home = tmp_path / "tfl_home"
@@ -60,14 +62,14 @@ def test_org_scoped_workspace_dir(monkeypatch, tmp_path):
 
     # Set organization id → should route to org-scoped workspace
     dirs_workspace.set_organization_id("acme")
-    ws = dirs_workspace.get_workspace_dir()
+    ws = await dirs_workspace.get_workspace_dir()
     expected = os.path.join(dirs_workspace.HOME_DIR, "orgs", "acme", "workspace")
     assert ws == expected
     assert os.path.isdir(ws)
 
     # Reset organization_id → should fall back to default single-tenant path
     dirs_workspace.set_organization_id(None)
-    ws_default = dirs_workspace.get_workspace_dir()
+    ws_default = await dirs_workspace.get_workspace_dir()
     expected_default = os.path.join(dirs_workspace.HOME_DIR, "workspace")
     assert ws_default == expected_default
     assert os.path.isdir(ws_default)

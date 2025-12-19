@@ -62,7 +62,8 @@ jobs:
       - name: Install lab-sdk in editable mode
         run: |
           cd ../lab-sdk
-          uv pip install --system -e .
+          conda activate ~/.transformerlab/envs/transformerlab
+          uv pip install -e .
       - name: Now run the server by calling ./run.sh and wait for it to be ready
         run: |
           ./run.sh &
