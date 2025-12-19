@@ -276,16 +276,36 @@ async def rm_tree(path: str) -> None:
 def _normalize_local_path(path: str) -> str:
     """
     Normalize a path intended for use on the local filesystem and
-    reject obvious path traversal in relative paths.
+    reject obvious path traversal
 
-    This keeps existing behaviour for absolute paths (which are assumed
-    to be chosen by trusted code), while preventing relative paths like
-    "../../etc/passwd" from escaping the intended working directory.
+    Relative paths:
+      - Normalized and rejected if they attempt to traverse upwards (contain "..").
+
+    Absolute paths:
+      - Resolved with realpath and required to stay within the current working
+        directory tree. Paths outside this tree are rejected.
+
+    This prevents user-controlled paths like "../../etc/passwd" or "/etc/passwd"
+    from escaping the application's working directory when using the local
+    filesystem backend.
     """
-    normalized = os.path.normpath(path)
+    # First normalize and resolve symlinks to get a canonical path
+    normalized = os.path.realpath(os.path.normpath(path))
 
     # If the normalized path is relative, ensure it does not traverse upwards.
-    if not os.path.isabs(normalized):
+    if os.path.isabs(normalized):
+        # Constrain absolute paths to the current working directory tree.
+        cwd = os.path.realpath(os.getcwd())
+        try:
+            common = os.path.commonpath([cwd, normalized])
+        except ValueError:
+            # On some platforms, paths on different drives raise ValueError;
+            # treat this as unsafe.
+            raise ValueError(f"Disallowed absolute path outside working directory: {path!r}")
+        if common != cwd:
+            raise ValueError(f"Disallowed absolute path outside working directory: {path!r}")
+    else:
+        # For relative paths, ensure they do not traverse upwards
         parts = [p for p in normalized.split(os.sep) if p not in ("", ".")]
         if ".." in parts:
             raise ValueError(f"Disallowed path traversal in relative path: {path!r}")
