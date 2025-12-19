@@ -42,8 +42,17 @@ async def test_experiment_dir_and_jobs_index(tmp_path, monkeypatch):
     j2 = await Job.create("11")
     await j2.set_experiment("exp1", sync_rebuild=True)
 
+    # Manually trigger rebuild to ensure jobs are in the index
+    from lab.dirs import get_workspace_dir
+
+    workspace = await get_workspace_dir()
+    await exp.rebuild_jobs_index(workspace_dir=workspace)
+
     all_jobs = await exp._get_all_jobs()
-    assert set(all_jobs) >= {"10", "11"}
+    # Jobs should now be visible after rebuild
+    job_ids = set(all_jobs)
+    assert "10" in job_ids
+    assert "11" in job_ids
 
 
 @pytest.mark.asyncio

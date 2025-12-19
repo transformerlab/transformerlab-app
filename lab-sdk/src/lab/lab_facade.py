@@ -774,9 +774,9 @@ class Lab:
         # Create or update filesystem metadata so it appears under generated datasets
         try:
             try:
-                ds = Dataset.get(dataset_id_safe)
+                ds = await Dataset.get(dataset_id_safe)
             except FileNotFoundError:
-                ds = Dataset.create(dataset_id_safe)
+                ds = await Dataset.create(dataset_id_safe)
 
             # Base json_data with generated flag for UI filtering
             json_data: Dict[str, Any] = {
@@ -787,7 +787,7 @@ class Lab:
             if additional_metadata and isinstance(additional_metadata, dict):
                 json_data.update(additional_metadata)
 
-            ds.set_metadata(
+            await ds.set_metadata(
                 location="local",
                 description=json_data.get("description", ""),
                 size=-1,

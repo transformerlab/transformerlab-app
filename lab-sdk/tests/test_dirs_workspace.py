@@ -22,7 +22,8 @@ def test_default_dirs_created(monkeypatch, tmp_path):
     assert dirs_workspace.HOME_DIR.startswith(str(tmp_path))
 
 
-def test_env_override_existing_paths(monkeypatch, tmp_path):
+@pytest.mark.asyncio
+async def test_env_override_existing_paths(monkeypatch, tmp_path):
     # Create explicit dirs and set env
     home = tmp_path / "custom_home"
     ws = tmp_path / "custom_ws"
@@ -43,7 +44,9 @@ def test_env_override_existing_paths(monkeypatch, tmp_path):
     from lab import dirs as dirs_workspace
 
     assert dirs_workspace.HOME_DIR == str(home)
-    assert dirs_workspace.WORKSPACE_DIR == str(ws)
+    # WORKSPACE_DIR is a legacy placeholder, use get_workspace_dir() instead
+    workspace_dir = await dirs_workspace.get_workspace_dir()
+    assert workspace_dir == str(ws)
 
 
 @pytest.mark.asyncio

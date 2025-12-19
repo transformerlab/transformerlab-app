@@ -39,6 +39,7 @@ jobs:
         run: |
           uv venv --python ${{ matrix.python-version }}
           uv pip install -e .
+          uv pip install --system pytest pytest-asyncio
 
       - name: Run SDK tests (uv)
         env:

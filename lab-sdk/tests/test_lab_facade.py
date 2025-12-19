@@ -1,4 +1,5 @@
 import os
+import asyncio
 import pytest
 import json
 import importlib
@@ -17,8 +18,7 @@ def _fresh(monkeypatch):
             importlib.sys.modules.pop(mod)
 
 
-@pytest.mark.asyncio
-async def test_lab_init(tmp_path, monkeypatch):
+def test_lab_init(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -35,15 +35,14 @@ async def test_lab_init(tmp_path, monkeypatch):
     # Verify experiment and job are initialized
     assert lab._experiment is not None
     assert lab._job is not None
-    assert await lab._job.get_status() == "RUNNING"
+    assert asyncio.run(lab._job.get_status()) == "RUNNING"
 
     # Verify job data has start_time
-    job_data = await lab._job.get_job_data()
+    job_data = lab.get_job_data()
     assert "start_time" in job_data
 
 
-@pytest.mark.asyncio
-async def test_lab_init_with_existing_job(tmp_path, monkeypatch):
+def test_lab_init_with_existing_job(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -56,8 +55,8 @@ async def test_lab_init_with_existing_job(tmp_path, monkeypatch):
     from lab.experiment import Experiment
 
     # Create an experiment and job first
-    exp = await Experiment.create("test_exp")
-    job = await exp.create_job()
+    exp = asyncio.run(Experiment.create("test_exp"))
+    job = asyncio.run(exp.create_job())
     job_id = str(job.id)
 
     # Set environment variable to use existing job
@@ -68,11 +67,10 @@ async def test_lab_init_with_existing_job(tmp_path, monkeypatch):
 
     # Verify it's using the existing job
     assert lab._job.id == job_id
-    assert await lab._job.get_status() == "RUNNING"
+    assert asyncio.run(lab._job.get_status()) == "RUNNING"
 
 
-@pytest.mark.asyncio
-async def test_lab_init_with_nonexistent_job(tmp_path, monkeypatch):
+def test_lab_init_with_nonexistent_job(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -92,8 +90,7 @@ async def test_lab_init_with_nonexistent_job(tmp_path, monkeypatch):
         pass  # Expected - Job.get() raises FileNotFoundError when job doesn't exist
 
 
-@pytest.mark.asyncio
-async def test_lab_set_config(tmp_path, monkeypatch):
+def test_lab_set_config(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -110,14 +107,13 @@ async def test_lab_set_config(tmp_path, monkeypatch):
     config = {"epochs": 10, "learning_rate": 0.001}
     lab.set_config(config)
 
-    job_data = await lab._job.get_job_data()
+    job_data = lab.get_job_data()
     assert job_data["epochs"] == 10
     assert job_data["learning_rate"] == 0.001
     assert job_data["experiment_name"] == "test_exp"
 
 
-@pytest.mark.asyncio
-async def test_lab_set_config_merges_existing(tmp_path, monkeypatch):
+def test_lab_set_config_merges_existing(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -137,13 +133,12 @@ async def test_lab_set_config_merges_existing(tmp_path, monkeypatch):
     # Update with new config
     lab.set_config({"epochs": 20})
 
-    job_data = await lab._job.get_job_data()
+    job_data = lab.get_job_data()
     assert job_data["epochs"] == 20  # Updated
     assert job_data["batch_size"] == 32  # Preserved
 
 
-@pytest.mark.asyncio
-async def test_lab_log(tmp_path, monkeypatch):
+def test_lab_log(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -160,15 +155,14 @@ async def test_lab_log(tmp_path, monkeypatch):
     lab.log("Test message")
 
     # Verify log was written to file
-    log_path = await lab._job.get_log_path()
+    log_path = asyncio.run(lab._job.get_log_path())
     assert os.path.exists(log_path)
     with open(log_path, "r") as f:
         content = f.read()
         assert "Test message" in content
 
 
-@pytest.mark.asyncio
-async def test_lab_update_progress(tmp_path, monkeypatch):
+def test_lab_update_progress(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -183,14 +177,13 @@ async def test_lab_update_progress(tmp_path, monkeypatch):
     lab.init(experiment_id="test_exp")
 
     lab.update_progress(50)
-    assert await lab._job.get_progress() == 50
+    assert asyncio.run(lab._job.get_progress()) == 50
 
     lab.update_progress(100)
-    assert await lab._job.get_progress() == 100
+    assert asyncio.run(lab._job.get_progress()) == 100
 
 
-@pytest.mark.asyncio
-async def test_lab_finish(tmp_path, monkeypatch):
+def test_lab_finish(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -206,16 +199,15 @@ async def test_lab_finish(tmp_path, monkeypatch):
 
     lab.finish(message="Job completed", score={"accuracy": 0.95})
 
-    assert await lab._job.get_status() == "COMPLETE"
-    assert await lab._job.get_progress() == 100
-    job_data = await lab._job.get_job_data()
+    assert asyncio.run(lab._job.get_status()) == "COMPLETE"
+    assert asyncio.run(lab._job.get_progress()) == 100
+    job_data = lab.get_job_data()
     assert job_data["completion_status"] == "success"
     assert job_data["completion_details"] == "Job completed"
     assert job_data["score"] == {"accuracy": 0.95}
 
 
-@pytest.mark.asyncio
-async def test_lab_finish_with_paths(tmp_path, monkeypatch):
+def test_lab_finish_with_paths(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -235,13 +227,12 @@ async def test_lab_finish_with_paths(tmp_path, monkeypatch):
         plot_data_path="/path/to/plot",
     )
 
-    job_data = await lab._job.get_job_data()
+    job_data = lab.get_job_data()
     assert job_data["additional_output_path"] == "/path/to/output"
     assert job_data["plot_data_path"] == "/path/to/plot"
 
 
-@pytest.mark.asyncio
-async def test_lab_error(tmp_path, monkeypatch):
+def test_lab_error(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -257,15 +248,14 @@ async def test_lab_error(tmp_path, monkeypatch):
 
     lab.error(message="Job failed")
 
-    assert await lab._job.get_status() == "COMPLETE"
-    job_data = await lab._job.get_job_data()
+    assert asyncio.run(lab._job.get_status()) == "COMPLETE"
+    job_data = lab.get_job_data()
     assert job_data["completion_status"] == "failed"
     assert job_data["completion_details"] == "Job failed"
     assert job_data["status"] == "FAILED"
 
 
-@pytest.mark.asyncio
-async def test_lab_save_artifact_file(tmp_path, monkeypatch):
+def test_lab_save_artifact_file(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -291,13 +281,12 @@ async def test_lab_save_artifact_file(tmp_path, monkeypatch):
         assert f.read() == "test content"
 
     # Verify artifact is tracked in job_data
-    job_data = await lab._job.get_job_data()
+    job_data = lab.get_job_data()
     assert "artifacts" in job_data
     assert dest_path in job_data["artifacts"]
 
 
-@pytest.mark.asyncio
-async def test_lab_save_artifact_directory(tmp_path, monkeypatch):
+def test_lab_save_artifact_directory(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -325,8 +314,7 @@ async def test_lab_save_artifact_directory(tmp_path, monkeypatch):
     assert os.path.exists(os.path.join(dest_path, "file2.txt"))
 
 
-@pytest.mark.asyncio
-async def test_lab_save_artifact_with_name(tmp_path, monkeypatch):
+def test_lab_save_artifact_with_name(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -349,8 +337,7 @@ async def test_lab_save_artifact_with_name(tmp_path, monkeypatch):
     assert os.path.exists(dest_path)
 
 
-@pytest.mark.asyncio
-async def test_lab_save_artifact_invalid_path(tmp_path, monkeypatch):
+def test_lab_save_artifact_invalid_path(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -377,8 +364,7 @@ async def test_lab_save_artifact_invalid_path(tmp_path, monkeypatch):
         pass
 
 
-@pytest.mark.asyncio
-async def test_lab_save_checkpoint(tmp_path, monkeypatch):
+def test_lab_save_checkpoint(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -402,14 +388,13 @@ async def test_lab_save_checkpoint(tmp_path, monkeypatch):
     assert os.path.isfile(dest_path)
 
     # Verify checkpoint is tracked in job_data
-    job_data = await lab._job.get_job_data()
+    job_data = lab.get_job_data()
     assert "checkpoints" in job_data
     assert dest_path in job_data["checkpoints"]
     assert job_data["latest_checkpoint"] == dest_path
 
 
-@pytest.mark.asyncio
-async def test_lab_save_checkpoint_directory(tmp_path, monkeypatch):
+def test_lab_save_checkpoint_directory(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -435,8 +420,7 @@ async def test_lab_save_checkpoint_directory(tmp_path, monkeypatch):
     assert os.path.exists(os.path.join(dest_path, "model.bin"))
 
 
-@pytest.mark.asyncio
-async def test_lab_save_dataset(tmp_path, monkeypatch):
+def test_lab_save_dataset(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -487,20 +471,19 @@ async def test_lab_save_dataset(tmp_path, monkeypatch):
     # Verify dataset metadata was created
     from lab.dataset import Dataset
 
-    ds = Dataset.get("test_dataset")
-    metadata = await ds.get_metadata()
+    ds = asyncio.run(Dataset.get("test_dataset"))
+    metadata = asyncio.run(ds.get_metadata())
     assert metadata["dataset_id"] == "test_dataset"
     assert metadata["location"] == "local"
     assert metadata["json_data"]["generated"] is True
     assert metadata["json_data"]["sample_count"] == 2
 
     # Verify dataset is tracked in job_data
-    job_data = await lab._job.get_job_data()
+    job_data = lab.get_job_data()
     assert job_data["dataset_id"] == "test_dataset"
 
 
-@pytest.mark.asyncio
-async def test_lab_save_dataset_with_metadata(tmp_path, monkeypatch):
+def test_lab_save_dataset_with_metadata(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -538,14 +521,13 @@ async def test_lab_save_dataset_with_metadata(tmp_path, monkeypatch):
 
     from lab.dataset import Dataset
 
-    ds = Dataset.get("test_dataset_meta")
-    metadata = await ds.get_metadata()
+    ds = asyncio.run(Dataset.get("test_dataset_meta"))
+    metadata = asyncio.run(ds.get_metadata())
     assert metadata["json_data"]["description"] == "Test dataset"
     assert metadata["json_data"]["source"] == "synthetic"
 
 
-@pytest.mark.asyncio
-async def test_lab_save_dataset_image_format(tmp_path, monkeypatch):
+def test_lab_save_dataset_image_format(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -586,8 +568,7 @@ async def test_lab_save_dataset_image_format(tmp_path, monkeypatch):
     assert os.path.basename(output_path) == "metadata.jsonl"
 
 
-@pytest.mark.asyncio
-async def test_lab_save_dataset_duplicate_error(tmp_path, monkeypatch):
+def test_lab_save_dataset_duplicate_error(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -603,7 +584,7 @@ async def test_lab_save_dataset_duplicate_error(tmp_path, monkeypatch):
     lab.init(experiment_id="test_exp")
 
     # Create dataset first
-    Dataset.create("existing_dataset")
+    asyncio.run(Dataset.create("existing_dataset"))
 
     class MockDataFrame:
         def __init__(self, data):
@@ -612,9 +593,15 @@ async def test_lab_save_dataset_duplicate_error(tmp_path, monkeypatch):
         def __len__(self):
             return len(self.data)
 
-        def to_json(self, path, orient, lines):
-            with open(path, "w") as f:
-                json.dump(self.data, f)
+        def to_json(self, path_or_buf, orient, lines):
+            # Handle both file-like objects and path strings (like real pandas)
+            if hasattr(path_or_buf, "write"):
+                # It's a file-like object
+                json.dump(self.data, path_or_buf)
+            else:
+                # It's a path string
+                with open(path_or_buf, "w") as f:
+                    json.dump(self.data, f)
 
     df = MockDataFrame([{"a": 1}])
 
@@ -625,8 +612,7 @@ async def test_lab_save_dataset_duplicate_error(tmp_path, monkeypatch):
         pass
 
 
-@pytest.mark.asyncio
-async def test_lab_properties(tmp_path, monkeypatch):
+def test_lab_properties(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -651,8 +637,7 @@ async def test_lab_properties(tmp_path, monkeypatch):
     assert experiment.id == lab._experiment.id
 
 
-@pytest.mark.asyncio
-async def test_lab_properties_uninitialized(tmp_path, monkeypatch):
+def test_lab_properties_uninitialized(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -678,8 +663,7 @@ async def test_lab_properties_uninitialized(tmp_path, monkeypatch):
         pass
 
 
-@pytest.mark.asyncio
-async def test_lab_get_checkpoints_dir(tmp_path, monkeypatch):
+def test_lab_get_checkpoints_dir(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -698,8 +682,7 @@ async def test_lab_get_checkpoints_dir(tmp_path, monkeypatch):
     assert "checkpoints" in checkpoints_dir
 
 
-@pytest.mark.asyncio
-async def test_lab_get_artifacts_dir(tmp_path, monkeypatch):
+def test_lab_get_artifacts_dir(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -718,8 +701,7 @@ async def test_lab_get_artifacts_dir(tmp_path, monkeypatch):
     assert "artifacts" in artifacts_dir
 
 
-@pytest.mark.asyncio
-async def test_lab_get_checkpoint_paths(tmp_path, monkeypatch):
+def test_lab_get_checkpoint_paths(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -742,8 +724,7 @@ async def test_lab_get_checkpoint_paths(tmp_path, monkeypatch):
     assert len(checkpoint_paths) > 0
 
 
-@pytest.mark.asyncio
-async def test_lab_get_artifact_paths(tmp_path, monkeypatch):
+def test_lab_get_artifact_paths(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -766,8 +747,7 @@ async def test_lab_get_artifact_paths(tmp_path, monkeypatch):
     assert len(artifact_paths) > 0
 
 
-@pytest.mark.asyncio
-async def test_lab_capture_wandb_url(tmp_path, monkeypatch):
+def test_lab_capture_wandb_url(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
@@ -784,12 +764,11 @@ async def test_lab_capture_wandb_url(tmp_path, monkeypatch):
     wandb_url = "https://wandb.ai/test/run-123"
     lab.capture_wandb_url(wandb_url)
 
-    job_data = await lab._job.get_job_data()
+    job_data = lab.get_job_data()
     assert job_data["wandb_run_url"] == wandb_url
 
 
-@pytest.mark.asyncio
-async def test_lab_ensure_initialized(tmp_path, monkeypatch):
+def test_lab_ensure_initialized(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"

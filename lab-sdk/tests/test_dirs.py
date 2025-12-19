@@ -32,4 +32,4 @@ async def test_dirs_structure_created(monkeypatch, tmp_path):
     assert os.path.isdir(await dirs.get_prompt_templates_dir())
     assert os.path.isdir(await dirs.get_tools_dir())
     assert os.path.isdir(await dirs.get_batched_prompts_dir())
-    assert os.path.isdir(await dirs.get_galleries_cache_dir())
+    assert os.path.isdir(dirs.get_galleries_cache_dir())
