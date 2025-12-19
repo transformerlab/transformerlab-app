@@ -58,14 +58,14 @@ def get_config(key: str) -> Any | None:
 
 
 def _validate_url(url: str) -> str | None:
-    """Validate URL and ensure trailing slash. Returns normalized URL or None if invalid."""
+    """Validate URL and ensure no trailing slash. Returns normalized URL or None if invalid."""
     try:
         parsed = urlparse(url)
         if not parsed.scheme or not parsed.netloc:
             return None
         if parsed.scheme not in ("http", "https"):
             return None
-        normalized = url if url.endswith("/") else url + "/"
+        normalized = url.rstrip("/")
         return normalized
     except Exception:
         return None
