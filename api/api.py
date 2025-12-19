@@ -131,7 +131,9 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(migrate_datasets_table_to_filesystem())
     asyncio.create_task(migrate_job_and_experiment_to_filesystem())
     asyncio.create_task(migrate_tasks_table_to_filesystem())
-    asyncio.create_task(run_over_and_over())
+
+    if not os.getenv("TFL_API_STORAGE_URI"):
+        asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
     # Do the following at API Shutdown:
