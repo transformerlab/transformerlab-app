@@ -5,10 +5,11 @@ from rich.console import Console
 from lab_cli.util.logo import show_header
 from lab_cli.util.auth import set_api_key, delete_api_key
 from lab_cli.util.config import list_config, set_config
+from lab_cli.commands import task as task_commands
 from lab_cli import __version__
 
 app = typer.Typer(name="lab", help="Transformer Lab CLI", add_completion=False, no_args_is_help=True)
-task_app = typer.Typer(help="Task management commands")
+task_app = typer.Typer(help="Task management commands", no_args_is_help=True)
 app.add_typer(task_app, name="task")
 
 console = Console()
@@ -53,13 +54,29 @@ def config(
 @task_app.command("list")
 def task_list():
     """List all tasks."""
-    print("Task list stub - implement me")
+    task_commands.list_tasks()
 
 
 @task_app.command("add")
 def task_add():
     """Add a new task."""
-    print("Task add stub - implement me")
+    task_commands.add_task()
+
+
+@task_app.command("delete")
+def task_delete(
+    task_id: str = typer.Argument(..., help="Task ID to delete"),
+):
+    """Delete a task."""
+    task_commands.delete_task(task_id)
+
+
+@task_app.command("info")
+def task_info(
+    task_id: str = typer.Argument(..., help="Task ID to get info for"),
+):
+    """Get task details."""
+    task_commands.info_task(task_id)
 
 
 if __name__ == "__main__":

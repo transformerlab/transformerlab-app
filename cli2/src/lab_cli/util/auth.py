@@ -95,3 +95,6 @@ def test_api_key_on_remote_server(api_key: str) -> int:
             return False
 
     return response.status_code
+
+
+api_key = get_api_key()
