@@ -38,6 +38,7 @@ jobs:
       - name: Install project with uv
         run: |
           uv venv --python ${{ matrix.python-version }}
+          source .venv/bin/activate
           uv pip install -e .
           uv pip install --system pytest pytest-asyncio
 
