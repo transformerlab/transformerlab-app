@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 
 import pytest
-import pytest_asyncio
 
 
 @pytest.fixture()
@@ -63,7 +62,9 @@ async def test_load_local_dataset_uses_explicit_data_files(tmp_path: Path, monke
 
     monkeypatch.setattr(dataset_service, "load_dataset", fake_load_dataset)
 
-    result = await dataset_service.load_local_dataset(str(tmp_path), data_files=["keep.me", "index.json"], streaming=True)
+    result = await dataset_service.load_local_dataset(
+        str(tmp_path), data_files=["keep.me", "index.json"], streaming=True
+    )
 
     assert result == {"ok": True}
     assert captured["path"] == str(tmp_path)

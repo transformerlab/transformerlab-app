@@ -77,7 +77,6 @@ async def test_certificate_sans(ssl_utils):
 
 @pytest.mark.asyncio
 async def test_lock_guards_concurrent_writes(ssl_utils, tmp_path):
-    import asyncio
     from asyncio import Queue
 
     results = []

@@ -1,7 +1,6 @@
 import json
 import uuid
 import pytest
-import asyncio
 
 from transformerlab.services import experiment_service
 import lab.dirs as lab_dirs
@@ -15,10 +14,10 @@ def tmp_experiments_dir(monkeypatch, tmp_path):
     """
     experiments_dir = tmp_path / "experiments"
     experiments_dir.mkdir()
-    
+
     async def mock_get_experiments_dir():
         return str(experiments_dir)
-    
+
     monkeypatch.setattr(lab_dirs, "get_experiments_dir", mock_get_experiments_dir)
     return str(experiments_dir)
 
