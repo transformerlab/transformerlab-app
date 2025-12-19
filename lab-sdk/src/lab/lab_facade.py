@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import asyncio
 from typing import Optional, Dict, Any, Union
 import os
 import io
@@ -12,6 +13,41 @@ from . import dirs
 from .model import Model as ModelService
 from . import storage
 from .dataset import Dataset
+
+
+def _run_async(coro):
+    """
+    Helper to run async code from sync context.
+    Handles event loop detection intelligently:
+    - If there's a running event loop, we need to use the async version instead
+    - If no running loop, uses asyncio.run() or run_until_complete()
+    """
+    try:
+        # Try to get the running event loop
+        loop = asyncio.get_running_loop()
+        # If we're in an async context, we can't use blocking calls
+        # The sync wrapper should not be used from async contexts
+        # Use the async version (a_* methods) instead
+        raise RuntimeError(
+            "Cannot use sync method when already in async context. "
+            "Use the async version instead (e.g., await lab.a_save_artifact() instead of lab.save_artifact())."
+        )
+    except RuntimeError as e:
+        # Check if this is our custom error or a "no running loop" error
+        if "Cannot use sync method" in str(e):
+            raise
+        # No running loop - we can safely create/use one
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                # Loop is closed, create a new one
+                return asyncio.run(coro)
+            else:
+                # Loop exists but not running, use it
+                return loop.run_until_complete(coro)
+        except RuntimeError:
+            # No event loop at all, create one
+            return asyncio.run(coro)
 
 
 class Lab:
@@ -53,25 +89,27 @@ class Lab:
         if existing_job_id:
             # Use existing job from environment variable
             # This will raise an error if the job doesn't exist
-            self._experiment = Experiment(experiment_id, create_new=False)
-            self._job = Job.get(existing_job_id)
+            self._experiment = _run_async(Experiment.create_or_get(experiment_id, create_new=False))
+            self._job = _run_async(Job.get(existing_job_id))
             if self._job is None:
                 raise RuntimeError(f"Job with ID {existing_job_id} not found. Check _TFL_JOB_ID environment variable.")
             print(f"Using existing job ID: {existing_job_id}")
             # Set start_time if not already set (for remote jobs launched through providers)
-            job_data = self._job.get_job_data()
+            job_data = _run_async(self._job.get_job_data())
             if not job_data.get("start_time"):
-                self._job.update_job_data_field("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+                _run_async(
+                    self._job.update_job_data_field("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+                )
         else:
             # Create new job as before
-            self._experiment = Experiment(experiment_id, create_new=True)
-            self._job = self._experiment.create_job()
-            self._job.update_job_data_field("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
-            self._job.set_experiment(experiment_id)
+            self._experiment = _run_async(Experiment.create_or_get(experiment_id, create_new=True))
+            self._job = _run_async(self._experiment.create_job())
+            _run_async(self._job.update_job_data_field("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))
+            _run_async(self._job.set_experiment(experiment_id))
             print(f"Created new job ID: {self._job.id}")
 
         # Update status to RUNNING for both cases
-        self._job.update_status("RUNNING")
+        _run_async(self._job.update_status("RUNNING"))
 
         # Check for wandb integration and capture URL if available
         self._detect_and_capture_wandb_url()
@@ -89,14 +127,14 @@ class Lab:
         if isinstance(config, dict) and "experiment_name" not in config and self._experiment is not None:
             config = {**config, "experiment_name": self._experiment.id}
         # keep the existing config with fields that are not in the new config
-        config_old = self._job.get_job_data()
+        config_old = _run_async(self._job.get_job_data())
         config_new = {**config_old, **config}
-        self._job.set_job_data(config_new)  # type: ignore[union-attr]
+        _run_async(self._job.set_job_data(config_new))  # type: ignore[union-attr]
 
     # ------------- convenience logging -------------
     def log(self, message: str) -> None:
         self._ensure_initialized()
-        self._job.log_info(message)  # type: ignore[union-attr]
+        _run_async(self._job.log_info(message))  # type: ignore[union-attr]
         # Check for wandb URL on every log operation
         self._check_and_capture_wandb_url()
 
@@ -105,12 +143,21 @@ class Lab:
         Update job progress and check for wandb URL detection.
         """
         self._ensure_initialized()
-        self._job.update_progress(progress)  # type: ignore[union-attr]
+        _run_async(self._job.update_progress(progress))  # type: ignore[union-attr]
         # Check for wandb URL on every progress update
         self._check_and_capture_wandb_url()
 
     # ------------- checkpoint resume support -------------
     def get_checkpoint_to_resume(self) -> Optional[str]:
+        """
+        Get the checkpoint path to resume training from (sync version).
+
+        This is a sync wrapper around the async implementation.
+        Use a_get_checkpoint_to_resume() if you're already in an async context.
+        """
+        return _run_async(self.a_get_checkpoint_to_resume())
+
+    async def a_get_checkpoint_to_resume(self) -> Optional[str]:
         """
         Get the checkpoint path to resume training from.
 
@@ -124,7 +171,7 @@ class Lab:
         if not self._job:
             return None
 
-        job_data = self._job.get_job_data()
+        job_data = _run_async(self._job.get_job_data())
         if not job_data:
             return None
 
@@ -135,15 +182,24 @@ class Lab:
             return None
 
         # Build the checkpoint path from parent job's checkpoints directory
-        checkpoint_path = self.get_parent_job_checkpoint_path(parent_job_id, checkpoint_name)
+        checkpoint_path = await self.a_get_parent_job_checkpoint_path(parent_job_id, checkpoint_name)
 
         # Verify the checkpoint exists
-        if checkpoint_path and storage.exists(checkpoint_path):
+        if checkpoint_path and await storage.exists(checkpoint_path):
             return checkpoint_path
 
         return None
 
     def get_parent_job_checkpoint_path(self, parent_job_id: str, checkpoint_name: str) -> Optional[str]:
+        """
+        Get the full path to a checkpoint from a parent job (sync version).
+
+        This is a sync wrapper around the async implementation.
+        Use a_get_parent_job_checkpoint_path() if you're already in an async context.
+        """
+        return _run_async(self.a_get_parent_job_checkpoint_path(parent_job_id, checkpoint_name))
+
+    async def a_get_parent_job_checkpoint_path(self, parent_job_id: str, checkpoint_name: str) -> Optional[str]:
         """
         Get the full path to a checkpoint from a parent job.
 
@@ -158,7 +214,7 @@ class Lab:
             Optional[str]: The full path to the checkpoint, or None if it doesn't exist
         """
         try:
-            checkpoints_dir = dirs.get_job_checkpoints_dir(parent_job_id)
+            checkpoints_dir = await dirs.get_job_checkpoints_dir(parent_job_id)
             checkpoint_path = storage.join(checkpoints_dir, checkpoint_name)
 
             # Security check: ensure the checkpoint path is within the checkpoints directory
@@ -171,7 +227,7 @@ class Lab:
             if not checkpoint_path_normalized.startswith(checkpoints_dir_normalized + "/"):
                 return None
 
-            if storage.exists(checkpoint_path_normalized):
+            if await storage.exists(checkpoint_path_normalized):
                 return checkpoint_path_normalized
 
             return None
@@ -191,19 +247,34 @@ class Lab:
         Mark the job as successfully completed and set completion metadata.
         """
         self._ensure_initialized()
-        self._job.update_progress(100)  # type: ignore[union-attr]
-        self._job.update_status("COMPLETE")  # type: ignore[union-attr]
-        self._job.update_job_data_field("completion_status", "success")  # type: ignore[union-attr]
-        self._job.update_job_data_field("completion_details", message)  # type: ignore[union-attr]
-        self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))  # type: ignore[union-attr]
+        _run_async(self._job.update_progress(100))  # type: ignore[union-attr]
+        _run_async(self._job.update_status("COMPLETE"))  # type: ignore[union-attr]
+        _run_async(self._job.update_job_data_field("completion_status", "success"))  # type: ignore[union-attr]
+        _run_async(self._job.update_job_data_field("completion_details", message))  # type: ignore[union-attr]
+        _run_async(self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))  # type: ignore[union-attr]
         if score is not None:
-            self._job.update_job_data_field("score", score)  # type: ignore[union-attr]
+            _run_async(self._job.update_job_data_field("score", score))  # type: ignore[union-attr]
         if additional_output_path is not None and additional_output_path.strip() != "":
-            self._job.update_job_data_field("additional_output_path", additional_output_path)  # type: ignore[union-attr]
+            _run_async(self._job.update_job_data_field("additional_output_path", additional_output_path))  # type: ignore[union-attr]
         if plot_data_path is not None and plot_data_path.strip() != "":
-            self._job.update_job_data_field("plot_data_path", plot_data_path)  # type: ignore[union-attr]
+            _run_async(self._job.update_job_data_field("plot_data_path", plot_data_path))  # type: ignore[union-attr]
 
     def save_artifact(
+        self,
+        source_path: Union[str, Any],
+        name: Optional[str] = None,
+        type: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """
+        Save an artifact file or directory into this job's artifacts folder (sync version).
+
+        This is a sync wrapper around the async implementation.
+        Use a_save_artifact() if you're already in an async context.
+        """
+        return _run_async(self.a_save_artifact(source_path, name, type, config))
+
+    async def a_save_artifact(
         self,
         source_path: Union[str, Any],
         name: Optional[str] = None,
@@ -276,7 +347,7 @@ class Lab:
                     is_image = config["is_image"]
 
             # Use the existing save_dataset method
-            output_path = self.save_dataset(
+            output_path = await self.a_save_dataset(
                 df=df,
                 dataset_id=dataset_id,
                 additional_metadata=additional_metadata if additional_metadata else None,
@@ -286,18 +357,20 @@ class Lab:
 
             # Track dataset_id in job_data
             try:
-                job_data = self._job.get_job_data()
+                job_data = await self._job.get_job_data()
                 generated_datasets_list = []
                 if isinstance(job_data, dict):
                     existing = job_data.get("generated_datasets", [])
                     if isinstance(existing, list):
                         generated_datasets_list = existing
                 generated_datasets_list.append(dataset_id)
-                self._job.update_job_data_field("generated_datasets", generated_datasets_list)
+                await self._job.update_job_data_field("generated_datasets", generated_datasets_list)
             except Exception:
                 pass
 
-            self.log(f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id}'")
+            await self._job.log_info(
+                f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id}'"
+            )  # type: ignore[union-attr]
             return output_path
 
         # Handle DataFrame input when type="evals"
@@ -339,7 +412,7 @@ class Lab:
                 raise ValueError(f"Missing required columns in DataFrame: {missing_columns}")
 
             # Determine destination directory and filename
-            dest_dir = dirs.get_job_eval_results_dir(job_id)
+            dest_dir = await dirs.get_job_eval_results_dir(job_id)
 
             if name is None or (isinstance(name, str) and name.strip() == ""):
                 import time
@@ -352,7 +425,7 @@ class Lab:
             dest = storage.join(dest_dir, filename)
 
             # Create parent directories
-            storage.makedirs(dest_dir, exist_ok=True)
+            await storage.makedirs(dest_dir, exist_ok=True)
 
             # Save DataFrame to CSV using storage module
             try:
@@ -365,25 +438,25 @@ class Lab:
                 df.to_csv(buffer, index=False)
                 buffer.seek(0)
                 # Then write buffer content to storage
-                with storage.open(dest, "w", encoding="utf-8") as f:
-                    f.write(buffer.getvalue())
+                async with await storage.open(dest, "w", encoding="utf-8") as f:
+                    await f.write(buffer.getvalue())
             except Exception as e:
                 raise RuntimeError(f"Failed to save evaluation results to {dest}: {str(e)}")
 
             # Track in job_data
             try:
-                job_data = self._job.get_job_data()
+                job_data = await self._job.get_job_data()
                 eval_results_list = []
                 if isinstance(job_data, dict):
                     existing = job_data.get("eval_results", [])
                     if isinstance(existing, list):
                         eval_results_list = existing
                 eval_results_list.append(dest)
-                self._job.update_job_data_field("eval_results", eval_results_list)
+                await self._job.update_job_data_field("eval_results", eval_results_list)
             except Exception:
                 pass
 
-            self.log(f"Evaluation results saved to '{dest}'")
+            await self._job.log_info(f"Evaluation results saved to '{dest}'")  # type: ignore[union-attr]
             return dest
 
         # Handle file path input when type="model"
@@ -398,7 +471,7 @@ class Lab:
 
             # Check source existence: use local filesystem for local paths, storage backend for remote
             if is_remote:
-                if not storage.exists(src):
+                if not await storage.exists(src):
                     raise FileNotFoundError(f"Model source does not exist: {src}")
             else:
                 if not os.path.exists(src):
@@ -435,25 +508,25 @@ class Lab:
                 base_name = f"{job_id}_{posixpath.basename(src)}"
 
             # Save to main workspace models directory for Model Zoo visibility
-            models_dir = dirs.get_models_dir()
+            models_dir = await dirs.get_models_dir()
             dest = storage.join(models_dir, base_name)
 
             # Create parent directories
-            storage.makedirs(models_dir, exist_ok=True)
+            await storage.makedirs(models_dir, exist_ok=True)
 
             # Copy file or directory
             # Check if source is directory: use local filesystem for local paths, storage backend for remote
             if is_remote:
-                src_is_dir = storage.isdir(src)
+                src_is_dir = await storage.isdir(src)
             else:
                 src_is_dir = os.path.isdir(src)
 
             if src_is_dir:
-                if storage.exists(dest):
-                    storage.rm_tree(dest)
-                storage.copy_dir(src, dest)
+                if await storage.exists(dest):
+                    await storage.rm_tree(dest)
+                await storage.copy_dir(src, dest)
             else:
-                storage.copy_file(src, dest)
+                await storage.copy_file(src, dest)
 
             # Initialize model service for metadata and provenance creation
             model_service = ModelService(base_name)
@@ -462,7 +535,7 @@ class Lab:
             try:
                 # Use provided architecture or detect it
                 if architecture is None:
-                    architecture = model_service.detect_architecture(dest)
+                    architecture = await model_service.detect_architecture(dest)
 
                 # Handle pipeline tag logic
                 if pipeline_tag is None and parent_model is not None:
@@ -470,7 +543,7 @@ class Lab:
                     pipeline_tag = model_service.fetch_pipeline_tag(parent_model)
 
                 # Determine model_filename for single-file models
-                model_filename = "" if storage.isdir(dest) else posixpath.basename(dest)
+                model_filename = "" if await storage.isdir(dest) else posixpath.basename(dest)
 
                 # Prepare json_data with basic info
                 json_data = {
@@ -483,28 +556,28 @@ class Lab:
                     json_data["pipeline_tag"] = pipeline_tag
 
                 # Use the Model class's generate_model_json method to create metadata
-                model_service.generate_model_json(
+                await model_service.generate_model_json(
                     architecture=architecture,
                     model_filename=model_filename,
                     json_data=json_data,
                 )
-                self.log(f"Model saved to Model Zoo as '{base_name}'")
+                await self._job.log_info(f"Model saved to Model Zoo as '{base_name}'")  # type: ignore[union-attr]
             except Exception as e:
-                self.log(f"Warning: Model saved but metadata creation failed: {str(e)}")
+                await self._job.log_info(f"Warning: Model saved but metadata creation failed: {str(e)}")  # type: ignore[union-attr]
                 # Try to detect architecture for provenance even if metadata creation failed
                 if architecture is None:
                     try:
-                        architecture = model_service.detect_architecture(dest)
+                        architecture = await model_service.detect_architecture(dest)
                     except Exception:
                         pass
 
             # Create provenance data
             try:
                 # Create MD5 checksums for all model files
-                md5_objects = model_service.create_md5_checksums(dest)
+                md5_objects = await model_service.create_md5_checksums(dest)
 
                 # Prepare provenance metadata from job data
-                job_data = self._job.get_job_data()
+                job_data = await self._job.get_job_data()
 
                 provenance_metadata = {
                     "job_id": job_id,
@@ -520,27 +593,27 @@ class Lab:
                 }
 
                 # Create the _tlab_provenance.json file
-                provenance_file = model_service.create_provenance_file(
+                provenance_file = await model_service.create_provenance_file(
                     model_path=dest,
                     model_name=base_name,
                     model_architecture=architecture,
                     md5_objects=md5_objects,
                     provenance_data=provenance_metadata,
                 )
-                self.log(f"Provenance file created at: {provenance_file}")
+                await self._job.log_info(f"Provenance file created at: {provenance_file}")  # type: ignore[union-attr]
             except Exception as e:
-                self.log(f"Warning: Model saved but provenance creation failed: {str(e)}")
+                await self._job.log_info(f"Warning: Model saved but provenance creation failed: {str(e)}")  # type: ignore[union-attr]
 
             # Track in job_data
             try:
-                job_data = self._job.get_job_data()
+                job_data = await self._job.get_job_data()
                 model_list = []
                 if isinstance(job_data, dict):
                     existing = job_data.get("models", [])
                     if isinstance(existing, list):
                         model_list = existing
                 model_list.append(dest)
-                self._job.update_job_data_field("models", model_list)
+                await self._job.update_job_data_field("models", model_list)
             except Exception:
                 pass
 
@@ -557,7 +630,7 @@ class Lab:
 
         # Check source existence: use local filesystem for local paths, storage backend for remote
         if is_remote:
-            if not storage.exists(src):
+            if not await storage.exists(src):
                 raise FileNotFoundError(f"Artifact source does not exist: {src}")
         else:
             if not os.path.exists(src):
@@ -565,33 +638,33 @@ class Lab:
 
         # Determine destination directory based on type
         if type == "evals":
-            dest_dir = dirs.get_job_eval_results_dir(job_id)
+            dest_dir = await dirs.get_job_eval_results_dir(job_id)
         else:
-            dest_dir = dirs.get_job_artifacts_dir(job_id)
+            dest_dir = await dirs.get_job_artifacts_dir(job_id)
 
         base_name = name if (isinstance(name, str) and name.strip() != "") else posixpath.basename(src)
         dest = storage.join(dest_dir, base_name)
 
         # Create parent directories
-        storage.makedirs(dest_dir, exist_ok=True)
+        await storage.makedirs(dest_dir, exist_ok=True)
 
         # Copy file or directory
         # Check if source is directory: use local filesystem for local paths, storage backend for remote
         if is_remote:
-            src_is_dir = storage.isdir(src)
+            src_is_dir = await storage.isdir(src)
         else:
             src_is_dir = os.path.isdir(src)
 
         if src_is_dir:
-            if storage.exists(dest):
-                storage.rm_tree(dest)
-            storage.copy_dir(src, dest)
+            if await storage.exists(dest):
+                await storage.rm_tree(dest)
+            await storage.copy_dir(src, dest)
         else:
-            storage.copy_file(src, dest)
+            await storage.copy_file(src, dest)
 
         # Track in job_data based on type
         try:
-            job_data = self._job.get_job_data()
+            job_data = await self._job.get_job_data()
             if type == "evals":
                 # For eval results, track in eval_results list
                 eval_results_list = []
@@ -600,7 +673,7 @@ class Lab:
                     if isinstance(existing, list):
                         eval_results_list = existing
                 eval_results_list.append(dest)
-                self._job.update_job_data_field("eval_results", eval_results_list)
+                await self._job.update_job_data_field("eval_results", eval_results_list)
             else:
                 # For regular artifacts, track in artifacts list
                 artifact_list = []
@@ -609,13 +682,29 @@ class Lab:
                     if isinstance(existing, list):
                         artifact_list = existing
                 artifact_list.append(dest)
-                self._job.update_job_data_field("artifacts", artifact_list)
+                await self._job.update_job_data_field("artifacts", artifact_list)
         except Exception:
             pass
 
         return dest
 
     def save_dataset(
+        self,
+        df,
+        dataset_id: str,
+        additional_metadata: Optional[Dict[str, Any]] = None,
+        suffix: Optional[str] = None,
+        is_image: bool = False,
+    ) -> str:
+        """
+        Save a dataset under the workspace datasets directory (sync version).
+
+        This is a sync wrapper around the async implementation.
+        Use a_save_dataset() if you're already in an async context.
+        """
+        return _run_async(self.a_save_dataset(df, dataset_id, additional_metadata, suffix, is_image))
+
+    async def a_save_dataset(
         self,
         df,
         dataset_id: str,
@@ -649,11 +738,11 @@ class Lab:
 
         # Prepare dataset directory
         dataset_id_safe = dataset_id.strip()
-        dataset_dir = dirs.dataset_dir_by_id(dataset_id_safe)
+        dataset_dir = await dirs.dataset_dir_by_id(dataset_id_safe)
         # If exists, then raise an error
-        if storage.exists(dataset_dir):
+        if await storage.exists(dataset_dir):
             raise FileExistsError(f"Dataset with ID {dataset_id_safe} already exists")
-        storage.makedirs(dataset_dir, exist_ok=True)
+        await storage.makedirs(dataset_dir, exist_ok=True)
 
         # Determine output filename
         if is_image:
@@ -677,8 +766,8 @@ class Lab:
             df.to_json(buffer, orient="records", lines=lines)
             buffer.seek(0)
             # Then write buffer content to storage
-            with storage.open(output_path, "w", encoding="utf-8") as f:
-                f.write(buffer.getvalue())
+            async with await storage.open(output_path, "w", encoding="utf-8") as f:
+                await f.write(buffer.getvalue())
         except Exception as e:
             raise RuntimeError(f"Failed to save dataset to {output_path}: {str(e)}")
 
@@ -708,20 +797,31 @@ class Lab:
             # Do not fail the save if metadata write fails; log to job data
             print(f"Warning: Failed to create dataset metadata: {str(e)}")
             try:
-                self._job.update_job_data_field("dataset_metadata_error", str(e))  # type: ignore[union-attr]
+                await self._job.update_job_data_field("dataset_metadata_error", str(e))  # type: ignore[union-attr]
             except Exception as e2:
                 print(f"Warning: Failed to log dataset metadata error: {str(e2)}")
 
         # Track dataset on the job for provenance
         try:
-            self._job.update_job_data_field("dataset_id", dataset_id_safe)  # type: ignore[union-attr]
+            await self._job.update_job_data_field("dataset_id", dataset_id_safe)  # type: ignore[union-attr]
         except Exception as e:
             print(f"Warning: Failed to track dataset in job_data: {str(e)}")
 
-        self.log(f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_safe}'")
+        await self._job.log_info(
+            f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_safe}'"
+        )  # type: ignore[union-attr]
         return output_path
 
     def save_checkpoint(self, source_path: str, name: Optional[str] = None) -> str:
+        """
+        Save a checkpoint file or directory into this job's checkpoints folder (sync version).
+
+        This is a sync wrapper around the async implementation.
+        Use a_save_checkpoint() if you're already in an async context.
+        """
+        return _run_async(self.a_save_checkpoint(source_path, name))
+
+    async def a_save_checkpoint(self, source_path: str, name: Optional[str] = None) -> str:
         """
         Save a checkpoint file or directory into this job's checkpoints folder.
         Returns the destination path on disk.
@@ -737,51 +837,67 @@ class Lab:
 
         # Check source existence: use local filesystem for local paths, storage backend for remote
         if is_remote:
-            if not storage.exists(src):
+            if not await storage.exists(src):
                 raise FileNotFoundError(f"Checkpoint source does not exist: {src}")
         else:
             if not os.path.exists(src):
                 raise FileNotFoundError(f"Checkpoint source does not exist: {src}")
 
         job_id = self._job.id  # type: ignore[union-attr]
-        ckpts_dir = dirs.get_job_checkpoints_dir(job_id)
+        ckpts_dir = await dirs.get_job_checkpoints_dir(job_id)
         base_name = name if (isinstance(name, str) and name.strip() != "") else posixpath.basename(src)
         dest = storage.join(ckpts_dir, base_name)
 
         # Create parent directories
-        storage.makedirs(ckpts_dir, exist_ok=True)
+        await storage.makedirs(ckpts_dir, exist_ok=True)
 
         # Copy file or directory
         # Check if source is directory: use local filesystem for local paths, storage backend for remote
         if is_remote:
-            src_is_dir = storage.isdir(src)
+            src_is_dir = await storage.isdir(src)
         else:
             src_is_dir = os.path.isdir(src)
 
         if src_is_dir:
-            if storage.exists(dest):
-                storage.rm_tree(dest)
-            storage.copy_dir(src, dest)
+            if await storage.exists(dest):
+                await storage.rm_tree(dest)
+            await storage.copy_dir(src, dest)
         else:
-            storage.copy_file(src, dest)
+            await storage.copy_file(src, dest)
 
         # Track in job_data and update latest pointer
         try:
-            job_data = self._job.get_job_data()
+            job_data = await self._job.get_job_data()
             ckpt_list = []
             if isinstance(job_data, dict):
                 existing = job_data.get("checkpoints", [])
                 if isinstance(existing, list):
                     ckpt_list = existing
             ckpt_list.append(dest)
-            self._job.update_job_data_field("checkpoints", ckpt_list)
-            self._job.update_job_data_field("latest_checkpoint", dest)
+            await self._job.update_job_data_field("checkpoints", ckpt_list)
+            await self._job.update_job_data_field("latest_checkpoint", dest)
         except Exception as e:
             print(f"Warning: Failed to track checkpoint in job_data: {str(e)}")
 
         return dest
 
     def save_model(
+        self,
+        source_path: str,
+        name: Optional[str] = None,
+        architecture: Optional[str] = None,
+        pipeline_tag: Optional[str] = None,
+        parent_model: Optional[str] = None,
+    ) -> str:
+        """
+        Save a model file or directory to the workspace models directory (sync version).
+
+        This is a sync wrapper around the async implementation.
+        Use a_save_model() if you're already in an async context.
+        """
+        return _run_async(self.a_save_model(source_path, name, architecture, pipeline_tag, parent_model))
+
+    async def a_save_model(
         self,
         source_path: str,
         name: Optional[str] = None,
@@ -819,7 +935,7 @@ class Lab:
             config["parent_model"] = parent_model
 
         # Use save_artifact with type="model"
-        return self.save_artifact(
+        return await self.a_save_artifact(
             source_path=source_path,
             name=name,
             type="model",
@@ -834,11 +950,11 @@ class Lab:
         Mark the job as failed and set completion metadata.
         """
         self._ensure_initialized()
-        self._job.update_status("COMPLETE")  # type: ignore[union-attr]
-        self._job.update_job_data_field("completion_status", "failed")  # type: ignore[union-attr]
-        self._job.update_job_data_field("completion_details", message)  # type: ignore[union-attr]
-        self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))  # type: ignore[union-attr]
-        self._job.update_job_data_field("status", "FAILED")  # type: ignore[union-attr]
+        _run_async(self._job.update_status("COMPLETE"))  # type: ignore[union-attr]
+        _run_async(self._job.update_job_data_field("completion_status", "failed"))  # type: ignore[union-attr]
+        _run_async(self._job.update_job_data_field("completion_details", message))  # type: ignore[union-attr]
+        _run_async(self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))  # type: ignore[union-attr]
+        _run_async(self._job.update_job_data_field("status", "FAILED"))  # type: ignore[union-attr]
 
     def _detect_and_capture_wandb_url(self) -> None:
         """
@@ -852,7 +968,7 @@ class Lab:
             # Method 1: Check environment variables set by wandb
             wandb_url = os.environ.get("WANDB_URL")
             if wandb_url:
-                self._job.update_job_data_field("wandb_run_url", wandb_url)
+                _run_async(self._job.update_job_data_field("wandb_run_url", wandb_url))
                 print(f"📊 Detected wandb run URL: {wandb_url}")
                 return
 
@@ -863,7 +979,7 @@ class Lab:
                 if wandb.run is not None:
                     wandb_url = wandb.run.url
                     if wandb_url:
-                        self._job.update_job_data_field("wandb_run_url", wandb_url)
+                        _run_async(self._job.update_job_data_field("wandb_run_url", wandb_url))
                         print(f"📊 Detected wandb run URL: {wandb_url}")
                         return
             except ImportError:
@@ -881,7 +997,7 @@ class Lab:
                     if current_run and hasattr(current_run, "url"):
                         wandb_url = current_run.url
                         if wandb_url:
-                            self._job.update_job_data_field("wandb_run_url", wandb_url)
+                            _run_async(self._job.update_job_data_field("wandb_run_url", wandb_url))
                             print(f"📊 Detected wandb run URL: {wandb_url}")
                             return
             except (ImportError, AttributeError):
@@ -898,14 +1014,14 @@ class Lab:
         """
         try:
             # Only check if we haven't already captured a wandb URL
-            job_data = self._job.get_job_data()
+            job_data = _run_async(self._job.get_job_data())
             if job_data.get("wandb_run_url"):
                 return  # Already have a wandb URL
 
             # Method 1: Check environment variables
             wandb_url = os.environ.get("WANDB_URL")
             if wandb_url:
-                self._job.update_job_data_field("wandb_run_url", wandb_url)
+                _run_async(self._job.update_job_data_field("wandb_run_url", wandb_url))
                 print(f"📊 Auto-detected wandb URL from environment: {wandb_url}")
                 return
 
@@ -916,7 +1032,7 @@ class Lab:
                 if wandb.run is not None and hasattr(wandb.run, "url"):
                     wandb_url = wandb.run.url
                     if wandb_url:
-                        self._job.update_job_data_field("wandb_run_url", wandb_url)
+                        _run_async(self._job.update_job_data_field("wandb_run_url", wandb_url))
                         print(f"📊 Auto-detected wandb URL from wandb.run: {wandb_url}")
                         return
             except ImportError:
@@ -933,7 +1049,7 @@ class Lab:
         """
         if wandb_url and wandb_url.strip():
             self._ensure_initialized()
-            self._job.update_job_data_field("wandb_run_url", wandb_url.strip())
+            _run_async(self._job.update_job_data_field("wandb_run_url", wandb_url.strip()))
             print(f"📊 Captured wandb run URL: {wandb_url.strip()}")
 
     # ------------- helpers -------------
@@ -948,36 +1064,89 @@ class Lab:
 
     def get_checkpoints_dir(self) -> str:
         """
+        Get the checkpoints directory path for the current job (sync version).
+
+        This is a sync wrapper around the async implementation.
+        Use a_get_checkpoints_dir() if you're already in an async context.
+        """
+        return _run_async(self.a_get_checkpoints_dir())
+
+    async def a_get_checkpoints_dir(self) -> str:
+        """
         Get the checkpoints directory path for the current job.
         """
         self._ensure_initialized()
-        return self._job.get_checkpoints_dir()  # type: ignore[union-attr]
+        return await self._job.get_checkpoints_dir()  # type: ignore[union-attr]
 
     def get_artifacts_dir(self) -> str:
+        """
+        Get the artifacts directory path for the current job (sync version).
+
+        This is a sync wrapper around the async implementation.
+        Use a_get_artifacts_dir() if you're already in an async context.
+        """
+        return _run_async(self.a_get_artifacts_dir())
+
+    async def a_get_artifacts_dir(self) -> str:
         """
         Get the artifacts directory path for the current job.
         """
         self._ensure_initialized()
-        return self._job.get_artifacts_dir()  # type: ignore[union-attr]
+        return await self._job.get_artifacts_dir()  # type: ignore[union-attr]
 
     def get_checkpoint_paths(self) -> list[str]:
+        """
+        Get list of checkpoint file paths for the current job (sync version).
+
+        This is a sync wrapper around the async implementation.
+        Use a_get_checkpoint_paths() if you're already in an async context.
+        """
+        return _run_async(self.a_get_checkpoint_paths())
+
+    async def a_get_checkpoint_paths(self) -> list[str]:
         """
         Get list of checkpoint file paths for the current job.
         """
         self._ensure_initialized()
-        return self._job.get_checkpoint_paths()  # type: ignore[union-attr]
+        return await self._job.get_checkpoint_paths()  # type: ignore[union-attr]
 
     def get_artifact_paths(self) -> list[str]:
+        """
+        Get list of artifact file paths for the current job (sync version).
+
+        This is a sync wrapper around the async implementation.
+        Use a_get_artifact_paths() if you're already in an async context.
+        """
+        return _run_async(self.a_get_artifact_paths())
+
+    async def a_get_artifact_paths(self) -> list[str]:
         """
         Get list of artifact file paths for the current job.
         """
         self._ensure_initialized()
-        return self._job.get_artifact_paths()  # type: ignore[union-attr]
+        return await self._job.get_artifact_paths()  # type: ignore[union-attr]
 
     @property
     def experiment(self) -> Experiment:
         self._ensure_initialized()
         return self._experiment  # type: ignore[return-value]
+
+    def get_job_data(self) -> Dict[str, Any]:
+        """
+        Get the job data dictionary (sync version).
+
+        This is a sync wrapper around the async Job.get_job_data() method.
+        Use a_get_job_data() if you're already in an async context.
+        """
+        self._ensure_initialized()
+        return _run_async(self._job.get_job_data())  # type: ignore[union-attr]
+
+    async def a_get_job_data(self) -> Dict[str, Any]:
+        """
+        Get the job data dictionary (async version).
+        """
+        self._ensure_initialized()
+        return await self._job.get_job_data()  # type: ignore[union-attr]
 
 
 def capture_wandb_url_from_env() -> str | None:
