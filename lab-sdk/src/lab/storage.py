@@ -273,6 +273,26 @@ async def rm_tree(path: str) -> None:
                 fs.rm(file_path)
 
 
+def _normalize_local_path(path: str) -> str:
+    """
+    Normalize a path intended for use on the local filesystem and
+    reject obvious path traversal in relative paths.
+
+    This keeps existing behaviour for absolute paths (which are assumed
+    to be chosen by trusted code), while preventing relative paths like
+    "../../etc/passwd" from escaping the intended working directory.
+    """
+    normalized = os.path.normpath(path)
+
+    # If the normalized path is relative, ensure it does not traverse upwards.
+    if not os.path.isabs(normalized):
+        parts = [p for p in normalized.split(os.sep) if p not in ("", ".")]
+        if ".." in parts:
+            raise ValueError(f"Disallowed path traversal in relative path: {path!r}")
+
+    return normalized
+
+
 async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kwargs):
     """
     Open a file for reading or writing.
@@ -299,10 +319,11 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
 
     # Check if this is a local filesystem
     is_local = isinstance(filesys, fsspec.implementations.local.LocalFileSystem)
+    safe_path = _normalize_local_path(path)
 
     if is_local:
         # Use aiofiles for local files to get truly async file I/O
-        return aiofiles.open(path, mode=mode, **kwargs)
+        return aiofiles.open(safe_path, mode=mode, **kwargs)
     else:
         # Use sync filesystem open method, but wrap it in async context manager
         # so it can be used with 'async with'
