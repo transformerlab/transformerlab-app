@@ -460,7 +460,7 @@ async def stream_detailed_json_report(job_id: str, file_name: str):
 
     return StreamingResponse(
         # we force polling because i can't get this to work otherwise -- changes aren't detected
-        watch_file(file_name, start_from_beginning=True, force_polling=False),
+        watch_file(candidate, start_from_beginning=True, force_polling=False),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
     )
