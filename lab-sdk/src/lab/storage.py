@@ -276,21 +276,41 @@ async def rm_tree(path: str) -> None:
 def _normalize_local_path(path: str) -> str:
     """
     Normalize a path intended for use on the local filesystem and
-    reject obvious path traversal in relative paths.
+    constrain it to the configured storage root directory.
 
-    This keeps existing behaviour for absolute paths (which are assumed
-    to be chosen by trusted code), while preventing relative paths like
-    "../../etc/passwd" from escaping the intended working directory.
+    This prevents path traversal attacks by ensuring all paths stay within
+    the storage root (TFL_HOME_DIR or ~/.transformerlab by default).
+    Both relative and absolute paths are constrained to the root.
     """
+    # Get the storage root directory (uses TFL_HOME_DIR or ~/.transformerlab)
+    _, root = _get_fs_and_root()
+
+    # Normalize the input path
     normalized = os.path.normpath(path)
 
-    # If the normalized path is relative, ensure it does not traverse upwards.
-    if not os.path.isabs(normalized):
-        parts = [p for p in normalized.split(os.sep) if p not in ("", ".")]
-        if ".." in parts:
-            raise ValueError(f"Disallowed path traversal in relative path: {path!r}")
+    # Resolve the root to an absolute real path
+    base_dir = os.path.realpath(root)
 
-    return normalized
+    # Handle both relative and absolute paths
+    if os.path.isabs(normalized):
+        # For absolute paths, resolve to real path
+        candidate = os.path.realpath(normalized)
+    else:
+        # For relative paths, join with base_dir and resolve
+        candidate = os.path.realpath(os.path.join(base_dir, normalized))
+
+    # Ensure the candidate path is within the base directory
+    # Use commonpath to check containment
+    try:
+        common = os.path.commonpath([base_dir, candidate])
+        if common != base_dir:
+            raise ValueError(f"Path {path!r} resolves to {candidate!r} which is outside the storage root {base_dir!r}")
+    except ValueError:
+        # If commonpath fails (e.g., different drives on Windows, or no common prefix),
+        # the paths are definitely not in the same hierarchy, so reject
+        raise ValueError(f"Path {path!r} resolves to {candidate!r} which is outside the storage root {base_dir!r}")
+
+    return candidate
 
 
 async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kwargs):
