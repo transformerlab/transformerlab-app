@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
+from transformerlab.utils.api_key_utils import mask_key
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole, TeamInvitation, InvitationStatus
 from transformerlab.models.users import current_active_user
@@ -833,13 +834,17 @@ async def get_github_pat(
                 pat = (await f.read()).strip()
                 if pat:
                     # Return masked version for security (only show last 4 chars)
-                    masked_pat = "*" * (len(pat) - 4) + pat[-4:] if len(pat) > 4 else "*" * len(pat)
+                    masked_pat = mask_key(pat)
                     return {"status": "success", "pat_exists": True, "masked_pat": masked_pat}
         except Exception as e:
             print(f"Error reading GitHub PAT: {e}")
             return {"status": "error", "message": "Failed to read GitHub PAT"}
 
-    return {"status": "success", "pat_exists": False}
+    return {
+        "status": "success",
+        "pat_exists": True,
+        "masked_pat": mask_key(raw_pat),
+    }
 
 
 @router.put("/teams/{team_id}/github_pat")
