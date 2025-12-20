@@ -28,6 +28,29 @@ def get(path: str) -> httpx.Response:
     return response
 
 
+def post(path: str, data: dict = None, files: dict = None) -> httpx.Response:
+    """
+    Makes a POST HTTP request to the specified URL with the given data and files.
+
+    Args:
+        url (str): The URL to send the request to.
+        data (dict, optional): The data to include in the POST request. Default is None.
+        files (dict, optional): The files to include in the POST request. Default is None.
+
+    Returns:
+        httpx.Response: The response object from the HTTP request.
+    """
+    with httpx.Client(timeout=10.0) as client:
+        response = client.request(
+            method="POST",
+            url=f"{BASE_URL()}{path}",
+            headers={"Authorization": f"Bearer {api_key}"},
+            data=data,
+            files=files,
+        )
+    return response
+
+
 def check_server_status():
     """Check the status of the server."""
     try:
