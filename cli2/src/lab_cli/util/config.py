@@ -152,14 +152,14 @@ def check_configs() -> None:
     user_email = config.get("user_email", "N/A")
     team_name = config.get("team_id", "N/A")
     server = config.get("server", "N/A")
-    experiment = "Not In Experiment"
+    experiment = "Not Implemented"
     table = Table(show_header=True, header_style="bold magenta", box=None)
-    columns = ["User Email", "Team ID", "Server"]
     table.add_column("User Email", style="cyan")
     table.add_column("Team ID", style="cyan")
     table.add_column("Server", style="cyan")
-    table.add_row(user_email, team_name, server)
-
+    table.add_column("Experiment", style="cyan")
+    table.add_row(user_email, team_name, server, experiment)
+    console.rule()
     one_liner_logo(console)
     console.print(table)
     console.rule()
