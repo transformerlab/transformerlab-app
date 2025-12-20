@@ -7,11 +7,14 @@ from lab_cli.util.logo import show_header
 from lab_cli.util.auth import set_api_key, delete_api_key
 from lab_cli.util.config import check_configs, list_config, set_config
 from lab_cli.commands import task as task_commands
+from lab_cli.commands import job as job_commands  # Import job commands
 from lab_cli import __version__
 
 app = typer.Typer(name="lab", help="Transformer Lab CLI", add_completion=False, no_args_is_help=True)
 task_app = typer.Typer(help="Task management commands", no_args_is_help=True)
 app.add_typer(task_app, name="task")
+job_app = typer.Typer(help="Job management commands", no_args_is_help=True)  # Create job Typer app
+app.add_typer(job_app, name="job")  # Add job app to the main app
 
 console = Console()
 
@@ -93,6 +96,22 @@ def task_info(
     """Get task details."""
     check_configs()
     task_commands.info_task(task_id)
+
+
+@job_app.command("list")
+def job_list():
+    """List all jobs."""
+    check_configs()
+    job_commands.list_jobs()  # Delegate to job_commands.list_jobs
+
+
+@job_app.command("info")
+def job_info(
+    job_id: str = typer.Argument(..., help="Job ID to get info for"),
+):
+    """Get job details."""
+    check_configs()
+    job_commands.info_job(job_id)  # Delegate to job_commands.info_job
 
 
 # Apply common setup to all commands
