@@ -6,10 +6,18 @@ from lab_cli.util import api
 console = Console()
 
 
-def _fetch_jobs_and_return_table() -> Table:
-    """Make a new table."""
+def _fetch_all_jobs() -> list[dict]:
+    """Fetch all jobs from the API."""
     response = api.get("/experiment/alpha/jobs/list?type=REMOTE")  # Placeholder logic for listing jobs
-    jobs = response.json()
+    if response.status_code == 200:
+        return response.json()
+    else:
+        console.print(f"[red]Error:[/red] Failed to fetch jobs. Status code: {response.status_code}")
+        return []
+
+
+def _render_jobs(jobs) -> Table:
+    """Make a new table."""
     # Create a table to display job details
     table = Table()
     table.add_column("ID", justify="right", style="cyan", no_wrap=True)
@@ -35,8 +43,10 @@ def _fetch_jobs_and_return_table() -> Table:
 
 def list_jobs():
     """List all jobs."""
+    jobs = []
     with console.status("[bold green]Fetching jobs[/bold green]", spinner="dots"):
-        table = _fetch_jobs_and_return_table()
+        jobs = _fetch_all_jobs()
+    table = _render_jobs(jobs)
     print(table)
 
 
