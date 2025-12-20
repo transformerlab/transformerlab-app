@@ -56,7 +56,7 @@ def config(
 def status():
     """Check the status of the server."""
     check_configs()
-    list_config()
+    # list_config()
     check_server_status()
 
 
