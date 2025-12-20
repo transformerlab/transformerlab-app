@@ -11,22 +11,32 @@ VALID_CONFIG_KEYS = ["server", "team_id", "team_name", "user_email"]
 
 console = Console()
 
+cached_config = None
 
-def _load_config() -> dict[str, Any]:
+
+def load_config() -> dict[str, Any]:
     """Load config from file, return empty dict if not found."""
+    global cached_config
+
+    if cached_config is not None:
+        return cached_config
+
     if not CONFIG_FILE.exists():
         return {}
     try:
-        return json.loads(CONFIG_FILE.read_text())
+        cached_config = json.loads(CONFIG_FILE.read_text())
+        return cached_config
     except (json.JSONDecodeError, OSError):
         return {}
 
 
 def _save_config(config: dict[str, Any]) -> bool:
     """Save config to file. Returns True on success."""
+    global cached_config
     try:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         CONFIG_FILE.write_text(json.dumps(config, indent=2))
+        cached_config = config
         return True
     except OSError as e:
         console.print(f"[red]Error:[/red] Failed to save config: {e}")
@@ -35,7 +45,7 @@ def _save_config(config: dict[str, Any]) -> bool:
 
 def list_config() -> None:
     """Display all config values in a table."""
-    config = _load_config()
+    config = load_config()
 
     if not config:
         console.print("[yellow]No configuration values set[/yellow]")
@@ -53,7 +63,7 @@ def list_config() -> None:
 
 def get_config(key: str) -> Any | None:
     """Get a config value by key."""
-    config = _load_config()
+    config = load_config()
     return config.get(key)
 
 
@@ -94,7 +104,7 @@ def set_config(key: str, value: str) -> bool:
             return False
         value = normalized_url
 
-    config = _load_config()
+    config = load_config()
     config[key] = value
 
     if _save_config(config):
@@ -105,7 +115,7 @@ def set_config(key: str, value: str) -> bool:
 
 def delete_config(key: str) -> bool:
     """Delete a config value. Returns True on success."""
-    config = _load_config()
+    config = load_config()
 
     if key not in config:
         console.print(f"[yellow]Key '{key}' not found[/yellow]")
