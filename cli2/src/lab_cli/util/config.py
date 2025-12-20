@@ -11,6 +11,8 @@ VALID_CONFIG_KEYS = ["server", "team_id", "team_name", "user_email"]
 
 console = Console()
 
+# We might as well just load the config once and cache it
+# to avoid repeated file reads
 cached_config = None
 
 
