@@ -1,4 +1,8 @@
+import json
 import httpx
+import typer
+from rich import print
+
 
 from lab_cli.util.shared import BASE_URL
 from lab_cli.util.auth import api_key
@@ -22,3 +26,17 @@ def get(path: str) -> httpx.Response:
             headers={"Authorization": f"Bearer {api_key}"},
         )
     return response
+
+
+def check_server_status():
+    """Check the status of the server."""
+    try:
+        response = get("/server/info")
+        response.raise_for_status()
+        status = response.json()
+        print(f"[green]Server status:[/green]")
+        print(json.dumps(status, indent=2))
+
+    except httpx.HTTPError as e:
+        print(f"[red]Error:[/red] Unable to connect to the server: {e}")
+        raise typer.Exit(1)

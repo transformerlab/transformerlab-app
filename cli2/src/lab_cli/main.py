@@ -2,6 +2,7 @@ import typer
 from rich import print
 from rich.console import Console
 
+from lab_cli.util.api import check_server_status
 from lab_cli.util.logo import show_header
 from lab_cli.util.auth import set_api_key, delete_api_key
 from lab_cli.util.config import check_configs, list_config, set_config
@@ -49,6 +50,13 @@ def config(
     else:
         console.print("[red]Error:[/red] Both key and value are required to set a config")
         raise typer.Exit(1)
+
+
+@app.command()
+def status():
+    """Check the status of the server."""
+    check_configs()
+    check_server_status()
 
 
 @task_app.command("list")

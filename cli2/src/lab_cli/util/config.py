@@ -3,6 +3,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from rich.console import Console
+import typer
 
 from lab_cli.util.logo import one_liner_logo, show_header
 from lab_cli.util.ui import render_table
@@ -142,7 +143,7 @@ def check_configs() -> None:
             "[yellow]Warning:[/yellow] The following configuration keys are missing: " + ", ".join(missing_keys)
         )
         console.print("Use the 'lab config' command to set them.")
-        exit()
+        raise typer.Exit(1)
 
     set_base_url(config.get("server"))
 
