@@ -18,7 +18,7 @@ def get(path: str) -> httpx.Response:
     with httpx.Client(timeout=10.0) as client:
         response = client.request(
             method="GET",
-            url=f"{BASE_URL}{path}",
+            url=f"{BASE_URL()}{path}",
             headers={"Authorization": f"Bearer {api_key}"},
         )
     return response

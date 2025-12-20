@@ -4,7 +4,7 @@ from rich.console import Console
 
 from lab_cli.util.logo import show_header
 from lab_cli.util.auth import set_api_key, delete_api_key
-from lab_cli.util.config import list_config, set_config
+from lab_cli.util.config import check_configs, list_config, set_config
 from lab_cli.commands import task as task_commands
 from lab_cli import __version__
 
@@ -54,12 +54,14 @@ def config(
 @task_app.command("list")
 def task_list():
     """List all tasks."""
+    check_configs()
     task_commands.list_tasks()
 
 
 @task_app.command("add")
 def task_add():
     """Add a new task."""
+    check_configs()
     task_commands.add_task()
 
 
@@ -68,6 +70,7 @@ def task_delete(
     task_id: str = typer.Argument(..., help="Task ID to delete"),
 ):
     """Delete a task."""
+    check_configs()
     task_commands.delete_task(task_id)
 
 
@@ -76,7 +79,14 @@ def task_info(
     task_id: str = typer.Argument(..., help="Task ID to get info for"),
 ):
     """Get task details."""
+    check_configs()
     task_commands.info_task(task_id)
+
+
+# Apply common setup to all commands
+@app.callback()
+def common_setup():
+    """Common setup code to run before any command."""
 
 
 if __name__ == "__main__":

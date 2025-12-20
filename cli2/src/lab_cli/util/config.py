@@ -4,10 +4,12 @@ from urllib.parse import urlparse
 
 from rich.console import Console
 
+from lab_cli.util.logo import one_liner_logo, show_header
 from lab_cli.util.ui import render_table
-from lab_cli.util.shared import CONFIG_DIR, CONFIG_FILE
+from lab_cli.util.shared import CONFIG_DIR, CONFIG_FILE, set_base_url
 
 VALID_CONFIG_KEYS = ["server", "team_id", "team_name", "user_email"]
+REQUIRED_CONFIG_KEYS = ["server", "team_id", "user_email"]
 
 console = Console()
 
@@ -129,3 +131,24 @@ def delete_config(key: str) -> bool:
         console.print(f"[green]✓[/green] Deleted [cyan]{key}[/cyan]")
         return True
     return False
+
+
+def check_configs() -> None:
+    """Check that required configs are set, warn if not."""
+    config = load_config()
+    missing_keys = [key for key in REQUIRED_CONFIG_KEYS if key not in config]
+    if missing_keys:
+        console.print(
+            "[yellow]Warning:[/yellow] The following configuration keys are missing: " + ", ".join(missing_keys)
+        )
+        console.print("Use the 'lab config' command to set them.")
+        exit()
+
+    set_base_url(config.get("server"))
+
+    # Now print really nicely the name of the user, server and team
+    user_email = config.get("user_email", "N/A")
+    team_name = config.get("team_id", "N/A")
+    server = config.get("server", "N/A")
+    one_liner_logo(console)
+    console.print(f"User: [cyan]{user_email}[/cyan] | Team: [cyan]{team_name}[/cyan] | Server: [cyan]{server}[/cyan]")

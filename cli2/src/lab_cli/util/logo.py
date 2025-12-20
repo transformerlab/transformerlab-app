@@ -53,4 +53,8 @@ def show_header(console: Console):
     """
     Displays the lab.cloud logo with a rainbow effect.
     """
-    console.print(generate_rainbow_text(LOGO, 0))
+    console.print(generate_rainbow_text(LOGO, 0), end="")
+
+
+def one_liner_logo(console: Console) -> str:
+    console.print(generate_rainbow_text("Transformer Lab CLI", 0), end="")
