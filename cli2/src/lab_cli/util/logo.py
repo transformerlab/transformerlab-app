@@ -56,5 +56,7 @@ def show_header(console: Console):
     console.print(generate_rainbow_text(LOGO, 0), end="")
 
 
-def one_liner_logo(console: Console) -> str:
-    console.print(generate_rainbow_text("Transformer Lab CLI", 0), end="")
+def one_liner_logo(console: Console):
+    pass
+    # one_liner = Text(">> Transformer Lab CLI", style="bold magenta")
+    # console.print(one_liner, justify="left")

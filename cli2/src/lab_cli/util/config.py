@@ -3,6 +3,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from rich.console import Console
+from rich.table import Table
 import typer
 
 from lab_cli.util.logo import one_liner_logo, show_header
@@ -151,5 +152,13 @@ def check_configs() -> None:
     user_email = config.get("user_email", "N/A")
     team_name = config.get("team_id", "N/A")
     server = config.get("server", "N/A")
+    experiment = "Not In Experiment"
+    table = Table(show_header=True, header_style="bold magenta")
+    columns = ["User Email", "Team ID", "Server"]
+    table.add_column("User Email", style="cyan")
+    table.add_column("Team ID", style="cyan")
+    table.add_column("Server", style="cyan")
+    table.add_row(user_email, team_name, server)
+
     one_liner_logo(console)
-    console.print(f"User: [cyan]{user_email}[/cyan] | Team: [cyan]{team_name}[/cyan] | Server: [cyan]{server}[/cyan]")
+    console.print(table)

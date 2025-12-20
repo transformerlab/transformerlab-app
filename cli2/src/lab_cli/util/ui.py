@@ -1,5 +1,7 @@
 from rich.console import Console
 from rich.table import Table
+from rich.panel import Panel
+from rich.text import Text
 import json
 import csv
 import sys
@@ -39,5 +41,15 @@ def render_object(data: dict, format_type: str = "pretty") -> None:
     if format_type == "json":
         console.print_json(json.dumps(data))
     else:
+        content = Text()
         for key, value in data.items():
-            console.print(f"[bold cyan]{key}:[/bold cyan] {value}")
+            content.append(f"{key}: ", style="bold cyan")
+            content.append(f"{str(value)}\n")
+        panel = Panel(
+            content,
+            title="Object Details",
+            title_align="left",
+            border_style="cyan",
+            expand=True,
+        )
+        console.print(panel)

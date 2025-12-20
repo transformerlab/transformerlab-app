@@ -40,7 +40,7 @@ def info_task(task_id: str) -> None:
 
     if response.status_code == 200:
         task_info = response.json()
-        console.print(f"[bold green]Task Info for ID {task_id}:[/bold green]")
+        # console.print(f"[bold green]Task Info for ID {task_id}:[/bold green]")
         render_object(task_info)
     else:
         console.print(f"[red]Error:[/red] Failed to fetch task info. Status code: {response.status_code}")
