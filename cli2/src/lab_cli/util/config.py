@@ -60,7 +60,7 @@ def list_config() -> None:
 
     render_table(
         data=json_with_key_value,
-        format_type="table",
+        format_type="pretty",
         table_columns=["Key", "Value"],
         title="Configuration",
     )

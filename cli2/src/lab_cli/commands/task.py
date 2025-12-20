@@ -1,11 +1,11 @@
 from rich.console import Console
-from lab_cli.util.ui import render_table
+from lab_cli.util.ui import render_table, render_object
 import lab_cli.util.api as api
 
 console = Console()
 
 
-def list_tasks(output_format: str = "table") -> None:
+def list_tasks(output_format: str = "pretty") -> None:
     """List all tasks."""
 
     with console.status("[bold green]Fetching tasks...[/bold green]", spinner="dots"):
@@ -32,4 +32,12 @@ def delete_task(task_id: str) -> None:
 
 def info_task(task_id: str) -> None:
     """Get info for a task by ID."""
-    console.print(f"[yellow]Task info '{task_id}' - not implemented[/yellow]")
+    with console.status(f"[bold green]Fetching info for task {task_id}...[/bold green]", spinner="dots"):
+        response = api.get(f"/tasks/{task_id}/get")
+
+    if response.status_code == 200:
+        task_info = response.json()
+        console.print(f"[bold green]Task Info for ID {task_id}:[/bold green]")
+        render_object(task_info)
+    else:
+        console.print(f"[red]Error:[/red] Failed to fetch task info. Status code: {response.status_code}")
