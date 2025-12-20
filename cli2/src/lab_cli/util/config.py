@@ -153,7 +153,7 @@ def check_configs() -> None:
     team_name = config.get("team_id", "N/A")
     server = config.get("server", "N/A")
     experiment = "Not In Experiment"
-    table = Table(show_header=True, header_style="bold magenta")
+    table = Table(show_header=True, header_style="bold magenta", box=None)
     columns = ["User Email", "Team ID", "Server"]
     table.add_column("User Email", style="cyan")
     table.add_column("Team ID", style="cyan")
@@ -162,3 +162,4 @@ def check_configs() -> None:
 
     one_liner_logo(console)
     console.print(table)
+    console.rule()
