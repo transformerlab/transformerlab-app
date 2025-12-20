@@ -68,10 +68,13 @@ def task_list():
 
 
 @task_app.command("add")
-def task_add():
+def task_add(
+    task_yaml_path: str = typer.Argument(..., help="Path to the Task YAML file"),
+    directory: str = typer.Argument(None, help="Path to the directory to upload (optional)"),
+):
     """Add a new task."""
     check_configs()
-    task_commands.add_task()
+    task_commands.add_task(task_yaml_path, directory if directory else None)
 
 
 @task_app.command("delete")
