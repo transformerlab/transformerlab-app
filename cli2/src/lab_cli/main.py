@@ -8,6 +8,7 @@ from lab_cli.util.config import check_configs, list_config, set_config
 
 from lab_cli.commands.version import app as version_app
 from lab_cli.commands.config import app as config_app
+from lab_cli.commands.status import app as status_app
 from lab_cli.commands.login import app as login_app
 from lab_cli.commands.logout import app as logout_app
 from lab_cli.commands.task import app as task_app
@@ -33,6 +34,7 @@ app = typer.Typer(
 )
 app.add_typer(version_app)
 app.add_typer(config_app)
+app.add_typer(status_app)
 app.add_typer(login_app)
 app.add_typer(logout_app)
 app.add_typer(task_app, name="task", help="Task management commands", no_args_is_help=True)
@@ -42,14 +44,6 @@ console = Console()
 
 # Global variable to store the output format
 output_format: str = "pretty"
-
-
-@app.command()
-def status():
-    """Check the status of the server."""
-    check_configs(output_format=output_format)
-    # list_config()
-    check_server_status()
 
 
 # Apply common setup to all commands
