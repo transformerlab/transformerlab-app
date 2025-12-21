@@ -84,6 +84,9 @@ class JobDetails(Static):
         details_view = self.query_one("#job-info", Static)
         details_view.update(details)
 
+        buttons = self.query_one("#job-buttons")
+        buttons.add_class("visible")
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-view-json":
             if self.current_job:

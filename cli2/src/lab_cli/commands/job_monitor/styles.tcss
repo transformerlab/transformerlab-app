@@ -26,6 +26,10 @@
         height: auto;
         dock: bottom;
         padding: 1 0;
+        display: none;
+    }
+    #job-buttons.visible {
+        display: block;
     }
     #job-buttons Button {
         margin-right: 1;
