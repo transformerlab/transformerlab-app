@@ -184,3 +184,11 @@ def command_job_info(
     """Get job details."""
     check_configs()
     info_job(job_id)  # Delegate to job_commands.info_job
+
+
+@app.command("monitor")
+def command_job_monitor():
+    """Launch interactive job monitor TUI."""
+    from lab_cli.commands.job_monitor import run_monitor
+
+    run_monitor()
