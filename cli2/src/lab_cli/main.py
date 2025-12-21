@@ -7,6 +7,7 @@ from lab_cli.util.logo import show_header
 from lab_cli.util.config import check_configs, list_config, set_config
 
 from lab_cli.commands.version import app as version_app
+from lab_cli.commands.config import app as config_app
 from lab_cli.commands.login import app as login_app
 from lab_cli.commands.logout import app as logout_app
 from lab_cli.commands.task import app as task_app
@@ -31,6 +32,7 @@ app = typer.Typer(
     name="lab", help="Transformer Lab CLI", add_completion=False, no_args_is_help=True, cls=LogoTyperGroup
 )
 app.add_typer(version_app)
+app.add_typer(config_app)
 app.add_typer(login_app)
 app.add_typer(logout_app)
 app.add_typer(task_app, name="task", help="Task management commands", no_args_is_help=True)
@@ -40,21 +42,6 @@ console = Console()
 
 # Global variable to store the output format
 output_format: str = "pretty"
-
-
-@app.command()
-def config(
-    key: str = typer.Argument(None, help="Config key to set"),
-    value: str = typer.Argument(None, help="Config value to set"),
-):
-    """View or set configuration values."""
-    if key is None and value is None:
-        list_config()
-    elif key is not None and value is not None:
-        set_config(key, value)
-    else:
-        console.print("[red]Error:[/red] Both key and value are required to set a config")
-        raise typer.Exit(1)
 
 
 @app.command()
