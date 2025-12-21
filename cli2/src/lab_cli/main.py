@@ -1,4 +1,5 @@
 import typer
+import typer.core
 from rich import print
 from rich.console import Console
 
@@ -10,7 +11,24 @@ from lab_cli.commands import task as task_commands
 from lab_cli.commands import job as job_commands  # Import job commands
 from lab_cli import __version__
 
-app = typer.Typer(name="lab", help="Transformer Lab CLI", add_completion=False, no_args_is_help=True)
+
+# 2. Create a Custom Group Class
+class LogoTyperGroup(typer.core.TyperGroup):
+    def format_help(self, ctx, formatter):
+        """
+        Override the help formatting to print a logo first.
+        """
+        console = Console()
+        # Print the logo nicely using Rich
+        show_header(console)
+
+        # Call the parent method to print the standard help text
+        return super().format_help(ctx, formatter)
+
+
+app = typer.Typer(
+    name="lab", help="Transformer Lab CLI", add_completion=False, no_args_is_help=True, cls=LogoTyperGroup
+)
 task_app = typer.Typer(help="Task management commands", no_args_is_help=True)
 app.add_typer(task_app, name="task")
 job_app = typer.Typer(help="Job management commands", no_args_is_help=True)  # Create job Typer app
@@ -127,13 +145,13 @@ def job_info(
 
 
 # Apply common setup to all commands
-@app.callback(invoke_without_command=True)
+@app.callback()
 def common_setup(
     ctx: typer.Context, format: str = typer.Option("pretty", "--format", help="Output format: pretty or json")
 ):
     """Common setup code to run before any command."""
     global output_format
-    output_format = format  # Set the global output format
+    output_format = format  # Set the global output format (pretty or json)
     if not ctx.invoked_subcommand:
         show_header(console)  # Display the logo when no command is provided
 
