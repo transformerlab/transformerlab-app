@@ -189,6 +189,6 @@ def command_job_info(
 @app.command("monitor")
 def command_job_monitor():
     """Launch interactive job monitor TUI."""
-    from lab_cli.commands.job_monitor import run_monitor
+    from lab_cli.commands.job_monitor.job_monitor import run_monitor
 
     run_monitor()
