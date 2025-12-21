@@ -3,6 +3,7 @@ import typer.core
 from rich.console import Console
 
 from lab_cli.util.logo import show_header
+from lab_cli.state import cli_state  # Import the CLI state singleton
 
 from lab_cli.commands.version import app as version_app
 from lab_cli.commands.config import app as config_app
@@ -39,10 +40,6 @@ app.add_typer(job_app, name="job", help="Job management commands", no_args_is_he
 
 console = Console()
 
-# Global variable to store the output format
-# We need to make this accessible in commands later on
-output_format: str = "pretty"
-
 
 # Apply common setup to all commands
 @app.callback()
@@ -50,8 +47,7 @@ def common_setup(
     ctx: typer.Context, format: str = typer.Option("pretty", "--format", help="Output format: pretty or json")
 ):
     """Common setup code to run before any command."""
-    global output_format
-    output_format = format  # Set the global output format (pretty or json)
+    cli_state.output_format = format  # Set the output format in the singleton
     if not ctx.invoked_subcommand:
         show_header(console)  # Display the logo when no command is provided
 
