@@ -101,6 +101,15 @@ def task_info(
     task_commands.info_task(task_id)
 
 
+@job_app.command("artifacts")
+def job_artifacts(
+    task_id: str = typer.Argument(..., help="Task ID to list artifacts for"),
+):
+    """List artifacts for a task."""
+    check_configs()
+    job_commands.list_artifacts(task_id)
+
+
 @job_app.command("list")
 def job_list():
     """List all jobs."""

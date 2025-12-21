@@ -4,6 +4,7 @@ from rich import print
 from rich.progress import Progress
 from rich.panel import Panel
 from rich.text import Text
+from lab_cli.util.ui import render_table
 from lab_cli.util import api
 from urllib.parse import urlparse
 
@@ -131,3 +132,26 @@ def info_job(job_id: str):
         _render_job(job)
     else:
         console.print(f"[red]Error:[/red] Job with ID {job_id} not found.")
+
+
+def list_artifacts(job_id: str, output_format: str = "pretty") -> None:
+    """List artifacts for a task by ID."""
+    with console.status(f"[bold green]Fetching artifacts for task {job_id}...[/bold green]", spinner="dots"):
+        response = api.get(f"/jobs/{job_id}/artifacts")
+
+    if response.status_code == 200:
+        artifacts = response.json().get("artifacts", [])
+        if not artifacts:
+            console.print(f"[yellow]No artifacts found for job {job_id}.[/yellow]")
+            return
+
+        # Print artifacts in a nice list
+        table = Table(title=f"Artifacts for Job {job_id}")
+        table.add_column("Filename", style="cyan", no_wrap=True)
+
+        for artifact in artifacts:
+            table.add_row(artifact.get("filename", "N/A"))
+
+        console.print(table)
+    else:
+        console.print(f"[red]Error:[/red] Failed to fetch artifacts. Status code: {response.status_code}")
