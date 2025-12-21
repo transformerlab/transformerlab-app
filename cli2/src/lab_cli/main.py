@@ -9,8 +9,8 @@ from lab_cli.util.config import check_configs, list_config, set_config
 from lab_cli.commands.version import app as version_app
 from lab_cli.commands.login import app as login_app
 from lab_cli.commands.logout import app as logout_app
+from lab_cli.commands.task import app as task_app
 
-from lab_cli.commands import task as task_commands
 from lab_cli.commands import job as job_commands  # Import job commands
 
 
@@ -34,9 +34,8 @@ app = typer.Typer(
 app.add_typer(version_app)
 app.add_typer(login_app)
 app.add_typer(logout_app)
+app.add_typer(task_app, name="task", help="Task management commands", no_args_is_help=True)
 
-task_app = typer.Typer(help="Task management commands", no_args_is_help=True)
-app.add_typer(task_app, name="task")
 job_app = typer.Typer(help="Job management commands", no_args_is_help=True)  # Create job Typer app
 app.add_typer(job_app, name="job")  # Add job app to the main app
 
@@ -67,41 +66,6 @@ def status():
     check_configs(output_format=output_format)
     # list_config()
     check_server_status()
-
-
-@task_app.command("list")
-def task_list():
-    """List all tasks."""
-    check_configs()
-    task_commands.list_tasks()
-
-
-@task_app.command("add")
-def task_add(
-    task_yaml_path: str = typer.Argument(..., help="Path to the Task YAML file"),
-    directory: str = typer.Argument(None, help="Path to the directory to upload (optional)"),
-):
-    """Add a new task."""
-    check_configs()
-    task_commands.add_task(task_yaml_path, directory if directory else None)
-
-
-@task_app.command("delete")
-def task_delete(
-    task_id: str = typer.Argument(..., help="Task ID to delete"),
-):
-    """Delete a task."""
-    check_configs()
-    task_commands.delete_task(task_id)
-
-
-@task_app.command("info")
-def task_info(
-    task_id: str = typer.Argument(..., help="Task ID to get info for"),
-):
-    """Get task details."""
-    check_configs()
-    task_commands.info_task(task_id)
 
 
 @job_app.command("artifacts")

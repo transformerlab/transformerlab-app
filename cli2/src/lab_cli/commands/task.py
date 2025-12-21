@@ -1,11 +1,15 @@
 from rich.console import Console
 import typer
 from lab_cli.util.ui import render_table, render_object
+from lab_cli.util.config import check_configs
+
 import lab_cli.util.api as api
 import yaml
 import os
 import subprocess
 from shutil import which
+
+app = typer.Typer()
 
 
 console = Console()
@@ -88,3 +92,38 @@ def add_task(task_yaml_path: str, directory: str | None) -> None:
         console.print(f"[green]✓[/green] Task added successfully with ID: {response.json().get('task_id')}")
     else:
         console.print(f"[red]Error:[/red] Failed to add task. Status code: {response.status_code}")
+
+
+@app.command("list")
+def task_list():
+    """List all tasks."""
+    check_configs()
+    list_tasks()
+
+
+@app.command("add")
+def task_add(
+    task_yaml_path: str = typer.Argument(..., help="Path to the Task YAML file"),
+    directory: str = typer.Argument(None, help="Path to the directory to upload (optional)"),
+):
+    """Add a new task."""
+    check_configs()
+    add_task(task_yaml_path, directory if directory else None)
+
+
+@app.command("delete")
+def task_delete(
+    task_id: str = typer.Argument(..., help="Task ID to delete"),
+):
+    """Delete a task."""
+    check_configs()
+    delete_task(task_id)
+
+
+@app.command("info")
+def task_info(
+    task_id: str = typer.Argument(..., help="Task ID to get info for"),
+):
+    """Get task details."""
+    check_configs()
+    info_task(task_id)
