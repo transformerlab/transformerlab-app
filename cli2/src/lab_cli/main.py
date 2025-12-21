@@ -2,9 +2,7 @@ import typer
 import typer.core
 from rich.console import Console
 
-from lab_cli.util.api import check_server_status
 from lab_cli.util.logo import show_header
-from lab_cli.util.config import check_configs, list_config, set_config
 
 from lab_cli.commands.version import app as version_app
 from lab_cli.commands.config import app as config_app
@@ -15,14 +13,13 @@ from lab_cli.commands.task import app as task_app
 from lab_cli.commands.job import app as job_app  # Import job app
 
 
-# 2. Create a Custom Group Class
+# Create custom Help screen so we can show the logo
 class LogoTyperGroup(typer.core.TyperGroup):
     def format_help(self, ctx, formatter):
         """
         Override the help formatting to print a logo first.
         """
         console = Console()
-        # Print the logo nicely using Rich
         show_header(console)
 
         # Call the parent method to print the standard help text
@@ -43,6 +40,7 @@ app.add_typer(job_app, name="job", help="Job management commands", no_args_is_he
 console = Console()
 
 # Global variable to store the output format
+# We need to make this accessible in commands later on
 output_format: str = "pretty"
 
 
