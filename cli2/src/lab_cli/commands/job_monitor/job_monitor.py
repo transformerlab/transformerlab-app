@@ -1,7 +1,6 @@
 import json
 
 from textual.app import App, ComposeResult
-
 from textual.widgets import (
     Header,
     Footer,
@@ -23,9 +22,12 @@ from lab_cli.util import api
 
 def fetch_jobs() -> list[dict]:
     """Fetch all jobs from the API."""
-    response = api.get("/experiment/alpha/jobs/list?type=REMOTE")
-    if response.status_code == 200:
-        return response.json()
+    try:
+        response = api.get("/experiment/alpha/jobs/list?type=REMOTE")
+        if response.status_code == 200:
+            return response.json()
+    except Exception:
+        pass
     return []
 
 
@@ -64,18 +66,32 @@ class JobListItem(ListItem):
         job_data = self.job.get("job_data", {})
         task_name = job_data.get("task_name", "Unknown")
         status = self.job.get("status", "N/A")
-        yield Label(f"[{self.job.get('id', '?')}] {task_name} ({status})")
+
+        # Simple styling for the list item
+        yield Label(f"[bold][cyan][{self.job.get('id', '?')}] {task_name}[/cyan][/bold]")
+        status_color = "green" if status == "COMPLETED" else "red" if status == "FAILED" else "yellow"
+        yield Label(f"Status: {status}", classes=f"status {status_color}")
 
 
-class JobDetails(Static):
+class JobDetails(Vertical):
     def __init__(self) -> None:
         super().__init__()
         self.current_job = None
 
     def compose(self) -> ComposeResult:
+        # 1. Progress Bar at top
         yield ProgressBar(total=100, show_eta=False, id="job-progress")
-        yield Static("Select a job to view details", id="job-info")
-        with Vertical(id="job-buttons"):
+
+        # 2. Info Scroll Container (Top half)
+        with VerticalScroll(id="job-info-container"):
+            yield Static("Select a job to view details", id="job-info")
+
+        # 3. Artifacts Scroll Container (Middle)
+        with VerticalScroll(id="job-artifacts-container"):
+            yield Static("[bold]Artifacts:[/bold]\nNo artifacts available.", id="job-artifacts")
+
+        # 4. Buttons (Bottom)
+        with Horizontal(id="job-buttons"):
             yield Button("View Task Details", id="btn-view-json")
             yield Button("Download All Artifacts", id="btn-download")
 
@@ -101,8 +117,23 @@ class JobDetails(Static):
         details_view = self.query_one("#job-info", Static)
         details_view.update(details)
 
+        # Make buttons visible
         buttons = self.query_one("#job-buttons")
         buttons.add_class("visible")
+
+        # Update artifacts panel
+        artifacts = job.get("job_data", {}).get("artifacts", [])
+        if artifacts:
+            artifacts_text = "\n".join([f"- {art}" for art in artifacts])
+        else:
+            artifacts_text = "[italic]No artifacts available[/italic]"
+
+        artifacts_view = self.query_one("#job-artifacts", Static)
+        artifacts_view.update(f"[bold]Artifacts:[/bold]\n{artifacts_text}")
+
+        # Make artifacts container visible
+        artifacts_container = self.query_one("#job-artifacts-container", VerticalScroll)
+        artifacts_container.add_class("visible")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-view-json":
@@ -125,9 +156,13 @@ class JobMonitorApp(App):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        with Horizontal():
-            yield LoadingIndicator(id="loading")
-            yield ListView(id="job-list")
+        with Horizontal(id="main-container"):
+            # Left panel
+            with Vertical(id="job-list-container", classes="column"):
+                yield LoadingIndicator(id="loading")
+                yield ListView(id="job-list")
+
+            # Right panel
             yield JobDetails()
         yield Footer()
 
@@ -140,6 +175,7 @@ class JobMonitorApp(App):
 
     @work(thread=True)
     def load_jobs(self) -> None:
+        # Simulate network delay or just run
         self.call_from_thread(self.show_loading)
         jobs = fetch_jobs()
         self.call_from_thread(self.populate_jobs, jobs)
@@ -148,17 +184,18 @@ class JobMonitorApp(App):
         loading = self.query_one("#loading", LoadingIndicator)
         loading.display = True
         job_list = self.query_one("#job-list", ListView)
-        job_list.remove_class("loaded")
+        job_list.display = False
 
     def populate_jobs(self, jobs: list[dict]) -> None:
         loading = self.query_one("#loading", LoadingIndicator)
         loading.display = False
 
         job_list = self.query_one("#job-list", ListView)
+        job_list.display = True
         job_list.clear()
+
         for job in jobs:
             job_list.append(JobListItem(job))
-        job_list.add_class("loaded")
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         if isinstance(event.item, JobListItem):
@@ -169,3 +206,7 @@ class JobMonitorApp(App):
 def run_monitor() -> None:
     app = JobMonitorApp()
     app.run()
+
+
+if __name__ == "__main__":
+    run_monitor()
