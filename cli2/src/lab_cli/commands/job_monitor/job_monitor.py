@@ -1,10 +1,7 @@
 import json
 
-# REMOVED: from rich.syntax import Syntax (No longer needed for the modal)
-
 from textual.app import App, ComposeResult
 
-# ADDED: TextArea to the imports below
 from textual.widgets import (
     Header,
     Footer,
@@ -26,19 +23,12 @@ from lab_cli.util import api
 
 def fetch_jobs() -> list[dict]:
     """Fetch all jobs from the API."""
-    # (Mocking the response for the sake of this example running standalone if needed)
-    # response = api.get("/experiment/alpha/jobs/list?type=REMOTE")
-    # if response.status_code == 200:
-    #     return response.json()
-    # return []
-    # usage assuming the existing logic works:
     response = api.get("/experiment/alpha/jobs/list?type=REMOTE")
     if response.status_code == 200:
         return response.json()
     return []
 
 
-# --- UPDATED CLASS ---
 class JobJsonModal(ModalScreen):
     """
     A modal that displays the Job JSON in a selectable TextArea.
@@ -51,14 +41,9 @@ class JobJsonModal(ModalScreen):
         self.job = job
 
     def compose(self) -> ComposeResult:
-        # 1. Convert dict to string
         json_str = json.dumps(self.job, indent=2, default=str)
 
-        # 2. Use a Vertical container to stack the TextArea and the Button
         with Vertical(id="json-modal-container"):
-            # 3. TextArea replaces Static+Syntax
-            #    - language="json": Syntax highlighting
-            #    - read_only=True: Allows selection but not editing
             yield TextArea(json_str, language="json", theme="dracula", read_only=True)
             yield Button("Close", id="btn-close-modal")
 
