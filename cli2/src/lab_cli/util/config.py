@@ -135,7 +135,7 @@ def delete_config(key: str) -> bool:
     return False
 
 
-def check_configs() -> None:
+def check_configs(output_format: str = "pretty") -> None:
     """Check that required configs are set, warn if not."""
     config = load_config()
     missing_keys = [key for key in REQUIRED_CONFIG_KEYS if key not in config]
@@ -147,6 +147,11 @@ def check_configs() -> None:
         raise typer.Exit(1)
 
     set_base_url(config.get("server"))
+
+    if output_format == "json":
+        # Return nothing because this is usually something
+        # that goes before other output
+        return
 
     # Now print really nicely the name of the user, server and team
     user_email = config.get("user_email", "N/A")

@@ -57,7 +57,6 @@ def check_server_status():
         response = get("/server/info")
         response.raise_for_status()
         status = response.json()
-        print(f"[green]Server status:[/green]")
         print(json.dumps(status, indent=2))
 
     except httpx.HTTPError as e:

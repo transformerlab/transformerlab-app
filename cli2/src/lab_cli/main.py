@@ -18,6 +18,9 @@ app.add_typer(job_app, name="job")  # Add job app to the main app
 
 console = Console()
 
+# Global variable to store the output format
+output_format: str = "pretty"
+
 
 @app.command()
 def version():
@@ -28,7 +31,7 @@ def version():
 
 @app.command()
 def login(
-    api_key: str = typer.Option(..., "--api-key", help="Your API key"),
+    api_key: str = typer.Option(None, "--api-key", help="Your API key", prompt="Please enter your API key"),
 ):
     """Log in to Transformer Lab."""
     set_api_key(api_key)
@@ -58,7 +61,7 @@ def config(
 @app.command()
 def status():
     """Check the status of the server."""
-    check_configs()
+    check_configs(output_format=output_format)
     # list_config()
     check_server_status()
 
@@ -115,9 +118,15 @@ def job_info(
 
 
 # Apply common setup to all commands
-@app.callback()
-def common_setup():
+@app.callback(invoke_without_command=True)
+def common_setup(
+    ctx: typer.Context, format: str = typer.Option("pretty", "--format", help="Output format: pretty or json")
+):
     """Common setup code to run before any command."""
+    global output_format
+    output_format = format  # Set the global output format
+    if not ctx.invoked_subcommand:
+        show_header(console)  # Display the logo when no command is provided
 
 
 if __name__ == "__main__":
