@@ -1,12 +1,16 @@
+import typer
 from rich.console import Console
 from rich.table import Table
 from rich import print
 from rich.progress import Progress
 from rich.panel import Panel
 from rich.text import Text
-from lab_cli.util.ui import render_table
-from lab_cli.util import api
 from urllib.parse import urlparse
+
+from lab_cli.util.config import check_configs
+from lab_cli.util import api
+
+app = typer.Typer()
 
 console = Console()
 
@@ -155,3 +159,28 @@ def list_artifacts(job_id: str, output_format: str = "pretty") -> None:
         console.print(table)
     else:
         console.print(f"[red]Error:[/red] Failed to fetch artifacts. Status code: {response.status_code}")
+
+
+@app.command("artifacts")
+def command_job_artifacts(
+    job_id: str = typer.Argument(..., help="Job ID to list artifacts for"),
+):
+    """List artifacts for a job."""
+    check_configs()
+    list_artifacts(job_id)
+
+
+@app.command("list")
+def command_job_list():
+    """List all jobs."""
+    check_configs()
+    list_jobs()  # Delegate to job_commands.list_jobs
+
+
+@app.command("info")
+def command_job_info(
+    job_id: str = typer.Argument(..., help="Job ID to get info for"),
+):
+    """Get job details."""
+    check_configs()
+    info_job(job_id)  # Delegate to job_commands.info_job
