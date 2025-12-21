@@ -95,14 +95,14 @@ def add_task(task_yaml_path: str, directory: str | None) -> None:
 
 
 @app.command("list")
-def task_list():
+def command_task_list():
     """List all tasks."""
     check_configs()
     list_tasks()
 
 
 @app.command("add")
-def task_add(
+def command_task_add(
     task_yaml_path: str = typer.Argument(..., help="Path to the Task YAML file"),
     directory: str = typer.Argument(None, help="Path to the directory to upload (optional)"),
 ):
@@ -112,7 +112,7 @@ def task_add(
 
 
 @app.command("delete")
-def task_delete(
+def command_task_delete(
     task_id: str = typer.Argument(..., help="Task ID to delete"),
 ):
     """Delete a task."""
@@ -121,7 +121,7 @@ def task_delete(
 
 
 @app.command("info")
-def task_info(
+def command_task_info(
     task_id: str = typer.Argument(..., help="Task ID to get info for"),
 ):
     """Get task details."""
