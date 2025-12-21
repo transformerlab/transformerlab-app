@@ -58,32 +58,7 @@ class JobMonitorApp(App):
     TITLE = "Transformer Lab"
     SUB_TITLE = "Job Monitor"
     ENABLE_COMMAND_PALETTE = False
-    CSS = """
-    Horizontal {
-        height: 100%;
-    }
-    ListView {
-        width: 40%;
-        border: solid green;
-    }
-    JobDetails {
-        width: 60%;
-        border: solid blue;
-        padding: 0 2;
-        height: 100%;
-    }
-    #loading {
-        width: 40%;
-        height: 100%;
-        content-align: center middle;
-    }
-    ListView {
-        display: none;
-    }
-    ListView.loaded {
-        display: block;
-    }
-    """
+    CSS_PATH = "./styles.tcss"
 
     BINDINGS = [
         ("q", "quit", "Quit"),

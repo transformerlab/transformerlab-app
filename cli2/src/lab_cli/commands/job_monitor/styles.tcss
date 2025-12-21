@@ -1,0 +1,24 @@
+    Horizontal {
+        height: 100%;
+    }
+    ListView {
+        width: 40%;
+        border: solid green;
+    }
+    JobDetails {
+        width: 60%;
+        border: solid blue;
+        padding: 0 2;
+        height: 100%;
+    }
+    #loading {
+        width: 40%;
+        height: 100%;
+        content-align: center middle;
+    }
+    ListView {
+        display: none;
+    }
+    ListView.loaded {
+        display: block;
+    }
