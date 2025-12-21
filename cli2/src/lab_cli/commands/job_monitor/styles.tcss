@@ -1,51 +1,70 @@
-    Horizontal {
-        height: 100%;
-    }
-    ListView {
-        width: 40%;
-        border: solid green;
-    }
-    JobDetails {
-        width: 60%;
-        border: solid blue;
-        padding: 0 2;
-        height: 100%;
-    }
-    #loading {
-        width: 40%;
-        height: 100%;
-        content-align: center middle;
-    }
-    ListView {
-        display: none;
-    }
-    ListView.loaded {
-        display: block;
-    }
-    #job-buttons {
-        height: auto;
-        dock: bottom;
-        padding: 1 0;
-        display: none;
-    }
-    #job-buttons.visible {
-        display: block;
-    }
-    #job-buttons Button {
-        margin-right: 1;
-    }
-    JobJsonModal {
-        align: center middle;
-    }
-    #json-modal {
-        width: 80%;
-        height: 100%;
-        border: solid white;
-        background: $surface;
-        padding: 1 2;
-    }
-    #btn-close-modal {
-        dock: bottom;
-        width: auto;
-        margin: 1;
-    }
+Horizontal {
+  height: 100%;
+}
+
+ListView {
+  width: 40%;
+  border: solid green;
+}
+
+JobDetails {
+  width: 60%;
+  border: solid blue;
+  padding: 0 2;
+  height: 100%;
+}
+
+#loading {
+  width: 40%;
+  height: 100%;
+  content-align: center middle;
+}
+
+ListView {
+  display: none;
+}
+
+ListView.loaded {
+  display: block;
+}
+
+#job-buttons {
+  height: auto;
+  dock: bottom;
+  padding: 1 0;
+  display: none;
+}
+
+#job-buttons.visible {
+  display: block;
+}
+
+#job-buttons Button {
+  margin-right: 1;
+}
+
+JobJsonModal {
+  align: center middle;
+}
+
+#json-modal-container {
+  width: 95%;
+  height: 95%;
+  /* changed from 100% to 80% to look like a popup */
+  border: thick $primary;
+  /* 'thick' looks better for modals */
+  background: $surface;
+  padding: 1 2;
+}
+
+#json-modal-container TextArea {
+  height: 1fr;
+  margin-bottom: 1;
+  border: none;
+}
+
+#btn-close-modal {
+  width: 100%;
+  /* Make button full width */
+  dock: bottom;
+}
