@@ -7,9 +7,11 @@ from lab_cli.util.api import check_server_status
 from lab_cli.util.logo import show_header
 from lab_cli.util.auth import set_api_key, delete_api_key
 from lab_cli.util.config import check_configs, list_config, set_config
+
+from lab_cli.commands.version import app as version_app
+
 from lab_cli.commands import task as task_commands
 from lab_cli.commands import job as job_commands  # Import job commands
-from lab_cli import __version__
 
 
 # 2. Create a Custom Group Class
@@ -29,6 +31,8 @@ class LogoTyperGroup(typer.core.TyperGroup):
 app = typer.Typer(
     name="lab", help="Transformer Lab CLI", add_completion=False, no_args_is_help=True, cls=LogoTyperGroup
 )
+app.add_typer(version_app)
+
 task_app = typer.Typer(help="Task management commands", no_args_is_help=True)
 app.add_typer(task_app, name="task")
 job_app = typer.Typer(help="Job management commands", no_args_is_help=True)  # Create job Typer app
@@ -38,13 +42,6 @@ console = Console()
 
 # Global variable to store the output format
 output_format: str = "pretty"
-
-
-@app.command()
-def version():
-    """Display the CLI version."""
-    show_header(console)
-    print(f"You are using [cyan]lab-cli[/cyan] [green]v{__version__}[/green]")
 
 
 @app.command()
