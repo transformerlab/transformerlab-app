@@ -1,14 +1,14 @@
 import typer
 import typer.core
-from rich import print
 from rich.console import Console
 
 from lab_cli.util.api import check_server_status
 from lab_cli.util.logo import show_header
-from lab_cli.util.auth import set_api_key, delete_api_key
 from lab_cli.util.config import check_configs, list_config, set_config
 
 from lab_cli.commands.version import app as version_app
+from lab_cli.commands.login import app as login_app
+from lab_cli.commands.logout import app as logout_app
 
 from lab_cli.commands import task as task_commands
 from lab_cli.commands import job as job_commands  # Import job commands
@@ -32,6 +32,8 @@ app = typer.Typer(
     name="lab", help="Transformer Lab CLI", add_completion=False, no_args_is_help=True, cls=LogoTyperGroup
 )
 app.add_typer(version_app)
+app.add_typer(login_app)
+app.add_typer(logout_app)
 
 task_app = typer.Typer(help="Task management commands", no_args_is_help=True)
 app.add_typer(task_app, name="task")
@@ -42,20 +44,6 @@ console = Console()
 
 # Global variable to store the output format
 output_format: str = "pretty"
-
-
-@app.command()
-def login(
-    api_key: str = typer.Option(None, "--api-key", help="Your API key", prompt="Please enter your API key"),
-):
-    """Log in to Transformer Lab."""
-    set_api_key(api_key)
-
-
-@app.command()
-def logout():
-    """Log out from Transformer Lab."""
-    delete_api_key()
 
 
 @app.command()
