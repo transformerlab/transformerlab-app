@@ -10,8 +10,7 @@ from lab_cli.commands.version import app as version_app
 from lab_cli.commands.login import app as login_app
 from lab_cli.commands.logout import app as logout_app
 from lab_cli.commands.task import app as task_app
-
-from lab_cli.commands import job as job_commands  # Import job commands
+from lab_cli.commands.job import app as job_app  # Import job app
 
 
 # 2. Create a Custom Group Class
@@ -35,9 +34,7 @@ app.add_typer(version_app)
 app.add_typer(login_app)
 app.add_typer(logout_app)
 app.add_typer(task_app, name="task", help="Task management commands", no_args_is_help=True)
-
-job_app = typer.Typer(help="Job management commands", no_args_is_help=True)  # Create job Typer app
-app.add_typer(job_app, name="job")  # Add job app to the main app
+app.add_typer(job_app, name="job", help="Job management commands", no_args_is_help=True)
 
 console = Console()
 
@@ -66,31 +63,6 @@ def status():
     check_configs(output_format=output_format)
     # list_config()
     check_server_status()
-
-
-@job_app.command("artifacts")
-def job_artifacts(
-    task_id: str = typer.Argument(..., help="Task ID to list artifacts for"),
-):
-    """List artifacts for a task."""
-    check_configs()
-    job_commands.list_artifacts(task_id)
-
-
-@job_app.command("list")
-def job_list():
-    """List all jobs."""
-    check_configs()
-    job_commands.list_jobs()  # Delegate to job_commands.list_jobs
-
-
-@job_app.command("info")
-def job_info(
-    job_id: str = typer.Argument(..., help="Job ID to get info for"),
-):
-    """Get job details."""
-    check_configs()
-    job_commands.info_job(job_id)  # Delegate to job_commands.info_job
 
 
 # Apply common setup to all commands
