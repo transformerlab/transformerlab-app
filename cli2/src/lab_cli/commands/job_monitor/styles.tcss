@@ -22,3 +22,26 @@
     ListView.loaded {
         display: block;
     }
+    #job-buttons {
+        height: auto;
+        dock: bottom;
+        padding: 1 0;
+    }
+    #job-buttons Button {
+        margin-right: 1;
+    }
+    JobJsonModal {
+        align: center middle;
+    }
+    #json-modal {
+        width: 80%;
+        height: 100%;
+        border: solid white;
+        background: $surface;
+        padding: 1 2;
+    }
+    #btn-close-modal {
+        dock: bottom;
+        width: auto;
+        margin: 1;
+    }

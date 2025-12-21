@@ -1,8 +1,11 @@
 import json
 
+from rich.syntax import Syntax
+
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, ListView, ListItem, Static, Label, LoadingIndicator, ProgressBar
-from textual.containers import Horizontal
+from textual.widgets import Header, Footer, ListView, ListItem, Static, Label, LoadingIndicator, ProgressBar, Button
+from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.screen import ModalScreen
 from textual import work
 
 from lab_cli.util import api
@@ -14,6 +17,25 @@ def fetch_jobs() -> list[dict]:
     if response.status_code == 200:
         return response.json()
     return []
+
+
+class JobJsonModal(ModalScreen):
+    BINDINGS = [("escape", "dismiss", "Close")]
+
+    def __init__(self, job: dict) -> None:
+        super().__init__()
+        self.job = job
+
+    def compose(self) -> ComposeResult:
+        json_str = json.dumps(self.job, indent=2, default=str)
+        syntax = Syntax(json_str, "json", theme="nord", line_numbers=True)
+        with VerticalScroll(id="json-modal"):
+            yield Static(syntax, id="json-content")
+        yield Button("Close", id="btn-close-modal")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-close-modal":
+            self.dismiss()
 
 
 class JobListItem(ListItem):
@@ -29,11 +51,20 @@ class JobListItem(ListItem):
 
 
 class JobDetails(Static):
+    def __init__(self) -> None:
+        super().__init__()
+        self.current_job = None
+
     def compose(self) -> ComposeResult:
         yield ProgressBar(total=100, show_eta=False, id="job-progress")
-        yield Static("Select a job to view details", id="job-json")
+        yield Static("Select a job to view details", id="job-info")
+        with Vertical(id="job-buttons"):
+            yield Button("View Task Details", id="btn-view-json")
+            yield Button("Download All Artifacts", id="btn-download")
 
     def set_job(self, job: dict) -> None:
+        self.current_job = job
+
         progress_bar = self.query_one("#job-progress", ProgressBar)
         progress_bar.update(progress=job.get("progress", 0))
 
@@ -50,8 +81,15 @@ class JobDetails(Static):
             f"[cyan]Completion:[/cyan] {job_data.get('completion_status', 'N/A')}"
         )
 
-        details_view = self.query_one("#job-json", Static)
+        details_view = self.query_one("#job-info", Static)
         details_view.update(details)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-view-json":
+            if self.current_job:
+                self.app.push_screen(JobJsonModal(self.current_job))
+        elif event.button.id == "btn-download":
+            self.notify("Download artifacts not implemented yet", severity="warning")
 
 
 class JobMonitorApp(App):
