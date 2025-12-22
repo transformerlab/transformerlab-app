@@ -84,7 +84,7 @@ class JobDetails(Vertical):
 
         # 2. Info Scroll Container (Top half)
         with VerticalScroll(id="job-info-container"):
-            yield Static("Select a job to view details", id="job-info")
+            yield Static("", id="job-info")
 
         # 3. Artifacts Scroll Container (Middle)
         with VerticalScroll(id="job-artifacts-container"):
@@ -92,14 +92,15 @@ class JobDetails(Vertical):
 
         # 4. Buttons (Bottom)
         with Horizontal(id="job-buttons"):
-            yield Button("View Task Details", id="btn-view-json")
-            yield Button("Download All Artifacts", id="btn-download")
+            yield Button("View Job Details", id="btn-view-json", variant="primary")
+            yield Button("Download All Artifacts", id="btn-download", variant="primary")
 
     def set_job(self, job: dict) -> None:
         self.current_job = job
 
         progress_bar = self.query_one("#job-progress", ProgressBar)
         progress_bar.update(progress=job.get("progress", 0))
+        progress_bar.add_class("visible")
 
         job_data = job.get("job_data", {})
         details = (

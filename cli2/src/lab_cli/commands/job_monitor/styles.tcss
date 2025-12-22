@@ -31,6 +31,15 @@ JobDetails {
   layout: vertical;
 }
 
+#job-progress {
+  display: none;
+  margin-bottom: 1;
+}
+
+#job-progress.visible {
+  display: block;
+}
+
 /* --- New Styles for Layout --- */
 
 /* The top details panel */
@@ -61,7 +70,6 @@ JobDetails {
 
 #job-buttons {
   height: auto;
-  /* Removed 'dock: bottom' so artifacts can sit below it */
   margin-top: 1;
   padding: 0 0;
   display: none;
@@ -74,7 +82,6 @@ JobDetails {
 
 #job-buttons Button {
   margin-right: 1;
-  border: solid $primary-muted;
 }
 
 /* Modal Styles */
