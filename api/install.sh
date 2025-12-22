@@ -205,19 +205,38 @@ download_transformer_lab() {
   # Generate and save JWT secrets to .env file
   ENV_FILE="${TLAB_DIR}/.env"
 
-  # Only generate and save secrets if .env file doesn't exist
-  if [ ! -f "${ENV_FILE}" ]; then
-    ohai "Generating JWT secrets..."
-    # Generate random 64-byte secrets (128 hex characters) using /dev/urandom
-    JWT_SECRET=$(od -An -N 64 -tx1 /dev/urandom | tr -d ' \n')
-    REFRESH_SECRET=$(od -An -N 64 -tx1 /dev/urandom | tr -d ' \n')
+  # Check if secrets are present in .env file
+  NEED_JWT_SECRET=true
+  NEED_REFRESH_SECRET=true
 
-    # Create new .env file with generated secrets
-    echo "TRANSFORMERLAB_JWT_SECRET=${JWT_SECRET}" > "${ENV_FILE}"
-    echo "TRANSFORMERLAB_REFRESH_SECRET=${REFRESH_SECRET}" >> "${ENV_FILE}"
-    ohai "✅ JWT secrets generated and saved to ${ENV_FILE}"
+  if [ -f "${ENV_FILE}" ]; then
+    # Check if TRANSFORMERLAB_JWT_SECRET exists in the file
+    if grep -q "^TRANSFORMERLAB_JWT_SECRET=" "${ENV_FILE}"; then
+      NEED_JWT_SECRET=false
+    fi
+    # Check if TRANSFORMERLAB_REFRESH_SECRET exists in the file
+    if grep -q "^TRANSFORMERLAB_REFRESH_SECRET=" "${ENV_FILE}"; then
+      NEED_REFRESH_SECRET=false
+    fi
+  fi
+
+  # Generate and add missing secrets
+  if [ "$NEED_JWT_SECRET" = true ] || [ "$NEED_REFRESH_SECRET" = true ]; then
+    ohai "Generating missing JWT secrets..."
+
+    if [ "$NEED_JWT_SECRET" = true ]; then
+      JWT_SECRET=$(od -An -N 64 -tx1 /dev/urandom | tr -d ' \n')
+      echo "TRANSFORMERLAB_JWT_SECRET=${JWT_SECRET}" >> "${ENV_FILE}"
+      ohai "✅ Added TRANSFORMERLAB_JWT_SECRET to ${ENV_FILE}"
+    fi
+
+    if [ "$NEED_REFRESH_SECRET" = true ]; then
+      REFRESH_SECRET=$(od -An -N 64 -tx1 /dev/urandom | tr -d ' \n')
+      echo "TRANSFORMERLAB_REFRESH_SECRET=${REFRESH_SECRET}" >> "${ENV_FILE}"
+      ohai "✅ Added TRANSFORMERLAB_REFRESH_SECRET to ${ENV_FILE}"
+    fi
   else
-    ohai "✅ ${ENV_FILE} already exists, skipping secret generation"
+    ohai "✅ All JWT secrets already present in ${ENV_FILE}"
   fi
 
 
