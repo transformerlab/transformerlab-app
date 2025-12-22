@@ -6,6 +6,7 @@ from textual import work
 from lab_cli.util.config import get_current_experiment
 
 from lab_cli.commands.job_monitor.JobDetails import JobDetails
+from lab_cli.commands.job_monitor.ExperimentSelectModal import ExperimentSelectModal
 
 from lab_cli.commands.job_monitor.util import fetch_jobs
 
