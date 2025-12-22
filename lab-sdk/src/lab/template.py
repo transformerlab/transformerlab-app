@@ -119,6 +119,18 @@ class Template(BaseLabResource):
         ]
 
     @staticmethod
+    def list_by_subtype_in_experiment(experiment_id: int, subtype: str, template_type: str = None):
+        """List all templates for a specific experiment filtered by subtype and optionally by type"""
+        all_templates = Template.list_all()
+        return [
+            template
+            for template in all_templates
+            if template.get("experiment_id") == experiment_id
+            and template.get("subtype") == subtype
+            and (template_type is None or template.get("type") == template_type)
+        ]
+
+    @staticmethod
     def get_by_id(template_id: str):
         """Get a specific template by ID"""
         try:

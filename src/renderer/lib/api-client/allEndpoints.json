@@ -74,6 +74,10 @@
       "method": "GET",
       "path": "templates/list_by_type_in_experiment?type={type}&experiment_id={experiment_id}"
     },
+    "getBySubtypeInExperiment": {
+      "method": "GET",
+      "path": "templates/list_by_subtype_in_experiment?experiment_id={experiment_id}&subtype={subtype}&type={type}"
+    },
     "create": {
       "method": "PUT",
       "path": "templates/new_template"

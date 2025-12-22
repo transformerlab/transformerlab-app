@@ -214,24 +214,23 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   } = useSWR(
     experimentInfo?.id
       ? subtype
-        ? chatAPI.Endpoints.Templates.ListByTypeInExperiment(
-            'REMOTE',
+        ? chatAPI.Endpoints.Templates.ListBySubtypeInExperiment(
             experimentInfo.id,
+            subtype,
+            'REMOTE', // Filter by REMOTE type when filtering by subtype
           )
         : chatAPI.Endpoints.Templates.List()
       : null,
     fetcher,
   );
 
-  // Filter templates for this experiment only
-  // If subtype is provided, filter by subtype in template
+  // Filter templates for this experiment only (if no subtype filter was applied)
   const tasks =
     (Array.isArray(allTemplates) ? allTemplates : allTemplates?.data || []) // in case API returns {data: []}
       ?.filter((template: any) => {
-        const matchesExperiment = template.experiment_id === experimentInfo?.id;
-        if (!subtype) return matchesExperiment;
-        // For templates, subtype is stored directly in the template (not nested in config)
-        return matchesExperiment && template.subtype === subtype;
+        // If subtype filter was applied via API, just filter by experiment
+        // Otherwise, filter by experiment only
+        return template.experiment_id === experimentInfo?.id;
       }) || [];
 
   // Check each LAUNCHING job individually via provider endpoints

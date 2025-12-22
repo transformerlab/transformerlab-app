@@ -51,6 +51,14 @@ Endpoints.Templates = {
     `${API_URL()}templates/list_by_type_in_experiment?type=${type}&experiment_id=${
       experiment_id
     }`,
+  ListBySubtypeInExperiment: (
+    experiment_id: string,
+    subtype: string,
+    type?: string,
+  ) =>
+    `${API_URL()}templates/list_by_subtype_in_experiment?experiment_id=${experiment_id}&subtype=${encodeURIComponent(
+      subtype,
+    )}${type ? `&type=${encodeURIComponent(type)}` : ''}`,
   GetByID: (id: string) => `${API_URL()}templates/${id}/get`,
   UpdateTemplate: (id: string) => `${API_URL()}templates/${id}/update`,
   NewTemplate: () => `${API_URL()}templates/new_template`,

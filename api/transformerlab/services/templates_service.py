@@ -34,6 +34,12 @@ class TemplatesService:
         """Get all templates of a specific type in a specific experiment"""
         return self.template_service.list_by_type_in_experiment(template_type, experiment_id)
 
+    def templates_get_by_subtype_in_experiment(
+        self, experiment_id: str, subtype: str, template_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get all templates for a specific experiment filtered by subtype and optionally by type"""
+        return self.template_service.list_by_subtype_in_experiment(experiment_id, subtype, template_type)
+
     def add_template(self, template_data: Dict[str, Any]) -> str:
         """Create a new template - all fields stored directly in JSON"""
         # Generate a unique ID for the template

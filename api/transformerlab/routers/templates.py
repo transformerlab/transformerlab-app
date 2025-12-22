@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Query
+from typing import Optional
 from werkzeug.utils import secure_filename
 
 from transformerlab.services.templates_service import templates_service
@@ -32,6 +33,19 @@ async def templates_get_by_type(type: str):
 )
 async def templates_get_by_type_in_experiment(type: str, experiment_id: str):
     templates = templates_service.templates_get_by_type_in_experiment(type, experiment_id)
+    return templates
+
+
+@router.get(
+    "/list_by_subtype_in_experiment",
+    summary="Returns all templates for an experiment filtered by subtype and optionally by type",
+)
+async def templates_get_by_subtype_in_experiment(
+    experiment_id: str,
+    subtype: str,
+    type: Optional[str] = Query(None, description="Optional template type filter (e.g., REMOTE)"),
+):
+    templates = templates_service.templates_get_by_subtype_in_experiment(experiment_id, subtype, type)
     return templates
 
 
