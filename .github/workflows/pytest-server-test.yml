@@ -63,7 +63,7 @@ jobs:
           cd ../lab-sdk
           eval "$($HOME/.transformerlab/miniforge3/bin/conda shell.bash hook)"
           conda activate $HOME/.transformerlab/envs/transformerlab
-          uv pip install -e ..
+          uv pip install -e .
       - name: Now run the server by calling ./run.sh and wait for it to be ready
         run: |
           ./run.sh &
