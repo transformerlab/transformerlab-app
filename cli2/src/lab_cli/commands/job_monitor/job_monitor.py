@@ -1,8 +1,3 @@
-import sys
-
-print(f"DEBUG: Running python from: {sys.executable}")
-print(f"DEBUG: Python path is: {sys.path}")
-
 import json
 
 from textual.app import App, ComposeResult
