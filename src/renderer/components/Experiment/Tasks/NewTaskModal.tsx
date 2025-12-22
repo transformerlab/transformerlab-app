@@ -100,7 +100,7 @@ async function fetchTaskJsonFromGitHub(
     if (!response.ok) {
       const errorText = await response.text();
       console.error(
-        'Error fetching task.json from GitHub:',
+        'Error fetching task.json from GitHub. Is your Github Access Token valid? Error: ',
         response.status,
         errorText,
       );
