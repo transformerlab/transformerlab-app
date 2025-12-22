@@ -89,10 +89,11 @@ export default function UserLoginTest(): JSX.Element {
   );
 
   // Get compute_provider list (unchanged)
-  const { data: providers, mutate: providersMutate, isLoading: providersLoading } = useAPI(
-    'compute_provider',
-    ['list'],
-  );
+  const {
+    data: providers,
+    mutate: providersMutate,
+    isLoading: providersLoading,
+  } = useAPI('compute_provider', ['list']);
 
   // Simplify errors: show all errors under the "Members" title
   const [roleError, setRoleError] = useState<string | undefined>(undefined);
