@@ -32,4 +32,3 @@ class AddTeamTemplateToGalleryRequest(BaseModel):
 
 class DeleteTeamTemplateFromGalleryRequest(BaseModel):
     template_id: str
-

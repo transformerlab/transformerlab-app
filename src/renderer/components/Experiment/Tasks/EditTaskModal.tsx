@@ -475,8 +475,11 @@ export default function EditTaskModal({
     const existingConfig = SafeJSONParse(task.config, {});
     const isTemplate =
       !task.config ||
-      (typeof existingConfig === 'object' && Object.keys(existingConfig).length === 0) ||
-      (!existingConfig.command && !existingConfig.cluster_name && (task as any).command);
+      (typeof existingConfig === 'object' &&
+        Object.keys(existingConfig).length === 0) ||
+      (!existingConfig.command &&
+        !existingConfig.cluster_name &&
+        (task as any).command);
 
     // Build update body - for templates, all fields go directly (flat structure)
     // For backward compatibility with old tasks, we could support both, but since we're migrating to templates,
@@ -500,14 +503,16 @@ export default function EditTaskModal({
         Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
       // GitHub fields - preserve from existing template or use current values
       github_enabled: isTemplate
-        ? (taskAny.github_enabled !== undefined ? taskAny.github_enabled : githubEnabled || undefined)
-        : (existingConfig.github_enabled || githubEnabled || undefined),
+        ? taskAny.github_enabled !== undefined
+          ? taskAny.github_enabled
+          : githubEnabled || undefined
+        : existingConfig.github_enabled || githubEnabled || undefined,
       github_repo_url: isTemplate
-        ? (taskAny.github_repo_url || githubRepoUrl || undefined)
-        : (existingConfig.github_repo_url || githubRepoUrl || undefined),
+        ? taskAny.github_repo_url || githubRepoUrl || undefined
+        : existingConfig.github_repo_url || githubRepoUrl || undefined,
       github_directory: isTemplate
-        ? (taskAny.github_directory || githubDirectory || undefined)
-        : (existingConfig.github_directory || githubDirectory || undefined),
+        ? taskAny.github_directory || githubDirectory || undefined
+        : existingConfig.github_directory || githubDirectory || undefined,
       // Sweep configuration
       run_sweeps:
         enableSweeps &&
@@ -553,9 +558,11 @@ export default function EditTaskModal({
       // Preserve type, plugin, experiment_id, subtype, etc. if they exist
       if (taskAny.type) updateBody.type = taskAny.type;
       if (taskAny.plugin) updateBody.plugin = taskAny.plugin;
-      if (taskAny.experiment_id) updateBody.experiment_id = taskAny.experiment_id;
+      if (taskAny.experiment_id)
+        updateBody.experiment_id = taskAny.experiment_id;
       if (taskAny.subtype) updateBody.subtype = taskAny.subtype;
-      if (taskAny.interactive_type) updateBody.interactive_type = taskAny.interactive_type;
+      if (taskAny.interactive_type)
+        updateBody.interactive_type = taskAny.interactive_type;
     }
 
     try {
