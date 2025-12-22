@@ -4,22 +4,13 @@
   "description": "A Text-to-Speech (TTS) trainer based on the unsloth audio training notebooks",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.6",
-  "model_architectures": [
-    "CsmForConditionalGeneration",
-    "LlamaForCausalLM"
-  ],
+  "version": "0.0.7",
+  "model_architectures": ["CsmForConditionalGeneration", "LlamaForCausalLM"],
   "supports": [],
-  "supported_hardware_architectures": [
-    "cuda",
-    "amd"
-  ],
+  "supported_hardware_architectures": ["cuda", "amd"],
   "git": "",
   "url": "",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "training_template_format": "none",
   "parameters": {
@@ -43,19 +34,14 @@
     "learning_rate_schedule": {
       "title": "Learning Rate Schedule",
       "type": "string",
-      "enum": [
-        "constant",
-        "linear",
-        "cosine",
-        "constant_with_warmup"
-      ],
+      "enum": ["constant", "linear", "cosine", "constant_with_warmup"],
       "default": "linear"
     },
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
-      "default": 5e-05,
-      "minimum": 1e-06
+      "default": 5e-5,
+      "minimum": 1e-6
     },
     "num_train_epochs": {
       "title": "Number of Training Epochs",
@@ -124,7 +110,7 @@
       "type": "number",
       "minimum": 0.0,
       "maximum": 1.0,
-      "default": 1e-08
+      "default": 1e-8
     },
     "adaptor_name": {
       "title": "Adaptor Name",
