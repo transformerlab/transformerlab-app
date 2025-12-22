@@ -34,6 +34,7 @@ from diffusers import (
     FluxControlNetImg2ImgPipeline,
     StableDiffusionControlNetInpaintPipeline,
     StableDiffusionXLControlNetInpaintPipeline,
+    DiffusionPipeline,
 )
 import os
 import sys
@@ -303,6 +304,24 @@ def cleanup_pipeline(pipe=None):
         print(f"Warning: Failed to cleanup pipeline: {str(e)}")
 
 
+def is_zimage_model(model: str) -> bool:
+    """Return True if the model architecture is ZImagePipeline."""
+    try:
+        info = model_info(model)
+        config = getattr(info, "config", {})
+        diffusers_config = config.get("diffusers", {})
+        architectures = diffusers_config.get("_class_name", "")
+        if isinstance(architectures, str):
+            architectures = [architectures]
+        if any(arch == "ZImagePipeline" for arch in architectures):
+            return True
+    except Exception as e:
+        print(f"Error checking model {model} for Z-Image: {e}")
+    # Fallback: infer from model name when config lacks architecture (e.g., Tongyi Z-Image Turbo)
+    name = (model or "").lower()
+    return "z-image" in name or "zimage" in name
+
+
 def get_pipeline(
     model: str,
     adaptor: str = "",
@@ -316,8 +335,8 @@ def get_pipeline(
     # cache_key = get_pipeline_key(model, adaptor, is_img2img, is_inpainting)
 
     with _PIPELINES_LOCK:
-        # if cache_key in _PIPELINES:
-        #     return _PIPELINES[cache_key]
+        # Detect Z-Image architecture (non-controlnet path)
+        is_zimage = is_zimage_model(model)
 
         # Load appropriate pipeline based on type
         if is_controlnet:
@@ -381,6 +400,13 @@ def get_pipeline(
                 requires_safety_checker=False,
             )
             print(f"Loaded image-to-image pipeline for model: {model}")
+        elif is_zimage:
+            pipe = DiffusionPipeline.from_pretrained(
+                model,
+                torch_dtype=torch.bfloat16 if device != "cpu" else torch.float32,
+                low_cpu_mem_usage=False,
+            )
+            print(f"Loaded Z-Image pipeline for model: {model} with dtype {pipe.dtype}")
         else:
             pipe = AutoPipelineForText2Image.from_pretrained(
                 model,

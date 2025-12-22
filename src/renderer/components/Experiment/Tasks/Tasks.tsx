@@ -5,7 +5,7 @@ import { Button, LinearProgress, Stack, Typography } from '@mui/joy';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { PlusIcon } from 'lucide-react';
+import { PlusIcon, TerminalIcon } from 'lucide-react';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -16,6 +16,8 @@ import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
+import NewInteractiveTaskModal from './NewInteractiveTaskModal';
+import InteractiveVSCodeModal from './InteractiveVSCodeModal';
 import EditTaskModal from './EditTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
@@ -31,6 +33,7 @@ dayjs.extend(relativeTime);
 
 export default function Tasks({ subtype }: { subtype?: string }) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskBeingEdited, setTaskBeingEdited] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,6 +46,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
   const [viewSweepResultsFromJob, setViewSweepResultsFromJob] = useState(-1);
   const [viewEvalResultsFromJob, setViewEvalResultsFromJob] = useState(-1);
+  const [interactiveJobForModal, setInteractiveJobForModal] = useState(-1);
   const [previewDatasetModal, setPreviewDatasetModal] = useState<{
     open: boolean;
     datasetId: string | null;
@@ -126,7 +130,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     };
   }, [pendingJobsStorageKey]);
 
-  const handleOpen = () => setModalOpen(true);
+  const isInteractivePage = subtype === 'interactive';
+
+  const handleOpen = () => {
+    if (isInteractivePage) {
+      setInteractiveModalOpen(true);
+    } else {
+      setModalOpen(true);
+    }
+  };
   const handleClose = () => setModalOpen(false);
   const handleEditClose = () => {
     setEditModalOpen(false);
@@ -543,6 +555,100 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     }
   };
 
+  const handleSubmitInteractive = async (data: any) => {
+    if (!experimentInfo?.id) {
+      addNotification({ type: 'warning', message: 'No experiment selected' });
+      return;
+    }
+
+    if (!providers.length) {
+      addNotification({
+        type: 'danger',
+        message:
+          'No providers available. Add a provider in the team settings first.',
+      });
+      return;
+    }
+
+    const providerMeta =
+      providers.find((p) => p.id === data.provider_id) || providers[0];
+
+    setIsSubmitting(true);
+    try {
+      const defaultSetup = `
+export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gnupg software-properties-common apt-transport-https wget \
+&& wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg \
+&& sudo install -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/ \
+&& echo "deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
+| sudo tee /etc/apt/sources.list.d/vscode.list \
+&& sudo apt update && sudo apt install -y code;`.trim();
+
+      const defaultCommand =
+        'code tunnel --accept-server-license-terms --disable-telemetry'.trim();
+
+      const config: any = {
+        cluster_name: data.title,
+        command: defaultCommand,
+        cpus: data.cpus || undefined,
+        memory: data.memory || undefined,
+        accelerators: data.accelerators || undefined,
+        setup: defaultSetup,
+        subtype: 'interactive',
+        interactive_type: data.interactive_type || 'vscode',
+        github_enabled: false,
+      };
+
+      config.provider_id = providerMeta.id;
+      config.provider_name = providerMeta.name;
+
+      const payload = {
+        name: data.title,
+        type: 'REMOTE',
+        inputs: {},
+        config,
+        plugin: 'remote_orchestrator',
+        outputs: {},
+        experiment_id: experimentInfo.id,
+        remote_task: true,
+      } as any;
+
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Tasks.NewTask(),
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (response.ok) {
+        setInteractiveModalOpen(false);
+        await tasksMutate();
+        addNotification({
+          type: 'success',
+          message:
+            'Interactive task created. Use Queue to launch the VS Code tunnel.',
+        });
+      } else {
+        const txt = await response.text();
+        addNotification({
+          type: 'danger',
+          message: `Failed to create interactive task: ${txt}`,
+        });
+      }
+    } catch (error) {
+      console.error('Error creating interactive task:', error);
+      addNotification({
+        type: 'danger',
+        message: 'Failed to create interactive task. Please try again.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleQueue = async (task: any) => {
     if (!experimentInfo?.id) return;
 
@@ -595,6 +701,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         cluster_name: cfg.cluster_name,
         command: cfg.command,
         subtype: cfg.subtype,
+        interactive_type: cfg.interactive_type,
         cpus: cfg.cpus,
         memory: cfg.memory,
         disk_space: cfg.disk_space,
@@ -678,14 +785,26 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         overflow: 'hidden',
       }}
     >
-      <NewTaskModal
-        open={modalOpen}
-        onClose={handleClose}
-        onSubmit={handleSubmit}
-        isSubmitting={isSubmitting}
-        providers={providers}
-        isProvidersLoading={providersIsLoading}
-      />
+      {!isInteractivePage && (
+        <NewTaskModal
+          open={modalOpen}
+          onClose={handleClose}
+          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
+          providers={providers}
+          isProvidersLoading={providersIsLoading}
+        />
+      )}
+      {isInteractivePage && (
+        <NewInteractiveTaskModal
+          open={interactiveModalOpen}
+          onClose={() => setInteractiveModalOpen(false)}
+          onSubmit={handleSubmitInteractive}
+          isSubmitting={isSubmitting}
+          providers={providers}
+          isProvidersLoading={providersIsLoading}
+        />
+      )}
       <EditTaskModal
         open={editModalOpen}
         onClose={handleEditClose}
@@ -703,7 +822,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         gap={2}
       >
         <Typography level="title-md">Task Templates</Typography>
-        <Button startDecorator={<PlusIcon />} onClick={handleOpen}>
+        <Button
+          startDecorator={isInteractivePage ? <TerminalIcon /> : <PlusIcon />}
+          onClick={handleOpen}
+        >
           New
         </Button>
       </Stack>
@@ -764,6 +886,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             onViewSweepResults={(jobId) => {
               setViewSweepResultsFromJob(parseInt(jobId));
             }}
+            onViewInteractive={(jobId) =>
+              setInteractiveJobForModal(parseInt(jobId))
+            }
           />
         )}
       </Sheet>
@@ -789,6 +914,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewEvalResultsFromJob !== -1}
         onClose={() => setViewEvalResultsFromJob(-1)}
         jobId={viewEvalResultsFromJob}
+      />
+      <InteractiveVSCodeModal
+        jobId={interactiveJobForModal}
+        setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
       />
       <PreviewDatasetModal
         open={previewDatasetModal.open}

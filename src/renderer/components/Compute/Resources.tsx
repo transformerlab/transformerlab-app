@@ -118,7 +118,7 @@ const Resources = () => {
   };
 
   // Organize data into different sections
-  const sshClusters: Cluster[] = [];
+  const fixedClusters: Cluster[] = [];
   const elasticClusters: Cluster[] = [];
   const activeNodesWithCluster: Array<{ node: Node; cluster: Cluster }> = [];
 
@@ -126,15 +126,13 @@ const Resources = () => {
   const cloudGroups: Record<string, Cluster[]> = {};
 
   clusters.forEach((cluster) => {
-    // Check if this is an SSH cluster (cluster_name contains "SSH" or backend is SSH-related)
-    const isSSH =
-      cluster.cloud_provider?.toUpperCase() === 'SSH' ||
-      cluster.cluster_name?.toUpperCase().includes('SSH') ||
-      cluster.cluster_id?.includes('ssh');
+    // Check if this is a fixed infrastructure cluster (SSH, SLURM, or non-elastic)
+    // Fixed clusters have elastic_enabled: false
+    const isFixed = !cluster.elastic_enabled;
 
-    if (isSSH) {
-      sshClusters.push(cluster);
-    } else if (cluster.elastic_enabled) {
+    if (isFixed) {
+      fixedClusters.push(cluster);
+    } else {
       elasticClusters.push(cluster);
 
       // Group by cloud provider (use cloud_provider field if available, otherwise cluster_name)
@@ -194,7 +192,7 @@ const Resources = () => {
               <Typography level="title-lg" mb={2}>
                 Fixed Compute
               </Typography>
-              {sshClusters.length === 0 ? (
+              {fixedClusters.length === 0 ? (
                 <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
                   No Fixed Compute nodes found.
                 </Typography>
@@ -234,7 +232,7 @@ const Resources = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {sshClusters.map((cluster) => {
+                      {fixedClusters.map((cluster) => {
                         // Calculate totals from nodes
                         const totalGPUs = cluster.nodes
                           .filter((node) => node.is_fixed === true)
@@ -518,12 +516,17 @@ const Resources = () => {
                     </thead>
                     <tbody>
                       {activeNodesWithCluster.map(({ node, cluster }) => {
-                        const isSSH =
-                          cluster.cloud_provider?.toUpperCase() === 'SSH' ||
-                          cluster.cluster_name?.toUpperCase().includes('SSH') ||
-                          cluster.cluster_id?.includes('ssh');
-                        const cloudType = isSSH
-                          ? 'SSH'
+                        // Determine if this is a fixed infrastructure (SSH, SLURM, etc.) or cloud
+                        const isFixed = !cluster.elastic_enabled;
+
+                        // Get backend type for display
+                        const backendType =
+                          cluster.backend_type ||
+                          cluster.cloud_provider?.toUpperCase() ||
+                          'UNKNOWN';
+
+                        const cloudType = isFixed
+                          ? backendType
                           : cluster.cloud_provider?.toUpperCase() ||
                             cluster.cluster_name.toUpperCase();
 
@@ -536,7 +539,7 @@ const Resources = () => {
                             </td>
                             <td>
                               <Chip
-                                color={isSSH ? 'warning' : 'primary'}
+                                color={isFixed ? 'warning' : 'primary'}
                                 size="sm"
                                 variant="soft"
                               >

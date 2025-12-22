@@ -55,6 +55,7 @@ class ProviderTaskLaunchRequest(BaseModel):
     cluster_name: Optional[str] = Field(None, description="Base cluster name, suffix is appended automatically")
     command: str = Field(..., description="Command to execute on the cluster")
     subtype: Optional[str] = Field(None, description="Optional subtype for filtering")
+    interactive_type: Optional[str] = Field(None, description="Interactive task type (e.g. vscode)")
     cpus: Optional[str] = None
     memory: Optional[str] = None
     disk_space: Optional[str] = None
@@ -215,41 +216,6 @@ async def list_providers(
         )
 
     return result
-
-
-@router.get("/clusters")
-async def get_clusters(
-    user_and_team=Depends(get_user_and_team),
-    session: AsyncSession = Depends(get_async_session),
-):
-    """
-    Get all running clusters across all providers.
-    Requires X-Team-Id header and team membership.
-    """
-    team_id = user_and_team["team_id"]
-
-    providers = await list_team_providers(session, team_id)
-    clusters = []
-    for provider in providers:
-        try:
-            provider_instance = get_provider_instance(provider)
-            # Use the provider's list_clusters method (all providers inherit this from base class)
-            provider_clusters = provider_instance.list_clusters()
-            for cluster_status in provider_clusters:
-                clusters.append(
-                    {
-                        "cluster_name": cluster_status.cluster_name,
-                        "state": cluster_status.state.value,
-                        "resources_str": cluster_status.resources_str,
-                        "provider_id": provider.id,
-                    }
-                )
-        except Exception as e:
-            # Skip providers that fail
-            print(f"Error getting clusters for provider {provider.id}: {e}")
-            pass
-
-    return {"clusters": clusters}
 
 
 @router.post("/", response_model=ProviderRead)
@@ -1145,11 +1111,10 @@ async def launch_task_on_provider(
 
     provider_instance = get_provider_instance(provider)
 
-    job_id = job_service.job_create(
-        type="REMOTE",
-        status="LAUNCHING",
-        experiment_id=request.experiment_id,
-    )
+    # Interactive tasks should start directly in INTERACTIVE state instead of LAUNCHING
+    initial_status = "INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING"
+
+    job_id = job_service.job_create(type="REMOTE", status=initial_status, experiment_id=request.experiment_id)
 
     base_name = request.cluster_name or request.task_name or provider.name
     formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{job_id}"
@@ -1223,6 +1188,7 @@ async def launch_task_on_provider(
         "command": request.command,
         "cluster_name": formatted_cluster_name,
         "subtype": request.subtype,
+        "interactive_type": request.interactive_type,
         "cpus": request.cpus,
         "memory": request.memory,
         "disk_space": request.disk_space,

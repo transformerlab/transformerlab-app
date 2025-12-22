@@ -22,13 +22,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import transformerlab.services.job_service as job_service
 from transformerlab.services.job_service import job_update_status
-from transformerlab.services.provider_service import (
-    get_team_provider,
-    get_provider_instance,
-)
+from transformerlab.services.provider_service import get_team_provider, get_provider_instance
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.compute_providers.models import JobState
+from transformerlab.utils.vscode_parser import get_vscode_tunnel_info
 from lab import Job
 from lab.dirs import get_workspace_dir
 
@@ -332,6 +330,100 @@ async def get_provider_job_logs(
         "tail_lines": tail_lines,
         "logs": logs_text,
         "job_candidates": provider_job_candidates,
+    }
+
+
+@router.get("/{job_id}/vscode_tunnel_info")
+async def get_vscode_tunnel_info_for_job(
+    experimentId: str,
+    job_id: str,
+    tail_lines: int = Query(400, ge=100, le=2000),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Parse provider logs for a REMOTE job and extract VS Code tunnel information.
+
+    This uses the shared vscode_parser helper to extract auth code and tunnel URL
+    from the provider logs, and is intended for interactive VS Code tasks.
+    """
+
+    job = job_service.job_get(job_id)
+    if not job or str(job.get("experiment_id")) != str(experimentId):
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job_data = job.get("job_data") or {}
+    if not isinstance(job_data, dict):
+        try:
+            job_data = json.loads(job_data)
+        except JSONDecodeError:
+            job_data = {}
+
+    provider_id = job_data.get("provider_id")
+    cluster_name = job_data.get("cluster_name")
+    if not provider_id or not cluster_name:
+        raise HTTPException(
+            status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
+        )
+
+    provider = await get_team_provider(session, user_and_team["team_id"], provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        provider_instance = get_provider_instance(provider)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
+
+    # Determine provider-side job id in the same way as provider_logs
+    provider_job_id: Optional[str | int] = job_data.get("provider_job_id")
+
+    if provider_job_id is None:
+        provider_job_ids = job_data.get("provider_job_ids")
+        if isinstance(provider_job_ids, list) and provider_job_ids:
+            provider_job_id = provider_job_ids[-1]
+
+    if provider_job_id is None:
+        try:
+            provider_jobs = provider_instance.list_jobs(cluster_name)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Failed to enumerate provider jobs: {exc}") from exc
+
+        if provider_jobs:
+            running_states = {JobState.RUNNING, JobState.PENDING}
+            chosen_job = next((pj for pj in provider_jobs if pj.state in running_states), provider_jobs[-1])
+            provider_job_id = chosen_job.job_id
+
+    if provider_job_id is None:
+        raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
+
+    try:
+        raw_logs = provider_instance.get_job_logs(
+            cluster_name,
+            provider_job_id,
+            tail_lines=tail_lines or None,
+            follow=False,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
+
+    if isinstance(raw_logs, (bytes, bytearray)):
+        logs_text = raw_logs.decode("utf-8", errors="replace")
+    elif isinstance(raw_logs, str):
+        logs_text = raw_logs
+    else:
+        try:
+            logs_text = json.dumps(raw_logs, indent=2)
+        except TypeError:
+            logs_text = str(raw_logs)
+
+    tunnel_info = get_vscode_tunnel_info(logs_text)
+
+    return {
+        **tunnel_info,
+        "cluster_name": cluster_name,
+        "provider_id": provider_id,
+        "provider_job_id": str(provider_job_id),
     }
 
 
@@ -1115,6 +1207,128 @@ async def get_artifacts(job_id: str, request: Request):
     artifacts.sort(key=lambda x: x["filename"], reverse=True)
 
     return {"artifacts": artifacts}
+
+
+@router.get("/{job_id}/artifact/{filename}")
+async def get_artifact(job_id: str, filename: str, task: str = "view"):
+    """
+    Serve individual artifact files for viewing or downloading.
+
+    Args:
+        job_id: The job ID
+        filename: The artifact filename
+        task: Either "view" or "download" (default: "view")
+    """
+    job = job_service.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
+
+    job_data = job["job_data"]
+
+    # First try to use the new SDK method to get artifact paths
+    artifact_file_path = None
+    try:
+        from lab.job import Job
+
+        # Get artifacts using the SDK method
+        sdk_job = Job(job_id)
+        artifact_paths = sdk_job.get_artifact_paths()
+
+        if artifact_paths:
+            # Look for the file in the artifact paths
+            filename_secure = secure_filename(filename)
+            for artifact_path in artifact_paths:
+                # Check if this path matches the filename
+                path_filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
+                if path_filename == filename_secure:
+                    artifact_file_path = artifact_path
+                    break
+    except Exception as e:
+        print(f"Error using SDK method to get artifact paths: {e}")
+
+    # Fallback to checking the artifacts directory
+    if artifact_file_path is None:
+        if "artifacts_dir" not in job_data or not job_data["artifacts_dir"]:
+            return Response("No artifacts directory found for this job", status_code=404)
+
+        artifacts_dir = job_data["artifacts_dir"]
+
+        if not storage.exists(artifacts_dir):
+            return Response("Artifacts directory not found", status_code=404)
+
+        # Secure the filename to prevent directory traversal
+        filename_secure = secure_filename(filename)
+        artifact_file_path = storage.join(artifacts_dir, filename_secure)
+
+    # Ensure the file exists
+    if not storage.exists(artifact_file_path):
+        return Response("Artifact not found", status_code=404)
+
+    # Determine media type based on file extension
+    _, ext = os.path.splitext(filename.lower())
+    media_type_map = {
+        # Images
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+        # Videos
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".ogg": "video/ogg",
+        ".avi": "video/x-msvideo",
+        ".mov": "video/quicktime",
+        # JSON
+        ".json": "application/json",
+        # Text
+        ".txt": "text/plain",
+        ".log": "text/plain",
+        ".csv": "text/csv",
+        # Other
+        ".pdf": "application/pdf",
+        ".zip": "application/zip",
+    }
+
+    media_type = media_type_map.get(ext, "application/octet-stream")
+
+    # For JSON files in view mode, return the parsed content
+    if task == "view" and ext == ".json":
+        try:
+            with storage.open(artifact_file_path, "r") as f:
+                content = json.load(f)
+                return content
+        except Exception as e:
+            print(f"Error reading JSON file: {e}")
+            # Fall back to streaming response
+
+    # For download or other file types, stream the file
+    # Use StreamingResponse to support both local and remote files (e.g., s3://)
+    def generate():
+        with storage.open(artifact_file_path, "rb") as f:
+            while True:
+                chunk = f.read(8192)  # Read in 8KB chunks
+                if not chunk:
+                    break
+                yield chunk
+
+    headers = {}
+    if task == "download":
+        headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    else:
+        headers["Content-Disposition"] = f'inline; filename="{filename}"'
+
+    headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    headers["Pragma"] = "no-cache"
+    headers["Expires"] = "0"
+
+    return StreamingResponse(
+        generate(),
+        media_type=media_type,
+        headers=headers,
+    )
 
 
 @router.get("/{job_id}")

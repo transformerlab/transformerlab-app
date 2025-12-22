@@ -115,7 +115,7 @@ export default function JobProgress({ job }: JobProps) {
             sx={{ my: 0.5 }}
           />
         </>
-      ) : job?.status === 'LAUNCHING' ? (
+      ) : job?.status === 'LAUNCHING' || job?.status === 'INTERACTIVE' ? (
         <>
           <Stack direction="row" alignItems="center" gap={1}>
             <Chip

@@ -25,6 +25,24 @@ interface ProviderDetailsModalProps {
   providerId?: string;
 }
 
+// Default configurations for each provider type
+const DEFAULT_CONFIGS = {
+  skypilot: `{
+  "server_url": "<Your SkyPilot server URL e.g. http://localhost:46580>",
+  "default_env_vars": {
+    "SKYPILOT_USER_ID": "<Your SkyPilot user ID>",
+    "SKYPILOT_USER": "<Your SkyPilot user name>"
+  },
+  "default_entrypoint_command": ""
+}`,
+  slurm: `{
+  "ssh_host": "<Machine IP for the SLURM login node>",
+  "ssh_user": "<User name for SSH to the SLURM login node, usually SLURM>",
+  "ssh_key_path": "<Path to private key for SSH if present>",
+  "ssh_port": 22
+}`,
+};
+
 export default function ProviderDetailsModal({
   open,
   onClose,
@@ -75,6 +93,13 @@ export default function ProviderDetailsModal({
       setConfig('');
     }
   }, [open]);
+
+  // Populate default config when provider type changes (only when adding new provider)
+  useEffect(() => {
+    if (!providerId && type && type in DEFAULT_CONFIGS) {
+      setConfig(DEFAULT_CONFIGS[type as keyof typeof DEFAULT_CONFIGS]);
+    }
+  }, [type, providerId]);
 
   async function createProvider(name: String, type: String, config: String) {
     return await fetchWithAuth(
@@ -130,7 +155,7 @@ export default function ProviderDetailsModal({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog sx={{ gap: 0, minWidth: 500 }}>
+      <ModalDialog sx={{ gap: 0, width: 600, height: 500, overflow: 'auto' }}>
         <DialogTitle>
           {providerId ? 'Edit Compute Provider' : 'Add Compute Provider'}
         </DialogTitle>
@@ -173,6 +198,7 @@ export default function ProviderDetailsModal({
               onChange={(event) => setConfig(event.currentTarget.value)}
               placeholder="JSON sent to provider"
               minRows={5}
+              maxRows={10}
             />
           </FormControl>
         </DialogContent>

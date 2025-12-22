@@ -29,6 +29,7 @@ interface JobsListProps {
   onViewSweepResults?: (jobId: string) => void;
   onViewEvalResults?: (jobId: string) => void;
   onViewGeneratedDataset?: (jobId: string, datasetId: string) => void;
+  onViewInteractive?: (jobId: string) => void;
 }
 
 const JobsList: React.FC<JobsListProps> = ({
@@ -43,6 +44,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewSweepResults,
   onViewEvalResults,
   onViewGeneratedDataset,
+  onViewInteractive,
 }) => {
   const formatJobConfig = (job: any) => {
     const jobData = job?.job_data || {};
@@ -179,9 +181,7 @@ const JobsList: React.FC<JobsListProps> = ({
                   sx={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}
                 >
                   {job?.placeholder && (
-                    <>
-                      <Skeleton variant="rectangular" width={100} height={28} />
-                    </>
+                    <Skeleton variant="rectangular" width={100} height={28} />
                   )}
                   {job?.job_data?.tensorboard_output_dir && (
                     <Button
@@ -323,6 +323,16 @@ const JobsList: React.FC<JobsListProps> = ({
                       Sweep Output
                     </Button>
                   )}
+                  {job?.status === 'INTERACTIVE' &&
+                    job?.job_data?.interactive_type === 'vscode' && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewInteractive?.(job?.id)}
+                      >
+                        Interactive Setup
+                      </Button>
+                    )}
                   {job?.job_data?.checkpoints && (
                     <Button
                       size="sm"
