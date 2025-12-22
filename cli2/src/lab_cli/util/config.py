@@ -10,7 +10,7 @@ from lab_cli.util.logo import one_liner_logo, show_header
 from lab_cli.util.ui import render_table
 from lab_cli.util.shared import CONFIG_DIR, CONFIG_FILE, set_base_url
 
-VALID_CONFIG_KEYS = ["server", "team_id", "team_name", "user_email"]
+VALID_CONFIG_KEYS = ["server", "team_id", "team_name", "user_email", "current_experiment"]
 REQUIRED_CONFIG_KEYS = ["server", "team_id", "user_email"]
 
 console = Console()
@@ -168,3 +168,9 @@ def check_configs(output_format: str = "pretty") -> None:
     one_liner_logo(console)
     console.print(table)
     console.rule()
+
+
+def get_current_experiment() -> str | None:
+    """Get the current experiment ID from config."""
+    config = load_config()
+    return config.get("current_experiment", "alpha")
