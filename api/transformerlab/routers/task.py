@@ -3,13 +3,16 @@ from typing import Optional
 from werkzeug.utils import secure_filename
 import json
 import yaml
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from transformerlab.services.task_service import task_service
+from transformerlab.services.provider_service import list_team_providers
 from transformerlab.shared import galleries
 from transformerlab.shared.github_utils import (
     fetch_task_json_from_github_helper,
 )
 from transformerlab.routers.auth import get_user_and_team
+from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.schemas.task import (
     ExportTaskToTeamGalleryRequest,
     ImportTaskFromGalleryRequest,
@@ -81,6 +84,59 @@ async def delete_task(task_id: str):
         return {"message": "OK"}
     else:
         return {"message": "NOT FOUND"}
+
+
+async def _resolve_provider(
+    task_data: dict,
+    user_and_team: dict,
+    session: AsyncSession,
+):
+    """
+    Resolve provider_id and provider_name from compute_provider name or use default.
+    Only resolves if provider_id is not already set (e.g., when YAML is sent directly).
+    If compute_provider is provided, match by name. Otherwise, use first available provider.
+    """
+    try:
+        # Skip if provider_id is already set (frontend already resolved it)
+        if "provider_id" in task_data and task_data.get("provider_id"):
+            return
+
+        team_id = user_and_team.get("team_id")
+        if not team_id:
+            return
+
+        providers = await list_team_providers(session, team_id)
+
+        if not providers:
+            # No providers available, skip
+            return
+
+        # Check if provider_name is set (from YAML parsing: resources.compute_provider)
+        provider_name = task_data.get("provider_name")
+
+        matched_provider = None
+
+        if provider_name:
+            # Try to match by name (case-insensitive)
+            provider_name_lower = provider_name.lower().strip()
+            for provider in providers:
+                if provider.name.lower().strip() == provider_name_lower:
+                    matched_provider = provider
+                    break
+
+        # Use matched provider if found, otherwise use first available as fallback
+        if matched_provider:
+            task_data["provider_id"] = str(matched_provider.id)
+            task_data["provider_name"] = matched_provider.name
+        else:
+            # No provider specified or no match found, use first available
+            first_provider = providers[0]
+            task_data["provider_id"] = str(first_provider.id)
+            task_data["provider_name"] = first_provider.name
+    except Exception:
+        # If provider resolution fails, continue without it
+        # The task can still be created, provider selection can happen later
+        pass
 
 
 def _parse_yaml_to_task_data(yaml_content: str) -> dict:
@@ -174,7 +230,12 @@ def _parse_yaml_to_task_data(yaml_content: str) -> dict:
 
 
 @router.put("/new_task", summary="Create a new task")
-async def add_task(request: Request, experiment_id: Optional[str] = Query(None)):
+async def add_task(
+    request: Request,
+    experiment_id: Optional[str] = Query(None),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
     """
     Create a new task. Accepts either:
     1. JSON object with task fields directly (Content-Type: application/json)
@@ -227,6 +288,9 @@ async def add_task(request: Request, experiment_id: Optional[str] = Query(None))
             if "plugin" not in task_data:
                 task_data["plugin"] = "remote_orchestrator"
 
+            # Handle provider matching
+            await _resolve_provider(task_data, user_and_team, session)
+
             # Perform secure_filename before adding the task
             if "name" in task_data:
                 task_data["name"] = secure_filename(task_data["name"])
@@ -250,8 +314,14 @@ async def add_task(request: Request, experiment_id: Optional[str] = Query(None))
                 if "name" in task_data:
                     task_data["name"] = secure_filename(task_data["name"])
 
+                # Handle provider matching
+                await _resolve_provider(task_data, user_and_team, session)
+
                 task_id = task_service.add_task(task_data)
                 return {"message": "OK", "id": task_id}
+
+            # Handle provider matching for JSON input
+            await _resolve_provider(new_task, user_and_team, session)
 
             # Perform secure_filename before adding the task
             if "name" in new_task:
