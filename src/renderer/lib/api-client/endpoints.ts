@@ -45,7 +45,8 @@ Endpoints.Tasks = {
 
 Endpoints.Templates = {
   List: () => `${API_URL()}templates/list`,
-  ListByType: (type: string) => `${API_URL()}templates/list_by_type?type=${type}`,
+  ListByType: (type: string) =>
+    `${API_URL()}templates/list_by_type?type=${type}`,
   ListByTypeInExperiment: (type: string, experiment_id: string) =>
     `${API_URL()}templates/list_by_type_in_experiment?type=${type}&experiment_id=${
       experiment_id

@@ -1,12 +1,7 @@
-import json
-
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from typing import Optional
+from fastapi import APIRouter, Body
 from werkzeug.utils import secure_filename
-from pydantic import BaseModel
 
 from transformerlab.services.templates_service import templates_service
-from transformerlab.routers.auth import get_user_and_team
 
 router = APIRouter(prefix="/templates", tags=["templates"])
 
@@ -76,4 +71,3 @@ async def add_template(new_template: dict = Body()):
 async def templates_delete_all():
     templates_service.templates_delete_all()
     return {"message": "OK"}
-

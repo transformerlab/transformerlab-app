@@ -27,7 +27,7 @@ class Template(BaseLabResource):
     def set_metadata(self, **kwargs):
         """Set template metadata - all fields stored directly in JSON"""
         data = self.get_json_data()
-        
+
         # Update any provided fields
         for key, value in kwargs.items():
             if value is not None:
@@ -140,4 +140,3 @@ class Template(BaseLabResource):
         for full in entries:
             if storage.isdir(full):
                 storage.rm_tree(full)
-

@@ -30,9 +30,7 @@ class TemplatesService:
         """Get all templates for a specific experiment"""
         return self.template_service.list_by_experiment(experiment_id)
 
-    def templates_get_by_type_in_experiment(
-        self, template_type: str, experiment_id: str
-    ) -> List[Dict[str, Any]]:
+    def templates_get_by_type_in_experiment(self, template_type: str, experiment_id: str) -> List[Dict[str, Any]]:
         """Get all templates of a specific type in a specific experiment"""
         return self.template_service.list_by_type_in_experiment(template_type, experiment_id)
 
@@ -86,4 +84,3 @@ class TemplatesService:
 
 # Create a singleton instance
 templates_service = TemplatesService()
-
