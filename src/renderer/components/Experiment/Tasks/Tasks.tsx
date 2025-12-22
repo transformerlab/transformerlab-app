@@ -413,13 +413,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const handleExportToTeamGallery = async (taskId: string) => {
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Tasks.ExportToTeamGallery(),
+        chatAPI.Endpoints.Templates.ExportToTeamGallery(),
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ task_id: taskId }),
+          body: JSON.stringify({ template_id: taskId }),
         },
       );
 
@@ -427,7 +427,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         const txt = await response.text();
         addNotification({
           type: 'danger',
-          message: `Failed to export task: ${txt}`,
+          message: `Failed to export template: ${txt}`,
         });
         return;
       }
@@ -435,13 +435,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       const result = await response.json();
       addNotification({
         type: 'success',
-        message: result?.message || 'Task exported to team gallery.',
+        message: result?.message || 'Template exported to team gallery.',
       });
     } catch (error) {
-      console.error('Error exporting task:', error);
+      console.error('Error exporting template:', error);
       addNotification({
         type: 'danger',
-        message: 'Failed to export task. Please try again.',
+        message: 'Failed to export template. Please try again.',
       });
     }
   };

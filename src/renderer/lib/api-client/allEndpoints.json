@@ -89,6 +89,34 @@
     "update": {
       "method": "PUT",
       "path": "templates/{id}/update"
+    },
+    "gallery": {
+      "method": "GET",
+      "path": "templates/gallery"
+    },
+    "importFromGallery": {
+      "method": "POST",
+      "path": "templates/gallery/import"
+    },
+    "teamGallery": {
+      "method": "GET",
+      "path": "templates/gallery/team"
+    },
+    "importFromTeamGallery": {
+      "method": "POST",
+      "path": "templates/gallery/team/import"
+    },
+    "exportToTeamGallery": {
+      "method": "POST",
+      "path": "templates/gallery/team/export"
+    },
+    "addToTeamGallery": {
+      "method": "POST",
+      "path": "templates/gallery/team/add"
+    },
+    "deleteFromTeamGallery": {
+      "method": "POST",
+      "path": "templates/gallery/team/delete"
     }
   },
   "server": {

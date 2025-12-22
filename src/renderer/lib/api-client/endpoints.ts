@@ -63,6 +63,15 @@ Endpoints.Templates = {
   UpdateTemplate: (id: string) => `${API_URL()}templates/${id}/update`,
   NewTemplate: () => `${API_URL()}templates/new_template`,
   DeleteTemplate: (id: string) => `${API_URL()}templates/${id}/delete`,
+  Gallery: () => `${API_URL()}templates/gallery`,
+  ImportFromGallery: (experimentId: string) =>
+    `${API_URL()}templates/gallery/import`,
+  TeamGallery: () => `${API_URL()}templates/gallery/team`,
+  ImportFromTeamGallery: (experimentId: string) =>
+    `${API_URL()}templates/gallery/team/import`,
+  ExportToTeamGallery: () => `${API_URL()}templates/gallery/team/export`,
+  AddToTeamGallery: () => `${API_URL()}templates/gallery/team/add`,
+  DeleteFromTeamGallery: () => `${API_URL()}templates/gallery/team/delete`,
 };
 
 Endpoints.ComputeProvider = {

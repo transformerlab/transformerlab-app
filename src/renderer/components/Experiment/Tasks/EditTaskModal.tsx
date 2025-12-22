@@ -432,7 +432,7 @@ export default function EditTaskModal({
         const formData = new FormData();
         formData.append('file', fm.file);
         // Use 0 as template ID for now; stored path is independent of ID
-        const uploadUrl = chatAPI.Endpoints.ComputeProvider.UploadTaskFile(
+        const uploadUrl = chatAPI.Endpoints.ComputeProvider.UploadTemplateFile(
           selectedProviderId,
           0,
         );
@@ -470,11 +470,20 @@ export default function EditTaskModal({
       }
     }
 
-    // Preserve existing config and only update editable fields
-    // GitHub fields are preserved from existing config (read-only)
+    // For templates, all fields are stored directly (not nested in config)
+    // Check if it's a template (no config or config is empty/doesn't have nested structure)
     const existingConfig = SafeJSONParse(task.config, {});
-    const config = {
-      ...existingConfig, // Keep all existing fields (including GitHub settings)
+    const isTemplate =
+      !task.config ||
+      (typeof existingConfig === 'object' && Object.keys(existingConfig).length === 0) ||
+      (!existingConfig.command && !existingConfig.cluster_name && (task as any).command);
+
+    // Build update body - for templates, all fields go directly (flat structure)
+    // For backward compatibility with old tasks, we could support both, but since we're migrating to templates,
+    // we'll use the template format
+    const taskAny = task as any;
+    const updateBody: any = {
+      name: title,
       cluster_name: clusterName,
       command: commandValue,
       cpus: cpus || undefined,
@@ -489,14 +498,16 @@ export default function EditTaskModal({
       provider_id: selectedProviderId,
       file_mounts:
         Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
-      // GitHub fields are preserved from existingConfig (not editable)
-      // Only update if they don't exist in existing config (shouldn't happen, but safety)
-      github_enabled:
-        existingConfig.github_enabled || githubEnabled || undefined,
-      github_repo_url:
-        existingConfig.github_repo_url || githubRepoUrl || undefined,
-      github_directory:
-        existingConfig.github_directory || githubDirectory || undefined,
+      // GitHub fields - preserve from existing template or use current values
+      github_enabled: isTemplate
+        ? (taskAny.github_enabled !== undefined ? taskAny.github_enabled : githubEnabled || undefined)
+        : (existingConfig.github_enabled || githubEnabled || undefined),
+      github_repo_url: isTemplate
+        ? (taskAny.github_repo_url || githubRepoUrl || undefined)
+        : (existingConfig.github_repo_url || githubRepoUrl || undefined),
+      github_directory: isTemplate
+        ? (taskAny.github_directory || githubDirectory || undefined)
+        : (existingConfig.github_directory || githubDirectory || undefined),
       // Sweep configuration
       run_sweeps:
         enableSweeps &&
@@ -528,31 +539,35 @@ export default function EditTaskModal({
         sweepParams.some((sp) => sp.paramName.trim() && sp.values.trim())
           ? lowerIsBetter
           : undefined,
-    } as any;
+    };
+
     const providerMeta = providers.find(
       (provider) => provider.id === selectedProviderId,
     );
     if (providerMeta) {
-      config.provider_name = providerMeta.name;
+      updateBody.provider_name = providerMeta.name;
     }
 
-    const body = {
-      name: title,
-      inputs: '{}',
-      config: JSON.stringify(config),
-      outputs: '{}',
-    } as any;
+    // Preserve other template fields that shouldn't be changed
+    if (isTemplate) {
+      // Preserve type, plugin, experiment_id, subtype, etc. if they exist
+      if (taskAny.type) updateBody.type = taskAny.type;
+      if (taskAny.plugin) updateBody.plugin = taskAny.plugin;
+      if (taskAny.experiment_id) updateBody.experiment_id = taskAny.experiment_id;
+      if (taskAny.subtype) updateBody.subtype = taskAny.subtype;
+      if (taskAny.interactive_type) updateBody.interactive_type = taskAny.interactive_type;
+    }
 
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Tasks.UpdateTask(task.id),
+        chatAPI.Endpoints.Templates.UpdateTemplate(task.id),
         {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             accept: 'application/json',
           },
-          body: JSON.stringify(body),
+          body: JSON.stringify(updateBody),
         },
       );
 
@@ -560,7 +575,7 @@ export default function EditTaskModal({
         const txt = await response.text();
         addNotification({
           type: 'danger',
-          message: `Failed to save task: ${txt}`,
+          message: `Failed to save template: ${txt}`,
         });
         setSaving(false);
         return;
@@ -572,7 +587,7 @@ export default function EditTaskModal({
       onClose();
     } catch (err) {
       console.error(err);
-      addNotification({ type: 'danger', message: 'Failed to save task.' });
+      addNotification({ type: 'danger', message: 'Failed to save template.' });
     } finally {
       setSaving(false);
     }

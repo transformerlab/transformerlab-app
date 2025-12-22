@@ -247,7 +247,7 @@ export default function TasksGallery() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { data, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Tasks.Gallery(),
+    chatAPI.Endpoints.Templates.Gallery(),
     fetcher,
   );
   const {
@@ -255,7 +255,7 @@ export default function TasksGallery() {
     isLoading: teamLoading,
     mutate: teamMutate,
     isError: teamError,
-  } = useSWR(chatAPI.Endpoints.Tasks.TeamGallery(), fetcher);
+  } = useSWR(chatAPI.Endpoints.Templates.TeamGallery(), fetcher);
 
   const handleImport = async (galleryIndex: number) => {
     if (!experimentInfo?.id) {
@@ -271,8 +271,8 @@ export default function TasksGallery() {
     try {
       const endpoint =
         activeTab === 'team'
-          ? chatAPI.Endpoints.Tasks.ImportFromTeamGallery(experimentInfo.id)
-          : chatAPI.Endpoints.Tasks.ImportFromGallery(experimentInfo.id);
+          ? chatAPI.Endpoints.Templates.ImportFromTeamGallery(experimentInfo.id)
+          : chatAPI.Endpoints.Templates.ImportFromGallery(experimentInfo.id);
       const response = await chatAPI.authenticatedFetch(endpoint, {
         method: 'POST',
         headers: {
@@ -308,10 +308,10 @@ export default function TasksGallery() {
       // Navigate to the tasks page for the experiment
       navigate(`/experiment/tasks`);
     } catch (err: any) {
-      console.error('Error importing task:', err);
+      console.error('Error importing template:', err);
       addNotification({
         type: 'danger',
-        message: `Failed to import task: ${err?.message || String(err)}`,
+        message: `Failed to import template: ${err?.message || String(err)}`,
       });
     } finally {
       setImportingIndex(null);
@@ -332,7 +332,7 @@ export default function TasksGallery() {
     setIsSubmittingTeamTask(true);
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Tasks.AddToTeamGallery(),
+        chatAPI.Endpoints.Templates.AddToTeamGallery(),
         {
           method: 'POST',
           headers: {
@@ -346,7 +346,7 @@ export default function TasksGallery() {
         const errorText = await response.text();
         addNotification({
           type: 'danger',
-          message: `Failed to add team task: ${errorText}`,
+          message: `Failed to add team template: ${errorText}`,
         });
         return;
       }
@@ -354,16 +354,16 @@ export default function TasksGallery() {
       const result = await response.json();
       addNotification({
         type: 'success',
-        message: result?.message || 'Team task added successfully!',
+        message: result?.message || 'Team template added successfully!',
       });
 
       // Refresh the team gallery
       teamMutate();
     } catch (err: any) {
-      console.error('Error adding team task:', err);
+      console.error('Error adding team template:', err);
       addNotification({
         type: 'danger',
-        message: `Failed to add team task: ${err?.message || String(err)}`,
+        message: `Failed to add team template: ${err?.message || String(err)}`,
       });
     } finally {
       setIsSubmittingTeamTask(false);
@@ -388,7 +388,7 @@ export default function TasksGallery() {
     // eslint-disable-next-line no-alert
     if (
       !confirm(
-        `Are you sure you want to delete ${selectedTasks.size} task(s)? This action cannot be undone.`,
+        `Are you sure you want to delete ${selectedTasks.size} template(s)? This action cannot be undone.`,
       )
     ) {
       return;
@@ -403,13 +403,13 @@ export default function TasksGallery() {
       for (const taskId of taskIds) {
         try {
           const response = await chatAPI.authenticatedFetch(
-            chatAPI.Endpoints.Tasks.DeleteFromTeamGallery(),
+            chatAPI.Endpoints.Templates.DeleteFromTeamGallery(),
             {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify({ task_id: taskId }),
+              body: JSON.stringify({ template_id: taskId }),
             },
           );
 
@@ -419,7 +419,7 @@ export default function TasksGallery() {
             failCount++;
           }
         } catch (err) {
-          console.error(`Error deleting task ${taskId}:`, err);
+          console.error(`Error deleting template ${taskId}:`, err);
           failCount++;
         }
       }
@@ -427,7 +427,7 @@ export default function TasksGallery() {
       if (successCount > 0) {
         addNotification({
           type: 'success',
-          message: `Successfully deleted ${successCount} task(s)${
+          message: `Successfully deleted ${successCount} template(s)${
             failCount > 0 ? `. ${failCount} failed.` : '.'
           }`,
         });
@@ -437,14 +437,14 @@ export default function TasksGallery() {
       } else {
         addNotification({
           type: 'danger',
-          message: 'Failed to delete tasks. Please try again.',
+          message: 'Failed to delete templates. Please try again.',
         });
       }
     } catch (err: any) {
-      console.error('Error deleting tasks:', err);
+      console.error('Error deleting templates:', err);
       addNotification({
         type: 'danger',
-        message: `Failed to delete tasks: ${err?.message || String(err)}`,
+        message: `Failed to delete templates: ${err?.message || String(err)}`,
       });
     } finally {
       setIsDeleting(false);
