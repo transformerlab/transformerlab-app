@@ -1,3 +1,8 @@
+import sys
+
+print(f"DEBUG: Running python from: {sys.executable}")
+print(f"DEBUG: Python path is: {sys.path}")
+
 import json
 
 from textual.app import App, ComposeResult
@@ -68,9 +73,9 @@ class JobListItem(ListItem):
         status = self.job.get("status", "N/A")
 
         # Simple styling for the list item
-        yield Label(f"[bold][cyan][{self.job.get('id', '?')}] {task_name}[/cyan][/bold]")
-        status_color = "green" if status == "COMPLETED" else "red" if status == "FAILED" else "yellow"
-        yield Label(f"Status: {status}", classes=f"status {status_color}")
+        yield Label(f"[bold][$text-primary][{self.job.get('id', '?')}] {task_name}[/$text-primary][/bold]")
+        status_color = "$success" if status == "COMPLETED" else "$error" if status == "FAILED" else "$warning"
+        yield Label(f"Status: [{status_color}]{status}[/{status_color}]")
 
 
 class JobDetails(Vertical):
@@ -104,14 +109,14 @@ class JobDetails(Vertical):
         job_data = job.get("job_data", {})
         details = (
             f"[bold]{job_data.get('task_name', 'N/A')}[/bold]\n\n"
-            f"[cyan]ID:[/cyan] {job.get('id', 'N/A')}\n"
-            f"[cyan]Task Name:[/cyan] {job_data.get('task_name', 'N/A')}\n"
-            f"[cyan]Status:[/cyan] {job.get('status', 'N/A')}\n"
-            f"[cyan]Progress:[/cyan] {job.get('progress', 0)}%\n"
-            f"[cyan]Experiment:[/cyan] {job.get('experiment_id', 'N/A')}\n"
-            f"[cyan]Model:[/cyan] {job_data.get('model_name', 'N/A')}\n"
-            f"[cyan]Cluster:[/cyan] {job_data.get('cluster_name', 'N/A')}\n"
-            f"[cyan]Completion:[/cyan] {job_data.get('completion_status', 'N/A')}"
+            f"[$primary]ID:[/$primary] {job.get('id', 'N/A')}\n"
+            f"[$primary]Task Name:[/$primary] {job_data.get('task_name', 'N/A')}\n"
+            f"[$primary]Status:[/$primary] {job.get('status', 'N/A')}\n"
+            f"[$primary]Progress:[/$primary] {job.get('progress', 0)}%\n"
+            f"[$primary]Experiment:[/$primary] {job.get('experiment_id', 'N/A')}\n"
+            f"[$primary]Model:[/$primary] {job_data.get('model_name', 'N/A')}\n"
+            f"[$primary]Cluster:[/$primary] {job_data.get('cluster_name', 'N/A')}\n"
+            f"[$primary]Completion:[/$primary] {job_data.get('completion_status', 'N/A')}"
         )
 
         details_view = self.query_one("#job-info", Static)

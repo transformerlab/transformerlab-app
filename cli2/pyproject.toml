@@ -12,10 +12,16 @@ dependencies = [
     "httpx>=0.27.0",
     "rich>=13.0.0",
     "textual>=0.40.0",
+    "pyyaml>=6.0.3",
 ]
 
 [project.scripts]
-tlab = "transformerlab_cli.main:app"
+tlab = "lab_cli.main:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[dependency-groups]
+dev = [
+    "textual>=6.11.0",
+]

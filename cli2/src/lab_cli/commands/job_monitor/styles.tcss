@@ -4,7 +4,7 @@ Horizontal {
 
 ListView {
   width: 100%;
-  border: solid green;
+  border: solid $secondary;
   display: none;
 }
 
@@ -12,9 +12,19 @@ ListView.loaded {
   display: block;
 }
 
+ListView>ListItem.--highlight {
+  background: red;
+  color: $text;
+  text-style: bold;
+}
+
+#job-list.highlighted {
+  border: red;
+}
+
 JobDetails {
   width: 75%;
-  border: solid blue;
+  border: solid $secondary;
   padding: 0 2;
   height: 100%;
   /* Ensure children stack vertically */
