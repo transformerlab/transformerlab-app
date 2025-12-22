@@ -194,7 +194,7 @@ class JobMonitorApp(App):
     ]
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield Header(icon="🔬")
         with Horizontal(id="main-container"):
             # Left panel
             with Vertical(id="job-list-container", classes="column"):
