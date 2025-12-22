@@ -49,27 +49,23 @@ class ExperimentSelectModal(ModalScreen):
 
     def __init__(self) -> None:
         super().__init__()
-        raw_current = get_current_experiment()
-        self.current_exp_config = str(raw_current) if raw_current is not None else None
+        self.current_experiment = "alpha"
 
     def compose(self) -> ComposeResult:
         with Vertical(id="experiment-modal"):
             yield Label("[b]Choose an experiment[/b]")
 
-            # 1. A dedicated container for the dynamic content (Loader OR Select)
             with Vertical(id="dialog-body"):
                 yield LoadingIndicator(id="experiment-loader")  # No `visible` argument
                 yield Select(
                     id="experiment-select",
                     options=[("alpha", "alpha"), ("beta", "beta")],  # Placeholder options
-                    prompt="Select an experiment",
-                    disabled=True,  # Initially disabled
                 )
-            yield Button("Set Experiment", id="btn-apply-experiment", variant="primary", disabled=True)
             yield Static("", id="experiment-feedback")
 
     def on_mount(self) -> None:
         self.fetch_experiments()
+        self.current_experiment = get_current_experiment()
 
     @work(thread=True)
     def fetch_experiments(self) -> None:
@@ -107,14 +103,18 @@ class ExperimentSelectModal(ModalScreen):
             return
 
         select = self.query_one("#experiment-select", Select)
-        select.options = experiments
-        select.disabled = False
-
+        with select.prevent(Select.Changed):
+            select.options = experiments
+            select.value = self.current_experiment
+            select.expanded = True
         print("Experiments loaded:", experiments)
 
     @on(Select.Changed, "#experiment-select")
     def select_changed(self, event: Select.Changed) -> None:
+        print(event)
         print("Experiment selected:", event.value)
-        set_config("current_experiment", event.value)
-        self.app.on_experiment_changed()
+
+        if event.value != Select.BLANK:
+            set_config("current_experiment", event.value)
+            self.app.on_experiment_changed()
         self.dismiss()
