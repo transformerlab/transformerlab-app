@@ -66,7 +66,6 @@ type NewTaskModalProps = {
     env_vars?: Record<string, string>;
     provider_id?: string;
     file_mounts?: Record<string, string>;
-    github_enabled?: boolean;
     github_repo_url?: string;
     github_directory?: string;
     run_sweeps?: boolean;
@@ -543,7 +542,6 @@ export default function NewTaskModal({
       provider_id: selectedProviderId,
       file_mounts:
         Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
-      github_enabled: useGithub || undefined,
       github_repo_url: useGithub && githubRepoUrl ? githubRepoUrl : undefined,
       github_directory:
         useGithub && githubDirectory ? githubDirectory : undefined,

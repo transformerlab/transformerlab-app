@@ -161,7 +161,6 @@ async def import_template_from_gallery(
     # Build the template config, merging gallery config with task.json (task.json takes precedence)
     template_config = {
         **config,  # Start with gallery config
-        "github_enabled": True,
         "github_repo_url": github_repo_url,
     }
 
@@ -261,7 +260,6 @@ async def import_template_from_team_gallery(
         template_config.update(task_json)
 
     if github_repo_url:
-        template_config["github_enabled"] = True
         template_config["github_repo_url"] = github_repo_url
     if github_repo_dir:
         template_config["github_directory"] = github_repo_dir
@@ -331,8 +329,6 @@ async def export_template_to_team_gallery(
         config["parameters"] = template.get("parameters")
     if template.get("file_mounts"):
         config["file_mounts"] = template.get("file_mounts")
-    if template.get("github_enabled"):
-        config["github_enabled"] = template.get("github_enabled")
     if template.get("github_repo_url"):
         config["github_repo_url"] = template.get("github_repo_url")
     if template.get("github_directory"):

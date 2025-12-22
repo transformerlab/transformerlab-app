@@ -231,14 +231,9 @@ export default function EditTaskModal({
     }
 
     // Initialize GitHub fields
-    setGithubEnabled(
-      isTemplate
-        ? taskAny.github_enabled || false
-        : cfg.github_enabled || false,
-    );
-    setGithubRepoUrl(
-      isTemplate ? taskAny.github_repo_url || '' : cfg.github_repo_url || '',
-    );
+    const githubRepoUrlValue = isTemplate ? taskAny.github_repo_url || '' : cfg.github_repo_url || '';
+    setGithubRepoUrl(githubRepoUrlValue);
+    setGithubEnabled(!!githubRepoUrlValue); // Infer from repo URL
     setGithubDirectory(
       isTemplate ? taskAny.github_directory || '' : cfg.github_directory || '',
     );
@@ -502,11 +497,6 @@ export default function EditTaskModal({
       file_mounts:
         Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
       // GitHub fields - preserve from existing template or use current values
-      github_enabled: isTemplate
-        ? taskAny.github_enabled !== undefined
-          ? taskAny.github_enabled
-          : githubEnabled || undefined
-        : existingConfig.github_enabled || githubEnabled || undefined,
       github_repo_url: isTemplate
         ? taskAny.github_repo_url || githubRepoUrl || undefined
         : existingConfig.github_repo_url || githubRepoUrl || undefined,

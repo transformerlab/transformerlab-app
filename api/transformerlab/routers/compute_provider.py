@@ -860,7 +860,7 @@ async def _launch_sweep_jobs(
                         setup_commands.append(aws_setup)
                         env_vars["AWS_PROFILE"] = aws_profile
 
-                if request.github_enabled and request.github_repo_url:
+                if request.github_repo_url:
                     workspace_dir = get_workspace_dir()
                     github_pat = read_github_pat_from_workspace(workspace_dir)
                     github_setup = generate_github_clone_setup(
@@ -1091,7 +1091,7 @@ async def launch_template_on_provider(
         setup_commands.append(aws_setup)
 
     # Add GitHub clone setup if enabled
-    if request.github_enabled and request.github_repo_url:
+    if request.github_repo_url:
         workspace_dir = get_workspace_dir()
         github_pat = read_github_pat_from_workspace(workspace_dir)
         github_setup = generate_github_clone_setup(

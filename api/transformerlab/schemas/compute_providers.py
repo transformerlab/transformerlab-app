@@ -114,7 +114,6 @@ class ProviderTemplateLaunchRequest(BaseModel):
         description="Task parameters (hyperparameters, config, etc.) that will be accessible via lab.get_config()",
     )
     provider_name: Optional[str] = None
-    github_enabled: Optional[bool] = None
     github_repo_url: Optional[str] = None
     github_directory: Optional[str] = None
     # Sweep configuration

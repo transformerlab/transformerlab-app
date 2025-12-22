@@ -492,7 +492,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         env_vars: data.env_vars || undefined,
         parameters: data.parameters || undefined,
         file_mounts: data.file_mounts || undefined,
-        github_enabled: data.github_enabled || undefined,
         github_repo_url: data.github_repo_url || undefined,
         github_directory: data.github_directory || undefined,
         run_sweeps: data.run_sweeps || undefined,
@@ -591,7 +590,6 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         setup: defaultSetup,
         subtype: 'interactive',
         interactive_type: data.interactive_type || 'vscode',
-        github_enabled: false,
         provider_id: providerMeta.id,
         provider_name: providerMeta.name,
       };
@@ -703,7 +701,6 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         parameters: cfg.parameters || task.parameters || undefined,
         file_mounts: cfg.file_mounts || task.file_mounts,
         provider_name: providerMeta.name,
-        github_enabled: cfg.github_enabled || task.github_enabled,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
         github_directory: cfg.github_directory || task.github_directory,
         run_sweeps: cfg.run_sweeps || task.run_sweeps || undefined,
