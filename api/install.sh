@@ -410,7 +410,7 @@ install_dependencies() {
   pip install uv
 
   echo "HAS_NVIDIA=$HAS_NVIDIA, HAS_AMD=$HAS_AMD"
-  PIP_WHEEL_FLAGS="--upgrade"
+  PIP_WHEEL_FLAGS=""
 
   # Determine the directory containing pyproject.toml
   if [ -e "$RUN_DIR/pyproject.toml" ]; then
@@ -433,7 +433,7 @@ install_dependencies() {
   elif [ "$HAS_AMD" = true ]; then
       echo "Installing requirements for ROCm:"
       cd "$PROJECT_DIR"
-      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match"
+      PIP_WHEEL_FLAGS+="--index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match"
       uv pip install ${PIP_WHEEL_FLAGS} .[rocm]
 
       if [ "$TLAB_ON_WSL" = 1 ]; then
@@ -453,7 +453,7 @@ install_dependencies() {
       cd "$PROJECT_DIR"
       if [[ -z "${TLAB_ON_MACOS}" ]]; then
           # Add the CPU-specific PyTorch index for non-macOS systems
-          PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
+          PIP_WHEEL_FLAGS+="--index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
       fi
 
       echo "Installing with CPU support"
