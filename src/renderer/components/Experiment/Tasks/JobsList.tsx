@@ -26,8 +26,10 @@ interface JobsListProps {
   onViewArtifacts?: (jobId: string) => void;
   onViewEvalImages?: (jobId: string) => void;
   onViewSweepOutput?: (jobId: string) => void;
+  onViewSweepResults?: (jobId: string) => void;
   onViewEvalResults?: (jobId: string) => void;
   onViewGeneratedDataset?: (jobId: string, datasetId: string) => void;
+  onViewInteractive?: (jobId: string) => void;
 }
 
 const JobsList: React.FC<JobsListProps> = ({
@@ -39,11 +41,54 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewArtifacts,
   onViewEvalImages,
   onViewSweepOutput,
+  onViewSweepResults,
   onViewEvalResults,
   onViewGeneratedDataset,
+  onViewInteractive,
 }) => {
   const formatJobConfig = (job: any) => {
     const jobData = job?.job_data || {};
+
+    // Handle sweep child jobs
+    if (jobData?.parent_sweep_job_id) {
+      const runIndex = jobData.sweep_run_index || 0;
+      const total = jobData.sweep_total || 0;
+      const sweepParams = jobData.sweep_params || {};
+      const paramStr = Object.entries(sweepParams)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(', ');
+      return (
+        <>
+          <b>
+            Sweep Run {runIndex}/{total}
+          </b>
+          {paramStr && (
+            <>
+              <br />
+              <small>{paramStr}</small>
+            </>
+          )}
+        </>
+      );
+    }
+
+    // Handle sweep parent jobs
+    if (jobData?.sweep_parent || job?.type === 'SWEEP') {
+      const total = jobData.sweep_total || 0;
+      const sweepConfig = jobData.sweep_config || {};
+      const configStr = Object.keys(sweepConfig).join(' × ');
+      return (
+        <>
+          <b>Sweep: {total} configurations</b>
+          {configStr && (
+            <>
+              <br />
+              <small>{configStr}</small>
+            </>
+          )}
+        </>
+      );
+    }
 
     // Prefer showing Cluster Name (if present) and the user identifier (name/email)
     const clusterName = jobData?.cluster_name;
@@ -136,9 +181,7 @@ const JobsList: React.FC<JobsListProps> = ({
                   sx={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}
                 >
                   {job?.placeholder && (
-                    <>
-                      <Skeleton variant="rectangular" width={100} height={28} />
-                    </>
+                    <Skeleton variant="rectangular" width={100} height={28} />
                   )}
                   {job?.job_data?.tensorboard_output_dir && (
                     <Button
@@ -250,6 +293,27 @@ const JobsList: React.FC<JobsListProps> = ({
                         </Box>
                       </Button>
                     )}
+                  {(job?.type === 'SWEEP' || job?.job_data?.sweep_parent) &&
+                    job?.status === 'COMPLETE' && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewSweepResults?.(job?.id)}
+                        startDecorator={<LineChartIcon />}
+                      >
+                        <Box
+                          sx={{
+                            display: {
+                              xs: 'none',
+                              sm: 'none',
+                              md: 'inline-flex',
+                            },
+                          }}
+                        >
+                          Sweep Results
+                        </Box>
+                      </Button>
+                    )}
                   {job?.job_data?.sweep_output_file && (
                     <Button
                       size="sm"
@@ -259,6 +323,16 @@ const JobsList: React.FC<JobsListProps> = ({
                       Sweep Output
                     </Button>
                   )}
+                  {job?.status === 'INTERACTIVE' &&
+                    job?.job_data?.interactive_type === 'vscode' && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewInteractive?.(job?.id)}
+                      >
+                        Interactive Setup
+                      </Button>
+                    )}
                   {job?.job_data?.checkpoints && (
                     <Button
                       size="sm"

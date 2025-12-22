@@ -2,7 +2,6 @@
 
 import os
 from lab import HOME_DIR
-from lab.dirs import get_workspace_dir
 from lab import storage
 
 
@@ -17,7 +16,7 @@ You can set any of the above using environment parameters and it will override t
 ROOT_DIR is a legacy variable that we should replace with the above, eventually.
 """
 
-FASTCHAT_LOGS_DIR = storage.join(get_workspace_dir(), "logs")
+FASTCHAT_LOGS_DIR = storage.join(HOME_DIR, "logs")
 if not storage.exists(FASTCHAT_LOGS_DIR):
     storage.makedirs(FASTCHAT_LOGS_DIR, exist_ok=True)
 
