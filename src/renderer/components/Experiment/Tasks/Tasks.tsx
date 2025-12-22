@@ -819,7 +819,7 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         alignItems="center"
         gap={2}
       >
-        <Typography level="title-md">Task Templates</Typography>
+        <Typography level="title-md">Templates</Typography>
         <Button
           startDecorator={isInteractivePage ? <TerminalIcon /> : <PlusIcon />}
           onClick={handleOpen}
