@@ -20,6 +20,7 @@ import {
   authenticatedFetch,
   getAPIFullPath,
 } from 'renderer/lib/transformerlab-api-sdk';
+import FixedComputeClusterVisualization from './FixedComputeClusterVisualization';
 
 interface Provider {
   id: string;
@@ -378,6 +379,9 @@ const Resources = () => {
                     </tbody>
                   </Table>
                 </Sheet>
+              )}
+              {fixedClusters?.backend_type == 'SLURM' && (
+                <FixedComputeClusterVisualization cluster={fixedClusters[0]} />
               )}
             </CardContent>
           </Card>
