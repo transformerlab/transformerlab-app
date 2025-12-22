@@ -419,7 +419,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ template_id: taskId }),
+          body: JSON.stringify({ task_id: taskId }),
         },
       );
 
@@ -815,7 +815,7 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         alignItems="center"
         gap={2}
       >
-        <Typography level="title-md">Templates</Typography>
+        <Typography level="title-md">Tasks</Typography>
         <Button
           startDecorator={isInteractivePage ? <TerminalIcon /> : <PlusIcon />}
           onClick={handleOpen}

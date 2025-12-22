@@ -60,63 +60,63 @@
   "templates": {
     "getAll": {
       "method": "GET",
-      "path": "templates/list"
+      "path": "task/list"
     },
     "get": {
       "method": "GET",
-      "path": "templates/{id}/get"
+      "path": "task/{id}/get"
     },
     "getByType": {
       "method": "GET",
-      "path": "templates/list_by_type?type={type}"
+      "path": "task/list_by_type?type={type}"
     },
     "getByTypeInExperiment": {
       "method": "GET",
-      "path": "templates/list_by_type_in_experiment?type={type}&experiment_id={experiment_id}"
+      "path": "task/list_by_type_in_experiment?type={type}&experiment_id={experiment_id}"
     },
     "getBySubtypeInExperiment": {
       "method": "GET",
-      "path": "templates/list_by_subtype_in_experiment?experiment_id={experiment_id}&subtype={subtype}&type={type}"
+      "path": "task/list_by_subtype_in_experiment?experiment_id={experiment_id}&subtype={subtype}&type={type}"
     },
     "create": {
       "method": "PUT",
-      "path": "templates/new_template"
+      "path": "task/new_task"
     },
     "delete": {
       "method": "GET",
-      "path": "templates/{id}/delete"
+      "path": "task/{id}/delete"
     },
     "update": {
       "method": "PUT",
-      "path": "templates/{id}/update"
+      "path": "task/{id}/update"
     },
     "gallery": {
       "method": "GET",
-      "path": "templates/gallery"
+      "path": "task/gallery"
     },
     "importFromGallery": {
       "method": "POST",
-      "path": "templates/gallery/import"
+      "path": "task/gallery/import"
     },
     "teamGallery": {
       "method": "GET",
-      "path": "templates/gallery/team"
+      "path": "task/gallery/team"
     },
     "importFromTeamGallery": {
       "method": "POST",
-      "path": "templates/gallery/team/import"
+      "path": "task/gallery/team/import"
     },
     "exportToTeamGallery": {
       "method": "POST",
-      "path": "templates/gallery/team/export"
+      "path": "task/gallery/team/export"
     },
     "addToTeamGallery": {
       "method": "POST",
-      "path": "templates/gallery/team/add"
+      "path": "task/gallery/team/add"
     },
     "deleteFromTeamGallery": {
       "method": "POST",
-      "path": "templates/gallery/team/delete"
+      "path": "task/gallery/team/delete"
     }
   },
   "server": {
@@ -310,11 +310,11 @@
     },
     "launchTask": {
       "method": "POST",
-      "path": "compute_provider/{providerId}/templates/launch"
+      "path": "compute_provider/{providerId}/task/launch"
     },
     "launchTemplate": {
       "method": "POST",
-      "path": "compute_provider/{providerId}/templates/launch"
+      "path": "compute_provider/{providerId}/task/launch"
     },
     "checkJobStatus": {
       "method": "GET",
@@ -330,11 +330,11 @@
     },
     "uploadTaskFile": {
       "method": "POST",
-      "path": "compute_provider/{providerId}/templates/{templateId}/file-upload"
+      "path": "compute_provider/{providerId}/task/{taskId}/file-upload"
     },
     "uploadTemplateFile": {
       "method": "POST",
-      "path": "compute_provider/{providerId}/templates/{templateId}/file-upload"
+      "path": "compute_provider/{providerId}/task/{taskId}/file-upload"
     },
     "usage-report": {
       "method": "GET",

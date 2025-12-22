@@ -490,7 +490,7 @@ export default function NewTaskModal({
       try {
         const formData = new FormData();
         formData.append('file', fm.file);
-        // template_id is not yet created; we treat this as "template" upload, so use 0
+        // task_id is not yet created; we treat this as "task" upload, so use 0
         const uploadUrl = chatAPI.Endpoints.ComputeProvider.UploadTemplateFile(
           selectedProviderId,
           0,

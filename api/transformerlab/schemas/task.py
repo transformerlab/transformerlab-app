@@ -1,24 +1,24 @@
-"""Pydantic schemas for template management."""
+"""Pydantic schemas for task management."""
 
 from pydantic import BaseModel
 from typing import Optional
 
 
-class ExportTemplateToTeamGalleryRequest(BaseModel):
-    template_id: str
+class ExportTaskToTeamGalleryRequest(BaseModel):
+    task_id: str
 
 
-class ImportTemplateFromGalleryRequest(BaseModel):
+class ImportTaskFromGalleryRequest(BaseModel):
     gallery_id: str  # Index or identifier in the gallery array
     experiment_id: str
 
 
-class ImportTemplateFromTeamGalleryRequest(BaseModel):
+class ImportTaskFromTeamGalleryRequest(BaseModel):
     gallery_id: str  # Index or identifier in the gallery array
     experiment_id: str
 
 
-class AddTeamTemplateToGalleryRequest(BaseModel):
+class AddTeamTaskToGalleryRequest(BaseModel):
     title: str
     description: Optional[str] = None
     setup: Optional[str] = None
@@ -30,5 +30,5 @@ class AddTeamTemplateToGalleryRequest(BaseModel):
     github_repo_dir: Optional[str] = None
 
 
-class DeleteTeamTemplateFromGalleryRequest(BaseModel):
-    template_id: str
+class DeleteTeamTaskFromGalleryRequest(BaseModel):
+    task_id: str

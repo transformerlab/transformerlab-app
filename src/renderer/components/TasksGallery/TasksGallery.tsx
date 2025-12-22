@@ -409,7 +409,7 @@ export default function TasksGallery() {
               headers: {
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify({ template_id: taskId }),
+              body: JSON.stringify({ task_id: taskId }),
             },
           );
 

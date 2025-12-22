@@ -68,19 +68,19 @@ def _get_provider_instances(providers: list[TeamComputeProvider]) -> Dict[str, C
     return instances
 
 
-@router.post("/{provider_id}/templates/{template_id}/file-upload", response_model=ProviderTemplateFileUploadResponse)
-async def upload_template_file_for_provider(
+@router.post("/{provider_id}/task/{task_id}/file-upload", response_model=ProviderTemplateFileUploadResponse)
+async def upload_task_file_for_provider(
     provider_id: str,
-    template_id: str,
+    task_id: str,
     request: Request,
     file: UploadFile = File(...),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Upload a single file for a provider-backed template.
+    Upload a single file for a provider-backed task.
 
-    The file is stored under workspace_dir/uploads/templates/{template_id}/ and the
+    The file is stored under workspace_dir/uploads/task/{task_id}/ and the
     stored_path returned from this endpoint can be used as the local side of a
     file mount mapping: {<remote_path>: <stored_path>}.
     """
@@ -96,14 +96,14 @@ async def upload_template_file_for_provider(
         if not workspace_dir:
             raise RuntimeError("Workspace directory is not configured")
 
-        # uploads/templates/{template_id}/
-        uploads_root = storage.join(workspace_dir, "uploads", "templates")
+        # uploads/task/{task_id}/
+        uploads_root = storage.join(workspace_dir, "uploads", "task")
         storage.makedirs(uploads_root, exist_ok=True)
 
         import uuid
 
-        template_dir = storage.join(uploads_root, str(template_id))
-        storage.makedirs(template_dir, exist_ok=True)
+        task_dir = storage.join(uploads_root, str(task_id))
+        storage.makedirs(task_dir, exist_ok=True)
 
         # Use original filename with a random suffix to avoid collisions
         original_name = file.filename or "uploaded_file"
@@ -111,7 +111,7 @@ async def upload_template_file_for_provider(
         # Avoid path separators from filename
         safe_name = original_name.split("/")[-1].split("\\")[-1]
         stored_filename = f"{safe_name}.{suffix}"
-        stored_path = storage.join(template_dir, stored_filename)
+        stored_path = storage.join(task_dir, stored_filename)
 
         # Persist file contents
         await file.seek(0)
@@ -984,7 +984,7 @@ async def _launch_sweep_jobs(
             lab_set_org_id(None)
 
 
-@router.post("/{provider_id}/templates/launch")
+@router.post("/{provider_id}/task/launch")
 async def launch_template_on_provider(
     provider_id: str,
     request: ProviderTemplateLaunchRequest,

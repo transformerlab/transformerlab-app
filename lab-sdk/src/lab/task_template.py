@@ -1,16 +1,16 @@
 from datetime import datetime
 from werkzeug.utils import secure_filename
 
-from .dirs import get_templates_dir
+from .dirs import get_task_dir
 from .labresource import BaseLabResource
 from . import storage
 
 
-class Template(BaseLabResource):
+class TaskTemplate(BaseLabResource):
     def get_dir(self):
         """Abstract method on BaseLabResource"""
-        template_id_safe = secure_filename(str(self.id))
-        return storage.join(get_templates_dir(), template_id_safe)
+        task_id_safe = secure_filename(str(self.id))
+        return storage.join(get_task_dir(), task_id_safe)
 
     def _default_json(self):
         # Default metadata - all fields stored directly (not nested in inputs/outputs/config)
@@ -25,7 +25,7 @@ class Template(BaseLabResource):
         }
 
     def set_metadata(self, **kwargs):
-        """Set template metadata - all fields stored directly in JSON"""
+        """Set task metadata - all fields stored directly in JSON"""
         data = self.get_json_data()
 
         # Update any provided fields
@@ -38,7 +38,7 @@ class Template(BaseLabResource):
         self._set_json_data(data)
 
     def get_metadata(self):
-        """Get template metadata"""
+        """Get task metadata"""
         data = self.get_json_data()
 
         # Fix experiment_id if it's a digit - convert to experiment name
@@ -69,16 +69,16 @@ class Template(BaseLabResource):
 
     @staticmethod
     def list_all():
-        """List all templates in the filesystem"""
+        """List all tasks in the filesystem"""
         results = []
-        templates_dir = get_templates_dir()
-        if not storage.isdir(templates_dir):
-            print(f"Templates directory does not exist: {templates_dir}")
+        task_dir = get_task_dir()
+        if not storage.isdir(task_dir):
+            print(f"Task directory does not exist: {task_dir}")
             return results
         try:
-            entries = storage.ls(templates_dir, detail=False)
+            entries = storage.ls(task_dir, detail=False)
         except Exception as e:
-            print(f"Exception listing templates directory: {e}")
+            print(f"Exception listing task directory: {e}")
             entries = []
         for full in entries:
             if not storage.isdir(full):
@@ -86,67 +86,65 @@ class Template(BaseLabResource):
             # Attempt to read index.json (or latest snapshot)
             try:
                 entry = full.rstrip("/").split("/")[-1]
-                template = Template(entry)
+                task = TaskTemplate(entry)
 
-                results.append(template.get_metadata())
+                results.append(task.get_metadata())
             except Exception:
-                print(f"Exception getting metadata for template: {entry}")
+                print(f"Exception getting metadata for task: {entry}")
                 continue
         # Sort by created_at descending to match database behavior
         results.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         return results
 
     @staticmethod
-    def list_by_type(template_type: str):
-        """List all templates of a specific type"""
-        all_templates = Template.list_all()
-        return [template for template in all_templates if template.get("type") == template_type]
+    def list_by_type(task_type: str):
+        """List all tasks of a specific type"""
+        all_tasks = TaskTemplate.list_all()
+        return [task for task in all_tasks if task.get("type") == task_type]
 
     @staticmethod
     def list_by_experiment(experiment_id: int):
-        """List all templates for a specific experiment"""
-        all_templates = Template.list_all()
-        return [template for template in all_templates if template.get("experiment_id") == experiment_id]
+        """List all tasks for a specific experiment"""
+        all_tasks = TaskTemplate.list_all()
+        return [task for task in all_tasks if task.get("experiment_id") == experiment_id]
 
     @staticmethod
-    def list_by_type_in_experiment(template_type: str, experiment_id: int):
-        """List all templates of a specific type in a specific experiment"""
-        all_templates = Template.list_all()
+    def list_by_type_in_experiment(task_type: str, experiment_id: int):
+        """List all tasks of a specific type in a specific experiment"""
+        all_tasks = TaskTemplate.list_all()
         return [
-            template
-            for template in all_templates
-            if template.get("type") == template_type and template.get("experiment_id") == experiment_id
+            task for task in all_tasks if task.get("type") == task_type and task.get("experiment_id") == experiment_id
         ]
 
     @staticmethod
-    def list_by_subtype_in_experiment(experiment_id: int, subtype: str, template_type: str = None):
-        """List all templates for a specific experiment filtered by subtype and optionally by type"""
-        all_templates = Template.list_all()
+    def list_by_subtype_in_experiment(experiment_id: int, subtype: str, task_type: str = None):
+        """List all tasks for a specific experiment filtered by subtype and optionally by type"""
+        all_tasks = TaskTemplate.list_all()
         return [
-            template
-            for template in all_templates
-            if template.get("experiment_id") == experiment_id
-            and template.get("subtype") == subtype
-            and (template_type is None or template.get("type") == template_type)
+            task
+            for task in all_tasks
+            if task.get("experiment_id") == experiment_id
+            and task.get("subtype") == subtype
+            and (task_type is None or task.get("type") == task_type)
         ]
 
     @staticmethod
-    def get_by_id(template_id: str):
-        """Get a specific template by ID"""
+    def get_by_id(task_id: str):
+        """Get a specific task by ID"""
         try:
-            template = Template.get(template_id)
-            return template.get_metadata()
+            task = TaskTemplate.get(task_id)
+            return task.get_metadata()
         except FileNotFoundError:
             return None
 
     @staticmethod
     def delete_all():
-        """Delete all templates"""
-        templates_dir = get_templates_dir()
-        if not storage.isdir(templates_dir):
+        """Delete all tasks"""
+        task_dir = get_task_dir()
+        if not storage.isdir(task_dir):
             return
         try:
-            entries = storage.ls(templates_dir, detail=False)
+            entries = storage.ls(task_dir, detail=False)
         except Exception:
             entries = []
         for full in entries:

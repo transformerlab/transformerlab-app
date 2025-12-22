@@ -44,11 +44,11 @@ Endpoints.Tasks = {
 };
 
 Endpoints.Templates = {
-  List: () => `${API_URL()}templates/list`,
+  List: () => `${API_URL()}task/list`,
   ListByType: (type: string) =>
-    `${API_URL()}templates/list_by_type?type=${type}`,
+    `${API_URL()}task/list_by_type?type=${type}`,
   ListByTypeInExperiment: (type: string, experiment_id: string) =>
-    `${API_URL()}templates/list_by_type_in_experiment?type=${type}&experiment_id=${
+    `${API_URL()}task/list_by_type_in_experiment?type=${type}&experiment_id=${
       experiment_id
     }`,
   ListBySubtypeInExperiment: (
@@ -56,30 +56,30 @@ Endpoints.Templates = {
     subtype: string,
     type?: string,
   ) =>
-    `${API_URL()}templates/list_by_subtype_in_experiment?experiment_id=${experiment_id}&subtype=${encodeURIComponent(
+    `${API_URL()}task/list_by_subtype_in_experiment?experiment_id=${experiment_id}&subtype=${encodeURIComponent(
       subtype,
     )}${type ? `&type=${encodeURIComponent(type)}` : ''}`,
-  GetByID: (id: string) => `${API_URL()}templates/${id}/get`,
-  UpdateTemplate: (id: string) => `${API_URL()}templates/${id}/update`,
-  NewTemplate: () => `${API_URL()}templates/new_template`,
-  DeleteTemplate: (id: string) => `${API_URL()}templates/${id}/delete`,
-  Gallery: () => `${API_URL()}templates/gallery`,
+  GetByID: (id: string) => `${API_URL()}task/${id}/get`,
+  UpdateTemplate: (id: string) => `${API_URL()}task/${id}/update`,
+  NewTemplate: () => `${API_URL()}task/new_task`,
+  DeleteTemplate: (id: string) => `${API_URL()}task/${id}/delete`,
+  Gallery: () => `${API_URL()}task/gallery`,
   ImportFromGallery: (experimentId: string) =>
-    `${API_URL()}templates/gallery/import`,
-  TeamGallery: () => `${API_URL()}templates/gallery/team`,
+    `${API_URL()}task/gallery/import`,
+  TeamGallery: () => `${API_URL()}task/gallery/team`,
   ImportFromTeamGallery: (experimentId: string) =>
-    `${API_URL()}templates/gallery/team/import`,
-  ExportToTeamGallery: () => `${API_URL()}templates/gallery/team/export`,
-  AddToTeamGallery: () => `${API_URL()}templates/gallery/team/add`,
-  DeleteFromTeamGallery: () => `${API_URL()}templates/gallery/team/delete`,
+    `${API_URL()}task/gallery/team/import`,
+  ExportToTeamGallery: () => `${API_URL()}task/gallery/team/export`,
+  AddToTeamGallery: () => `${API_URL()}task/gallery/team/add`,
+  DeleteFromTeamGallery: () => `${API_URL()}task/gallery/team/delete`,
 };
 
 Endpoints.ComputeProvider = {
   List: () => `${API_URL()}compute_provider/`,
   LaunchTemplate: (providerId: string) =>
-    `${API_URL()}compute_provider/${providerId}/templates/launch`,
+    `${API_URL()}compute_provider/${providerId}/task/launch`,
   LaunchTask: (providerId: string) =>
-    `${API_URL()}compute_provider/${providerId}/templates/launch`, // Deprecated: use LaunchTemplate
+    `${API_URL()}compute_provider/${providerId}/task/launch`, // Deprecated: use LaunchTemplate
   CheckJobStatus: (jobId: string) =>
     `${API_URL()}compute_provider/jobs/${jobId}/check-status`,
   CheckSweepStatus: (experimentId?: string, jobId?: string) => {
@@ -95,10 +95,10 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/jobs/${jobId}/sweep-results`,
   StopCluster: (providerId: string, clusterName: string) =>
     `${API_URL()}compute_provider/${providerId}/clusters/${clusterName}/stop`,
-  UploadTemplateFile: (providerId: string, templateId: string | number) =>
-    `${API_URL()}compute_provider/${providerId}/templates/${templateId}/file-upload`,
-  UploadTaskFile: (providerId: string, templateId: string | number) =>
-    `${API_URL()}compute_provider/${providerId}/templates/${templateId}/file-upload`, // Deprecated: use UploadTemplateFile
+  UploadTemplateFile: (providerId: string, taskId: string | number) =>
+    `${API_URL()}compute_provider/${providerId}/task/${taskId}/file-upload`,
+  UploadTaskFile: (providerId: string, taskId: string | number) =>
+    `${API_URL()}compute_provider/${providerId}/task/${taskId}/file-upload`, // Deprecated: use UploadTemplateFile
   Check: (providerId: string) =>
     `${API_URL()}compute_provider/${providerId}/check`,
 };
