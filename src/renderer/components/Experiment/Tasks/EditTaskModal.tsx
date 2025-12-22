@@ -557,7 +557,7 @@ export default function EditTaskModal({
 
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Templates.UpdateTemplate(task.id),
+        chatAPI.Endpoints.Task.UpdateTemplate(task.id),
         {
           method: 'PUT',
           headers: {

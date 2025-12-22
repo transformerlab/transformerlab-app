@@ -247,7 +247,7 @@ export default function TasksGallery() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { data, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Templates.Gallery(),
+    chatAPI.Endpoints.Task.Gallery(),
     fetcher,
   );
   const {
@@ -255,7 +255,7 @@ export default function TasksGallery() {
     isLoading: teamLoading,
     mutate: teamMutate,
     isError: teamError,
-  } = useSWR(chatAPI.Endpoints.Templates.TeamGallery(), fetcher);
+  } = useSWR(chatAPI.Endpoints.Task.TeamGallery(), fetcher);
 
   const handleImport = async (galleryIndex: number) => {
     if (!experimentInfo?.id) {
@@ -271,8 +271,8 @@ export default function TasksGallery() {
     try {
       const endpoint =
         activeTab === 'team'
-          ? chatAPI.Endpoints.Templates.ImportFromTeamGallery(experimentInfo.id)
-          : chatAPI.Endpoints.Templates.ImportFromGallery(experimentInfo.id);
+          ? chatAPI.Endpoints.Task.ImportFromTeamGallery(experimentInfo.id)
+          : chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id);
       const response = await chatAPI.authenticatedFetch(endpoint, {
         method: 'POST',
         headers: {
@@ -332,7 +332,7 @@ export default function TasksGallery() {
     setIsSubmittingTeamTask(true);
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Templates.AddToTeamGallery(),
+        chatAPI.Endpoints.Task.AddToTeamGallery(),
         {
           method: 'POST',
           headers: {
@@ -403,7 +403,7 @@ export default function TasksGallery() {
       for (const taskId of taskIds) {
         try {
           const response = await chatAPI.authenticatedFetch(
-            chatAPI.Endpoints.Templates.DeleteFromTeamGallery(),
+            chatAPI.Endpoints.Task.DeleteFromTeamGallery(),
             {
               method: 'POST',
               headers: {

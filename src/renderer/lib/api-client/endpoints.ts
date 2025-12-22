@@ -43,7 +43,7 @@ Endpoints.Tasks = {
     }`,
 };
 
-Endpoints.Templates = {
+Endpoints.Task = {
   List: () => `${API_URL()}task/list`,
   ListByType: (type: string) =>
     `${API_URL()}task/list_by_type?type=${type}`,

@@ -57,7 +57,7 @@
       "path": "tasks/import_from_local_gallery"
     }
   },
-  "templates": {
+  "task": {
     "getAll": {
       "method": "GET",
       "path": "task/list"
