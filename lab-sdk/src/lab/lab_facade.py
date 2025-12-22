@@ -76,9 +76,17 @@ class Lab:
         # Check for wandb integration and capture URL if available
         self._detect_and_capture_wandb_url()
 
-        # Set config if provided
+        # Set config if provided, otherwise auto-load from job_data if available
         if config is not None:
             self.set_config(config)
+        else:
+            # Auto-load config from job_data if available (for remote tasks)
+            auto_config = self.get_config()
+            if auto_config:
+                # Merge with any existing config, but don't overwrite experiment_name
+                if self._experiment is not None and "experiment_name" not in auto_config:
+                    auto_config = {**auto_config, "experiment_name": self._experiment.id}
+                self.set_config(auto_config)
 
     def set_config(self, config: Dict[str, Any]) -> None:
         """
@@ -92,6 +100,27 @@ class Lab:
         config_old = self._job.get_job_data()
         config_new = {**config_old, **config}
         self._job.set_job_data(config_new)  # type: ignore[union-attr]
+
+    def get_config(self) -> Dict[str, Any]:
+        """
+        Get configuration/parameters from job_data.
+
+        This method retrieves parameters that were stored when the task was launched.
+        Parameters are typically stored under the 'parameters' key in job_data.
+
+        Returns:
+            Dict[str, Any]: Configuration dictionary. Returns empty dict if no config found.
+        """
+        self._ensure_initialized()
+        job_data = self._job.get_job_data()
+
+        # Try to get parameters from job_data
+        if isinstance(job_data, dict):
+            # First check for 'parameters' key (new standard)
+            if "parameters" in job_data and isinstance(job_data["parameters"], dict):
+                return job_data["parameters"]
+
+        return {}
 
     # ------------- convenience logging -------------
     def log(self, message: str) -> None:

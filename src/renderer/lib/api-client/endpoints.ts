@@ -49,6 +49,17 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/${providerId}/tasks/launch`,
   CheckJobStatus: (jobId: string) =>
     `${API_URL()}compute_provider/jobs/${jobId}/check-status`,
+  CheckSweepStatus: (experimentId?: string, jobId?: string) => {
+    if (experimentId) {
+      return `${API_URL()}compute_provider/jobs/sweep-status?experiment_id=${experimentId}`;
+    }
+    if (jobId) {
+      return `${API_URL()}compute_provider/jobs/${jobId}/sweep-status`;
+    }
+    throw new Error('Either experimentId or jobId must be provided');
+  },
+  GetSweepResults: (jobId: string) =>
+    `${API_URL()}compute_provider/jobs/${jobId}/sweep-results`,
   StopCluster: (providerId: string, clusterName: string) =>
     `${API_URL()}compute_provider/${providerId}/clusters/${clusterName}/stop`,
   UploadTaskFile: (providerId: string, taskId: string | number) =>
@@ -448,6 +459,12 @@ Endpoints.Experiment = {
     tailLines: number = 400,
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/provider_logs?tail_lines=${tailLines}`,
+  GetVSCodeTunnelInfo: (
+    experimentId: string,
+    jobId: string,
+    tailLines: number = 400,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/vscode_tunnel_info?tail_lines=${tailLines}`,
   GetAdditionalDetails: (
     experimentId: string,
     jobId: string,
