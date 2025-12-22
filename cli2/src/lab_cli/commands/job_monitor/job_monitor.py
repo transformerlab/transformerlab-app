@@ -12,13 +12,14 @@ from textual.widgets import (
     ProgressBar,
     Button,
     TextArea,
+    Select,
 )
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual import work
 
 from lab_cli.util import api
-from lab_cli.util.config import get_current_experiment
+from lab_cli.util.config import get_current_experiment, set_config
 
 
 def fetch_jobs() -> list[dict]:
@@ -54,6 +55,40 @@ class JobJsonModal(ModalScreen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-close-modal":
             self.dismiss()
+
+
+class ExperimentSelectModal(ModalScreen):
+    DEFAULT_CSS = """
+    ExperimentSelectModal {
+        align: center middle;
+    }
+    #experiment-modal {
+        width: 40%;
+        min-width: 40;
+        height: auto;
+        padding: 2;
+        border: round $primary;
+        background: $panel;
+    }
+    """
+
+    BINDINGS = [("escape", "dismiss", "Close")]
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="experiment-modal"):
+            yield Label("[b]Choose an experiment[/b]")
+            yield Select(
+                id="experiment-select",
+                options=[
+                    ("Alpha", "alpha"),
+                    ("Beta", "beta"),
+                    ("Gamma", "gamma"),
+                ],
+            )
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        set_config("current_experiment", event.value)
+        self.dismiss()
 
 
 # ---------------------
@@ -155,6 +190,7 @@ class JobMonitorApp(App):
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("r", "refresh", "Refresh"),
+        ("e", "set_experiment", "Set Experiment"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -175,6 +211,9 @@ class JobMonitorApp(App):
 
     def action_refresh(self) -> None:
         self.load_jobs()
+
+    def action_set_experiment(self) -> None:
+        self.push_screen(ExperimentSelectModal())
 
     @work(thread=True)
     def load_jobs(self) -> None:
