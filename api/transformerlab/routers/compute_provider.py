@@ -42,6 +42,7 @@ from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
     generate_github_clone_setup,
 )
+from typing import Any
 
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
 
@@ -67,10 +68,31 @@ class ProviderTaskLaunchRequest(BaseModel):
         default=None,
         description="File mounts in the form {<remote_path>: <local_path>}",
     )
+    parameters: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Task parameters (hyperparameters, config, etc.) that will be accessible via lab.get_config()",
+    )
     provider_name: Optional[str] = None
     github_enabled: Optional[bool] = None
     github_repo_url: Optional[str] = None
     github_directory: Optional[str] = None
+    # Sweep configuration
+    run_sweeps: Optional[bool] = Field(
+        default=False,
+        description="Enable parameter sweeps. When True, generates jobs for all parameter combinations in sweep_config.",
+    )
+    sweep_config: Optional[Dict[str, List[Any]]] = Field(
+        default=None,
+        description="Sweep configuration: parameter names mapped to lists of values to try. Example: {'learning_rate': ['1e-5', '3e-5'], 'batch_size': ['4', '8']}",
+    )
+    sweep_metric: Optional[str] = Field(
+        default="eval/loss",
+        description="Metric name to use for determining best configuration. Should match a metric logged by the task.",
+    )
+    lower_is_better: Optional[bool] = Field(
+        default=True,
+        description="Whether lower values of sweep_metric are better. If False, higher values are better.",
+    )
 
 
 class ProviderTaskFileUploadResponse(BaseModel):
@@ -703,6 +725,320 @@ def _generate_aws_credentials_setup(
     return setup_script
 
 
+async def _create_sweep_parent_job(
+    provider_id: str,
+    request: ProviderTaskLaunchRequest,
+    user_and_team: dict,
+    session: AsyncSession,
+    sweep_config: Dict[str, List[Any]],
+    sweep_metric: str,
+    lower_is_better: bool,
+    total_configs: int,
+) -> str:
+    """
+    Create the parent sweep job immediately and return its ID.
+    This is fast and allows us to return a response quickly.
+    """
+    from itertools import product
+
+    team_id = user_and_team["team_id"]
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    # Generate all parameter combinations
+    param_names = list(sweep_config.keys())
+    param_values = [sweep_config[name] for name in param_names]
+    configs = []
+    for values in product(*param_values):
+        config = dict(zip(param_names, values))
+        configs.append(config)
+
+    user_info = {}
+    if getattr(user_and_team["user"], "first_name", None) or getattr(user_and_team["user"], "last_name", None):
+        user_info["name"] = " ".join(
+            part
+            for part in [
+                getattr(user_and_team["user"], "first_name", ""),
+                getattr(user_and_team["user"], "last_name", ""),
+            ]
+            if part
+        ).strip()
+    if getattr(user_and_team["user"], "email", None):
+        user_info["email"] = getattr(user_and_team["user"], "email")
+
+    provider = await get_team_provider(session, user_and_team["team_id"], provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    provider_display_name = request.provider_name or provider.name
+
+    parent_job_id = job_service.job_create(
+        type="SWEEP",
+        status="RUNNING",
+        experiment_id=request.experiment_id,
+    )
+
+    # Store parent job metadata
+    parent_job_data = {
+        "sweep_parent": True,
+        "sweep_total": total_configs,
+        "sweep_completed": 0,
+        "sweep_running": 0,
+        "sweep_failed": 0,
+        "sweep_job_ids": [],
+        "sweep_config": sweep_config,
+        "sweep_metric": sweep_metric,
+        "lower_is_better": lower_is_better,
+        "task_name": request.task_name,
+        "subtype": request.subtype,
+        "provider_id": provider.id,
+        "provider_type": provider.type,
+        "provider_name": provider_display_name,
+        "user_info": user_info or None,
+        "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+    }
+
+    for key, value in parent_job_data.items():
+        if value is not None:
+            job_service.job_update_job_data_insert_key_value(parent_job_id, key, value, request.experiment_id)
+
+    return parent_job_id
+
+
+async def _launch_sweep_jobs(
+    provider_id: str,
+    request: ProviderTaskLaunchRequest,
+    user_and_team: dict,
+    base_parameters: Dict[str, Any],
+    sweep_config: Dict[str, List[Any]],
+    sweep_metric: str,
+    lower_is_better: bool,
+    parent_job_id: str,
+):
+    """
+    Launch child jobs for a sweep in the background.
+    This is called asynchronously after the parent job is created.
+    Creates its own database session and sets org context since it runs in a background task.
+    """
+    from itertools import product
+    from transformerlab.db.session import async_session
+    from transformerlab.shared.request_context import set_current_org_id
+    from lab.dirs import set_organization_id as lab_set_org_id
+
+    # Set org context explicitly since background tasks don't inherit request context
+    team_id = user_and_team["team_id"]
+    set_current_org_id(team_id)
+    if lab_set_org_id is not None:
+        lab_set_org_id(team_id)
+
+    try:
+        # Create a new session for the background task
+        async with async_session() as session:
+            team_id = user_and_team["team_id"]
+            user = user_and_team["user"]
+            provider = await get_team_provider(session, team_id, provider_id)
+            if not provider:
+                print(f"Provider {provider_id} not found for sweep job {parent_job_id}")
+                return
+
+            provider_instance = get_provider_instance(provider)
+
+            # Generate user_info
+            user_info = {}
+            if getattr(user, "first_name", None) or getattr(user, "last_name", None):
+                user_info["name"] = " ".join(
+                    part for part in [getattr(user, "first_name", ""), getattr(user, "last_name", "")] if part
+                ).strip()
+            if getattr(user, "email", None):
+                user_info["email"] = getattr(user, "email")
+
+            provider_display_name = request.provider_name or provider.name
+
+            # Generate all parameter combinations
+            param_names = list(sweep_config.keys())
+            param_values = [sweep_config[name] for name in param_names]
+            configs = []
+            for values in product(*param_values):
+                config = dict(zip(param_names, values))
+                configs.append(config)
+
+            total_configs = len(configs)
+            print(f"Launching {total_configs} child jobs for sweep {parent_job_id}")
+
+            base_name = request.cluster_name or request.task_name or provider.name
+            child_job_ids = []
+            for i, config_params in enumerate(configs):
+                # Merge base parameters with sweep parameters
+                merged_params = {**(base_parameters or {}), **config_params}
+
+                # Create unique cluster name for this run
+                run_suffix = f"sweep-{i + 1}"
+                formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-{run_suffix}-job-{parent_job_id}"
+
+                # Create child job
+                child_job_id = job_service.job_create(
+                    type="REMOTE",
+                    status="QUEUED",
+                    experiment_id=request.experiment_id,
+                )
+
+                # Prepare environment variables
+                env_vars = request.env_vars.copy() if request.env_vars else {}
+                env_vars["_TFL_JOB_ID"] = str(child_job_id)
+                env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
+
+                # Get TFL_STORAGE_URI
+                tfl_storage_uri = None
+                try:
+                    storage_root = storage.root_uri()
+                    if storage_root and any(
+                        storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")
+                    ):
+                        tfl_storage_uri = storage_root
+                except Exception:
+                    pass
+
+                if tfl_storage_uri:
+                    env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
+                    env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
+
+                # Build setup script
+                setup_commands = []
+                aws_profile = "transformerlab-s3"
+                if os.getenv("TFL_API_STORAGE_URI"):
+                    aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
+                    if aws_access_key_id and aws_secret_access_key:
+                        aws_setup = _generate_aws_credentials_setup(
+                            aws_access_key_id, aws_secret_access_key, aws_profile
+                        )
+                        setup_commands.append(aws_setup)
+                        env_vars["AWS_PROFILE"] = aws_profile
+
+                if request.github_enabled and request.github_repo_url:
+                    workspace_dir = get_workspace_dir()
+                    github_pat = read_github_pat_from_workspace(workspace_dir)
+                    github_setup = generate_github_clone_setup(
+                        repo_url=request.github_repo_url,
+                        directory=request.github_directory,
+                        github_pat=github_pat,
+                    )
+                    setup_commands.append(github_setup)
+
+                if request.setup:
+                    setup_commands.append(request.setup)
+
+                final_setup = ";".join(setup_commands) if setup_commands else None
+
+                # Store child job data
+                child_job_data = {
+                    "parent_sweep_job_id": str(parent_job_id),
+                    "sweep_run_index": i + 1,
+                    "sweep_total": total_configs,
+                    "sweep_params": config_params,
+                    "task_name": f"{request.task_name or 'Task'} (Sweep {i + 1}/{total_configs})"
+                    if request.task_name
+                    else None,
+                    "command": request.command,
+                    "cluster_name": formatted_cluster_name,
+                    "subtype": request.subtype,
+                    "cpus": request.cpus,
+                    "memory": request.memory,
+                    "disk_space": request.disk_space,
+                    "accelerators": request.accelerators,
+                    "num_nodes": request.num_nodes,
+                    "setup": final_setup,
+                    "env_vars": env_vars if env_vars else None,
+                    "file_mounts": request.file_mounts or None,
+                    "parameters": merged_params or None,
+                    "provider_id": provider.id,
+                    "provider_type": provider.type,
+                    "provider_name": provider_display_name,
+                    "user_info": user_info or None,
+                    "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                }
+
+                for key, value in child_job_data.items():
+                    if value is not None:
+                        job_service.job_update_job_data_insert_key_value(
+                            child_job_id, key, value, request.experiment_id
+                        )
+
+                # Prepare cluster config
+                disk_size = None
+                if request.disk_space:
+                    try:
+                        disk_size = int(request.disk_space)
+                    except (TypeError, ValueError):
+                        disk_size = None
+
+                cluster_config = ClusterConfig(
+                    cluster_name=formatted_cluster_name,
+                    provider_name=provider_display_name,
+                    provider_id=provider.id,
+                    command=request.command,
+                    setup=final_setup,
+                    env_vars=env_vars,
+                    cpus=request.cpus,
+                    memory=request.memory,
+                    accelerators=request.accelerators,
+                    num_nodes=request.num_nodes,
+                    disk_size=disk_size,
+                    file_mounts=request.file_mounts or {},
+                    provider_config={"requested_disk_space": request.disk_space},
+                )
+
+                # Launch cluster for child job
+                try:
+                    launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
+
+                    if isinstance(launch_result, dict):
+                        job_service.job_update_job_data_insert_key_value(
+                            child_job_id,
+                            "provider_launch_result",
+                            launch_result,
+                            request.experiment_id,
+                        )
+                        request_id = launch_result.get("request_id")
+                        if request_id:
+                            job_service.job_update_job_data_insert_key_value(
+                                child_job_id,
+                                "orchestrator_request_id",
+                                request_id,
+                                request.experiment_id,
+                            )
+
+                    # Update child job status to LAUNCHING
+                    await job_service.job_update_status(child_job_id, "LAUNCHING", request.experiment_id)
+                    child_job_ids.append(str(child_job_id))
+                    print(f"Launched sweep child job {i + 1}/{total_configs}: {child_job_id}")
+
+                except Exception as exc:
+                    print(f"Failed to launch cluster for sweep child {i + 1}: {exc}")
+                    await job_service.job_update_status(
+                        child_job_id,
+                        "FAILED",
+                        request.experiment_id,
+                        error_msg=str(exc),
+                    )
+                    child_job_ids.append(str(child_job_id))
+
+            # Update parent job with child job IDs and running count
+            job_service.job_update_job_data_insert_key_value(
+                parent_job_id, "sweep_job_ids", child_job_ids, request.experiment_id
+            )
+            job_service.job_update_job_data_insert_key_value(
+                parent_job_id, "sweep_running", len(child_job_ids), request.experiment_id
+            )
+
+            print(f"Completed launching {len(child_job_ids)} child jobs for sweep {parent_job_id}")
+    finally:
+        # Clear org context after background task completes
+        set_current_org_id(None)
+        if lab_set_org_id is not None:
+            lab_set_org_id(None)
+
+
 @router.post("/{provider_id}/tasks/launch")
 async def launch_task_on_provider(
     provider_id: str,
@@ -713,8 +1049,59 @@ async def launch_task_on_provider(
     """
     Create a REMOTE job and launch a provider-backed cluster.
     Mirrors the legacy /remote/launch flow but routes through providers.
+
+    If run_sweeps=True and sweep_config is provided, creates a parent SWEEP job
+    and launches multiple child REMOTE jobs with different parameter combinations.
     """
 
+    # Check if sweeps are enabled
+    if request.run_sweeps and request.sweep_config:
+        from itertools import product
+
+        # Generate all parameter combinations to calculate total
+        param_names = list(request.sweep_config.keys())
+        param_values = [request.sweep_config[name] for name in param_names]
+        configs = list(product(*param_values))
+        total_configs = len(configs)
+
+        # Create parent job immediately (fast operation)
+        parent_job_id = await _create_sweep_parent_job(
+            provider_id=provider_id,
+            request=request,
+            user_and_team=user_and_team,
+            session=session,
+            sweep_config=request.sweep_config,
+            sweep_metric=request.sweep_metric or "eval/loss",
+            lower_is_better=request.lower_is_better if request.lower_is_better is not None else True,
+            total_configs=total_configs,
+        )
+
+        # Launch child jobs in the background using asyncio.create_task
+        # This runs concurrently but still within the request context
+        import asyncio
+
+        asyncio.create_task(
+            _launch_sweep_jobs(
+                provider_id=provider_id,
+                request=request,
+                user_and_team=user_and_team,
+                base_parameters=request.parameters or {},
+                sweep_config=request.sweep_config,
+                sweep_metric=request.sweep_metric or "eval/loss",
+                lower_is_better=request.lower_is_better if request.lower_is_better is not None else True,
+                parent_job_id=parent_job_id,
+            )
+        )
+
+        return {
+            "status": "success",
+            "job_id": parent_job_id,
+            "job_type": "SWEEP",
+            "total_configs": total_configs,
+            "message": f"Sweep created with {total_configs} configurations. Child jobs are being launched in the background.",
+        }
+
+    # Normal single job launch (existing logic)
     team_id = user_and_team["team_id"]
     user = user_and_team["user"]
 
@@ -810,6 +1197,7 @@ async def launch_task_on_provider(
         "setup": final_setup,
         "env_vars": env_vars if env_vars else None,
         "file_mounts": request.file_mounts or None,
+        "parameters": request.parameters or None,
         "provider_id": provider.id,
         "provider_type": provider.type,
         "provider_name": provider_display_name,
@@ -984,6 +1372,264 @@ async def check_provider_job_status(
             "current_status": "LAUNCHING",
             "message": "Jobs still running on provider",
         }
+
+
+async def _update_sweep_job_status(job_id: str, experiment_id: str):
+    """
+    Helper function to update a single sweep job's status by checking child jobs.
+    Returns the updated job data.
+    """
+    job = job_service.job_get(job_id)
+    if not job:
+        return None
+
+    if job.get("type") != "SWEEP":
+        return None
+
+    job_data = job.get("job_data", {}) or {}
+    if not job_data.get("sweep_parent"):
+        return None
+
+    sweep_job_ids = job_data.get("sweep_job_ids", [])
+    sweep_total = job_data.get("sweep_total", 0)
+
+    # Poll all child jobs to get their status
+    completed_count = 0
+    running_count = 0
+    failed_count = 0
+    queued_count = 0
+
+    for child_job_id in sweep_job_ids:
+        child_job = job_service.job_get(child_job_id)
+        if not child_job:
+            continue
+
+        child_status = child_job.get("status", "")
+        if child_status == "COMPLETE":
+            completed_count += 1
+        elif child_status == "FAILED":
+            failed_count += 1
+        elif child_status in ("RUNNING", "LAUNCHING"):
+            running_count += 1
+        elif child_status == "QUEUED":
+            queued_count += 1
+
+    # Update parent job with current counts
+    job_service.job_update_job_data_insert_key_value(job_id, "sweep_completed", completed_count, experiment_id)
+    job_service.job_update_job_data_insert_key_value(job_id, "sweep_running", running_count, experiment_id)
+    job_service.job_update_job_data_insert_key_value(job_id, "sweep_failed", failed_count, experiment_id)
+    job_service.job_update_job_data_insert_key_value(job_id, "sweep_queued", queued_count, experiment_id)
+
+    # Calculate progress percentage
+    progress = int((completed_count / sweep_total * 100)) if sweep_total > 0 else 0
+    job_service.job_update_sweep_progress(job_id, progress, experiment_id)
+
+    # Check if all jobs are done
+    all_complete = completed_count + failed_count == sweep_total
+    if all_complete and job.get("status") == "RUNNING":
+        # Mark parent as complete if all children are done
+        job_service.job_update_job_data_insert_key_value(
+            job_id, "end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), experiment_id
+        )
+        await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
+
+    # Get the updated job data after status updates
+    return job_service.job_get(job_id)
+
+
+@router.get("/jobs/sweep-status")
+async def check_sweep_status_all(
+    experiment_id: str = Query(..., description="Experiment ID to fetch all SWEEP jobs for"),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Fetch all SWEEP jobs for an experiment, update their status, and return the list.
+    Only updates status for running/launching jobs.
+    """
+    # Get all SWEEP jobs for this experiment
+    all_sweep_jobs = job_service.jobs_get_all(experiment_id=experiment_id, type="SWEEP", status="")
+
+    # Update status for each running/launching sweep job
+    updated_jobs = []
+    for job in all_sweep_jobs:
+        job_id_str = str(job.get("id", ""))
+        job_status = job.get("status", "")
+
+        # Only update status for running/launching jobs
+        if job_status in ("RUNNING", "LAUNCHING"):
+            updated_job = await _update_sweep_job_status(job_id_str, experiment_id)
+            if updated_job:
+                updated_jobs.append(updated_job)
+            else:
+                # If update failed, include original job
+                updated_jobs.append(job)
+        else:
+            # Include non-running jobs as-is
+            updated_jobs.append(job)
+
+    return {
+        "status": "success",
+        "experiment_id": experiment_id,
+        "jobs": updated_jobs,
+        "total": len(updated_jobs),
+    }
+
+
+@router.get("/jobs/{job_id}/sweep-status")
+async def check_sweep_status(
+    job_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Check status of a specific sweep job by polling all child jobs and updating parent job status.
+    Returns current sweep status with counts and the updated job data.
+    """
+    job = job_service.job_get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.get("type") != "SWEEP":
+        raise HTTPException(status_code=400, detail="Job is not a SWEEP job")
+
+    job_data = job.get("job_data", {}) or {}
+    if not job_data.get("sweep_parent"):
+        raise HTTPException(status_code=400, detail="Job is not a sweep parent")
+
+    exp_id = job.get("experiment_id")
+    updated_job = await _update_sweep_job_status(job_id, exp_id)
+
+    if not updated_job:
+        raise HTTPException(status_code=500, detail="Failed to update sweep job status")
+
+    # Extract status info from updated job
+    updated_job_data = updated_job.get("job_data", {}) or {}
+
+    return {
+        "status": "success",
+        "job_id": job_id,
+        "sweep_total": updated_job_data.get("sweep_total", 0),
+        "sweep_completed": updated_job_data.get("sweep_completed", 0),
+        "sweep_running": updated_job_data.get("sweep_running", 0),
+        "sweep_failed": updated_job_data.get("sweep_failed", 0),
+        "sweep_queued": updated_job_data.get("sweep_queued", 0),
+        "sweep_progress": updated_job_data.get("sweep_progress", 0),
+        "all_complete": updated_job_data.get("sweep_completed", 0) + updated_job_data.get("sweep_failed", 0)
+        == updated_job_data.get("sweep_total", 0),
+        "job": updated_job,  # Include the full updated job data
+    }
+
+
+@router.get("/jobs/{job_id}/sweep-results")
+async def get_sweep_results(
+    job_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get aggregated results from all child jobs in a sweep.
+    Extracts metrics from each child job and determines the best configuration.
+    """
+
+    # Get the parent sweep job
+    job = job_service.job_get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.get("type") != "SWEEP":
+        raise HTTPException(status_code=400, detail="Job is not a SWEEP job")
+
+    job_data = job.get("job_data", {}) or {}
+    if not job_data.get("sweep_parent"):
+        raise HTTPException(status_code=400, detail="Job is not a sweep parent")
+
+    experiment_id = job.get("experiment_id")
+    sweep_job_ids = job_data.get("sweep_job_ids", [])
+    sweep_metric = job_data.get("sweep_metric", "eval/loss")
+    lower_is_better = job_data.get("lower_is_better", True)
+    sweep_config = job_data.get("sweep_config", {})
+
+    # Collect results from all child jobs
+    results = []
+    best_metric_value = float("inf") if lower_is_better else float("-inf")
+    best_config = None
+    best_job_id = None
+
+    for child_job_id in sweep_job_ids:
+        child_job = job_service.job_get(child_job_id)
+        if not child_job:
+            continue
+
+        child_job_data = child_job.get("job_data", {}) or {}
+        sweep_params = child_job_data.get("sweep_params", {})
+        sweep_run_index = child_job_data.get("sweep_run_index", 0)
+        child_status = child_job.get("status", "")
+
+        # Try to extract metric from job_data
+        # Check for score field (from lab.finish(score={...}))
+        metric_value = None
+        metrics = {}
+
+        if "score" in child_job_data:
+            score = child_job_data["score"]
+            if isinstance(score, dict):
+                metrics = score
+                metric_value = score.get(sweep_metric)
+            elif isinstance(score, (int, float)):
+                metric_value = score
+                metrics = {sweep_metric: score}
+
+        # Fallback: check completion_details for metrics
+        if metric_value is None and "completion_details" in child_job_data:
+            completion_details = child_job_data["completion_details"]
+            if isinstance(completion_details, dict) and sweep_metric in completion_details:
+                metric_value = completion_details[sweep_metric]
+                metrics = {sweep_metric: metric_value}
+
+        result_entry = {
+            "job_id": child_job_id,
+            "run_index": sweep_run_index,
+            "config": sweep_params,
+            "status": child_status,
+            "metrics": metrics,
+            "metric_value": metric_value,
+        }
+        results.append(result_entry)
+
+        # Track best configuration
+        if metric_value is not None and child_status == "COMPLETE":
+            is_better = (lower_is_better and metric_value < best_metric_value) or (
+                not lower_is_better and metric_value > best_metric_value
+            )
+            if is_better:
+                best_metric_value = metric_value
+                best_config = sweep_params.copy()
+                best_job_id = child_job_id
+
+    # Sort results by run_index
+    results.sort(key=lambda x: x["run_index"])
+
+    # Build aggregated results
+    aggregated_results = {
+        "sweep_config": sweep_config,
+        "sweep_metric": sweep_metric,
+        "lower_is_better": lower_is_better,
+        "results": results,
+        "best_config": best_config,
+        "best_metric": {sweep_metric: best_metric_value}
+        if best_metric_value != float("inf") and best_metric_value != float("-inf")
+        else None,
+        "best_job_id": best_job_id,
+    }
+
+    # Store results in parent job
+    job_service.job_update_job_data_insert_key_value(job_id, "sweep_results", aggregated_results, experiment_id)
+
+    return {
+        "status": "success",
+        "data": aggregated_results,
+    }
 
 
 @router.post("/{provider_id}/clusters/{cluster_name}/stop")

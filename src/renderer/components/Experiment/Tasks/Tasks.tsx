@@ -24,6 +24,7 @@ import ViewArtifactsModal from '../Train/ViewArtifactsModal';
 import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
+import ViewSweepResultsModal from './ViewSweepResultsModal';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -43,6 +44,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [viewArtifactsFromJob, setViewArtifactsFromJob] = useState(-1);
   const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
+  const [viewSweepResultsFromJob, setViewSweepResultsFromJob] = useState(-1);
   const [viewEvalResultsFromJob, setViewEvalResultsFromJob] = useState(-1);
   const [interactiveJobForModal, setInteractiveJobForModal] = useState(-1);
   const [previewDatasetModal, setPreviewDatasetModal] = useState<{
@@ -143,9 +145,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     setTaskBeingEdited(null);
   };
 
-  // Fetch jobs with automatic polling
+  // Fetch REMOTE jobs with automatic polling
   const {
-    data: jobs,
+    data: jobsRemote,
+    isError: jobsIsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
   } = useSWR(
@@ -169,9 +172,43 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     },
   );
 
+  // Fetch SWEEP jobs using sweep-status endpoint (which also updates their status)
+  const { data: sweepStatusData, mutate: jobsSweepMutate } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.ComputeProvider.CheckSweepStatus(experimentInfo.id)
+      : null,
+    fetcher,
+    {
+      refreshInterval: 3000,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      refreshWhenHidden: true,
+      refreshWhenOffline: false,
+    },
+  );
+
+  // Extract SWEEP jobs from the sweep-status response
+  const jobsSweep = useMemo(() => {
+    if (
+      sweepStatusData?.status === 'success' &&
+      Array.isArray(sweepStatusData.jobs)
+    ) {
+      return sweepStatusData.jobs;
+    }
+    return [];
+  }, [sweepStatusData]);
+
+  // Combine REMOTE and SWEEP jobs (SWEEP jobs first)
+  const jobs = useMemo(() => {
+    const remoteJobs = Array.isArray(jobsRemote) ? jobsRemote : [];
+    const sweepJobs = Array.isArray(jobsSweep) ? jobsSweep : [];
+    return [...sweepJobs, ...remoteJobs];
+  }, [jobsRemote, jobsSweep]);
+
   // Fetch tasks with useSWR
   const {
     data: allTasks,
+    isError: tasksIsError,
     isLoading: tasksIsLoading,
     mutate: tasksMutate,
   } = useSWR(
@@ -238,6 +275,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
     return () => clearInterval(interval);
   }, [jobs, fetchWithAuth, jobsMutate]);
+
+  // Note: SWEEP job status is automatically updated when fetching via sweep-status endpoint
+  // No separate status check needed - the endpoint updates and returns all SWEEP jobs
 
   const loading = tasksIsLoading || jobsIsLoading;
 
@@ -447,10 +487,17 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         num_nodes: data.num_nodes || undefined,
         setup: data.setup || undefined,
         env_vars: data.env_vars || undefined,
+        parameters: data.parameters || undefined,
         file_mounts: data.file_mounts || undefined,
         github_enabled: data.github_enabled || undefined,
         github_repo_url: data.github_repo_url || undefined,
         github_directory: data.github_directory || undefined,
+        run_sweeps: data.run_sweeps || undefined,
+        sweep_config: data.sweep_config || undefined,
+        sweep_metric:
+          data.sweep_metric || (data.run_sweeps ? 'eval/loss' : undefined),
+        lower_is_better:
+          data.lower_is_better !== undefined ? data.lower_is_better : undefined,
       };
 
       config.provider_id = providerMeta.id;
@@ -662,11 +709,18 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         num_nodes: cfg.num_nodes,
         setup: cfg.setup,
         env_vars: cfg.env_vars || {},
+        parameters: cfg.parameters || undefined,
         file_mounts: cfg.file_mounts,
         provider_name: providerMeta.name,
         github_enabled: cfg.github_enabled,
         github_repo_url: cfg.github_repo_url,
         github_directory: cfg.github_directory,
+        run_sweeps: cfg.run_sweeps || undefined,
+        sweep_config: cfg.sweep_config || undefined,
+        sweep_metric:
+          cfg.sweep_metric || (cfg.run_sweeps ? 'eval/loss' : undefined),
+        lower_is_better:
+          cfg.lower_is_better !== undefined ? cfg.lower_is_better : undefined,
       };
 
       const response = await fetchWithAuth(
@@ -829,12 +883,19 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
               setViewOutputFromSweepJob(true);
               setViewOutputFromJob(parseInt(jobId));
             }}
+            onViewSweepResults={(jobId) => {
+              setViewSweepResultsFromJob(parseInt(jobId));
+            }}
             onViewInteractive={(jobId) =>
               setInteractiveJobForModal(parseInt(jobId))
             }
           />
         )}
       </Sheet>
+      <ViewSweepResultsModal
+        jobId={viewSweepResultsFromJob}
+        setJobId={(jobId: number) => setViewSweepResultsFromJob(jobId)}
+      />
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={(jobId: number) => setViewOutputFromJob(jobId)}
