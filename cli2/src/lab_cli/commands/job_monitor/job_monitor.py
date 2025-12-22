@@ -17,6 +17,7 @@ from textual.widgets import (
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual import work
+from textual.reactive import reactive
 
 from lab_cli.util import api
 from lab_cli.util.config import get_current_experiment, set_config
@@ -58,6 +59,13 @@ class JobJsonModal(ModalScreen):
 
 
 class ExperimentSelectModal(ModalScreen):
+    """
+    A modal that dynamically mounts the Select widget only when data is ready.
+    This prevents rendering glitches where the value is set but not shown.
+    """
+
+    raw_experiments: reactive[list[dict] | None] = reactive(None)
+
     DEFAULT_CSS = """
     ExperimentSelectModal {
         align: center middle;
@@ -70,28 +78,120 @@ class ExperimentSelectModal(ModalScreen):
         border: round $primary;
         background: $panel;
     }
+    #dialog-body {
+        height: auto;
+        min-height: 3;
+        align: center middle;
+        margin-bottom: 1;
+    }
     """
 
     BINDINGS = [("escape", "dismiss", "Close")]
 
+    def __init__(self) -> None:
+        super().__init__()
+        raw_current = get_current_experiment()
+        self.current_exp_config = str(raw_current) if raw_current is not None else None
+        self.selected_value: str | None = None
+
     def compose(self) -> ComposeResult:
         with Vertical(id="experiment-modal"):
             yield Label("[b]Choose an experiment[/b]")
-            yield Select(
-                id="experiment-select",
-                options=[
-                    ("Alpha", "alpha"),
-                    ("Beta", "beta"),
-                    ("Gamma", "gamma"),
-                ],
-            )
+
+            # 1. A dedicated container for the dynamic content (Loader OR Select)
+            with Vertical(id="dialog-body"):
+                yield LoadingIndicator()
+
+            yield Button("Set Experiment", id="btn-apply-experiment", variant="primary", disabled=True)
+            yield Static("", id="experiment-feedback")
+
+    def on_mount(self) -> None:
+        self.fetch_experiments()
+
+    @work(thread=True)
+    def fetch_experiments(self) -> None:
+        try:
+            response = api.get("/experiment/")
+            if response.status_code == 200:
+                data = response.json()
+                # SAFE: Update reactive variable on the main thread
+                self.app.call_from_thread(setattr, self, "raw_experiments", data)
+            else:
+                self.app.call_from_thread(self.notify, f"Error: {response.status_code}", severity="error")
+                self.app.call_from_thread(setattr, self, "raw_experiments", [])
+        except Exception:
+            self.app.call_from_thread(self.notify, "Failed to connect to API", severity="error")
+            self.app.call_from_thread(setattr, self, "raw_experiments", [])
+
+    def watch_raw_experiments(self, experiments: list[dict] | None) -> None:
+        """
+        Replaces the LoadingIndicator with a configured Select widget.
+        """
+        container = self.query_one("#dialog-body")
+        feedback = self.query_one("#experiment-feedback", Static)
+
+        # Do nothing if we are still in initial None state
+        if experiments is None:
+            return
+
+        # 1. Clear the Loading Indicator
+        container.remove_children()
+
+        # 2. Handle Empty Data
+        if not experiments:
+            feedback.update("[yellow]No experiments found.[/yellow]")
+            return
+
+        # 3. Build Options
+        options = []
+        for exp in experiments:
+            e_id = str(exp.get("id") or exp.get("name"))
+            name = str(exp.get("name") or e_id)
+            options.append((name, e_id))
+
+        # 4. Find the Match (The "Smart Match" logic)
+        target = self.current_exp_config
+        matched_value = None
+
+        if target:
+            # Try matching ID first
+            matched_value = next((val for _, val in options if val == target), None)
+            # Try matching Label second
+            if not matched_value:
+                matched_value = next((val for lbl, val in options if lbl == target), None)
+
+        # Fallback to first option if no match and no previous selection
+        if not matched_value and options:
+            matched_value = options[0][1]
+
+        # 5. Create and Mount the NEW Select Widget
+        # Passing `value` to __init__ guarantees it renders correctly.
+        select_widget = Select(
+            options,
+            value=matched_value,  # <--- Crucial: Set value at birth
+            id="experiment-select",
+            prompt="Select an experiment",
+        )
+
+        container.mount(select_widget)
+
+        # 6. Update Button State
+        if matched_value:
+            self.selected_value = matched_value
+            self.query_one("#btn-apply-experiment", Button).disabled = False
 
     def on_select_changed(self, event: Select.Changed) -> None:
-        set_config("current_experiment", event.value)
-        self.dismiss()
+        if event.value != Select.BLANK:
+            self.selected_value = str(event.value)
+            self.query_one("#btn-apply-experiment", Button).disabled = False
+        else:
+            self.query_one("#btn-apply-experiment", Button).disabled = True
 
-
-# ---------------------
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-apply-experiment" and self.selected_value:
+            set_config("current_experiment", self.selected_value)
+            self.app.on_experiment_changed()  # Notify the app of the change
+            self.dismiss()
 
 
 class JobListItem(ListItem):
@@ -182,7 +282,7 @@ class JobDetails(Vertical):
 
 
 class JobMonitorApp(App):
-    TITLE = "Transformer Lab"
+    TITLE = "Transformer Lab "
     SUB_TITLE = "Job Monitor"
     ENABLE_COMMAND_PALETTE = False
     CSS_PATH = "./styles.tcss"
@@ -207,13 +307,22 @@ class JobMonitorApp(App):
 
     def on_mount(self) -> None:
         self.theme = "nord"
-        self.load_jobs()
-
-    def action_refresh(self) -> None:
+        self.update_current_experiment()
         self.load_jobs()
 
     def action_set_experiment(self) -> None:
         self.push_screen(ExperimentSelectModal())
+
+    def update_current_experiment(self) -> None:
+        """Update the title and subtitle with the current experiment."""
+        current_experiment = get_current_experiment()
+        experiment_name = current_experiment if current_experiment else "No Experiment"
+        self.sub_title = f"Job Monitor - Experiment {experiment_name}"
+
+    def on_experiment_changed(self) -> None:
+        """React to experiment changes and update the title and subtitle."""
+        self.update_current_experiment()
+        self.load_jobs()
 
     @work(thread=True)
     def load_jobs(self) -> None:
