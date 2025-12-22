@@ -1,7 +1,7 @@
 """Pydantic schemas for provider management."""
 
 from pydantic import BaseModel, Field
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 from transformerlab.shared.models.models import ProviderType
 
@@ -86,3 +86,59 @@ def mask_sensitive_config(config: Dict[str, Any], provider_type: str) -> Dict[st
         masked["secret"] = "***"
 
     return masked
+
+
+class ProviderTemplateLaunchRequest(BaseModel):
+    """Payload for launching a remote template via providers."""
+
+    experiment_id: str = Field(..., description="Experiment that owns the job")
+    task_name: Optional[str] = Field(None, description="Friendly task name")
+    cluster_name: Optional[str] = Field(None, description="Base cluster name, suffix is appended automatically")
+    command: str = Field(..., description="Command to execute on the cluster")
+    subtype: Optional[str] = Field(None, description="Optional subtype for filtering")
+    interactive_type: Optional[str] = Field(None, description="Interactive task type (e.g. vscode)")
+    cpus: Optional[str] = None
+    memory: Optional[str] = None
+    disk_space: Optional[str] = None
+    accelerators: Optional[str] = None
+    num_nodes: Optional[int] = None
+    setup: Optional[str] = None
+    env_vars: Dict[str, str] = Field(default_factory=dict, description="Environment variables as key-value pairs")
+    # File mounts: mapping of remote path -> local path
+    file_mounts: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="File mounts in the form {<remote_path>: <local_path>}",
+    )
+    parameters: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Task parameters (hyperparameters, config, etc.) that will be accessible via lab.get_config()",
+    )
+    provider_name: Optional[str] = None
+    github_enabled: Optional[bool] = None
+    github_repo_url: Optional[str] = None
+    github_directory: Optional[str] = None
+    # Sweep configuration
+    run_sweeps: Optional[bool] = Field(
+        default=False,
+        description="Enable parameter sweeps. When True, generates jobs for all parameter combinations in sweep_config.",
+    )
+    sweep_config: Optional[Dict[str, List[Any]]] = Field(
+        default=None,
+        description="Sweep configuration: parameter names mapped to lists of values to try. Example: {'learning_rate': ['1e-5', '3e-5'], 'batch_size': ['4', '8']}",
+    )
+    sweep_metric: Optional[str] = Field(
+        default="eval/loss",
+        description="Metric name to use for determining best configuration. Should match a metric logged by the task.",
+    )
+    lower_is_better: Optional[bool] = Field(
+        default=True,
+        description="Whether lower values of sweep_metric are better. If False, higher values are better.",
+    )
+
+
+class ProviderTemplateFileUploadResponse(BaseModel):
+    """Response for a single template file upload."""
+
+    status: str
+    stored_path: str
+    message: Optional[str] = None
