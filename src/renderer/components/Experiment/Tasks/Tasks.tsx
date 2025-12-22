@@ -447,17 +447,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   };
 
   const handleSubmit = async (data: any) => {
-    // Handle YAML mode - task was already created, just refresh
-    if (data._yamlMode) {
-      setModalOpen(false);
-      await templatesMutate();
-      addNotification({
-        type: 'success',
-        message: 'Task created successfully from YAML.',
-      });
-      return;
-    }
-
     if (!experimentInfo?.id) {
       addNotification({ type: 'warning', message: 'No experiment selected' });
       return;
