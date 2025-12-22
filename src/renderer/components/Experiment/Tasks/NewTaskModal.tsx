@@ -53,7 +53,10 @@ type ProviderOption = {
 type NewTaskModalProps = {
   open: boolean;
   onClose: () => void;
+  experimentId?: string; // Experiment ID to inject into YAML
   onSubmit: (data: {
+    _yamlMode?: boolean; // Flag to indicate YAML was sent directly
+    _yamlContent?: string; // YAML content if sent directly
     title: string;
     cluster_name: string;
     command: string;
@@ -121,6 +124,7 @@ async function fetchTaskJsonFromGitHub(
 export default function NewTaskModal({
   open,
   onClose,
+  experimentId,
   onSubmit,
   isSubmitting = false,
   providers,
@@ -174,6 +178,11 @@ export default function NewTaskModal({
   // Editor refs
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
+  const yamlEditorRef = useRef<any>(null);
+
+  // YAML/GUI mode toggle (default to YAML)
+  const [isYamlMode, setIsYamlMode] = useState(true);
+  const [yamlContent, setYamlContent] = useState('');
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -204,9 +213,12 @@ export default function NewTaskModal({
       setSweepParams([]);
       setSweepMetric('eval/loss');
       setLowerIsBetter(true);
+      setIsYamlMode(true);
+      setYamlContent(''); // Clear YAML - will be loaded from task.json or template
       try {
         setupEditorRef?.current?.setValue?.('');
         commandEditorRef?.current?.setValue?.('');
+        yamlEditorRef?.current?.setValue?.('');
       } catch (err) {
         // ignore
       }
@@ -215,8 +227,141 @@ export default function NewTaskModal({
       if (providers.length > 0 && !selectedProviderId) {
         setSelectedProviderId(providers[0].id);
       }
+      // Reset YAML content - will be loaded from task.json if available
+      setYamlContent('');
     }
   }, [open, providers]);
+
+  // Load YAML from task.json when it's available, or use template
+  useEffect(() => {
+    if (
+      open &&
+      currentPhase === 'task-config' &&
+      isYamlMode &&
+      !isLoadingTaskJson
+    ) {
+      // Only load if YAML content is empty (to avoid overwriting user edits)
+      // But allow loading when task.json data becomes available
+      if (taskJsonData && taskMode === 'github-with-json') {
+        // Convert task.json to YAML format
+        const taskToYaml = (task: any): string => {
+          const yamlData: any = {
+            task: {
+              name: task.name || task.title || 'my-task',
+            },
+          };
+
+          if (task.resources || task.cpus || task.memory) {
+            yamlData.task.resources = {};
+            if (task.resources?.compute_provider) {
+              yamlData.task.resources.compute_provider =
+                task.resources.compute_provider;
+            }
+            if (task.cpus) yamlData.task.resources.cpus = task.cpus;
+            if (task.memory) yamlData.task.resources.memory = task.memory;
+            if (task.disk_space)
+              yamlData.task.resources.disk_space = task.disk_space;
+            if (task.accelerators)
+              yamlData.task.resources.accelerators = task.accelerators;
+            if (task.num_nodes)
+              yamlData.task.resources.num_nodes = task.num_nodes;
+          }
+
+          if (task.env_vars) yamlData.task.envs = task.env_vars;
+          if (task.setup) yamlData.task.setup = task.setup;
+          if (task.command) yamlData.task.run = task.command;
+          // Always include GitHub repo info from current state if useGithub is true
+          if (useGithub && githubRepoUrl) {
+            yamlData.task.git_repo = githubRepoUrl;
+            if (githubDirectory) {
+              yamlData.task.git_repo_directory = githubDirectory;
+            }
+          } else if (task.github_repo_url) {
+            // Fallback to task.json data if available
+            yamlData.task.git_repo = task.github_repo_url;
+            if (task.github_directory) {
+              yamlData.task.git_repo_directory = task.github_directory;
+            }
+          }
+          if (task.parameters) yamlData.task.parameters = task.parameters;
+          if (task.run_sweeps && task.sweep_config) {
+            yamlData.task.sweeps = {
+              sweep_config: task.sweep_config,
+              sweep_metric: task.sweep_metric || 'eval/loss',
+              lower_is_better:
+                task.lower_is_better !== undefined
+                  ? task.lower_is_better
+                  : true,
+            };
+          }
+
+          // Convert to YAML string using the helper function
+          return convertToYamlString(yamlData);
+        };
+
+        const yamlFromTask = taskToYaml(taskJsonData);
+        setYamlContent(yamlFromTask);
+        // Update editor if mounted - use a longer delay to ensure editor is ready
+        setTimeout(() => {
+          if (yamlEditorRef.current) {
+            try {
+              yamlEditorRef.current.setValue(yamlFromTask);
+              // Force a layout update
+              yamlEditorRef.current.layout();
+            } catch (e) {
+              console.warn('Error updating YAML editor with task.json:', e);
+            }
+          }
+        }, 200);
+      } else if (
+        (taskMode === 'no-github' || taskMode === 'github-manual') &&
+        (!yamlContent || yamlContent.trim() === '')
+      ) {
+        // Use default template if no task.json and YAML is empty
+        // Include GitHub repo info if useGithub is true
+        const defaultYamlData: any = {
+          task: {
+            name: 'my-task',
+            resources: {
+              cpus: 2,
+              memory: 4,
+            },
+            run: 'echo hello',
+          },
+        };
+
+        // Add GitHub repo info if in GitHub mode
+        if (useGithub && githubRepoUrl) {
+          defaultYamlData.task.git_repo = githubRepoUrl;
+          if (githubDirectory) {
+            defaultYamlData.task.git_repo_directory = githubDirectory;
+          }
+        }
+
+        const defaultYaml = convertToYamlString(defaultYamlData);
+        setYamlContent(defaultYaml);
+        setTimeout(() => {
+          if (yamlEditorRef.current) {
+            try {
+              yamlEditorRef.current.setValue(defaultYaml);
+            } catch (e) {
+              // Editor might not be ready
+            }
+          }
+        }, 200);
+      }
+    }
+  }, [
+    open,
+    currentPhase,
+    isYamlMode,
+    taskJsonData,
+    taskMode,
+    isLoadingTaskJson,
+    useGithub,
+    githubRepoUrl,
+    githubDirectory,
+  ]);
 
   useEffect(() => {
     if (!providers.length) {
@@ -318,7 +463,7 @@ export default function NewTaskModal({
     setTaskMode,
   ]);
 
-  const handleNextPhase = () => {
+  const handleNextPhase = async () => {
     if (currentPhase === 'github-selection') {
       if (useGithub === true) {
         if (!githubRepoUrl.trim()) {
@@ -337,18 +482,25 @@ export default function NewTaskModal({
         setCurrentPhase('task-config');
       }
     } else if (currentPhase === 'task-config') {
-      // Save editor values to state before moving to next phase
-      try {
-        const setupValue = setupEditorRef?.current?.getValue?.();
-        const commandValue = commandEditorRef?.current?.getValue?.();
-        if (setupValue !== undefined) {
-          setSetup(setupValue);
+      // If in YAML mode, parse YAML first
+      if (isYamlMode) {
+        await parseYamlToForm();
+        // After parsing, switch to GUI mode to show the parsed values
+        setIsYamlMode(false);
+      } else {
+        // Save editor values to state before moving to next phase
+        try {
+          const setupValue = setupEditorRef?.current?.getValue?.();
+          const commandValue = commandEditorRef?.current?.getValue?.();
+          if (setupValue !== undefined) {
+            setSetup(setupValue);
+          }
+          if (commandValue !== undefined) {
+            setCommand(commandValue);
+          }
+        } catch (e) {
+          // Silently fail if editor not ready
         }
-        if (commandValue !== undefined) {
-          setCommand(commandValue);
-        }
-      } catch (e) {
-        // Silently fail if editor not ready
       }
       setCurrentPhase('provider-env');
     }
@@ -358,6 +510,12 @@ export default function NewTaskModal({
     if (currentPhase === 'task-config') {
       setCurrentPhase('github-selection');
       setTaskMode(null);
+      // Clear task.json data when going back, so it can be reloaded if repo changes
+      setTaskJsonData(null);
+      // Clear YAML content so it can be reloaded with new repo info
+      if (isYamlMode) {
+        setYamlContent('');
+      }
     } else if (currentPhase === 'provider-env') {
       setCurrentPhase('task-config');
     }
@@ -367,11 +525,68 @@ export default function NewTaskModal({
     e.preventDefault();
 
     if (currentPhase !== 'provider-env') {
-      handleNextPhase();
+      await handleNextPhase();
       return;
     }
 
-    // Validation
+    // If we're in YAML mode, send YAML directly to the endpoint
+    if (isYamlMode) {
+      if (!yamlContent.trim()) {
+        addNotification({
+          type: 'warning',
+          message: 'YAML content is required',
+        });
+        return;
+      }
+
+      if (!selectedProviderId) {
+        addNotification({
+          type: 'warning',
+          message: 'Select a provider before creating the task.',
+        });
+        return;
+      }
+
+      // Send YAML directly to the endpoint with experiment_id as query parameter
+      try {
+        const url = experimentId
+          ? `${chatAPI.Endpoints.Task.NewTemplate()}?experiment_id=${encodeURIComponent(experimentId)}`
+          : chatAPI.Endpoints.Task.NewTemplate();
+
+        const response = await chatAPI.authenticatedFetch(url, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'text/yaml',
+          },
+          body: yamlContent,
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          // Call onSubmit with a flag to indicate YAML was sent directly
+          // This allows the parent to handle refresh
+          onSubmit({
+            _yamlMode: true,
+            _yamlContent: yamlContent,
+          } as any);
+        } else {
+          const txt = await response.text();
+          addNotification({
+            type: 'danger',
+            message: `Failed to create task: ${txt}`,
+          });
+        }
+      } catch (error) {
+        console.error('Error creating task from YAML:', error);
+        addNotification({
+          type: 'danger',
+          message: 'Failed to create task from YAML.',
+        });
+      }
+      return;
+    }
+
+    // Validation for GUI mode
     if (!title.trim()) {
       addNotification({ type: 'warning', message: 'Title is required' });
       return;
@@ -734,6 +949,404 @@ export default function NewTaskModal({
     }
   }, [command]);
 
+  // Simple YAML string converter
+  const convertToYamlString = (obj: any, indent = 0): string => {
+    const indentStr = '  '.repeat(indent);
+    let result = '';
+
+    for (const [key, value] of Object.entries(obj)) {
+      if (
+        value === null ||
+        value === undefined ||
+        (typeof value === 'object' && Object.keys(value).length === 0)
+      )
+        continue;
+
+      if (typeof value === 'object' && !Array.isArray(value)) {
+        result += `${indentStr}${key}:\n${convertToYamlString(value, indent + 1)}`;
+      } else if (Array.isArray(value)) {
+        result += `${indentStr}${key}:\n`;
+        value.forEach((item) => {
+          if (typeof item === 'object') {
+            result += `${indentStr}  -\n${convertToYamlString(item, indent + 2)}`;
+          } else {
+            result += `${indentStr}  - ${item}\n`;
+          }
+        });
+      } else if (typeof value === 'string' && value.includes('\n')) {
+        result += `${indentStr}${key}: |\n${value
+          .split('\n')
+          .map((line: string) => `${indentStr}  ${line}`)
+          .join('\n')}\n`;
+      } else if (
+        typeof value === 'string' &&
+        (value.startsWith('"') || value.includes(':'))
+      ) {
+        result += `${indentStr}${key}: "${value.replace(/"/g, '\\"')}"\n`;
+      } else {
+        result += `${indentStr}${key}: ${value}\n`;
+      }
+    }
+
+    return result;
+  };
+
+  // Convert form data to YAML
+  const convertFormToYaml = () => {
+    const yamlData: any = {
+      task: {
+        name: title || 'untitled-task',
+      },
+    };
+
+    // Resources
+    if (selectedProviderId) {
+      const provider = providers.find((p) => p.id === selectedProviderId);
+      if (provider) {
+        yamlData.task.resources = {
+          compute_provider: provider.name,
+        };
+      }
+    }
+    if (cpus)
+      yamlData.task.resources = {
+        ...yamlData.task.resources,
+        cpus: parseInt(cpus) || cpus,
+      };
+    if (memory)
+      yamlData.task.resources = {
+        ...yamlData.task.resources,
+        memory: parseInt(memory) || memory,
+      };
+    if (diskSpace)
+      yamlData.task.resources = {
+        ...yamlData.task.resources,
+        disk_space: parseInt(diskSpace) || diskSpace,
+      };
+    if (accelerators)
+      yamlData.task.resources = { ...yamlData.task.resources, accelerators };
+    if (numNodes)
+      yamlData.task.resources = {
+        ...yamlData.task.resources,
+        num_nodes: parseInt(numNodes) || numNodes,
+      };
+
+    // Environment variables
+    const envs: Record<string, string> = {};
+    envVars.forEach(({ key, value }) => {
+      if (key.trim() && value.trim()) {
+        envs[key.trim()] = value.trim();
+      }
+    });
+    if (Object.keys(envs).length > 0) {
+      yamlData.task.envs = envs;
+    }
+
+    // Setup and run
+    const setupValue = setupEditorRef?.current?.getValue?.() || setup;
+    if (setupValue) yamlData.task.setup = setupValue;
+    const commandValue = commandEditorRef?.current?.getValue?.() || command;
+    if (commandValue) yamlData.task.run = commandValue;
+
+    // GitHub - always include if useGithub is true
+    if (useGithub && githubRepoUrl) {
+      yamlData.task.git_repo = githubRepoUrl;
+      if (githubDirectory) {
+        yamlData.task.git_repo_directory = githubDirectory;
+      }
+    }
+
+    // Parameters
+    const parametersObj: Record<string, any> = {};
+    parameters.forEach(({ key, value, valueType }) => {
+      if (key.trim()) {
+        if (valueType === 'json') {
+          try {
+            parametersObj[key.trim()] = JSON.parse(value);
+          } catch {
+            parametersObj[key.trim()] = value;
+          }
+        } else {
+          parametersObj[key.trim()] = value;
+        }
+      }
+    });
+    if (Object.keys(parametersObj).length > 0) {
+      yamlData.task.parameters = parametersObj;
+    }
+
+    // Sweeps
+    if (enableSweeps && sweepParams.length > 0) {
+      const sweepConfig: Record<string, string[]> = {};
+      sweepParams.forEach(({ paramName, values }) => {
+        if (paramName.trim() && values.trim()) {
+          sweepConfig[paramName.trim()] = values
+            .split(',')
+            .map((v) => v.trim())
+            .filter(Boolean);
+        }
+      });
+      if (Object.keys(sweepConfig).length > 0) {
+        yamlData.task.sweeps = {
+          sweep_config: sweepConfig,
+          sweep_metric: sweepMetric || 'eval/loss',
+          lower_is_better: lowerIsBetter,
+        };
+      }
+    }
+
+    // Convert to YAML string (simple manual conversion for now)
+    const yamlString = convertToYamlString(yamlData);
+    setYamlContent(yamlString);
+  };
+
+  // Parse YAML and populate form
+  const parseYamlToForm = async () => {
+    if (!yamlContent.trim()) {
+      addNotification({ type: 'warning', message: 'YAML content is empty' });
+      return;
+    }
+
+    try {
+      // Parse YAML on frontend - call backend /new_task endpoint to validate and get parsed data
+      // We'll send it as a test request to get the parsed structure, then use that to populate the form
+      // Actually, let's parse it directly using a simple approach that works for our structure
+      const parseYaml = (yamlStr: string): any => {
+        // Use a simple recursive descent parser for basic YAML structure
+        const lines = yamlStr.split('\n');
+        const result: any = {};
+        const stack: Array<{ obj: any; level: number }> = [
+          { obj: result, level: -1 },
+        ];
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const trimmed = line.trim();
+
+          // Skip empty lines and comments
+          if (!trimmed || trimmed.startsWith('#')) continue;
+
+          // Calculate indent level (assuming 2 spaces per level)
+          const indent = line.length - line.trimStart().length;
+          const level = Math.floor(indent / 2);
+
+          // Pop stack until we're at the right level
+          while (stack.length > 1 && stack[stack.length - 1].level >= level) {
+            stack.pop();
+          }
+
+          const current = stack[stack.length - 1].obj;
+
+          // Check if this is a key-value pair or a nested object
+          if (trimmed.endsWith(':')) {
+            // Nested object
+            const key = trimmed.slice(0, -1).trim();
+            const newObj: any = {};
+            current[key] = newObj;
+            stack.push({ obj: newObj, level });
+          } else {
+            // Key-value pair
+            const colonIndex = trimmed.indexOf(':');
+            if (colonIndex > 0) {
+              const key = trimmed.slice(0, colonIndex).trim();
+              let value: any = trimmed.slice(colonIndex + 1).trim();
+
+              // Remove quotes
+              if (
+                (value.startsWith('"') && value.endsWith('"')) ||
+                (value.startsWith("'") && value.endsWith("'"))
+              ) {
+                value = value.slice(1, -1);
+              }
+
+              // Try to parse as number or boolean
+              if (value === 'true') value = true;
+              else if (value === 'false') value = false;
+              else if (value === 'null') value = null;
+              else if (/^-?\d+$/.test(value)) value = parseInt(value, 10);
+              else if (/^-?\d*\.\d+$/.test(value)) value = parseFloat(value);
+
+              current[key] = value;
+            }
+          }
+        }
+
+        return result;
+      };
+
+      const yamlData = parseYaml(yamlContent);
+
+      if (!yamlData || !yamlData.task) {
+        throw new Error("YAML must contain a 'task' key");
+      }
+
+      const taskYaml = yamlData.task;
+      const taskData: any = {};
+
+      // Basic fields
+      if (taskYaml.name) {
+        taskData.name = taskYaml.name;
+      }
+
+      // Resources
+      if (taskYaml.resources) {
+        const resources = taskYaml.resources;
+        if (resources.compute_provider) {
+          taskData.provider_name = resources.compute_provider;
+        }
+        if (resources.cpus !== undefined) {
+          taskData.cpus = String(resources.cpus);
+        }
+        if (resources.memory !== undefined) {
+          taskData.memory = String(resources.memory);
+        }
+        if (resources.disk_space !== undefined) {
+          taskData.disk_space = String(resources.disk_space);
+        }
+        if (resources.accelerators) {
+          taskData.accelerators = resources.accelerators;
+        }
+        if (resources.num_nodes !== undefined) {
+          taskData.num_nodes = resources.num_nodes;
+        }
+      }
+
+      // Environment variables
+      if (taskYaml.envs) {
+        taskData.env_vars = taskYaml.envs;
+      }
+
+      // Setup and run commands
+      if (taskYaml.setup) {
+        taskData.setup = String(taskYaml.setup);
+      }
+      if (taskYaml.run) {
+        taskData.command = String(taskYaml.run);
+      }
+
+      // GitHub
+      if (taskYaml.git_repo) {
+        taskData.github_repo_url = String(taskYaml.git_repo);
+      }
+      if (taskYaml.git_repo_directory) {
+        taskData.github_directory = String(taskYaml.git_repo_directory);
+      }
+
+      // Parameters
+      if (taskYaml.parameters) {
+        taskData.parameters = taskYaml.parameters;
+      }
+
+      // Sweeps
+      if (taskYaml.sweeps) {
+        const sweeps = taskYaml.sweeps;
+        taskData.run_sweeps = true;
+        if (sweeps.sweep_config) {
+          taskData.sweep_config = sweeps.sweep_config;
+        }
+        if (sweeps.sweep_metric) {
+          taskData.sweep_metric = String(sweeps.sweep_metric);
+        }
+        if (sweeps.lower_is_better !== undefined) {
+          taskData.lower_is_better = Boolean(sweeps.lower_is_better);
+        }
+      }
+
+      // Populate form fields
+      if (taskData.name) setTitle(taskData.name);
+      if (taskData.cluster_name) setClusterName(taskData.cluster_name);
+      if (taskData.command) setCommand(taskData.command);
+      if (taskData.setup) setSetup(taskData.setup);
+      if (taskData.cpus) setCpus(String(taskData.cpus));
+      if (taskData.memory) setMemory(String(taskData.memory));
+      if (taskData.disk_space) setDiskSpace(String(taskData.disk_space));
+      if (taskData.accelerators) setAccelerators(taskData.accelerators);
+      if (taskData.num_nodes) setNumNodes(String(taskData.num_nodes));
+      if (taskData.github_repo_url) setGithubRepoUrl(taskData.github_repo_url);
+      if (taskData.github_directory)
+        setGithubDirectory(taskData.github_directory);
+
+      // Environment variables
+      if (taskData.env_vars && typeof taskData.env_vars === 'object') {
+        const envVarsArray = Object.entries(taskData.env_vars).map(
+          ([key, value]) => ({
+            key,
+            value: String(value),
+          }),
+        );
+        setEnvVars(
+          envVarsArray.length > 0 ? envVarsArray : [{ key: '', value: '' }],
+        );
+      }
+
+      // Parameters
+      if (taskData.parameters && typeof taskData.parameters === 'object') {
+        const parametersArray = Object.entries(taskData.parameters).map(
+          ([key, value]) => {
+            let valueStr = '';
+            let valueType: 'string' | 'json' = 'string';
+            if (typeof value === 'object') {
+              valueStr = JSON.stringify(value, null, 2);
+              valueType = 'json';
+            } else {
+              valueStr = String(value);
+            }
+            return { key, value: valueStr, valueType };
+          },
+        );
+        setParameters(
+          parametersArray.length > 0
+            ? parametersArray
+            : [{ key: '', value: '', valueType: 'string' }],
+        );
+      }
+
+      // Provider - match by name and set provider_id (case-insensitive)
+      if (taskData.provider_name) {
+        const providerNameLower = taskData.provider_name.toLowerCase().trim();
+        const provider = providers.find(
+          (p) => p.name.toLowerCase().trim() === providerNameLower,
+        );
+        if (provider) {
+          setSelectedProviderId(provider.id);
+        } else {
+          addNotification({
+            type: 'warning',
+            message: `Provider "${taskData.provider_name}" not found. Please select a provider manually.`,
+          });
+        }
+      }
+
+      // Sweeps
+      if (taskData.run_sweeps) {
+        setEnableSweeps(true);
+        if (taskData.sweep_config) {
+          const sweepParamsArray = Object.entries(taskData.sweep_config).map(
+            ([paramName, values]) => ({
+              paramName,
+              values: Array.isArray(values)
+                ? values.join(', ')
+                : String(values),
+            }),
+          );
+          setSweepParams(sweepParamsArray);
+        }
+        if (taskData.sweep_metric) setSweepMetric(taskData.sweep_metric);
+        if (taskData.lower_is_better !== undefined)
+          setLowerIsBetter(taskData.lower_is_better);
+      }
+
+      addNotification({ type: 'success', message: 'YAML parsed successfully' });
+    } catch (error: any) {
+      console.error('Error parsing YAML:', error);
+      addNotification({
+        type: 'danger',
+        message:
+          error.message || 'Failed to parse YAML. Please check the format.',
+      });
+    }
+  };
+
   const renderPhaseContent = () => {
     switch (currentPhase) {
       case 'github-selection':
@@ -750,9 +1363,23 @@ export default function NewTaskModal({
                 const value = e.target.value;
                 setUseGithub(value === 'yes');
                 if (value === 'yes') {
-                  // Clear previous GitHub data
+                  // Clear previous GitHub data and task.json
                   setGithubRepoUrl('');
                   setGithubDirectory('');
+                  setTaskJsonData(null);
+                  setTaskMode(null);
+                  // Clear YAML if in YAML mode so it can reload
+                  if (isYamlMode) {
+                    setYamlContent('');
+                  }
+                } else {
+                  // Clear task.json when switching to no-github
+                  setTaskJsonData(null);
+                  setTaskMode(null);
+                  // Clear YAML if in YAML mode so it can reload
+                  if (isYamlMode) {
+                    setYamlContent('');
+                  }
                 }
               }}
             >
@@ -765,7 +1392,17 @@ export default function NewTaskModal({
                   <FormLabel>GitHub Repository URL</FormLabel>
                   <Input
                     value={githubRepoUrl}
-                    onChange={(e) => setGithubRepoUrl(e.target.value)}
+                    onChange={(e) => {
+                      const newUrl = e.target.value;
+                      setGithubRepoUrl(newUrl);
+                      // Clear task.json data when repo URL changes so it can be reloaded
+                      setTaskJsonData(null);
+                      setTaskMode(null);
+                      // Clear YAML if in YAML mode so it can reload
+                      if (isYamlMode) {
+                        setYamlContent('');
+                      }
+                    }}
                     placeholder="https://github.com/owner/repo.git"
                   />
                   <FormHelperText>
@@ -776,7 +1413,19 @@ export default function NewTaskModal({
                   <FormLabel>Directory Path (Optional)</FormLabel>
                   <Input
                     value={githubDirectory}
-                    onChange={(e) => setGithubDirectory(e.target.value)}
+                    onChange={(e) => {
+                      const newDir = e.target.value;
+                      setGithubDirectory(newDir);
+                      // Clear task.json data when directory changes so it can be reloaded
+                      if (githubRepoUrl) {
+                        setTaskJsonData(null);
+                        setTaskMode(null);
+                        // Clear YAML if in YAML mode so it can reload
+                        if (isYamlMode) {
+                          setYamlContent('');
+                        }
+                      }
+                    }}
                     placeholder="path/to/directory"
                   />
                   <FormHelperText>
@@ -789,252 +1438,349 @@ export default function NewTaskModal({
           </Stack>
         );
 
-      case 'task-json-selection':
-        return null;
-
       case 'task-config':
         return (
           <Stack spacing={3}>
-            <Typography level="title-lg">Task Configuration</Typography>
-            {useGithub && isLoadingTaskJson && (
-              <Stack
-                direction="row"
-                spacing={2}
-                alignItems="center"
-                sx={{ mt: 1 }}
-              >
-                <CircularProgress size="sm" />
-                <Typography level="body-sm">
-                  Loading task.json from GitHub...
-                </Typography>
-              </Stack>
-            )}
-            {taskMode === 'github-with-json' && (
-              <FormHelperText>
-                Configuration loaded from task.json. You can review and modify
-                these fields if needed.
-              </FormHelperText>
-            )}
-            {taskMode === 'github-manual' && (
-              <FormHelperText>
-                Configure your task settings. The GitHub repository will be
-                cloned during setup.
-              </FormHelperText>
-            )}
-            {taskMode === 'no-github' && (
-              <FormHelperText>
-                Configure your task settings and upload any required files.
-              </FormHelperText>
-            )}
-
-            <FormControl required>
-              <FormLabel>Title</FormLabel>
-              <Input
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  setClusterName(e.target.value || '');
-                }}
-                placeholder="Task title"
-                autoFocus
-              />
-            </FormControl>
-
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '16px',
-              }}
+            <Stack
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              justifyContent="space-between"
             >
-              <FormControl
-                sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
-              >
-                <FormLabel>CPUs</FormLabel>
-                <Input
-                  value={cpus}
-                  onChange={(e) => setCpus(e.target.value)}
-                  placeholder="e.g. 2"
-                />
-              </FormControl>
-
-              <FormControl
-                sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
-              >
-                <FormLabel>Memory (in GB)</FormLabel>
-                <Input
-                  value={memory}
-                  onChange={(e) => setMemory(e.target.value)}
-                  placeholder="e.g. 4"
-                />
-              </FormControl>
-
-              <FormControl
-                sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
-              >
-                <FormLabel>Disk Space (in GB)</FormLabel>
-                <Input
-                  value={diskSpace}
-                  onChange={(e) => setDiskSpace(e.target.value)}
-                  placeholder="e.g. 20"
-                />
-              </FormControl>
-            </div>
-
-            <FormControl>
-              <FormLabel>Accelerators per Node</FormLabel>
-              <Input
-                value={accelerators}
-                onChange={(e) => setAccelerators(e.target.value)}
-                placeholder="e.g. RTX3090:1 or H100:8"
-              />
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Number of Nodes</FormLabel>
-              <Input
-                type="number"
-                value={numNodes}
-                onChange={(e) => setNumNodes(e.target.value)}
-                placeholder="e.g. 1"
-              />
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Setup Command</FormLabel>
-              <div
-                data-form-type="other"
-                data-lpignore="true"
-                data-1p-ignore="true"
-                style={{ position: 'relative' }}
-              >
-                <Editor
-                  defaultLanguage="shell"
-                  theme="my-theme"
-                  height="6rem"
-                  options={{
-                    minimap: {
-                      enabled: false,
-                    },
-                    fontSize: 18,
-                    cursorStyle: 'block',
-                    wordWrap: 'on',
-                  }}
-                  onMount={handleSetupEditorDidMount}
-                />
-              </div>
-              <FormHelperText>
-                e.g. <code>pip install -r requirements.txt</code>
-              </FormHelperText>
-            </FormControl>
-
-            <FormControl required>
-              <FormLabel>Command</FormLabel>
-              <div
-                data-form-type="other"
-                data-lpignore="true"
-                data-1p-ignore="true"
-                style={{ position: 'relative' }}
-              >
-                <Editor
-                  defaultLanguage="shell"
-                  theme="my-theme"
-                  height="8rem"
-                  options={{
-                    minimap: {
-                      enabled: false,
-                    },
-                    fontSize: 18,
-                    cursorStyle: 'block',
-                    wordWrap: 'on',
-                  }}
-                  onMount={handleCommandEditorDidMount}
-                />
-              </div>
-              <FormHelperText>
-                e.g. <code>python train.py --epochs 10</code>
-              </FormHelperText>
-            </FormControl>
-
-            {taskMode === 'no-github' && (
-              <FormControl>
-                <FormLabel>File Mounts</FormLabel>
-                <FormHelperText>
-                  For each mount, choose a remote path and upload a file to be
-                  staged on the server.
-                </FormHelperText>
-                <Stack spacing={1} sx={{ mt: 1 }}>
-                  {fileMounts.map((fm, index) => (
-                    <Stack
-                      key={index}
-                      direction="row"
-                      spacing={1}
-                      alignItems="center"
-                      sx={{ flexWrap: 'wrap' }}
-                    >
-                      <Input
-                        placeholder="/remote/path/on/cluster"
-                        value={fm.remotePath}
-                        onChange={(e) => {
-                          const next = [...fileMounts];
-                          next[index].remotePath = e.target.value;
-                          setFileMounts(next);
-                        }}
-                        sx={{ flex: 1, minWidth: '200px' }}
-                      />
-                      <input
-                        type="file"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] || null;
-                          const next = [...fileMounts];
-                          next[index].file = file;
-                          setFileMounts(next);
-                        }}
-                      />
-                      <IconButton
-                        color="danger"
-                        variant="plain"
-                        onClick={() => {
-                          if (fileMounts.length === 1) {
-                            setFileMounts([
-                              {
-                                remotePath: '',
-                                file: null,
-                                uploading: false,
-                                storedPath: undefined,
-                              },
-                            ]);
-                          } else {
-                            setFileMounts(
-                              fileMounts.filter((_, i) => i !== index),
-                            );
-                          }
-                        }}
-                      >
-                        <Trash2Icon size={16} />
-                      </IconButton>
-                    </Stack>
-                  ))}
-                  <Button
-                    variant="outlined"
-                    size="sm"
-                    startDecorator={<PlusIcon size={16} />}
-                    onClick={() =>
-                      setFileMounts([
-                        ...fileMounts,
-                        {
-                          remotePath: '',
-                          file: null,
-                          uploading: false,
-                          storedPath: undefined,
-                        },
-                      ])
+              <Typography level="title-lg">Task Configuration</Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography level="body-sm">GUI</Typography>
+                <Switch
+                  checked={isYamlMode}
+                  onChange={(e) => {
+                    const newMode = e.target.checked;
+                    setIsYamlMode(newMode);
+                    if (newMode) {
+                      // Switching to YAML mode - convert form data to YAML
+                      convertFormToYaml();
+                    } else {
+                      // Switching to GUI mode - parse YAML and populate form
+                      parseYamlToForm();
                     }
+                  }}
+                />
+                <Typography level="body-sm">YAML</Typography>
+              </Stack>
+            </Stack>
+
+            {isYamlMode ? (
+              <FormControl>
+                <FormLabel>Task YAML Configuration</FormLabel>
+                {useGithub && isLoadingTaskJson ? (
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    alignItems="center"
+                    justifyContent="center"
+                    sx={{
+                      height: '500px',
+                      border: '1px solid var(--joy-palette-neutral-300)',
+                      borderRadius: '8px',
+                      bgcolor: 'background.level1',
+                    }}
                   >
-                    Add File Mount
-                  </Button>
-                </Stack>
+                    <CircularProgress size="sm" />
+                    <Typography level="body-sm">
+                      Loading task.json from GitHub...
+                    </Typography>
+                  </Stack>
+                ) : (
+                  <div
+                    style={{
+                      height: '500px',
+                      border: '1px solid var(--joy-palette-neutral-300)',
+                      borderRadius: '8px',
+                    }}
+                  >
+                    <Editor
+                      height="100%"
+                      defaultLanguage="yaml"
+                      value={yamlContent}
+                      onChange={(value) => setYamlContent(value || '')}
+                      onMount={(editor, monaco) => {
+                        try {
+                          yamlEditorRef.current = editor;
+                          setTheme(editor, monaco);
+                          // Set initial value if empty
+                          if (!yamlContent || yamlContent.trim() === '') {
+                            const defaultYaml =
+                              'task:\n  name: my-task\n  resources:\n    cpus: 2\n    memory: 4\n  run: "echo hello"';
+                            editor.setValue(defaultYaml);
+                            setYamlContent(defaultYaml);
+                          } else {
+                            // Ensure editor has the current content
+                            editor.setValue(yamlContent);
+                          }
+                        } catch (error) {
+                          console.error('Error setting up YAML editor:', error);
+                        }
+                      }}
+                      theme="my-theme"
+                      options={{
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        lineNumbers: 'on',
+                        scrollBeyondLastLine: false,
+                        automaticLayout: true,
+                        readOnly: isLoadingTaskJson, // Disable editing while loading
+                      }}
+                    />
+                  </div>
+                )}
+                <FormHelperText>
+                  {isLoadingTaskJson
+                    ? 'Loading task configuration from GitHub...'
+                    : 'Define your task configuration in YAML format. See documentation for structure.'}
+                </FormHelperText>
               </FormControl>
+            ) : (
+              <>
+                {useGithub && isLoadingTaskJson && (
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    alignItems="center"
+                    sx={{ mt: 1 }}
+                  >
+                    <CircularProgress size="sm" />
+                    <Typography level="body-sm">
+                      Loading task.json from GitHub...
+                    </Typography>
+                  </Stack>
+                )}
+                {taskMode === 'github-with-json' && (
+                  <FormHelperText>
+                    Configuration loaded from task.json. You can review and
+                    modify these fields if needed.
+                  </FormHelperText>
+                )}
+                {taskMode === 'github-manual' && (
+                  <FormHelperText>
+                    Configure your task settings. The GitHub repository will be
+                    cloned during setup.
+                  </FormHelperText>
+                )}
+                {taskMode === 'no-github' && (
+                  <FormHelperText>
+                    Configure your task settings and upload any required files.
+                  </FormHelperText>
+                )}
+
+                <FormControl required>
+                  <FormLabel>Title</FormLabel>
+                  <Input
+                    value={title}
+                    onChange={(e) => {
+                      setTitle(e.target.value);
+                      setClusterName(e.target.value || '');
+                    }}
+                    placeholder="Task title"
+                    autoFocus
+                  />
+                </FormControl>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '16px',
+                  }}
+                >
+                  <FormControl
+                    sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
+                  >
+                    <FormLabel>CPUs</FormLabel>
+                    <Input
+                      value={cpus}
+                      onChange={(e) => setCpus(e.target.value)}
+                      placeholder="e.g. 2"
+                    />
+                  </FormControl>
+
+                  <FormControl
+                    sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
+                  >
+                    <FormLabel>Memory (in GB)</FormLabel>
+                    <Input
+                      value={memory}
+                      onChange={(e) => setMemory(e.target.value)}
+                      placeholder="e.g. 4"
+                    />
+                  </FormControl>
+
+                  <FormControl
+                    sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
+                  >
+                    <FormLabel>Disk Space (in GB)</FormLabel>
+                    <Input
+                      value={diskSpace}
+                      onChange={(e) => setDiskSpace(e.target.value)}
+                      placeholder="e.g. 20"
+                    />
+                  </FormControl>
+                </div>
+
+                <FormControl>
+                  <FormLabel>Accelerators per Node</FormLabel>
+                  <Input
+                    value={accelerators}
+                    onChange={(e) => setAccelerators(e.target.value)}
+                    placeholder="e.g. RTX3090:1 or H100:8"
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Number of Nodes</FormLabel>
+                  <Input
+                    type="number"
+                    value={numNodes}
+                    onChange={(e) => setNumNodes(e.target.value)}
+                    placeholder="e.g. 1"
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Setup Command</FormLabel>
+                  <div
+                    data-form-type="other"
+                    data-lpignore="true"
+                    data-1p-ignore="true"
+                    style={{ position: 'relative' }}
+                  >
+                    <Editor
+                      defaultLanguage="shell"
+                      theme="my-theme"
+                      height="6rem"
+                      options={{
+                        minimap: {
+                          enabled: false,
+                        },
+                        fontSize: 18,
+                        cursorStyle: 'block',
+                        wordWrap: 'on',
+                      }}
+                      onMount={handleSetupEditorDidMount}
+                    />
+                  </div>
+                  <FormHelperText>
+                    e.g. <code>pip install -r requirements.txt</code>
+                  </FormHelperText>
+                </FormControl>
+
+                <FormControl required>
+                  <FormLabel>Command</FormLabel>
+                  <div
+                    data-form-type="other"
+                    data-lpignore="true"
+                    data-1p-ignore="true"
+                    style={{ position: 'relative' }}
+                  >
+                    <Editor
+                      defaultLanguage="shell"
+                      theme="my-theme"
+                      height="8rem"
+                      options={{
+                        minimap: {
+                          enabled: false,
+                        },
+                        fontSize: 18,
+                        cursorStyle: 'block',
+                        wordWrap: 'on',
+                      }}
+                      onMount={handleCommandEditorDidMount}
+                    />
+                  </div>
+                  <FormHelperText>
+                    e.g. <code>python train.py --epochs 10</code>
+                  </FormHelperText>
+                </FormControl>
+
+                {taskMode === 'no-github' && (
+                  <FormControl>
+                    <FormLabel>File Mounts</FormLabel>
+                    <FormHelperText>
+                      For each mount, choose a remote path and upload a file to
+                      be staged on the server.
+                    </FormHelperText>
+                    <Stack spacing={1} sx={{ mt: 1 }}>
+                      {fileMounts.map((fm, index) => (
+                        <Stack
+                          key={index}
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+                          sx={{ flexWrap: 'wrap' }}
+                        >
+                          <Input
+                            placeholder="/remote/path/on/cluster"
+                            value={fm.remotePath}
+                            onChange={(e) => {
+                              const next = [...fileMounts];
+                              next[index].remotePath = e.target.value;
+                              setFileMounts(next);
+                            }}
+                            sx={{ flex: 1, minWidth: '200px' }}
+                          />
+                          <input
+                            type="file"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] || null;
+                              const next = [...fileMounts];
+                              next[index].file = file;
+                              setFileMounts(next);
+                            }}
+                          />
+                          <IconButton
+                            color="danger"
+                            variant="plain"
+                            onClick={() => {
+                              if (fileMounts.length === 1) {
+                                setFileMounts([
+                                  {
+                                    remotePath: '',
+                                    file: null,
+                                    uploading: false,
+                                    storedPath: undefined,
+                                  },
+                                ]);
+                              } else {
+                                setFileMounts(
+                                  fileMounts.filter((_, i) => i !== index),
+                                );
+                              }
+                            }}
+                          >
+                            <Trash2Icon size={16} />
+                          </IconButton>
+                        </Stack>
+                      ))}
+                      <Button
+                        variant="outlined"
+                        size="sm"
+                        startDecorator={<PlusIcon size={16} />}
+                        onClick={() =>
+                          setFileMounts([
+                            ...fileMounts,
+                            {
+                              remotePath: '',
+                              file: null,
+                              uploading: false,
+                              storedPath: undefined,
+                            },
+                          ])
+                        }
+                      >
+                        Add File Mount
+                      </Button>
+                    </Stack>
+                  </FormControl>
+                )}
+              </>
             )}
           </Stack>
         );

@@ -17,6 +17,7 @@ import {
   Stack,
   Checkbox,
   Switch,
+  Typography,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
@@ -95,6 +96,11 @@ export default function EditTaskModal({
 
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
+  const yamlEditorRef = useRef<any>(null);
+  
+  // YAML/GUI mode toggle (default to YAML)
+  const [isYamlMode, setIsYamlMode] = React.useState(true);
+  const [yamlContent, setYamlContent] = React.useState('');
 
   React.useEffect(() => {
     if (!task) return;
@@ -242,6 +248,9 @@ export default function EditTaskModal({
     setEnableSweeps(
       isTemplate ? taskAny.run_sweeps || false : cfg.run_sweeps || false,
     );
+    
+    // Initialize YAML mode
+    setIsYamlMode(true);
     setSweepMetric(
       isTemplate
         ? taskAny.sweep_metric || 'eval/loss'
@@ -275,6 +284,17 @@ export default function EditTaskModal({
       setSweepParams([{ paramName: '', values: '' }]);
     }
   }, [task]);
+  
+  // Convert task to YAML after all state is initialized
+  React.useEffect(() => {
+    if (task && title && isYamlMode && open) {
+      // Small delay to ensure all state is set
+      const timer = setTimeout(() => {
+        convertTaskToYaml();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [task, title, cpus, memory, command, setup, envVars, parameters, selectedProviderId, githubRepoUrl, githubDirectory, enableSweeps, sweepParams, sweepMetric, lowerIsBetter, isYamlMode, open]);
 
   React.useEffect(() => {
     if (!providers.length) {
@@ -347,8 +367,342 @@ export default function EditTaskModal({
     [task, command, commandEditorRef],
   );
 
+  // Simple YAML string converter
+  const convertToYamlString = (obj: any, indent = 0): string => {
+    const indentStr = '  '.repeat(indent);
+    let result = '';
+    
+    for (const [key, value] of Object.entries(obj)) {
+      if (value === null || value === undefined || (typeof value === 'object' && Object.keys(value).length === 0)) continue;
+      
+      if (typeof value === 'object' && !Array.isArray(value)) {
+        result += `${indentStr}${key}:\n${convertToYamlString(value, indent + 1)}`;
+      } else if (Array.isArray(value)) {
+        result += `${indentStr}${key}:\n`;
+        value.forEach((item) => {
+          if (typeof item === 'object') {
+            result += `${indentStr}  -\n${convertToYamlString(item, indent + 2)}`;
+          } else {
+            result += `${indentStr}  - ${item}\n`;
+          }
+        });
+      } else if (typeof value === 'string' && value.includes('\n')) {
+        result += `${indentStr}${key}: |\n${value.split('\n').map((line: string) => `${indentStr}  ${line}`).join('\n')}\n`;
+      } else if (typeof value === 'string' && (value.startsWith('"') || value.includes(':'))) {
+        result += `${indentStr}${key}: "${value.replace(/"/g, '\\"')}"\n`;
+      } else {
+        result += `${indentStr}${key}: ${value}\n`;
+      }
+    }
+    
+    return result;
+  };
+
+  // Convert current task to YAML
+  const convertTaskToYaml = () => {
+    if (!task) return;
+    
+    const yamlData: any = {
+      task: {
+        name: title || task.name || 'untitled-task',
+      },
+    };
+
+    // Resources
+    if (selectedProviderId) {
+      const provider = providers.find((p) => p.id === selectedProviderId);
+      if (provider) {
+        yamlData.task.resources = {
+          compute_provider: provider.name,
+        };
+      }
+    }
+    if (cpus) yamlData.task.resources = { ...yamlData.task.resources, cpus: parseInt(cpus) || cpus };
+    if (memory) yamlData.task.resources = { ...yamlData.task.resources, memory: parseInt(memory) || memory };
+    if (diskSpace) yamlData.task.resources = { ...yamlData.task.resources, disk_space: parseInt(diskSpace) || diskSpace };
+    if (accelerators) yamlData.task.resources = { ...yamlData.task.resources, accelerators };
+    if (numNodes) yamlData.task.resources = { ...yamlData.task.resources, num_nodes: parseInt(numNodes) || numNodes };
+
+    // Environment variables
+    const envs: Record<string, string> = {};
+    envVars.forEach(({ key, value }) => {
+      if (key.trim() && value.trim()) {
+        envs[key.trim()] = value.trim();
+      }
+    });
+    if (Object.keys(envs).length > 0) {
+      yamlData.task.envs = envs;
+    }
+
+    // Setup and run
+    const setupValue = setupEditorRef?.current?.getValue?.() || setup;
+    if (setupValue) yamlData.task.setup = setupValue;
+    const commandValue = commandEditorRef?.current?.getValue?.() || command;
+    if (commandValue) yamlData.task.run = commandValue;
+
+    // GitHub
+    if (githubRepoUrl) yamlData.task.git_repo = githubRepoUrl;
+    if (githubDirectory) yamlData.task.git_repo_directory = githubDirectory;
+
+    // Parameters
+    const parametersObj: Record<string, any> = {};
+    parameters.forEach(({ key, value, valueType }) => {
+      if (key.trim()) {
+        if (valueType === 'json') {
+          try {
+            parametersObj[key.trim()] = JSON.parse(value);
+          } catch {
+            parametersObj[key.trim()] = value;
+          }
+        } else {
+          parametersObj[key.trim()] = value;
+        }
+      }
+    });
+    if (Object.keys(parametersObj).length > 0) {
+      yamlData.task.parameters = parametersObj;
+    }
+
+    // Sweeps
+    if (enableSweeps && sweepParams.length > 0) {
+      const sweepConfig: Record<string, string[]> = {};
+      sweepParams.forEach(({ paramName, values }) => {
+        if (paramName.trim() && values.trim()) {
+          sweepConfig[paramName.trim()] = values.split(',').map((v) => v.trim()).filter(Boolean);
+        }
+      });
+      if (Object.keys(sweepConfig).length > 0) {
+        yamlData.task.sweeps = {
+          sweep_config: sweepConfig,
+          sweep_metric: sweepMetric || 'eval/loss',
+          lower_is_better: lowerIsBetter,
+        };
+      }
+    }
+
+    // Convert to YAML string
+    const yamlString = convertToYamlString(yamlData);
+    setYamlContent(yamlString);
+  };
+
+  // Parse YAML and populate form
+  const parseYamlToForm = async () => {
+    if (!yamlContent.trim()) {
+      addNotification({ type: 'warning', message: 'YAML content is empty' });
+      return;
+    }
+
+    try {
+      // Parse YAML on frontend - use a simple recursive descent parser
+      const parseYaml = (yamlStr: string): any => {
+        const lines = yamlStr.split('\n');
+        const result: any = {};
+        const stack: Array<{ obj: any; level: number }> = [{ obj: result, level: -1 }];
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const trimmed = line.trim();
+          
+          if (!trimmed || trimmed.startsWith('#')) continue;
+          
+          const indent = line.length - line.trimStart().length;
+          const level = Math.floor(indent / 2);
+          
+          while (stack.length > 1 && stack[stack.length - 1].level >= level) {
+            stack.pop();
+          }
+          
+          const current = stack[stack.length - 1].obj;
+          
+          if (trimmed.endsWith(':')) {
+            const key = trimmed.slice(0, -1).trim();
+            const newObj: any = {};
+            current[key] = newObj;
+            stack.push({ obj: newObj, level });
+          } else {
+            const colonIndex = trimmed.indexOf(':');
+            if (colonIndex > 0) {
+              const key = trimmed.slice(0, colonIndex).trim();
+              let value: any = trimmed.slice(colonIndex + 1).trim();
+              
+              if ((value.startsWith('"') && value.endsWith('"')) || 
+                  (value.startsWith("'") && value.endsWith("'"))) {
+                value = value.slice(1, -1);
+              }
+              
+              if (value === 'true') value = true;
+              else if (value === 'false') value = false;
+              else if (value === 'null') value = null;
+              else if (/^-?\d+$/.test(value)) value = parseInt(value, 10);
+              else if (/^-?\d*\.\d+$/.test(value)) value = parseFloat(value);
+              
+              current[key] = value;
+            }
+          }
+        }
+        
+        return result;
+      };
+
+      const yamlData = parseYaml(yamlContent);
+      
+      if (!yamlData || !yamlData.task) {
+        throw new Error("YAML must contain a 'task' key");
+      }
+
+      const taskYaml = yamlData.task;
+      const taskData: any = {};
+
+      // Basic fields
+      if (taskYaml.name) {
+        taskData.name = taskYaml.name;
+      }
+
+      // Resources
+      if (taskYaml.resources) {
+        const resources = taskYaml.resources;
+        if (resources.compute_provider) {
+          taskData.provider_name = resources.compute_provider;
+        }
+        if (resources.cpus !== undefined) {
+          taskData.cpus = String(resources.cpus);
+        }
+        if (resources.memory !== undefined) {
+          taskData.memory = String(resources.memory);
+        }
+        if (resources.disk_space !== undefined) {
+          taskData.disk_space = String(resources.disk_space);
+        }
+        if (resources.accelerators) {
+          taskData.accelerators = resources.accelerators;
+        }
+        if (resources.num_nodes !== undefined) {
+          taskData.num_nodes = resources.num_nodes;
+        }
+      }
+
+      // Environment variables
+      if (taskYaml.envs) {
+        taskData.env_vars = taskYaml.envs;
+      }
+
+      // Setup and run commands
+      if (taskYaml.setup) {
+        taskData.setup = String(taskYaml.setup);
+      }
+      if (taskYaml.run) {
+        taskData.command = String(taskYaml.run);
+      }
+
+      // GitHub
+      if (taskYaml.git_repo) {
+        taskData.github_repo_url = String(taskYaml.git_repo);
+      }
+      if (taskYaml.git_repo_directory) {
+        taskData.github_directory = String(taskYaml.git_repo_directory);
+      }
+
+      // Parameters
+      if (taskYaml.parameters) {
+        taskData.parameters = taskYaml.parameters;
+      }
+
+      // Sweeps
+      if (taskYaml.sweeps) {
+        const sweeps = taskYaml.sweeps;
+        taskData.run_sweeps = true;
+        if (sweeps.sweep_config) {
+          taskData.sweep_config = sweeps.sweep_config;
+        }
+        if (sweeps.sweep_metric) {
+          taskData.sweep_metric = String(sweeps.sweep_metric);
+        }
+        if (sweeps.lower_is_better !== undefined) {
+          taskData.lower_is_better = Boolean(sweeps.lower_is_better);
+        }
+      }
+
+      // Populate form fields
+      if (taskData.name) setTitle(taskData.name);
+      if (taskData.cluster_name) setClusterName(taskData.cluster_name);
+      if (taskData.command) setCommand(taskData.command);
+      if (taskData.setup) setSetup(taskData.setup);
+      if (taskData.cpus) setCpus(String(taskData.cpus));
+      if (taskData.memory) setMemory(String(taskData.memory));
+      if (taskData.disk_space) setDiskSpace(String(taskData.disk_space));
+      if (taskData.accelerators) setAccelerators(taskData.accelerators);
+      if (taskData.num_nodes) setNumNodes(String(taskData.num_nodes));
+      if (taskData.github_repo_url) setGithubRepoUrl(taskData.github_repo_url);
+      if (taskData.github_directory) setGithubDirectory(taskData.github_directory);
+      setGithubEnabled(!!taskData.github_repo_url);
+
+      // Environment variables
+      if (taskData.env_vars && typeof taskData.env_vars === 'object') {
+        const envVarsArray = Object.entries(taskData.env_vars).map(([key, value]) => ({
+          key,
+          value: String(value),
+        }));
+        setEnvVars(envVarsArray.length > 0 ? envVarsArray : [{ key: '', value: '' }]);
+      }
+
+      // Parameters
+      if (taskData.parameters && typeof taskData.parameters === 'object') {
+        const parametersArray = Object.entries(taskData.parameters).map(([key, value]) => {
+          let valueStr = '';
+          let valueType: 'string' | 'json' = 'string';
+          if (typeof value === 'object') {
+            valueStr = JSON.stringify(value, null, 2);
+            valueType = 'json';
+          } else {
+            valueStr = String(value);
+          }
+          return { key, value: valueStr, valueType };
+        });
+        setParameters(parametersArray.length > 0 ? parametersArray : [{ key: '', value: '', valueType: 'string' }]);
+      }
+
+      // Provider
+      if (taskData.provider_name) {
+        const provider = providers.find((p) => p.name === taskData.provider_name);
+        if (provider) {
+          setSelectedProviderId(provider.id);
+        }
+      }
+
+      // Sweeps
+      if (taskData.run_sweeps) {
+        setEnableSweeps(true);
+        if (taskData.sweep_config) {
+          const sweepParamsArray = Object.entries(taskData.sweep_config).map(([paramName, values]) => ({
+            paramName,
+            values: Array.isArray(values) ? values.join(', ') : String(values),
+          }));
+          setSweepParams(sweepParamsArray);
+        }
+        if (taskData.sweep_metric) setSweepMetric(taskData.sweep_metric);
+        if (taskData.lower_is_better !== undefined) setLowerIsBetter(taskData.lower_is_better);
+      }
+
+      addNotification({ type: 'success', message: 'YAML parsed successfully' });
+    } catch (error: any) {
+      console.error('Error parsing YAML:', error);
+      addNotification({
+        type: 'danger',
+        message: error.message || 'Failed to parse YAML. Please check the format.',
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // If we're in YAML mode, parse it first
+    if (isYamlMode) {
+      await parseYamlToForm();
+      setIsYamlMode(false);
+      // Wait a bit for state to update
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
 
     const setupValue =
       setupEditorRef?.current?.getValue?.() ?? (setup || undefined);
@@ -621,6 +975,57 @@ export default function EditTaskModal({
         <DialogTitle>Edit Task</DialogTitle>
         <form onSubmit={handleSubmit}>
           <DialogContent sx={{ maxHeight: '70vh', overflow: 'auto' }}>
+            <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+              <Typography level="title-md">Task Configuration</Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography level="body-sm">GUI</Typography>
+                <Switch
+                  checked={isYamlMode}
+                  onChange={(e) => {
+                    const newMode = e.target.checked;
+                    setIsYamlMode(newMode);
+                    if (newMode) {
+                      // Switching to YAML mode - convert form data to YAML
+                      convertTaskToYaml();
+                    } else {
+                      // Switching to GUI mode - parse YAML and populate form
+                      parseYamlToForm();
+                    }
+                  }}
+                />
+                <Typography level="body-sm">YAML</Typography>
+              </Stack>
+            </Stack>
+            
+            {isYamlMode ? (
+              <FormControl>
+                <FormLabel>Task YAML Configuration</FormLabel>
+                <div style={{ height: '500px', border: '1px solid var(--joy-palette-neutral-300)', borderRadius: '8px' }}>
+                  <Editor
+                    height="100%"
+                    defaultLanguage="yaml"
+                    value={yamlContent}
+                    onChange={(value) => setYamlContent(value || '')}
+                    onMount={(editor, monaco) => {
+                      yamlEditorRef.current = editor;
+                      setTheme(editor, monaco);
+                    }}
+                    theme="my-theme"
+                    options={{
+                      minimap: { enabled: false },
+                      fontSize: 14,
+                      lineNumbers: 'on',
+                      scrollBeyondLastLine: false,
+                      automaticLayout: true,
+                    }}
+                  />
+                </div>
+                <FormHelperText>
+                  Define your task configuration in YAML format. See documentation for structure.
+                </FormHelperText>
+              </FormControl>
+            ) : (
+              <>
             <FormControl required>
               <FormLabel>Title</FormLabel>
               <Input
@@ -1190,6 +1595,8 @@ export default function EditTaskModal({
                 )}
               </Stack>
             </FormControl>
+              </>
+            )}
           </DialogContent>
           <DialogActions>
             <Button

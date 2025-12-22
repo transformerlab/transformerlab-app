@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Body, Query, HTTPException, Depends
+from fastapi import APIRouter, Body, Query, HTTPException, Depends, Request
 from typing import Optional
 from werkzeug.utils import secure_filename
 import json
+import yaml
 
 from transformerlab.services.task_service import task_service
 from transformerlab.shared import galleries
@@ -82,15 +83,187 @@ async def delete_task(task_id: str):
         return {"message": "NOT FOUND"}
 
 
-@router.put("/new_task", summary="Create a new task")
-async def add_task(new_task: dict = Body()):
-    # Perform secure_filename before adding the task
-    if "name" in new_task:
-        new_task["name"] = secure_filename(new_task["name"])
+def _parse_yaml_to_task_data(yaml_content: str) -> dict:
+    """
+    Parse YAML content and convert it to the task structure.
+    Expected YAML format:
+    task:
+      name: task-name
+      resources:
+        compute_provider: provider-name
+        cpus: 2
+        memory: 4
+      envs:
+        KEY: value
+      setup: "command"
+      run: "command"
+      git_repo: "url"
+      git_repo_directory: "dir"
+      parameters: {...}
+      sweeps:
+        sweep_config: {...}
+        sweep_metric: "metric"
+        lower_is_better: true
+      files: # handled separately via file upload
+    """
+    # Parse YAML
+    yaml_data = yaml.safe_load(yaml_content)
 
-    # All fields are stored directly in the JSON (not nested in inputs/outputs/config)
-    task_id = task_service.add_task(new_task)
-    return {"message": "OK", "id": task_id}
+    if not yaml_data or "task" not in yaml_data:
+        raise HTTPException(status_code=400, detail="YAML must contain a 'task' key")
+
+    task_yaml = yaml_data["task"]
+
+    # Convert YAML structure to task structure
+    task_data = {}
+
+    # Basic fields
+    if "name" in task_yaml:
+        task_data["name"] = secure_filename(str(task_yaml["name"]))
+
+    # Resources
+    if "resources" in task_yaml:
+        resources = task_yaml["resources"]
+        if "compute_provider" in resources:
+            task_data["provider_name"] = resources["compute_provider"]
+        if "cpus" in resources:
+            task_data["cpus"] = str(resources["cpus"])
+        if "memory" in resources:
+            task_data["memory"] = str(resources["memory"])
+        if "disk_space" in resources:
+            task_data["disk_space"] = str(resources["disk_space"])
+        if "accelerators" in resources:
+            task_data["accelerators"] = str(resources["accelerators"])
+        if "num_nodes" in resources:
+            task_data["num_nodes"] = int(resources["num_nodes"])
+
+    # Environment variables
+    if "envs" in task_yaml:
+        task_data["env_vars"] = task_yaml["envs"]
+
+    # Setup and run commands
+    if "setup" in task_yaml:
+        task_data["setup"] = str(task_yaml["setup"])
+    if "run" in task_yaml:
+        task_data["command"] = str(task_yaml["run"])
+
+    # GitHub
+    if "git_repo" in task_yaml:
+        task_data["github_repo_url"] = str(task_yaml["git_repo"])
+    if "git_repo_directory" in task_yaml:
+        task_data["github_directory"] = str(task_yaml["git_repo_directory"])
+
+    # Parameters
+    if "parameters" in task_yaml:
+        task_data["parameters"] = task_yaml["parameters"]
+
+    # Sweeps
+    if "sweeps" in task_yaml:
+        sweeps = task_yaml["sweeps"]
+        task_data["run_sweeps"] = True
+        if "sweep_config" in sweeps:
+            task_data["sweep_config"] = sweeps["sweep_config"]
+        if "sweep_metric" in sweeps:
+            task_data["sweep_metric"] = str(sweeps["sweep_metric"])
+        if "lower_is_better" in sweeps:
+            task_data["lower_is_better"] = bool(sweeps["lower_is_better"])
+
+    # Files are handled separately via file upload endpoint
+
+    return task_data
+
+
+@router.put("/new_task", summary="Create a new task")
+async def add_task(request: Request, experiment_id: Optional[str] = Query(None)):
+    """
+    Create a new task. Accepts either:
+    1. JSON object with task fields directly (Content-Type: application/json)
+    2. YAML string (Content-Type: text/plain, text/yaml, or application/x-yaml)
+
+    For YAML, the format should be:
+    task:
+      name: task-name
+      resources:
+        compute_provider: provider-name
+        cpus: 2
+        memory: 4
+      envs:
+        KEY: value
+      setup: "command"
+      run: "command"
+      git_repo: "url"
+      git_repo_directory: "dir"
+      parameters: {...}
+      sweeps:
+        sweep_config: {...}
+        sweep_metric: "metric"
+        lower_is_better: true
+    """
+    try:
+        content_type = request.headers.get("content-type", "").lower()
+
+        # Check if it's YAML (text/plain or text/yaml)
+        if "text/plain" in content_type or "text/yaml" in content_type or "application/x-yaml" in content_type:
+            # Read YAML string from body
+            yaml_content = await request.body()
+            yaml_content_str = yaml_content.decode("utf-8")
+
+            try:
+                task_data = _parse_yaml_to_task_data(yaml_content_str)
+            except yaml.YAMLError as e:
+                raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Error parsing YAML: {str(e)}")
+
+            # Inject experiment_id from query parameter if not in YAML
+            if experiment_id and "experiment_id" not in task_data:
+                task_data["experiment_id"] = experiment_id
+
+            # Add required fields if not present
+            if "type" not in task_data:
+                task_data["type"] = "REMOTE"
+            if "plugin" not in task_data:
+                task_data["plugin"] = "remote_orchestrator"
+
+            # Perform secure_filename before adding the task
+            if "name" in task_data:
+                task_data["name"] = secure_filename(task_data["name"])
+
+            task_id = task_service.add_task(task_data)
+            return {"message": "OK", "id": task_id}
+        else:
+            # Handle JSON input (existing behavior)
+            try:
+                new_task = await request.json()
+            except json.JSONDecodeError:
+                # If JSON parsing fails, try YAML as fallback
+                yaml_content = await request.body()
+                yaml_content_str = yaml_content.decode("utf-8")
+
+                try:
+                    task_data = _parse_yaml_to_task_data(yaml_content_str)
+                except Exception as e:
+                    raise HTTPException(status_code=400, detail=f"Invalid JSON or YAML: {str(e)}")
+
+                if "name" in task_data:
+                    task_data["name"] = secure_filename(task_data["name"])
+
+                task_id = task_service.add_task(task_data)
+                return {"message": "OK", "id": task_id}
+
+            # Perform secure_filename before adding the task
+            if "name" in new_task:
+                new_task["name"] = secure_filename(new_task["name"])
+
+            # All fields are stored directly in the JSON (not nested in inputs/outputs/config)
+            task_id = task_service.add_task(new_task)
+            return {"message": "OK", "id": task_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error creating task: {str(e)}")
 
 
 @router.get("/delete_all", summary="Wipe all tasks")
