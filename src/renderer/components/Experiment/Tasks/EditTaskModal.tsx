@@ -99,19 +99,84 @@ export default function EditTaskModal({
   React.useEffect(() => {
     if (!task) return;
     setTitle(task.name || '');
+
+    // For templates, fields are stored directly (not nested in config)
     const cfg = SafeJSONParse(task.config, {});
-    setClusterName(cfg.cluster_name || '');
-    setCommand(cfg.command || '');
-    setCpus(cfg.cpus != null ? String(cfg.cpus) : '');
-    setMemory(cfg.memory != null ? String(cfg.memory) : '');
-    setDiskSpace(cfg.disk_space != null ? String(cfg.disk_space) : '');
-    setAccelerators(cfg.accelerators != null ? String(cfg.accelerators) : '');
-    setNumNodes(cfg.num_nodes != null ? String(cfg.num_nodes) : '');
-    setSetup(cfg.setup != null ? String(cfg.setup) : '');
-    setSelectedProviderId(cfg.provider_id || '');
-    // Initialize env_vars from config
-    if (cfg.env_vars && typeof cfg.env_vars === 'object') {
-      const envVarsArray = Object.entries(cfg.env_vars).map(([key, value]) => ({
+
+    // Check if it's a template (no config or config is empty/doesn't have nested structure)
+    const isTemplate =
+      !task.config ||
+      (typeof cfg === 'object' && Object.keys(cfg).length === 0) ||
+      (!cfg.command && !cfg.cluster_name && (task as any).command);
+
+    // Use template fields directly if it's a template, otherwise use config
+    const taskAny = task as any;
+    setClusterName(
+      isTemplate ? taskAny.cluster_name || '' : cfg.cluster_name || '',
+    );
+    setCommand(isTemplate ? taskAny.command || '' : cfg.command || '');
+    setCpus(
+      isTemplate
+        ? taskAny.cpus != null
+          ? String(taskAny.cpus)
+          : ''
+        : cfg.cpus != null
+          ? String(cfg.cpus)
+          : '',
+    );
+    setMemory(
+      isTemplate
+        ? taskAny.memory != null
+          ? String(taskAny.memory)
+          : ''
+        : cfg.memory != null
+          ? String(cfg.memory)
+          : '',
+    );
+    setDiskSpace(
+      isTemplate
+        ? taskAny.disk_space != null
+          ? String(taskAny.disk_space)
+          : ''
+        : cfg.disk_space != null
+          ? String(cfg.disk_space)
+          : '',
+    );
+    setAccelerators(
+      isTemplate
+        ? taskAny.accelerators != null
+          ? String(taskAny.accelerators)
+          : ''
+        : cfg.accelerators != null
+          ? String(cfg.accelerators)
+          : '',
+    );
+    setNumNodes(
+      isTemplate
+        ? taskAny.num_nodes != null
+          ? String(taskAny.num_nodes)
+          : ''
+        : cfg.num_nodes != null
+          ? String(cfg.num_nodes)
+          : '',
+    );
+    setSetup(
+      isTemplate
+        ? taskAny.setup != null
+          ? String(taskAny.setup)
+          : ''
+        : cfg.setup != null
+          ? String(cfg.setup)
+          : '',
+    );
+    setSelectedProviderId(
+      isTemplate ? taskAny.provider_id || '' : cfg.provider_id || '',
+    );
+
+    // Initialize env_vars
+    const envVars = isTemplate ? taskAny.env_vars : cfg.env_vars;
+    if (envVars && typeof envVars === 'object') {
+      const envVarsArray = Object.entries(envVars).map(([key, value]) => ({
         key,
         value: String(value),
       }));
@@ -122,22 +187,21 @@ export default function EditTaskModal({
       setEnvVars([{ key: '', value: '' }]);
     }
 
-    // Initialize parameters from config
-    if (cfg.parameters && typeof cfg.parameters === 'object') {
-      const parametersArray = Object.entries(cfg.parameters).map(
-        ([key, value]) => {
-          // Try to determine if value is JSON or string
-          let valueStr = '';
-          let valueType: 'string' | 'json' = 'string';
-          if (typeof value === 'object') {
-            valueStr = JSON.stringify(value, null, 2);
-            valueType = 'json';
-          } else {
-            valueStr = String(value);
-          }
-          return { key, value: valueStr, valueType };
-        },
-      );
+    // Initialize parameters
+    const parameters = isTemplate ? taskAny.parameters : cfg.parameters;
+    if (parameters && typeof parameters === 'object') {
+      const parametersArray = Object.entries(parameters).map(([key, value]) => {
+        // Try to determine if value is JSON or string
+        let valueStr = '';
+        let valueType: 'string' | 'json' = 'string';
+        if (typeof value === 'object') {
+          valueStr = JSON.stringify(value, null, 2);
+          valueType = 'json';
+        } else {
+          valueStr = String(value);
+        }
+        return { key, value: valueStr, valueType };
+      });
       setParameters(
         parametersArray.length > 0
           ? parametersArray
@@ -147,9 +211,10 @@ export default function EditTaskModal({
       setParameters([{ key: '', value: '', valueType: 'string' }]);
     }
 
-    // Initialize file_mounts from config
-    if (cfg.file_mounts && typeof cfg.file_mounts === 'object') {
-      const fmArray = Object.entries(cfg.file_mounts).map(
+    // Initialize file_mounts
+    const fileMounts = isTemplate ? taskAny.file_mounts : cfg.file_mounts;
+    if (fileMounts && typeof fileMounts === 'object') {
+      const fmArray = Object.entries(fileMounts).map(
         ([remotePath, storedPath]) => ({
           remotePath,
           file: null,
@@ -165,21 +230,42 @@ export default function EditTaskModal({
       setFileMounts([{ remotePath: '', file: null, storedPath: undefined }]);
     }
 
-    // Initialize GitHub fields from config
-    setGithubEnabled(cfg.github_enabled || false);
-    setGithubRepoUrl(cfg.github_repo_url || '');
-    setGithubDirectory(cfg.github_directory || '');
+    // Initialize GitHub fields
+    setGithubEnabled(
+      isTemplate
+        ? taskAny.github_enabled || false
+        : cfg.github_enabled || false,
+    );
+    setGithubRepoUrl(
+      isTemplate ? taskAny.github_repo_url || '' : cfg.github_repo_url || '',
+    );
+    setGithubDirectory(
+      isTemplate ? taskAny.github_directory || '' : cfg.github_directory || '',
+    );
 
-    // Initialize sweep configuration from config
-    setEnableSweeps(cfg.run_sweeps || false);
-    setSweepMetric(cfg.sweep_metric || 'eval/loss');
+    // Initialize sweep configuration
+    setEnableSweeps(
+      isTemplate ? taskAny.run_sweeps || false : cfg.run_sweeps || false,
+    );
+    setSweepMetric(
+      isTemplate
+        ? taskAny.sweep_metric || 'eval/loss'
+        : cfg.sweep_metric || 'eval/loss',
+    );
     setLowerIsBetter(
-      cfg.lower_is_better !== undefined ? cfg.lower_is_better : true,
+      isTemplate
+        ? taskAny.lower_is_better !== undefined
+          ? taskAny.lower_is_better
+          : true
+        : cfg.lower_is_better !== undefined
+          ? cfg.lower_is_better
+          : true,
     );
 
     // Convert sweep_config object to array format for editing
-    if (cfg.sweep_config && typeof cfg.sweep_config === 'object') {
-      const sweepParamsArray = Object.entries(cfg.sweep_config).map(
+    const sweepConfig = isTemplate ? taskAny.sweep_config : cfg.sweep_config;
+    if (sweepConfig && typeof sweepConfig === 'object') {
+      const sweepParamsArray = Object.entries(sweepConfig).map(
         ([paramName, values]) => ({
           paramName,
           values: Array.isArray(values) ? values.join(',') : String(values),
