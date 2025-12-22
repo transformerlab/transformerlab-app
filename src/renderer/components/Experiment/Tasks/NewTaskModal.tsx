@@ -83,40 +83,70 @@ type NewTaskModalProps = {
 
 type TaskMode = 'github-with-json' | 'github-manual' | 'no-github';
 
-type Phase = 'github-selection' | 'task-config' | 'provider-env';
+type Phase = 'task-json-url' | 'task-config' | 'provider-env';
 
-// Helper function to fetch task.json from GitHub via backend API
-async function fetchTaskJsonFromGitHub(
-  repoUrl: string,
-  directory?: string,
-): Promise<any | null> {
+// Helper function to check if URL is a GitHub URL
+function isGitHubUrl(url: string): boolean {
+  return (
+    url.includes('github.com') || url.includes('raw.githubusercontent.com')
+  );
+}
+
+// Helper function to fetch task.json from any URL
+async function fetchTaskJsonFromUrl(taskJsonUrl: string): Promise<any | null> {
   try {
-    const url = chatAPI.Endpoints.Tasks.FetchTaskJson(
-      repoUrl,
-      directory || undefined,
-    );
-    const response = await chatAPI.authenticatedFetch(url, {
+    // Check if this is a GitHub URL (blob, raw, or repo URL)
+    if (isGitHubUrl(taskJsonUrl)) {
+      // Use the backend endpoint which supports GitHub PAT and handles URL conversion
+      const endpoint = chatAPI.Endpoints.Tasks.FetchTaskJson(taskJsonUrl);
+      const response = await chatAPI.authenticatedFetch(endpoint, {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(
+          'Error fetching task.json from GitHub. Error: ',
+          response.status,
+          errorText,
+        );
+        return null;
+      }
+
+      const result = await response.json();
+      if (result.status === 'success' && result.data) {
+        return result.data;
+      }
+      return null;
+    }
+
+    // For non-GitHub URLs, use direct fetch
+    // Try using authenticated fetch first (for authenticated endpoints)
+    let response = await chatAPI.authenticatedFetch(taskJsonUrl, {
       method: 'GET',
     });
+
+    // If authenticated fetch fails, try regular fetch (for public URLs)
+    if (!response.ok) {
+      response = await fetch(taskJsonUrl, {
+        method: 'GET',
+      });
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error(
-        'Error fetching task.json from GitHub. Is your Github Access Token valid? Error: ',
+        'Error fetching task.json from URL. Error: ',
         response.status,
         errorText,
       );
       return null;
     }
 
-    const result = await response.json();
-    if (result.status === 'success' && result.data) {
-      return result.data;
-    }
-
-    return null;
+    const jsonData = await response.json();
+    return jsonData;
   } catch (error) {
-    console.error('Error fetching task.json from GitHub:', error);
+    console.error('Error fetching task.json from URL:', error);
     return null;
   }
 }
@@ -133,15 +163,17 @@ export default function NewTaskModal({
   const { addNotification } = useNotification();
 
   // Phase management
-  const [currentPhase, setCurrentPhase] = useState<Phase>('github-selection');
+  const [currentPhase, setCurrentPhase] = useState<Phase>('task-json-url');
   const [taskMode, setTaskMode] = useState<TaskMode | null>(null);
 
-  // GitHub fields
-  const [useGithub, setUseGithub] = useState<boolean | null>(null);
-  const [githubRepoUrl, setGithubRepoUrl] = useState('');
-  const [githubDirectory, setGithubDirectory] = useState('');
+  // Task.json URL field
+  const [taskJsonUrl, setTaskJsonUrl] = useState('');
   const [isLoadingTaskJson, setIsLoadingTaskJson] = useState(false);
   const [taskJsonData, setTaskJsonData] = useState<any | null>(null);
+
+  // GitHub fields (extracted from task.json if present)
+  const [githubRepoUrl, setGithubRepoUrl] = useState('');
+  const [githubDirectory, setGithubDirectory] = useState('');
 
   // Task fields
   const [title, setTitle] = React.useState('');
@@ -188,9 +220,9 @@ export default function NewTaskModal({
   useEffect(() => {
     if (!open) {
       // Reset all state when modal closes
-      setCurrentPhase('github-selection');
+      setCurrentPhase('task-json-url');
       setTaskMode(null);
-      setUseGithub(null);
+      setTaskJsonUrl('');
       setGithubRepoUrl('');
       setGithubDirectory('');
       setTaskJsonData(null);
@@ -270,17 +302,18 @@ export default function NewTaskModal({
           if (task.env_vars) yamlData.task.envs = task.env_vars;
           if (task.setup) yamlData.task.setup = task.setup;
           if (task.command) yamlData.task.run = task.command;
-          // Always include GitHub repo info from current state if useGithub is true
-          if (useGithub && githubRepoUrl) {
+          // Include GitHub repo info from task.json or extracted state
+          if (githubRepoUrl) {
             yamlData.task.git_repo = githubRepoUrl;
             if (githubDirectory) {
               yamlData.task.git_repo_directory = githubDirectory;
             }
-          } else if (task.github_repo_url) {
+          } else if (task.github_repo_url || task.git_repo) {
             // Fallback to task.json data if available
-            yamlData.task.git_repo = task.github_repo_url;
-            if (task.github_directory) {
-              yamlData.task.git_repo_directory = task.github_directory;
+            yamlData.task.git_repo = task.github_repo_url || task.git_repo;
+            if (task.github_directory || task.git_repo_directory) {
+              yamlData.task.git_repo_directory =
+                task.github_directory || task.git_repo_directory;
             }
           }
           if (task.parameters) yamlData.task.parameters = task.parameters;
@@ -314,11 +347,10 @@ export default function NewTaskModal({
           }
         }, 200);
       } else if (
-        (taskMode === 'no-github' || taskMode === 'github-manual') &&
+        taskMode === 'no-github' &&
         (!yamlContent || yamlContent.trim() === '')
       ) {
         // Use default template if no task.json and YAML is empty
-        // Include GitHub repo info if useGithub is true
         const defaultYamlData: any = {
           task: {
             name: 'my-task',
@@ -330,8 +362,8 @@ export default function NewTaskModal({
           },
         };
 
-        // Add GitHub repo info if in GitHub mode
-        if (useGithub && githubRepoUrl) {
+        // Add GitHub repo info if available (from task.json)
+        if (githubRepoUrl) {
           defaultYamlData.task.git_repo = githubRepoUrl;
           if (githubDirectory) {
             defaultYamlData.task.git_repo_directory = githubDirectory;
@@ -358,7 +390,6 @@ export default function NewTaskModal({
     taskJsonData,
     taskMode,
     isLoadingTaskJson,
-    useGithub,
     githubRepoUrl,
     githubDirectory,
   ]);
@@ -377,16 +408,27 @@ export default function NewTaskModal({
     }
   }, [providers, selectedProviderId]);
 
-  const loadTaskJsonFromGithub = React.useCallback(() => {
-    if (!githubRepoUrl || isLoadingTaskJson) {
+  const loadTaskJsonFromUrl = React.useCallback(() => {
+    if (!taskJsonUrl || isLoadingTaskJson) {
       return;
     }
     setIsLoadingTaskJson(true);
-    fetchTaskJsonFromGitHub(githubRepoUrl, githubDirectory || undefined)
+    fetchTaskJsonFromUrl(taskJsonUrl)
       .then((data) => {
         if (data) {
           setTaskJsonData(data);
           setTaskMode('github-with-json');
+
+          // Extract git_repo and git_repo_directory from task.json if present
+          if (data.github_repo_url || data.git_repo) {
+            setGithubRepoUrl(data.github_repo_url || data.git_repo);
+          }
+          if (data.github_directory || data.git_repo_directory) {
+            setGithubDirectory(
+              data.github_directory || data.git_repo_directory,
+            );
+          }
+
           // Pre-populate fields from task.json
           if (data.title) setTitle(data.title);
           if (data.name) setTitle(data.name);
@@ -432,10 +474,10 @@ export default function NewTaskModal({
           }
           addNotification({
             type: 'success',
-            message: 'Successfully loaded task.json from GitHub',
+            message: 'Successfully loaded task.json from URL',
           });
         } else {
-          setTaskMode('github-manual');
+          setTaskMode('no-github');
           addNotification({
             type: 'warning',
             message:
@@ -445,7 +487,7 @@ export default function NewTaskModal({
       })
       .catch((error) => {
         console.error('Error loading task.json:', error);
-        setTaskMode('github-manual');
+        setTaskMode('no-github');
         addNotification({
           type: 'warning',
           message:
@@ -455,29 +497,16 @@ export default function NewTaskModal({
       .finally(() => {
         setIsLoadingTaskJson(false);
       });
-  }, [
-    addNotification,
-    githubDirectory,
-    githubRepoUrl,
-    isLoadingTaskJson,
-    setTaskMode,
-  ]);
+  }, [addNotification, taskJsonUrl, isLoadingTaskJson]);
 
   const handleNextPhase = async () => {
-    if (currentPhase === 'github-selection') {
-      if (useGithub === true) {
-        if (!githubRepoUrl.trim()) {
-          addNotification({
-            type: 'warning',
-            message: 'Please enter a GitHub repository URL',
-          });
-          return;
-        }
-        // Default to manual GitHub mode until/unless task.json is loaded
-        setTaskMode('github-manual');
+    if (currentPhase === 'task-json-url') {
+      // If URL is provided, try to load task.json from it
+      if (taskJsonUrl.trim()) {
         setCurrentPhase('task-config');
-        loadTaskJsonFromGithub();
-      } else if (useGithub === false) {
+        loadTaskJsonFromUrl();
+      } else {
+        // No URL provided, proceed with manual configuration
         setTaskMode('no-github');
         setCurrentPhase('task-config');
       }
@@ -508,11 +537,11 @@ export default function NewTaskModal({
 
   const handleBackPhase = () => {
     if (currentPhase === 'task-config') {
-      setCurrentPhase('github-selection');
+      setCurrentPhase('task-json-url');
       setTaskMode(null);
-      // Clear task.json data when going back, so it can be reloaded if repo changes
+      // Clear task.json data when going back, so it can be reloaded if URL changes
       setTaskJsonData(null);
-      // Clear YAML content so it can be reloaded with new repo info
+      // Clear YAML content so it can be reloaded with new URL info
       if (isYamlMode) {
         setYamlContent('');
       }
@@ -716,9 +745,8 @@ export default function NewTaskModal({
       provider_id: selectedProviderId,
       file_mounts:
         Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
-      github_repo_url: useGithub && githubRepoUrl ? githubRepoUrl : undefined,
-      github_directory:
-        useGithub && githubDirectory ? githubDirectory : undefined,
+      github_repo_url: githubRepoUrl || undefined,
+      github_directory: githubDirectory || undefined,
       run_sweeps: enableSweeps && sweepConfig ? true : undefined,
       sweep_config: sweepConfig,
       sweep_metric:
@@ -727,9 +755,8 @@ export default function NewTaskModal({
     });
 
     // Reset form
-    setCurrentPhase('github-selection');
+    setCurrentPhase('task-json-url');
     setTaskMode(null);
-    setUseGithub(null);
     setGithubRepoUrl('');
     setGithubDirectory('');
     setTaskJsonData(null);
@@ -1007,8 +1034,8 @@ export default function NewTaskModal({
     const commandValue = commandEditorRef?.current?.getValue?.() || command;
     if (commandValue) yamlData.task.run = commandValue;
 
-    // GitHub - always include if useGithub is true
-    if (useGithub && githubRepoUrl) {
+    // GitHub - include if available (extracted from task.json or manually set)
+    if (githubRepoUrl) {
       yamlData.task.git_repo = githubRepoUrl;
       if (githubDirectory) {
         yamlData.task.git_repo_directory = githubDirectory;
@@ -1317,90 +1344,46 @@ export default function NewTaskModal({
 
   const renderPhaseContent = () => {
     switch (currentPhase) {
-      case 'github-selection':
+      case 'task-json-url':
         return (
           <Stack spacing={3}>
-            <Typography level="title-lg">GitHub Repository</Typography>
+            <Typography level="title-lg">Task Configuration URL</Typography>
             <FormHelperText>
-              Would you like to specify a GitHub repository and subdirectory
-              where your task is located?
+              Optionally provide a URL to a task.json file. This can be a raw
+              GitHub URL, a direct link to a JSON file, or any URL that returns
+              valid JSON.
             </FormHelperText>
-            <RadioGroup
-              value={useGithub === null ? '' : useGithub ? 'yes' : 'no'}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                const value = e.target.value;
-                setUseGithub(value === 'yes');
-                if (value === 'yes') {
-                  // Clear previous GitHub data and task.json
-                  setGithubRepoUrl('');
-                  setGithubDirectory('');
+            <FormControl>
+              <FormLabel>Task.json URL (Optional)</FormLabel>
+              <Input
+                value={taskJsonUrl}
+                onChange={(e) => {
+                  const newUrl = e.target.value;
+                  setTaskJsonUrl(newUrl);
+                  // Clear task.json data when URL changes so it can be reloaded
                   setTaskJsonData(null);
                   setTaskMode(null);
                   // Clear YAML if in YAML mode so it can reload
                   if (isYamlMode) {
                     setYamlContent('');
                   }
-                } else {
-                  // Clear task.json when switching to no-github
-                  setTaskJsonData(null);
-                  setTaskMode(null);
-                  // Clear YAML if in YAML mode so it can reload
-                  if (isYamlMode) {
-                    setYamlContent('');
-                  }
-                }
-              }}
-            >
-              <Radio value="yes" label="Yes, use a GitHub repository" />
-              <Radio value="no" label="No, I'll provide files manually" />
-            </RadioGroup>
-            {useGithub === true && (
-              <Stack spacing={2} sx={{ mt: 2 }}>
-                <FormControl required>
-                  <FormLabel>GitHub Repository URL</FormLabel>
-                  <Input
-                    value={githubRepoUrl}
-                    onChange={(e) => {
-                      const newUrl = e.target.value;
-                      setGithubRepoUrl(newUrl);
-                      // Clear task.json data when repo URL changes so it can be reloaded
-                      setTaskJsonData(null);
-                      setTaskMode(null);
-                      // Clear YAML if in YAML mode so it can reload
-                      if (isYamlMode) {
-                        setYamlContent('');
-                      }
-                    }}
-                    placeholder="https://github.com/owner/repo.git"
-                  />
-                  <FormHelperText>
-                    The GitHub repository URL to clone from
-                  </FormHelperText>
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Directory Path (Optional)</FormLabel>
-                  <Input
-                    value={githubDirectory}
-                    onChange={(e) => {
-                      const newDir = e.target.value;
-                      setGithubDirectory(newDir);
-                      // Clear task.json data when directory changes so it can be reloaded
-                      if (githubRepoUrl) {
-                        setTaskJsonData(null);
-                        setTaskMode(null);
-                        // Clear YAML if in YAML mode so it can reload
-                        if (isYamlMode) {
-                          setYamlContent('');
-                        }
-                      }
-                    }}
-                    placeholder="path/to/directory"
-                  />
-                  <FormHelperText>
-                    Optional: Specific directory within the repo. If empty, the
-                    entire repo will be cloned.
-                  </FormHelperText>
-                </FormControl>
+                }}
+                placeholder="https://raw.githubusercontent.com/owner/repo/branch/path/task.json"
+                disabled={isLoadingTaskJson}
+              />
+              <FormHelperText>
+                Leave empty to configure manually. Examples:
+                <br />
+                • https://raw.githubusercontent.com/owner/repo/main/task.json
+                <br />• https://example.com/path/to/task.json
+              </FormHelperText>
+            </FormControl>
+            {isLoadingTaskJson && (
+              <Stack direction="row" spacing={2} alignItems="center">
+                <CircularProgress size="sm" />
+                <Typography level="body-sm">
+                  Loading task.json from URL...
+                </Typography>
               </Stack>
             )}
           </Stack>
@@ -1439,7 +1422,7 @@ export default function NewTaskModal({
             {isYamlMode ? (
               <FormControl>
                 <FormLabel>Task YAML Configuration</FormLabel>
-                {useGithub && isLoadingTaskJson ? (
+                {isLoadingTaskJson ? (
                   <Stack
                     direction="row"
                     spacing={2}
@@ -1454,7 +1437,7 @@ export default function NewTaskModal({
                   >
                     <CircularProgress size="sm" />
                     <Typography level="body-sm">
-                      Loading task.json from GitHub...
+                      Loading task.json from URL...
                     </Typography>
                   </Stack>
                 ) : (
@@ -1502,13 +1485,13 @@ export default function NewTaskModal({
                 )}
                 <FormHelperText>
                   {isLoadingTaskJson
-                    ? 'Loading task configuration from GitHub...'
+                    ? 'Loading task configuration from URL...'
                     : 'Define your task configuration in YAML format. See documentation for structure.'}
                 </FormHelperText>
               </FormControl>
             ) : (
               <>
-                {useGithub && isLoadingTaskJson && (
+                {isLoadingTaskJson && (
                   <Stack
                     direction="row"
                     spacing={2}
@@ -1517,7 +1500,7 @@ export default function NewTaskModal({
                   >
                     <CircularProgress size="sm" />
                     <Typography level="body-sm">
-                      Loading task.json from GitHub...
+                      Loading task.json from URL...
                     </Typography>
                   </Stack>
                 )}
@@ -1525,12 +1508,6 @@ export default function NewTaskModal({
                   <FormHelperText>
                     Configuration loaded from task.json. You can review and
                     modify these fields if needed.
-                  </FormHelperText>
-                )}
-                {taskMode === 'github-manual' && (
-                  <FormHelperText>
-                    Configure your task settings. The GitHub repository will be
-                    cloned during setup.
                   </FormHelperText>
                 )}
                 {taskMode === 'no-github' && (
@@ -2094,8 +2071,8 @@ export default function NewTaskModal({
 
   const getPhaseTitle = () => {
     switch (currentPhase) {
-      case 'github-selection':
-        return 'Step 1: GitHub Repository';
+      case 'task-json-url':
+        return 'Step 1: Task Configuration URL';
       case 'task-config':
         return 'Step 2: Task Configuration';
       case 'provider-env':
@@ -2106,9 +2083,8 @@ export default function NewTaskModal({
   };
 
   const canGoNext = () => {
-    if (currentPhase === 'github-selection') {
-      if (useGithub === null) return false;
-      if (useGithub === true && !githubRepoUrl.trim()) return false;
+    if (currentPhase === 'task-json-url') {
+      // Always allow proceeding (URL is optional)
       return true;
     }
     if (currentPhase === 'task-config') {
@@ -2142,14 +2118,12 @@ export default function NewTaskModal({
                 variant="plain"
                 color="neutral"
                 onClick={
-                  currentPhase === 'github-selection'
-                    ? onClose
-                    : handleBackPhase
+                  currentPhase === 'task-json-url' ? onClose : handleBackPhase
                 }
                 disabled={isSubmitting}
                 startDecorator={<ArrowLeftIcon size={16} />}
               >
-                {currentPhase === 'github-selection' ? 'Cancel' : 'Back'}
+                {currentPhase === 'task-json-url' ? 'Cancel' : 'Back'}
               </Button>
               <Button
                 type="submit"

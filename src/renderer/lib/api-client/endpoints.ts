@@ -37,10 +37,8 @@ Endpoints.Tasks = {
   ExportToTeamGallery: () => `${API_URL()}tasks/gallery/team/export`,
   AddToTeamGallery: () => `${API_URL()}tasks/gallery/team/add`,
   DeleteFromTeamGallery: () => `${API_URL()}tasks/gallery/team/delete`,
-  FetchTaskJson: (repoUrl: string, directory?: string) =>
-    `${API_URL()}tasks/fetch_task_json?repo_url=${encodeURIComponent(repoUrl)}${
-      directory ? `&directory=${encodeURIComponent(directory)}` : ''
-    }`,
+  FetchTaskJson: (url: string) =>
+    `${API_URL()}task/fetch_task_json?url=${encodeURIComponent(url)}`,
 };
 
 Endpoints.Task = {

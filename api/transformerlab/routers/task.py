@@ -10,6 +10,7 @@ from transformerlab.services.provider_service import list_team_providers
 from transformerlab.shared import galleries
 from transformerlab.shared.github_utils import (
     fetch_task_json_from_github_helper,
+    fetch_task_json_from_github,
 )
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
@@ -611,3 +612,85 @@ async def delete_team_task_from_gallery(
         }
     else:
         raise HTTPException(status_code=404, detail="Task not found in team gallery")
+
+
+@router.get("/fetch_task_json", summary="Fetch task.json from a GitHub repository or URL")
+async def fetch_task_json_endpoint(
+    url: str = Query(..., description="GitHub repository URL, blob URL, or raw URL"),
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Fetch task.json file from a GitHub repository or direct URL.
+    Supports both public and private repositories using the team's GitHub PAT.
+
+    Accepts various URL formats:
+    - GitHub repo URL: https://github.com/owner/repo.git (with optional directory query param)
+    - GitHub blob URL: https://github.com/owner/repo/blob/branch/path/task.json
+    - Raw GitHub URL: https://raw.githubusercontent.com/owner/repo/branch/path/task.json
+    - Any direct JSON URL: https://example.com/path/task.json
+
+    Args:
+        url: Full URL to task.json or GitHub repository URL
+
+    Returns:
+        JSON object containing the task.json content, or error if not found
+    """
+    import re
+
+    # Convert GitHub blob URL to extract info
+    # https://github.com/owner/repo/blob/branch/path/task.json
+    blob_pattern = r"^https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)/task\.json$"
+    blob_match = re.match(blob_pattern, url)
+    if blob_match:
+        owner, repo, branch, path = blob_match.groups()
+        repo_url = f"https://github.com/{owner}/{repo}.git"
+        directory = path.rstrip("/")
+        task_json = await fetch_task_json_from_github(repo_url, directory)
+        return {
+            "status": "success",
+            "data": task_json,
+            "repo": f"{owner}/{repo}",
+            "path": f"{directory}/task.json",
+        }
+
+    # Handle raw.githubusercontent.com URLs
+    # https://raw.githubusercontent.com/owner/repo/branch/path/task.json
+    raw_pattern = r"^https://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.+)/task\.json$"
+    raw_match = re.match(raw_pattern, url)
+    if raw_match:
+        owner, repo, branch, path = raw_match.groups()
+        repo_url = f"https://github.com/{owner}/{repo}.git"
+        directory = path.rstrip("/")
+        task_json = await fetch_task_json_from_github(repo_url, directory)
+        return {
+            "status": "success",
+            "data": task_json,
+            "repo": f"{owner}/{repo}",
+            "path": f"{directory}/task.json",
+        }
+
+    # Handle regular GitHub repo URLs (backward compatibility)
+    # https://github.com/owner/repo.git or https://github.com/owner/repo
+    if url.startswith("https://github.com/") and (url.endswith(".git") or "/blob" not in url and "/tree" not in url):
+        # This is a repo URL, but we need directory - check if it's in query params
+        # For now, assume root directory if no path specified
+        repo_url = url
+        directory = None
+        task_json = await fetch_task_json_from_github(repo_url, directory)
+        repo_url_clean = repo_url.replace(".git", "").strip()
+        parts = repo_url_clean.replace("https://github.com/", "").split("/")
+        owner = parts[0] if len(parts) > 0 else ""
+        repo = parts[1] if len(parts) > 1 else ""
+        file_path = "task.json"
+        return {
+            "status": "success",
+            "data": task_json,
+            "repo": f"{owner}/{repo}",
+            "path": file_path,
+        }
+
+    # For non-GitHub URLs, return error (frontend should handle direct fetch)
+    raise HTTPException(
+        status_code=400,
+        detail="URL must be a GitHub repository URL, blob URL, or raw GitHub URL. For other URLs, use direct fetch.",
+    )
