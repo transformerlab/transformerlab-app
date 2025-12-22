@@ -8,7 +8,7 @@ from textual.widgets import (
 )
 from textual.containers import Vertical
 from textual.screen import ModalScreen
-from textual import work
+from textual import on, work
 from textual.reactive import reactive
 
 from lab_cli.util import api
@@ -21,8 +21,9 @@ class ExperimentSelectModal(ModalScreen):
     This prevents rendering glitches where the value is set but not shown.
     """
 
-    raw_experiments: reactive[list[dict] | None] = reactive(None)
+    experiment_options: reactive[list[tuple[str, str]] | None] = reactive(None)
     is_loading: reactive[bool] = reactive(True)  # Add a reactive property for loading state
+    selected_value: reactive[str | None] = reactive(None)
 
     DEFAULT_CSS = """
     ExperimentSelectModal {
@@ -50,7 +51,6 @@ class ExperimentSelectModal(ModalScreen):
         super().__init__()
         raw_current = get_current_experiment()
         self.current_exp_config = str(raw_current) if raw_current is not None else None
-        self.selected_value: str | None = None
 
     def compose(self) -> ComposeResult:
         with Vertical(id="experiment-modal"):
@@ -59,7 +59,12 @@ class ExperimentSelectModal(ModalScreen):
             # 1. A dedicated container for the dynamic content (Loader OR Select)
             with Vertical(id="dialog-body"):
                 yield LoadingIndicator(id="experiment-loader")  # No `visible` argument
-
+                yield Select(
+                    id="experiment-select",
+                    options=[("alpha", "alpha"), ("beta", "beta")],  # Placeholder options
+                    prompt="Select an experiment",
+                    disabled=True,  # Initially disabled
+                )
             yield Button("Set Experiment", id="btn-apply-experiment", variant="primary", disabled=True)
             yield Static("", id="experiment-feedback")
 
@@ -77,62 +82,39 @@ class ExperimentSelectModal(ModalScreen):
         except Exception:
             data = []
 
-        self.raw_experiments = data
-
-    def update_experiments(self, experiments: list[dict]) -> None:
-        """Update the experiments and hide the loader."""
-        self.raw_experiments = experiments
-        self.is_loading = False  # Update the loading state
+        # format the data which looks like [{"name":"alpha","id":"alpha","config":{}},{"name":"beta","id":"beta","config":{}}]
+        # to a tuple list which looks like [("alpha","alpha"),("beta","beta")]
+        options = [(str(exp.get("id")), exp.get("name")) for exp in data]
+        self.experiment_options = options
+        self.is_loading = False
 
     def watch_is_loading(self, is_loading: bool) -> None:
         """Show or hide the loading indicator based on the loading state."""
         loader = self.query_one("#experiment-loader", LoadingIndicator)
         loader.display = is_loading  # Control visibility using the `display` property
 
-    def watch_raw_experiments(self, experiments: list[dict] | None) -> None:
+    def watch_experiment_options(self, experiments: list[tuple[str, str]] | None) -> None:
         """
         Replaces the LoadingIndicator with a configured Select widget.
         """
-        container = self.query_one("#dialog-body")
         feedback = self.query_one("#experiment-feedback", Static)
 
         if experiments is None:
             return
 
-        container.remove_children()
-
         if not experiments:
             feedback.update("[yellow]No experiments found.[/yellow]")
             return
 
-        # 3. Build Options
-        options = []
-        for exp in experiments:
-            e_id = str(exp.get("id") or exp.get("name"))
-            name = str(exp.get("name") or e_id)
-            options.append((name, e_id))
+        select = self.query_one("#experiment-select", Select)
+        select.options = experiments
+        select.disabled = False
 
-        print(options)
-        print(self.current_exp_config)
+        print("Experiments loaded:", experiments)
 
-        select_widget = Select(
-            options,
-            value=None,
-            id="experiment-select",
-            prompt="Select an experiment",
-        )
-
-        container.mount(select_widget)
-
-    def on_select_changed(self, event: Select.Changed) -> None:
-        if event.value != Select.BLANK:
-            self.selected_value = str(event.value)
-            self.query_one("#btn-apply-experiment", Button).disabled = False
-        else:
-            self.query_one("#btn-apply-experiment", Button).disabled = True
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "btn-apply-experiment" and self.selected_value:
-            set_config("current_experiment", self.selected_value)
-            self.app.on_experiment_changed()  # Notify the app of the change
-            self.dismiss()
+    @on(Select.Changed, "#experiment-select")
+    def select_changed(self, event: Select.Changed) -> None:
+        print("Experiment selected:", event.value)
+        set_config("current_experiment", event.value)
+        self.app.on_experiment_changed()
+        self.dismiss()
