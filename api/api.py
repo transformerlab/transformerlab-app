@@ -55,6 +55,7 @@ from transformerlab.routers import (  # noqa: E402
     evals,
     config,
     tasks,
+    templates,
     prompts,
     tools,
     batched_prompts,
@@ -245,6 +246,7 @@ app.include_router(plugins.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(evals.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(jobs.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(tasks.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(templates.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(config.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(prompts.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(tools.router, dependencies=[Depends(get_user_and_team)])

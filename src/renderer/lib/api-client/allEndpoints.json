@@ -57,6 +57,36 @@
       "path": "tasks/import_from_local_gallery"
     }
   },
+  "templates": {
+    "getAll": {
+      "method": "GET",
+      "path": "templates/list"
+    },
+    "get": {
+      "method": "GET",
+      "path": "templates/{id}/get"
+    },
+    "getByType": {
+      "method": "GET",
+      "path": "templates/list_by_type?type={type}"
+    },
+    "getByTypeInExperiment": {
+      "method": "GET",
+      "path": "templates/list_by_type_in_experiment?type={type}&experiment_id={experiment_id}"
+    },
+    "create": {
+      "method": "PUT",
+      "path": "templates/new_template"
+    },
+    "delete": {
+      "method": "GET",
+      "path": "templates/{id}/delete"
+    },
+    "update": {
+      "method": "PUT",
+      "path": "templates/{id}/update"
+    }
+  },
   "server": {
     "info": {
       "method": "GET",
@@ -248,7 +278,11 @@
     },
     "launchTask": {
       "method": "POST",
-      "path": "compute_provider/{providerId}/tasks/launch"
+      "path": "compute_provider/{providerId}/templates/launch"
+    },
+    "launchTemplate": {
+      "method": "POST",
+      "path": "compute_provider/{providerId}/templates/launch"
     },
     "checkJobStatus": {
       "method": "GET",
@@ -264,7 +298,11 @@
     },
     "uploadTaskFile": {
       "method": "POST",
-      "path": "compute_provider/{providerId}/tasks/{taskId}/file-upload"
+      "path": "compute_provider/{providerId}/templates/{templateId}/file-upload"
+    },
+    "uploadTemplateFile": {
+      "method": "POST",
+      "path": "compute_provider/{providerId}/templates/{templateId}/file-upload"
     },
     "usage-report": {
       "method": "GET",

@@ -166,6 +166,16 @@ def get_tasks_dir() -> str:
     return path
 
 
+def get_templates_dir() -> str:
+    tfl_storage_uri = _current_tfl_storage_uri.get()
+    if tfl_storage_uri is not None:
+        return storage.join(tfl_storage_uri, "templates")
+
+    path = storage.join(get_workspace_dir(), "templates")
+    storage.makedirs(path, exist_ok=True)
+    return path
+
+
 def dataset_dir_by_id(dataset_id: str) -> str:
     return storage.join(get_datasets_dir(), dataset_id)
 

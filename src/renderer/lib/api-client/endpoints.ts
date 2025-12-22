@@ -43,10 +43,25 @@ Endpoints.Tasks = {
     }`,
 };
 
+Endpoints.Templates = {
+  List: () => `${API_URL()}templates/list`,
+  ListByType: (type: string) => `${API_URL()}templates/list_by_type?type=${type}`,
+  ListByTypeInExperiment: (type: string, experiment_id: string) =>
+    `${API_URL()}templates/list_by_type_in_experiment?type=${type}&experiment_id=${
+      experiment_id
+    }`,
+  GetByID: (id: string) => `${API_URL()}templates/${id}/get`,
+  UpdateTemplate: (id: string) => `${API_URL()}templates/${id}/update`,
+  NewTemplate: () => `${API_URL()}templates/new_template`,
+  DeleteTemplate: (id: string) => `${API_URL()}templates/${id}/delete`,
+};
+
 Endpoints.ComputeProvider = {
   List: () => `${API_URL()}compute_provider/`,
+  LaunchTemplate: (providerId: string) =>
+    `${API_URL()}compute_provider/${providerId}/templates/launch`,
   LaunchTask: (providerId: string) =>
-    `${API_URL()}compute_provider/${providerId}/tasks/launch`,
+    `${API_URL()}compute_provider/${providerId}/templates/launch`, // Deprecated: use LaunchTemplate
   CheckJobStatus: (jobId: string) =>
     `${API_URL()}compute_provider/jobs/${jobId}/check-status`,
   CheckSweepStatus: (experimentId?: string, jobId?: string) => {
@@ -62,8 +77,10 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/jobs/${jobId}/sweep-results`,
   StopCluster: (providerId: string, clusterName: string) =>
     `${API_URL()}compute_provider/${providerId}/clusters/${clusterName}/stop`,
-  UploadTaskFile: (providerId: string, taskId: string | number) =>
-    `${API_URL()}compute_provider/${providerId}/tasks/${taskId}/file-upload`,
+  UploadTemplateFile: (providerId: string, templateId: string | number) =>
+    `${API_URL()}compute_provider/${providerId}/templates/${templateId}/file-upload`,
+  UploadTaskFile: (providerId: string, templateId: string | number) =>
+    `${API_URL()}compute_provider/${providerId}/templates/${templateId}/file-upload`, // Deprecated: use UploadTemplateFile
   Check: (providerId: string) =>
     `${API_URL()}compute_provider/${providerId}/check`,
 };

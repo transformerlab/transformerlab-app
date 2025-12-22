@@ -205,34 +205,34 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     return [...sweepJobs, ...remoteJobs];
   }, [jobsRemote, jobsSweep]);
 
-  // Fetch tasks with useSWR
+  // Fetch templates with useSWR (templates replace remote tasks)
   const {
-    data: allTasks,
-    isError: tasksIsError,
-    isLoading: tasksIsLoading,
-    mutate: tasksMutate,
+    data: allTemplates,
+    isError: templatesIsError,
+    isLoading: templatesIsLoading,
+    mutate: templatesMutate,
   } = useSWR(
     experimentInfo?.id
       ? subtype
-        ? chatAPI.Endpoints.Tasks.ListBySubtypeInExperiment(
+        ? chatAPI.Endpoints.Templates.ListByTypeInExperiment(
+            'REMOTE',
             experimentInfo.id,
-            subtype,
-            true,
           )
-        : chatAPI.Endpoints.Tasks.List()
+        : chatAPI.Endpoints.Templates.List()
       : null,
     fetcher,
   );
 
-  // Filter tasks for remote tasks in this experiment only
-  // If subtype is provided, filter by subtype in task config
+  // Filter templates for this experiment only
+  // If subtype is provided, filter by subtype in template
   const tasks =
-    (Array.isArray(allTasks) ? allTasks : allTasks?.data || []) // in case API returns {data: []}
-      ?.filter(
-        (task: any) =>
-          task.remote_task === true &&
-          task.experiment_id === experimentInfo?.id,
-      ) || [];
+    (Array.isArray(allTemplates) ? allTemplates : allTemplates?.data || []) // in case API returns {data: []}
+      ?.filter((template: any) => {
+        const matchesExperiment = template.experiment_id === experimentInfo?.id;
+        if (!subtype) return matchesExperiment;
+        // For templates, subtype is stored directly in the template (not nested in config)
+        return matchesExperiment && template.subtype === subtype;
+      }) || [];
 
   // Check each LAUNCHING job individually via provider endpoints
   useEffect(() => {
@@ -279,7 +279,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   // Note: SWEEP job status is automatically updated when fetching via sweep-status endpoint
   // No separate status check needed - the endpoint updates and returns all SWEEP jobs
 
-  const loading = tasksIsLoading || jobsIsLoading;
+  const loading = templatesIsLoading || jobsIsLoading;
 
   // Remove any pending placeholders that are now present in jobs
   useEffect(() => {
@@ -339,13 +339,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     if (!experimentInfo?.id) return;
 
     // eslint-disable-next-line no-alert
-    if (!confirm('Are you sure you want to delete this task?')) {
+    if (!confirm('Are you sure you want to delete this template?')) {
       return;
     }
 
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Tasks.DeleteTask(taskId),
+        chatAPI.Endpoints.Templates.DeleteTemplate(taskId),
         {
           method: 'GET',
         },
@@ -354,21 +354,21 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       if (response.ok) {
         addNotification({
           type: 'success',
-          message: 'Task deleted successfully!',
+          message: 'Template deleted successfully!',
         });
-        // Refresh the data to remove the deleted task
-        await tasksMutate();
+        // Refresh the data to remove the deleted template
+        await templatesMutate();
       } else {
         addNotification({
           type: 'danger',
-          message: 'Failed to delete task. Please try again.',
+          message: 'Failed to delete template. Please try again.',
         });
       }
     } catch (error) {
-      console.error('Error deleting task:', error);
+      console.error('Error deleting template:', error);
       addNotification({
         type: 'danger',
-        message: 'Failed to delete task. Please try again.',
+        message: 'Failed to delete template. Please try again.',
       });
     }
   };
@@ -476,8 +476,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
     setIsSubmitting(true);
     try {
-      // Create a remote task template first
-      const config: any = {
+      // Create a template with all fields stored directly (flat structure)
+      const templatePayload: any = {
+        name: data.title,
+        type: 'REMOTE',
+        plugin: 'remote_orchestrator',
+        experiment_id: experimentInfo.id,
         cluster_name: data.cluster_name,
         command: data.command,
         cpus: data.cpus || undefined,
@@ -498,57 +502,45 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           data.sweep_metric || (data.run_sweeps ? 'eval/loss' : undefined),
         lower_is_better:
           data.lower_is_better !== undefined ? data.lower_is_better : undefined,
+        provider_id: providerMeta.id,
+        provider_name: providerMeta.name,
       };
 
-      config.provider_id = providerMeta.id;
-      config.provider_name = providerMeta.name;
-
-      // Add subtype to config if provided
+      // Add subtype if provided
       if (subtype) {
-        config.subtype = subtype;
+        templatePayload.subtype = subtype;
       }
 
-      const payload = {
-        name: data.title,
-        type: 'REMOTE',
-        inputs: {},
-        config: config,
-        plugin: 'remote_orchestrator',
-        outputs: {},
-        experiment_id: experimentInfo.id,
-        remote_task: true,
-      } as any;
-
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Tasks.NewTask(),
+        chatAPI.Endpoints.Templates.NewTemplate(),
         {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(templatePayload),
         },
       );
 
       if (response.ok) {
         setModalOpen(false);
-        await tasksMutate();
+        await templatesMutate();
         addNotification({
           type: 'success',
-          message: 'Task created. Use Queue to launch remotely.',
+          message: 'Template created. Use Queue to launch remotely.',
         });
       } else {
         const txt = await response.text();
         addNotification({
           type: 'danger',
-          message: `Failed to create task: ${txt}`,
+          message: `Failed to create template: ${txt}`,
         });
       }
     } catch (error) {
-      console.error('Error creating task:', error);
+      console.error('Error creating template:', error);
       addNotification({
         type: 'danger',
-        message: 'Failed to create task. Please try again.',
+        message: 'Failed to create template. Please try again.',
       });
     } finally {
       setIsSubmitting(false);
@@ -586,7 +578,12 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
       const defaultCommand =
         'code tunnel --accept-server-license-terms --disable-telemetry'.trim();
 
-      const config: any = {
+      // Create template with flat structure
+      const templatePayload: any = {
+        name: data.title,
+        type: 'REMOTE',
+        plugin: 'remote_orchestrator',
+        experiment_id: experimentInfo.id,
         cluster_name: data.title,
         command: defaultCommand,
         cpus: data.cpus || undefined,
@@ -596,53 +593,41 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         subtype: 'interactive',
         interactive_type: data.interactive_type || 'vscode',
         github_enabled: false,
+        provider_id: providerMeta.id,
+        provider_name: providerMeta.name,
       };
 
-      config.provider_id = providerMeta.id;
-      config.provider_name = providerMeta.name;
-
-      const payload = {
-        name: data.title,
-        type: 'REMOTE',
-        inputs: {},
-        config,
-        plugin: 'remote_orchestrator',
-        outputs: {},
-        experiment_id: experimentInfo.id,
-        remote_task: true,
-      } as any;
-
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Tasks.NewTask(),
+        chatAPI.Endpoints.Templates.NewTemplate(),
         {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(templatePayload),
         },
       );
 
       if (response.ok) {
         setInteractiveModalOpen(false);
-        await tasksMutate();
+        await templatesMutate();
         addNotification({
           type: 'success',
           message:
-            'Interactive task created. Use Queue to launch the VS Code tunnel.',
+            'Interactive template created. Use Queue to launch the VS Code tunnel.',
         });
       } else {
         const txt = await response.text();
         addNotification({
           type: 'danger',
-          message: `Failed to create interactive task: ${txt}`,
+          message: `Failed to create interactive template: ${txt}`,
         });
       }
     } catch (error) {
-      console.error('Error creating interactive task:', error);
+      console.error('Error creating interactive template:', error);
       addNotification({
         type: 'danger',
-        message: 'Failed to create interactive task. Please try again.',
+        message: 'Failed to create interactive template. Please try again.',
       });
     } finally {
       setIsSubmitting(false);
@@ -652,13 +637,19 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
   const handleQueue = async (task: any) => {
     if (!experimentInfo?.id) return;
 
+    // For templates, all fields are stored directly (not nested in config)
+    // For backward compatibility, check if it's an old task format with nested config
     const cfg =
-      typeof task.config === 'string'
-        ? JSON.parse(task.config)
-        : task.config || {};
+      task.config !== undefined
+        ? typeof task.config === 'string'
+          ? JSON.parse(task.config)
+          : task.config
+        : task; // If no config field, assume it's a template with flat structure
 
     const providerId =
-      cfg.provider_id || (providers.length ? providers[0]?.id : null);
+      cfg.provider_id ||
+      task.provider_id ||
+      (providers.length ? providers[0]?.id : null);
     if (!providerId) {
       addNotification({
         type: 'danger',
@@ -695,36 +686,43 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
     });
 
     try {
+      // For templates, fields are stored directly, so use task directly or cfg
       const payload = {
         experiment_id: experimentInfo.id,
         task_name: task.name,
-        cluster_name: cfg.cluster_name,
-        command: cfg.command,
-        subtype: cfg.subtype,
-        interactive_type: cfg.interactive_type,
-        cpus: cfg.cpus,
-        memory: cfg.memory,
-        disk_space: cfg.disk_space,
-        accelerators: cfg.accelerators,
-        num_nodes: cfg.num_nodes,
-        setup: cfg.setup,
-        env_vars: cfg.env_vars || {},
-        parameters: cfg.parameters || undefined,
-        file_mounts: cfg.file_mounts,
+        cluster_name: cfg.cluster_name || task.cluster_name,
+        command: cfg.command || task.command,
+        subtype: cfg.subtype || task.subtype,
+        interactive_type: cfg.interactive_type || task.interactive_type,
+        cpus: cfg.cpus || task.cpus,
+        memory: cfg.memory || task.memory,
+        disk_space: cfg.disk_space || task.disk_space,
+        accelerators: cfg.accelerators || task.accelerators,
+        num_nodes: cfg.num_nodes || task.num_nodes,
+        setup: cfg.setup || task.setup,
+        env_vars: cfg.env_vars || task.env_vars || {},
+        parameters: cfg.parameters || task.parameters || undefined,
+        file_mounts: cfg.file_mounts || task.file_mounts,
         provider_name: providerMeta.name,
-        github_enabled: cfg.github_enabled,
-        github_repo_url: cfg.github_repo_url,
-        github_directory: cfg.github_directory,
-        run_sweeps: cfg.run_sweeps || undefined,
-        sweep_config: cfg.sweep_config || undefined,
+        github_enabled: cfg.github_enabled || task.github_enabled,
+        github_repo_url: cfg.github_repo_url || task.github_repo_url,
+        github_directory: cfg.github_directory || task.github_directory,
+        run_sweeps: cfg.run_sweeps || task.run_sweeps || undefined,
+        sweep_config: cfg.sweep_config || task.sweep_config || undefined,
         sweep_metric:
-          cfg.sweep_metric || (cfg.run_sweeps ? 'eval/loss' : undefined),
+          cfg.sweep_metric ||
+          task.sweep_metric ||
+          (cfg.run_sweeps || task.run_sweeps ? 'eval/loss' : undefined),
         lower_is_better:
-          cfg.lower_is_better !== undefined ? cfg.lower_is_better : undefined,
+          cfg.lower_is_better !== undefined
+            ? cfg.lower_is_better
+            : task.lower_is_better !== undefined
+              ? task.lower_is_better
+              : undefined,
       };
 
       const response = await fetchWithAuth(
-        chatAPI.Endpoints.ComputeProvider.LaunchTask(providerId),
+        chatAPI.Endpoints.ComputeProvider.LaunchTemplate(providerId),
         {
           method: 'POST',
           headers: {
@@ -753,7 +751,7 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
           type: 'success',
           message: 'Provider cluster launch initiated.',
         });
-        await Promise.all([jobsMutate(), tasksMutate()]);
+        await Promise.all([jobsMutate(), templatesMutate()]);
       } else {
         const message =
           launchResult?.message || 'Failed to queue provider-backed task.';
@@ -812,7 +810,7 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         providers={providers}
         isProvidersLoading={providersIsLoading}
         onSaved={async () => {
-          await tasksMutate();
+          await templatesMutate();
         }}
       />
       <Stack
@@ -840,7 +838,7 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
           overflow: 'auto',
         }}
       >
-        {tasksIsLoading ? (
+        {templatesIsLoading ? (
           <LinearProgress />
         ) : (
           <TaskTemplateList

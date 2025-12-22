@@ -47,8 +47,8 @@ from typing import Any
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
 
 
-class ProviderTaskLaunchRequest(BaseModel):
-    """Payload for launching a remote task via providers."""
+class ProviderTemplateLaunchRequest(BaseModel):
+    """Payload for launching a remote template via providers."""
 
     experiment_id: str = Field(..., description="Experiment that owns the job")
     task_name: Optional[str] = Field(None, description="Friendly task name")
@@ -95,8 +95,8 @@ class ProviderTaskLaunchRequest(BaseModel):
     )
 
 
-class ProviderTaskFileUploadResponse(BaseModel):
-    """Response for a single task file upload."""
+class ProviderTemplateFileUploadResponse(BaseModel):
+    """Response for a single template file upload."""
 
     status: str
     stored_path: str
@@ -106,10 +106,10 @@ class ProviderTaskFileUploadResponse(BaseModel):
 def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
     """Return a filesystem-safe cluster base name."""
     if not base_name:
-        return "remote-task"
+        return "remote-template"
     normalized = "".join(ch if ch.isalnum() or ch in ("-", "_") else "-" for ch in base_name.strip())
     normalized = normalized.strip("-_")
-    return normalized or "remote-task"
+    return normalized or "remote-template"
 
 
 def _get_provider_instances(providers: list[TeamComputeProvider]) -> Dict[str, ComputeProvider]:
@@ -123,19 +123,19 @@ def _get_provider_instances(providers: list[TeamComputeProvider]) -> Dict[str, C
     return instances
 
 
-@router.post("/{provider_id}/tasks/{task_id}/file-upload", response_model=ProviderTaskFileUploadResponse)
-async def upload_task_file_for_provider(
+@router.post("/{provider_id}/templates/{template_id}/file-upload", response_model=ProviderTemplateFileUploadResponse)
+async def upload_template_file_for_provider(
     provider_id: str,
-    task_id: str,
+    template_id: str,
     request: Request,
     file: UploadFile = File(...),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Upload a single file for a provider-backed task.
+    Upload a single file for a provider-backed template.
 
-    The file is stored under workspace_dir/uploads/tasks/{task_id}/ and the
+    The file is stored under workspace_dir/uploads/templates/{template_id}/ and the
     stored_path returned from this endpoint can be used as the local side of a
     file mount mapping: {<remote_path>: <stored_path>}.
     """
@@ -151,14 +151,14 @@ async def upload_task_file_for_provider(
         if not workspace_dir:
             raise RuntimeError("Workspace directory is not configured")
 
-        # uploads/tasks/{task_id}/
-        uploads_root = storage.join(workspace_dir, "uploads", "tasks")
+        # uploads/templates/{template_id}/
+        uploads_root = storage.join(workspace_dir, "uploads", "templates")
         storage.makedirs(uploads_root, exist_ok=True)
 
         import uuid
 
-        task_dir = storage.join(uploads_root, str(task_id))
-        storage.makedirs(task_dir, exist_ok=True)
+        template_dir = storage.join(uploads_root, str(template_id))
+        storage.makedirs(template_dir, exist_ok=True)
 
         # Use original filename with a random suffix to avoid collisions
         original_name = file.filename or "uploaded_file"
@@ -166,7 +166,7 @@ async def upload_task_file_for_provider(
         # Avoid path separators from filename
         safe_name = original_name.split("/")[-1].split("\\")[-1]
         stored_filename = f"{safe_name}.{suffix}"
-        stored_path = storage.join(task_dir, stored_filename)
+        stored_path = storage.join(template_dir, stored_filename)
 
         # Persist file contents
         await file.seek(0)
@@ -174,7 +174,7 @@ async def upload_task_file_for_provider(
         with storage.open(stored_path, "wb") as f:
             f.write(content)
 
-        return ProviderTaskFileUploadResponse(
+        return ProviderTemplateFileUploadResponse(
             status="success",
             stored_path=stored_path,
             message="File uploaded successfully",
@@ -182,8 +182,8 @@ async def upload_task_file_for_provider(
     except HTTPException:
         raise
     except Exception as exc:
-        print(f"Task file upload error: {exc}")
-        raise HTTPException(status_code=500, detail="Failed to upload task file")
+        print(f"Template file upload error: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to upload template file")
 
 
 @router.get("/", response_model=List[ProviderRead])
@@ -727,7 +727,7 @@ def _generate_aws_credentials_setup(
 
 async def _create_sweep_parent_job(
     provider_id: str,
-    request: ProviderTaskLaunchRequest,
+    request: ProviderTemplateLaunchRequest,
     user_and_team: dict,
     session: AsyncSession,
     sweep_config: Dict[str, List[Any]],
@@ -808,7 +808,7 @@ async def _create_sweep_parent_job(
 
 async def _launch_sweep_jobs(
     provider_id: str,
-    request: ProviderTaskLaunchRequest,
+    request: ProviderTemplateLaunchRequest,
     user_and_team: dict,
     base_parameters: Dict[str, Any],
     sweep_config: Dict[str, List[Any]],
@@ -1039,10 +1039,10 @@ async def _launch_sweep_jobs(
             lab_set_org_id(None)
 
 
-@router.post("/{provider_id}/tasks/launch")
-async def launch_task_on_provider(
+@router.post("/{provider_id}/templates/launch")
+async def launch_template_on_provider(
     provider_id: str,
-    request: ProviderTaskLaunchRequest,
+    request: ProviderTemplateLaunchRequest,
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -1111,7 +1111,7 @@ async def launch_task_on_provider(
 
     provider_instance = get_provider_instance(provider)
 
-    # Interactive tasks should start directly in INTERACTIVE state instead of LAUNCHING
+    # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING
     initial_status = "INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING"
 
     job_id = job_service.job_create(type="REMOTE", status=initial_status, experiment_id=request.experiment_id)
