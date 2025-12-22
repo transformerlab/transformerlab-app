@@ -45,8 +45,7 @@ Endpoints.Tasks = {
 
 Endpoints.Task = {
   List: () => `${API_URL()}task/list`,
-  ListByType: (type: string) =>
-    `${API_URL()}task/list_by_type?type=${type}`,
+  ListByType: (type: string) => `${API_URL()}task/list_by_type?type=${type}`,
   ListByTypeInExperiment: (type: string, experiment_id: string) =>
     `${API_URL()}task/list_by_type_in_experiment?type=${type}&experiment_id=${
       experiment_id

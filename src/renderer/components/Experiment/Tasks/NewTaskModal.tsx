@@ -1057,7 +1057,7 @@ export default function NewTaskModal({
     // Convert to YAML string (simple manual conversion for now)
     const yamlString = convertToYamlString(yamlData);
     setYamlContent(yamlString);
-    
+
     // Explicitly update the Monaco editor if it's mounted
     if (yamlEditorRef.current) {
       yamlEditorRef.current.setValue(yamlString);
@@ -1788,9 +1788,9 @@ export default function NewTaskModal({
                     {enableSweeps && (
                       <Stack spacing={2}>
                         <FormHelperText>
-                          Define parameters to sweep. Each parameter will be tried
-                          with all specified values. All combinations will be
-                          created.
+                          Define parameters to sweep. Each parameter will be
+                          tried with all specified values. All combinations will
+                          be created.
                         </FormHelperText>
 
                         {sweepParams.map((sp, index) => (
@@ -1800,7 +1800,8 @@ export default function NewTaskModal({
                               value={sp.paramName}
                               onChange={(e) => {
                                 const newSweepParams = [...sweepParams];
-                                newSweepParams[index].paramName = e.target.value;
+                                newSweepParams[index].paramName =
+                                  e.target.value;
                                 setSweepParams(newSweepParams);
                               }}
                               sx={{ flex: 1 }}

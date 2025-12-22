@@ -97,7 +97,7 @@ export default function EditTaskModal({
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
   const yamlEditorRef = useRef<any>(null);
-  
+
   // YAML/GUI mode toggle (default to YAML)
   const [isYamlMode, setIsYamlMode] = React.useState(true);
   const [yamlContent, setYamlContent] = React.useState('');
@@ -237,7 +237,9 @@ export default function EditTaskModal({
     }
 
     // Initialize GitHub fields
-    const githubRepoUrlValue = isTemplate ? taskAny.github_repo_url || '' : cfg.github_repo_url || '';
+    const githubRepoUrlValue = isTemplate
+      ? taskAny.github_repo_url || ''
+      : cfg.github_repo_url || '';
     setGithubRepoUrl(githubRepoUrlValue);
     setGithubEnabled(!!githubRepoUrlValue); // Infer from repo URL
     setGithubDirectory(
@@ -248,7 +250,7 @@ export default function EditTaskModal({
     setEnableSweeps(
       isTemplate ? taskAny.run_sweeps || false : cfg.run_sweeps || false,
     );
-    
+
     // Initialize YAML mode
     setIsYamlMode(true);
     setSweepMetric(
@@ -284,7 +286,7 @@ export default function EditTaskModal({
       setSweepParams([{ paramName: '', values: '' }]);
     }
   }, [task]);
-  
+
   // Convert task to YAML after all state is initialized
   React.useEffect(() => {
     if (task && title && isYamlMode && open) {
@@ -294,7 +296,25 @@ export default function EditTaskModal({
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [task, title, cpus, memory, command, setup, envVars, parameters, selectedProviderId, githubRepoUrl, githubDirectory, enableSweeps, sweepParams, sweepMetric, lowerIsBetter, isYamlMode, open]);
+  }, [
+    task,
+    title,
+    cpus,
+    memory,
+    command,
+    setup,
+    envVars,
+    parameters,
+    selectedProviderId,
+    githubRepoUrl,
+    githubDirectory,
+    enableSweeps,
+    sweepParams,
+    sweepMetric,
+    lowerIsBetter,
+    isYamlMode,
+    open,
+  ]);
 
   React.useEffect(() => {
     if (!providers.length) {
@@ -371,10 +391,15 @@ export default function EditTaskModal({
   const convertToYamlString = (obj: any, indent = 0): string => {
     const indentStr = '  '.repeat(indent);
     let result = '';
-    
+
     for (const [key, value] of Object.entries(obj)) {
-      if (value === null || value === undefined || (typeof value === 'object' && Object.keys(value).length === 0)) continue;
-      
+      if (
+        value === null ||
+        value === undefined ||
+        (typeof value === 'object' && Object.keys(value).length === 0)
+      )
+        continue;
+
       if (typeof value === 'object' && !Array.isArray(value)) {
         result += `${indentStr}${key}:\n${convertToYamlString(value, indent + 1)}`;
       } else if (Array.isArray(value)) {
@@ -387,21 +412,27 @@ export default function EditTaskModal({
           }
         });
       } else if (typeof value === 'string' && value.includes('\n')) {
-        result += `${indentStr}${key}: |\n${value.split('\n').map((line: string) => `${indentStr}  ${line}`).join('\n')}\n`;
-      } else if (typeof value === 'string' && (value.startsWith('"') || value.includes(':'))) {
+        result += `${indentStr}${key}: |\n${value
+          .split('\n')
+          .map((line: string) => `${indentStr}  ${line}`)
+          .join('\n')}\n`;
+      } else if (
+        typeof value === 'string' &&
+        (value.startsWith('"') || value.includes(':'))
+      ) {
         result += `${indentStr}${key}: "${value.replace(/"/g, '\\"')}"\n`;
       } else {
         result += `${indentStr}${key}: ${value}\n`;
       }
     }
-    
+
     return result;
   };
 
   // Convert current task to YAML
   const convertTaskToYaml = () => {
     if (!task) return;
-    
+
     const yamlData: any = {
       task: {
         name: title || task.name || 'untitled-task',
@@ -417,11 +448,28 @@ export default function EditTaskModal({
         };
       }
     }
-    if (cpus) yamlData.task.resources = { ...yamlData.task.resources, cpus: parseInt(cpus) || cpus };
-    if (memory) yamlData.task.resources = { ...yamlData.task.resources, memory: parseInt(memory) || memory };
-    if (diskSpace) yamlData.task.resources = { ...yamlData.task.resources, disk_space: parseInt(diskSpace) || diskSpace };
-    if (accelerators) yamlData.task.resources = { ...yamlData.task.resources, accelerators };
-    if (numNodes) yamlData.task.resources = { ...yamlData.task.resources, num_nodes: parseInt(numNodes) || numNodes };
+    if (cpus)
+      yamlData.task.resources = {
+        ...yamlData.task.resources,
+        cpus: parseInt(cpus) || cpus,
+      };
+    if (memory)
+      yamlData.task.resources = {
+        ...yamlData.task.resources,
+        memory: parseInt(memory) || memory,
+      };
+    if (diskSpace)
+      yamlData.task.resources = {
+        ...yamlData.task.resources,
+        disk_space: parseInt(diskSpace) || diskSpace,
+      };
+    if (accelerators)
+      yamlData.task.resources = { ...yamlData.task.resources, accelerators };
+    if (numNodes)
+      yamlData.task.resources = {
+        ...yamlData.task.resources,
+        num_nodes: parseInt(numNodes) || numNodes,
+      };
 
     // Environment variables
     const envs: Record<string, string> = {};
@@ -468,7 +516,10 @@ export default function EditTaskModal({
       const sweepConfig: Record<string, string[]> = {};
       sweepParams.forEach(({ paramName, values }) => {
         if (paramName.trim() && values.trim()) {
-          sweepConfig[paramName.trim()] = values.split(',').map((v) => v.trim()).filter(Boolean);
+          sweepConfig[paramName.trim()] = values
+            .split(',')
+            .map((v) => v.trim())
+            .filter(Boolean);
         }
       });
       if (Object.keys(sweepConfig).length > 0) {
@@ -497,23 +548,25 @@ export default function EditTaskModal({
       const parseYaml = (yamlStr: string): any => {
         const lines = yamlStr.split('\n');
         const result: any = {};
-        const stack: Array<{ obj: any; level: number }> = [{ obj: result, level: -1 }];
-        
+        const stack: Array<{ obj: any; level: number }> = [
+          { obj: result, level: -1 },
+        ];
+
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           const trimmed = line.trim();
-          
+
           if (!trimmed || trimmed.startsWith('#')) continue;
-          
+
           const indent = line.length - line.trimStart().length;
           const level = Math.floor(indent / 2);
-          
+
           while (stack.length > 1 && stack[stack.length - 1].level >= level) {
             stack.pop();
           }
-          
+
           const current = stack[stack.length - 1].obj;
-          
+
           if (trimmed.endsWith(':')) {
             const key = trimmed.slice(0, -1).trim();
             const newObj: any = {};
@@ -524,28 +577,30 @@ export default function EditTaskModal({
             if (colonIndex > 0) {
               const key = trimmed.slice(0, colonIndex).trim();
               let value: any = trimmed.slice(colonIndex + 1).trim();
-              
-              if ((value.startsWith('"') && value.endsWith('"')) || 
-                  (value.startsWith("'") && value.endsWith("'"))) {
+
+              if (
+                (value.startsWith('"') && value.endsWith('"')) ||
+                (value.startsWith("'") && value.endsWith("'"))
+              ) {
                 value = value.slice(1, -1);
               }
-              
+
               if (value === 'true') value = true;
               else if (value === 'false') value = false;
               else if (value === 'null') value = null;
               else if (/^-?\d+$/.test(value)) value = parseInt(value, 10);
               else if (/^-?\d*\.\d+$/.test(value)) value = parseFloat(value);
-              
+
               current[key] = value;
             }
           }
         }
-        
+
         return result;
       };
 
       const yamlData = parseYaml(yamlContent);
-      
+
       if (!yamlData || !yamlData.task) {
         throw new Error("YAML must contain a 'task' key");
       }
@@ -633,37 +688,50 @@ export default function EditTaskModal({
       if (taskData.accelerators) setAccelerators(taskData.accelerators);
       if (taskData.num_nodes) setNumNodes(String(taskData.num_nodes));
       if (taskData.github_repo_url) setGithubRepoUrl(taskData.github_repo_url);
-      if (taskData.github_directory) setGithubDirectory(taskData.github_directory);
+      if (taskData.github_directory)
+        setGithubDirectory(taskData.github_directory);
       setGithubEnabled(!!taskData.github_repo_url);
 
       // Environment variables
       if (taskData.env_vars && typeof taskData.env_vars === 'object') {
-        const envVarsArray = Object.entries(taskData.env_vars).map(([key, value]) => ({
-          key,
-          value: String(value),
-        }));
-        setEnvVars(envVarsArray.length > 0 ? envVarsArray : [{ key: '', value: '' }]);
+        const envVarsArray = Object.entries(taskData.env_vars).map(
+          ([key, value]) => ({
+            key,
+            value: String(value),
+          }),
+        );
+        setEnvVars(
+          envVarsArray.length > 0 ? envVarsArray : [{ key: '', value: '' }],
+        );
       }
 
       // Parameters
       if (taskData.parameters && typeof taskData.parameters === 'object') {
-        const parametersArray = Object.entries(taskData.parameters).map(([key, value]) => {
-          let valueStr = '';
-          let valueType: 'string' | 'json' = 'string';
-          if (typeof value === 'object') {
-            valueStr = JSON.stringify(value, null, 2);
-            valueType = 'json';
-          } else {
-            valueStr = String(value);
-          }
-          return { key, value: valueStr, valueType };
-        });
-        setParameters(parametersArray.length > 0 ? parametersArray : [{ key: '', value: '', valueType: 'string' }]);
+        const parametersArray = Object.entries(taskData.parameters).map(
+          ([key, value]) => {
+            let valueStr = '';
+            let valueType: 'string' | 'json' = 'string';
+            if (typeof value === 'object') {
+              valueStr = JSON.stringify(value, null, 2);
+              valueType = 'json';
+            } else {
+              valueStr = String(value);
+            }
+            return { key, value: valueStr, valueType };
+          },
+        );
+        setParameters(
+          parametersArray.length > 0
+            ? parametersArray
+            : [{ key: '', value: '', valueType: 'string' }],
+        );
       }
 
       // Provider
       if (taskData.provider_name) {
-        const provider = providers.find((p) => p.name === taskData.provider_name);
+        const provider = providers.find(
+          (p) => p.name === taskData.provider_name,
+        );
         if (provider) {
           setSelectedProviderId(provider.id);
         }
@@ -673,14 +741,19 @@ export default function EditTaskModal({
       if (taskData.run_sweeps) {
         setEnableSweeps(true);
         if (taskData.sweep_config) {
-          const sweepParamsArray = Object.entries(taskData.sweep_config).map(([paramName, values]) => ({
-            paramName,
-            values: Array.isArray(values) ? values.join(', ') : String(values),
-          }));
+          const sweepParamsArray = Object.entries(taskData.sweep_config).map(
+            ([paramName, values]) => ({
+              paramName,
+              values: Array.isArray(values)
+                ? values.join(', ')
+                : String(values),
+            }),
+          );
           setSweepParams(sweepParamsArray);
         }
         if (taskData.sweep_metric) setSweepMetric(taskData.sweep_metric);
-        if (taskData.lower_is_better !== undefined) setLowerIsBetter(taskData.lower_is_better);
+        if (taskData.lower_is_better !== undefined)
+          setLowerIsBetter(taskData.lower_is_better);
       }
 
       addNotification({ type: 'success', message: 'YAML parsed successfully' });
@@ -688,7 +761,8 @@ export default function EditTaskModal({
       console.error('Error parsing YAML:', error);
       addNotification({
         type: 'danger',
-        message: error.message || 'Failed to parse YAML. Please check the format.',
+        message:
+          error.message || 'Failed to parse YAML. Please check the format.',
       });
     }
   };
@@ -975,7 +1049,13 @@ export default function EditTaskModal({
         <DialogTitle>Edit Task</DialogTitle>
         <form onSubmit={handleSubmit}>
           <DialogContent sx={{ maxHeight: '70vh', overflow: 'auto' }}>
-            <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+            <Stack
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              justifyContent="space-between"
+              sx={{ mb: 2 }}
+            >
               <Typography level="title-md">Task Configuration</Typography>
               <Stack direction="row" spacing={1} alignItems="center">
                 <Typography level="body-sm">GUI</Typography>
@@ -996,11 +1076,17 @@ export default function EditTaskModal({
                 <Typography level="body-sm">YAML</Typography>
               </Stack>
             </Stack>
-            
+
             {isYamlMode ? (
               <FormControl>
                 <FormLabel>Task YAML Configuration</FormLabel>
-                <div style={{ height: '500px', border: '1px solid var(--joy-palette-neutral-300)', borderRadius: '8px' }}>
+                <div
+                  style={{
+                    height: '500px',
+                    border: '1px solid var(--joy-palette-neutral-300)',
+                    borderRadius: '8px',
+                  }}
+                >
                   <Editor
                     height="100%"
                     defaultLanguage="yaml"
@@ -1021,493 +1107,170 @@ export default function EditTaskModal({
                   />
                 </div>
                 <FormHelperText>
-                  Define your task configuration in YAML format. See documentation for structure.
+                  Define your task configuration in YAML format. See
+                  documentation for structure.
                 </FormHelperText>
               </FormControl>
             ) : (
               <>
-            <FormControl required>
-              <FormLabel>Title</FormLabel>
-              <Input
-                value={title}
-                onChange={(e) => {
-                  const newTitle = e.target.value;
-                  setTitle(newTitle);
-                  // keep cluster name behavior consistent with NewTaskModal
-                  setClusterName(`${newTitle}`);
-                }}
-                placeholder="Task title"
-              />
-            </FormControl>
+                <FormControl required>
+                  <FormLabel>Title</FormLabel>
+                  <Input
+                    value={title}
+                    onChange={(e) => {
+                      const newTitle = e.target.value;
+                      setTitle(newTitle);
+                      // keep cluster name behavior consistent with NewTaskModal
+                      setClusterName(`${newTitle}`);
+                    }}
+                    placeholder="Task title"
+                  />
+                </FormControl>
 
-            <FormControl required sx={{ mt: 2 }}>
-              <FormLabel>Provider</FormLabel>
-              <Select
-                placeholder={
-                  providers.length
-                    ? 'Select a provider'
-                    : 'No providers configured'
-                }
-                value={selectedProviderId || null}
-                onChange={(_, value) => setSelectedProviderId(value || '')}
-                disabled={
-                  saving || isProvidersLoading || providers.length === 0
-                }
-                slotProps={{
-                  listbox: { sx: { maxHeight: 240 } },
-                }}
-              >
-                {providers.map((provider) => (
-                  <Option key={provider.id} value={provider.id}>
-                    {provider.name}
-                  </Option>
-                ))}
-              </Select>
-              <FormHelperText>
-                Choose which provider this template should use.
-              </FormHelperText>
-            </FormControl>
+                <FormControl required sx={{ mt: 2 }}>
+                  <FormLabel>Provider</FormLabel>
+                  <Select
+                    placeholder={
+                      providers.length
+                        ? 'Select a provider'
+                        : 'No providers configured'
+                    }
+                    value={selectedProviderId || null}
+                    onChange={(_, value) => setSelectedProviderId(value || '')}
+                    disabled={
+                      saving || isProvidersLoading || providers.length === 0
+                    }
+                    slotProps={{
+                      listbox: { sx: { maxHeight: 240 } },
+                    }}
+                  >
+                    {providers.map((provider) => (
+                      <Option key={provider.id} value={provider.id}>
+                        {provider.name}
+                      </Option>
+                    ))}
+                  </Select>
+                  <FormHelperText>
+                    Choose which provider this template should use.
+                  </FormHelperText>
+                </FormControl>
 
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '16px',
-                marginTop: '16px',
-              }}
-            >
-              <FormControl
-                sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
-              >
-                <FormLabel>CPUs</FormLabel>
-                <Input
-                  value={cpus}
-                  onChange={(e) => setCpus(e.target.value)}
-                  placeholder="e.g. 2"
-                />
-              </FormControl>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '16px',
+                    marginTop: '16px',
+                  }}
+                >
+                  <FormControl
+                    sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
+                  >
+                    <FormLabel>CPUs</FormLabel>
+                    <Input
+                      value={cpus}
+                      onChange={(e) => setCpus(e.target.value)}
+                      placeholder="e.g. 2"
+                    />
+                  </FormControl>
 
-              <FormControl
-                sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
-              >
-                <FormLabel>Memory (in GB)</FormLabel>
-                <Input
-                  value={memory}
-                  onChange={(e) => setMemory(e.target.value)}
-                  placeholder="e.g. 4"
-                />
-              </FormControl>
+                  <FormControl
+                    sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
+                  >
+                    <FormLabel>Memory (in GB)</FormLabel>
+                    <Input
+                      value={memory}
+                      onChange={(e) => setMemory(e.target.value)}
+                      placeholder="e.g. 4"
+                    />
+                  </FormControl>
 
-              <FormControl
-                sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
-              >
-                <FormLabel>Disk Space (in GB)</FormLabel>
-                <Input
-                  value={diskSpace}
-                  onChange={(e) => setDiskSpace(e.target.value)}
-                  placeholder="e.g. 20"
-                />
-              </FormControl>
-            </div>
+                  <FormControl
+                    sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
+                  >
+                    <FormLabel>Disk Space (in GB)</FormLabel>
+                    <Input
+                      value={diskSpace}
+                      onChange={(e) => setDiskSpace(e.target.value)}
+                      placeholder="e.g. 20"
+                    />
+                  </FormControl>
+                </div>
 
-            <FormControl sx={{ mt: 2 }}>
-              <FormLabel>Accelerators per Node</FormLabel>
-              <Input
-                value={accelerators}
-                onChange={(e) => setAccelerators(e.target.value)}
-                placeholder="e.g. RTX3090:1 or H100:8"
-              />
-            </FormControl>
+                <FormControl sx={{ mt: 2 }}>
+                  <FormLabel>Accelerators per Node</FormLabel>
+                  <Input
+                    value={accelerators}
+                    onChange={(e) => setAccelerators(e.target.value)}
+                    placeholder="e.g. RTX3090:1 or H100:8"
+                  />
+                </FormControl>
 
-            <FormControl sx={{ mt: 2 }}>
-              <FormLabel>Number of Nodes</FormLabel>
-              <Input
-                type="number"
-                value={numNodes}
-                onChange={(e) => setNumNodes(e.target.value)}
-                placeholder="e.g. 1"
-              />
-            </FormControl>
+                <FormControl sx={{ mt: 2 }}>
+                  <FormLabel>Number of Nodes</FormLabel>
+                  <Input
+                    type="number"
+                    value={numNodes}
+                    onChange={(e) => setNumNodes(e.target.value)}
+                    placeholder="e.g. 1"
+                  />
+                </FormControl>
 
-            <FormControl sx={{ mt: 2 }}>
-              <FormLabel>Setup Command</FormLabel>
-              {/* <Textarea
+                <FormControl sx={{ mt: 2 }}>
+                  <FormLabel>Setup Command</FormLabel>
+                  {/* <Textarea
                 minRows={2}
                 value={setup}
                 onChange={(e) => setSetup(e.target.value)}
                 placeholder="Setup commands (optional) that runs before task is run. e.g. pip install -r requirements.txt"
               /> */}
-              <Editor
-                defaultLanguage="shell"
-                theme="my-theme"
-                defaultValue={setup}
-                height="6rem"
-                options={{
-                  minimap: {
-                    enabled: false,
-                  },
-                  fontSize: 18,
-                  cursorStyle: 'block',
-                  wordWrap: 'on',
-                }}
-                onMount={handleSetupEditorDidMount}
-              />
-              <FormHelperText>
-                e.g. <code>pip install -r requirements.txt</code>
-              </FormHelperText>
-            </FormControl>
-
-            <FormControl sx={{ mt: 2 }}>
-              <FormLabel>Environment Variables</FormLabel>
-              <Stack spacing={1}>
-                {envVars.map((envVar, index) => (
-                  <Stack
-                    key={index}
-                    direction="row"
-                    spacing={1}
-                    alignItems="center"
-                  >
-                    <Input
-                      placeholder="Key"
-                      value={envVar.key}
-                      onChange={(e) => {
-                        const newEnvVars = [...envVars];
-                        newEnvVars[index].key = e.target.value;
-                        setEnvVars(newEnvVars);
-                      }}
-                      sx={{ flex: 1 }}
-                    />
-                    <Input
-                      placeholder="Value"
-                      value={envVar.value}
-                      onChange={(e) => {
-                        const newEnvVars = [...envVars];
-                        newEnvVars[index].value = e.target.value;
-                        setEnvVars(newEnvVars);
-                      }}
-                      sx={{ flex: 1 }}
-                    />
-                    <IconButton
-                      color="danger"
-                      variant="plain"
-                      onClick={() => {
-                        if (envVars.length > 1) {
-                          setEnvVars(envVars.filter((_, i) => i !== index));
-                        } else {
-                          setEnvVars([{ key: '', value: '' }]);
-                        }
-                      }}
-                    >
-                      <Trash2Icon size={16} />
-                    </IconButton>
-                  </Stack>
-                ))}
-                <Button
-                  variant="outlined"
-                  size="sm"
-                  startDecorator={<PlusIcon size={16} />}
-                  onClick={() =>
-                    setEnvVars([...envVars, { key: '', value: '' }])
-                  }
-                >
-                  Add Environment Variable
-                </Button>
-              </Stack>
-              <FormHelperText>
-                Optional environment variables to set when launching the cluster
-              </FormHelperText>
-            </FormControl>
-
-            <FormControl sx={{ mt: 2 }}>
-              <FormLabel>Parameters</FormLabel>
-              <Stack spacing={1}>
-                {parameters.map((param, index) => (
-                  <Stack key={index} spacing={1}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Input
-                        placeholder="Parameter name (e.g., learning_rate)"
-                        value={param.key}
-                        onChange={(e) => {
-                          const newParams = [...parameters];
-                          newParams[index].key = e.target.value;
-                          setParameters(newParams);
-                        }}
-                        sx={{ flex: 1 }}
-                      />
-                      <Select
-                        value={param.valueType}
-                        onChange={(_, newValue) => {
-                          if (newValue) {
-                            const newParams = [...parameters];
-                            newParams[index].valueType = newValue;
-                            setParameters(newParams);
-                          }
-                        }}
-                        sx={{ minWidth: 100 }}
-                      >
-                        <Option value="string">String</Option>
-                        <Option value="json">JSON</Option>
-                      </Select>
-                      <IconButton
-                        color="danger"
-                        variant="plain"
-                        onClick={() => {
-                          if (parameters.length > 1) {
-                            setParameters(
-                              parameters.filter((_, i) => i !== index),
-                            );
-                          } else {
-                            setParameters([
-                              { key: '', value: '', valueType: 'string' },
-                            ]);
-                          }
-                        }}
-                      >
-                        <Trash2Icon size={16} />
-                      </IconButton>
-                    </Stack>
-                    {param.valueType === 'json' ? (
-                      <Editor
-                        height="120px"
-                        defaultLanguage="json"
-                        value={param.value}
-                        onChange={(value) => {
-                          const newParams = [...parameters];
-                          newParams[index].value = value || '';
-                          setParameters(newParams);
-                        }}
-                        theme="my-theme"
-                        onMount={setTheme}
-                        options={{
-                          minimap: { enabled: false },
-                          scrollBeyondLastLine: false,
-                          fontSize: 12,
-                          lineNumbers: 'off',
-                          wordWrap: 'on',
-                        }}
-                      />
-                    ) : (
-                      <Input
-                        placeholder="Value (e.g., 0.001, true, false, or any string)"
-                        value={param.value}
-                        onChange={(e) => {
-                          const newParams = [...parameters];
-                          newParams[index].value = e.target.value;
-                          setParameters(newParams);
-                        }}
-                      />
-                    )}
-                  </Stack>
-                ))}
-                <Button
-                  variant="outlined"
-                  size="sm"
-                  startDecorator={<PlusIcon size={16} />}
-                  onClick={() =>
-                    setParameters([
-                      ...parameters,
-                      { key: '', value: '', valueType: 'string' },
-                    ])
-                  }
-                >
-                  Add Parameter
-                </Button>
-              </Stack>
-              <FormHelperText>
-                Task parameters accessible via lab.get_config() in your script.
-                Use JSON type for complex objects.
-              </FormHelperText>
-            </FormControl>
-
-            <FormControl sx={{ mt: 2 }}>
-              <FormLabel>File Mounts</FormLabel>
-              <FormHelperText>
-                For each mount, choose a remote path and upload a file to be
-                staged on the server.
-              </FormHelperText>
-              <Stack spacing={1} sx={{ mt: 1 }}>
-                {fileMounts.map((fm, index) => (
-                  <Stack
-                    key={index}
-                    direction="row"
-                    spacing={1}
-                    alignItems="center"
-                    sx={{ flexWrap: 'wrap' }}
-                  >
-                    <Input
-                      placeholder="/remote/path/on/cluster"
-                      value={fm.remotePath}
-                      onChange={(e) => {
-                        const next = [...fileMounts];
-                        next[index].remotePath = e.target.value;
-                        setFileMounts(next);
-                      }}
-                      sx={{ flex: 1, minWidth: '200px' }}
-                    />
-                    <input
-                      type="file"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] || null;
-                        const next = [...fileMounts];
-                        next[index].file = file;
-                        setFileMounts(next);
-                      }}
-                    />
-                    <IconButton
-                      color="danger"
-                      variant="plain"
-                      onClick={() => {
-                        if (fileMounts.length === 1) {
-                          setFileMounts([
-                            {
-                              remotePath: '',
-                              file: null,
-                              storedPath: undefined,
-                            },
-                          ]);
-                        } else {
-                          setFileMounts(
-                            fileMounts.filter((_, i) => i !== index),
-                          );
-                        }
-                      }}
-                    >
-                      <Trash2Icon size={16} />
-                    </IconButton>
-                  </Stack>
-                ))}
-                <Button
-                  variant="outlined"
-                  size="sm"
-                  startDecorator={<PlusIcon size={16} />}
-                  onClick={() =>
-                    setFileMounts([
-                      ...fileMounts,
-                      { remotePath: '', file: null, storedPath: undefined },
-                    ])
-                  }
-                >
-                  Add File Mount
-                </Button>
-              </Stack>
-            </FormControl>
-
-            {githubEnabled && (
-              <FormControl sx={{ mt: 2 }}>
-                <FormLabel>GitHub Repository (Read-Only)</FormLabel>
-                <Stack spacing={2} sx={{ mt: 1 }}>
-                  <FormControl>
-                    <FormLabel>GitHub Repository URL</FormLabel>
-                    <Input
-                      value={githubRepoUrl}
-                      disabled
-                      readOnly
-                      placeholder="https://github.com/owner/repo.git"
-                      sx={{
-                        bgcolor: 'background.level1',
-                        cursor: 'not-allowed',
-                      }}
-                    />
-                    <FormHelperText>
-                      GitHub repository URL (read-only - source of truth)
-                    </FormHelperText>
-                  </FormControl>
-                  {githubDirectory && (
-                    <FormControl>
-                      <FormLabel>Directory Path</FormLabel>
-                      <Input
-                        value={githubDirectory}
-                        disabled
-                        readOnly
-                        placeholder="path/to/directory"
-                        sx={{
-                          bgcolor: 'background.level1',
-                          cursor: 'not-allowed',
-                        }}
-                      />
-                      <FormHelperText>
-                        Directory path (read-only - source of truth)
-                      </FormHelperText>
-                    </FormControl>
-                  )}
-                </Stack>
-                <FormHelperText sx={{ mt: 1 }}>
-                  GitHub repository settings are read-only. To change the
-                  repository, create a new task. You can edit the parsed
-                  configuration values above.
-                </FormHelperText>
-              </FormControl>
-            )}
-
-            <FormControl required sx={{ mt: 2 }}>
-              <FormLabel>Command</FormLabel>
-              {/* <Textarea
-                minRows={4}
-                value={command}
-                onChange={(e) => setCommand(e.target.value)}
-                placeholder="e.g. python train.py --epochs 10"
-              /> */}
-
-              <Editor
-                defaultLanguage="shell"
-                theme="my-theme"
-                defaultValue={command}
-                height="8rem"
-                options={{
-                  minimap: {
-                    enabled: false,
-                  },
-                  fontSize: 18,
-                  cursorStyle: 'block',
-                  wordWrap: 'on',
-                }}
-                onMount={handleCommandEditorDidMount}
-              />
-              <FormHelperText>
-                e.g. <code>python train.py --epochs 10</code>
-              </FormHelperText>
-            </FormControl>
-
-            <FormControl sx={{ mt: 2 }}>
-              <Stack spacing={2}>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                >
-                  <FormLabel>Enable Parameter Sweeps</FormLabel>
-                  <Switch
-                    checked={enableSweeps}
-                    onChange={(e) => setEnableSweeps(e.target.checked)}
+                  <Editor
+                    defaultLanguage="shell"
+                    theme="my-theme"
+                    defaultValue={setup}
+                    height="6rem"
+                    options={{
+                      minimap: {
+                        enabled: false,
+                      },
+                      fontSize: 18,
+                      cursorStyle: 'block',
+                      wordWrap: 'on',
+                    }}
+                    onMount={handleSetupEditorDidMount}
                   />
-                </Stack>
-                {enableSweeps && (
-                  <Stack spacing={2}>
-                    <FormHelperText>
-                      Define parameters to sweep. Each parameter will be tried
-                      with all specified values. All combinations will be
-                      created.
-                    </FormHelperText>
+                  <FormHelperText>
+                    e.g. <code>pip install -r requirements.txt</code>
+                  </FormHelperText>
+                </FormControl>
 
-                    {sweepParams.map((sp, index) => (
-                      <Stack direction="row" spacing={1} key={index}>
+                <FormControl sx={{ mt: 2 }}>
+                  <FormLabel>Environment Variables</FormLabel>
+                  <Stack spacing={1}>
+                    {envVars.map((envVar, index) => (
+                      <Stack
+                        key={index}
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                      >
                         <Input
-                          placeholder="Parameter name (e.g., learning_rate)"
-                          value={sp.paramName}
+                          placeholder="Key"
+                          value={envVar.key}
                           onChange={(e) => {
-                            const newSweepParams = [...sweepParams];
-                            newSweepParams[index].paramName = e.target.value;
-                            setSweepParams(newSweepParams);
+                            const newEnvVars = [...envVars];
+                            newEnvVars[index].key = e.target.value;
+                            setEnvVars(newEnvVars);
                           }}
                           sx={{ flex: 1 }}
                         />
                         <Input
-                          placeholder="Values (comma-separated, e.g., 1e-5,3e-5,5e-5)"
-                          value={sp.values}
+                          placeholder="Value"
+                          value={envVar.value}
                           onChange={(e) => {
-                            const newSweepParams = [...sweepParams];
-                            newSweepParams[index].values = e.target.value;
-                            setSweepParams(newSweepParams);
+                            const newEnvVars = [...envVars];
+                            newEnvVars[index].value = e.target.value;
+                            setEnvVars(newEnvVars);
                           }}
                           sx={{ flex: 1 }}
                         />
@@ -1515,12 +1278,10 @@ export default function EditTaskModal({
                           color="danger"
                           variant="plain"
                           onClick={() => {
-                            if (sweepParams.length > 1) {
-                              setSweepParams(
-                                sweepParams.filter((_, i) => i !== index),
-                              );
+                            if (envVars.length > 1) {
+                              setEnvVars(envVars.filter((_, i) => i !== index));
                             } else {
-                              setSweepParams([{ paramName: '', values: '' }]);
+                              setEnvVars([{ key: '', value: '' }]);
                             }
                           }}
                         >
@@ -1528,73 +1289,403 @@ export default function EditTaskModal({
                         </IconButton>
                       </Stack>
                     ))}
-
                     <Button
                       variant="outlined"
                       size="sm"
                       startDecorator={<PlusIcon size={16} />}
                       onClick={() =>
-                        setSweepParams([
-                          ...sweepParams,
-                          { paramName: '', values: '' },
+                        setEnvVars([...envVars, { key: '', value: '' }])
+                      }
+                    >
+                      Add Environment Variable
+                    </Button>
+                  </Stack>
+                  <FormHelperText>
+                    Optional environment variables to set when launching the
+                    cluster
+                  </FormHelperText>
+                </FormControl>
+
+                <FormControl sx={{ mt: 2 }}>
+                  <FormLabel>Parameters</FormLabel>
+                  <Stack spacing={1}>
+                    {parameters.map((param, index) => (
+                      <Stack key={index} spacing={1}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Input
+                            placeholder="Parameter name (e.g., learning_rate)"
+                            value={param.key}
+                            onChange={(e) => {
+                              const newParams = [...parameters];
+                              newParams[index].key = e.target.value;
+                              setParameters(newParams);
+                            }}
+                            sx={{ flex: 1 }}
+                          />
+                          <Select
+                            value={param.valueType}
+                            onChange={(_, newValue) => {
+                              if (newValue) {
+                                const newParams = [...parameters];
+                                newParams[index].valueType = newValue;
+                                setParameters(newParams);
+                              }
+                            }}
+                            sx={{ minWidth: 100 }}
+                          >
+                            <Option value="string">String</Option>
+                            <Option value="json">JSON</Option>
+                          </Select>
+                          <IconButton
+                            color="danger"
+                            variant="plain"
+                            onClick={() => {
+                              if (parameters.length > 1) {
+                                setParameters(
+                                  parameters.filter((_, i) => i !== index),
+                                );
+                              } else {
+                                setParameters([
+                                  { key: '', value: '', valueType: 'string' },
+                                ]);
+                              }
+                            }}
+                          >
+                            <Trash2Icon size={16} />
+                          </IconButton>
+                        </Stack>
+                        {param.valueType === 'json' ? (
+                          <Editor
+                            height="120px"
+                            defaultLanguage="json"
+                            value={param.value}
+                            onChange={(value) => {
+                              const newParams = [...parameters];
+                              newParams[index].value = value || '';
+                              setParameters(newParams);
+                            }}
+                            theme="my-theme"
+                            onMount={setTheme}
+                            options={{
+                              minimap: { enabled: false },
+                              scrollBeyondLastLine: false,
+                              fontSize: 12,
+                              lineNumbers: 'off',
+                              wordWrap: 'on',
+                            }}
+                          />
+                        ) : (
+                          <Input
+                            placeholder="Value (e.g., 0.001, true, false, or any string)"
+                            value={param.value}
+                            onChange={(e) => {
+                              const newParams = [...parameters];
+                              newParams[index].value = e.target.value;
+                              setParameters(newParams);
+                            }}
+                          />
+                        )}
+                      </Stack>
+                    ))}
+                    <Button
+                      variant="outlined"
+                      size="sm"
+                      startDecorator={<PlusIcon size={16} />}
+                      onClick={() =>
+                        setParameters([
+                          ...parameters,
+                          { key: '', value: '', valueType: 'string' },
                         ])
                       }
                     >
-                      Add Sweep Parameter
+                      Add Parameter
                     </Button>
-
-                    {sweepParams.length > 0 && (
-                      <FormHelperText>
-                        This will create{' '}
-                        {sweepParams.reduce(
-                          (acc, sp) =>
-                            acc *
-                            (sp.values
-                              ? sp.values.split(',').filter((v) => v.trim())
-                                  .length
-                              : 0),
-                          1,
-                        )}{' '}
-                        job(s) (one for each combination)
-                      </FormHelperText>
-                    )}
-
-                    <FormControl>
-                      <FormLabel>Optimization Metric</FormLabel>
-                      <Input
-                        placeholder="eval/loss"
-                        value={sweepMetric}
-                        onChange={(e) => setSweepMetric(e.target.value)}
-                      />
-                      <FormHelperText>
-                        Metric name to optimize (e.g., eval/loss, accuracy,
-                        f1_score). Used to determine the best configuration.
-                      </FormHelperText>
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel>Optimization Direction</FormLabel>
-                      <Select
-                        value={lowerIsBetter ? 'lower' : 'higher'}
-                        onChange={(_, newValue) =>
-                          setLowerIsBetter(newValue === 'lower')
-                        }
-                      >
-                        <Option value="lower">
-                          Lower is better (e.g., loss)
-                        </Option>
-                        <Option value="higher">
-                          Higher is better (e.g., accuracy)
-                        </Option>
-                      </Select>
-                      <FormHelperText>
-                        Whether to minimize or maximize the metric value.
-                      </FormHelperText>
-                    </FormControl>
                   </Stack>
+                  <FormHelperText>
+                    Task parameters accessible via lab.get_config() in your
+                    script. Use JSON type for complex objects.
+                  </FormHelperText>
+                </FormControl>
+
+                <FormControl sx={{ mt: 2 }}>
+                  <FormLabel>File Mounts</FormLabel>
+                  <FormHelperText>
+                    For each mount, choose a remote path and upload a file to be
+                    staged on the server.
+                  </FormHelperText>
+                  <Stack spacing={1} sx={{ mt: 1 }}>
+                    {fileMounts.map((fm, index) => (
+                      <Stack
+                        key={index}
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                        sx={{ flexWrap: 'wrap' }}
+                      >
+                        <Input
+                          placeholder="/remote/path/on/cluster"
+                          value={fm.remotePath}
+                          onChange={(e) => {
+                            const next = [...fileMounts];
+                            next[index].remotePath = e.target.value;
+                            setFileMounts(next);
+                          }}
+                          sx={{ flex: 1, minWidth: '200px' }}
+                        />
+                        <input
+                          type="file"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            const next = [...fileMounts];
+                            next[index].file = file;
+                            setFileMounts(next);
+                          }}
+                        />
+                        <IconButton
+                          color="danger"
+                          variant="plain"
+                          onClick={() => {
+                            if (fileMounts.length === 1) {
+                              setFileMounts([
+                                {
+                                  remotePath: '',
+                                  file: null,
+                                  storedPath: undefined,
+                                },
+                              ]);
+                            } else {
+                              setFileMounts(
+                                fileMounts.filter((_, i) => i !== index),
+                              );
+                            }
+                          }}
+                        >
+                          <Trash2Icon size={16} />
+                        </IconButton>
+                      </Stack>
+                    ))}
+                    <Button
+                      variant="outlined"
+                      size="sm"
+                      startDecorator={<PlusIcon size={16} />}
+                      onClick={() =>
+                        setFileMounts([
+                          ...fileMounts,
+                          { remotePath: '', file: null, storedPath: undefined },
+                        ])
+                      }
+                    >
+                      Add File Mount
+                    </Button>
+                  </Stack>
+                </FormControl>
+
+                {githubEnabled && (
+                  <FormControl sx={{ mt: 2 }}>
+                    <FormLabel>GitHub Repository (Read-Only)</FormLabel>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                      <FormControl>
+                        <FormLabel>GitHub Repository URL</FormLabel>
+                        <Input
+                          value={githubRepoUrl}
+                          disabled
+                          readOnly
+                          placeholder="https://github.com/owner/repo.git"
+                          sx={{
+                            bgcolor: 'background.level1',
+                            cursor: 'not-allowed',
+                          }}
+                        />
+                        <FormHelperText>
+                          GitHub repository URL (read-only - source of truth)
+                        </FormHelperText>
+                      </FormControl>
+                      {githubDirectory && (
+                        <FormControl>
+                          <FormLabel>Directory Path</FormLabel>
+                          <Input
+                            value={githubDirectory}
+                            disabled
+                            readOnly
+                            placeholder="path/to/directory"
+                            sx={{
+                              bgcolor: 'background.level1',
+                              cursor: 'not-allowed',
+                            }}
+                          />
+                          <FormHelperText>
+                            Directory path (read-only - source of truth)
+                          </FormHelperText>
+                        </FormControl>
+                      )}
+                    </Stack>
+                    <FormHelperText sx={{ mt: 1 }}>
+                      GitHub repository settings are read-only. To change the
+                      repository, create a new task. You can edit the parsed
+                      configuration values above.
+                    </FormHelperText>
+                  </FormControl>
                 )}
-              </Stack>
-            </FormControl>
+
+                <FormControl required sx={{ mt: 2 }}>
+                  <FormLabel>Command</FormLabel>
+                  {/* <Textarea
+                minRows={4}
+                value={command}
+                onChange={(e) => setCommand(e.target.value)}
+                placeholder="e.g. python train.py --epochs 10"
+              /> */}
+
+                  <Editor
+                    defaultLanguage="shell"
+                    theme="my-theme"
+                    defaultValue={command}
+                    height="8rem"
+                    options={{
+                      minimap: {
+                        enabled: false,
+                      },
+                      fontSize: 18,
+                      cursorStyle: 'block',
+                      wordWrap: 'on',
+                    }}
+                    onMount={handleCommandEditorDidMount}
+                  />
+                  <FormHelperText>
+                    e.g. <code>python train.py --epochs 10</code>
+                  </FormHelperText>
+                </FormControl>
+
+                <FormControl sx={{ mt: 2 }}>
+                  <Stack spacing={2}>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <FormLabel>Enable Parameter Sweeps</FormLabel>
+                      <Switch
+                        checked={enableSweeps}
+                        onChange={(e) => setEnableSweeps(e.target.checked)}
+                      />
+                    </Stack>
+                    {enableSweeps && (
+                      <Stack spacing={2}>
+                        <FormHelperText>
+                          Define parameters to sweep. Each parameter will be
+                          tried with all specified values. All combinations will
+                          be created.
+                        </FormHelperText>
+
+                        {sweepParams.map((sp, index) => (
+                          <Stack direction="row" spacing={1} key={index}>
+                            <Input
+                              placeholder="Parameter name (e.g., learning_rate)"
+                              value={sp.paramName}
+                              onChange={(e) => {
+                                const newSweepParams = [...sweepParams];
+                                newSweepParams[index].paramName =
+                                  e.target.value;
+                                setSweepParams(newSweepParams);
+                              }}
+                              sx={{ flex: 1 }}
+                            />
+                            <Input
+                              placeholder="Values (comma-separated, e.g., 1e-5,3e-5,5e-5)"
+                              value={sp.values}
+                              onChange={(e) => {
+                                const newSweepParams = [...sweepParams];
+                                newSweepParams[index].values = e.target.value;
+                                setSweepParams(newSweepParams);
+                              }}
+                              sx={{ flex: 1 }}
+                            />
+                            <IconButton
+                              color="danger"
+                              variant="plain"
+                              onClick={() => {
+                                if (sweepParams.length > 1) {
+                                  setSweepParams(
+                                    sweepParams.filter((_, i) => i !== index),
+                                  );
+                                } else {
+                                  setSweepParams([
+                                    { paramName: '', values: '' },
+                                  ]);
+                                }
+                              }}
+                            >
+                              <Trash2Icon size={16} />
+                            </IconButton>
+                          </Stack>
+                        ))}
+
+                        <Button
+                          variant="outlined"
+                          size="sm"
+                          startDecorator={<PlusIcon size={16} />}
+                          onClick={() =>
+                            setSweepParams([
+                              ...sweepParams,
+                              { paramName: '', values: '' },
+                            ])
+                          }
+                        >
+                          Add Sweep Parameter
+                        </Button>
+
+                        {sweepParams.length > 0 && (
+                          <FormHelperText>
+                            This will create{' '}
+                            {sweepParams.reduce(
+                              (acc, sp) =>
+                                acc *
+                                (sp.values
+                                  ? sp.values.split(',').filter((v) => v.trim())
+                                      .length
+                                  : 0),
+                              1,
+                            )}{' '}
+                            job(s) (one for each combination)
+                          </FormHelperText>
+                        )}
+
+                        <FormControl>
+                          <FormLabel>Optimization Metric</FormLabel>
+                          <Input
+                            placeholder="eval/loss"
+                            value={sweepMetric}
+                            onChange={(e) => setSweepMetric(e.target.value)}
+                          />
+                          <FormHelperText>
+                            Metric name to optimize (e.g., eval/loss, accuracy,
+                            f1_score). Used to determine the best configuration.
+                          </FormHelperText>
+                        </FormControl>
+
+                        <FormControl>
+                          <FormLabel>Optimization Direction</FormLabel>
+                          <Select
+                            value={lowerIsBetter ? 'lower' : 'higher'}
+                            onChange={(_, newValue) =>
+                              setLowerIsBetter(newValue === 'lower')
+                            }
+                          >
+                            <Option value="lower">
+                              Lower is better (e.g., loss)
+                            </Option>
+                            <Option value="higher">
+                              Higher is better (e.g., accuracy)
+                            </Option>
+                          </Select>
+                          <FormHelperText>
+                            Whether to minimize or maximize the metric value.
+                          </FormHelperText>
+                        </FormControl>
+                      </Stack>
+                    )}
+                  </Stack>
+                </FormControl>
               </>
             )}
           </DialogContent>
