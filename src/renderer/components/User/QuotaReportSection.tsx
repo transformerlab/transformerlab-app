@@ -86,8 +86,8 @@ export default function QuotaReportSection() {
           <Box>
             <Typography level="body-sm" color="neutral">
               Current Period:{' '}
-              {quotaStatus?.current_period_start
-                ? formatDate(quotaStatus.current_period_start)
+              {quotaStatus?.period_start
+                ? formatDate(quotaStatus.period_start)
                 : 'N/A'}
             </Typography>
           </Box>
