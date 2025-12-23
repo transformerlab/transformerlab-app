@@ -443,7 +443,8 @@ async def _record_quota_usage_internal(
         # Get user_id from email
         stmt = select(User).where(User.email == user_email)
         result = await session.execute(stmt)
-        user = result.scalar_one_or_none()
+        # unique() is required because User has lazy="joined" relationships (oauth_accounts)
+        user = result.unique().scalar_one_or_none()
         if not user:
             return
 

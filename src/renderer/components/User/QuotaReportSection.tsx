@@ -214,7 +214,7 @@ export default function QuotaReportSection() {
                       level="body-xs"
                       sx={{ fontFamily: 'monospace' }}
                     >
-                      {record.job_id?.slice(0, 8)}...
+                      {record.job_id || 'N/A'}
                     </Typography>
                   </td>
                   <td>
@@ -222,7 +222,7 @@ export default function QuotaReportSection() {
                       level="body-xs"
                       sx={{ fontFamily: 'monospace' }}
                     >
-                      {record.experiment_id?.slice(0, 8)}...
+                      {record.experiment_id || 'N/A'}
                     </Typography>
                   </td>
                 </tr>
