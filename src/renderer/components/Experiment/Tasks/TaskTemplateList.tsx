@@ -107,6 +107,31 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     return command.length > 50 ? `${command.substring(0, 50)}...` : command;
   };
 
+  const getProviderInfo = (task: TaskRow) => {
+    if (task.type !== 'REMOTE') {
+      return 'N/A';
+    }
+
+    // For templates, fields are stored directly (not nested in config)
+    const config =
+      (typeof task.config === 'string'
+        ? SafeJSONParse(task.config as string, {})
+        : (task.config as any)) || {};
+
+    // Check if config has nested structure (old task format) or is empty
+    const isTemplate =
+      !task.config ||
+      (typeof config === 'object' && Object.keys(config).length === 0) ||
+      (!config.command && !config.cluster_name);
+
+    // Use template field directly if it's a template, otherwise use config
+    const providerName = isTemplate
+      ? (task as any).provider_name
+      : config.provider_name;
+
+    return providerName || 'Not specified';
+  };
+
   return (
     <Table stickyHeader>
       <thead>
@@ -114,6 +139,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
           <th style={{ width: '150px' }}>Name</th>
           <th>Command</th>
           <th>Resources</th>
+          <th>Provider</th>
           <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
         </tr>
       </thead>
@@ -130,6 +156,9 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
             </td>
             <td style={{ overflow: 'hidden' }}>
               <Typography level="body-sm">{getResourcesInfo(row)}</Typography>
+            </td>
+            <td style={{ overflow: 'clip' }}>
+              <Typography level="body-sm">{getProviderInfo(row)}</Typography>
             </td>
             <td
               style={{
