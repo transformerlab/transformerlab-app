@@ -2184,17 +2184,26 @@ export default function NewTaskModal({
               spacing={2}
               sx={{ width: '100%', justifyContent: 'space-between' }}
             >
-              <Button
-                variant="plain"
-                color="neutral"
-                onClick={
-                  currentPhase === 'task-json-url' ? onClose : handleBackPhase
-                }
-                disabled={isSubmitting}
-                startDecorator={<ArrowLeftIcon size={16} />}
-              >
-                {currentPhase === 'task-json-url' ? 'Cancel' : 'Back'}
-              </Button>
+              {currentPhase === 'task-json-url' ? (
+                <Button
+                  variant="plain"
+                  color="warning"
+                  onClick={onClose}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+              ) : (
+                <Button
+                  variant="plain"
+                  color="neutral"
+                  onClick={handleBackPhase}
+                  disabled={isSubmitting}
+                  startDecorator={<ArrowLeftIcon size={16} />}
+                >
+                  Back
+                </Button>
+              )}
               <Button
                 type="submit"
                 variant="solid"
