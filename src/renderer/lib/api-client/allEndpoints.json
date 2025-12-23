@@ -57,6 +57,68 @@
       "path": "tasks/import_from_local_gallery"
     }
   },
+  "task": {
+    "getAll": {
+      "method": "GET",
+      "path": "task/list"
+    },
+    "get": {
+      "method": "GET",
+      "path": "task/{id}/get"
+    },
+    "getByType": {
+      "method": "GET",
+      "path": "task/list_by_type?type={type}"
+    },
+    "getByTypeInExperiment": {
+      "method": "GET",
+      "path": "task/list_by_type_in_experiment?type={type}&experiment_id={experiment_id}"
+    },
+    "getBySubtypeInExperiment": {
+      "method": "GET",
+      "path": "task/list_by_subtype_in_experiment?experiment_id={experiment_id}&subtype={subtype}&type={type}"
+    },
+    "create": {
+      "method": "PUT",
+      "path": "task/new_task"
+    },
+    "delete": {
+      "method": "GET",
+      "path": "task/{id}/delete"
+    },
+    "update": {
+      "method": "PUT",
+      "path": "task/{id}/update"
+    },
+    "gallery": {
+      "method": "GET",
+      "path": "task/gallery"
+    },
+    "importFromGallery": {
+      "method": "POST",
+      "path": "task/gallery/import"
+    },
+    "teamGallery": {
+      "method": "GET",
+      "path": "task/gallery/team"
+    },
+    "importFromTeamGallery": {
+      "method": "POST",
+      "path": "task/gallery/team/import"
+    },
+    "exportToTeamGallery": {
+      "method": "POST",
+      "path": "task/gallery/team/export"
+    },
+    "addToTeamGallery": {
+      "method": "POST",
+      "path": "task/gallery/team/add"
+    },
+    "deleteFromTeamGallery": {
+      "method": "POST",
+      "path": "task/gallery/team/delete"
+    }
+  },
   "server": {
     "info": {
       "method": "GET",
@@ -248,7 +310,11 @@
     },
     "launchTask": {
       "method": "POST",
-      "path": "compute_provider/{providerId}/tasks/launch"
+      "path": "compute_provider/{providerId}/task/launch"
+    },
+    "launchTemplate": {
+      "method": "POST",
+      "path": "compute_provider/{providerId}/task/launch"
     },
     "checkJobStatus": {
       "method": "GET",
@@ -264,7 +330,11 @@
     },
     "uploadTaskFile": {
       "method": "POST",
-      "path": "compute_provider/{providerId}/tasks/{taskId}/file-upload"
+      "path": "compute_provider/{providerId}/task/{taskId}/file-upload"
+    },
+    "uploadTemplateFile": {
+      "method": "POST",
+      "path": "compute_provider/{providerId}/task/{taskId}/file-upload"
     },
     "usage-report": {
       "method": "GET",

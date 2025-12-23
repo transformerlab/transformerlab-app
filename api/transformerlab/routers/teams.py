@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
+from transformerlab.utils.api_key_utils import mask_key
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole, TeamInvitation, InvitationStatus
 from transformerlab.models.users import current_active_user
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
-from transformerlab.shared.s3_bucket import create_s3_bucket_for_team
+from transformerlab.shared.remote_workspace import create_bucket_for_team
 
 from pydantic import BaseModel, EmailStr
 from typing import Optional
@@ -93,7 +94,7 @@ async def create_team(
     # Create S3 bucket if TFL_API_STORAGE_URI is set
     if getenv("TFL_API_STORAGE_URI"):
         try:
-            create_s3_bucket_for_team(team.id, profile_name="transformerlab-s3")
+            create_bucket_for_team(team.id, profile_name="transformerlab-s3")
         except Exception as e:
             # Log error but don't fail team creation if bucket creation fails
             print(f"Warning: Failed to create S3 bucket for team {team.id}: {e}")
@@ -824,22 +825,21 @@ async def get_github_pat(
     if team_id != user_and_team["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
-    workspace_dir = get_workspace_dir()
-    pat_path = storage.join(workspace_dir, "github_pat.txt")
+    pat_path = storage.join(get_workspace_dir(), "github_pat.txt")
 
-    if storage.exists(pat_path):
-        try:
-            with storage.open(pat_path, "r") as f:
-                pat = f.read().strip()
-                if pat:
-                    # Return masked version for security (only show last 4 chars)
-                    masked_pat = "*" * (len(pat) - 4) + pat[-4:] if len(pat) > 4 else "*" * len(pat)
-                    return {"status": "success", "pat_exists": True, "masked_pat": masked_pat}
-        except Exception as e:
-            print(f"Error reading GitHub PAT: {e}")
-            return {"status": "error", "message": "Failed to read GitHub PAT"}
+    try:
+        with storage.open(pat_path, "r") as f:
+            raw_pat = f.read().rstrip("\n")
+    except FileNotFoundError:
+        return {"status": "success", "pat_exists": False}
+    except Exception:
+        return {"status": "error", "message": "Failed to read GitHub PAT"}
 
-    return {"status": "success", "pat_exists": False}
+    return {
+        "status": "success",
+        "pat_exists": True,
+        "masked_pat": mask_key(raw_pat),
+    }
 
 
 @router.put("/teams/{team_id}/github_pat")

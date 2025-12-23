@@ -37,22 +37,65 @@ Endpoints.Tasks = {
   ExportToTeamGallery: () => `${API_URL()}tasks/gallery/team/export`,
   AddToTeamGallery: () => `${API_URL()}tasks/gallery/team/add`,
   DeleteFromTeamGallery: () => `${API_URL()}tasks/gallery/team/delete`,
-  FetchTaskJson: (repoUrl: string, directory?: string) =>
-    `${API_URL()}tasks/fetch_task_json?repo_url=${encodeURIComponent(repoUrl)}${
-      directory ? `&directory=${encodeURIComponent(directory)}` : ''
+  FetchTaskJson: (url: string) =>
+    `${API_URL()}task/fetch_task_json?url=${encodeURIComponent(url)}`,
+};
+
+Endpoints.Task = {
+  List: () => `${API_URL()}task/list`,
+  ListByType: (type: string) => `${API_URL()}task/list_by_type?type=${type}`,
+  ListByTypeInExperiment: (type: string, experiment_id: string) =>
+    `${API_URL()}task/list_by_type_in_experiment?type=${type}&experiment_id=${
+      experiment_id
     }`,
+  ListBySubtypeInExperiment: (
+    experiment_id: string,
+    subtype: string,
+    type?: string,
+  ) =>
+    `${API_URL()}task/list_by_subtype_in_experiment?experiment_id=${experiment_id}&subtype=${encodeURIComponent(
+      subtype,
+    )}${type ? `&type=${encodeURIComponent(type)}` : ''}`,
+  GetByID: (id: string) => `${API_URL()}task/${id}/get`,
+  UpdateTemplate: (id: string) => `${API_URL()}task/${id}/update`,
+  NewTemplate: () => `${API_URL()}task/new_task`,
+  DeleteTemplate: (id: string) => `${API_URL()}task/${id}/delete`,
+  Gallery: () => `${API_URL()}task/gallery`,
+  ImportFromGallery: (experimentId: string) =>
+    `${API_URL()}task/gallery/import`,
+  TeamGallery: () => `${API_URL()}task/gallery/team`,
+  ImportFromTeamGallery: (experimentId: string) =>
+    `${API_URL()}task/gallery/team/import`,
+  ExportToTeamGallery: () => `${API_URL()}task/gallery/team/export`,
+  AddToTeamGallery: () => `${API_URL()}task/gallery/team/add`,
+  DeleteFromTeamGallery: () => `${API_URL()}task/gallery/team/delete`,
 };
 
 Endpoints.ComputeProvider = {
   List: () => `${API_URL()}compute_provider/`,
+  LaunchTemplate: (providerId: string) =>
+    `${API_URL()}compute_provider/${providerId}/task/launch`,
   LaunchTask: (providerId: string) =>
-    `${API_URL()}compute_provider/${providerId}/tasks/launch`,
+    `${API_URL()}compute_provider/${providerId}/task/launch`, // Deprecated: use LaunchTemplate
   CheckJobStatus: (jobId: string) =>
     `${API_URL()}compute_provider/jobs/${jobId}/check-status`,
+  CheckSweepStatus: (experimentId?: string, jobId?: string) => {
+    if (experimentId) {
+      return `${API_URL()}compute_provider/jobs/sweep-status?experiment_id=${experimentId}`;
+    }
+    if (jobId) {
+      return `${API_URL()}compute_provider/jobs/${jobId}/sweep-status`;
+    }
+    throw new Error('Either experimentId or jobId must be provided');
+  },
+  GetSweepResults: (jobId: string) =>
+    `${API_URL()}compute_provider/jobs/${jobId}/sweep-results`,
   StopCluster: (providerId: string, clusterName: string) =>
     `${API_URL()}compute_provider/${providerId}/clusters/${clusterName}/stop`,
+  UploadTemplateFile: (providerId: string, taskId: string | number) =>
+    `${API_URL()}compute_provider/${providerId}/task/${taskId}/file-upload`,
   UploadTaskFile: (providerId: string, taskId: string | number) =>
-    `${API_URL()}compute_provider/${providerId}/tasks/${taskId}/file-upload`,
+    `${API_URL()}compute_provider/${providerId}/task/${taskId}/file-upload`, // Deprecated: use UploadTemplateFile
   Check: (providerId: string) =>
     `${API_URL()}compute_provider/${providerId}/check`,
 };
@@ -448,6 +491,12 @@ Endpoints.Experiment = {
     tailLines: number = 400,
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/provider_logs?tail_lines=${tailLines}`,
+  GetVSCodeTunnelInfo: (
+    experimentId: string,
+    jobId: string,
+    tailLines: number = 400,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/vscode_tunnel_info?tail_lines=${tailLines}`,
   GetAdditionalDetails: (
     experimentId: string,
     jobId: string,

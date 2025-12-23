@@ -364,7 +364,6 @@ async def import_task_from_gallery(
     # Build the task config, merging gallery config with task.json (task.json takes precedence)
     task_config = {
         **config,  # Start with gallery config
-        "github_enabled": True,
         "github_repo_url": github_repo_url,
     }
 
@@ -476,7 +475,6 @@ async def import_task_from_team_gallery(
         task_config.update(task_json)
 
     if github_repo_url:
-        task_config["github_enabled"] = True
         task_config["github_repo_url"] = github_repo_url
     if github_repo_dir:
         task_config["github_directory"] = github_repo_dir
@@ -581,7 +579,6 @@ async def add_team_task_to_gallery(
         config["accelerators"] = request.accelerators
     if request.github_repo_url:
         config["github_repo_url"] = request.github_repo_url
-        config["github_enabled"] = True
     if request.github_repo_dir:
         config["github_directory"] = request.github_repo_dir
 
