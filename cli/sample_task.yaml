@@ -1,0 +1,6 @@
+task:
+  name: my-task
+  resources:
+    cpus: 2
+    memory: 4
+  run: echo hello

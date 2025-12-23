@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, 
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, List, Optional, Union, Tuple
-from pydantic import BaseModel, Field
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.services.provider_service import (
@@ -24,6 +23,8 @@ from transformerlab.schemas.compute_providers import (
     ProviderUpdate,
     ProviderRead,
     mask_sensitive_config,
+    ProviderTemplateLaunchRequest,
+    ProviderTemplateFileUploadResponse,
 )
 from transformerlab.shared.models.models import ProviderType, TeamComputeProvider
 from transformerlab.compute_providers.base import ComputeProvider
@@ -47,69 +48,13 @@ from typing import Any
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
 
 
-class ProviderTaskLaunchRequest(BaseModel):
-    """Payload for launching a remote task via providers."""
-
-    experiment_id: str = Field(..., description="Experiment that owns the job")
-    task_name: Optional[str] = Field(None, description="Friendly task name")
-    cluster_name: Optional[str] = Field(None, description="Base cluster name, suffix is appended automatically")
-    command: str = Field(..., description="Command to execute on the cluster")
-    subtype: Optional[str] = Field(None, description="Optional subtype for filtering")
-    interactive_type: Optional[str] = Field(None, description="Interactive task type (e.g. vscode)")
-    cpus: Optional[str] = None
-    memory: Optional[str] = None
-    disk_space: Optional[str] = None
-    accelerators: Optional[str] = None
-    num_nodes: Optional[int] = None
-    setup: Optional[str] = None
-    env_vars: Dict[str, str] = Field(default_factory=dict, description="Environment variables as key-value pairs")
-    # File mounts: mapping of remote path -> local path
-    file_mounts: Optional[Dict[str, str]] = Field(
-        default=None,
-        description="File mounts in the form {<remote_path>: <local_path>}",
-    )
-    parameters: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Task parameters (hyperparameters, config, etc.) that will be accessible via lab.get_config()",
-    )
-    provider_name: Optional[str] = None
-    github_enabled: Optional[bool] = None
-    github_repo_url: Optional[str] = None
-    github_directory: Optional[str] = None
-    # Sweep configuration
-    run_sweeps: Optional[bool] = Field(
-        default=False,
-        description="Enable parameter sweeps. When True, generates jobs for all parameter combinations in sweep_config.",
-    )
-    sweep_config: Optional[Dict[str, List[Any]]] = Field(
-        default=None,
-        description="Sweep configuration: parameter names mapped to lists of values to try. Example: {'learning_rate': ['1e-5', '3e-5'], 'batch_size': ['4', '8']}",
-    )
-    sweep_metric: Optional[str] = Field(
-        default="eval/loss",
-        description="Metric name to use for determining best configuration. Should match a metric logged by the task.",
-    )
-    lower_is_better: Optional[bool] = Field(
-        default=True,
-        description="Whether lower values of sweep_metric are better. If False, higher values are better.",
-    )
-
-
-class ProviderTaskFileUploadResponse(BaseModel):
-    """Response for a single task file upload."""
-
-    status: str
-    stored_path: str
-    message: Optional[str] = None
-
-
 def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
     """Return a filesystem-safe cluster base name."""
     if not base_name:
-        return "remote-task"
+        return "remote-template"
     normalized = "".join(ch if ch.isalnum() or ch in ("-", "_") else "-" for ch in base_name.strip())
     normalized = normalized.strip("-_")
-    return normalized or "remote-task"
+    return normalized or "remote-template"
 
 
 def _get_provider_instances(providers: list[TeamComputeProvider]) -> Dict[str, ComputeProvider]:
@@ -123,7 +68,7 @@ def _get_provider_instances(providers: list[TeamComputeProvider]) -> Dict[str, C
     return instances
 
 
-@router.post("/{provider_id}/tasks/{task_id}/file-upload", response_model=ProviderTaskFileUploadResponse)
+@router.post("/{provider_id}/task/{task_id}/file-upload", response_model=ProviderTemplateFileUploadResponse)
 async def upload_task_file_for_provider(
     provider_id: str,
     task_id: str,
@@ -135,7 +80,7 @@ async def upload_task_file_for_provider(
     """
     Upload a single file for a provider-backed task.
 
-    The file is stored under workspace_dir/uploads/tasks/{task_id}/ and the
+    The file is stored under workspace_dir/uploads/task/{task_id}/ and the
     stored_path returned from this endpoint can be used as the local side of a
     file mount mapping: {<remote_path>: <stored_path>}.
     """
@@ -151,8 +96,8 @@ async def upload_task_file_for_provider(
         if not workspace_dir:
             raise RuntimeError("Workspace directory is not configured")
 
-        # uploads/tasks/{task_id}/
-        uploads_root = storage.join(workspace_dir, "uploads", "tasks")
+        # uploads/task/{task_id}/
+        uploads_root = storage.join(workspace_dir, "uploads", "task")
         await storage.makedirs(uploads_root, exist_ok=True)
 
         import uuid
@@ -174,7 +119,7 @@ async def upload_task_file_for_provider(
         async with await storage.open(stored_path, "wb") as f:
             await f.write(content)
 
-        return ProviderTaskFileUploadResponse(
+        return ProviderTemplateFileUploadResponse(
             status="success",
             stored_path=stored_path,
             message="File uploaded successfully",
@@ -182,8 +127,8 @@ async def upload_task_file_for_provider(
     except HTTPException:
         raise
     except Exception as exc:
-        print(f"Task file upload error: {exc}")
-        raise HTTPException(status_code=500, detail="Failed to upload task file")
+        print(f"Template file upload error: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to upload template file")
 
 
 @router.get("/", response_model=List[ProviderRead])
@@ -727,7 +672,7 @@ def _generate_aws_credentials_setup(
 
 async def _create_sweep_parent_job(
     provider_id: str,
-    request: ProviderTaskLaunchRequest,
+    request: ProviderTemplateLaunchRequest,
     user_and_team: dict,
     session: AsyncSession,
     sweep_config: Dict[str, List[Any]],
@@ -808,7 +753,7 @@ async def _create_sweep_parent_job(
 
 async def _launch_sweep_jobs(
     provider_id: str,
-    request: ProviderTaskLaunchRequest,
+    request: ProviderTemplateLaunchRequest,
     user_and_team: dict,
     base_parameters: Dict[str, Any],
     sweep_config: Dict[str, List[Any]],
@@ -915,7 +860,7 @@ async def _launch_sweep_jobs(
                         setup_commands.append(aws_setup)
                         env_vars["AWS_PROFILE"] = aws_profile
 
-                if request.github_enabled and request.github_repo_url:
+                if request.github_repo_url:
                     workspace_dir = get_workspace_dir()
                     github_pat = read_github_pat_from_workspace(workspace_dir)
                     github_setup = generate_github_clone_setup(
@@ -1039,10 +984,10 @@ async def _launch_sweep_jobs(
             lab_set_org_id(None)
 
 
-@router.post("/{provider_id}/tasks/launch")
-async def launch_task_on_provider(
+@router.post("/{provider_id}/task/launch")
+async def launch_template_on_provider(
     provider_id: str,
-    request: ProviderTaskLaunchRequest,
+    request: ProviderTemplateLaunchRequest,
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -1111,7 +1056,7 @@ async def launch_task_on_provider(
 
     provider_instance = get_provider_instance(provider)
 
-    # Interactive tasks should start directly in INTERACTIVE state instead of LAUNCHING
+    # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING
     initial_status = "INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING"
 
     job_id = await job_service.job_create(
@@ -1150,7 +1095,7 @@ async def launch_task_on_provider(
         setup_commands.append(aws_setup)
 
     # Add GitHub clone setup if enabled
-    if request.github_enabled and request.github_repo_url:
+    if request.github_repo_url:
         workspace_dir = await get_workspace_dir()
         github_pat = await read_github_pat_from_workspace(workspace_dir)
         github_setup = generate_github_clone_setup(

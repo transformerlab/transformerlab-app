@@ -179,6 +179,17 @@ async def dataset_dir_by_id(dataset_id: str) -> str:
     return storage.join(datasets_dir, dataset_id)
 
 
+async def get_task_dir() -> str:
+    tfl_storage_uri = _current_tfl_storage_uri.get()
+    if tfl_storage_uri is not None:
+        return storage.join(tfl_storage_uri, "task")
+
+    workspace = await get_workspace_dir()
+    path = storage.join(workspace, "task")
+    await storage.makedirs(path, exist_ok=True)
+    return path
+
+
 async def get_temp_dir() -> str:
     workspace = await get_workspace_dir()
     path = storage.join(workspace, "temp")
