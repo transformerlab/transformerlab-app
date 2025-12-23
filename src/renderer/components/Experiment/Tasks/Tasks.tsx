@@ -19,6 +19,7 @@ import NewTaskModal from './NewTaskModal';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveVSCodeModal from './InteractiveVSCodeModal';
 import EditTaskModal from './EditTaskModal';
+import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
 import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
@@ -800,16 +801,31 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
           isProvidersLoading={providersIsLoading}
         />
       )}
-      <EditTaskModal
-        open={editModalOpen}
-        onClose={handleEditClose}
-        task={taskBeingEdited}
-        providers={providers}
-        isProvidersLoading={providersIsLoading}
-        onSaved={async () => {
-          await templatesMutate();
-        }}
-      />
+      {taskBeingEdited &&
+      (taskBeingEdited as any).interactive_type &&
+      isInteractivePage ? (
+        <EditInteractiveTaskModal
+          open={editModalOpen}
+          onClose={handleEditClose}
+          task={taskBeingEdited}
+          providers={providers}
+          isProvidersLoading={providersIsLoading}
+          onSaved={async () => {
+            await templatesMutate();
+          }}
+        />
+      ) : (
+        <EditTaskModal
+          open={editModalOpen}
+          onClose={handleEditClose}
+          task={taskBeingEdited}
+          providers={providers}
+          isProvidersLoading={providersIsLoading}
+          onSaved={async () => {
+            await templatesMutate();
+          }}
+        />
+      )}
       <Stack
         direction="row"
         justifyContent="space-between"
