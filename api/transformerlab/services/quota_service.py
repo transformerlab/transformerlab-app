@@ -148,13 +148,15 @@ async def get_held_quota(session: AsyncSession, user_id: str, team_id: str) -> i
 async def get_available_quota(
     session: AsyncSession, user_id: str, team_id: str, period_start: Optional[date] = None
 ) -> float:
-    """Get available quota for a user (total quota - used quota - held quota)."""
+    """Get available quota for a user (total quota - used quota - held quota).
+    Can return negative values if quota is overused.
+    """
     total_quota, _, _ = await get_user_total_quota(session, user_id, team_id)
     used_quota = await get_used_quota(session, user_id, team_id, period_start)
     held_quota = await get_held_quota(session, user_id, team_id)
 
     available = float(total_quota) - used_quota - float(held_quota)
-    return max(0.0, available)
+    return available  # Can be negative to track overuse
 
 
 async def check_quota_available(
@@ -163,9 +165,22 @@ async def check_quota_available(
     """
     Check if user has enough quota available for requested minutes.
     Returns (has_quota, available_quota, message).
+    
+    If user has overused quota (negative available), all launches are blocked
+    until quota is increased or period resets.
     """
     available = await get_available_quota(session, user_id, team_id)
 
+    # If quota is overused (negative available), block ALL launches
+    if available < 0:
+        overused_amount = abs(available)
+        return (
+            False,
+            available,
+            f"Quota overused by {overused_amount:.2f} minutes. Cannot launch tasks until quota is increased or period resets.",
+        )
+
+    # Normal check: available quota must be >= requested minutes
     if available >= minutes_requested:
         return (True, available, "Quota available")
     else:
@@ -395,6 +410,9 @@ async def get_user_quota_status(session: AsyncSession, user_id: str, team_id: st
     held_quota = await get_held_quota(session, user_id, team_id)
     available_quota = await get_available_quota(session, user_id, team_id, period_start)
 
+    # Calculate overused quota (negative available_quota)
+    overused_quota = max(0.0, -available_quota) if available_quota < 0 else 0.0
+
     # Calculate period end (last day of current month)
     today = date.today()
     if today.month == 12:
@@ -408,7 +426,8 @@ async def get_user_quota_status(session: AsyncSession, user_id: str, team_id: st
         "total_quota": total_quota,
         "used_quota": used_quota,
         "held_quota": held_quota,
-        "available_quota": available_quota,
+        "available_quota": max(0.0, available_quota),  # Show as 0 in UI if negative
+        "overused_quota": overused_quota,  # Amount overused (positive number)
         "period_start": period_start.isoformat(),
         "period_end": period_end.isoformat(),
     }

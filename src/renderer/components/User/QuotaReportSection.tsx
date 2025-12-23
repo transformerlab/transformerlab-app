@@ -136,20 +136,28 @@ export default function QuotaReportSection() {
             </Box>
             <Box>
               <Typography level="body-sm" color="neutral">
-                Remaining
+                {quotaStatus?.overused_quota > 0 ? 'Overused' : 'Remaining'}
               </Typography>
               <Typography
                 level="title-md"
                 color={
-                  quotaStatus?.available_quota < 0 ? 'danger' : 'success'
+                  quotaStatus?.overused_quota > 0 ? 'danger' : 'success'
                 }
               >
-                {formatMinutes(quotaStatus?.available_quota || 0)}
+                {quotaStatus?.overused_quota > 0
+                  ? formatMinutes(quotaStatus.overused_quota)
+                  : formatMinutes(quotaStatus?.available_quota || 0)}
               </Typography>
             </Box>
           </Stack>
           {quotaStatus?.total_quota > 0 && (
             <Box>
+              {quotaStatus?.overused_quota > 0 && (
+                <Typography level="body-sm" color="danger" mb={1}>
+                  ⚠️ Quota overused by {formatMinutes(quotaStatus.overused_quota)}. 
+                  Cannot launch tasks until quota is increased or period resets.
+                </Typography>
+              )}
               <Stack
                 direction="row"
                 justifyContent="space-between"

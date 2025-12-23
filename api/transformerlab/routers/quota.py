@@ -171,6 +171,9 @@ async def get_team_quota_usage_by_users(
         available_quota = await quota_service.get_available_quota(
             session, user_id_str, team_id, current_period
         )
+        
+        # Calculate overused quota (negative available_quota)
+        overused_quota = max(0.0, -available_quota) if available_quota < 0 else 0.0
 
         user_summaries.append(
             {
@@ -183,7 +186,8 @@ async def get_team_quota_usage_by_users(
                 "total_quota": total_quota,
                 "used_quota": used_quota,
                 "held_quota": held_quota,
-                "available_quota": available_quota,
+                "available_quota": max(0.0, available_quota),  # Show as 0 in UI if negative
+                "overused_quota": overused_quota,  # Amount overused (positive number)
             }
         )
 

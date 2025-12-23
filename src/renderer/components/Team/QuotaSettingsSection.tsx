@@ -277,12 +277,18 @@ export default function QuotaSettingsSection({
                     </Typography>
                   </td>
                   <td>
-                    <Typography
-                      level="body-sm"
-                      color={user.available_quota < 0 ? 'danger' : 'success'}
-                    >
-                      {formatMinutes(user.available_quota || 0)}
-                    </Typography>
+                    {user.overused_quota > 0 ? (
+                      <Typography level="body-sm" color="danger">
+                        -{formatMinutes(user.overused_quota)} (overused)
+                      </Typography>
+                    ) : (
+                      <Typography
+                        level="body-sm"
+                        color="success"
+                      >
+                        {formatMinutes(user.available_quota || 0)}
+                      </Typography>
+                    )}
                   </td>
                   <td>
                     {editingUser === user.user_id ? (
