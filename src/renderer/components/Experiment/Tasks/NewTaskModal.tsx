@@ -264,7 +264,9 @@ export default function NewTaskModal({
     }
   }, [open, providers]);
 
-  // Load YAML from task.json when it's available, or use template
+  // Load YAML from task.json when it's available, or use template.
+  // Important: do NOT overwrite non-empty YAML that the user or GUI
+  // has already produced.
   useEffect(() => {
     if (
       open &&
@@ -274,7 +276,11 @@ export default function NewTaskModal({
     ) {
       // Only load if YAML content is empty (to avoid overwriting user edits)
       // But allow loading when task.json data becomes available
-      if (taskJsonData && taskMode === 'github-with-json') {
+      if (
+        taskJsonData &&
+        taskMode === 'github-with-json' &&
+        (!yamlContent || yamlContent.trim() === '')
+      ) {
         // Convert task.json to YAML format
         const taskToYaml = (task: any): string => {
           const yamlData: any = {
@@ -1407,8 +1413,12 @@ export default function NewTaskModal({
                     const newMode = e.target.checked;
                     setIsYamlMode(newMode);
                     if (newMode) {
-                      // Switching to YAML mode - convert form data to YAML
-                      convertFormToYaml();
+                      // Switching to YAML mode - convert form data to YAML.
+                      // Use a microtask to ensure any in-flight state updates
+                      // from the last GUI edits have been applied.
+                      setTimeout(() => {
+                        convertFormToYaml();
+                      }, 0);
                     } else {
                       // Switching to GUI mode - parse YAML and populate form
                       parseYamlToForm();
