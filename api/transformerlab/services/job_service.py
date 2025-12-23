@@ -542,14 +542,22 @@ async def job_update_status(
         try:
             job_dict = job.get_json_data() if job else {}
             if job_dict.get("type") == "REMOTE":
-                # Trigger quota tracking (async, won't block)
+                # If session is provided, await quota tracking in the same transaction
+                # Otherwise, run it as a background task
                 import asyncio
 
-                asyncio.create_task(
-                    _track_quota_for_job_status_change(
+                if session:
+                    # Await quota tracking when session is provided to ensure it's part of the same transaction
+                    await _track_quota_for_job_status_change(
                         job_id, job_dict, status, experiment_id, session
                     )
-                )
+                else:
+                    # Trigger quota tracking as background task (async, won't block)
+                    asyncio.create_task(
+                        _track_quota_for_job_status_change(
+                            job_id, job_dict, status, experiment_id, session
+                        )
+                    )
         except Exception as e:
             print(f"Error initiating quota tracking for job {job_id}: {e}")
 

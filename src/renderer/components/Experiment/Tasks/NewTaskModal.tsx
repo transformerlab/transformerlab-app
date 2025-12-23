@@ -65,6 +65,7 @@ type NewTaskModalProps = {
     disk_space?: string;
     accelerators?: string;
     num_nodes?: number;
+    minutes_requested?: number;
     setup?: string;
     env_vars?: Record<string, string>;
     provider_id?: string;
@@ -184,6 +185,7 @@ export default function NewTaskModal({
   const [diskSpace, setDiskSpace] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
+  const [minutesRequested, setMinutesRequested] = React.useState('');
   const [setup, setSetup] = React.useState('');
   const [envVars, setEnvVars] = React.useState<
     Array<{ key: string; value: string }>
@@ -234,6 +236,7 @@ export default function NewTaskModal({
       setDiskSpace('');
       setAccelerators('');
       setNumNodes('');
+      setMinutesRequested('');
       setSetup('');
       setEnvVars([{ key: '', value: '' }]);
       setParameters([{ key: '', value: '', valueType: 'string' }]);
@@ -303,6 +306,8 @@ export default function NewTaskModal({
               yamlData.task.resources.accelerators = task.accelerators;
             if (task.num_nodes)
               yamlData.task.resources.num_nodes = task.num_nodes;
+            if (task.minutes_requested !== undefined)
+              yamlData.task.minutes_requested = task.minutes_requested;
           }
 
           if (task.env_vars) yamlData.task.envs = task.env_vars;
@@ -445,6 +450,7 @@ export default function NewTaskModal({
           if (data.disk_space) setDiskSpace(String(data.disk_space));
           if (data.accelerators) setAccelerators(data.accelerators);
           if (data.num_nodes) setNumNodes(String(data.num_nodes));
+          if (data.minutes_requested) setMinutesRequested(String(data.minutes_requested));
           if (data.setup) setSetup(data.setup);
           if (data.env_vars && typeof data.env_vars === 'object') {
             const envVarsArray = Object.entries(data.env_vars).map(
@@ -744,6 +750,9 @@ export default function NewTaskModal({
       disk_space: diskSpace || undefined,
       accelerators: accelerators || undefined,
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
+      minutes_requested: minutesRequested
+        ? parseInt(minutesRequested, 10)
+        : undefined,
       setup: setupValue || undefined,
       env_vars: Object.keys(envVarsObj).length > 0 ? envVarsObj : undefined,
       parameters:
@@ -773,8 +782,9 @@ export default function NewTaskModal({
     setMemory('');
     setDiskSpace('');
     setAccelerators('');
-    setNumNodes('');
-    setSetup('');
+      setNumNodes('');
+      setMinutesRequested('');
+      setSetup('');
     setEnvVars([{ key: '', value: '' }]);
     setParameters([{ key: '', value: '', valueType: 'string' }]);
     setFileMounts([
@@ -1022,6 +1032,8 @@ export default function NewTaskModal({
         ...yamlData.task.resources,
         num_nodes: parseInt(numNodes) || numNodes,
       };
+    if (minutesRequested)
+      yamlData.task.minutes_requested = parseInt(minutesRequested) || minutesRequested;
 
     // Environment variables
     const envs: Record<string, string> = {};
@@ -1244,6 +1256,10 @@ export default function NewTaskModal({
           taskData.num_nodes = resources.num_nodes;
         }
       }
+      // Minutes requested (task-level field)
+      if (taskYaml.minutes_requested !== undefined) {
+        taskData.minutes_requested = taskYaml.minutes_requested;
+      }
 
       // Environment variables
       if (taskYaml.envs) {
@@ -1296,6 +1312,7 @@ export default function NewTaskModal({
       if (taskData.disk_space) setDiskSpace(String(taskData.disk_space));
       if (taskData.accelerators) setAccelerators(taskData.accelerators);
       if (taskData.num_nodes) setNumNodes(String(taskData.num_nodes));
+      if (taskData.minutes_requested) setMinutesRequested(String(taskData.minutes_requested));
       if (taskData.github_repo_url) setGithubRepoUrl(taskData.github_repo_url);
       if (taskData.github_directory)
         setGithubDirectory(taskData.github_directory);
@@ -1621,6 +1638,20 @@ export default function NewTaskModal({
                     onChange={(e) => setNumNodes(e.target.value)}
                     placeholder="e.g. 1"
                   />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Minutes Requested (for quota tracking)</FormLabel>
+                  <Input
+                    type="number"
+                    value={minutesRequested}
+                    onChange={(e) => setMinutesRequested(e.target.value)}
+                    placeholder="e.g. 60"
+                  />
+                  <FormHelperText>
+                    Estimated minutes this task will run. Used for quota
+                    tracking.
+                  </FormHelperText>
                 </FormControl>
 
                 <FormControl>

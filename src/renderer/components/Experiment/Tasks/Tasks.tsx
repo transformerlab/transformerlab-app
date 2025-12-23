@@ -234,22 +234,23 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         return template.experiment_id === experimentInfo?.id;
       }) || [];
 
-  // Check each LAUNCHING job individually via provider endpoints
+  // Check each LAUNCHING and recently completed REMOTE job individually via provider endpoints
   useEffect(() => {
     if (!jobs || !Array.isArray(jobs)) return;
 
-    const launchingJobs = jobs.filter(
+    const jobsToCheck = jobs.filter(
       (job: any) =>
         job.type === 'REMOTE' &&
-        job.status === 'LAUNCHING' &&
+        (job.status === 'LAUNCHING' ||
+          (job.status === 'COMPLETE' && job.job_data?.provider_id)) && // Also check recently completed jobs to ensure quota is recorded
         job.job_data?.provider_id, // Only check jobs with provider_id
     );
 
-    if (launchingJobs.length === 0) return;
+    if (jobsToCheck.length === 0) return;
 
     // Check each job individually
     const checkJobs = async () => {
-      for (const job of launchingJobs) {
+      for (const job of jobsToCheck) {
         try {
           const response = await fetchWithAuth(
             chatAPI.Endpoints.ComputeProvider.CheckJobStatus(String(job.id)),
@@ -261,6 +262,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             if (result.updated && result.new_status === 'COMPLETE') {
               setTimeout(() => jobsMutate(), 0);
             }
+            // For completed jobs, check-status will ensure quota is recorded if missing
           }
         } catch (error) {
           // Silently ignore errors for individual job checks
@@ -275,6 +277,38 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
     return () => clearInterval(interval);
   }, [jobs, fetchWithAuth, jobsMutate]);
+
+  // // Periodically ensure quota is recorded for all completed REMOTE jobs
+  // useEffect(() => {
+  //   if (!experimentInfo?.id) return;
+
+  //   const ensureQuotaRecorded = async () => {
+  //     try {
+  //       const response = await fetchWithAuth(
+  //         chatAPI.Endpoints.ComputeProvider.EnsureQuotaRecorded(
+  //           experimentInfo.id,
+  //         ),
+  //         { method: 'GET' },
+  //       );
+  //       if (response.ok) {
+  //         const result = await response.json();
+  //         // If any quota was recorded, refresh jobs to reflect changes
+  //         if (result.jobs_with_quota_recorded > 0) {
+  //           setTimeout(() => jobsMutate(), 0);
+  //         }
+  //       }
+  //     } catch (error) {
+  //       // Silently ignore errors for quota recording check
+  //       console.error('Failed to ensure quota recorded:', error);
+  //     }
+  //   };
+
+  //   // Check immediately and then every 30 seconds (less frequent than job status checks)
+  //   ensureQuotaRecorded();
+  //   const interval = setInterval(ensureQuotaRecorded, 30000);
+
+  //   return () => clearInterval(interval);
+  // }, [experimentInfo?.id, fetchWithAuth, jobsMutate]);
 
   // Note: SWEEP job status is automatically updated when fetching via sweep-status endpoint
   // No separate status check needed - the endpoint updates and returns all SWEEP jobs
@@ -716,6 +750,8 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
             : task.lower_is_better !== undefined
               ? task.lower_is_better
               : undefined,
+        minutes_requested:
+          cfg.minutes_requested || task.minutes_requested || undefined,
       };
 
       const response = await fetchWithAuth(

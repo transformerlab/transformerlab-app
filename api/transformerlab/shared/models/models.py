@@ -224,7 +224,7 @@ class UserQuotaOverride(Base):
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    __table_args__ = (Index("idx_user_team_unique", "user_id", "team_id", unique=True),)
+    __table_args__ = (Index("idx_user_quota_overrides_user_team", "user_id", "team_id", unique=True),)
 
 
 class QuotaUsage(Base):
@@ -242,8 +242,8 @@ class QuotaUsage(Base):
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     __table_args__ = (
-        Index("idx_user_team_period", "user_id", "team_id", "period_start"),
-        Index("idx_job_id", "job_id"),
+        Index("idx_quota_usage_user_team_period", "user_id", "team_id", "period_start"),
+        Index("idx_quota_usage_job_id", "job_id"),
     )
 
 
@@ -263,7 +263,7 @@ class QuotaHold(Base):
     released_at: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True)
 
     __table_args__ = (
-        Index("idx_user_team_status", "user_id", "team_id", "status"),
-        Index("idx_task_id", "task_id"),
-        Index("idx_job_id", "job_id"),
+        Index("idx_quota_holds_user_team_status", "user_id", "team_id", "status"),
+        Index("idx_quota_holds_task_id", "task_id"),
+        Index("idx_quota_holds_job_id", "job_id"),
     )

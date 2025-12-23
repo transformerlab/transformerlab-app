@@ -1173,6 +1173,7 @@ async def launch_template_on_provider(
         "provider_type": provider.type,
         "provider_name": provider_display_name,
         "user_info": user_info or None,
+        "team_id": team_id,  # Store team_id for quota tracking
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
 
@@ -1279,7 +1280,8 @@ async def check_provider_job_status(
     job_status = job.get("status", "")
     if job_status in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
         # Ensure quota is recorded for this completed job
-        await quota_service.ensure_quota_recorded_for_completed_job(session, job_id)
+        # Pass team_id from user_and_team context
+        await quota_service.ensure_quota_recorded_for_completed_job(session, job_id, team_id=team_id)
         return {
             "status": "success",
             "job_id": job_id,
@@ -1348,7 +1350,10 @@ async def check_provider_job_status(
             # Set end_time when marking job as complete
             end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
             job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
-            await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
+            # Pass session to job_update_status so quota tracking uses the same session
+            await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id, session=session)
+            # Commit the session to ensure quota tracking is persisted
+            await session.commit()
 
             return {
                 "status": "success",
@@ -1389,9 +1394,12 @@ async def ensure_quota_recorded_for_completed_jobs(
     If experiment_id is provided, checks all REMOTE jobs in that experiment.
     Otherwise, returns instructions.
     """
+    team_id = user_and_team["team_id"]
+
     if job_id:
         # Check specific job
-        quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(session, job_id)
+        # Pass team_id from user_and_team context
+        quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(session, job_id, team_id=team_id)
         return {
             "status": "success",
             "job_id": job_id,
@@ -1419,7 +1427,10 @@ async def ensure_quota_recorded_for_completed_jobs(
             jobs_processed += 1
             job_id_str = str(job.get("id", ""))
             if job_id_str:
-                quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(session, job_id_str)
+                # Pass team_id from user_and_team context
+                quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(
+                    session, job_id_str, team_id=team_id
+                )
                 if quota_recorded:
                     jobs_recorded += 1
 

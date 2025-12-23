@@ -6,7 +6,6 @@ from datetime import date, datetime
 from typing import Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
-from sqlalchemy.orm import selectinload
 
 from transformerlab.shared.models.models import (
     TeamQuota,
@@ -29,9 +28,7 @@ async def get_team_quota(session: AsyncSession, team_id: str) -> Optional[TeamQu
     return result.scalar_one_or_none()
 
 
-async def get_or_create_team_quota(
-    session: AsyncSession, team_id: str, monthly_quota_minutes: int = 0
-) -> TeamQuota:
+async def get_or_create_team_quota(session: AsyncSession, team_id: str, monthly_quota_minutes: int = 0) -> TeamQuota:
     """Get existing team quota or create a new one with default values."""
     team_quota = await get_team_quota(session, team_id)
     if team_quota is None:
@@ -46,9 +43,7 @@ async def get_or_create_team_quota(
     return team_quota
 
 
-async def update_team_quota(
-    session: AsyncSession, team_id: str, monthly_quota_minutes: int
-) -> TeamQuota:
+async def update_team_quota(session: AsyncSession, team_id: str, monthly_quota_minutes: int) -> TeamQuota:
     """Update team quota. Creates if it doesn't exist."""
     team_quota = await get_or_create_team_quota(session, team_id, monthly_quota_minutes)
     team_quota.monthly_quota_minutes = monthly_quota_minutes
@@ -60,9 +55,7 @@ async def update_team_quota(
     return team_quota
 
 
-async def get_user_quota_override(
-    session: AsyncSession, user_id: str, team_id: str
-) -> Optional[UserQuotaOverride]:
+async def get_user_quota_override(session: AsyncSession, user_id: str, team_id: str) -> Optional[UserQuotaOverride]:
     """Get user quota override for a user in a team."""
     stmt = select(UserQuotaOverride).where(
         and_(UserQuotaOverride.user_id == user_id, UserQuotaOverride.team_id == team_id)
@@ -96,9 +89,7 @@ async def update_user_quota_override(
     return override
 
 
-async def get_user_total_quota(
-    session: AsyncSession, user_id: str, team_id: str
-) -> Tuple[int, int, int]:
+async def get_user_total_quota(session: AsyncSession, user_id: str, team_id: str) -> Tuple[int, int, int]:
     """
     Get total quota for a user (team quota + user override).
     Returns (total_quota_minutes, team_quota_minutes, user_override_minutes).
@@ -231,9 +222,7 @@ async def release_quota_hold(
     return quota_hold
 
 
-async def convert_quota_hold(
-    session: AsyncSession, job_id: str
-) -> Optional[QuotaHold]:
+async def convert_quota_hold(session: AsyncSession, job_id: str) -> Optional[QuotaHold]:
     """Convert a quota hold to CONVERTED status (quota usage has been recorded)."""
     stmt = select(QuotaHold).where(QuotaHold.job_id == job_id, QuotaHold.status == "HELD")
     result = await session.execute(stmt)
@@ -273,12 +262,12 @@ async def record_quota_usage(
 
 
 async def ensure_quota_recorded_for_completed_job(
-    session: AsyncSession, job_id: str
+    session: AsyncSession, job_id: str, team_id: Optional[str] = None
 ) -> bool:
     """
     Check if a completed REMOTE job has quota usage recorded.
     If not, and the job is COMPLETE/STOPPED/FAILED, record the quota usage.
-    
+
     Returns True if quota was recorded, False otherwise.
     """
     from transformerlab.services import job_service
@@ -287,16 +276,19 @@ async def ensure_quota_recorded_for_completed_job(
 
     # Get the job
     job = job_service.job_get(job_id)
+    print(f"Job: {job}")
     if not job:
         return False
 
     # Only track REMOTE jobs
     if job.get("type") != "REMOTE":
+        print(f"Job is not a REMOTE job: {job}")
         return False
 
     # Only process jobs in terminal states
     status = job.get("status", "")
     if status not in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
+        print(f"Job is not in terminal state: {status}")
         return False
 
     # Check if quota usage already recorded for this job
@@ -304,6 +296,7 @@ async def ensure_quota_recorded_for_completed_job(
     result = await session.execute(stmt)
     existing_usage = result.scalar_one_or_none()
     if existing_usage:
+        print(f"Quota usage already recorded for job: {job_id}")
         return False  # Already recorded
 
     # Get job data
@@ -311,11 +304,16 @@ async def ensure_quota_recorded_for_completed_job(
     user_info = job_data.get("user_info") or {}
     user_email = user_info.get("email")
     if not user_email:
+        print(f"User email not found for job: {job_id}")
         return False
 
-    # Get team_id from job_data
-    team_id = job_data.get("team_id")
+    # Get team_id from parameter, job_data, or try to infer from experiment
     if not team_id:
+        team_id = job_data.get("team_id")
+    if not team_id:
+        # Try to get from experiment context if available
+        # For now, skip if we can't determine team_id
+        print(f"Team id not found for job: {job_id}")
         return False
 
     # Check if job had start_time (entered LAUNCHING state)
@@ -332,6 +330,7 @@ async def ensure_quota_recorded_for_completed_job(
         # Try to calculate from current time if job is complete
         if status == "COMPLETE":
             from datetime import datetime
+
             end_time_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         else:
             return False  # Can't calculate without end_time
@@ -352,6 +351,7 @@ async def ensure_quota_recorded_for_completed_job(
 
         duration_seconds = (end_dt - start_dt).total_seconds()
         minutes_used = duration_seconds / 60.0
+        print(f"Minutes used: {minutes_used}")
 
         if minutes_used < 0:
             return False
@@ -359,12 +359,14 @@ async def ensure_quota_recorded_for_completed_job(
         # Get user_id from email
         stmt = select(User).where(User.email == user_email)
         result = await session.execute(stmt)
-        user = result.scalar_one_or_none()
+        # unique() is required because User has lazy="joined" relationships (oauth_accounts)
+        user = result.unique().scalar_one_or_none()
         if not user:
             return False
 
         user_id_str = str(user.id)
         experiment_id = job.get("experiment_id", "")
+        print(f"Experiment id: {experiment_id}")
 
         # Record quota usage
         await record_quota_usage(
@@ -375,6 +377,7 @@ async def ensure_quota_recorded_for_completed_job(
             experiment_id=experiment_id,
             minutes_used=minutes_used,
         )
+        print("Quota usage recorded")
 
         # Convert quota hold to CONVERTED status
         await convert_quota_hold(session, job_id)
@@ -389,9 +392,7 @@ async def ensure_quota_recorded_for_completed_job(
         return False
 
 
-async def get_user_quota_status(
-    session: AsyncSession, user_id: str, team_id: str
-) -> dict:
+async def get_user_quota_status(session: AsyncSession, user_id: str, team_id: str) -> dict:
     """Get comprehensive quota status for a user."""
     total_quota, team_quota, user_override = await get_user_total_quota(session, user_id, team_id)
     period_start = get_current_period_start()
@@ -416,4 +417,3 @@ async def get_user_quota_status(
         "period_start": period_start.isoformat(),
         "period_end": period_end.isoformat(),
     }
-
