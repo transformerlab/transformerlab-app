@@ -20,7 +20,7 @@ from transformerlab.routers.experiment import (
     workflows,
     diffusion,
     jobs,
-    task,
+    task as task_router,
 )
 from lab.dirs import get_workspace_dir
 
@@ -38,7 +38,7 @@ router.include_router(router=generations.router, prefix="/{experimentId}", tags=
 router.include_router(router=workflows.router, prefix="/{experimentId}", tags=["workflows"])
 router.include_router(router=diffusion.router, prefix="/{experimentId}", tags=["diffusion"])
 router.include_router(router=jobs.router, prefix="/{experimentId}", tags=["jobs"])
-router.include_router(router=task.router, prefix="/{experimentId}", tags=["task"])
+router.include_router(router=task_router.router, prefix="/{experimentId}", tags=["task"])
 
 
 @router.get("/", summary="Get all Experiments", tags=["experiment"])
@@ -227,7 +227,7 @@ def export_experiment_to_recipe(id: str, request: Request):
         from transformerlab.services.tasks_service import tasks_service
 
         tasks = tasks_service.tasks_get_by_type_in_experiment(task_type, id)
-        for task in tasks:  # noqa: F402
+        for task in tasks:
             if not isinstance(task["config"], dict):
                 task_config = json.loads(task["config"])
             else:
