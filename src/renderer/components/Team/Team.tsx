@@ -89,10 +89,11 @@ export default function UserLoginTest(): JSX.Element {
   );
 
   // Get compute_provider list (unchanged)
-  const { data: providers, mutate: providersMutate } = useAPI(
-    'compute_provider',
-    ['list'],
-  );
+  const {
+    data: providers,
+    mutate: providersMutate,
+    isLoading: providersLoading,
+  } = useAPI('compute_provider', ['list']);
 
   // Simplify errors: show all errors under the "Members" title
   const [roleError, setRoleError] = useState<string | undefined>(undefined);
@@ -893,6 +894,7 @@ export default function UserLoginTest(): JSX.Element {
                               setProviderId(provider.id);
                               setOpenProviderDetailsModal(true);
                             }}
+                            disabled={providersLoading}
                             sx={{ minWidth: '60px', fontSize: '0.75rem' }}
                           >
                             Edit
@@ -904,7 +906,7 @@ export default function UserLoginTest(): JSX.Element {
                             onClick={() =>
                               handleDeleteProvider(provider.id, provider.name)
                             }
-                            disabled={!iAmOwner}
+                            disabled={!iAmOwner || providersLoading}
                             sx={{ minWidth: '60px', fontSize: '0.75rem' }}
                           >
                             Delete
