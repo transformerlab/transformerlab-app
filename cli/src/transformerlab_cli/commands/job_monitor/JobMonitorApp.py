@@ -22,7 +22,7 @@ class JobListItem(ListItem):
         status = self.job.get("status", "N/A")
 
         # Simple styling for the list item
-        yield Label(f"[bold][{self.job.get('id', '?')}] {task_name}/bold]")
+        yield Label(f"[bold][{self.job.get('id', '?')}] {task_name}[/bold]")
         status_color = "$success" if status == "COMPLETED" else "$error" if status == "FAILED" else "$warning"
         yield Label(f"Status: [{status_color}]{status}[/{status_color}]")
 
