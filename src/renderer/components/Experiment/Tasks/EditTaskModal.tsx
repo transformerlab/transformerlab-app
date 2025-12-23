@@ -1347,6 +1347,21 @@ export default function EditTaskModal({
                             onChange={(e) => {
                               const newParams = [...parameters];
                               newParams[index].key = e.target.value;
+
+                              // Auto-append a new blank row when the last row gets content,
+                              // so the user doesn't have to click "Add Parameter" to make
+                              // the current row count.
+                              const isLast = index === newParams.length - 1;
+                              const hasContent =
+                                newParams[index].key.trim() ||
+                                newParams[index].value.trim();
+                              if (isLast && hasContent) {
+                                newParams.push({
+                                  key: '',
+                                  value: '',
+                                  valueType: 'string',
+                                });
+                              }
                               setParameters(newParams);
                             }}
                             sx={{ flex: 1 }}
@@ -1410,6 +1425,18 @@ export default function EditTaskModal({
                             onChange={(e) => {
                               const newParams = [...parameters];
                               newParams[index].value = e.target.value;
+
+                              const isLast = index === newParams.length - 1;
+                              const hasContent =
+                                newParams[index].key.trim() ||
+                                newParams[index].value.trim();
+                              if (isLast && hasContent) {
+                                newParams.push({
+                                  key: '',
+                                  value: '',
+                                  valueType: 'string',
+                                });
+                              }
                               setParameters(newParams);
                             }}
                           />
