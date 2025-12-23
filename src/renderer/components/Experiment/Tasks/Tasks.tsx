@@ -786,8 +786,11 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         });
         await Promise.all([jobsMutate(), templatesMutate()]);
       } else {
+        // FastAPI HTTPException uses 'detail' field, but some responses may use 'message'
         const message =
-          launchResult?.message || 'Failed to queue provider-backed task.';
+          launchResult?.detail ||
+          launchResult?.message ||
+          'Failed to queue provider-backed task.';
         addNotification({
           type: 'danger',
           message,
