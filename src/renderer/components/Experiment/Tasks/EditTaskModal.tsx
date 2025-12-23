@@ -101,6 +101,8 @@ export default function EditTaskModal({
   // YAML/GUI mode toggle (default to YAML)
   const [isYamlMode, setIsYamlMode] = React.useState(true);
   const [yamlContent, setYamlContent] = React.useState('');
+  // Store parsed YAML data to use directly in form submission
+  const parsedYamlDataRef = React.useRef<any>(null);
 
   React.useEffect(() => {
     if (!task) return;
@@ -253,6 +255,8 @@ export default function EditTaskModal({
 
     // Initialize YAML mode
     setIsYamlMode(true);
+    // Clear parsed data when modal opens/closes or task changes
+    parsedYamlDataRef.current = null;
     setSweepMetric(
       isTemplate
         ? taskAny.sweep_metric || 'eval/loss'
@@ -511,10 +515,10 @@ export default function EditTaskModal({
   };
 
   // Parse YAML and populate form
-  const parseYamlToForm = async () => {
+  const parseYamlToForm = async (): Promise<boolean> => {
     if (!yamlContent.trim()) {
       addNotification({ type: 'warning', message: 'YAML content is empty' });
-      return;
+      return false;
     }
 
     try {
@@ -680,18 +684,24 @@ export default function EditTaskModal({
         }
       }
 
-      // Populate form fields
-      if (taskData.name) setTitle(taskData.name);
-      if (taskData.cluster_name) setClusterName(taskData.cluster_name);
-      if (taskData.command) setCommand(taskData.command);
-      if (taskData.setup) setSetup(taskData.setup);
-      if (taskData.cpus) setCpus(String(taskData.cpus));
-      if (taskData.memory) setMemory(String(taskData.memory));
-      if (taskData.disk_space) setDiskSpace(String(taskData.disk_space));
-      if (taskData.accelerators) setAccelerators(taskData.accelerators);
-      if (taskData.num_nodes) setNumNodes(String(taskData.num_nodes));
-      if (taskData.github_repo_url) setGithubRepoUrl(taskData.github_repo_url);
-      if (taskData.github_directory)
+      // Populate form fields - always set values, even if empty, to ensure YAML values override existing form state
+      setTitle(taskData.name || '');
+      if (taskData.cluster_name !== undefined)
+        setClusterName(taskData.cluster_name);
+      setCommand(taskData.command || '');
+      if (taskData.setup !== undefined) setSetup(taskData.setup);
+      // For numeric fields, check for undefined specifically (0 is a valid value)
+      if (taskData.cpus !== undefined) setCpus(String(taskData.cpus));
+      if (taskData.memory !== undefined) setMemory(String(taskData.memory));
+      if (taskData.disk_space !== undefined)
+        setDiskSpace(String(taskData.disk_space));
+      if (taskData.accelerators !== undefined)
+        setAccelerators(taskData.accelerators);
+      if (taskData.num_nodes !== undefined)
+        setNumNodes(String(taskData.num_nodes));
+      if (taskData.github_repo_url !== undefined)
+        setGithubRepoUrl(taskData.github_repo_url);
+      if (taskData.github_directory !== undefined)
         setGithubDirectory(taskData.github_directory);
       setGithubEnabled(!!taskData.github_repo_url);
 
@@ -759,7 +769,13 @@ export default function EditTaskModal({
           setLowerIsBetter(taskData.lower_is_better);
       }
 
+      // Store parsed data for use in form submission
+      parsedYamlDataRef.current = taskData;
+
       addNotification({ type: 'success', message: 'YAML parsed successfully' });
+      // Wait for state to update
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      return true;
     } catch (error: any) {
       console.error('Error parsing YAML:', error);
       addNotification({
@@ -767,19 +783,34 @@ export default function EditTaskModal({
         message:
           error.message || 'Failed to parse YAML. Please check the format.',
       });
+      return false;
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Track if we just parsed YAML in this submission
+    let justParsedYaml = false;
+
     // If we're in YAML mode, parse it first
     if (isYamlMode) {
-      await parseYamlToForm();
+      const parsed = await parseYamlToForm();
+      if (!parsed) {
+        // Parsing failed, don't continue
+        return;
+      }
+      justParsedYaml = true;
       setIsYamlMode(false);
-      // Wait a bit for state to update
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Wait longer for state to update - React state updates are async
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
+
+    // Only use parsed data if we just parsed YAML in this submission
+    // This ensures we use the exact values from YAML, not stale state
+    // But if user is in GUI mode and made changes, use form state instead
+    const parsedData = parsedYamlDataRef.current;
+    const useParsedData = justParsedYaml && !!parsedData;
 
     const setupValue =
       setupEditorRef?.current?.getValue?.() ?? (setup || undefined);
@@ -799,6 +830,11 @@ export default function EditTaskModal({
       return;
     }
     setSaving(true);
+
+    // Clear the parsed data ref after using it
+    if (useParsedData) {
+      parsedYamlDataRef.current = null;
+    }
 
     // Convert env_vars array to object, filtering out empty entries
     const envVarsObj: Record<string, string> = {};
@@ -912,14 +948,37 @@ export default function EditTaskModal({
     // we'll use the template format
     const taskAny = task as any;
     const updateBody: any = {
-      name: title,
-      cluster_name: clusterName,
+      name:
+        useParsedData && parsedData.name !== undefined
+          ? parsedData.name
+          : title,
+      cluster_name:
+        useParsedData && parsedData.cluster_name !== undefined
+          ? parsedData.cluster_name
+          : clusterName,
       command: commandValue,
-      cpus: cpus || undefined,
-      memory: memory || undefined,
-      disk_space: diskSpace || undefined,
-      accelerators: accelerators || undefined,
-      num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
+      cpus:
+        useParsedData && parsedData.cpus !== undefined
+          ? parsedData.cpus
+          : cpus || undefined,
+      memory:
+        useParsedData && parsedData.memory !== undefined
+          ? parsedData.memory
+          : memory || undefined,
+      disk_space:
+        useParsedData && parsedData.disk_space !== undefined
+          ? parsedData.disk_space
+          : diskSpace || undefined,
+      accelerators:
+        useParsedData && parsedData.accelerators !== undefined
+          ? parsedData.accelerators
+          : accelerators || undefined,
+      num_nodes:
+        useParsedData && parsedData.num_nodes !== undefined
+          ? parsedData.num_nodes
+          : numNodes
+            ? parseInt(numNodes, 10)
+            : undefined,
       setup: setupValue || undefined,
       env_vars: Object.keys(envVarsObj).length > 0 ? envVarsObj : undefined,
       parameters:
@@ -1070,6 +1129,11 @@ export default function EditTaskModal({
                   onChange={(e) => {
                     const newMode = e.target.checked;
                     setIsYamlMode(newMode);
+                    // Clear parsed data when manually switching to GUI mode
+                    // This ensures GUI mode uses form state, not old parsed YAML
+                    if (!newMode) {
+                      parsedYamlDataRef.current = null;
+                    }
                     if (newMode) {
                       // Switching to YAML mode - convert form data to YAML
                       convertTaskToYaml();

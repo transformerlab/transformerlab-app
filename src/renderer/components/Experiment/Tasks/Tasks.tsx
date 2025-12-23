@@ -810,8 +810,51 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
           task={taskBeingEdited}
           providers={providers}
           isProvidersLoading={providersIsLoading}
-          onSaved={async () => {
-            await templatesMutate();
+          onSaved={async (updatedBody: any) => {
+            if (!experimentInfo?.id || !taskBeingEdited?.id) {
+              addNotification({
+                type: 'warning',
+                message: 'Missing experiment or task ID',
+              });
+              return;
+            }
+
+            try {
+              const response = await chatAPI.authenticatedFetch(
+                chatAPI.Endpoints.Task.UpdateTemplate(
+                  experimentInfo.id,
+                  taskBeingEdited.id,
+                ),
+                {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    accept: 'application/json',
+                  },
+                  body: JSON.stringify(updatedBody),
+                },
+              );
+
+              if (response.ok) {
+                await templatesMutate();
+                addNotification({
+                  type: 'success',
+                  message: 'Interactive task updated successfully',
+                });
+              } else {
+                const txt = await response.text();
+                addNotification({
+                  type: 'danger',
+                  message: `Failed to update interactive task: ${txt}`,
+                });
+              }
+            } catch (error) {
+              console.error('Error updating interactive task:', error);
+              addNotification({
+                type: 'danger',
+                message: 'Failed to update interactive task. Please try again.',
+              });
+            }
           }}
         />
       ) : (
