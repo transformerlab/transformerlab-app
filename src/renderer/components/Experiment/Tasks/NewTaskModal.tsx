@@ -93,12 +93,18 @@ function isGitHubUrl(url: string): boolean {
 }
 
 // Helper function to fetch task.json from any URL
-async function fetchTaskJsonFromUrl(taskJsonUrl: string): Promise<any | null> {
+async function fetchTaskJsonFromUrl(
+  taskJsonUrl: string,
+  experimentId: string,
+): Promise<any | null> {
   try {
     // Check if this is a GitHub URL (blob, raw, or repo URL)
     if (isGitHubUrl(taskJsonUrl)) {
       // Use the backend endpoint which supports GitHub PAT and handles URL conversion
-      const endpoint = chatAPI.Endpoints.Tasks.FetchTaskJson(taskJsonUrl);
+      const endpoint = chatAPI.Endpoints.Task.FetchTaskJson(
+        experimentId,
+        taskJsonUrl,
+      );
       const response = await chatAPI.authenticatedFetch(endpoint, {
         method: 'GET',
       });
@@ -299,8 +305,7 @@ export default function NewTaskModal({
               yamlData.resources.disk_space = task.disk_space;
             if (task.accelerators)
               yamlData.resources.accelerators = task.accelerators;
-            if (task.num_nodes)
-              yamlData.resources.num_nodes = task.num_nodes;
+            if (task.num_nodes) yamlData.resources.num_nodes = task.num_nodes;
           }
 
           if (task.env_vars) yamlData.envs = task.env_vars;
@@ -415,7 +420,7 @@ export default function NewTaskModal({
       return;
     }
     setIsLoadingTaskJson(true);
-    fetchTaskJsonFromUrl(taskJsonUrl)
+    fetchTaskJsonFromUrl(taskJsonUrl, experimentId)
       .then((data) => {
         if (data) {
           setTaskJsonData(data);
@@ -986,7 +991,14 @@ export default function NewTaskModal({
     };
 
     // Resources
-    if (selectedProviderId || cpus || memory || diskSpace || accelerators || numNodes) {
+    if (
+      selectedProviderId ||
+      cpus ||
+      memory ||
+      diskSpace ||
+      accelerators ||
+      numNodes
+    ) {
       yamlData.resources = {};
       if (selectedProviderId) {
         const provider = providers.find((p) => p.id === selectedProviderId);
@@ -994,14 +1006,11 @@ export default function NewTaskModal({
           yamlData.resources.compute_provider = provider.name;
         }
       }
-      if (cpus)
-        yamlData.resources.cpus = parseInt(cpus) || cpus;
-      if (memory)
-        yamlData.resources.memory = parseInt(memory) || memory;
+      if (cpus) yamlData.resources.cpus = parseInt(cpus) || cpus;
+      if (memory) yamlData.resources.memory = parseInt(memory) || memory;
       if (diskSpace)
         yamlData.resources.disk_space = parseInt(diskSpace) || diskSpace;
-      if (accelerators)
-        yamlData.resources.accelerators = accelerators;
+      if (accelerators) yamlData.resources.accelerators = accelerators;
       if (numNodes)
         yamlData.resources.num_nodes = parseInt(numNodes) || numNodes;
     }
@@ -1194,7 +1203,7 @@ export default function NewTaskModal({
       const yamlData = parseYaml(yamlContent);
 
       if (!yamlData) {
-        throw new Error("YAML content is empty or invalid");
+        throw new Error('YAML content is empty or invalid');
       }
 
       // Support both old format (with "task:" key) and new format (direct fields)

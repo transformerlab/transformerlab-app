@@ -21,7 +21,7 @@ import {
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 import { useRef } from 'react';
-import { SafeJSONParse } from 'renderer/components/Shared/SafeJSONParse';
+import { SafeJSONParse } from '../../Shared/SafeJSONParse';
 
 const { parseTmTheme } = require('monaco-themes');
 
