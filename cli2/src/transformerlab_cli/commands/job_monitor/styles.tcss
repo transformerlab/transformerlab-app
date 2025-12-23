@@ -2,10 +2,14 @@ Horizontal {
   height: 100%;
 }
 
+#job-list-container {
+  border: solid $secondary;
+}
+
 ListView {
   width: 100%;
-  border: solid $secondary;
   display: none;
+  background: $background;
 }
 
 ListView.loaded {
@@ -106,4 +110,8 @@ JobJsonModal {
 #btn-close-modal {
   width: 100%;
   dock: bottom;
+}
+
+
+.job-list-item {
 }

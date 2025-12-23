@@ -1,6 +1,6 @@
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, ListView, LoadingIndicator, ListItem, Label
-from textual.containers import Horizontal, Vertical
+from textual.widgets import Header, Footer, ListView, LoadingIndicator, ListItem, Label, Rule
+from textual.containers import Horizontal, Vertical, Container
 from textual import work
 
 from transformerlab_cli.util.config import get_current_experiment
@@ -13,7 +13,7 @@ from transformerlab_cli.commands.job_monitor.util import fetch_jobs
 
 class JobListItem(ListItem):
     def __init__(self, job: dict) -> None:
-        super().__init__()
+        super().__init__(classes="job-list-item")  # Added CSS class
         self.job = job
 
     def compose(self) -> ComposeResult:
@@ -22,7 +22,7 @@ class JobListItem(ListItem):
         status = self.job.get("status", "N/A")
 
         # Simple styling for the list item
-        yield Label(f"[bold][$text-primary][{self.job.get('id', '?')}] {task_name}[/$text-primary][/bold]")
+        yield Label(f"[bold][{self.job.get('id', '?')}] {task_name}/bold]")
         status_color = "$success" if status == "COMPLETED" else "$error" if status == "FAILED" else "$warning"
         yield Label(f"Status: [{status_color}]{status}[/{status_color}]")
 
@@ -40,12 +40,15 @@ class JobMonitorApp(App):
     ]
 
     def compose(self) -> ComposeResult:
-        yield Header(icon="🔬")
+        yield Header(icon="🤓")
         with Horizontal(id="main-container"):
             # Left panel
-            with Vertical(id="job-list-container", classes="column"):
+            with Vertical(id="left-panel", classes="column"):
                 yield LoadingIndicator(id="loading")
-                yield ListView(id="job-list")
+                joblistcontainer = Container(id="job-list-container")
+                joblistcontainer.border_title = "Jobs"
+                with joblistcontainer:
+                    yield ListView(id="job-list")
 
             # Right panel
             yield JobDetails()
