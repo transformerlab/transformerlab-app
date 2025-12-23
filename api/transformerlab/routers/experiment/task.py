@@ -48,8 +48,8 @@ async def task_get_by_type(type: str):
     "/list_by_type_in_experiment",
     summary="Returns all the tasks of a certain type in a certain experiment, e.g TRAIN",
 )
-async def task_get_by_type_in_experiment(type: str, experiment_id: str):
-    tasks = task_service.task_get_by_type_in_experiment(type, experiment_id)
+async def task_get_by_type_in_experiment(experimentId: str, type: str):
+    tasks = task_service.task_get_by_type_in_experiment(type, experimentId)
     return tasks
 
 
@@ -58,11 +58,11 @@ async def task_get_by_type_in_experiment(type: str, experiment_id: str):
     summary="Returns all tasks for an experiment filtered by subtype and optionally by type",
 )
 async def task_get_by_subtype_in_experiment(
-    experiment_id: str,
+    experimentId: str,
     subtype: str,
     type: Optional[str] = Query(None, description="Optional task type filter (e.g., REMOTE)"),
 ):
-    tasks = task_service.task_get_by_subtype_in_experiment(experiment_id, subtype, type)
+    tasks = task_service.task_get_by_subtype_in_experiment(experimentId, subtype, type)
     return tasks
 
 
@@ -233,7 +233,7 @@ def _parse_yaml_to_task_data(yaml_content: str) -> dict:
 @router.put("/new_task", summary="Create a new task")
 async def add_task(
     request: Request,
-    experiment_id: Optional[str] = Query(None),
+    experimentId: str,
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -279,9 +279,9 @@ async def add_task(
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Error parsing YAML: {str(e)}")
 
-            # Inject experiment_id from query parameter if not in YAML
-            if experiment_id and "experiment_id" not in task_data:
-                task_data["experiment_id"] = experiment_id
+            # Inject experimentId from path parameter if not in YAML
+            if "experiment_id" not in task_data:
+                task_data["experiment_id"] = experimentId
 
             # Add required fields if not present
             if "type" not in task_data:
@@ -321,6 +321,10 @@ async def add_task(
                 task_id = task_service.add_task(task_data)
                 return {"message": "OK", "id": task_id}
 
+            # Inject experimentId from path parameter if not in JSON
+            if "experiment_id" not in new_task:
+                new_task["experiment_id"] = experimentId
+
             # Handle provider matching for JSON input
             await _resolve_provider(new_task, user_and_team, session)
 
@@ -352,6 +356,7 @@ async def task_gallery():
 
 @router.post("/gallery/import", summary="Import a task from the tasks gallery")
 async def import_task_from_gallery(
+    experimentId: str,
     request: ImportTaskFromGalleryRequest,
     user_and_team=Depends(get_user_and_team),
 ):
@@ -429,7 +434,7 @@ async def import_task_from_gallery(
         "name": task_name,
         "type": "REMOTE",
         "plugin": "remote_orchestrator",
-        "experiment_id": request.experiment_id,
+        "experiment_id": experimentId,
         **task_config,  # All config fields go directly into task
     }
 
@@ -450,6 +455,7 @@ async def team_task_gallery():
 
 @router.post("/gallery/team/import", summary="Import a task from the team tasks gallery")
 async def import_task_from_team_gallery(
+    experimentId: str,
     request: ImportTaskFromTeamGalleryRequest,
     user_and_team=Depends(get_user_and_team),
 ):
@@ -522,7 +528,7 @@ async def import_task_from_team_gallery(
         "name": task_name,
         "type": "REMOTE",
         "plugin": "remote_orchestrator",
-        "experiment_id": request.experiment_id,
+        "experiment_id": experimentId,
         **task_config,  # All config fields go directly into task
     }
 

@@ -220,7 +220,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             subtype,
             'REMOTE', // Filter by REMOTE type when filtering by subtype
           )
-        : chatAPI.Endpoints.Task.List()
+        : chatAPI.Endpoints.Task.List(experimentInfo.id)
       : null,
     fetcher,
   );
@@ -345,7 +345,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.DeleteTemplate(taskId),
+        chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo?.id || '', taskId),
         {
           method: 'GET',
         },
@@ -414,7 +414,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const handleExportToTeamGallery = async (taskId: string) => {
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.ExportToTeamGallery(),
+        chatAPI.Endpoints.Task.ExportToTeamGallery(experimentInfo?.id || ''),
         {
           method: 'POST',
           headers: {
@@ -511,7 +511,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
 
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.NewTemplate(),
+        chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
         {
           method: 'PUT',
           headers: {
@@ -596,7 +596,7 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
       };
 
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.NewTemplate(),
+        chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
         {
           method: 'PUT',
           headers: {
