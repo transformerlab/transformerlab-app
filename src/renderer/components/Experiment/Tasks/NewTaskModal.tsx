@@ -284,47 +284,45 @@ export default function NewTaskModal({
         // Convert task.json to YAML format
         const taskToYaml = (task: any): string => {
           const yamlData: any = {
-            task: {
-              name: task.name || task.title || 'my-task',
-            },
+            name: task.name || task.title || 'my-task',
           };
 
           if (task.resources || task.cpus || task.memory) {
-            yamlData.task.resources = {};
+            yamlData.resources = {};
             if (task.resources?.compute_provider) {
-              yamlData.task.resources.compute_provider =
+              yamlData.resources.compute_provider =
                 task.resources.compute_provider;
             }
-            if (task.cpus) yamlData.task.resources.cpus = task.cpus;
-            if (task.memory) yamlData.task.resources.memory = task.memory;
+            if (task.cpus) yamlData.resources.cpus = task.cpus;
+            if (task.memory) yamlData.resources.memory = task.memory;
             if (task.disk_space)
-              yamlData.task.resources.disk_space = task.disk_space;
+              yamlData.resources.disk_space = task.disk_space;
             if (task.accelerators)
-              yamlData.task.resources.accelerators = task.accelerators;
+              yamlData.resources.accelerators = task.accelerators;
             if (task.num_nodes)
-              yamlData.task.resources.num_nodes = task.num_nodes;
+              yamlData.resources.num_nodes = task.num_nodes;
           }
 
-          if (task.env_vars) yamlData.task.envs = task.env_vars;
-          if (task.setup) yamlData.task.setup = task.setup;
-          if (task.command) yamlData.task.run = task.command;
+          if (task.env_vars) yamlData.envs = task.env_vars;
+          if (task.setup) yamlData.setup = task.setup;
+          if (task.command) yamlData.run = task.command;
           // Include GitHub repo info from task.json or extracted state
           if (githubRepoUrl) {
-            yamlData.task.git_repo = githubRepoUrl;
+            yamlData.git_repo = githubRepoUrl;
             if (githubDirectory) {
-              yamlData.task.git_repo_directory = githubDirectory;
+              yamlData.git_repo_directory = githubDirectory;
             }
           } else if (task.github_repo_url || task.git_repo) {
             // Fallback to task.json data if available
-            yamlData.task.git_repo = task.github_repo_url || task.git_repo;
+            yamlData.git_repo = task.github_repo_url || task.git_repo;
             if (task.github_directory || task.git_repo_directory) {
-              yamlData.task.git_repo_directory =
+              yamlData.git_repo_directory =
                 task.github_directory || task.git_repo_directory;
             }
           }
-          if (task.parameters) yamlData.task.parameters = task.parameters;
+          if (task.parameters) yamlData.parameters = task.parameters;
           if (task.run_sweeps && task.sweep_config) {
-            yamlData.task.sweeps = {
+            yamlData.sweeps = {
               sweep_config: task.sweep_config,
               sweep_metric: task.sweep_metric || 'eval/loss',
               lower_is_better:
@@ -358,21 +356,19 @@ export default function NewTaskModal({
       ) {
         // Use default template if no task.json and YAML is empty
         const defaultYamlData: any = {
-          task: {
-            name: 'my-task',
-            resources: {
-              cpus: 2,
-              memory: 4,
-            },
-            run: 'echo hello',
+          name: 'my-task',
+          resources: {
+            cpus: 2,
+            memory: 4,
           },
+          run: 'echo hello',
         };
 
         // Add GitHub repo info if available (from task.json)
         if (githubRepoUrl) {
-          defaultYamlData.task.git_repo = githubRepoUrl;
+          defaultYamlData.git_repo = githubRepoUrl;
           if (githubDirectory) {
-            defaultYamlData.task.git_repo_directory = githubDirectory;
+            defaultYamlData.git_repo_directory = githubDirectory;
           }
         }
 
@@ -986,42 +982,29 @@ export default function NewTaskModal({
   // Convert form data to YAML
   const convertFormToYaml = () => {
     const yamlData: any = {
-      task: {
-        name: title || 'untitled-task',
-      },
+      name: title || 'untitled-task',
     };
 
     // Resources
-    if (selectedProviderId) {
-      const provider = providers.find((p) => p.id === selectedProviderId);
-      if (provider) {
-        yamlData.task.resources = {
-          compute_provider: provider.name,
-        };
+    if (selectedProviderId || cpus || memory || diskSpace || accelerators || numNodes) {
+      yamlData.resources = {};
+      if (selectedProviderId) {
+        const provider = providers.find((p) => p.id === selectedProviderId);
+        if (provider) {
+          yamlData.resources.compute_provider = provider.name;
+        }
       }
+      if (cpus)
+        yamlData.resources.cpus = parseInt(cpus) || cpus;
+      if (memory)
+        yamlData.resources.memory = parseInt(memory) || memory;
+      if (diskSpace)
+        yamlData.resources.disk_space = parseInt(diskSpace) || diskSpace;
+      if (accelerators)
+        yamlData.resources.accelerators = accelerators;
+      if (numNodes)
+        yamlData.resources.num_nodes = parseInt(numNodes) || numNodes;
     }
-    if (cpus)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        cpus: parseInt(cpus) || cpus,
-      };
-    if (memory)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        memory: parseInt(memory) || memory,
-      };
-    if (diskSpace)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        disk_space: parseInt(diskSpace) || diskSpace,
-      };
-    if (accelerators)
-      yamlData.task.resources = { ...yamlData.task.resources, accelerators };
-    if (numNodes)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        num_nodes: parseInt(numNodes) || numNodes,
-      };
 
     // Environment variables
     const envs: Record<string, string> = {};
@@ -1031,20 +1014,20 @@ export default function NewTaskModal({
       }
     });
     if (Object.keys(envs).length > 0) {
-      yamlData.task.envs = envs;
+      yamlData.envs = envs;
     }
 
     // Setup and run
     const setupValue = setupEditorRef?.current?.getValue?.() || setup;
-    if (setupValue) yamlData.task.setup = setupValue;
+    if (setupValue) yamlData.setup = setupValue;
     const commandValue = commandEditorRef?.current?.getValue?.() || command;
-    if (commandValue) yamlData.task.run = commandValue;
+    if (commandValue) yamlData.run = commandValue;
 
     // GitHub - include if available (extracted from task.json or manually set)
     if (githubRepoUrl) {
-      yamlData.task.git_repo = githubRepoUrl;
+      yamlData.git_repo = githubRepoUrl;
       if (githubDirectory) {
-        yamlData.task.git_repo_directory = githubDirectory;
+        yamlData.git_repo_directory = githubDirectory;
       }
     }
 
@@ -1064,7 +1047,7 @@ export default function NewTaskModal({
       }
     });
     if (Object.keys(parametersObj).length > 0) {
-      yamlData.task.parameters = parametersObj;
+      yamlData.parameters = parametersObj;
     }
 
     // Sweeps
@@ -1079,7 +1062,7 @@ export default function NewTaskModal({
         }
       });
       if (Object.keys(sweepConfig).length > 0) {
-        yamlData.task.sweeps = {
+        yamlData.sweeps = {
           sweep_config: sweepConfig,
           sweep_metric: sweepMetric || 'eval/loss',
           lower_is_better: lowerIsBetter,
@@ -1210,11 +1193,13 @@ export default function NewTaskModal({
 
       const yamlData = parseYaml(yamlContent);
 
-      if (!yamlData || !yamlData.task) {
-        throw new Error("YAML must contain a 'task' key");
+      if (!yamlData) {
+        throw new Error("YAML content is empty or invalid");
       }
 
-      const taskYaml = yamlData.task;
+      // Support both old format (with "task:" key) and new format (direct fields)
+      // for backward compatibility
+      const taskYaml = yamlData.task || yamlData;
       const taskData: any = {};
 
       // Basic fields
@@ -1494,7 +1479,7 @@ export default function NewTaskModal({
                           // Set initial value if empty
                           if (!yamlContent || yamlContent.trim() === '') {
                             const defaultYaml =
-                              'task:\n  name: my-task\n  resources:\n    cpus: 2\n    memory: 4\n  run: "echo hello"';
+                              'name: my-task\nresources:\n  cpus: 2\n  memory: 4\nrun: "echo hello"';
                             editor.setValue(defaultYaml);
                             setYamlContent(defaultYaml);
                           } else {

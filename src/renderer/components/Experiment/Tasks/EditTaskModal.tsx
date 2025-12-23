@@ -412,42 +412,29 @@ export default function EditTaskModal({
     if (!task) return;
 
     const yamlData: any = {
-      task: {
-        name: title || task.name || 'untitled-task',
-      },
+      name: title || task.name || 'untitled-task',
     };
 
     // Resources
-    if (selectedProviderId) {
-      const provider = providers.find((p) => p.id === selectedProviderId);
-      if (provider) {
-        yamlData.task.resources = {
-          compute_provider: provider.name,
-        };
+    if (selectedProviderId || cpus || memory || diskSpace || accelerators || numNodes) {
+      yamlData.resources = {};
+      if (selectedProviderId) {
+        const provider = providers.find((p) => p.id === selectedProviderId);
+        if (provider) {
+          yamlData.resources.compute_provider = provider.name;
+        }
       }
+      if (cpus)
+        yamlData.resources.cpus = parseInt(cpus) || cpus;
+      if (memory)
+        yamlData.resources.memory = parseInt(memory) || memory;
+      if (diskSpace)
+        yamlData.resources.disk_space = parseInt(diskSpace) || diskSpace;
+      if (accelerators)
+        yamlData.resources.accelerators = accelerators;
+      if (numNodes)
+        yamlData.resources.num_nodes = parseInt(numNodes) || numNodes;
     }
-    if (cpus)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        cpus: parseInt(cpus) || cpus,
-      };
-    if (memory)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        memory: parseInt(memory) || memory,
-      };
-    if (diskSpace)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        disk_space: parseInt(diskSpace) || diskSpace,
-      };
-    if (accelerators)
-      yamlData.task.resources = { ...yamlData.task.resources, accelerators };
-    if (numNodes)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        num_nodes: parseInt(numNodes) || numNodes,
-      };
 
     // Environment variables
     const envs: Record<string, string> = {};
@@ -457,18 +444,18 @@ export default function EditTaskModal({
       }
     });
     if (Object.keys(envs).length > 0) {
-      yamlData.task.envs = envs;
+      yamlData.envs = envs;
     }
 
     // Setup and run
     const setupValue = setupEditorRef?.current?.getValue?.() || setup;
-    if (setupValue) yamlData.task.setup = setupValue;
+    if (setupValue) yamlData.setup = setupValue;
     const commandValue = commandEditorRef?.current?.getValue?.() || command;
-    if (commandValue) yamlData.task.run = commandValue;
+    if (commandValue) yamlData.run = commandValue;
 
     // GitHub
-    if (githubRepoUrl) yamlData.task.git_repo = githubRepoUrl;
-    if (githubDirectory) yamlData.task.git_repo_directory = githubDirectory;
+    if (githubRepoUrl) yamlData.git_repo = githubRepoUrl;
+    if (githubDirectory) yamlData.git_repo_directory = githubDirectory;
 
     // Parameters
     const parametersObj: Record<string, any> = {};
@@ -486,7 +473,7 @@ export default function EditTaskModal({
       }
     });
     if (Object.keys(parametersObj).length > 0) {
-      yamlData.task.parameters = parametersObj;
+      yamlData.parameters = parametersObj;
     }
 
     // Sweeps
@@ -501,7 +488,7 @@ export default function EditTaskModal({
         }
       });
       if (Object.keys(sweepConfig).length > 0) {
-        yamlData.task.sweeps = {
+        yamlData.sweeps = {
           sweep_config: sweepConfig,
           sweep_metric: sweepMetric || 'eval/loss',
           lower_is_better: lowerIsBetter,
@@ -608,11 +595,13 @@ export default function EditTaskModal({
 
       const yamlData = parseYaml(yamlContent);
 
-      if (!yamlData || !yamlData.task) {
-        throw new Error("YAML must contain a 'task' key");
+      if (!yamlData) {
+        throw new Error("YAML content is empty or invalid");
       }
 
-      const taskYaml = yamlData.task;
+      // Support both old format (with "task:" key) and new format (direct fields)
+      // for backward compatibility
+      const taskYaml = yamlData.task || yamlData;
       const taskData: any = {};
 
       // Basic fields

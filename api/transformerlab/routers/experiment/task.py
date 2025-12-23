@@ -143,33 +143,37 @@ async def _resolve_provider(
 def _parse_yaml_to_task_data(yaml_content: str) -> dict:
     """
     Parse YAML content and convert it to the task structure.
-    Expected YAML format:
-    task:
-      name: task-name
-      resources:
-        compute_provider: provider-name
-        cpus: 2
-        memory: 4
-      envs:
-        KEY: value
-      setup: "command"
-      run: "command"
-      git_repo: "url"
-      git_repo_directory: "dir"
-      parameters: {...}
-      sweeps:
-        sweep_config: {...}
-        sweep_metric: "metric"
-        lower_is_better: true
-      files: # handled separately via file upload
+    Expected YAML format (all fields at root level):
+    name: task-name
+    resources:
+      compute_provider: provider-name
+      cpus: 2
+      memory: 4
+    envs:
+      KEY: value
+    setup: "command"
+    run: "command"
+    git_repo: "url"
+    git_repo_directory: "dir"
+    parameters: {...}
+    sweeps:
+      sweep_config: {...}
+      sweep_metric: "metric"
+      lower_is_better: true
+    files: # handled separately via file upload
     """
     # Parse YAML
     yaml_data = yaml.safe_load(yaml_content)
 
-    if not yaml_data or "task" not in yaml_data:
-        raise HTTPException(status_code=400, detail="YAML must contain a 'task' key")
+    if not yaml_data:
+        raise HTTPException(status_code=400, detail="YAML content is empty or invalid")
 
-    task_yaml = yaml_data["task"]
+    # Support both old format (with "task:" key) and new format (direct fields)
+    # for backward compatibility
+    if "task" in yaml_data:
+        task_yaml = yaml_data["task"]
+    else:
+        task_yaml = yaml_data
 
     # Convert YAML structure to task structure
     task_data = {}
@@ -242,24 +246,23 @@ async def add_task(
     1. JSON object with task fields directly (Content-Type: application/json)
     2. YAML string (Content-Type: text/plain, text/yaml, or application/x-yaml)
 
-    For YAML, the format should be:
-    task:
-      name: task-name
-      resources:
-        compute_provider: provider-name
-        cpus: 2
-        memory: 4
-      envs:
-        KEY: value
-      setup: "command"
-      run: "command"
-      git_repo: "url"
-      git_repo_directory: "dir"
-      parameters: {...}
-      sweeps:
-        sweep_config: {...}
-        sweep_metric: "metric"
-        lower_is_better: true
+    For YAML, the format should be (all fields at root level):
+    name: task-name
+    resources:
+      compute_provider: provider-name
+      cpus: 2
+      memory: 4
+    envs:
+      KEY: value
+    setup: "command"
+    run: "command"
+    git_repo: "url"
+    git_repo_directory: "dir"
+    parameters: {...}
+    sweeps:
+      sweep_config: {...}
+      sweep_metric: "metric"
+      lower_is_better: true
     """
     try:
         content_type = request.headers.get("content-type", "").lower()
