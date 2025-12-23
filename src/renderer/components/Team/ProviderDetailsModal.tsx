@@ -179,6 +179,7 @@ export default function ProviderDetailsModal({
             >
               <Option value="skypilot">Skypilot</Option>
               <Option value="slurm">SLURM</Option>
+              <Option value="local">Local</Option>
             </Select>
             {providerId && (
               <Typography
