@@ -455,7 +455,8 @@ export default function EditTaskModal({
         num_nodes: parseInt(numNodes) || numNodes,
       };
     if (minutesRequested)
-      yamlData.task.minutes_requested = parseInt(minutesRequested) || minutesRequested;
+      yamlData.task.minutes_requested =
+        parseInt(minutesRequested) || minutesRequested;
 
     // Environment variables
     const envs: Record<string, string> = {};
@@ -706,7 +707,8 @@ export default function EditTaskModal({
       if (taskData.disk_space) setDiskSpace(String(taskData.disk_space));
       if (taskData.accelerators) setAccelerators(taskData.accelerators);
       if (taskData.num_nodes) setNumNodes(String(taskData.num_nodes));
-      if (taskData.minutes_requested) setMinutesRequested(String(taskData.minutes_requested));
+      if (taskData.minutes_requested)
+        setMinutesRequested(String(taskData.minutes_requested));
       if (taskData.github_repo_url) setGithubRepoUrl(taskData.github_repo_url);
       if (taskData.github_directory)
         setGithubDirectory(taskData.github_directory);

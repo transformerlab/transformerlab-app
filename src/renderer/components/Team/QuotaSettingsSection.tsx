@@ -16,11 +16,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
-export default function QuotaSettingsSection({
-  teamId,
-}: {
-  teamId: string;
-}) {
+export default function QuotaSettingsSection({ teamId }: { teamId: string }) {
   const { fetchWithAuth } = useAuth();
   const [teamQuota, setTeamQuota] = useState<any>(null);
   const [userQuotas, setUserQuotas] = useState<any[]>([]);
@@ -282,10 +278,7 @@ export default function QuotaSettingsSection({
                         -{formatMinutes(user.overused_quota)} (overused)
                       </Typography>
                     ) : (
-                      <Typography
-                        level="body-sm"
-                        color="success"
-                      >
+                      <Typography level="body-sm" color="success">
                         {formatMinutes(user.available_quota || 0)}
                       </Typography>
                     )}
@@ -335,4 +328,3 @@ export default function QuotaSettingsSection({
     </Box>
   );
 }
-

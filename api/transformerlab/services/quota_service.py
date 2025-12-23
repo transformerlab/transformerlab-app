@@ -165,7 +165,7 @@ async def check_quota_available(
     """
     Check if user has enough quota available for requested minutes.
     Returns (has_quota, available_quota, message).
-    
+
     If user has overused quota (negative available), all launches are blocked
     until quota is increased or period resets.
     """

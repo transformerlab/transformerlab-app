@@ -1,8 +1,7 @@
 """Router for managing quota tracking and enforcement."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 from pydantic import BaseModel, Field
 
 from transformerlab.shared.models.user_model import get_async_session
@@ -18,9 +17,7 @@ class TeamQuotaUpdate(BaseModel):
 
 
 class UserQuotaOverrideUpdate(BaseModel):
-    monthly_quota_minutes: int = Field(
-        ..., description="Additional minutes beyond team quota", ge=0
-    )
+    monthly_quota_minutes: int = Field(..., description="Additional minutes beyond team quota", ge=0)
 
 
 @router.get("/me")
@@ -115,9 +112,7 @@ async def update_team_quota(
     Update team monthly quota.
     Only team owners can update quota.
     """
-    team_quota = await quota_service.update_team_quota(
-        session, team_id, update.monthly_quota_minutes
-    )
+    team_quota = await quota_service.update_team_quota(session, team_id, update.monthly_quota_minutes)
     await session.commit()
 
     return {
@@ -138,8 +133,8 @@ async def get_team_quota_usage_by_users(
     Get quota usage summary for all users in a team.
     Only team owners can access this endpoint.
     """
-    from sqlalchemy import select, func
-    from transformerlab.shared.models.models import QuotaUsage, UserTeam, User
+    from sqlalchemy import select
+    from transformerlab.shared.models.models import UserTeam
 
     current_period = quota_service.get_current_period_start()
 
@@ -161,17 +156,11 @@ async def get_team_quota_usage_by_users(
             continue
 
         # Get quota stats
-        total_quota, team_quota, user_override = await quota_service.get_user_total_quota(
-            session, user_id_str, team_id
-        )
-        used_quota = await quota_service.get_used_quota(
-            session, user_id_str, team_id, current_period
-        )
+        total_quota, team_quota, user_override = await quota_service.get_user_total_quota(session, user_id_str, team_id)
+        used_quota = await quota_service.get_used_quota(session, user_id_str, team_id, current_period)
         held_quota = await quota_service.get_held_quota(session, user_id_str, team_id)
-        available_quota = await quota_service.get_available_quota(
-            session, user_id_str, team_id, current_period
-        )
-        
+        available_quota = await quota_service.get_available_quota(session, user_id_str, team_id, current_period)
+
         # Calculate overused quota (negative available_quota)
         overused_quota = max(0.0, -available_quota) if available_quota < 0 else 0.0
 
@@ -207,9 +196,7 @@ async def update_user_quota_override(
     Set or update user quota override (additional minutes beyond team quota).
     Only team owners can update user quota overrides.
     """
-    override = await quota_service.update_user_quota_override(
-        session, user_id, team_id, update.monthly_quota_minutes
-    )
+    override = await quota_service.update_user_quota_override(session, user_id, team_id, update.monthly_quota_minutes)
     await session.commit()
 
     return {
@@ -218,4 +205,3 @@ async def update_user_quota_override(
         "monthly_quota_minutes": override.monthly_quota_minutes,
         "current_period_start": override.current_period_start.isoformat(),
     }
-

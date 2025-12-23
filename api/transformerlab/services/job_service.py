@@ -5,7 +5,8 @@ from typing import Optional, Tuple
 from lab import Experiment, Job
 from lab import dirs as lab_dirs
 from lab import storage
-
+from time import time
+from datetime import datetime
 
 # Allowed job types:
 ALLOWED_JOB_TYPES = [
@@ -361,7 +362,6 @@ async def _track_quota_for_job_status_change(
     """
     try:
         from transformerlab.db.session import async_session
-        from transformerlab.services import quota_service
 
         # Use provided session or create a new one
         if session:
@@ -549,15 +549,11 @@ async def job_update_status(
 
                 if session:
                     # Await quota tracking when session is provided to ensure it's part of the same transaction
-                    await _track_quota_for_job_status_change(
-                        job_id, job_dict, status, experiment_id, session
-                    )
+                    await _track_quota_for_job_status_change(job_id, job_dict, status, experiment_id, session)
                 else:
                     # Trigger quota tracking as background task (async, won't block)
                     asyncio.create_task(
-                        _track_quota_for_job_status_change(
-                            job_id, job_dict, status, experiment_id, session
-                        )
+                        _track_quota_for_job_status_change(job_id, job_dict, status, experiment_id, session)
                     )
         except Exception as e:
             print(f"Error initiating quota tracking for job {job_id}: {e}")

@@ -450,7 +450,8 @@ export default function NewTaskModal({
           if (data.disk_space) setDiskSpace(String(data.disk_space));
           if (data.accelerators) setAccelerators(data.accelerators);
           if (data.num_nodes) setNumNodes(String(data.num_nodes));
-          if (data.minutes_requested) setMinutesRequested(String(data.minutes_requested));
+          if (data.minutes_requested)
+            setMinutesRequested(String(data.minutes_requested));
           if (data.setup) setSetup(data.setup);
           if (data.env_vars && typeof data.env_vars === 'object') {
             const envVarsArray = Object.entries(data.env_vars).map(
@@ -782,9 +783,9 @@ export default function NewTaskModal({
     setMemory('');
     setDiskSpace('');
     setAccelerators('');
-      setNumNodes('');
-      setMinutesRequested('');
-      setSetup('');
+    setNumNodes('');
+    setMinutesRequested('');
+    setSetup('');
     setEnvVars([{ key: '', value: '' }]);
     setParameters([{ key: '', value: '', valueType: 'string' }]);
     setFileMounts([
@@ -1033,7 +1034,8 @@ export default function NewTaskModal({
         num_nodes: parseInt(numNodes) || numNodes,
       };
     if (minutesRequested)
-      yamlData.task.minutes_requested = parseInt(minutesRequested) || minutesRequested;
+      yamlData.task.minutes_requested =
+        parseInt(minutesRequested) || minutesRequested;
 
     // Environment variables
     const envs: Record<string, string> = {};
@@ -1312,7 +1314,8 @@ export default function NewTaskModal({
       if (taskData.disk_space) setDiskSpace(String(taskData.disk_space));
       if (taskData.accelerators) setAccelerators(taskData.accelerators);
       if (taskData.num_nodes) setNumNodes(String(taskData.num_nodes));
-      if (taskData.minutes_requested) setMinutesRequested(String(taskData.minutes_requested));
+      if (taskData.minutes_requested)
+        setMinutesRequested(String(taskData.minutes_requested));
       if (taskData.github_repo_url) setGithubRepoUrl(taskData.github_repo_url);
       if (taskData.github_directory)
         setGithubDirectory(taskData.github_directory);
