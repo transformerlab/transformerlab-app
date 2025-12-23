@@ -117,12 +117,16 @@ export default function LoginChip({}: Props) {
 
       <Dropdown>
         <MenuButton
+          variant="plain"
+          color="neutral"
           sx={{
             justifyContent: 'space-between',
             width: '100%',
             gap: 1,
             p: 0.5,
             m: 0,
+            border: 'none',
+            boxShadow: 'none',
           }}
         >
           <Stack

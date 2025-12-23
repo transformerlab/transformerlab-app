@@ -75,10 +75,6 @@ def mask_sensitive_config(config: Dict[str, Any], provider_type: str) -> Dict[st
     if "api_token" in masked and masked["api_token"]:
         masked["api_token"] = "***"
 
-    # Mask SSH keys
-    if "ssh_key_path" in masked and masked["ssh_key_path"]:
-        masked["ssh_key_path"] = "***"
-
     # Mask any other sensitive fields
     if "password" in masked:
         masked["password"] = "***"
