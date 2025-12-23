@@ -16,6 +16,7 @@ from diffusers import AutoPipelineForText2Image, StableDiffusionPipeline
 from diffusers.optimization import get_scheduler
 from diffusers.training_utils import cast_training_params, compute_snr
 from diffusers.utils import convert_state_dict_to_diffusers
+from diffusers import UNet2DConditionModel
 
 # Try to import xformers for memory optimization
 try:
@@ -491,12 +492,39 @@ def train_diffusion_lora():
 
     if is_zimage and args.get("training_adapter"):
         adapter_path = args.get("training_adapter")
-        if adapter_path.endswith(".safetensors"):
-            state_dict = load_file(adapter_path)
+        if adapter_path:
+            if adapter_path.endswith(".safetensors"):
+                state_dict = load_file(adapter_path)
+            else:
+                state_dict = torch.load(adapter_path, map_location="cpu")
+            unet.load_state_dict(state_dict, strict=False)
+            print(f"Loaded Z-Image Turbo training adapter from {adapter_path}")
         else:
-            state_dict = torch.load(adapter_path, map_location="cpu")
-        unet.load_state_dict(state_dict, strict=False)
-        print(f"Loaded Z-Image Turbo training adapter from {adapter_path}")
+            adapter_repo = "ostris/zimage_turbo_training_adapter"
+            adapter_filename = "zimage_turbo_training_adapter_v2.safetensors"
+            print(
+                f"No training_adapter provided. Auto-downloading recommended adapter: {adapter_filename} from {adapter_repo}"
+            )
+
+            try:
+                adapter_unet = UNet2DConditionModel.from_pretrained(
+                    adapter_repo,
+                    subfolder="",  # Root of repo
+                    filename=adapter_filename,
+                    torch_dtype=weight_dtype,
+                    variant=None,
+                    use_safetensors=True,
+                    low_cpu_mem_usage=True,
+                )
+                # Extract only the LoRA state dict
+                adapter_state_dict = get_peft_model_state_dict(adapter_unet)
+                # Apply to our training unet (strict=False to ignore base weights)
+                unet.load_state_dict(adapter_state_dict, strict=False)
+                del adapter_unet, adapter_state_dict
+                cleanup_pipeline()
+                print("Successfully auto-loaded Z-Image-Turbo training adapter v2")
+            except Exception as e:
+                print(f"Failed to auto-download Z-Image Turbo training adapter: {e}")
 
     lora_layers = filter(lambda p: p.requires_grad, unet.parameters())
 
