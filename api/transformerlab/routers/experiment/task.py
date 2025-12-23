@@ -230,7 +230,7 @@ def _parse_yaml_to_task_data(yaml_content: str) -> dict:
     return task_data
 
 
-@router.put("/new_task", summary="Create a new task")
+@router.post("/new_task", summary="Create a new task")
 async def add_task(
     request: Request,
     experimentId: str,

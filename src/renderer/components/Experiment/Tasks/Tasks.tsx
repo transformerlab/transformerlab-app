@@ -513,7 +513,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
         {
-          method: 'PUT',
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -598,7 +598,7 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
       const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
         {
-          method: 'PUT',
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },

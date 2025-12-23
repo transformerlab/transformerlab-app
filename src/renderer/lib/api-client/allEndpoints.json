@@ -79,7 +79,7 @@
       "path": "experiment/{experimentId}/task/list_by_subtype_in_experiment?subtype={subtype}&type={type}"
     },
     "create": {
-      "method": "PUT",
+      "method": "POST",
       "path": "experiment/{experimentId}/task/new_task"
     },
     "delete": {
