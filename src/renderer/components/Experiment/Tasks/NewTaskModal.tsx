@@ -1386,12 +1386,6 @@ export default function NewTaskModal({
       case 'task-json-url':
         return (
           <Stack spacing={3}>
-            <Typography level="title-lg">Task Configuration URL</Typography>
-            <FormHelperText>
-              Optionally provide a URL to a task.json file. This can be a raw
-              GitHub URL, a direct link to a JSON file, or any URL that returns
-              valid JSON.
-            </FormHelperText>
             <FormControl>
               <FormLabel>Task.json URL (Optional)</FormLabel>
               <Input
@@ -1411,10 +1405,7 @@ export default function NewTaskModal({
                 disabled={isLoadingTaskJson}
               />
               <FormHelperText>
-                Leave empty to configure manually. Examples:
-                <br />
-                • https://raw.githubusercontent.com/owner/repo/main/task.json
-                <br />• https://example.com/path/to/task.json
+                Leave blank to create a task from scratch
               </FormHelperText>
             </FormControl>
             {isLoadingTaskJson && (
@@ -2177,7 +2168,6 @@ export default function NewTaskModal({
           <DialogContent sx={{ maxHeight: '70vh', overflow: 'auto' }}>
             {renderPhaseContent()}
           </DialogContent>
-          <Divider />
           <DialogActions>
             <Stack
               direction="row"
