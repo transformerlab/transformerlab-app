@@ -435,7 +435,7 @@ async def _record_quota_usage_internal(
             end_dt = end_time_str
 
         duration_seconds = (end_dt - start_dt).total_seconds()
-        minutes_used = duration_seconds / 60.0
+        minutes_used = round(duration_seconds / 60.0, 2)
 
         if minutes_used < 0:
             return

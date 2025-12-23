@@ -347,7 +347,7 @@ async def ensure_quota_recorded_for_completed_job(
             end_dt = end_time_str
 
         duration_seconds = (end_dt - start_dt).total_seconds()
-        minutes_used = duration_seconds / 60.0
+        minutes_used = round(duration_seconds / 60.0, 2)
         print(f"Minutes used: {minutes_used}")
 
         if minutes_used < 0:

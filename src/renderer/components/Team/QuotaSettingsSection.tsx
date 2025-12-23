@@ -139,7 +139,7 @@ export default function QuotaSettingsSection({
   };
 
   const formatMinutes = (minutes: number) => {
-    if (minutes < 60) return `${minutes} min`;
+    if (minutes < 60) return `${minutes.toFixed(2)} min`;
     const hours = Math.floor(minutes / 60);
     const mins = Math.round(minutes % 60);
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
