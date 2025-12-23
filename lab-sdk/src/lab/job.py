@@ -135,8 +135,8 @@ class Job(BaseLabResource):
         """
         Updates a key-value pair in the job_data JSON object.
         """
-        # Fetch current job_data
-        json_data = self.get_json_data()
+        # Fetch current job_data (use uncached to avoid stale data)
+        json_data = self.get_json_data(uncached=True)
 
         # If there isn't a job_data property then make one
         if "job_data" not in json_data:
@@ -228,7 +228,7 @@ class Job(BaseLabResource):
                 entry = job_path.rstrip("/").split("/")[-1]
                 try:
                     job = cls.get(entry)
-                    job_data = job.get_json_data()
+                    job_data = job.get_json_data(uncached=True)
                     if job_data.get("status") == "RUNNING":
                         count += 1
                 except Exception:
@@ -252,7 +252,7 @@ class Job(BaseLabResource):
                 entry = job_path.rstrip("/").split("/")[-1]
                 try:
                     job = cls.get(entry)
-                    job_data = job.get_json_data()
+                    job_data = job.get_json_data(uncached=True)
                     if job_data.get("status") == "QUEUED":
                         # Without ctime in object stores, sort lexicographically by job id
                         queued_jobs.append((int(entry) if entry.isdigit() else 0, job_data))

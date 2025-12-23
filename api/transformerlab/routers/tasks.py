@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from typing import Optional
 from werkzeug.utils import secure_filename
 from pydantic import BaseModel
@@ -10,9 +10,17 @@ from transformerlab.services.job_service import job_create
 from transformerlab.models import model_helper
 from transformerlab.services.tasks_service import tasks_service
 from transformerlab.shared import galleries
+from transformerlab.shared.github_utils import (
+    fetch_task_json_from_github_helper,
+    fetch_task_json_from_github,
+)
 from transformerlab.routers.auth import get_user_and_team
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
+
+
+class DeleteTeamTaskFromGalleryRequest(BaseModel):
+    task_id: str
 
 
 @router.get("/list", summary="Returns all the tasks")
@@ -289,6 +297,18 @@ class ExportTaskToTeamGalleryRequest(BaseModel):
     task_id: str
 
 
+class AddTeamTaskToGalleryRequest(BaseModel):
+    title: str
+    description: Optional[str] = None
+    setup: Optional[str] = None
+    command: str
+    cpus: Optional[str] = None
+    memory: Optional[str] = None
+    accelerators: Optional[str] = None
+    github_repo_url: Optional[str] = None
+    github_repo_dir: Optional[str] = None
+
+
 @router.post("/gallery/import", summary="Import a task from the tasks gallery")
 async def import_task_from_gallery(
     request: ImportTaskFromGalleryRequest,
@@ -336,24 +356,32 @@ async def import_task_from_gallery(
         except Exception:
             config = {}
 
-    # Get task name from config or use title
-    task_name = config.get("name") or config.get("cluster_name") or title
+    # Try to fetch task.json from GitHub repository
+    task_json = None
+    if github_repo_url:
+        task_json = await fetch_task_json_from_github_helper(github_repo_url, github_repo_dir)
 
-    # Build the task config, merging gallery config with GitHub info
+    # Build the task config, merging gallery config with task.json (task.json takes precedence)
     task_config = {
         **config,  # Start with gallery config
-        "github_enabled": True,
         "github_repo_url": github_repo_url,
     }
 
+    # Merge task.json if found (overrides gallery config)
+    if task_json:
+        task_config.update(task_json)
+
     if github_repo_dir:
         task_config["github_directory"] = github_repo_dir
+
+    # Get task name from config or use title
+    task_name = task_config.get("name") or task_config.get("cluster_name") or title
 
     # Ensure required fields are set with defaults if not in config
     if "cluster_name" not in task_config:
         task_config["cluster_name"] = task_name
     if "command" not in task_config:
-        task_config["command"] = config.get("command", "echo 'No command specified'")
+        task_config["command"] = "echo 'No command specified'"
 
     # Create the task
     new_task = {
@@ -432,25 +460,33 @@ async def import_task_from_team_gallery(
         except Exception:
             config = {}
 
-    # Get task name from config or use title
-    task_name = config.get("name") or config.get("cluster_name") or title
+    # Try to fetch task.json from GitHub repository if repo URL is provided
+    task_json = None
+    if github_repo_url:
+        task_json = await fetch_task_json_from_github_helper(github_repo_url, github_repo_dir)
 
-    # Build the task config, merging gallery config with GitHub info
+    # Build the task config, merging gallery config with task.json (task.json takes precedence)
     task_config = {
         **config,  # Start with gallery config
     }
 
+    # Merge task.json if found (overrides gallery config)
+    if task_json:
+        task_config.update(task_json)
+
     if github_repo_url:
-        task_config["github_enabled"] = True
         task_config["github_repo_url"] = github_repo_url
     if github_repo_dir:
         task_config["github_directory"] = github_repo_dir
+
+    # Get task name from config or use title
+    task_name = task_config.get("name") or task_config.get("cluster_name") or title
 
     # Ensure required fields are set with defaults if not in config
     if "cluster_name" not in task_config:
         task_config["cluster_name"] = task_name
     if "command" not in task_config:
-        task_config["command"] = config.get("command", "echo 'No command specified'")
+        task_config["command"] = "echo 'No command specified'"
 
     # Create the task
     new_task = {
@@ -515,4 +551,105 @@ async def export_task_to_team_gallery(
         "status": "success",
         "message": f"Task '{gallery_entry['title']}' exported to team gallery",
         "data": gallery_entry,
+    }
+
+
+@router.post("/gallery/team/add", summary="Add a new task directly to the team gallery")
+async def add_team_task_to_gallery(
+    request: AddTeamTaskToGalleryRequest,
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Add a new task directly to the team-specific gallery stored in workspace_dir.
+    This allows creating team tasks without first creating a task template.
+    """
+    import uuid
+
+    # Build the config object from the request
+    config = {}
+    if request.setup:
+        config["setup"] = request.setup
+    if request.command:
+        config["command"] = request.command
+    if request.cpus:
+        config["cpus"] = request.cpus
+    if request.memory:
+        config["memory"] = request.memory
+    if request.accelerators:
+        config["accelerators"] = request.accelerators
+    if request.github_repo_url:
+        config["github_repo_url"] = request.github_repo_url
+    if request.github_repo_dir:
+        config["github_directory"] = request.github_repo_dir
+
+    # Create gallery entry
+    gallery_entry = {
+        "id": str(uuid.uuid4()),  # Generate a unique ID
+        "title": request.title,
+        "description": request.description,
+        "config": config,
+        "github_repo_url": request.github_repo_url,
+        "github_repo_dir": request.github_repo_dir,
+    }
+
+    galleries.add_team_task_to_gallery(gallery_entry)
+
+    return {
+        "status": "success",
+        "message": f"Task '{gallery_entry['title']}' added to team gallery",
+        "data": gallery_entry,
+    }
+
+
+@router.post("/gallery/team/delete", summary="Delete a task from the team gallery")
+async def delete_team_task_from_gallery(
+    request: DeleteTeamTaskFromGalleryRequest,
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Delete a task from the team-specific gallery stored in workspace_dir.
+    """
+    success = galleries.delete_team_task_from_gallery(request.task_id)
+    if success:
+        return {
+            "status": "success",
+            "message": "Task deleted from team gallery",
+        }
+    else:
+        raise HTTPException(status_code=404, detail="Task not found in team gallery")
+
+
+@router.get("/fetch_task_json", summary="Fetch task.json from a GitHub repository")
+async def fetch_task_json_endpoint(
+    repo_url: str = Query(..., description="GitHub repository URL"),
+    directory: Optional[str] = Query(None, description="Optional subdirectory path"),
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Fetch task.json file from a GitHub repository.
+    Supports both public and private repositories using the team's GitHub PAT.
+
+    Args:
+        repo_url: GitHub repository URL (e.g., https://github.com/owner/repo.git)
+        directory: Optional subdirectory within the repo where task.json is located
+
+    Returns:
+        JSON object containing the task.json content, or error if not found
+    """
+    # Use the shared helper function which handles all the logic and error handling
+    task_json = await fetch_task_json_from_github(repo_url, directory)
+
+    # Extract repo info for the response
+    repo_url_clean = repo_url.replace(".git", "").strip()
+    parts = repo_url_clean.replace("https://github.com/", "").split("/")
+    owner = parts[0] if len(parts) > 0 else ""
+    repo = parts[1] if len(parts) > 1 else ""
+    file_path = f"{directory}/task.json" if directory else "task.json"
+    file_path = file_path.strip("/")
+
+    return {
+        "status": "success",
+        "data": task_json,
+        "repo": f"{owner}/{repo}",
+        "path": file_path,
     }

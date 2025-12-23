@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useMemo, CSSProperties } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 import {
   CodeIcon,
@@ -81,8 +81,7 @@ function ExperimentMenuItems({
   const pipelineIsTTS = pipelineTag === 'text-to-speech';
   const pipelineIsSTT = pipelineTag === 'speech-to-text';
   const isDiffusionModel = isValidDiffusionModel === true;
-  const showInteractTab =
-    !isS3Mode && !isDiffusionModel && !pipelineIsTTS && !pipelineIsSTT;
+  const showInteractTab = !isDiffusionModel && !pipelineIsTTS && !pipelineIsSTT;
   const showDiffusionTab = !isS3Mode && isDiffusionModel;
   const showAudioTTSTab = !isS3Mode && pipelineIsTTS;
   const showAudioSTTTab = !isS3Mode && pipelineIsSTT;
@@ -197,9 +196,21 @@ function ExperimentMenuItems({
         {showInteractTab && (
           <SubNavItem
             title="Interact"
-            path="/experiment/chat"
-            icon={<MessageCircleIcon strokeWidth={9} />}
-            disabled={disableInteract}
+            path={
+              hasProviders || isS3Mode
+                ? '/experiment/interactive'
+                : '/experiment/chat'
+            }
+            icon={
+              hasProviders || isS3Mode ? (
+                <CodeIcon strokeWidth={1} />
+              ) : (
+                <MessageCircleIcon strokeWidth={9} />
+              )
+            }
+            disabled={
+              hasProviders || isS3Mode ? !experimentReady : disableInteract
+            }
           />
         )}
         {showDiffusionTab && (
@@ -308,7 +319,7 @@ function GlobalMenuItems({
     >
       <Divider sx={{ marginBottom: 1 }} />
 
-      <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
+      <SubNavItem title="Model Registry" path="/zoo" icon={<BoxesIcon />} />
       <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
       {hasProviders && (
         <SubNavItem
@@ -448,18 +459,16 @@ export default function Sidebar({
     <Sheet
       className="Sidebar"
       sx={{
+        backgroundColor: '#f0f1f3ff',
         gridArea: 'sidebar',
-        borderRight: '1px solid',
-        borderColor: 'divider',
+        // borderRight: '1px solid',
+        // borderColor: 'divider',
         transition: 'transform 0.4s',
         zIndex: 100,
         height: '100%',
         overflow: 'auto',
         top: 0,
-        pl: 1.2,
-        pr: 1,
-        py: 1,
-        pt: '0',
+        p: '1.1rem 1rem 1rem 1rem',
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
@@ -475,21 +484,6 @@ export default function Sidebar({
         '& .MuiBadge-root': {},
       }}
     >
-      <div
-        style={
-          {
-            width: '100%',
-            height: '52px',
-            WebkitAppRegion: 'drag',
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            color: 'var(--joy-palette-neutral-plainDisabledColor)',
-          } as CSSProperties
-        }
-      >
-        {isDevExperiment && <>v{(window as any).platform?.version}</>}
-      </div>
       <SelectExperimentMenu models={models} />
       <ExperimentMenuItems
         experimentInfo={experimentInfo}

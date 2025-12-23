@@ -84,6 +84,8 @@ ALLOWED_TEXT2IMG_ARCHITECTURES = [
     "StableDiffusionXLControlNetInpaintPipeline",
     "IFInpaintingPipeline",
     "IFPipeline",
+    "DiffusionPipeline",
+    "ZImagePipeline",
 ]
 
 # Allowed architectures for img2img pipelines

@@ -58,6 +58,10 @@ class Lab:
             if self._job is None:
                 raise RuntimeError(f"Job with ID {existing_job_id} not found. Check _TFL_JOB_ID environment variable.")
             print(f"Using existing job ID: {existing_job_id}")
+            # Set start_time if not already set (for remote jobs launched through providers)
+            job_data = self._job.get_job_data()
+            if not job_data.get("start_time"):
+                self._job.update_job_data_field("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
         else:
             # Create new job as before
             self._experiment = Experiment(experiment_id, create_new=True)
@@ -72,9 +76,17 @@ class Lab:
         # Check for wandb integration and capture URL if available
         self._detect_and_capture_wandb_url()
 
-        # Set config if provided
+        # Set config if provided, otherwise auto-load from job_data if available
         if config is not None:
             self.set_config(config)
+        else:
+            # Auto-load config from job_data if available (for remote tasks)
+            auto_config = self.get_config()
+            if auto_config:
+                # Merge with any existing config, but don't overwrite experiment_name
+                if self._experiment is not None and "experiment_name" not in auto_config:
+                    auto_config = {**auto_config, "experiment_name": self._experiment.id}
+                self.set_config(auto_config)
 
     def set_config(self, config: Dict[str, Any]) -> None:
         """
@@ -88,6 +100,27 @@ class Lab:
         config_old = self._job.get_job_data()
         config_new = {**config_old, **config}
         self._job.set_job_data(config_new)  # type: ignore[union-attr]
+
+    def get_config(self) -> Dict[str, Any]:
+        """
+        Get configuration/parameters from job_data.
+
+        This method retrieves parameters that were stored when the task was launched.
+        Parameters are typically stored under the 'parameters' key in job_data.
+
+        Returns:
+            Dict[str, Any]: Configuration dictionary. Returns empty dict if no config found.
+        """
+        self._ensure_initialized()
+        job_data = self._job.get_job_data()
+
+        # Try to get parameters from job_data
+        if isinstance(job_data, dict):
+            # First check for 'parameters' key (new standard)
+            if "parameters" in job_data and isinstance(job_data["parameters"], dict):
+                return job_data["parameters"]
+
+        return {}
 
     # ------------- convenience logging -------------
     def log(self, message: str) -> None:
@@ -191,6 +224,7 @@ class Lab:
         self._job.update_status("COMPLETE")  # type: ignore[union-attr]
         self._job.update_job_data_field("completion_status", "success")  # type: ignore[union-attr]
         self._job.update_job_data_field("completion_details", message)  # type: ignore[union-attr]
+        self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))  # type: ignore[union-attr]
         if score is not None:
             self._job.update_job_data_field("score", score)  # type: ignore[union-attr]
         if additional_output_path is not None and additional_output_path.strip() != "":
@@ -832,6 +866,7 @@ class Lab:
         self._job.update_status("COMPLETE")  # type: ignore[union-attr]
         self._job.update_job_data_field("completion_status", "failed")  # type: ignore[union-attr]
         self._job.update_job_data_field("completion_details", message)  # type: ignore[union-attr]
+        self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))  # type: ignore[union-attr]
         self._job.update_job_data_field("status", "FAILED")  # type: ignore[union-attr]
 
     def _detect_and_capture_wandb_url(self) -> None:
@@ -972,6 +1007,111 @@ class Lab:
     def experiment(self) -> Experiment:
         self._ensure_initialized()
         return self._experiment  # type: ignore[return-value]
+
+    def get_hf_callback(self):
+        """
+        Get a HuggingFace TrainerCallback instance for TransformerLab integration.
+
+        This callback automatically:
+        - Updates training progress in TransformerLab
+        - Logs training metrics (loss, etc.)
+        - Saves checkpoints to TransformerLab when they are created
+        - Logs epoch completion and training end events
+
+        Returns:
+            LabCallback: A TrainerCallback instance that can be passed to HuggingFace Trainer
+
+        Example:
+            from lab import lab
+            from transformers import Trainer
+
+            lab.init(experiment_id="my_experiment")
+            callback = lab.get_hf_callback()
+
+            trainer = Trainer(
+                model=model,
+                args=training_args,
+                train_dataset=dataset,
+                callbacks=[callback],
+            )
+        """
+        self._ensure_initialized()
+
+        # Import TrainerCallback at runtime to avoid requiring transformers as a dependency
+        try:
+            from transformers import TrainerCallback
+        except ImportError:
+            raise ImportError(
+                "transformers package is required to use get_hf_callback(). "
+                "Please install it with: uv pip install transformers"
+            )
+
+        class LabCallback(TrainerCallback):
+            """Custom callback to update TransformerLab progress and save checkpoints"""
+
+            def __init__(self, lab_instance: "Lab"):
+                super().__init__()
+                self.lab = lab_instance
+                self.training_started = False
+                self.total_steps = None
+
+            def on_train_begin(self, args, state, control, **kwargs):
+                """Called when training begins"""
+                self.lab.log("🚀 Training started with HuggingFace Trainer")
+                self.training_started = True
+                if state.max_steps and state.max_steps > 0:
+                    self.total_steps = state.max_steps
+                else:
+                    # Estimate steps if not provided
+                    self.total_steps = 1000
+
+            def on_step_end(self, args, state, control, **kwargs):
+                """Called after each training step"""
+                if self.total_steps:
+                    progress = int((state.global_step / self.total_steps) * 100)
+                    progress = min(progress, 95)  # Keep some buffer for final operations
+                    self.lab.update_progress(progress)
+
+                # Log training metrics if available
+                if state.log_history:
+                    latest_log = state.log_history[-1]
+                    if "loss" in latest_log:
+                        self.lab.log(f"Step {state.global_step}: loss={latest_log['loss']:.4f}")
+
+            def on_save(self, args, state, control, **kwargs):
+                """Called when a checkpoint is saved"""
+                self.lab.log(f"💾 Checkpoint saved at step {state.global_step}")
+
+                # Attempt to save the checkpoint using lab's checkpoint mechanism
+                if hasattr(args, "output_dir"):
+                    checkpoint_dir = None
+                    # Find the most recent checkpoint
+                    if os.path.exists(args.output_dir):
+                        checkpoints = [d for d in os.listdir(args.output_dir) if d.startswith("checkpoint-")]
+                        if checkpoints:
+                            # Sort by checkpoint number
+                            checkpoints.sort(key=lambda x: int(x.split("-")[1]))
+                            latest_checkpoint = checkpoints[-1]
+                            checkpoint_dir = os.path.join(args.output_dir, latest_checkpoint)
+
+                            # Save checkpoint to TransformerLab
+                            try:
+                                saved_path = self.lab.save_checkpoint(checkpoint_dir, f"checkpoint-{state.global_step}")
+                                self.lab.log(f"✅ Saved checkpoint to TransformerLab: {saved_path}")
+                            except Exception as e:
+                                self.lab.log(f"⚠️  Could not save checkpoint to TransformerLab: {e}")
+
+            def on_epoch_end(self, args, state, control, **kwargs):
+                """Called at the end of each epoch"""
+                if state.epoch:
+                    self.lab.log(f"📊 Completed epoch {int(state.epoch)} / {args.num_train_epochs}")
+
+            def on_train_end(self, args, state, control, **kwargs):
+                """Called when training ends"""
+                self.lab.log("✅ Training completed successfully")
+                self.lab.update_progress(95)
+
+        return LabCallback(self)
 
 
 def capture_wandb_url_from_env() -> str | None:

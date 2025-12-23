@@ -115,7 +115,7 @@ export default function JobProgress({ job }: JobProps) {
             sx={{ my: 0.5 }}
           />
         </>
-      ) : job?.status === 'LAUNCHING' ? (
+      ) : job?.status === 'LAUNCHING' || job?.status === 'INTERACTIVE' ? (
         <>
           <Stack direction="row" alignItems="center" gap={1}>
             <Chip
@@ -133,11 +133,14 @@ export default function JobProgress({ job }: JobProps) {
           {job?.job_data?.start_time && (
             <>
               Started:{' '}
-              {dayjs(job.job_data.start_time).format('MMM D, YYYY HH:mm:ss')}
+              {dayjs
+                .utc(job.job_data.start_time)
+                .local()
+                .format('MMM D, YYYY HH:mm:ss')}
             </>
           )}
         </>
-      ) : job?.status === 'RUNNING' ? (
+      ) : job?.status === 'RUNNING' || job?.status === 'LAUNCHING' ? (
         <>
           <Stack direction="row" alignItems="center" gap={1}>
             <Chip
@@ -148,8 +151,33 @@ export default function JobProgress({ job }: JobProps) {
             >
               {job.status}
             </Chip>
-            {progress === -1 ? '' : `${progress.toFixed(1)}%`}
-            <LinearProgress determinate value={progress} sx={{ my: 1 }} />
+            {/* For sweep parent jobs, show sweep progress instead of regular progress */}
+            {(job?.job_data?.sweep_parent || job?.type === 'SWEEP') &&
+            job?.job_data?.sweep_total ? (
+              <>
+                Sweep {job.job_data.sweep_completed || 0}/
+                {job.job_data.sweep_total} complete
+                {job.job_data.sweep_running
+                  ? ` (${job.job_data.sweep_running} running)`
+                  : ''}
+                {job.job_data.sweep_failed
+                  ? ` (${job.job_data.sweep_failed} failed)`
+                  : ''}
+              </>
+            ) : progress === -1 ? (
+              ''
+            ) : (
+              `${progress.toFixed(1)}%`
+            )}
+            <LinearProgress
+              determinate
+              value={
+                job?.job_data?.sweep_parent || job?.type === 'SWEEP'
+                  ? job?.job_data?.sweep_progress || 0
+                  : progress
+              }
+              sx={{ my: 1 }}
+            />
             <IconButton color="danger" onClick={handleStopJob}>
               <StopCircleIcon size="20px" />
             </IconButton>
@@ -193,7 +221,10 @@ export default function JobProgress({ job }: JobProps) {
           {job?.job_data?.start_time && (
             <>
               Started:{' '}
-              {dayjs(job.job_data.start_time).format('MMM D, YYYY HH:mm:ss')}
+              {dayjs
+                .utc(job.job_data.start_time)
+                .local()
+                .format('MMM D, YYYY HH:mm:ss')}
             </>
           )}
         </>
@@ -212,9 +243,10 @@ export default function JobProgress({ job }: JobProps) {
             {job?.job_data?.start_time && (
               <>
                 Started:{' '}
-                {dayjs(job?.job_data?.start_time).format(
-                  'MMM D, YYYY HH:mm:ss',
-                )}{' '}
+                {dayjs
+                  .utc(job?.job_data?.start_time)
+                  .local()
+                  .format('MMM D, YYYY HH:mm:ss')}{' '}
                 <br />
               </>
             )}
@@ -245,10 +277,7 @@ export default function JobProgress({ job }: JobProps) {
                 )
               ) : (
                 /* If we don't have a status, assume it failed */
-                <Typography level="body-sm" color="neutral">
-                  No job completion status. Task may have failed. View output
-                  for details
-                </Typography>
+                <Typography level="body-sm" color="neutral" />
               ))}
           </>
         </Stack>
