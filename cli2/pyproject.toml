@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-lab = "lab_cli.main:app"
+lab = "transformerlab_cli.main:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]

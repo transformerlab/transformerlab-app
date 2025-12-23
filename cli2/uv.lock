@@ -104,35 +104,6 @@ wheels = [
 ]
 
 [[package]]
-name = "lab-cli"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "httpx" },
-    { name = "pyyaml" },
-    { name = "rich" },
-    { name = "textual" },
-    { name = "typer" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "textual" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "httpx", specifier = ">=0.27.0" },
-    { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "textual", specifier = ">=0.40.0" },
-    { name = "typer", specifier = ">=0.9.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [{ name = "textual", specifier = ">=6.11.0" }]
-
-[[package]]
 name = "linkify-it-py"
 version = "2.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -302,6 +273,35 @@ sdist = { url = "https://files.pythonhosted.org/packages/55/06/906f86bbc59ec7cd3
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b5/fc/5e2988590ff2e0128eea6446806c904445a44e17256c67141573ea16b5a5/textual-6.11.0-py3-none-any.whl", hash = "sha256:9e663b73ed37123a9b13c16a0c85e09ef917a4cfded97814361ed5cccfa40f89", size = 714886 },
 ]
+
+[[package]]
+name = "transformerlab-cli"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "httpx" },
+    { name = "pyyaml" },
+    { name = "rich" },
+    { name = "textual" },
+    { name = "typer" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "textual" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.27.0" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
+    { name = "rich", specifier = ">=13.0.0" },
+    { name = "textual", specifier = ">=0.40.0" },
+    { name = "typer", specifier = ">=0.9.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "textual", specifier = ">=6.11.0" }]
 
 [[package]]
 name = "typer"

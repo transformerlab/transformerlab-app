@@ -3,7 +3,7 @@
 ## Run:
 
 ```
-uv run src/lab_cli/main.py
+uv run src/transformerlab_cli/main.py
 ```
 
 ## Build Locally:
@@ -15,10 +15,10 @@ Adds a `lab` command to your terminal
 ## Debug the Job Monitor:
 
 ```
-uv run textual run --dev src/lab_cli/commands/job_monitor/job_monitor.py
+uv run textual run --dev src/transformerlab_cli/commands/job_monitor/job_monitor.py
 ```
 
 Run in browser (for fun?)
 ```
-uv run textual serve src/lab_cli/commands/job_monitor/job_monitor.py
+uv run textual serve src/transformerlab_cli/commands/job_monitor/job_monitor.py
 ```
