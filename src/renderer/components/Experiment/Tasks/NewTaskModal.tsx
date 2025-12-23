@@ -185,7 +185,7 @@ export default function NewTaskModal({
   const [diskSpace, setDiskSpace] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
-  const [minutesRequested, setMinutesRequested] = React.useState('');
+  const [minutesRequested, setMinutesRequested] = React.useState('60');
   const [setup, setSetup] = React.useState('');
   const [envVars, setEnvVars] = React.useState<
     Array<{ key: string; value: string }>
@@ -370,6 +370,7 @@ export default function NewTaskModal({
               memory: 4,
             },
             run: 'echo hello',
+            minutes_requested: 60,
           },
         };
 

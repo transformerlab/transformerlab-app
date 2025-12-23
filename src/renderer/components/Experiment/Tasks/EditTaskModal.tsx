@@ -68,7 +68,7 @@ export default function EditTaskModal({
   const [diskSpace, setDiskSpace] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
-  const [minutesRequested, setMinutesRequested] = React.useState('');
+  const [minutesRequested, setMinutesRequested] = React.useState('60');
   const [setup, setSetup] = React.useState('');
   const [envVars, setEnvVars] = React.useState<
     Array<{ key: string; value: string }>
@@ -171,10 +171,10 @@ export default function EditTaskModal({
       isTemplate
         ? taskAny.minutes_requested != null
           ? String(taskAny.minutes_requested)
-          : ''
+          : '60'
         : cfg.minutes_requested != null
           ? String(cfg.minutes_requested)
-          : '',
+          : '60',
     );
     setSetup(
       isTemplate
