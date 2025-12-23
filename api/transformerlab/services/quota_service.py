@@ -308,7 +308,6 @@ async def ensure_quota_recorded_for_completed_job(
     result = await session.execute(stmt)
     existing_usage = result.scalar_one_or_none()
     if existing_usage:
-        print(f"Quota usage already recorded for job: {job_id}")
         return False  # Already recorded
 
     # Get job data
