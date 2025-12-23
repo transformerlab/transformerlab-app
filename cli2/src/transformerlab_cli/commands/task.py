@@ -1,4 +1,5 @@
 from rich.console import Console
+
 import typer
 from transformerlab_cli.util.ui import render_table, render_object
 from transformerlab_cli.util.config import check_configs
@@ -8,6 +9,7 @@ import yaml
 import os
 import subprocess
 from shutil import which
+import requests
 
 app = typer.Typer()
 
@@ -59,39 +61,70 @@ def _check_if_zip_command_exists():
         raise typer.Exit(1)
 
 
-def add_task(task_yaml_path: str, directory: str | None) -> None:
+def add_task(task_yaml_path: str, from_url: str) -> None:
     """Add a new task."""
-    # First read the YAML file
-    console.print(f"[yellow]Task add from '{task_yaml_path}'[/yellow]")
-
-    # load file:
-    with open(task_yaml_path, "r") as f:
-        task_data = yaml.safe_load(f)
-
-    # Validate required fields
-    missing_fields = [field for field in REQUIRED_TASK_FIELDS if field not in task_data]
-    if missing_fields:
-        console.print(f"[red]Error:[/red] Missing required fields in task YAML: {', '.join(missing_fields)}")
+    if task_yaml_path and from_url:
+        console.print("[red]Error:[/red] Please provide either a file path or a URL, not both.")
         raise typer.Exit(1)
 
+    if not task_yaml_path and not from_url:
+        console.print("[red]Error:[/red] You must provide either a file path or a URL. Type --help for more info.")
+        raise typer.Exit(1)
+
+    if from_url:
+        console.print(f"[yellow]Fetching Task YAML from URL: {from_url}[/yellow]")
+        try:
+            response = requests.get(from_url)
+            if response.status_code == 200:
+                try:
+                    task_data = yaml.safe_load(response.text)
+                except yaml.YAMLError as e:
+                    console.print(f"[red]Error:[/red] Failed to parse YAML from URL. Are you sure the URL is correct?")
+                    raise typer.Exit(1)
+            else:
+                console.print(
+                    f"[red]Error:[/red] Failed to fetch Task YAML from URL. Status code: {response.status_code}"
+                )
+                raise typer.Exit(1)
+        except requests.ConnectionError as e:
+            console.print(f"[red]Error:[/red] Failed to connect to the URL: {from_url}. Details: {e}")
+            raise typer.Exit(1)
+        except requests.RequestException as e:
+            console.print(f"[red]Error:[/red] An error occurred while fetching the URL: {from_url}. Details: {e}")
+            raise typer.Exit(1)
+    else:
+        console.print(f"[yellow]Task add from file: '{task_yaml_path}'[/yellow]")
+        with open(task_yaml_path, "r") as f:
+            task_data = yaml.safe_load(f)
+
+    console.print("[bold]Task YAML to be uploaded:[/bold]")
+    console.print(yaml.dump(task_data))
+    # Validate required fields
+    # Don't validate fields yet
+    # missing_fields = [field for field in REQUIRED_TASK_FIELDS if field not in task_data]
+    # if missing_fields:
+    #     console.print(f"[red]Error:[/red] Missing required fields in task YAML: {', '.join(missing_fields)}")
+    #     raise typer.Exit(1)
+
     # Now if directory is not None, then we would package files from there
-    files = {}
-    if directory:
-        console.print(f"[yellow]Including files from directory '{directory}'[/yellow]")
-        zip_path = os.path.join(directory, "files.zip")
-        _check_if_zip_command_exists()
-        subprocess.run(["zip", "-r", zip_path, "."], cwd=directory, check=True)
-        with open(zip_path, "rb") as zip_file:
-            files["files"] = ("files.zip", zip_file.read(), "application/zip")
+    # Don't support files yet
+    # files = {}
+    # if directory:
+    #     console.print(f"[yellow]Including files from directory '{directory}'[/yellow]")
+    #     zip_path = os.path.join(directory, "files.zip")
+    #     _check_if_zip_command_exists()
+    #     subprocess.run(["zip", "-r", zip_path, "."], cwd=directory, check=True)
+    #     with open(zip_path, "rb") as zip_file:
+    #         files["files"] = ("files.zip", zip_file.read(), "application/zip")
 
     # Now send the YAML and the zip (if any) to the server
-    with console.status("[bold green]Uploading task...[/bold green]", spinner="dots"):
-        data = {"task_yaml": yaml.dump(task_data)}
-        response = api.post("/tasks/add", data=data, files=files)
-    if response.status_code == 201:
-        console.print(f"[green]✓[/green] Task added successfully with ID: {response.json().get('task_id')}")
-    else:
-        console.print(f"[red]Error:[/red] Failed to add task. Status code: {response.status_code}")
+    # with console.status("[bold green]Uploading task...[/bold green]", spinner="dots"):
+    #     data = {"task_yaml": yaml.dump(task_data)}
+    #     response = api.post("/task/new_task", data=data)
+    # if response.status_code == 201:
+    #     console.print(f"[green]✓[/green] Task added successfully with ID: {response.json().get('task_id')}")
+    # else:
+    #     console.print(f"[red]Error:[/red] Failed to add task. Status code: {response.status_code}")
 
 
 @app.command("list")
@@ -103,12 +136,12 @@ def command_task_list():
 
 @app.command("add")
 def command_task_add(
-    task_yaml_path: str = typer.Argument(..., help="Path to the Task YAML file"),
-    directory: str = typer.Argument(None, help="Path to the directory to upload (optional)"),
+    task_yaml_path: str = typer.Argument(None, help="Path to the Task YAML file", metavar="<Task File>"),
+    from_url: str = typer.Option(None, "--from-url", help="URL to fetch the Task YAML from"),
 ):
-    """Add a new task."""
+    """Add a new task. Provide a file path directly, or use --from-url to fetch the YAML from a URL."""
     check_configs()
-    add_task(task_yaml_path, directory if directory else None)
+    add_task(task_yaml_path, from_url)
 
 
 @app.command("delete")
