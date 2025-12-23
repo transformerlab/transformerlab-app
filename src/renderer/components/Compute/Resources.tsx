@@ -132,8 +132,10 @@ const Resources = () => {
 
     if (isFixed) {
       fixedClusters.push(cluster);
+      fixedClusters.backend_type = cluster.backend_type;
     } else {
       elasticClusters.push(cluster);
+      elasticClusters.backend_type = cluster.backend_type;
 
       // Group by cloud provider (use cloud_provider field if available, otherwise cluster_name)
       const cloudName =
@@ -222,7 +224,11 @@ const Resources = () => {
                   <Table sx={{ minWidth: 700 }}>
                     <thead>
                       <tr>
-                        <th>Node Pool</th>
+                        <th>
+                          {fixedClusters?.backend_type === 'SLURM'
+                            ? 'Partition'
+                            : 'Node Pool'}
+                        </th>
                         <th>Clusters</th>
                         <th>Jobs</th>
                         <th>Nodes</th>
