@@ -544,13 +544,32 @@ export default function EditTaskModal({
     }
 
     try {
-      // Parse YAML on frontend - use a simple recursive descent parser
+      // Parse YAML on frontend - simple parser with support for arrays ("- value")
       const parseYaml = (yamlStr: string): any => {
         const lines = yamlStr.split('\n');
         const result: any = {};
-        const stack: Array<{ obj: any; level: number }> = [
-          { obj: result, level: -1 },
-        ];
+        const stack: Array<{
+          obj: any;
+          level: number;
+          parent?: any;
+          keyInParent?: string;
+        }> = [{ obj: result, level: -1 }];
+
+        const parseScalar = (value: string): any => {
+          if (
+            (value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))
+          ) {
+            value = value.slice(1, -1);
+          }
+
+          if (value === 'true') return true;
+          if (value === 'false') return false;
+          if (value === 'null') return null;
+          if (/^-?\d+$/.test(value)) return parseInt(value, 10);
+          if (/^-?\d*\.\d+$/.test(value)) return parseFloat(value);
+          return value;
+        };
 
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
@@ -565,32 +584,42 @@ export default function EditTaskModal({
             stack.pop();
           }
 
-          const current = stack[stack.length - 1].obj;
+          const top = stack[stack.length - 1];
+          const current = top.obj;
+
+          // Handle array item "- value"
+          if (trimmed.startsWith('- ')) {
+            const valueStr = trimmed.slice(2).trim();
+            const value = parseScalar(valueStr);
+
+            if (!Array.isArray(current)) {
+              const newArr: any[] = [];
+              if (top.parent && top.keyInParent) {
+                top.parent[top.keyInParent] = newArr;
+              }
+              top.obj = newArr;
+            }
+
+            (top.obj as any[]).push(value);
+            continue;
+          }
 
           if (trimmed.endsWith(':')) {
             const key = trimmed.slice(0, -1).trim();
             const newObj: any = {};
             current[key] = newObj;
-            stack.push({ obj: newObj, level });
+            stack.push({
+              obj: newObj,
+              level,
+              parent: current,
+              keyInParent: key,
+            });
           } else {
             const colonIndex = trimmed.indexOf(':');
             if (colonIndex > 0) {
               const key = trimmed.slice(0, colonIndex).trim();
-              let value: any = trimmed.slice(colonIndex + 1).trim();
-
-              if (
-                (value.startsWith('"') && value.endsWith('"')) ||
-                (value.startsWith("'") && value.endsWith("'"))
-              ) {
-                value = value.slice(1, -1);
-              }
-
-              if (value === 'true') value = true;
-              else if (value === 'false') value = false;
-              else if (value === 'null') value = null;
-              else if (/^-?\d+$/.test(value)) value = parseInt(value, 10);
-              else if (/^-?\d*\.\d+$/.test(value)) value = parseFloat(value);
-
+              const valueStr = trimmed.slice(colonIndex + 1).trim();
+              const value = parseScalar(valueStr);
               current[key] = value;
             }
           }

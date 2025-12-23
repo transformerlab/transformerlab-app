@@ -1113,12 +1113,36 @@ export default function NewTaskModal({
       // We'll send it as a test request to get the parsed structure, then use that to populate the form
       // Actually, let's parse it directly using a simple approach that works for our structure
       const parseYaml = (yamlStr: string): any => {
-        // Use a simple recursive descent parser for basic YAML structure
+        // Simple YAML parser that supports:
+        // - nested maps via indentation
+        // - scalar values
+        // - basic arrays using "- value" syntax (used for sweeps.sweep_config)
         const lines = yamlStr.split('\n');
         const result: any = {};
-        const stack: Array<{ obj: any; level: number }> = [
-          { obj: result, level: -1 },
-        ];
+        const stack: Array<{
+          obj: any;
+          level: number;
+          parent?: any;
+          keyInParent?: string;
+        }> = [{ obj: result, level: -1 }];
+
+        const parseScalar = (value: string): any => {
+          // Remove quotes
+          if (
+            (value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))
+          ) {
+            value = value.slice(1, -1);
+          }
+
+          // Try to parse as number or boolean
+          if (value === 'true') return true;
+          if (value === 'false') return false;
+          if (value === 'null') return null;
+          if (/^-?\d+$/.test(value)) return parseInt(value, 10);
+          if (/^-?\d*\.\d+$/.test(value)) return parseFloat(value);
+          return value;
+        };
 
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
@@ -1136,7 +1160,26 @@ export default function NewTaskModal({
             stack.pop();
           }
 
-          const current = stack[stack.length - 1].obj;
+          const top = stack[stack.length - 1];
+          const current = top.obj;
+
+          // Handle array item: "- value"
+          if (trimmed.startsWith('- ')) {
+            let valueStr = trimmed.slice(2).trim();
+            const value = parseScalar(valueStr);
+
+            // Ensure current container is an array
+            if (!Array.isArray(current)) {
+              // Convert the current object into an array attached to its parent
+              const newArr: any[] = [];
+              if (top.parent && top.keyInParent) {
+                top.parent[top.keyInParent] = newArr;
+              }
+              top.obj = newArr;
+            }
+            (top.obj as any[]).push(value);
+            continue;
+          }
 
           // Check if this is a key-value pair or a nested object
           if (trimmed.endsWith(':')) {
@@ -1144,29 +1187,19 @@ export default function NewTaskModal({
             const key = trimmed.slice(0, -1).trim();
             const newObj: any = {};
             current[key] = newObj;
-            stack.push({ obj: newObj, level });
+            stack.push({
+              obj: newObj,
+              level,
+              parent: current,
+              keyInParent: key,
+            });
           } else {
             // Key-value pair
             const colonIndex = trimmed.indexOf(':');
             if (colonIndex > 0) {
               const key = trimmed.slice(0, colonIndex).trim();
-              let value: any = trimmed.slice(colonIndex + 1).trim();
-
-              // Remove quotes
-              if (
-                (value.startsWith('"') && value.endsWith('"')) ||
-                (value.startsWith("'") && value.endsWith("'"))
-              ) {
-                value = value.slice(1, -1);
-              }
-
-              // Try to parse as number or boolean
-              if (value === 'true') value = true;
-              else if (value === 'false') value = false;
-              else if (value === 'null') value = null;
-              else if (/^-?\d+$/.test(value)) value = parseInt(value, 10);
-              else if (/^-?\d*\.\d+$/.test(value)) value = parseFloat(value);
-
+              let valueStr: any = trimmed.slice(colonIndex + 1).trim();
+              const value = parseScalar(valueStr);
               current[key] = value;
             }
           }
