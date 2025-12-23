@@ -20,6 +20,7 @@ import {
   authenticatedFetch,
   getAPIFullPath,
 } from 'renderer/lib/transformerlab-api-sdk';
+import FixedComputeClusterVisualization from './FixedComputeClusterVisualization';
 
 interface Provider {
   id: string;
@@ -132,8 +133,10 @@ const Resources = () => {
 
     if (isFixed) {
       fixedClusters.push(cluster);
+      fixedClusters.backend_type = cluster.backend_type;
     } else {
       elasticClusters.push(cluster);
+      elasticClusters.backend_type = cluster.backend_type;
 
       // Group by cloud provider (use cloud_provider field if available, otherwise cluster_name)
       const cloudName =
@@ -219,10 +222,14 @@ const Resources = () => {
                     },
                   }}
                 >
-                  <Table sx={{ minWidth: 700 }}>
+                  {/* <Table sx={{ minWidth: 700 }}>
                     <thead>
                       <tr>
-                        <th>Node Pool</th>
+                        <th>
+                          {fixedClusters?.backend_type === 'SLURM'
+                            ? 'Partition'
+                            : 'Node Pool'}
+                        </th>
                         <th>Clusters</th>
                         <th>Jobs</th>
                         <th>Nodes</th>
@@ -370,9 +377,10 @@ const Resources = () => {
                         );
                       })}
                     </tbody>
-                  </Table>
+                  </Table> */}
                 </Sheet>
               )}
+              <FixedComputeClusterVisualization cluster={fixedClusters[0]} />
             </CardContent>
           </Card>
         </Grid>
@@ -528,7 +536,7 @@ const Resources = () => {
                         const cloudType = isFixed
                           ? backendType
                           : cluster.cloud_provider?.toUpperCase() ||
-                            cluster.cluster_name.toUpperCase();
+                            cluster?.cluster_name.toUpperCase();
 
                         return (
                           <tr key={`${cluster.cluster_id}-${node.node_name}`}>
