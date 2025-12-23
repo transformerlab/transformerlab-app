@@ -321,28 +321,28 @@ export default function UnifiedComputeCluster({
           gap={2}
           mb={1}
         >
-          <Typography level="h2">{cluster.cluster_name}</Typography>
+          <Typography level="h2">{cluster?.cluster_name}</Typography>
           <Chip
             variant="outlined"
             color="primary"
             size="sm"
             sx={{ fontFamily: 'monospace' }}
           >
-            {cluster.cluster_id}
+            {cluster?.cluster_id}
           </Chip>
         </Stack>
 
         <Stack direction="row" gap={2} alignItems="center" flexWrap="wrap">
           <Chip variant="soft" color="primary" size="sm">
-            {cluster.backend_type}
+            {cluster?.backend_type}
           </Chip>
-          {cluster.head_node_ip && (
+          {cluster?.head_node_ip && (
             <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
               Head IP: {cluster.head_node_ip}
             </Typography>
           )}
           <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
-            Nodes: {cluster.nodes.length} / {cluster.max_nodes}
+            Nodes: {cluster?.nodes.length} / {cluster?.max_nodes}
           </Typography>
         </Stack>
       </Box>
@@ -357,7 +357,7 @@ export default function UnifiedComputeCluster({
           gap: 3,
         }}
       >
-        {cluster.nodes.map((node, index) => (
+        {cluster?.nodes.map((node, index) => (
           <NodeCard key={index} node={node} />
         ))}
       </Box>
