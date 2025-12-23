@@ -2,16 +2,16 @@ import typer
 import typer.core
 from rich.console import Console
 
-from lab_cli.util.logo import show_header
-from lab_cli.state import cli_state  # Import the CLI state singleton
+from transformerlab_cli.util.logo import show_header
+from transformerlab_cli.state import cli_state  # Import the CLI state singleton
 
-from lab_cli.commands.version import app as version_app
-from lab_cli.commands.config import app as config_app
-from lab_cli.commands.status import app as status_app
-from lab_cli.commands.login import app as login_app
-from lab_cli.commands.logout import app as logout_app
-from lab_cli.commands.task import app as task_app
-from lab_cli.commands.job import app as job_app  # Import job app
+from transformerlab_cli.commands.version import app as version_app
+from transformerlab_cli.commands.config import app as config_app
+from transformerlab_cli.commands.status import app as status_app
+from transformerlab_cli.commands.login import app as login_app
+from transformerlab_cli.commands.logout import app as logout_app
+from transformerlab_cli.commands.task import app as task_app
+from transformerlab_cli.commands.job import app as job_app  # Import job app
 
 
 # Create custom Help screen so we can show the logo

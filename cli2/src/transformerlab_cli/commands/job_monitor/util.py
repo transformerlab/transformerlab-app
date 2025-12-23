@@ -1,5 +1,5 @@
-from lab_cli.util import api
-from lab_cli.util.config import get_current_experiment
+from transformerlab_cli.util import api
+from transformerlab_cli.util.config import get_current_experiment
 
 
 def fetch_jobs() -> list[dict]:

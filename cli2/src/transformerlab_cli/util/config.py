@@ -6,9 +6,9 @@ from rich.console import Console
 from rich.table import Table
 import typer
 
-from lab_cli.util.logo import one_liner_logo, show_header
-from lab_cli.util.ui import render_table
-from lab_cli.util.shared import CONFIG_DIR, CONFIG_FILE, set_base_url
+from transformerlab_cli.util.logo import one_liner_logo, show_header
+from transformerlab_cli.util.ui import render_table
+from transformerlab_cli.util.shared import CONFIG_DIR, CONFIG_FILE, set_base_url
 
 VALID_CONFIG_KEYS = ["server", "team_id", "team_name", "user_email", "current_experiment"]
 REQUIRED_CONFIG_KEYS = ["server", "team_id", "user_email"]

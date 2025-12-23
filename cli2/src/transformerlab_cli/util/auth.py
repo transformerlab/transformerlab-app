@@ -1,7 +1,7 @@
 import httpx
 from rich.console import Console
 
-from lab_cli.util.shared import CREDENTIALS_DIR, CREDENTIALS_FILE, AUTH_URL
+from transformerlab_cli.util.shared import CREDENTIALS_DIR, CREDENTIALS_FILE, AUTH_URL
 
 console = Console()
 

@@ -1,8 +1,8 @@
 import typer
 from rich.console import Console
 
-from lab_cli.util.api import check_server_status
-from lab_cli.util.config import check_configs
+from transformerlab_cli.util.api import check_server_status
+from transformerlab_cli.util.config import check_configs
 
 app = typer.Typer()
 console = Console()

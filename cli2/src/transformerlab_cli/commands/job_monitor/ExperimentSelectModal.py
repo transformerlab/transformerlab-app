@@ -11,8 +11,8 @@ from textual.screen import ModalScreen
 from textual import on, work
 from textual.reactive import reactive
 
-from lab_cli.util import api
-from lab_cli.util.config import get_current_experiment, set_config
+from transformerlab_cli.util import api
+from transformerlab_cli.util.config import get_current_experiment, set_config
 
 
 class ExperimentSelectModal(ModalScreen):

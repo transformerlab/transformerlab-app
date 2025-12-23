@@ -1,9 +1,9 @@
 import typer
 from rich.console import Console
 from rich import print
-from lab_cli.util.logo import show_header
+from transformerlab_cli.util.logo import show_header
 
-from lab_cli import __version__
+from transformerlab_cli import __version__
 
 
 app = typer.Typer()

@@ -1,7 +1,7 @@
 import typer
 from rich.console import Console
 
-from lab_cli.util.config import list_config, set_config
+from transformerlab_cli.util.config import list_config, set_config
 
 app = typer.Typer()
 console = Console()

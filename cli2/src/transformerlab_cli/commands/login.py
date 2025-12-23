@@ -1,7 +1,7 @@
 import typer
 from rich.console import Console
 
-from lab_cli.util.auth import set_api_key
+from transformerlab_cli.util.auth import set_api_key
 
 app = typer.Typer()
 console = Console()

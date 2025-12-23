@@ -1,4 +1,4 @@
-from lab_cli.commands.job_monitor.JobMonitorApp import JobMonitorApp
+from transformerlab_cli.commands.job_monitor.JobMonitorApp import JobMonitorApp
 
 
 def run_monitor() -> None:

@@ -4,8 +4,8 @@ import typer
 from rich import print
 
 
-from lab_cli.util.shared import BASE_URL
-from lab_cli.util.auth import api_key
+from transformerlab_cli.util.shared import BASE_URL
+from transformerlab_cli.util.auth import api_key
 
 
 def get(path: str) -> httpx.Response:

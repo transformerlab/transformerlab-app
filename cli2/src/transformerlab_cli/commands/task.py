@@ -1,9 +1,9 @@
 from rich.console import Console
 import typer
-from lab_cli.util.ui import render_table, render_object
-from lab_cli.util.config import check_configs
+from transformerlab_cli.util.ui import render_table, render_object
+from transformerlab_cli.util.config import check_configs
 
-import lab_cli.util.api as api
+import transformerlab_cli.util.api as api
 import yaml
 import os
 import subprocess
