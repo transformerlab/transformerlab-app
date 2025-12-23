@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lab-cli"
+name = "transformerlab-cli"
 version = "0.1.0"
 description = "Transformer Lab CLI"
 requires-python = ">=3.10"
@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-tlab = "lab_cli.main:app"
+lab = "lab_cli.main:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]
