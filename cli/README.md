@@ -8,7 +8,7 @@
 
 ## Install
 
-(install instructions coming soon, fornow follow Build Locally instructions below)
+(install instructions coming soon, for now follow Build Locally instructions below)
 
 ## Usage:
 
