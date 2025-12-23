@@ -5,18 +5,11 @@
   "plugin-format": "python",
   "type": "evaluator",
   "evalsType": "model",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "git": "",
   "url": "",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx"
-  ],
+  "files": ["main.py", "setup.sh"],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
   "_dataset": true,
   "setup-script": "setup.sh",
   "parameters": {

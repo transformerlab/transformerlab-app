@@ -6,11 +6,13 @@ on:
   push:
     branches: ["main"]
     paths:
-      - 'api/**'
+      - "api/**"
+      - "lab-sdk/**"
   pull_request:
     branches: ["main"]
     paths:
-      - 'api/**'
+      - "api/**"
+      - "lab-sdk/**"
 
 jobs:
   build:
@@ -49,18 +51,24 @@ jobs:
           mkdir -p "${TLAB_DIR}"
           mkdir -p "${TLAB_CODE_DIR}"
           mkdir -p "${TLAB_STATIC_WEB_DIR}"
+          # Temporarily remove transformerlab from pyproject.toml to avoid installing unreleased version
+          sed -i.bak '/^  "transformerlab==/d' pyproject.toml
           ./install.sh install_conda
           ./install.sh create_conda_environment
           ./install.sh install_dependencies
+          mv pyproject.toml.bak pyproject.toml || true
           uv pip install --system pytest pytest-asyncio jsonschema requests
       - name: Install lab-sdk in editable mode
         run: |
           cd ../lab-sdk
-          uv pip install --system -e .
+          eval "$($HOME/.transformerlab/miniforge3/bin/conda shell.bash hook)"
+          conda activate $HOME/.transformerlab/envs/transformerlab
+          uv pip install -e .
       - name: Now run the server by calling ./run.sh and wait for it to be ready
         run: |
           ./run.sh &
           python scripts/wait_for_server.py --timeout 120 --interval 2
       - name: Test the API Server and DB Setup
         run: |
+          # Run tests
           pytest -m live_server test/server/

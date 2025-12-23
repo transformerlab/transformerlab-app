@@ -115,13 +115,37 @@ export default function LoginModal({
   }
 
   React.useEffect(() => {
-    // If we are on the webapp, try to automatically connect to the current server's host
+    // If we are on the webapp, try to automatically connect
     if (WEB_APP && connection === '') {
-      const currentPath = window.location.href;
-      window.TransformerLab.API_URL = currentPath;
-      console.log('Connecting to: ', window.TransformerLab.API_URL);
-      // Call checkServer to verify the server is healthy before connecting
-      checkServer();
+      const tryConnect = async () => {
+        // First try using the current URL: window.location.href
+        const oldApiUrl = window.location.href;
+        window.TransformerLab.API_URL = oldApiUrl;
+        const oldResponse = await apiHealthz();
+        if (oldResponse !== null) {
+          // Old method worked, use checkServer to handle the rest
+          checkServer();
+          return;
+        }
+
+        // If the old method failed, try using the hostname:8338 format
+        const newApiUrl = `http://${window.location.hostname}:8338/`;
+        window.TransformerLab.API_URL = newApiUrl;
+        const newResponse = await apiHealthz();
+        if (newResponse !== null) {
+          checkServer();
+          return;
+        }
+
+        // Both methods failed, clear connection and don't auto-connect
+        if ((window as any).TransformerLab) {
+          (window as any).TransformerLab.API_URL = null;
+        }
+        setServer('');
+      };
+
+      tryConnect();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }
   }, []);
 
@@ -187,7 +211,13 @@ export default function LoginModal({
           </TabPanel>
           <TabPanel
             value="remote"
-            sx={{ p: 1, maxWidth: '600px', margin: 'auto', pt: 4 }}
+            sx={{
+              p: 3,
+              pt: 4,
+              maxWidth: '90%',
+              margin: '0 auto',
+              width: '100%',
+            }}
             keepMounted
           >
             {/* <Typography id="basic-modal-dialog-title" component="h2">
@@ -199,24 +229,6 @@ export default function LoginModal({
         >
           Provide connection information:
         </Typography> */}
-            <Alert variant="plain">
-              <Typography
-                level="body-sm"
-                textColor="text.tertiary"
-                fontWeight={400}
-              >
-                <a
-                  href="https://lab.cloud/docs/install/install-on-cloud"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Follow these instructions
-                </a>{' '}
-                to install the Transformer Lab Engine on a remote computer. Once
-                you have completed those steps, enter the server URL and port
-                below.
-              </Typography>
-            </Alert>
             <form
               onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
                 event.preventDefault();

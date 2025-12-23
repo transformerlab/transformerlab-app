@@ -4,7 +4,7 @@
   "description": "Exports the current model to MLX format so it can be run on Apple Silicon.",
   "plugin-format": "python",
   "type": "exporter",
-  "version": "1.0.24",
+  "version": "1.0.25",
   "model_architectures": [
     "CohereForCausalLM",
     "DeepseekV2ForCausalLM",
@@ -24,24 +24,15 @@
     "SmolLM3ForCausalLM"
   ],
   "export_architecture": "MLX",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
-  "supported_hardware_architectures": [
-    "mlx"
-  ],
+  "files": ["main.py", "setup.sh"],
+  "supported_hardware_architectures": ["mlx"],
   "setup-script": "setup.sh",
   "parameters": {
     "q_bits": {
       "title": "Bits per weight for quantization",
       "type": "string",
       "default": "4",
-      "enum": [
-        "8",
-        "4",
-        "2"
-      ]
+      "enum": ["8", "4", "2"]
     }
   }
 }

@@ -128,6 +128,10 @@
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/artifacts"
     },
+    "getArtifact": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/artifact/{filename}"
+    },
     "getJobsOfType": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/list?type={type}&status={status}"
@@ -250,6 +254,10 @@
       "method": "GET",
       "path": "compute_provider/jobs/{jobId}/check-status"
     },
+    "providerClusters": {
+      "method": "GET",
+      "path": "compute_provider/{providerId}/clusters"
+    },
     "stopCluster": {
       "method": "POST",
       "path": "compute_provider/{providerId}/clusters/{clusterName}/stop"
@@ -257,6 +265,10 @@
     "uploadTaskFile": {
       "method": "POST",
       "path": "compute_provider/{providerId}/tasks/{taskId}/file-upload"
+    },
+    "usage-report": {
+      "method": "GET",
+      "path": "compute_provider/usage-report"
     }
   },
   "auth": {

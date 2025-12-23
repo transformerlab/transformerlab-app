@@ -29,17 +29,18 @@ Endpoints.Tasks = {
   NewTask: () => `${API_URL()}tasks/new_task`,
   DeleteTask: (id: string) => `${API_URL()}tasks/${id}/delete`,
   Gallery: () => `${API_URL()}tasks/gallery`,
-  LocalGallery: () => `${API_URL()}tasks/local_gallery`,
-  InstallFromGallery: () => `${API_URL()}tasks/install_from_gallery`,
-  ImportFromGallery: () => `${API_URL()}tasks/import_from_gallery`,
-  ImportFromLocalGallery: () => `${API_URL()}tasks/import_from_local_gallery`,
-  ExportToLocalGallery: () => `${API_URL()}tasks/export_to_local_gallery`,
-  DeleteFromLocalGallery: (taskDir: string) =>
-    `${API_URL()}tasks/local_gallery/${taskDir}`,
-  GetTaskFiles: (taskDir: string) =>
-    `${API_URL()}tasks/local_gallery/${taskDir}/files`,
-  GetTaskFileContent: (taskDir: string, filePath: string) =>
-    `${API_URL()}tasks/local_gallery/${taskDir}/files/${filePath}`,
+  ImportFromGallery: (experimentId: string) =>
+    `${API_URL()}tasks/gallery/import`,
+  TeamGallery: () => `${API_URL()}tasks/gallery/team`,
+  ImportFromTeamGallery: (experimentId: string) =>
+    `${API_URL()}tasks/gallery/team/import`,
+  ExportToTeamGallery: () => `${API_URL()}tasks/gallery/team/export`,
+  AddToTeamGallery: () => `${API_URL()}tasks/gallery/team/add`,
+  DeleteFromTeamGallery: () => `${API_URL()}tasks/gallery/team/delete`,
+  FetchTaskJson: (repoUrl: string, directory?: string) =>
+    `${API_URL()}tasks/fetch_task_json?repo_url=${encodeURIComponent(repoUrl)}${
+      directory ? `&directory=${encodeURIComponent(directory)}` : ''
+    }`,
 };
 
 Endpoints.ComputeProvider = {
@@ -48,6 +49,17 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/${providerId}/tasks/launch`,
   CheckJobStatus: (jobId: string) =>
     `${API_URL()}compute_provider/jobs/${jobId}/check-status`,
+  CheckSweepStatus: (experimentId?: string, jobId?: string) => {
+    if (experimentId) {
+      return `${API_URL()}compute_provider/jobs/sweep-status?experiment_id=${experimentId}`;
+    }
+    if (jobId) {
+      return `${API_URL()}compute_provider/jobs/${jobId}/sweep-status`;
+    }
+    throw new Error('Either experimentId or jobId must be provided');
+  },
+  GetSweepResults: (jobId: string) =>
+    `${API_URL()}compute_provider/jobs/${jobId}/sweep-results`,
   StopCluster: (providerId: string, clusterName: string) =>
     `${API_URL()}compute_provider/${providerId}/clusters/${clusterName}/stop`,
   UploadTaskFile: (providerId: string, taskId: string | number) =>
@@ -447,6 +459,12 @@ Endpoints.Experiment = {
     tailLines: number = 400,
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/provider_logs?tail_lines=${tailLines}`,
+  GetVSCodeTunnelInfo: (
+    experimentId: string,
+    jobId: string,
+    tailLines: number = 400,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/vscode_tunnel_info?tail_lines=${tailLines}`,
   GetAdditionalDetails: (
     experimentId: string,
     jobId: string,

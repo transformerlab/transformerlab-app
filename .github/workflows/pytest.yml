@@ -6,11 +6,11 @@ on:
   push:
     branches: ["main"]
     paths:
-      - 'api/**'
+      - "api/**"
   pull_request:
     branches: ["main"]
     paths:
-      - 'api/**'
+      - "api/**"
 
 jobs:
   build:
@@ -40,7 +40,10 @@ jobs:
         run: |
           pip install uv
           uv pip install --system pytest pytest-asyncio jsonschema requests pytest-cov shellcheck-py
-          uv pip install --system .[cpu] --upgrade --index=https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+          # Temporarily remove transformerlab from pyproject.toml to avoid installing unreleased version
+          sed -i.bak '/^  "transformerlab==/d' pyproject.toml
+          uv pip install --system .[cpu] --index=https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+          mv pyproject.toml.bak pyproject.toml || true
       - name: Install lab-sdk in editable mode
         run: |
           cd ../lab-sdk

@@ -15,21 +15,30 @@ import {
   ListItemDecorator,
   Modal,
   ModalDialog,
-  Stack,
+  ModalClose,
   Typography,
   Divider,
   Dropdown,
   MenuButton,
   Tooltip,
   Box,
+  Sheet,
 } from '@mui/joy';
-import { useState, useEffect, FormEvent, useCallback } from 'react';
-import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  useSWRWithAuth as useSWR,
+  useAuth,
+  useAPI,
+} from 'renderer/lib/authContext';
 import { useNavigate } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import RecipesModal from './Recipes';
-import { getAPIFullPath, fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  getAPIFullPath,
+  fetcher,
+  apiHealthz,
+} from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function ExperimentSettingsMenu({
@@ -112,16 +121,47 @@ function ExperimentSettingsMenu({
 }
 
 export default function SelectExperimentMenu({ models }) {
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const [mode, setMode] = useState<string>('local');
   const navigate = useNavigate();
   const { experimentInfo, setExperimentId } = useExperimentInfo();
+  const { team } = useAuth();
 
   // This gets all the available experiments
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.API_URL() === null ? null : chatAPI.Endpoints.Experiment.GetAll(),
     fetcher,
   );
+
+  // Fetch providers
+  const { data: providerListData } = useAPI('compute_provider', ['list'], {
+    teamId: team?.id ?? null,
+  });
+
+  const providers = useMemo(
+    () => (Array.isArray(providerListData) ? providerListData : []),
+    [providerListData],
+  );
+
+  const hasProviders = providers.length > 0;
+  const isS3Mode = mode === 's3';
+  const shouldShowSimpleDialog = hasProviders || isS3Mode;
+
+  // Fetch healthz to get the mode
+  useEffect(() => {
+    const fetchHealthz = async () => {
+      try {
+        const data = await apiHealthz();
+        if (data?.mode) {
+          setMode(data.mode);
+        }
+      } catch (error) {
+        console.error('Failed to fetch healthz data:', error);
+      }
+    };
+
+    fetchHealthz();
+  }, []);
 
   const DEV_MODE = experimentInfo?.name === 'dev';
 
@@ -130,12 +170,17 @@ export default function SelectExperimentMenu({ models }) {
   }, [experimentInfo]);
 
   const createHandleClose = (id: string) => () => {
-    setAnchorEl(null);
     setExperimentId(id);
   };
 
   const createNewExperiment = useCallback(
     async (name: string, fromRecipeId = null) => {
+      // Prevent creation if experiments list is still loading or unavailable
+      if (isLoading || !data) {
+        alert('Please wait for experiments to load before creating a new one.');
+        return;
+      }
+
       let newId = 0;
 
       if (fromRecipeId === null) {
@@ -163,16 +208,29 @@ export default function SelectExperimentMenu({ models }) {
         }
         newId = responseJson?.data?.experiment_id;
       }
+
+      // After creation, refresh the list and ensure the new experiment is in it before updating state
+      await mutate();
+      const updatedData = await mutate(); // Wait for mutate to complete and get fresh data
+      const newExperimentExists = updatedData?.some(
+        (exp: any) => exp.id === newId,
+      );
+      if (!newExperimentExists) {
+        alert(
+          'Experiment created, but failed to load in the list. Please refresh and try again.',
+        );
+        return;
+      }
+
       setExperimentId(newId);
       createHandleClose(newId);
-      mutate();
 
       // Navigate to Notes page if experiment was created from a recipe AND recipe is not blank
       if (fromRecipeId !== null && fromRecipeId !== -1) {
         navigate('/experiment/notes');
       }
     },
-    [setExperimentId, mutate, navigate],
+    [setExperimentId, mutate, navigate, isLoading, data],
   );
 
   return (
@@ -371,7 +429,7 @@ export default function SelectExperimentMenu({ models }) {
                 })}
             </Box>
             <Divider />
-            <MenuItem onClick={() => setModalOpen(true)}>
+            <MenuItem onClick={() => setModalOpen(true)} disabled={isLoading}>
               <ListItemDecorator>
                 <PlusCircleIcon strokeWidth={1} />
               </ListItemDecorator>
@@ -380,12 +438,61 @@ export default function SelectExperimentMenu({ models }) {
           </Menu>
         </Dropdown>
       </FormControl>
-      <RecipesModal
-        modalOpen={modalOpen}
-        setModalOpen={setModalOpen}
-        createNewExperiment={createNewExperiment}
-        showRecentExperiments={false}
-      />
+      {shouldShowSimpleDialog ? (
+        <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
+          <ModalDialog>
+            <ModalClose />
+            <Typography level="title-lg">New Experiment</Typography>
+            <Divider sx={{ my: 1 }} />
+            <Sheet sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <form
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (isLoading || !data) {
+                    alert(
+                      'Please wait for experiments to load before creating a new one.',
+                    );
+                    return;
+                  }
+                  const formData = new FormData(e.currentTarget);
+                  const name = formData.get('experiment-name') as string;
+                  if (!name || name.trim() === '') {
+                    alert('Experiment name is required.');
+                    return;
+                  }
+                  // Check if experiment name already exists (fallback, as API also checks)
+                  if (data?.some((exp: any) => exp.name === name)) {
+                    alert('Experiment name already exists.');
+                    return;
+                  }
+                  await createNewExperiment(name);
+                  setModalOpen(false);
+                }}
+              >
+                <Input
+                  placeholder="Experiment Name"
+                  name="experiment-name"
+                  required
+                  autoFocus
+                />
+                <Button type="submit">Create</Button>
+              </form>
+            </Sheet>
+          </ModalDialog>
+        </Modal>
+      ) : (
+        <RecipesModal
+          modalOpen={modalOpen}
+          setModalOpen={setModalOpen}
+          createNewExperiment={createNewExperiment}
+          showRecentExperiments={false}
+        />
+      )}
     </div>
   );
 }

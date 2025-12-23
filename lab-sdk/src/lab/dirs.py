@@ -4,7 +4,7 @@ import os
 import contextvars
 from werkzeug.utils import secure_filename
 from . import storage
-from .storage import _current_tfl_storage_uri
+from .storage import _current_tfl_storage_uri, REMOTE_WORKSPACE_HOST
 
 # TFL_HOME_DIR
 if "TFL_HOME_DIR" in os.environ and not (_current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")):
@@ -31,11 +31,14 @@ _current_org_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("cu
 def set_organization_id(organization_id: str | None) -> None:
     _current_org_id.set(organization_id)
     if organization_id is not None:
-        # If TFL_API_STORAGE_URI is set, use s3://workspace_<team_id> instead of the value itself
+        # If TFL_API_STORAGE_URI is set, use <cloud_protocol>://workspace_<team_id> instead of the value itself
         tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI")
         if tfl_api_storage_uri:
-            # Use s3://workspace_<team_id> format
-            _current_tfl_storage_uri.set(f"s3://workspace-{organization_id}")
+            # Determine protocol based on REMOTE_WORKSPACE_HOST
+            protocol = "gs://" if REMOTE_WORKSPACE_HOST == "gcp" else "s3://"
+
+            # Use cloud://workspace_<team_id> format
+            _current_tfl_storage_uri.set(f"{protocol}workspace-{organization_id}")
         else:
             _current_tfl_storage_uri.set(None)
     else:
@@ -192,8 +195,9 @@ def get_batched_prompts_dir() -> str:
 
 
 def get_galleries_cache_dir() -> str:
-    path = storage.join(get_workspace_dir(), "galleries")
-    storage.makedirs(path, exist_ok=True)
+    path = storage.join(HOME_DIR, "galleries")
+    # Using os here since this would always be on local filesystem
+    os.makedirs(path, exist_ok=True)
     return path
 
 

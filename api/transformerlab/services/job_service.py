@@ -20,6 +20,7 @@ ALLOWED_JOB_TYPES = [
     "INSTALL_RECIPE_DEPS",
     "DIFFUSION",
     "REMOTE",
+    "SWEEP",
 ]
 
 # Centralized set of job types that can trigger workflows on completion
@@ -67,16 +68,9 @@ def jobs_get_by_experiment(experiment_id):
 def job_get(job_id):
     try:
         job = Job.get(job_id)
-        return job.get_json_data()
+        return job.get_json_data(uncached=True)
     except Exception as e:
         print("Error getting job data", e)
-        if "Etag" in str(e):
-            try:
-                job = Job.get(job_id)
-                return job.get_json_data(uncached=True)
-            except Exception as e:
-                print("Error getting job data (uncached)", e)
-                return None
         return None
 
 
@@ -211,7 +205,7 @@ def jobs_get_next_queued_job_across_all_orgs() -> Tuple[Optional[dict], Optional
                                     try:
                                         job_id = int(job_id_str) if job_id_str.isdigit() else 0
                                         job = Job.get(job_id_str)
-                                        job_data = job.get_json_data()
+                                        job_data = job.get_json_data(uncached=True)
                                         if job_data.get("status") == "QUEUED":
                                             queued_jobs.append((job_id, job_data, org_id))
                                     except Exception:
@@ -290,6 +284,66 @@ def job_update_sweep_progress(job_id, value, experiment_id):
         job.update_sweep_progress(value)
     except Exception as e:
         print(f"Error updating sweep job {job_id}: {e}")
+
+
+def jobs_get_sweep_children(parent_job_id, experiment_id=None):
+    """
+    Get all child jobs that belong to a sweep parent job.
+    """
+    try:
+        parent_job = Job.get(parent_job_id)
+        if experiment_id is not None and parent_job.get_experiment_id() != experiment_id:
+            return []
+
+        job_data = parent_job.get_job_data()
+        if not isinstance(job_data, dict):
+            return []
+
+        sweep_job_ids = job_data.get("sweep_job_ids", [])
+        if not isinstance(sweep_job_ids, list):
+            return []
+
+        # Get all child jobs
+        child_jobs = []
+        for child_job_id in sweep_job_ids:
+            try:
+                child_job = Job.get(child_job_id)
+                # Get full job data (including type, status, etc.)
+                job_json = child_job.get_json_data()
+                child_jobs.append(job_json)
+            except Exception:
+                # Skip if job doesn't exist
+                continue
+
+        return child_jobs
+    except Exception as e:
+        print(f"Error getting sweep children for job {parent_job_id}: {e}")
+        return []
+
+
+def job_get_sweep_parent(child_job_id, experiment_id=None):
+    """
+    Get the parent sweep job for a child job.
+    Returns None if the job is not a sweep child.
+    """
+    try:
+        child_job = Job.get(child_job_id)
+        if experiment_id is not None and child_job.get_experiment_id() != experiment_id:
+            return None
+
+        job_data = child_job.get_job_data()
+        if not isinstance(job_data, dict):
+            return None
+
+        parent_job_id = job_data.get("parent_sweep_job_id")
+        if not parent_job_id:
+            return None
+
+        parent_job = Job.get(parent_job_id)
+        return parent_job.get_json_data()
+    except Exception as e:
+        print(f"Error getting sweep parent for job {child_job_id}: {e}")
+        return None
 
 
 ##################################

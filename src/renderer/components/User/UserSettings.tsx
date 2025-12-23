@@ -425,12 +425,24 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
               to see it again.
             </Typography>
           </Typography>
-          <Card variant="outlined" sx={{ bgcolor: 'background.level1', p: 1 }}>
+          <Card
+            variant="outlined"
+            sx={{ bgcolor: 'background.level1', p: 1, display: 'inline-block' }}
+          >
             <Stack direction="row" spacing={1} alignItems="center">
               <Input
                 value={createdKey.api_key}
                 readOnly
-                sx={{ fontFamily: 'monospace', fontSize: 'sm' }}
+                sx={{
+                  fontFamily: 'monospace',
+                  fontSize: 'sm',
+                  minWidth: `${Math.max(createdKey.api_key?.length || 0, 40) * 1.1}ch`,
+                  '& input': {
+                    overflow: 'visible',
+                    textOverflow: 'clip',
+                    whiteSpace: 'nowrap',
+                  },
+                }}
                 endDecorator={
                   <IconButton
                     size="sm"
@@ -451,80 +463,83 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
         </Typography>
       ) : (
         <List>
-          {apiKeys?.map((key: any) => (
-            <ListItem key={key.id}>
-              <Card variant="outlined" sx={{ width: '100%', p: 2 }}>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="flex-start"
-                >
-                  <Box sx={{ flex: 1 }}>
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      alignItems="center"
-                      mb={1}
-                    >
-                      <Typography level="title-md">
-                        {key.name || 'Unnamed Key'}
-                      </Typography>
-                      <Chip
-                        size="sm"
-                        color={key.is_active ? 'success' : 'neutral'}
-                        variant="soft"
+          {Array.isArray(apiKeys) &&
+            apiKeys.map((key: any) => (
+              <ListItem key={key.id}>
+                <Card variant="outlined" sx={{ width: '100%', p: 2 }}>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="flex-start"
+                  >
+                    <Box sx={{ flex: 1 }}>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                        mb={1}
                       >
-                        {key.is_active ? 'Active' : 'Inactive'}
-                      </Chip>
-                    </Stack>
-                    <Typography
-                      level="body-sm"
-                      sx={{ fontFamily: 'monospace' }}
-                      mb={1}
-                    >
-                      {key.key_prefix}
-                    </Typography>
-                    <Stack direction="row" spacing={2} mb={1}>
-                      <Typography level="body-xs" color="neutral">
-                        Team: {key.team_name || 'All teams'}
-                      </Typography>
-                      <Typography level="body-xs" color="neutral">
-                        Created: {formatDate(key.created_at)}
-                      </Typography>
-                      {key.last_used_at && (
-                        <Typography level="body-xs" color="neutral">
-                          Last used: {formatDate(key.last_used_at)}
+                        <Typography level="title-md">
+                          {key.name || 'Unnamed Key'}
                         </Typography>
-                      )}
-                      {key.expires_at && (
+                        <Chip
+                          size="sm"
+                          color={key.is_active ? 'success' : 'neutral'}
+                          variant="soft"
+                        >
+                          {key.is_active ? 'Active' : 'Inactive'}
+                        </Chip>
+                      </Stack>
+                      <Typography
+                        level="body-sm"
+                        sx={{ fontFamily: 'monospace' }}
+                        mb={1}
+                      >
+                        {key.key_prefix}
+                      </Typography>
+                      <Stack direction="row" spacing={2} mb={1}>
                         <Typography level="body-xs" color="neutral">
-                          Expires: {formatDate(key.expires_at)}
+                          Team: {key.team_name || 'All teams'}
                         </Typography>
-                      )}
+                        <Typography level="body-xs" color="neutral">
+                          Created: {formatDate(key.created_at)}
+                        </Typography>
+                        {key.last_used_at && (
+                          <Typography level="body-xs" color="neutral">
+                            Last used: {formatDate(key.last_used_at)}
+                          </Typography>
+                        )}
+                        {key.expires_at && (
+                          <Typography level="body-xs" color="neutral">
+                            Expires: {formatDate(key.expires_at)}
+                          </Typography>
+                        )}
+                      </Stack>
+                    </Box>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        size="sm"
+                        variant="outlined"
+                        color={key.is_active ? 'neutral' : 'success'}
+                        onClick={() =>
+                          handleToggleActive(key.id, key.is_active)
+                        }
+                      >
+                        {key.is_active ? 'Disable' : 'Enable'}
+                      </Button>
+                      <IconButton
+                        size="sm"
+                        variant="outlined"
+                        color="danger"
+                        onClick={() => handleDeleteKey(key.id)}
+                      >
+                        <TrashIcon size={16} />
+                      </IconButton>
                     </Stack>
-                  </Box>
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      size="sm"
-                      variant="outlined"
-                      color={key.is_active ? 'neutral' : 'success'}
-                      onClick={() => handleToggleActive(key.id, key.is_active)}
-                    >
-                      {key.is_active ? 'Disable' : 'Enable'}
-                    </Button>
-                    <IconButton
-                      size="sm"
-                      variant="outlined"
-                      color="danger"
-                      onClick={() => handleDeleteKey(key.id)}
-                    >
-                      <TrashIcon size={16} />
-                    </IconButton>
                   </Stack>
-                </Stack>
-              </Card>
-            </ListItem>
-          ))}
+                </Card>
+              </ListItem>
+            ))}
         </List>
       )}
 

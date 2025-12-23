@@ -97,8 +97,11 @@ export default function TemplatedCompletion({
       console.log('Error parsing stop strings as JSON');
     }
 
+    const currentModel = experimentInfo?.config?.foundation_filename
+      ? experimentInfo?.config?.foundation_filename
+      : experimentInfo?.config?.foundation;
     const result = await chatAPI.sendCompletion(
-      experimentInfo?.config?.foundation,
+      currentModel,
       experimentInfo?.config?.adaptor,
       completionText,
       generationParameters?.temperature,

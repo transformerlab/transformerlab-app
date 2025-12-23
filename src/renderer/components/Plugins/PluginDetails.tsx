@@ -41,6 +41,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
+import { useNotification } from '../Shared/NotificationSystem';
 
 function ListPluginFiles({
   files,
@@ -149,11 +150,13 @@ function setTheme(editor: any, monaco: any) {
 
 export default function PluginDetails() {
   const { experimentInfo } = useExperimentInfo();
+  const { addNotification } = useNotification();
   let { pluginName } = useParams();
   let { state: plugin } = useLocation();
 
   const [currentFile, setCurrentFile] = useState(null);
   const [newFileModalOpen, setNewFileModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Fetch the file contents
   const { data, error, isLoading, mutate } = useSWR(
@@ -226,6 +229,45 @@ export default function PluginDetails() {
       setCurrentFile(files[0]);
     }
   }, [files]);
+
+  const handleSave = async () => {
+    if (!currentFile || !editorRef.current) return;
+    setIsSaving(true);
+    try {
+      const content = editorRef?.current?.getValue() ?? '';
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Experiment.ScriptSaveFile(
+          experimentInfo?.id,
+          pluginName,
+          currentFile,
+        ),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(content),
+        },
+      );
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to save file');
+      }
+      mutate();
+      addNotification({
+        type: 'success',
+        message: 'File has been saved successfully',
+      });
+    } catch (err: any) {
+      console.error(err);
+      addNotification({
+        type: 'danger',
+        message: `Failed to save file${err?.message ? `: ${err.message}` : ''}`,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (!experimentInfo?.id) {
     return 'No experiment selected.';
@@ -332,24 +374,8 @@ export default function PluginDetails() {
           </Button>
         )}
         <Button
-          disabled={currentFile == null ? true : false}
-          onClick={() => {
-            chatAPI
-              .authenticatedFetch(
-                chatAPI.Endpoints.Experiment.ScriptSaveFile(
-                  experimentInfo?.id,
-                  pluginName,
-                  currentFile,
-                ),
-                {
-                  method: 'POST',
-                  body: editorRef?.current?.getValue(),
-                },
-              )
-              .then(() => {
-                mutate();
-              });
-          }}
+          disabled={currentFile == null || isSaving}
+          onClick={handleSave}
           startDecorator={<SaveIcon />}
         >
           Save

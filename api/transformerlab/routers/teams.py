@@ -1,19 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
+from transformerlab.utils.api_key_utils import mask_key
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole, TeamInvitation, InvitationStatus
 from transformerlab.models.users import current_active_user
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
-from transformerlab.shared.s3_bucket import create_s3_bucket_for_team
+from transformerlab.shared.remote_workspace import create_bucket_for_team
 
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 from sqlalchemy import select, delete, update, func, and_
 from datetime import datetime, timedelta
 from os import getenv
+from PIL import Image
+import io
 
 from lab import Experiment
-from lab.dirs import set_organization_id
+from lab.dirs import set_organization_id, get_workspace_dir
+from lab import storage
 
 
 class TeamCreate(BaseModel):
@@ -60,17 +66,22 @@ class AcceptInvitationRequest(BaseModel):
     token: str
 
 
+class GitHubPATRequest(BaseModel):
+    pat: Optional[str] = None
+
+
 router = APIRouter(tags=["teams"])
 
 
 @router.post("/teams", response_model=TeamResponse)
 async def create_team(
-    team_data: TeamCreate,
+    name: str = Form(...),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
+    logo: Optional[UploadFile] = File(None),
 ):
     # Create team
-    team = Team(name=team_data.name)
+    team = Team(name=name)
     session.add(team)
     await session.commit()
     await session.refresh(team)
@@ -83,7 +94,7 @@ async def create_team(
     # Create S3 bucket if TFL_API_STORAGE_URI is set
     if getenv("TFL_API_STORAGE_URI"):
         try:
-            create_s3_bucket_for_team(team.id, profile_name="transformerlab-s3")
+            create_bucket_for_team(team.id, profile_name="transformerlab-s3")
         except Exception as e:
             # Log error but don't fail team creation if bucket creation fails
             print(f"Warning: Failed to create S3 bucket for team {team.id}: {e}")
@@ -98,6 +109,78 @@ async def create_team(
 
         # Create the default experiment
         Experiment("alpha", create_new=True)
+
+        # Save logo if provided
+        if logo:
+            try:
+                workspace_dir = get_workspace_dir()
+                logo_path = storage.join(workspace_dir, "logo.png")
+
+                # Validate content type
+                if logo.content_type and not logo.content_type.startswith("image/"):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid file type. Only image files are allowed. Got: {logo.content_type}",
+                    )
+
+                # Validate file extension
+                if logo.filename:
+                    filename_lower = logo.filename.lower()
+                    # Extract extension using string operation (works with any filename, not just paths)
+                    if "." in filename_lower:
+                        ext = "." + filename_lower.rpartition(".")[2]
+                    else:
+                        ext = ""
+                    allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
+                    if ext not in allowed_extensions:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Invalid file extension. Allowed extensions: {', '.join(allowed_extensions)}",
+                        )
+
+                # Read and check file size limit (1 MB)
+                contents = await logo.read()
+
+                MAX_LOGO_SIZE = 1 * 1024 * 1024  # 1 MB
+                file_size = len(contents)
+                if file_size > MAX_LOGO_SIZE:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Logo file size ({file_size / (1024 * 1024):.2f} MB) exceeds maximum allowed size (1 MB)",
+                    )
+
+                # Validate and process the image
+                try:
+                    image = Image.open(io.BytesIO(contents))
+                    # Verify it's actually a valid image by attempting to load it
+                    image.verify()
+                    # Reopen after verify() since verify() closes the image
+                    image = Image.open(io.BytesIO(contents))
+                except Exception as e:
+                    raise HTTPException(
+                        status_code=400, detail=f"Invalid image file. Please upload a valid image file. Error: {str(e)}"
+                    )
+
+                # Convert to RGB if necessary (handles RGBA, P, etc.)
+                if image.mode in ("RGBA", "LA", "P"):
+                    # Create a white background
+                    rgb_image = Image.new("RGB", image.size, (255, 255, 255))
+                    if image.mode == "P":
+                        image = image.convert("RGBA")
+                    rgb_image.paste(image, mask=image.split()[-1] if image.mode in ("RGBA", "LA") else None)
+                    image = rgb_image
+                elif image.mode != "RGB":
+                    image = image.convert("RGB")
+
+                # Save as PNG
+                with storage.open(logo_path, "wb") as f:
+                    image.save(f, format="PNG")
+            except HTTPException:
+                # Re-raise HTTPExceptions (validation errors)
+                raise
+            except Exception as e:
+                # Log error but don't fail team creation if logo save fails
+                print(f"Warning: Failed to save logo for team {team.id}: {e}")
     except Exception as e:
         # Log error but don't fail team creation if experiment creation fails
         print(f"Warning: Failed to create default experiment 'alpha' for team {team.id}: {e}")
@@ -727,3 +810,207 @@ async def cancel_invitation(
     await session.commit()
 
     return {"message": "Invitation cancelled successfully"}
+
+
+@router.get("/teams/{team_id}/github_pat")
+async def get_github_pat(
+    team_id: str,
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Get GitHub PAT for the team's workspace.
+    Only team members can view (but it will be masked for security).
+    """
+    # Verify team_id matches the one in header
+    if team_id != user_and_team["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    pat_path = storage.join(get_workspace_dir(), "github_pat.txt")
+
+    try:
+        with storage.open(pat_path, "r") as f:
+            raw_pat = f.read().rstrip("\n")
+    except FileNotFoundError:
+        return {"status": "success", "pat_exists": False}
+    except Exception:
+        return {"status": "error", "message": "Failed to read GitHub PAT"}
+
+    return {
+        "status": "success",
+        "pat_exists": True,
+        "masked_pat": mask_key(raw_pat),
+    }
+
+
+@router.put("/teams/{team_id}/github_pat")
+async def set_github_pat(
+    team_id: str,
+    pat_data: GitHubPATRequest,
+    owner_info=Depends(require_team_owner),
+):
+    """
+    Set GitHub PAT for the team's workspace.
+    Only team owners can set/update the PAT.
+    Stored in workspace/github_pat.txt file.
+    """
+    # Verify team_id matches the one in header
+    if team_id != owner_info["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    workspace_dir = get_workspace_dir()
+    pat_path = storage.join(workspace_dir, "github_pat.txt")
+
+    try:
+        pat = pat_data.pat
+        if pat and pat.strip():
+            # Store the PAT
+            with storage.open(pat_path, "w") as f:
+                f.write(pat.strip())
+            return {"status": "success", "message": "GitHub PAT saved successfully"}
+        else:
+            # Remove the PAT if empty string is provided
+            if storage.exists(pat_path):
+                storage.rm(pat_path)
+            return {"status": "success", "message": "GitHub PAT removed successfully"}
+    except Exception as e:
+        print(f"Error saving GitHub PAT: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save GitHub PAT")
+
+
+@router.get("/teams/{team_id}/logo")
+async def get_team_logo(
+    team_id: str,
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Get team logo. Returns logo.png from workspace if it exists, otherwise returns 404.
+    Any team member can view the logo.
+    """
+    # Verify team_id matches the one in header
+    if team_id != user_and_team["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    workspace_dir = get_workspace_dir()
+    logo_path = storage.join(workspace_dir, "logo.png")
+
+    if not storage.exists(logo_path):
+        raise HTTPException(status_code=404, detail="Team logo not found")
+
+    try:
+        # For local filesystem, return file directly
+        if not workspace_dir.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+            return FileResponse(logo_path, media_type="image/png")
+        else:
+            # For remote storage, read and return as bytes
+            with storage.open(logo_path, "rb") as f:
+                return Response(content=f.read(), media_type="image/png")
+    except Exception as e:
+        print(f"Error reading team logo: {e}")
+        raise HTTPException(status_code=500, detail="Failed to read team logo")
+
+
+@router.put("/teams/{team_id}/logo")
+async def set_team_logo(
+    team_id: str,
+    logo: UploadFile = File(...),
+    owner_info=Depends(require_team_owner),
+):
+    """
+    Set team logo. Only team owners can set/update the logo.
+    Stored in workspace/logo.png file.
+    """
+    # Verify team_id matches the one in header
+    if team_id != owner_info["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    workspace_dir = get_workspace_dir()
+    logo_path = storage.join(workspace_dir, "logo.png")
+
+    try:
+        # Validate content type
+        if logo.content_type and not logo.content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=400, detail=f"Invalid file type. Only image files are allowed. Got: {logo.content_type}"
+            )
+
+        # Validate file extension
+        if logo.filename:
+            filename_lower = logo.filename.lower()
+            # Extract extension using string operation (works with any filename, not just paths)
+            if "." in filename_lower:
+                ext = "." + filename_lower.rpartition(".")[2]
+            else:
+                ext = ""
+            allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
+            if ext not in allowed_extensions:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid file extension. Allowed extensions: {', '.join(allowed_extensions)}",
+                )
+
+        # Read and check file size limit (1 MB)
+        contents = await logo.read()
+
+        MAX_LOGO_SIZE = 1 * 1024 * 1024  # 1 MB
+        file_size = len(contents)
+        if file_size > MAX_LOGO_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Logo file size ({file_size / (1024 * 1024):.2f} MB) exceeds maximum allowed size (1 MB)",
+            )
+
+        # Validate and process the image
+        try:
+            image = Image.open(io.BytesIO(contents))
+            # Verify it's actually a valid image by attempting to load it
+            image.verify()
+            # Reopen after verify() since verify() closes the image
+            image = Image.open(io.BytesIO(contents))
+        except Exception as e:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid image file. Please upload a valid image file. Error: {str(e)}"
+            )
+
+        # Convert to RGB if necessary (handles RGBA, P, etc.)
+        if image.mode in ("RGBA", "LA", "P"):
+            # Create a white background
+            rgb_image = Image.new("RGB", image.size, (255, 255, 255))
+            if image.mode == "P":
+                image = image.convert("RGBA")
+            rgb_image.paste(image, mask=image.split()[-1] if image.mode in ("RGBA", "LA") else None)
+            image = rgb_image
+        elif image.mode != "RGB":
+            image = image.convert("RGB")
+
+        # Save as PNG
+        with storage.open(logo_path, "wb") as f:
+            image.save(f, format="PNG")
+
+        return {"status": "success", "message": "Team logo saved successfully"}
+    except Exception as e:
+        print(f"Error saving team logo: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save team logo")
+
+
+@router.delete("/teams/{team_id}/logo")
+async def delete_team_logo(
+    team_id: str,
+    owner_info=Depends(require_team_owner),
+):
+    """
+    Delete team logo. Only team owners can delete the logo.
+    """
+    # Verify team_id matches the one in header
+    if team_id != owner_info["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    workspace_dir = get_workspace_dir()
+    logo_path = storage.join(workspace_dir, "logo.png")
+
+    try:
+        if storage.exists(logo_path):
+            storage.rm(logo_path)
+        return {"status": "success", "message": "Team logo deleted successfully"}
+    except Exception as e:
+        print(f"Error deleting team logo: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete team logo")

@@ -7,7 +7,6 @@ from .labresource import BaseLabResource
 from .job import Job
 import json
 from . import storage
-import fsspec
 
 
 class Experiment(BaseLabResource):
@@ -23,7 +22,10 @@ class Experiment(BaseLabResource):
     _cache_rebuild_thread = None
 
     def __init__(self, experiment_id, create_new=False):
-        self.id = experiment_id
+        # For consistency and simplicity, let's edit experiment name to match
+        # the directory (which requires experiment_id)
+        self.id = secure_filename(str(experiment_id))
+
         # Auto-initialize if create_new=True and experiment doesn't exist
         if create_new and (not storage.exists(self.get_dir()) or not storage.exists(self._get_json_file())):
             self._initialize()
@@ -96,7 +98,7 @@ class Experiment(BaseLabResource):
                     if storage.isdir(exp_path):
                         index_file = storage.join(exp_path, "index.json")
                         if storage.exists(index_file):
-                            with storage.open(index_file, "r") as f:
+                            with storage.open(index_file, "r", uncached=True) as f:
                                 data = json.load(f)
                             experiments.append(data)
                 except Exception:
@@ -159,10 +161,11 @@ class Experiment(BaseLabResource):
                 if job_id in cached_jobs:
                     # Use cached data for completed jobs
                     job_json = cached_jobs[job_id]
-                    # Check status of job if not RUNNING, LAUNCHING or NOT_STARTED, then remove from cache
+                    # Check status of job if not RUNNING, LAUNCHING, INTERACTIVE or NOT_STARTED, then remove from cache
                     if job_json.get("status", "") in [
                         "RUNNING",
                         "LAUNCHING",
+                        "INTERACTIVE",
                         "NOT_STARTED",
                     ]:
                         old_status = job_json.get("status", "")
@@ -266,13 +269,15 @@ class Experiment(BaseLabResource):
         results = {}
         cached_jobs = {}
 
-        # Create filesystem override if workspace_dir is an S3 URI (for background threads)
+        # Create uncached filesystem override if workspace_dir is provided (for background threads and fresh data)
         fs_override = None
-        if workspace_dir and workspace_dir.startswith(("s3://", "gs://", "abfs://", "gcs://")):
-            from .storage import _AWS_PROFILE
-
-            storage_options = {"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-            fs_override, _token, _paths = fsspec.get_fs_token_paths(workspace_dir, storage_options=storage_options)
+        if workspace_dir:
+            # Use uncached filesystem to avoid stale directory listings and file reads
+            fs_override = storage._get_uncached_filesystem(workspace_dir)
+        else:
+            # For local workspace, also use uncached to ensure fresh data
+            jobs_dir = get_jobs_dir()
+            fs_override = storage._get_uncached_filesystem(jobs_dir)
 
         try:
             # Use provided jobs_dir or get current one

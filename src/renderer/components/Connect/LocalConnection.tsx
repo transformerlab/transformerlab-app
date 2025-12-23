@@ -12,8 +12,12 @@ import {
   Typography,
 } from '@mui/joy';
 import { CheckCircle2, InfoIcon, TimerIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { useCheckLocalConnection } from 'renderer/lib/transformerlab-api-sdk';
+import { useEffect, useState, useRef } from 'react';
+import {
+  useCheckLocalConnection,
+  apiHealthz,
+} from 'renderer/lib/transformerlab-api-sdk';
+import { useAuth } from '../../lib/authContext';
 
 import LargeTooltip from './LargeTooltip';
 import LogViewer from './LogViewer';
@@ -108,6 +112,8 @@ function InstallStepper({ setServer }) {
   const [installingPlugins, setInstallingPlugins] = useState(false);
 
   const [checkIfServerRunning, setCheckIfServerRunning] = useState(0);
+  const [shouldAttemptAutologin, setShouldAttemptAutologin] = useState(false);
+  const autologinAttemptedRef = useRef(false);
 
   const [thinking, setThinking] = useState(false);
   const {
@@ -115,6 +121,7 @@ function InstallStepper({ setServer }) {
     error: serverError,
     mutate: mutateLocalConnectionCheck,
   } = useCheckLocalConnection();
+  const authContext = useAuth();
 
   // This useEffect will be triggered on every server update -- we use this to check
   // if the server is running on port 8338 and if so, display the Connect button
@@ -126,6 +133,31 @@ function InstallStepper({ setServer }) {
 
     if (server && !serverError) {
       console.log('The server is up; I think things are good');
+
+      // Set the API URL and connection immediately when server is detected
+      const fullServer = 'http://' + 'localhost' + ':' + '8338' + '/';
+      window.TransformerLab = {};
+      window.TransformerLab.API_URL = fullServer;
+      setServer(fullServer);
+
+      // Attempt auto-login in single-user mode as soon as server is detected
+      if (
+        process.env.MULTIUSER !== 'true' &&
+        authContext &&
+        !authContext.isAuthenticated
+      ) {
+        (async () => {
+          try {
+            console.log(
+              'Attempting auto-login for single user mode as soon as server is detected',
+            );
+            await authContext.login('admin@example.com', 'admin123');
+          } catch (error) {
+            console.error('Auto-login failed after server detection:', error);
+          }
+        })();
+      }
+
       setActiveStep(Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8338') + 1);
       setThinking(false);
       return;
@@ -135,7 +167,7 @@ function InstallStepper({ setServer }) {
         stepsFunctions[Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8338')]();
       }
     }
-  }, [server, activeStep, userRequestedInstall]);
+  }, [server, activeStep, userRequestedInstall, authContext, setServer]);
 
   // Step 1 - Check if installed
   useEffect(() => {
@@ -331,17 +363,38 @@ function InstallStepper({ setServer }) {
     })();
   }, [activeStep, userRequestedInstall]);
 
-  function tryToConnect() {
+  async function tryToConnect() {
     const fullServer = 'http://' + 'localhost' + ':' + '8338' + '/';
     window.TransformerLab = {};
     window.TransformerLab.API_URL = fullServer;
     setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED'));
     setServer(fullServer);
+
+    // Attempt auto-login in single-user mode after successful connection
+    if (
+      process.env.MULTIUSER !== 'true' &&
+      authContext &&
+      !authContext.isAuthenticated
+    ) {
+      try {
+        console.log(
+          'Attempting auto-login for single user mode after local connection',
+        );
+        await authContext.login('admin@example.com', 'admin123');
+      } catch (error) {
+        console.error('Auto-login failed after local connection:', error);
+      }
+    }
   }
 
   async function runServer() {
     console.log('Start Server Clicked');
     setThinking(true);
+
+    // Set API URL early so it's available when server starts
+    const fullServer = 'http://' + 'localhost' + ':' + '8338' + '/';
+    window.TransformerLab = {};
+    window.TransformerLab.API_URL = fullServer;
 
     // before starting the process, check one more time if it is running
     if (server && !serverError) {
@@ -364,6 +417,10 @@ function InstallStepper({ setServer }) {
     }
 
     console.log('Server has started');
+
+    // Start attempting autologin once server process has started
+    setShouldAttemptAutologin(true);
+    autologinAttemptedRef.current = false;
 
     setCheckIfServerRunning(checkIfServerRunning + 1);
   }
@@ -595,6 +652,49 @@ function InstallStepper({ setServer }) {
   const logTriggerFunction = (data) => {
     console.log('Log Trigger String Happened: ' + data);
     if (data.includes('Uvicorn running on')) {
+      // Start attempting autologin when server log shows it's running
+      setShouldAttemptAutologin(true);
+
+      // Ensure API URL is set
+      const fullServer = 'http://' + 'localhost' + ':' + '8338' + '/';
+      if (!window.TransformerLab) {
+        window.TransformerLab = {};
+      }
+      window.TransformerLab.API_URL = fullServer;
+
+      // Attempt autologin immediately after a short delay (give server time to fully start)
+      if (
+        process.env.MULTIUSER !== 'true' &&
+        authContext &&
+        !authContext.isAuthenticated &&
+        !autologinAttemptedRef.current
+      ) {
+        setTimeout(async () => {
+          try {
+            const healthz = await apiHealthz();
+            if (healthz !== null) {
+              console.log(
+                'Server detected via log, attempting auto-login immediately',
+              );
+              autologinAttemptedRef.current = true;
+              try {
+                await authContext.login('admin@example.com', 'admin123');
+                console.log('Auto-login successful!');
+                // Set the server connection to close the modal
+                setServer(fullServer);
+              } catch (error) {
+                console.error('Auto-login failed:', error);
+                // Reset flag so polling can retry
+                autologinAttemptedRef.current = false;
+              }
+            }
+          } catch (error) {
+            // Server not ready yet, polling will handle it
+            console.log('Server not ready yet, polling will continue');
+          }
+        }, 500); // 500ms delay to ensure server is fully ready
+      }
+
       // call with a 150ms delay just to give the server some time to start up
       setTimeout(() => {
         mutateLocalConnectionCheck();
@@ -607,6 +707,73 @@ function InstallStepper({ setServer }) {
   const [intervalId, setIntervalId] = useState(null);
   const [dismissItsTakingAWhileModal, setDismissItsTakingAWhileModal] =
     useState(false);
+
+  // Poll for server and attempt autologin once server is ready
+  useEffect(() => {
+    if (!shouldAttemptAutologin || autologinAttemptedRef.current) {
+      return;
+    }
+
+    if (process.env.MULTIUSER === 'true') {
+      return;
+    }
+
+    if (!authContext || authContext.isAuthenticated) {
+      return;
+    }
+
+    // Ensure API URL is set
+    const fullServer = 'http://' + 'localhost' + ':' + '8338' + '/';
+    if (!window.TransformerLab) {
+      window.TransformerLab = {};
+    }
+    window.TransformerLab.API_URL = fullServer;
+
+    let pollCount = 0;
+    const maxAttempts = 30; // Try for up to 30 seconds (30 * 1 second intervals)
+    const pollInterval = 1000; // Poll every 1 second
+
+    console.log('Starting autologin polling...');
+
+    const pollIntervalId = setInterval(async () => {
+      pollCount += 1;
+
+      try {
+        const healthz = await apiHealthz();
+        if (healthz !== null) {
+          // Server is ready, attempt autologin
+          console.log(
+            'Server is ready, attempting auto-login for single user mode',
+          );
+          autologinAttemptedRef.current = true;
+          clearInterval(pollIntervalId);
+          setShouldAttemptAutologin(false);
+
+          try {
+            await authContext.login('admin@example.com', 'admin123');
+            console.log('Auto-login successful!');
+            // Set the server connection to close the modal
+            setServer(fullServer);
+          } catch (error) {
+            console.error('Auto-login failed:', error);
+          }
+        }
+      } catch (error) {
+        // Server not ready yet, keep polling
+        if (pollCount >= maxAttempts) {
+          console.log(
+            'Autologin polling timeout - server did not become ready',
+          );
+          clearInterval(pollIntervalId);
+          setShouldAttemptAutologin(false);
+        }
+      }
+    }, pollInterval);
+
+    return () => {
+      clearInterval(pollIntervalId);
+    };
+  }, [shouldAttemptAutologin, authContext, setServer]);
 
   useEffect(() => {
     let id;

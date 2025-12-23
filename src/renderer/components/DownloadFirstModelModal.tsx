@@ -82,8 +82,8 @@ export default function DownloadFirstModelModal({ open, setOpen, server }) {
           <Typography level="body-sm">
             We recommend starting with one of the following small models. You
             can also skip this and go to the <BoxesIcon size="12px" />{' '}
-            <b>Model Zoo</b> where you can download your own model, or import
-            from elsewhere on your system.
+            <b>Model Registry</b> where you can download your own model, or
+            import from elsewhere on your system.
           </Typography>
           <hr />
           <Typography level="body-lg" sx={{ fontSize: '20px' }}>
