@@ -330,62 +330,36 @@ export default function EditTaskModal({
     }
   }, [providers, selectedProviderId]);
 
-  // Keep Monaco editors in sync if the state changes after mount
-  React.useEffect(
-    function () {
-      if (!task) return function () {};
-      if (
-        setupEditorRef.current &&
-        typeof setupEditorRef.current.setValue === 'function'
-      ) {
-        setupEditorRef.current.setValue(setup ?? '');
-      } else {
-        const timeout = setTimeout(function () {
-          if (
-            setupEditorRef.current &&
-            typeof setupEditorRef.current.setValue === 'function'
-          ) {
-            setupEditorRef.current.setValue(setup ?? '');
-          } else {
-            alert('Error: Failed to load the setup editor.');
-          }
-        }, 300);
-        return function () {
-          clearTimeout(timeout);
-        };
-      }
-      return function () {};
-    },
-    [task, setup, setupEditorRef],
-  );
+  // Keep Monaco editors in sync if the state changes after mount.
+  // We avoid showing blocking alerts here because Monaco can mount lazily
+  // (especially on first open or when switching from YAML -> GUI view).
+  React.useEffect(() => {
+    if (!task || isYamlMode) return;
+    if (!setupEditorRef.current) return;
 
-  React.useEffect(
-    function () {
-      if (!task) return function () {};
-      if (
-        commandEditorRef.current &&
-        typeof commandEditorRef.current.setValue === 'function'
-      ) {
-        commandEditorRef.current.setValue(command ?? '');
-      } else {
-        const timeout = setTimeout(function () {
-          if (
-            commandEditorRef.current &&
-            typeof commandEditorRef.current.setValue === 'function'
-          ) {
-            commandEditorRef.current.setValue(command ?? '');
-          } else {
-            alert('Error: Failed to load the command editor.');
-          }
-        }, 300);
-        return function () {
-          clearTimeout(timeout);
-        };
+    try {
+      if (typeof setupEditorRef.current.setValue === 'function') {
+        setupEditorRef.current.setValue(setup ?? '');
       }
-      return function () {};
-    },
-    [task, command, commandEditorRef],
-  );
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('Failed to sync setup editor value:', e);
+    }
+  }, [task, setup, isYamlMode]);
+
+  React.useEffect(() => {
+    if (!task || isYamlMode) return;
+    if (!commandEditorRef.current) return;
+
+    try {
+      if (typeof commandEditorRef.current.setValue === 'function') {
+        commandEditorRef.current.setValue(command ?? '');
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('Failed to sync command editor value:', e);
+    }
+  }, [task, command, isYamlMode]);
 
   // Simple YAML string converter
   const convertToYamlString = (obj: any, indent = 0): string => {
