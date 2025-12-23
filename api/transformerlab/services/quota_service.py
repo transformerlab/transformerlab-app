@@ -276,19 +276,16 @@ async def ensure_quota_recorded_for_completed_job(
 
     # Get the job
     job = job_service.job_get(job_id)
-    print(f"Job: {job}")
     if not job:
         return False
 
     # Only track REMOTE jobs
     if job.get("type") != "REMOTE":
-        print(f"Job is not a REMOTE job: {job}")
         return False
 
     # Only process jobs in terminal states
     status = job.get("status", "")
     if status not in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
-        print(f"Job is not in terminal state: {status}")
         return False
 
     # Check if quota usage already recorded for this job
@@ -366,7 +363,6 @@ async def ensure_quota_recorded_for_completed_job(
 
         user_id_str = str(user.id)
         experiment_id = job.get("experiment_id", "")
-        print(f"Experiment id: {experiment_id}")
 
         # Record quota usage
         await record_quota_usage(
@@ -377,7 +373,6 @@ async def ensure_quota_recorded_for_completed_job(
             experiment_id=experiment_id,
             minutes_used=minutes_used,
         )
-        print("Quota usage recorded")
 
         # Convert quota hold to CONVERTED status
         await convert_quota_hold(session, job_id)
