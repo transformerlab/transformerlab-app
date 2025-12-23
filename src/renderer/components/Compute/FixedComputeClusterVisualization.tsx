@@ -8,39 +8,63 @@ import Chip from '@mui/joy/Chip';
 import LinearProgress from '@mui/joy/LinearProgress';
 import Tooltip from '@mui/joy/Tooltip';
 import Stack from '@mui/joy/Stack';
-import { useTheme } from '@mui/joy/styles';
+import { InfoIcon } from 'lucide-react';
 
-// --- Types ---
+interface NodeResources {
+  cpus_total?: number;
+  cpus_allocated?: number;
+  // Support both explicit GPU records and potential future formats
+  gpus?: Record<string, number>;
+  gpus_free?: Record<string, number>;
+  memory_gb_total?: number;
+  memory_gb_allocated?: number;
+}
+
 interface ClusterNode {
   node_name: string;
-  is_fixed: boolean;
-  is_active: boolean;
-  state: string;
-  reason: string;
-  resources: {
-    cpus_total: number;
-    cpus_allocated: number;
-    gpus: Record<string, number>;
-    gpus_free: Record<string, number>;
-    memory_gb_total: number;
-    memory_gb_allocated: number;
-  };
+  is_fixed?: boolean;
+  is_active?: boolean;
+  state: string; // "alive", "AVAILABLE", "STOPPED", etc.
+  reason?: string;
+  resources: NodeResources;
 }
 
-interface ClusterProps {
-  cluster: {
-    cluster_id: string;
-    cluster_name: string;
-    backend_type: string;
-    max_nodes: number;
-    head_node_ip: string;
-    nodes: ClusterNode[];
-  };
+interface ClusterData {
+  cluster_id: string;
+  cluster_name: string;
+  backend_type: string;
+  max_nodes: number;
+  head_node_ip?: string | null;
+  nodes: ClusterNode[];
 }
 
-// --- Sub-components ---
+// --- 2. Helper: Normalize Data Logic ---
 
-// 1. Tiny Square Grid Visualization
+const getStatusColor = (state: string, isActive: boolean) => {
+  const s = state.toUpperCase();
+  // Map various backend states to Joy UI colors
+  if (s === 'ALIVE' || s === 'AVAILABLE' || isActive) return 'success';
+  if (s === 'BUSY' || s === 'ALLOCATED') return 'primary';
+  if (s === 'STOPPED' || s === 'OFFLINE') return 'neutral';
+  return 'danger'; // Error states
+};
+
+const calculateGpuStats = (resources: NodeResources) => {
+  const gpus = resources.gpus || {};
+  const gpusFree = resources.gpus_free || {};
+
+  const total = Object.values(gpus).reduce((a, b) => a + b, 0);
+  const free = Object.values(gpusFree).reduce((a, b) => a + b, 0);
+  const used = total - free;
+
+  // Get GPU Model Name (e.g., "RTX3090") for label
+  const modelName = Object.keys(gpus)[0] || 'GPU';
+
+  return { total, used, modelName };
+};
+
+// --- 3. Visual Components ---
+
 const ResourceGrid = ({
   total,
   used,
@@ -52,18 +76,19 @@ const ResourceGrid = ({
   type: 'cpu' | 'gpu';
   label: string;
 }) => {
-  if (total === 0) return null;
+  // Gracefully hide if resource is not reported (0)
+  if (!total || total <= 0) return null;
 
   const squares = Array.from({ length: total }, (_, i) => {
     const isUsed = i < used;
-    // GPU = Purple (custom), CPU = Primary (Blue)
+    // Purple for GPU, Blue for CPU
     const activeColor = type === 'gpu' ? '#9333ea' : 'primary.500';
     const inactiveColor = 'neutral.200';
 
     return (
       <Tooltip
         key={i}
-        title={`${label} #${i + 1}: ${isUsed ? 'Allocated' : 'Free'}`}
+        title={`${label} #${i + 1}: ${isUsed ? 'Allocated' : 'Available'}`}
         variant="soft"
       >
         <Box
@@ -99,11 +124,18 @@ const ResourceGrid = ({
   );
 };
 
-// 2. Memory Progress Bar
-const MemoryStats = ({ used, total }: { used: number; total: number }) => {
+const MemoryStats = ({
+  used = 0,
+  total = 0,
+}: {
+  used?: number;
+  total?: number;
+}) => {
+  // Hide if memory is 0 (SkyPilot case)
+  if (!total || total <= 0) return null;
+
   const percentage = Math.min((used / total) * 100, 100);
 
-  // Joy UI color palettes logic
   let color: 'success' | 'warning' | 'danger' | 'primary' = 'success';
   if (percentage > 90) color = 'danger';
   else if (percentage > 70) color = 'warning';
@@ -129,39 +161,34 @@ const MemoryStats = ({ used, total }: { used: number; total: number }) => {
         value={percentage}
         color={color}
         size="sm"
-        sx={{ bgcolor: 'background.level2' }}
+        sx={{ bgcolor: 'background.level2', borderRadius: 'sm' }}
       />
     </Box>
   );
 };
 
-// 3. Single Node Card
 const NodeCard = ({ node }: { node: ClusterNode }) => {
-  const isActive = node.state === 'alive' || node.is_active;
-  const statusColor = isActive ? 'success' : 'neutral';
+  // Determine if active based on 'state' string OR 'is_active' bool
+  const isActiveBool = node.is_active === true;
+  const statusColor = getStatusColor(node.state, isActiveBool);
 
-  // Calculate GPU logic
-  const totalGpus = Object.values(node.resources.gpus).reduce(
-    (a, b) => a + b,
-    0,
-  );
-  const freeGpus = Object.values(node.resources.gpus_free).reduce(
-    (a, b) => a + b,
-    0,
-  );
-  const allocatedGpus = totalGpus - freeGpus;
+  // Resource Calculations
+  const {
+    total: gpuTotal,
+    used: gpuUsed,
+    modelName: gpuModel,
+  } = calculateGpuStats(node.resources);
+  const cpuTotal = node.resources.cpus_total || 0;
+  const cpuUsed = node.resources.cpus_allocated || 0;
 
   return (
     <Card
       variant="outlined"
       sx={{
-        width: 300,
+        minWidth: 280,
         boxShadow: 'sm',
-        borderColor: isActive
-          ? 'neutral.outlinedBorder'
-          : 'neutral.outlinedBorder',
-        backgroundColor: isActive ? 'background.surface' : 'background.level1',
-        opacity: isActive ? 1 : 0.8,
+        backgroundColor: 'background.surface',
+        borderColor: 'neutral.outlinedBorder',
         transition: 'transform 0.2s, box-shadow 0.2s',
         '&:hover': {
           borderColor: 'primary.300',
@@ -173,111 +200,156 @@ const NodeCard = ({ node }: { node: ClusterNode }) => {
       <Stack
         direction="row"
         justifyContent="space-between"
-        alignItems="center"
+        alignItems="flex-start"
         mb={1}
       >
         <Box>
-          <Typography level="title-md" fontWeight="bold">
+          <Typography level="title-md" fontWeight="bold" sx={{ mb: 0.5 }}>
             {node.node_name}
           </Typography>
-          <Stack direction="row" alignItems="center" gap={1}>
-            <Box
-              sx={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                bgcolor: `${statusColor}.500`,
-              }}
-            />
-            <Typography level="body-xs" color={statusColor}>
-              {node.state}
-            </Typography>
-          </Stack>
+          <Chip
+            variant="soft"
+            color={statusColor}
+            size="sm"
+            startDecorator={
+              <Box
+                sx={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  bgcolor: 'currentColor',
+                }}
+              />
+            }
+          >
+            {node.state}
+          </Chip>
         </Box>
         {node.is_fixed && (
-          <Chip size="sm" variant="soft" color="neutral">
+          <Chip
+            size="sm"
+            variant="plain"
+            color="neutral"
+            sx={{ fontSize: 'xs', textTransform: 'uppercase' }}
+          >
             Fixed
           </Chip>
         )}
       </Stack>
 
-      <Divider sx={{ mb: 2 }} />
+      <Divider sx={{ my: 1.5, opacity: 0.5 }} />
 
-      {/* Resources */}
+      {/* Resources Body */}
       <Box sx={{ flexGrow: 1 }}>
-        <ResourceGrid
-          total={totalGpus}
-          used={allocatedGpus}
-          type="gpu"
-          label="GPUs"
-        />
-        <ResourceGrid
-          total={node.resources.cpus_total}
-          used={node.resources.cpus_allocated}
-          type="cpu"
-          label="CPUs"
-        />
-        <MemoryStats
-          used={node.resources.memory_gb_allocated}
-          total={node.resources.memory_gb_total}
-        />
+        {/* If NO resources are reported at all, show a placeholder */}
+        {gpuTotal === 0 && cpuTotal === 0 && !node.resources.memory_gb_total ? (
+          <Typography
+            level="body-xs"
+            sx={{
+              fontStyle: 'italic',
+              color: 'text.tertiary',
+              textAlign: 'center',
+              py: 2,
+            }}
+          >
+            No resource metrics available
+          </Typography>
+        ) : (
+          <>
+            <ResourceGrid
+              total={gpuTotal}
+              used={gpuUsed}
+              type="gpu"
+              label={`${gpuModel}s`}
+            />
+            <ResourceGrid
+              total={cpuTotal}
+              used={cpuUsed}
+              type="cpu"
+              label="CPUs"
+            />
+            <MemoryStats
+              used={node.resources.memory_gb_allocated}
+              total={node.resources.memory_gb_total}
+            />
+          </>
+        )}
       </Box>
 
-      {/* Footer Reason */}
+      {/* Footer / Reason (Only if present) */}
       {node.reason && (
         <Sheet
           variant="soft"
-          color="warning"
-          sx={{ mt: 2, p: 1, borderRadius: 'sm', fontSize: 'xs' }}
+          color="neutral"
+          sx={{ mt: 2, p: 1, borderRadius: 'sm' }}
         >
-          <Typography level="body-xs" sx={{ color: 'text.secondary' }}>
-            Note: {node.reason}
-          </Typography>
+          <Stack direction="row" gap={1} alignItems="start">
+            <InfoIcon
+              style={{ fontSize: 16, color: 'text.secondary', marginTop: 0.2 }}
+            />
+            <Typography level="body-xs" sx={{ color: 'text.secondary' }}>
+              {node.reason}
+            </Typography>
+          </Stack>
         </Sheet>
       )}
     </Card>
   );
 };
 
-// --- Main Component ---
+// --- 4. Main Export ---
 
-export default function FixedComputeClusterVisualization({
+export default function UnifiedComputeCluster({
   cluster,
-}: ClusterProps) {
+}: {
+  cluster: ClusterData;
+}) {
   return (
     <Sheet
       sx={{
-        p: 4,
+        p: { xs: 2, md: 4 },
         display: 'flex',
         flexDirection: 'column',
         gap: 3,
       }}
     >
-      {/* Header Section */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <Stack direction="row" alignItems="center" gap={2}>
-          <Typography level="h2">{cluster?.cluster_name}</Typography>
-          <Chip variant="outlined" color="primary" size="sm">
-            {cluster?.cluster_id}
+      {/* Cluster Header */}
+      <Box>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          alignItems={{ sm: 'center' }}
+          gap={2}
+          mb={1}
+        >
+          <Typography level="h2">{cluster.cluster_name}</Typography>
+          <Chip
+            variant="outlined"
+            color="primary"
+            size="sm"
+            sx={{ fontFamily: 'monospace' }}
+          >
+            {cluster.cluster_id}
           </Chip>
         </Stack>
 
-        <Stack direction="row" gap={2} alignItems="center">
+        <Stack direction="row" gap={2} alignItems="center" flexWrap="wrap">
           <Chip variant="soft" color="primary" size="sm">
-            Type: {cluster?.backend_type}
+            {cluster.backend_type}
           </Chip>
+          {cluster.head_node_ip && (
+            <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
+              Head IP: {cluster.head_node_ip}
+            </Typography>
+          )}
           <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
-            Head IP: {cluster?.head_node_ip}
-          </Typography>
-          <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
-            Nodes: {cluster?.nodes.length} / {cluster?.max_nodes}
+            Nodes: {cluster.nodes.length} / {cluster.max_nodes}
           </Typography>
         </Stack>
       </Box>
 
       <Divider />
 
-      {/* Node Grid */}
+      {/* Grid Layout */}
       <Box
         sx={{
           display: 'grid',

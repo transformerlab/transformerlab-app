@@ -380,9 +380,7 @@ const Resources = () => {
                   </Table>
                 </Sheet>
               )}
-              {fixedClusters?.backend_type == 'SLURM' && (
-                <FixedComputeClusterVisualization cluster={fixedClusters[0]} />
-              )}
+              <FixedComputeClusterVisualization cluster={fixedClusters[0]} />
             </CardContent>
           </Card>
         </Grid>
