@@ -75,13 +75,6 @@ export default function EditTaskModal({
   const [parameters, setParameters] = React.useState<
     Array<{ key: string; value: string; valueType: 'string' | 'json' }>
   >([{ key: '', value: '', valueType: 'string' }]);
-  const [fileMounts, setFileMounts] = React.useState<
-    Array<{
-      remotePath: string;
-      file?: File | null;
-      storedPath?: string;
-    }>
-  >([{ remotePath: '', file: null, storedPath: undefined }]);
   const [saving, setSaving] = React.useState(false);
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
   const [githubEnabled, setGithubEnabled] = React.useState(false);
@@ -217,25 +210,6 @@ export default function EditTaskModal({
       );
     } else {
       setParameters([{ key: '', value: '', valueType: 'string' }]);
-    }
-
-    // Initialize file_mounts
-    const fileMounts = isTemplate ? taskAny.file_mounts : cfg.file_mounts;
-    if (fileMounts && typeof fileMounts === 'object') {
-      const fmArray = Object.entries(fileMounts).map(
-        ([remotePath, storedPath]) => ({
-          remotePath,
-          file: null,
-          storedPath: String(storedPath),
-        }),
-      );
-      setFileMounts(
-        fmArray.length > 0
-          ? fmArray
-          : [{ remotePath: '', file: null, storedPath: undefined }],
-      );
-    } else {
-      setFileMounts([{ remotePath: '', file: null, storedPath: undefined }]);
     }
 
     // Initialize GitHub fields
@@ -416,7 +390,14 @@ export default function EditTaskModal({
     };
 
     // Resources
-    if (selectedProviderId || cpus || memory || diskSpace || accelerators || numNodes) {
+    if (
+      selectedProviderId ||
+      cpus ||
+      memory ||
+      diskSpace ||
+      accelerators ||
+      numNodes
+    ) {
       yamlData.resources = {};
       if (selectedProviderId) {
         const provider = providers.find((p) => p.id === selectedProviderId);
@@ -424,14 +405,11 @@ export default function EditTaskModal({
           yamlData.resources.compute_provider = provider.name;
         }
       }
-      if (cpus)
-        yamlData.resources.cpus = parseInt(cpus) || cpus;
-      if (memory)
-        yamlData.resources.memory = parseInt(memory) || memory;
+      if (cpus) yamlData.resources.cpus = parseInt(cpus) || cpus;
+      if (memory) yamlData.resources.memory = parseInt(memory) || memory;
       if (diskSpace)
         yamlData.resources.disk_space = parseInt(diskSpace) || diskSpace;
-      if (accelerators)
-        yamlData.resources.accelerators = accelerators;
+      if (accelerators) yamlData.resources.accelerators = accelerators;
       if (numNodes)
         yamlData.resources.num_nodes = parseInt(numNodes) || numNodes;
     }
@@ -596,7 +574,7 @@ export default function EditTaskModal({
       const yamlData = parseYaml(yamlContent);
 
       if (!yamlData) {
-        throw new Error("YAML content is empty or invalid");
+        throw new Error('YAML content is empty or invalid');
       }
 
       // Support both old format (with "task:" key) and new format (direct fields)
@@ -863,64 +841,6 @@ export default function EditTaskModal({
       }
     });
 
-    // Upload any files for file mounts and build mapping {remotePath: storedPath}
-    const fileMountsObj: Record<string, string> = {};
-    for (let i = 0; i < fileMounts.length; i += 1) {
-      const fm = fileMounts[i];
-      const remotePath = fm.remotePath.trim();
-      if (!remotePath) continue;
-
-      // If we already have a storedPath and no new file, reuse it
-      if (!fm.file && fm.storedPath) {
-        fileMountsObj[remotePath] = fm.storedPath;
-        continue;
-      }
-
-      if (!fm.file) continue;
-      if (!selectedProviderId) continue;
-
-      try {
-        const formData = new FormData();
-        formData.append('file', fm.file);
-        // Use 0 as template ID for now; stored path is independent of ID
-        const uploadUrl = chatAPI.Endpoints.ComputeProvider.UploadTemplateFile(
-          selectedProviderId,
-          0,
-        );
-        const resp = await chatAPI.authenticatedFetch(uploadUrl, {
-          method: 'POST',
-          body: formData,
-        });
-        if (!resp.ok) {
-          const txt = await resp.text();
-          addNotification({
-            type: 'danger',
-            message: `Failed to upload file for mount ${remotePath}: ${txt}`,
-          });
-          setSaving(false);
-          return;
-        }
-        const json = await resp.json();
-        if (json.status !== 'success' || !json.stored_path) {
-          addNotification({
-            type: 'danger',
-            message: `Upload for mount ${remotePath} did not return stored_path`,
-          });
-          setSaving(false);
-          return;
-        }
-        fileMountsObj[remotePath] = json.stored_path;
-      } catch (err) {
-        console.error(err);
-        addNotification({
-          type: 'danger',
-          message: `Failed to upload file for mount ${remotePath}`,
-        });
-        setSaving(false);
-        return;
-      }
-    }
-
     // For templates, all fields are stored directly (not nested in config)
     // Check if it's a template (no config or config is empty/doesn't have nested structure)
     const existingConfig = SafeJSONParse(task.config, {});
@@ -973,8 +893,6 @@ export default function EditTaskModal({
       parameters:
         Object.keys(parametersObj).length > 0 ? parametersObj : undefined,
       provider_id: selectedProviderId,
-      file_mounts:
-        Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
       // GitHub fields - preserve from existing template or use current values
       github_repo_url: isTemplate
         ? taskAny.github_repo_url || githubRepoUrl || undefined
@@ -1491,79 +1409,6 @@ export default function EditTaskModal({
                     Task parameters accessible via lab.get_config() in your
                     script. Use JSON type for complex objects.
                   </FormHelperText>
-                </FormControl>
-
-                <FormControl sx={{ mt: 2 }}>
-                  <FormLabel>File Mounts</FormLabel>
-                  <FormHelperText>
-                    For each mount, choose a remote path and upload a file to be
-                    staged on the server.
-                  </FormHelperText>
-                  <Stack spacing={1} sx={{ mt: 1 }}>
-                    {fileMounts.map((fm, index) => (
-                      <Stack
-                        key={index}
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                        sx={{ flexWrap: 'wrap' }}
-                      >
-                        <Input
-                          placeholder="/remote/path/on/cluster"
-                          value={fm.remotePath}
-                          onChange={(e) => {
-                            const next = [...fileMounts];
-                            next[index].remotePath = e.target.value;
-                            setFileMounts(next);
-                          }}
-                          sx={{ flex: 1, minWidth: '200px' }}
-                        />
-                        <input
-                          type="file"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0] || null;
-                            const next = [...fileMounts];
-                            next[index].file = file;
-                            setFileMounts(next);
-                          }}
-                        />
-                        <IconButton
-                          color="danger"
-                          variant="plain"
-                          onClick={() => {
-                            if (fileMounts.length === 1) {
-                              setFileMounts([
-                                {
-                                  remotePath: '',
-                                  file: null,
-                                  storedPath: undefined,
-                                },
-                              ]);
-                            } else {
-                              setFileMounts(
-                                fileMounts.filter((_, i) => i !== index),
-                              );
-                            }
-                          }}
-                        >
-                          <Trash2Icon size={16} />
-                        </IconButton>
-                      </Stack>
-                    ))}
-                    <Button
-                      variant="outlined"
-                      size="sm"
-                      startDecorator={<PlusIcon size={16} />}
-                      onClick={() =>
-                        setFileMounts([
-                          ...fileMounts,
-                          { remotePath: '', file: null, storedPath: undefined },
-                        ])
-                      }
-                    >
-                      Add File Mount
-                    </Button>
-                  </Stack>
                 </FormControl>
 
                 {githubEnabled && (

@@ -68,7 +68,6 @@ type NewTaskModalProps = {
     setup?: string;
     env_vars?: Record<string, string>;
     provider_id?: string;
-    file_mounts?: Record<string, string>;
     github_repo_url?: string;
     github_directory?: string;
     run_sweeps?: boolean;
@@ -197,14 +196,6 @@ export default function NewTaskModal({
   const [parameters, setParameters] = React.useState<
     Array<{ key: string; value: string; valueType: 'string' | 'json' }>
   >([{ key: '', value: '', valueType: 'string' }]);
-  const [fileMounts, setFileMounts] = React.useState<
-    Array<{
-      remotePath: string;
-      file?: File | null;
-      uploading?: boolean;
-      storedPath?: string;
-    }>
-  >([{ remotePath: '', file: null, uploading: false, storedPath: undefined }]);
   const [selectedProviderId, setSelectedProviderId] = useState('');
   const [enableSweeps, setEnableSweeps] = useState(false);
   const [sweepParams, setSweepParams] = useState<
@@ -243,9 +234,6 @@ export default function NewTaskModal({
       setSetup('');
       setEnvVars([{ key: '', value: '' }]);
       setParameters([{ key: '', value: '', valueType: 'string' }]);
-      setFileMounts([
-        { remotePath: '', file: null, uploading: false, storedPath: undefined },
-      ]);
       setSelectedProviderId(providers[0]?.id || '');
       setEnableSweeps(false);
       setSweepParams([]);
@@ -681,61 +669,6 @@ export default function NewTaskModal({
       }
     }
 
-    // Upload any files for file mounts and build mapping {remotePath: storedPath}
-    const fileMountsObj: Record<string, string> = {};
-    for (let i = 0; i < fileMounts.length; i += 1) {
-      const fm = fileMounts[i];
-      const remotePath = fm.remotePath.trim();
-      if (!remotePath) continue;
-
-      // If we already have a storedPath (e.g. editing), just reuse it
-      if (!fm.file && fm.storedPath) {
-        fileMountsObj[remotePath] = fm.storedPath;
-        continue;
-      }
-
-      if (!fm.file) continue;
-      if (!selectedProviderId) continue;
-
-      try {
-        const formData = new FormData();
-        formData.append('file', fm.file);
-        // task_id is not yet created; we treat this as "task" upload, so use 0
-        const uploadUrl = chatAPI.Endpoints.ComputeProvider.UploadTemplateFile(
-          selectedProviderId,
-          0,
-        );
-        const resp = await chatAPI.authenticatedFetch(uploadUrl, {
-          method: 'POST',
-          body: formData,
-        });
-        if (!resp.ok) {
-          const txt = await resp.text();
-          addNotification({
-            type: 'danger',
-            message: `Failed to upload file for mount ${remotePath}: ${txt}`,
-          });
-          return;
-        }
-        const json = await resp.json();
-        if (json.status !== 'success' || !json.stored_path) {
-          addNotification({
-            type: 'danger',
-            message: `Upload for mount ${remotePath} did not return stored_path`,
-          });
-          return;
-        }
-        fileMountsObj[remotePath] = json.stored_path;
-      } catch (err) {
-        console.error(err);
-        addNotification({
-          type: 'danger',
-          message: `Failed to upload file for mount ${remotePath}`,
-        });
-        return;
-      }
-    }
-
     onSubmit({
       title,
       cluster_name: clusterName || title,
@@ -750,8 +683,6 @@ export default function NewTaskModal({
       parameters:
         Object.keys(parametersObj).length > 0 ? parametersObj : undefined,
       provider_id: selectedProviderId,
-      file_mounts:
-        Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
       github_repo_url: githubRepoUrl || undefined,
       github_directory: githubDirectory || undefined,
       run_sweeps: enableSweeps && sweepConfig ? true : undefined,
@@ -778,9 +709,6 @@ export default function NewTaskModal({
     setSetup('');
     setEnvVars([{ key: '', value: '' }]);
     setParameters([{ key: '', value: '', valueType: 'string' }]);
-    setFileMounts([
-      { remotePath: '', file: null, uploading: false, storedPath: undefined },
-    ]);
     setSelectedProviderId(providers[0]?.id || '');
     try {
       setupEditorRef?.current?.setValue?.('');
@@ -1932,87 +1860,6 @@ export default function NewTaskModal({
                     )}
                   </Stack>
                 </FormControl>
-
-                {taskMode === 'no-github' && (
-                  <FormControl>
-                    <FormLabel>File Mounts</FormLabel>
-                    <FormHelperText>
-                      For each mount, choose a remote path and upload a file to
-                      be staged on the server.
-                    </FormHelperText>
-                    <Stack spacing={1} sx={{ mt: 1 }}>
-                      {fileMounts.map((fm, index) => (
-                        <Stack
-                          key={index}
-                          direction="row"
-                          spacing={1}
-                          alignItems="center"
-                          sx={{ flexWrap: 'wrap' }}
-                        >
-                          <Input
-                            placeholder="/remote/path/on/cluster"
-                            value={fm.remotePath}
-                            onChange={(e) => {
-                              const next = [...fileMounts];
-                              next[index].remotePath = e.target.value;
-                              setFileMounts(next);
-                            }}
-                            sx={{ flex: 1, minWidth: '200px' }}
-                          />
-                          <input
-                            type="file"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0] || null;
-                              const next = [...fileMounts];
-                              next[index].file = file;
-                              setFileMounts(next);
-                            }}
-                          />
-                          <IconButton
-                            color="danger"
-                            variant="plain"
-                            onClick={() => {
-                              if (fileMounts.length === 1) {
-                                setFileMounts([
-                                  {
-                                    remotePath: '',
-                                    file: null,
-                                    uploading: false,
-                                    storedPath: undefined,
-                                  },
-                                ]);
-                              } else {
-                                setFileMounts(
-                                  fileMounts.filter((_, i) => i !== index),
-                                );
-                              }
-                            }}
-                          >
-                            <Trash2Icon size={16} />
-                          </IconButton>
-                        </Stack>
-                      ))}
-                      <Button
-                        variant="outlined"
-                        size="sm"
-                        startDecorator={<PlusIcon size={16} />}
-                        onClick={() =>
-                          setFileMounts([
-                            ...fileMounts,
-                            {
-                              remotePath: '',
-                              file: null,
-                              uploading: false,
-                              storedPath: undefined,
-                            },
-                          ])
-                        }
-                      >
-                        Add File Mount
-                      </Button>
-                    </Stack>
-                  </FormControl>
-                )}
               </>
             )}
           </Stack>
