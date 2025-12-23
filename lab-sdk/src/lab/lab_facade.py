@@ -1176,7 +1176,7 @@ class Lab:
         """
         self._ensure_initialized()
         return await self._job.get_job_data()  # type: ignore[union-attr]
-      
+
     def get_hf_callback(self):
         """
         Get a HuggingFace TrainerCallback instance for TransformerLab integration.

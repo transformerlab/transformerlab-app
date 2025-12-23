@@ -1110,7 +1110,7 @@ async def launch_task_on_provider(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     provider_instance = get_provider_instance(provider)
-    
+
     # Interactive tasks should start directly in INTERACTIVE state instead of LAUNCHING
     initial_status = "INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING"
 
@@ -1119,8 +1119,6 @@ async def launch_task_on_provider(
         status=initial_status,
         experiment_id=request.experiment_id,
     )
-
-
 
     base_name = request.cluster_name or request.task_name or provider.name
     formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{job_id}"

@@ -49,6 +49,7 @@ STATIC_FILES_DIR = get_static_files_dir_sync()
 async def initialize_dirs():
     """Initialize directories asynchronously. Should be called at app startup."""
     global FASTCHAT_LOGS_DIR, STATIC_FILES_DIR
+    from lab.dirs import get_workspace_dir
 
     # Compute FASTCHAT_LOGS_DIR using async storage
     workspace_dir = await get_workspace_dir()
