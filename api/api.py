@@ -63,6 +63,7 @@ from transformerlab.routers import (  # noqa: E402
     compute_provider,
     auth,
     api_keys,
+    quota,
 )
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
 import torch  # noqa: E402
@@ -255,6 +256,7 @@ app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(compute_provider.router)
 app.include_router(auth.router)
 app.include_router(api_keys.router)
+app.include_router(quota.router)
 
 controller_process = None
 worker_process = None
