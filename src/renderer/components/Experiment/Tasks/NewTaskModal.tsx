@@ -21,6 +21,7 @@ import {
   Typography,
   Divider,
   CircularProgress,
+  Switch,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
@@ -68,6 +69,10 @@ type NewTaskModalProps = {
     github_enabled?: boolean;
     github_repo_url?: string;
     github_directory?: string;
+    run_sweeps?: boolean;
+    sweep_config?: Record<string, string[]>;
+    sweep_metric?: string;
+    lower_is_better?: boolean;
   }) => void;
   isSubmitting?: boolean;
   providers: ProviderOption[];
@@ -95,7 +100,7 @@ async function fetchTaskJsonFromGitHub(
     if (!response.ok) {
       const errorText = await response.text();
       console.error(
-        'Error fetching task.json from GitHub:',
+        'Error fetching task.json from GitHub. Is your Github Access Token valid? Error: ',
         response.status,
         errorText,
       );
@@ -148,6 +153,9 @@ export default function NewTaskModal({
   const [envVars, setEnvVars] = React.useState<
     Array<{ key: string; value: string }>
   >([{ key: '', value: '' }]);
+  const [parameters, setParameters] = React.useState<
+    Array<{ key: string; value: string; valueType: 'string' | 'json' }>
+  >([{ key: '', value: '', valueType: 'string' }]);
   const [fileMounts, setFileMounts] = React.useState<
     Array<{
       remotePath: string;
@@ -157,6 +165,12 @@ export default function NewTaskModal({
     }>
   >([{ remotePath: '', file: null, uploading: false, storedPath: undefined }]);
   const [selectedProviderId, setSelectedProviderId] = useState('');
+  const [enableSweeps, setEnableSweeps] = useState(false);
+  const [sweepParams, setSweepParams] = useState<
+    Array<{ paramName: string; values: string }>
+  >([]);
+  const [sweepMetric, setSweepMetric] = useState('eval/loss');
+  const [lowerIsBetter, setLowerIsBetter] = useState(true);
 
   // Editor refs
   const setupEditorRef = useRef<any>(null);
@@ -182,10 +196,15 @@ export default function NewTaskModal({
       setNumNodes('');
       setSetup('');
       setEnvVars([{ key: '', value: '' }]);
+      setParameters([{ key: '', value: '', valueType: 'string' }]);
       setFileMounts([
         { remotePath: '', file: null, uploading: false, storedPath: undefined },
       ]);
       setSelectedProviderId(providers[0]?.id || '');
+      setEnableSweeps(false);
+      setSweepParams([]);
+      setSweepMetric('eval/loss');
+      setLowerIsBetter(true);
       try {
         setupEditorRef?.current?.setValue?.('');
         commandEditorRef?.current?.setValue?.('');
@@ -244,6 +263,27 @@ export default function NewTaskModal({
             );
             setEnvVars(
               envVarsArray.length > 0 ? envVarsArray : [{ key: '', value: '' }],
+            );
+          }
+          if (data.parameters && typeof data.parameters === 'object') {
+            const parametersArray = Object.entries(data.parameters).map(
+              ([key, value]) => {
+                // Try to determine if value is JSON or string
+                let valueStr = '';
+                let valueType: 'string' | 'json' = 'string';
+                if (typeof value === 'object') {
+                  valueStr = JSON.stringify(value, null, 2);
+                  valueType = 'json';
+                } else {
+                  valueStr = String(value);
+                }
+                return { key, value: valueStr, valueType };
+              },
+            );
+            setParameters(
+              parametersArray.length > 0
+                ? parametersArray
+                : [{ key: '', value: '', valueType: 'string' }],
             );
           }
           addNotification({
@@ -381,6 +421,57 @@ export default function NewTaskModal({
       }
     });
 
+    // Convert parameters array to object, parsing JSON values
+    const parametersObj: Record<string, any> = {};
+    parameters.forEach(({ key, value, valueType }) => {
+      if (key.trim() && value.trim()) {
+        try {
+          if (valueType === 'json') {
+            // Parse JSON value
+            parametersObj[key.trim()] = JSON.parse(value);
+          } else {
+            // Try to parse as number or boolean, otherwise keep as string
+            const trimmedValue = value.trim();
+            if (trimmedValue === 'true') {
+              parametersObj[key.trim()] = true;
+            } else if (trimmedValue === 'false') {
+              parametersObj[key.trim()] = false;
+            } else if (trimmedValue === 'null') {
+              parametersObj[key.trim()] = null;
+            } else if (!isNaN(Number(trimmedValue)) && trimmedValue !== '') {
+              parametersObj[key.trim()] = Number(trimmedValue);
+            } else {
+              parametersObj[key.trim()] = trimmedValue;
+            }
+          }
+        } catch (e) {
+          // If JSON parsing fails, treat as string
+          parametersObj[key.trim()] = value.trim();
+        }
+      }
+    });
+
+    // Build sweep_config if sweeps are enabled
+    let sweepConfig: Record<string, string[]> | undefined = undefined;
+    if (enableSweeps && sweepParams.length > 0) {
+      sweepConfig = {};
+      sweepParams.forEach((sp) => {
+        if (sp.paramName && sp.values) {
+          const values = sp.values
+            .split(',')
+            .map((v) => v.trim())
+            .filter((v) => v);
+          if (values.length > 0) {
+            sweepConfig![sp.paramName] = values;
+          }
+        }
+      });
+      // Only set if we have at least one valid parameter
+      if (Object.keys(sweepConfig).length === 0) {
+        sweepConfig = undefined;
+      }
+    }
+
     // Upload any files for file mounts and build mapping {remotePath: storedPath}
     const fileMountsObj: Record<string, string> = {};
     for (let i = 0; i < fileMounts.length; i += 1) {
@@ -447,6 +538,8 @@ export default function NewTaskModal({
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
       setup: setupValue || undefined,
       env_vars: Object.keys(envVarsObj).length > 0 ? envVarsObj : undefined,
+      parameters:
+        Object.keys(parametersObj).length > 0 ? parametersObj : undefined,
       provider_id: selectedProviderId,
       file_mounts:
         Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
@@ -454,6 +547,11 @@ export default function NewTaskModal({
       github_repo_url: useGithub && githubRepoUrl ? githubRepoUrl : undefined,
       github_directory:
         useGithub && githubDirectory ? githubDirectory : undefined,
+      run_sweeps: enableSweeps && sweepConfig ? true : undefined,
+      sweep_config: sweepConfig,
+      sweep_metric:
+        enableSweeps && sweepConfig ? sweepMetric || 'eval/loss' : undefined,
+      lower_is_better: enableSweeps && sweepConfig ? lowerIsBetter : undefined,
     });
 
     // Reset form
@@ -473,6 +571,7 @@ export default function NewTaskModal({
     setNumNodes('');
     setSetup('');
     setEnvVars([{ key: '', value: '' }]);
+    setParameters([{ key: '', value: '', valueType: 'string' }]);
     setFileMounts([
       { remotePath: '', file: null, uploading: false, storedPath: undefined },
     ]);
@@ -1039,6 +1138,238 @@ export default function NewTaskModal({
                   ? 'Environment variables from task.json are shown above. You can edit them or add additional variables. All will be merged together.'
                   : 'Optional environment variables to set when launching the cluster'}
               </FormHelperText>
+            </FormControl>
+
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>Parameters</FormLabel>
+              <Stack spacing={1}>
+                {parameters.map((param, index) => (
+                  <Stack key={index} spacing={1}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Input
+                        placeholder="Parameter name (e.g., learning_rate)"
+                        value={param.key}
+                        onChange={(e) => {
+                          const newParams = [...parameters];
+                          newParams[index].key = e.target.value;
+                          setParameters(newParams);
+                        }}
+                        sx={{ flex: 1 }}
+                      />
+                      <Select
+                        value={param.valueType}
+                        onChange={(_, newValue) => {
+                          if (newValue) {
+                            const newParams = [...parameters];
+                            newParams[index].valueType = newValue;
+                            setParameters(newParams);
+                          }
+                        }}
+                        sx={{ minWidth: 100 }}
+                      >
+                        <Option value="string">String</Option>
+                        <Option value="json">JSON</Option>
+                      </Select>
+                      <IconButton
+                        color="danger"
+                        variant="plain"
+                        onClick={() => {
+                          if (parameters.length > 1) {
+                            setParameters(
+                              parameters.filter((_, i) => i !== index),
+                            );
+                          } else {
+                            setParameters([
+                              { key: '', value: '', valueType: 'string' },
+                            ]);
+                          }
+                        }}
+                      >
+                        <Trash2Icon size={16} />
+                      </IconButton>
+                    </Stack>
+                    {param.valueType === 'json' ? (
+                      <Editor
+                        height="120px"
+                        defaultLanguage="json"
+                        value={param.value}
+                        onChange={(value) => {
+                          const newParams = [...parameters];
+                          newParams[index].value = value || '';
+                          setParameters(newParams);
+                        }}
+                        theme="my-theme"
+                        onMount={setTheme}
+                        options={{
+                          minimap: { enabled: false },
+                          scrollBeyondLastLine: false,
+                          fontSize: 12,
+                          lineNumbers: 'off',
+                          wordWrap: 'on',
+                        }}
+                      />
+                    ) : (
+                      <Input
+                        placeholder="Value (e.g., 0.001, true, false, or any string)"
+                        value={param.value}
+                        onChange={(e) => {
+                          const newParams = [...parameters];
+                          newParams[index].value = e.target.value;
+                          setParameters(newParams);
+                        }}
+                      />
+                    )}
+                  </Stack>
+                ))}
+                <Button
+                  variant="outlined"
+                  size="sm"
+                  startDecorator={<PlusIcon size={16} />}
+                  onClick={() =>
+                    setParameters([
+                      ...parameters,
+                      { key: '', value: '', valueType: 'string' },
+                    ])
+                  }
+                >
+                  Add Parameter
+                </Button>
+              </Stack>
+              <FormHelperText>
+                {taskMode === 'github-with-json' && taskJsonData?.parameters
+                  ? 'Parameters from task.json are shown above. You can edit them or add additional parameters. All will be merged together.'
+                  : 'Task parameters accessible via lab.get_config() in your script. Use JSON type for complex objects.'}
+              </FormHelperText>
+            </FormControl>
+
+            <Divider sx={{ my: 2 }} />
+
+            <FormControl>
+              <Stack spacing={2}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <FormLabel>Enable Parameter Sweeps</FormLabel>
+                  <Switch
+                    checked={enableSweeps}
+                    onChange={(e) => setEnableSweeps(e.target.checked)}
+                  />
+                </Stack>
+                {enableSweeps && (
+                  <Stack spacing={2}>
+                    <FormHelperText>
+                      Define parameters to sweep. Each parameter will be tried
+                      with all specified values. All combinations will be
+                      created.
+                    </FormHelperText>
+
+                    {sweepParams.map((sp, index) => (
+                      <Stack direction="row" spacing={1} key={index}>
+                        <Input
+                          placeholder="Parameter name (e.g., learning_rate)"
+                          value={sp.paramName}
+                          onChange={(e) => {
+                            const newSweepParams = [...sweepParams];
+                            newSweepParams[index].paramName = e.target.value;
+                            setSweepParams(newSweepParams);
+                          }}
+                          sx={{ flex: 1 }}
+                        />
+                        <Input
+                          placeholder="Values (comma-separated, e.g., 1e-5,3e-5,5e-5)"
+                          value={sp.values}
+                          onChange={(e) => {
+                            const newSweepParams = [...sweepParams];
+                            newSweepParams[index].values = e.target.value;
+                            setSweepParams(newSweepParams);
+                          }}
+                          sx={{ flex: 1 }}
+                        />
+                        <IconButton
+                          color="danger"
+                          variant="plain"
+                          onClick={() => {
+                            if (sweepParams.length > 1) {
+                              setSweepParams(
+                                sweepParams.filter((_, i) => i !== index),
+                              );
+                            } else {
+                              setSweepParams([]);
+                            }
+                          }}
+                        >
+                          <Trash2Icon size={16} />
+                        </IconButton>
+                      </Stack>
+                    ))}
+
+                    <Button
+                      variant="outlined"
+                      size="sm"
+                      startDecorator={<PlusIcon size={16} />}
+                      onClick={() =>
+                        setSweepParams([
+                          ...sweepParams,
+                          { paramName: '', values: '' },
+                        ])
+                      }
+                    >
+                      Add Sweep Parameter
+                    </Button>
+
+                    {sweepParams.length > 0 && (
+                      <FormHelperText>
+                        This will create{' '}
+                        {sweepParams.reduce(
+                          (acc, sp) =>
+                            acc *
+                            (sp.values
+                              ? sp.values.split(',').filter((v) => v.trim())
+                                  .length
+                              : 0),
+                          1,
+                        )}{' '}
+                        job(s) (one for each combination)
+                      </FormHelperText>
+                    )}
+
+                    <FormControl>
+                      <FormLabel>Optimization Metric</FormLabel>
+                      <Input
+                        placeholder="eval/loss"
+                        value={sweepMetric}
+                        onChange={(e) => setSweepMetric(e.target.value)}
+                      />
+                      <FormHelperText>
+                        Metric name to optimize (e.g., eval/loss, accuracy,
+                        f1_score). Used to determine the best configuration.
+                      </FormHelperText>
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Optimization Direction</FormLabel>
+                      <Select
+                        value={lowerIsBetter ? 'lower' : 'higher'}
+                        onChange={(_, newValue) =>
+                          setLowerIsBetter(newValue === 'lower')
+                        }
+                      >
+                        <Option value="lower">
+                          Lower is better (e.g., loss)
+                        </Option>
+                        <Option value="higher">
+                          Higher is better (e.g., accuracy)
+                        </Option>
+                      </Select>
+                      <FormHelperText>
+                        Whether to minimize or maximize the metric value.
+                      </FormHelperText>
+                    </FormControl>
+                  </Stack>
+                )}
+              </Stack>
             </FormControl>
           </Stack>
         );

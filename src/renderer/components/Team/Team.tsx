@@ -89,10 +89,11 @@ export default function UserLoginTest(): JSX.Element {
   );
 
   // Get compute_provider list (unchanged)
-  const { data: providers, mutate: providersMutate } = useAPI(
-    'compute_provider',
-    ['list'],
-  );
+  const {
+    data: providers,
+    mutate: providersMutate,
+    isLoading: providersLoading,
+  } = useAPI('compute_provider', ['list']);
 
   // Simplify errors: show all errors under the "Members" title
   const [roleError, setRoleError] = useState<string | undefined>(undefined);
@@ -816,101 +817,105 @@ export default function UserLoginTest(): JSX.Element {
               </tr>
             </thead>
             <tbody>
-              {providers?.map((provider: any) => {
-                const status = providerCheckStatus[provider.id];
-                const isChecking = checkingProviderId === provider.id;
+              {Array.isArray(providers) &&
+                providers?.map((provider: any) => {
+                  const status = providerCheckStatus[provider.id];
+                  const isChecking = checkingProviderId === provider.id;
 
-                return (
-                  <tr key={provider.id}>
-                    <td>
-                      <Stack direction="row" alignItems="center" gap={1}>
-                        <NetworkIcon size={16} />
-                        <Typography fontWeight="md" level="body-sm">
-                          {provider?.name ?? '—'}
+                  return (
+                    <tr key={provider.id}>
+                      <td>
+                        <Stack direction="row" alignItems="center" gap={1}>
+                          <NetworkIcon size={16} />
+                          <Typography fontWeight="md" level="body-sm">
+                            {provider?.name ?? '—'}
+                          </Typography>
+                        </Stack>
+                      </td>
+                      <td>
+                        <Typography level="body-sm">
+                          {provider?.type}
                         </Typography>
-                      </Stack>
-                    </td>
-                    <td>
-                      <Typography level="body-sm">{provider?.type}</Typography>
-                    </td>
-                    <td>
-                      <Stack direction="row" alignItems="center" gap={0.5}>
-                        {isChecking ? (
-                          <CircularProgress size="sm" />
-                        ) : status === true ? (
-                          <Chip
-                            variant="soft"
-                            color="success"
+                      </td>
+                      <td>
+                        <Stack direction="row" alignItems="center" gap={0.5}>
+                          {isChecking ? (
+                            <CircularProgress size="sm" />
+                          ) : status === true ? (
+                            <Chip
+                              variant="soft"
+                              color="success"
+                              size="sm"
+                              sx={{ fontSize: '0.7rem', px: 0.5 }}
+                            >
+                              Active
+                            </Chip>
+                          ) : status === false ? (
+                            <Chip
+                              variant="soft"
+                              color="danger"
+                              size="sm"
+                              sx={{ fontSize: '0.7rem', px: 0.5 }}
+                            >
+                              Inactive
+                            </Chip>
+                          ) : (
+                            <Chip
+                              variant="soft"
+                              color="neutral"
+                              size="sm"
+                              sx={{ fontSize: '0.7rem', px: 0.5 }}
+                            >
+                              Unknown
+                            </Chip>
+                          )}
+                          <IconButton
                             size="sm"
-                            sx={{ fontSize: '0.7rem', px: 0.5 }}
+                            variant="outlined"
+                            onClick={() => handleCheckProvider(provider.id)}
+                            disabled={isChecking}
+                            sx={{ ml: 0.5 }}
+                            title="Check provider status"
                           >
-                            Active
-                          </Chip>
-                        ) : status === false ? (
-                          <Chip
-                            variant="soft"
+                            <ActivityIcon size={16} />
+                          </IconButton>
+                        </Stack>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <Stack
+                          direction="row"
+                          gap={0.5}
+                          justifyContent="flex-end"
+                        >
+                          <Button
+                            size="sm"
+                            variant="outlined"
+                            onClick={() => {
+                              setProviderId(provider.id);
+                              setOpenProviderDetailsModal(true);
+                            }}
+                            disabled={providersLoading}
+                            sx={{ minWidth: '60px', fontSize: '0.75rem' }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
                             color="danger"
-                            size="sm"
-                            sx={{ fontSize: '0.7rem', px: 0.5 }}
+                            variant="outlined"
+                            onClick={() =>
+                              handleDeleteProvider(provider.id, provider.name)
+                            }
+                            disabled={!iAmOwner || providersLoading}
+                            sx={{ minWidth: '60px', fontSize: '0.75rem' }}
                           >
-                            Inactive
-                          </Chip>
-                        ) : (
-                          <Chip
-                            variant="soft"
-                            color="neutral"
-                            size="sm"
-                            sx={{ fontSize: '0.7rem', px: 0.5 }}
-                          >
-                            Unknown
-                          </Chip>
-                        )}
-                        <IconButton
-                          size="sm"
-                          variant="outlined"
-                          onClick={() => handleCheckProvider(provider.id)}
-                          disabled={isChecking}
-                          sx={{ ml: 0.5 }}
-                          title="Check provider status"
-                        >
-                          <ActivityIcon size={16} />
-                        </IconButton>
-                      </Stack>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <Stack
-                        direction="row"
-                        gap={0.5}
-                        justifyContent="flex-end"
-                      >
-                        <Button
-                          size="sm"
-                          variant="outlined"
-                          onClick={() => {
-                            setProviderId(provider.id);
-                            setOpenProviderDetailsModal(true);
-                          }}
-                          sx={{ minWidth: '60px', fontSize: '0.75rem' }}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          color="danger"
-                          variant="outlined"
-                          onClick={() =>
-                            handleDeleteProvider(provider.id, provider.name)
-                          }
-                          disabled={!iAmOwner}
-                          sx={{ minWidth: '60px', fontSize: '0.75rem' }}
-                        >
-                          Delete
-                        </Button>
-                      </Stack>
-                    </td>
-                  </tr>
-                );
-              })}
+                            Delete
+                          </Button>
+                        </Stack>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </Table>
           <Button

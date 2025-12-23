@@ -18,6 +18,7 @@ dependencies = [
   "fsspec",
   "s3fs",
   "aiofiles",
+  "gcsfs"
 ]
 
 [project.urls]

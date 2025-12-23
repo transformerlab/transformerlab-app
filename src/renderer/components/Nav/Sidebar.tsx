@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useMemo, CSSProperties } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 import {
   CodeIcon,
@@ -81,8 +81,7 @@ function ExperimentMenuItems({
   const pipelineIsTTS = pipelineTag === 'text-to-speech';
   const pipelineIsSTT = pipelineTag === 'speech-to-text';
   const isDiffusionModel = isValidDiffusionModel === true;
-  const showInteractTab =
-    !isS3Mode && !isDiffusionModel && !pipelineIsTTS && !pipelineIsSTT;
+  const showInteractTab = !isDiffusionModel && !pipelineIsTTS && !pipelineIsSTT;
   const showDiffusionTab = !isS3Mode && isDiffusionModel;
   const showAudioTTSTab = !isS3Mode && pipelineIsTTS;
   const showAudioSTTTab = !isS3Mode && pipelineIsSTT;
@@ -197,9 +196,21 @@ function ExperimentMenuItems({
         {showInteractTab && (
           <SubNavItem
             title="Interact"
-            path="/experiment/chat"
-            icon={<MessageCircleIcon strokeWidth={9} />}
-            disabled={disableInteract}
+            path={
+              hasProviders || isS3Mode
+                ? '/experiment/interactive'
+                : '/experiment/chat'
+            }
+            icon={
+              hasProviders || isS3Mode ? (
+                <CodeIcon strokeWidth={1} />
+              ) : (
+                <MessageCircleIcon strokeWidth={9} />
+              )
+            }
+            disabled={
+              hasProviders || isS3Mode ? !experimentReady : disableInteract
+            }
           />
         )}
         {showDiffusionTab && (

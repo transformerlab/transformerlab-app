@@ -2,7 +2,6 @@
 
 import os
 from lab import HOME_DIR
-from lab.dirs import get_workspace_dir
 from lab import storage
 
 
@@ -30,7 +29,7 @@ def get_fastchat_logs_dir_sync():
     if _fastchat_logs_dir is None:
         # This is a hack for module initialization - we'll set it properly in async init
         # For now, just compute the path without async storage operations
-        _fastchat_logs_dir = os.path.join(HOME_DIR, "workspace", "logs")
+        _fastchat_logs_dir = os.path.join(HOME_DIR, "logs")
     return _fastchat_logs_dir
 
 

@@ -303,7 +303,7 @@ async def install_plugin(plugin_id: str):
         proc = await asyncio.create_subprocess_exec(
             "/bin/bash",
             "-c",
-            f"source {venv_path}/bin/activate && cd {source_code_dir} && uv pip install --upgrade {additional_flags} .{extra}",
+            f"source {venv_path}/bin/activate && cd {source_code_dir} && uv pip install {additional_flags} .{extra}",
             cwd=new_directory,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
