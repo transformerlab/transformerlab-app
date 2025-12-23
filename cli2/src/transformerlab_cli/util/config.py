@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.table import Table
 import typer
 
-from transformerlab_cli.util.logo import one_liner_logo, show_header
+from transformerlab_cli.util.logo import one_liner_logo
 from transformerlab_cli.util.ui import render_table
 from transformerlab_cli.util.shared import CONFIG_DIR, CONFIG_FILE, set_base_url
 

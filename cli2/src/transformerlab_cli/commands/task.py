@@ -6,8 +6,6 @@ from transformerlab_cli.util.config import check_configs
 
 import transformerlab_cli.util.api as api
 import yaml
-import os
-import subprocess
 from shutil import which
 import requests
 
@@ -78,8 +76,8 @@ def add_task(task_yaml_path: str, from_url: str) -> None:
             if response.status_code == 200:
                 try:
                     task_data = yaml.safe_load(response.text)
-                except yaml.YAMLError as e:
-                    console.print(f"[red]Error:[/red] Failed to parse YAML from URL. Are you sure the URL is correct?")
+                except yaml.YAMLError:
+                    console.print("[red]Error:[/red] Failed to parse YAML from URL. Are you sure the URL is correct?")
                     raise typer.Exit(1)
             else:
                 console.print(

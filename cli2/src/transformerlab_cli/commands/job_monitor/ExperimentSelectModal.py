@@ -3,7 +3,6 @@ from textual.widgets import (
     Static,
     Label,
     LoadingIndicator,
-    Button,
     Select,
 )
 from textual.containers import Vertical
