@@ -410,7 +410,9 @@ export default function TasksGallery() {
       for (const taskId of taskIds) {
         try {
           const response = await chatAPI.authenticatedFetch(
-            chatAPI.Endpoints.Task.DeleteFromTeamGallery(experimentInfo?.id || ''),
+            chatAPI.Endpoints.Task.DeleteFromTeamGallery(
+              experimentInfo?.id || '',
+            ),
             {
               method: 'POST',
               headers: {
