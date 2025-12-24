@@ -7,6 +7,7 @@ TFL_API_STORAGE_URI is enabled. Supports both S3 and GCS.
 
 import os
 import re
+from typing import List, Tuple
 
 from lab.storage import REMOTE_WORKSPACE_HOST
 
@@ -49,11 +50,13 @@ def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3"
         return False
 
     if REMOTE_WORKSPACE_HOST == "aws":
+        print(f"Creating S3 bucket for team {team_id} (bucket: {bucket_name})")
         return _create_s3_bucket(bucket_name, team_id, profile_name)
     elif REMOTE_WORKSPACE_HOST == "gcp":
+        print(f"Creating GCS bucket for team {team_id} (bucket: {bucket_name})")
         return _create_gcs_bucket(bucket_name, team_id)
     else:
-        print(f"Unsupported remote workspace host: {REMOTE_WORKSPACE_HOST}")
+        print(f"Unsupported remote workspace host: {REMOTE_WORKSPACE_HOST}. Supported values: 'aws' or 'gcp'")
         return False
 
 
@@ -153,3 +156,61 @@ def _create_gcs_bucket(bucket_name: str, team_id: str) -> bool:
     except Exception as e:
         print(f"Unexpected error creating GCS bucket '{bucket_name}' for team {team_id}: {e}")
         return False
+
+
+async def create_buckets_for_all_teams(session, profile_name: str = "transformerlab-s3") -> Tuple[int, int, List[str]]:
+    """
+    Create buckets for all existing teams that don't have buckets yet.
+
+    This is useful when TFL_API_STORAGE_URI is enabled after teams already exist.
+    Supports both S3 (when REMOTE_WORKSPACE_HOST=aws) and GCS (when REMOTE_WORKSPACE_HOST=gcp).
+
+    Args:
+        session: Database session to query teams
+        profile_name: The AWS profile name to use for S3 (ignored for GCS)
+
+    Returns:
+        Tuple of (success_count, failure_count, error_messages)
+    """
+    from transformerlab.shared.models.models import Team
+
+    # Check if TFL_API_STORAGE_URI is set
+    tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")
+    if not tfl_storage_uri:
+        print("TFL_API_STORAGE_URI is not set, skipping bucket creation for existing teams")
+        return (0, 0, ["TFL_API_STORAGE_URI is not set"])
+
+    # Log which provider will be used
+    provider = "GCS" if REMOTE_WORKSPACE_HOST == "gcp" else "S3"
+    print(f"Creating buckets for all teams using {provider} (REMOTE_WORKSPACE_HOST={REMOTE_WORKSPACE_HOST})")
+
+    from sqlalchemy import select
+
+    # Get all teams
+    stmt = select(Team)
+    result = await session.execute(stmt)
+    teams = result.scalars().all()
+
+    success_count = 0
+    failure_count = 0
+    error_messages = []
+
+    for team in teams:
+        try:
+            success = create_bucket_for_team(team.id, profile_name=profile_name)
+            if success:
+                success_count += 1
+                print(f"✅ Created/verified bucket for team '{team.name}' (id={team.id})")
+            else:
+                failure_count += 1
+                error_msg = f"Failed to create bucket for team '{team.name}' (id={team.id})"
+                error_messages.append(error_msg)
+                print(f"❌ {error_msg}")
+        except Exception as e:
+            failure_count += 1
+            error_msg = f"Error creating bucket for team '{team.name}' (id={team.id}): {e}"
+            error_messages.append(error_msg)
+            print(f"❌ {error_msg}")
+
+    print(f"Bucket creation summary: {success_count} succeeded, {failure_count} failed")
+    return (success_count, failure_count, error_messages)
