@@ -21,3 +21,5 @@
 - **TypeScript**: ESLint with erb config, Prettier (single quotes), functional components
 - **Python**: Ruff (Black-compatible), 120 char line length, 4-space indent
 - **Imports**: Use existing patterns in neighboring files; check package.json/pyproject.toml before adding deps
+- **DB Tables**: Use existing patterns and dont create any table with a foreign key.
+- **Alembic Migrations**: Use existing patterns and dont create any migration with a foreign key. Try to autogenerate the migration if possible.
