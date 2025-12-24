@@ -91,8 +91,8 @@ export default function InteractiveJupyterModal({
             Jupyter Notebook Interactive Session (Job {jobId})
           </Typography>
           <Typography level="body-sm" color="neutral">
-            Access your Jupyter notebook through the tunnel URL below. The token
-            is automatically included in the URL for secure access.
+            Access your Jupyter notebook through the tunnel URL below. The tunnel
+            URL provides secure access without requiring a token.
           </Typography>
         </Stack>
         <Divider />
@@ -122,8 +122,8 @@ export default function InteractiveJupyterModal({
             <Typography level="title-md">Access Jupyter Notebook</Typography>
             <Typography level="body-sm" sx={{ mt: 0.5 }}>
               Once the tunnel is ready, click the link below to open your
-              Jupyter notebook in your browser. The URL includes a secure token
-              for authentication.
+              Jupyter notebook in your browser. The tunnel URL provides secure
+              access without requiring a token.
             </Typography>
 
             <Box
@@ -162,8 +162,8 @@ export default function InteractiveJupyterModal({
                 </>
               ) : (
                 <Typography level="body-sm" sx={{ flex: 1 }}>
-                  Waiting for Jupyter and tunnel to start. The URL will appear
-                  here once the services are ready...
+                  Waiting for tunnel to start. The URL will appear here once
+                  cloudflared creates the tunnel...
                 </Typography>
               )}
             </Box>
@@ -174,11 +174,6 @@ export default function InteractiveJupyterModal({
               </Typography>
             )}
 
-            {tunnelUrl && !jupyterUrl && (
-              <Typography level="body-xs" sx={{ mt: 0.5, color: 'warning' }}>
-                Tunnel URL found: {tunnelUrl} - Waiting for Jupyter token...
-              </Typography>
-            )}
 
             <Typography level="body-xs" sx={{ mt: 1 }}>
               Tip: If the URL never appears, check the job output and provider

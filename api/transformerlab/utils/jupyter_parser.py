@@ -93,16 +93,13 @@ def get_jupyter_tunnel_info(logs: str) -> dict:
     token, tunnel_url = parse_jupyter_tunnel_logs(logs)
 
     # Construct the full Jupyter URL
-    # If no token, use tunnel URL directly (Jupyter started without token requirement)
-    jupyter_url = None
-    if tunnel_url:
-        if token:
-            # Combine tunnel URL with token parameter if token exists
-            separator = "&" if "?" in tunnel_url else "?"
-            jupyter_url = f"{tunnel_url}{separator}token={token}"
-        else:
-            # No token needed - Jupyter started without token requirement
-            jupyter_url = tunnel_url
+    # Since Jupyter is started without token requirement, use tunnel URL directly
+    jupyter_url = tunnel_url
+
+    # If token exists, append it to the URL (though we don't require it)
+    if jupyter_url and token:
+        separator = "&" if "?" in jupyter_url else "?"
+        jupyter_url = f"{jupyter_url}{separator}token={token}"
 
     # Tunnel is ready if we have the tunnel URL (token is optional)
     is_ready = tunnel_url is not None
