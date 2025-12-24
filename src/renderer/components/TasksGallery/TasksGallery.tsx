@@ -192,7 +192,17 @@ function TaskCard({
               </Box>
             )}
           </Box>
-          {task.config && (
+          {task?.metadata?.framework && (
+            /* Framework is an array of strings */
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              {task.metadata.framework.map((fw: string, fwIndex: number) => (
+                <Chip key={fwIndex} size="sm" variant="soft">
+                  {fw}
+                </Chip>
+              ))}
+            </Stack>
+          )}
+          {/* {task.config && (
             <Stack spacing={0.5}>
               <Typography level="body-xs" fontWeight="bold">
                 Compute:
@@ -215,7 +225,7 @@ function TaskCard({
                 )}
               </Stack>
             </Stack>
-          )}
+          )} */}
         </Stack>
         <CardActions>
           <Button
