@@ -1,8 +1,13 @@
 import json
 from textual.app import ComposeResult
-from textual.widgets import Button, TextArea, ProgressBar, Static
+from textual.widgets import Button, TextArea, ProgressBar, Static, Markdown
 from textual.containers import Vertical, VerticalScroll, Horizontal
 from textual.screen import ModalScreen
+
+
+def log_to_file(message: str) -> None:
+    with open("job_details_log.txt", "a") as log_file:
+        log_file.write(message + "\n")
 
 
 class JobJsonModal(ModalScreen):
@@ -79,13 +84,25 @@ class JobDetails(Vertical):
 
         # Update artifacts panel
         artifacts = job.get("job_data", {}).get("artifacts", [])
+
+        artifacts_text = ""
+
         if artifacts:
-            artifacts_text = "\n".join([f"- {art}" for art in artifacts])
+            # Markdown list syntax
+            # Iterate through each artifact:
+            for artifact in artifacts:
+                # artifacts are long names like s3://workspace-8359c7c6-b1a4-4f50-a5ce-1a68a95da010/jobs/15/artifacts/training_config.json
+                # we want just the last part:
+                artifact_name = artifact.split("/")[-1]
+                artifacts_text = artifacts_text + f"• {artifact_name}\n"
         else:
-            artifacts_text = "[italic]No artifacts available[/italic]"
+            # Markdown italic syntax is *text*, not [italic]text[/italic]
+            artifacts_text = "*No artifacts available*"
 
         artifacts_view = self.query_one("#job-artifacts", Static)
-        artifacts_view.update(f"[bold]Artifacts:[/bold]\n{artifacts_text}")
+
+        final_text = f"[bold]Artifacts:[/bold]\n\n{artifacts_text}"
+        artifacts_view.update(final_text)
 
         # Make artifacts container visible
         artifacts_container = self.query_one("#job-artifacts-container", VerticalScroll)
