@@ -1545,7 +1545,7 @@ class SkyPilotProvider(ComputeProvider):
                                             if getattr(j.state, "name", str(j.state)).upper()
                                             in ["RUNNING", "PENDING"]
                                         ]
-                                    except Exception as exc:
+                                    except Exception:
                                         pass
 
                                     # Convert GPUs to dict
