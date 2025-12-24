@@ -18,6 +18,7 @@ import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveVSCodeModal from './InteractiveVSCodeModal';
+import InteractiveJupyterModal from './InteractiveJupyterModal';
 import EditTaskModal from './EditTaskModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -600,16 +601,36 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
     setIsSubmitting(true);
     try {
-      const defaultSetup = `
-export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gnupg software-properties-common apt-transport-https wget \
+      const interactiveType = data.interactive_type || 'vscode';
+
+      let defaultSetup: string;
+      let defaultCommand: string;
+
+      if (interactiveType === 'jupyter') {
+        // Setup: Install cloudflared and jupyter
+        defaultSetup = `
+export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y wget curl \
+&& pip install jupyter \
+&& curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /tmp/cloudflared \
+&& chmod +x /tmp/cloudflared && sudo mv /tmp/cloudflared /usr/local/bin/cloudflared;`.trim();
+
+        // Command: Start Jupyter without token (tunnel URL provides security) and cloudflared tunnel
+        // Start Jupyter in background, then start cloudflared tunnel
+        defaultCommand =
+          `jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password='' --notebook-dir=~ > /tmp/jupyter.log 2>&1 & sleep 3 && cloudflared tunnel --url http://localhost:8888 2>&1 | tee /tmp/cloudflared.log; tail -f /tmp/jupyter.log /tmp/cloudflared.log`.trim();
+      } else {
+        // VS Code setup
+        defaultSetup = `
+export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gnupg software-properties-common apt-transport-https wget \
 && wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg \
 && sudo install -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/ \
 && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
 | sudo tee /etc/apt/sources.list.d/vscode.list \
 && sudo apt update && sudo apt install -y code;`.trim();
 
-      const defaultCommand =
-        'code tunnel --accept-server-license-terms --disable-telemetry'.trim();
+        defaultCommand =
+          'code tunnel --accept-server-license-terms --disable-telemetry'.trim();
+      }
 
       // Create template with flat structure
       const templatePayload: any = {
@@ -624,7 +645,7 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         accelerators: data.accelerators || undefined,
         setup: defaultSetup,
         subtype: 'interactive',
-        interactive_type: data.interactive_type || 'vscode',
+        interactive_type: interactiveType,
         provider_id: providerMeta.id,
         provider_name: providerMeta.name,
       };
@@ -643,10 +664,13 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
       if (response.ok) {
         setInteractiveModalOpen(false);
         await templatesMutate();
+        const interactiveTypeLabel =
+          (data.interactive_type || 'vscode') === 'jupyter'
+            ? 'Jupyter'
+            : 'VS Code';
         addNotification({
           type: 'success',
-          message:
-            'Interactive template created. Use Queue to launch the VS Code tunnel.',
+          message: `Interactive template created. Use Queue to launch the ${interactiveTypeLabel} tunnel.`,
         });
       } else {
         const txt = await response.text();
@@ -1008,10 +1032,34 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         onClose={() => setViewEvalResultsFromJob(-1)}
         jobId={viewEvalResultsFromJob}
       />
-      <InteractiveVSCodeModal
-        jobId={interactiveJobForModal}
-        setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-      />
+      {(() => {
+        // Find the job to determine which modal to show
+        const job = jobs.find(
+          (j: any) => String(j.id) === String(interactiveJobForModal),
+        );
+        const interactiveType =
+          job?.job_data?.interactive_type ||
+          (typeof job?.job_data === 'string'
+            ? JSON.parse(job?.job_data || '{}')?.interactive_type
+            : null) ||
+          'vscode';
+
+        if (interactiveType === 'jupyter') {
+          return (
+            <InteractiveJupyterModal
+              jobId={interactiveJobForModal}
+              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+            />
+          );
+        }
+
+        return (
+          <InteractiveVSCodeModal
+            jobId={interactiveJobForModal}
+            setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+          />
+        );
+      })()}
       <PreviewDatasetModal
         open={previewDatasetModal.open}
         setOpen={(open: boolean) =>

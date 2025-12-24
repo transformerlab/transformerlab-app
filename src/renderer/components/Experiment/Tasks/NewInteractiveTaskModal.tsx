@@ -173,13 +173,12 @@ export default function NewInteractiveTaskModal({
                   <Radio value="vscode" label="VS Code (remote tunnel)" />
                   <Radio
                     value="jupyter"
-                    label="Jupyter Notebook (coming soon)"
-                    disabled
+                    label="Jupyter Notebook (remote tunnel)"
                   />
                 </RadioGroup>
                 <FormHelperText>
-                  Currently only VS Code is supported; Jupyter is shown for
-                  future expansion.
+                  Choose VS Code for remote development or Jupyter for notebook
+                  access via tunnel.
                 </FormHelperText>
               </FormControl>
 
@@ -217,8 +216,8 @@ export default function NewInteractiveTaskModal({
               </Stack>
 
               <FormHelperText>
-                Setup and command are pre-populated to install VS Code and start
-                a `code tunnel` session when the job is queued.
+                Setup and command are pre-populated based on the selected
+                interactive type (VS Code or Jupyter).
               </FormHelperText>
             </Stack>
           </DialogContent>
