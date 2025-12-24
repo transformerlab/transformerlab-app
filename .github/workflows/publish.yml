@@ -30,74 +30,18 @@ jobs:
           npm run postinstall
           npm run build
 
-      - name: copy p8 key to file
-        run: |
-          echo "${{ secrets.APPLE_API_KEY_P8_FILE }}" > api_key.p8
-
-      - name: Publish releases
-        env:
-          # These values are used for auto updates signing
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          # Used for apple notarization
-          APPLE_API_KEY: 'api_key.p8'
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          # This is used for uploading release assets to github
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npm exec electron-builder -- --publish always --win --mac --linux
-
       - name: Extract version from package.json
         id: package-version
         run: |
-          VERSION=$(node -p "require('./release/app/package.json').version")
+          VERSION=$(node -p "require('./package.json').version")
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-        shell: bash
-
-      - name: Rename the Windows EXE to have dashes instead of spaces
-        run: |
-          mv "${{ github.workspace }}/release/build/Transformer Lab Setup ${{ steps.package-version.outputs.version }}.exe" "${{ github.workspace }}/release/build/Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe"
-        shell: bash
-
-      - name: Sign Windows EXE using SSL.com eSigner
-        uses: sslcom/esigner-codesign@develop
-        with:
-          command: sign
-          username: ${{ secrets.ES_USERNAME }}
-          password: ${{ secrets.ES_PASSWORD }}
-          credential_id: ${{ secrets.CREDENTIAL_ID }}
-          totp_secret: ${{ secrets.ES_TOTP_SECRET }}
-          file_path: '${{ github.workspace }}/release/build/Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe'
-          output_path: '${{ github.workspace }}/signed'
-
-      - name: Generate latest.yml
-        run: |
-          cat <<EOF > latest.yml
-          version: ${{ steps.package-version.outputs.version }}
-          files:
-            - url: Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe
-              sha512: $(shasum -a 512 "${{ github.workspace }}/signed/Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe" | awk '{print $1}')
-              size: $(stat -c%s "${{ github.workspace }}/signed/Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe")
-          path: Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe
-          sha512: $(shasum -a 512 "${{ github.workspace }}/signed/Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe" | awk '{print $1}')
-          releaseDate: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          EOF
-
-      - name: Upload latest.yml
-        # We have to generate a new file because the original one is based on the unsigned binary
-        run: |
-          gh release upload --clobber ${{ github.ref_name }} latest.yml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
 
       - name: Zip and upload static web assets
         run: |
           cd release/cloud
-          tar -czvf transformerlab_web.tar.gz .
-          gh release upload ${{ github.ref_name }} transformerlab_web.tar.gz
-          gh release upload --clobber ${{ github.ref_name }} "${{ github.workspace }}/signed/Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe"
+          tar -czvf transformerlab_web_${{ steps.package-version.outputs.version }}.tar.gz .
+          gh release upload ${{ github.ref_name }} transformerlab_web_${{ steps.package-version.outputs.version }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
