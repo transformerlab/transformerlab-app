@@ -55,7 +55,6 @@ from transformerlab.routers import (  # noqa: E402
     evals,
     config,
     tasks,
-    task,
     prompts,
     tools,
     batched_prompts,
@@ -247,7 +246,6 @@ app.include_router(plugins.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(evals.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(jobs.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(tasks.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(task.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(config.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(prompts.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(tools.router, dependencies=[Depends(get_user_and_team)])
@@ -591,7 +589,7 @@ def print_launch_message():
     with open(os.path.join(os.path.dirname(__file__), "transformerlab/launch_header_text.txt"), "r") as f:
         text = f.read()
         shared.print_in_rainbow(text)
-    print("https://www.lab.cloud\nhttps://github.com/transformerlab/transformerlab-api\n")
+    print("https://lab.cloud\nhttps://github.com/transformerlab/transformerlab-api\n")
 
 
 def run():
