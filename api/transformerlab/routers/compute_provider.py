@@ -37,6 +37,7 @@ from transformerlab.compute_providers.models import (
     JobState,
 )
 from transformerlab.services import job_service
+from transformerlab.services import quota_service
 from lab import storage
 from lab.dirs import get_workspace_dir
 from transformerlab.shared.github_utils import (
@@ -1054,12 +1055,37 @@ async def launch_template_on_provider(
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
+    # Quota checking and hold creation (only for REMOTE jobs)
+    if request.minutes_requested is not None and request.minutes_requested > 0:
+        user_id_str = str(user.id)
+        has_quota, available, message = await quota_service.check_quota_available(
+            session, user_id_str, team_id, request.minutes_requested
+        )
+        if not has_quota:
+            raise HTTPException(status_code=403, detail=message)
+
     provider_instance = get_provider_instance(provider)
 
     # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING
     initial_status = "INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING"
 
     job_id = job_service.job_create(type="REMOTE", status=initial_status, experiment_id=request.experiment_id)
+
+    # Create quota hold if minutes_requested is provided
+    quota_hold = None
+    if request.minutes_requested is not None and request.minutes_requested > 0:
+        user_id_str = str(user.id)
+        # For task_id, use task_name as identifier (task might not have a persistent ID yet)
+        # We'll use a format that allows us to look it up later: f"{experiment_id}:{task_name}"
+        task_identifier = request.task_name or f"job-{job_id}"
+        quota_hold = await quota_service.create_quota_hold(
+            session=session,
+            user_id=user_id_str,
+            team_id=team_id,
+            task_id=task_identifier,
+            minutes_requested=request.minutes_requested,
+            job_id=str(job_id),
+        )
 
     base_name = request.cluster_name or request.task_name or provider.name
     formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{job_id}"
@@ -1147,6 +1173,7 @@ async def launch_template_on_provider(
         "provider_type": provider.type,
         "provider_name": provider_display_name,
         "user_info": user_info or None,
+        "team_id": team_id,  # Store team_id for quota tracking
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
 
@@ -1181,6 +1208,10 @@ async def launch_template_on_provider(
         launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
     except Exception as exc:
         print(f"Failed to launch cluster: {exc}")
+        # Release quota hold if launch failed
+        if quota_hold:
+            await quota_service.release_quota_hold(session, hold_id=quota_hold.id)
+            await session.commit()
         await job_service.job_update_status(
             job_id,
             "FAILED",
@@ -1188,6 +1219,10 @@ async def launch_template_on_provider(
             error_msg=str(exc),
         )
         raise HTTPException(status_code=500, detail="Failed to launch cluster") from exc
+
+    # Commit quota hold creation after successful launch
+    if quota_hold:
+        await session.commit()
 
     request_id = None
     if isinstance(launch_result, dict):
@@ -1232,13 +1267,35 @@ async def check_provider_job_status(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # Only check REMOTE jobs in LAUNCHING state
-    if job.get("type") != "REMOTE" or job.get("status") != "LAUNCHING":
+    # Only process REMOTE jobs
+    if job.get("type") != "REMOTE":
         return {
             "status": "success",
             "job_id": job_id,
             "current_status": job.get("status"),
-            "message": "Job is not a REMOTE job in LAUNCHING state",
+            "message": "Job is not a REMOTE job",
+        }
+
+    # If job is already in a terminal state, ensure quota is recorded
+    job_status = job.get("status", "")
+    if job_status in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
+        # Ensure quota is recorded for this completed job
+        # Pass team_id from user_and_team context
+        await quota_service.ensure_quota_recorded_for_completed_job(session, job_id, team_id=team_id)
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "current_status": job_status,
+            "message": f"Job is already in {job_status} state",
+        }
+
+    # Only check provider status for jobs in LAUNCHING state
+    if job_status != "LAUNCHING":
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "current_status": job_status,
+            "message": f"Job is in {job_status} state, not checking provider status",
         }
 
     job_data = job.get("job_data", {}) or {}
@@ -1291,10 +1348,13 @@ async def check_provider_job_status(
     if jobs_finished:
         try:
             # Set end_time when marking job as complete
-            job_service.job_update_job_data_insert_key_value(
-                job_id, "end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), experiment_id
-            )
-            await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
+            end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+            job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
+            # Pass session to job_update_status so quota tracking uses the same session
+            await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id, session=session)
+            # Commit the session to ensure quota tracking is persisted
+            await session.commit()
+
             return {
                 "status": "success",
                 "job_id": job_id,
@@ -1317,6 +1377,72 @@ async def check_provider_job_status(
             "current_status": "LAUNCHING",
             "message": "Jobs still running on provider",
         }
+
+
+@router.get("/jobs/ensure-quota-recorded")
+async def ensure_quota_recorded_for_completed_jobs(
+    experiment_id: Optional[str] = Query(None, description="Optional experiment ID to check jobs in"),
+    job_id: Optional[str] = Query(None, description="Optional specific job ID to check"),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Check for completed REMOTE jobs without quota records and record quota usage for them.
+    Can be called periodically to ensure all completed jobs have quota tracked.
+
+    If job_id is provided, checks only that job.
+    If experiment_id is provided, checks all REMOTE jobs in that experiment.
+    Otherwise, returns instructions.
+    """
+    team_id = user_and_team["team_id"]
+
+    if job_id:
+        # Check specific job
+        # Pass team_id from user_and_team context
+        quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(session, job_id, team_id=team_id)
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "quota_recorded": quota_recorded,
+            "message": "Quota recorded"
+            if quota_recorded
+            else "No quota recording needed (already recorded or invalid)",
+        }
+
+    if not experiment_id:
+        return {
+            "status": "error",
+            "message": "Either job_id or experiment_id must be provided",
+        }
+
+    # Get all REMOTE jobs for the experiment
+    jobs = job_service.jobs_get_all(type="REMOTE", experiment_id=experiment_id)
+
+    jobs_processed = 0
+    jobs_recorded = 0
+
+    for job in jobs:
+        job_status = job.get("status", "")
+        if job_status in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
+            jobs_processed += 1
+            job_id_str = str(job.get("id", ""))
+            if job_id_str:
+                # Pass team_id from user_and_team context
+                quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(
+                    session, job_id_str, team_id=team_id
+                )
+                if quota_recorded:
+                    jobs_recorded += 1
+
+    await session.commit()
+
+    return {
+        "status": "success",
+        "experiment_id": experiment_id,
+        "jobs_processed": jobs_processed,
+        "jobs_with_quota_recorded": jobs_recorded,
+        "message": f"Processed {jobs_processed} completed REMOTE jobs, recorded quota for {jobs_recorded}",
+    }
 
 
 async def _update_sweep_job_status(job_id: str, experiment_id: str):
