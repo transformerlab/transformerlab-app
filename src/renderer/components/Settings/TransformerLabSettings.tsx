@@ -29,11 +29,13 @@ import { useNotification } from '../Shared/NotificationSystem';
 import AIProvidersSettings from './AIProvidersSettings';
 import EditTokenModal from './EditTokenModal';
 import ViewJobsTab from './ViewJobsTab';
+import UpdateSettings from './UpdateSettings';
 import { alignBox } from '@nivo/core';
 import {
   getAPIFullPath,
   useAPI,
   fetcher,
+  apiHealthz,
 } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function TransformerLabSettings() {
@@ -93,6 +95,20 @@ export default function TransformerLabSettings() {
   });
   const [showJobsOfType, setShowJobsOfType] = React.useState('NONE');
   const [showProvidersPage, setShowProvidersPage] = React.useState(false);
+  const [isS3Mode, setIsS3Mode] = React.useState(false);
+
+  // Check if in S3 mode from healthz endpoint
+  React.useEffect(() => {
+    const checkMode = async () => {
+      try {
+        const healthzData = await apiHealthz();
+        setIsS3Mode(healthzData?.mode === 's3');
+      } catch (error) {
+        console.error('Error checking mode:', error);
+      }
+    };
+    checkMode();
+  }, []);
 
   const {
     data: jobs,
@@ -157,6 +173,7 @@ export default function TransformerLabSettings() {
         >
           <TabList>
             <Tab>Settings</Tab>
+            {!isS3Mode && <Tab>Updates</Tab>}
             <Tab>View Jobs</Tab>
           </TabList>
           <TabPanel value={0} style={{ overflow: 'auto' }}>
@@ -479,8 +496,16 @@ export default function TransformerLabSettings() {
               Download API Logs
             </Button>
           </TabPanel>
+          {!isS3Mode && (
+            <TabPanel
+              value={1}
+              style={{ overflow: 'auto' }}
+            >
+              <UpdateSettings />
+            </TabPanel>
+          )}
           <TabPanel
-            value={1}
+            value={isS3Mode ? 1 : 2}
             sx={{
               overflowY: 'hidden',
               overflowX: 'hidden',
