@@ -91,8 +91,8 @@ export default function InteractiveJupyterModal({
             Jupyter Notebook Interactive Session (Job {jobId})
           </Typography>
           <Typography level="body-sm" color="neutral">
-            Access your Jupyter notebook through the tunnel URL below. The tunnel
-            URL provides secure access without requiring a token.
+            Access your Jupyter notebook through the tunnel URL below. The
+            tunnel URL provides secure access without requiring a token.
           </Typography>
         </Stack>
         <Divider />
@@ -173,7 +173,6 @@ export default function InteractiveJupyterModal({
                 Token: <code>{token}</code> (automatically included in URL)
               </Typography>
             )}
-
 
             <Typography level="body-xs" sx={{ mt: 1 }}>
               Tip: If the URL never appears, check the job output and provider
