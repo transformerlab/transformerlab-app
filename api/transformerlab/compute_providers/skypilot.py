@@ -3,7 +3,6 @@
 import requests
 import json
 import re
-import time
 import logging
 import warnings
 import sys
@@ -36,8 +35,6 @@ try:
     from sky.utils import common as sky_common
     from sky.check import get_cached_enabled_clouds_or_refresh
     from sky.clouds import CloudCapability
-    from sky.clouds import SSH
-    from sky.provision.kubernetes import utils as k8s_utils
 
     SKYPILOT_AVAILABLE = True
 except ImportError:
@@ -1570,12 +1567,10 @@ class SkyPilotProvider(ComputeProvider):
                             for k8s_node_name, k8s_node_info in node_info_dict.items():
                                 # Get GPU info from kubernetes
                                 total_info = k8s_node_info.get("total", {})
-                                free_info = k8s_node_info.get("free", {})
                                 accelerator_type = k8s_node_info.get("accelerator_type")
                                 is_ready = k8s_node_info.get("is_ready", True)
 
                                 total_gpus = total_info.get("accelerator_count", 0)
-                                free_gpus_from_k8s = free_info.get("accelerators_available", 0)
 
                                 # Build GPU dicts
                                 gpus_dict = {}
@@ -1638,7 +1633,6 @@ class SkyPilotProvider(ComputeProvider):
                                     reason = f"{total_gpus} GPUs available" if total_gpus > 0 else "Available"
 
                                 node_name = k8s_node_info.get("name", k8s_node_name)
-                                node_ip = k8s_node_info.get("ip_address", node_name)
 
                                 # Create fixed node entry for the physical node
                                 node = {
