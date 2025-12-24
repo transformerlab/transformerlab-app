@@ -28,6 +28,8 @@ import {
   ScanTextIcon,
   PlusIcon,
   Trash2Icon,
+  GraduationCapIcon,
+  ChartColumnIncreasingIcon,
 } from 'lucide-react';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -66,16 +68,40 @@ function generateGithubLink(repoUrl?: string, repoDir?: string) {
   return repoDir ? `${finalRepoUrl}/tree/main/${repoDir}` : finalRepoUrl;
 }
 
-function TaskIcon({ icon, color }: { icon: React.ReactNode; color?: string }) {
+function TaskIcon({ category }: { category: string }) {
+  let icon = <ScanTextIcon />;
+  let color: string = '#1976d2';
+
+  switch (category) {
+    case 'dataset-generation':
+      icon = <ScanTextIcon />;
+      color = '#1976d2';
+      break;
+    case 'training':
+      icon = <GraduationCapIcon />;
+      color = '#388e3c';
+      break;
+    case 'eval':
+      icon = <ChartColumnIncreasingIcon />;
+      color = '#d27d00';
+      break;
+    default:
+      icon = <ScanTextIcon />;
+      color = '#5b5e61ff';
+      break;
+  }
+
   return (
     <Box
       sx={{
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: 24,
-        height: 24,
-        color: color || 'inherit',
+        width: 32,
+        height: 32,
+        color,
+        backgroundColor: `${color}11`,
+        padding: '1px',
       }}
     >
       {icon}
@@ -120,7 +146,7 @@ function TaskCard({
               alignItems: 'flex-start',
             }}
           >
-            <TaskIcon icon={<ScanTextIcon />} color="#1976d2" />
+            <TaskIcon category={task?.metadata?.category} />
             {showCheckbox && (
               <Checkbox
                 checked={isSelected || false}
