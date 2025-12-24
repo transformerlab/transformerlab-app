@@ -4,6 +4,7 @@ from .experiment import Experiment
 from .model import Model
 from .dataset import Dataset
 from .task import Task
+from .task_template import TaskTemplate
 
 from .lab_facade import Lab
 
@@ -18,6 +19,7 @@ __all__ = [
     Model,
     Dataset,
     Task,
+    TaskTemplate,
     "lab",
     "Lab",
 ]
