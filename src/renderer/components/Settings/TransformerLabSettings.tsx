@@ -497,10 +497,7 @@ export default function TransformerLabSettings() {
             </Button>
           </TabPanel>
           {!isS3Mode && (
-            <TabPanel
-              value={1}
-              style={{ overflow: 'auto' }}
-            >
+            <TabPanel value={1} style={{ overflow: 'auto' }}>
               <UpdateSettings />
             </TabPanel>
           )}

@@ -91,7 +91,7 @@ const UpdateLogsTerminal: React.FC<UpdateLogsTerminalProps> = ({
     });
     termRef.current.loadAddon(fitAddon.current);
     termRef.current.open(terminalRef.current);
-    
+
     // Write initial message
     termRef.current.writeln('Waiting for update logs...\r');
 
@@ -151,7 +151,9 @@ const UpdateLogsTerminal: React.FC<UpdateLogsTerminalProps> = ({
           if (!response.ok) {
             console.error('Stream log request failed:', response.status);
             if (termRef.current) {
-              termRef.current.writeln(`Error: Failed to stream logs (HTTP ${response.status})\r`);
+              termRef.current.writeln(
+                `Error: Failed to stream logs (HTTP ${response.status})\r`,
+              );
             }
             return;
           }
@@ -186,7 +188,11 @@ const UpdateLogsTerminal: React.FC<UpdateLogsTerminalProps> = ({
                 try {
                   const jsonData = line.slice(6);
                   const logLines = JSON.parse(jsonData);
-                  if (termRef.current && Array.isArray(logLines) && logLines.length > 0) {
+                  if (
+                    termRef.current &&
+                    Array.isArray(logLines) &&
+                    logLines.length > 0
+                  ) {
                     lineQueue.current = lineQueue.current.concat(logLines);
                     if (!isProcessing.current) {
                       processQueue();
@@ -235,4 +241,3 @@ const UpdateLogsTerminal: React.FC<UpdateLogsTerminalProps> = ({
 };
 
 export default UpdateLogsTerminal;
-
