@@ -63,6 +63,7 @@ from transformerlab.routers import (  # noqa: E402
     compute_provider,
     auth,
     api_keys,
+    quota,
 )
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
 import torch  # noqa: E402
@@ -255,6 +256,7 @@ app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(compute_provider.router)
 app.include_router(auth.router)
 app.include_router(api_keys.router)
+app.include_router(quota.router)
 
 controller_process = None
 worker_process = None
@@ -587,7 +589,7 @@ def print_launch_message():
     with open(os.path.join(os.path.dirname(__file__), "transformerlab/launch_header_text.txt"), "r") as f:
         text = f.read()
         shared.print_in_rainbow(text)
-    print("https://www.lab.cloud\nhttps://github.com/transformerlab/transformerlab-api\n")
+    print("https://lab.cloud\nhttps://github.com/transformerlab/transformerlab-api\n")
 
 
 def run():

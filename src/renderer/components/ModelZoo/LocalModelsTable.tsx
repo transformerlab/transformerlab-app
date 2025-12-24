@@ -219,7 +219,6 @@ const LocalModelsTable = ({
             '--Table-headerUnderlineThickness': '1px',
             '--TableRow-hoverBackground': (theme) =>
               theme.vars.palette.background.level1,
-            height: '100px',
             overflow: 'auto',
           }}
         >
