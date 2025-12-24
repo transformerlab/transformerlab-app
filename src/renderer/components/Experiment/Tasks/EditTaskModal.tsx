@@ -435,6 +435,12 @@ export default function EditTaskModal({
       yamlData.envs = envs;
     }
 
+    // Minutes requested (task-level field)
+    if (minutesRequested) {
+      yamlData.minutes_requested =
+        parseInt(minutesRequested, 10) || minutesRequested;
+    }
+
     // Setup and run
     const setupValue = setupEditorRef?.current?.getValue?.() || setup;
     if (setupValue) yamlData.setup = setupValue;
@@ -680,6 +686,8 @@ export default function EditTaskModal({
         setAccelerators(taskData.accelerators);
       if (taskData.num_nodes !== undefined)
         setNumNodes(String(taskData.num_nodes));
+      if (taskData.minutes_requested !== undefined)
+        setMinutesRequested(String(taskData.minutes_requested));
       if (taskData.github_repo_url !== undefined)
         setGithubRepoUrl(taskData.github_repo_url);
       if (taskData.github_directory !== undefined)
@@ -901,6 +909,12 @@ export default function EditTaskModal({
           ? parsedData.num_nodes
           : numNodes
             ? parseInt(numNodes, 10)
+            : undefined,
+      minutes_requested:
+        useParsedData && parsedData.minutes_requested !== undefined
+          ? parsedData.minutes_requested
+          : minutesRequested
+            ? parseInt(minutesRequested, 10)
             : undefined,
       setup: setupValue || undefined,
       env_vars: Object.keys(envVarsObj).length > 0 ? envVarsObj : undefined,

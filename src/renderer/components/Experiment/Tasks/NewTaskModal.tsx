@@ -964,6 +964,12 @@ export default function NewTaskModal({
       yamlData.envs = envs;
     }
 
+    // Minutes requested (task-level field)
+    if (minutesRequested) {
+      yamlData.minutes_requested =
+        parseInt(minutesRequested, 10) || minutesRequested;
+    }
+
     // Setup and run
     const setupValue = setupEditorRef?.current?.getValue?.() || setup;
     if (setupValue) yamlData.setup = setupValue;
