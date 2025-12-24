@@ -33,7 +33,7 @@ def parse_jupyter_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str]]:
                         token = match.group(1)
 
             # Parse cloudflared tunnel URL: "https://random-name.trycloudflare.com"
-            if "trycloudflare.com" in line and not tunnel_url:
+            if not tunnel_url:
                 # Look for the full URL
                 match = re.search(r"(https://[a-zA-Z0-9-]+\.trycloudflare\.com)", line)
                 if match:
@@ -47,10 +47,9 @@ def parse_jupyter_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str]]:
             # Also check for other tunnel services (ngrok, localtunnel, etc.)
             if not tunnel_url:
                 # Check for ngrok: "https://abc123.ngrok-free.app"
-                if "ngrok-free.app" in line or "ngrok.io" in line:
-                    match = re.search(r"(https://[a-zA-Z0-9-]+\.(?:ngrok-free\.app|ngrok\.io))", line)
-                    if match:
-                        tunnel_url = match.group(1)
+                match = re.search(r"(https://[a-zA-Z0-9-]+\.(?:ngrok-free\.app|ngrok\.io))", line)
+                if match:
+                    tunnel_url = match.group(1)
 
         return token, tunnel_url
 
