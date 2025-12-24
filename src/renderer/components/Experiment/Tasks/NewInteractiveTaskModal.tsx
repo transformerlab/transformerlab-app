@@ -170,11 +170,8 @@ export default function NewInteractiveTaskModal({
                     setInteractiveType(e.target.value as 'vscode' | 'jupyter')
                   }
                 >
-                  <Radio value="vscode" label="VS Code (remote tunnel)" />
-                  <Radio
-                    value="jupyter"
-                    label="Jupyter Notebook (remote tunnel)"
-                  />
+                  <Radio value="vscode" label="VS Code" />
+                  <Radio value="jupyter" label="Jupyter Notebook" />
                 </RadioGroup>
                 <FormHelperText>
                   Choose VS Code for remote development or Jupyter for notebook
