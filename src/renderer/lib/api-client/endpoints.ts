@@ -107,6 +107,15 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/${providerId}/task/${taskId}/file-upload`, // Deprecated: use UploadTemplateFile
   Check: (providerId: string) =>
     `${API_URL()}compute_provider/${providerId}/check`,
+  EnsureQuotaRecorded: (experimentId?: string, jobId?: string) => {
+    if (jobId) {
+      return `${API_URL()}compute_provider/jobs/ensure-quota-recorded?job_id=${jobId}`;
+    }
+    if (experimentId) {
+      return `${API_URL()}compute_provider/jobs/ensure-quota-recorded?experiment_id=${experimentId}`;
+    }
+    return `${API_URL()}compute_provider/jobs/ensure-quota-recorded`;
+  },
 };
 
 Endpoints.Workflows = {
@@ -567,4 +576,14 @@ Endpoints.Jobs = {
 
 Endpoints.Global = {
   PromptLog: () => `${API_URL()}prompt_log`,
+};
+
+Endpoints.Quota = {
+  GetMyStatus: () => `${API_URL()}quota/me`,
+  GetMyUsage: () => `${API_URL()}quota/me/usage`,
+  GetTeamQuota: (teamId: string) => `${API_URL()}quota/team/${teamId}`,
+  UpdateTeamQuota: (teamId: string) => `${API_URL()}quota/team/${teamId}`,
+  GetTeamUsers: (teamId: string) => `${API_URL()}quota/team/${teamId}/users`,
+  UpdateUserOverride: (userId: string, teamId: string) =>
+    `${API_URL()}quota/user/${userId}/team/${teamId}`,
 };

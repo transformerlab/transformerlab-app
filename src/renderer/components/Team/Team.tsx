@@ -33,6 +33,7 @@ import { useAPI, useAuth } from 'renderer/lib/authContext';
 import RenameTeamModal from './RenameTeamModal';
 import InviteUserModal from './InviteUserModal';
 import ProviderDetailsModal from './ProviderDetailsModal';
+import QuotaSettingsSection from './QuotaSettingsSection';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 /*
@@ -993,6 +994,10 @@ export default function UserLoginTest(): JSX.Element {
             )}
           </Stack>
         </Box>
+
+        {iAmOwner && (
+          <QuotaSettingsSection teamId={authContext.team?.id || ''} />
+        )}
       </Box>
       <RenameTeamModal
         open={renameModalOpen}
