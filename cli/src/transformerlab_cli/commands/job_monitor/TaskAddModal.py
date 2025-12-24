@@ -45,7 +45,7 @@ class TaskAddModal(ModalScreen):
 
             with Vertical(id="dialog-body"):
                 yield Input(placeholder="full path to task.json", id="task-input")
-                yield Static("The path can be local to the computer or a URL on the internet.", id="task-helper")
+                yield Static("Enter a local path or a URL that starts with http:// or https://", id="task-helper")
             yield Button("Submit", id="task-submit")
 
     @on(Button.Pressed, "#task-submit")
