@@ -1305,24 +1305,24 @@ class SkyPilotProvider(ComputeProvider):
     def get_clusters_detailed(self) -> List[Dict[str, Any]]:
         """
         Get detailed cluster information including all nodes and their resources.
-        
+
         Returns:
             List of cluster details with nodes and resources
         """
         all_clusters = []
-        
+
         # Step 1: Get all existing clusters and categorize them
         # Track which clusters are running on SSH pools vs cloud
         ssh_clusters_by_pool = {}  # pool_name -> [cluster_status, ...]
         cloud_clusters = []
-        
+
         try:
             existing_clusters = self.list_clusters()
-            
+
             for cluster_status in existing_clusters:
                 provider_data = cluster_status.provider_data or {}
                 cloud = provider_data.get("cloud", "").lower()
-                
+
                 # Check if this cluster is running on an SSH pool
                 if cloud == "ssh":
                     # The region field contains the SSH context (e.g., "ssh-ml-homelab-001")
@@ -1333,18 +1333,18 @@ class SkyPilotProvider(ComputeProvider):
                             ssh_clusters_by_pool[pool_name] = []
                         ssh_clusters_by_pool[pool_name].append(cluster_status)
                     continue  # Don't add SSH clusters to cloud list
-                
+
                 # This is a cloud cluster
                 cloud_clusters.append(cluster_status)
         except Exception as e:
             print(f"Warning: Failed to list clusters: {e}")
-        
+
         # Step 2: Process cloud clusters (AWS, GCP, Azure, etc.)
         for cluster_status in cloud_clusters:
             try:
                 cluster_name = cluster_status.cluster_name
                 provider_data = cluster_status.provider_data or {}
-                
+
                 # Determine cloud provider
                 cloud_str = str(provider_data.get("cloud", "")).upper()
                 cloud_provider = None
@@ -1356,11 +1356,11 @@ class SkyPilotProvider(ComputeProvider):
                     cloud_provider = "AZURE"
                 elif "KUBERNETES" in cloud_str or "K8S" in cloud_str:
                     cloud_provider = "KUBERNETES"
-                
+
                 # Get cluster resources
                 resource_info = self.get_cluster_resources(cluster_name)
                 num_nodes = resource_info.num_nodes or 1
-                
+
                 # Convert GPUs list to dict
                 gpus_dict = {}
                 if resource_info.gpus:
@@ -1370,11 +1370,13 @@ class SkyPilotProvider(ComputeProvider):
                             gpu_count = gpu_info.get("count", 0)
                             if gpu_type:
                                 gpus_dict[gpu_type] = gpu_count
-                
+
                 # Check cluster state
-                state_str = cluster_status.state.name if hasattr(cluster_status.state, 'name') else str(cluster_status.state)
+                state_str = (
+                    cluster_status.state.name if hasattr(cluster_status.state, "name") else str(cluster_status.state)
+                )
                 is_cluster_up = state_str.upper() in ["UP", "INIT"]
-                
+
                 # Get running jobs to determine resource allocation
                 running_jobs = []
                 try:
@@ -1382,17 +1384,17 @@ class SkyPilotProvider(ComputeProvider):
                     running_jobs = [j for j in jobs if j.state.name in ["RUNNING", "PENDING"]]
                 except Exception:
                     pass
-                
+
                 has_running_jobs = len(running_jobs) > 0
-                
+
                 # Build nodes for this cloud cluster
                 nodes = []
                 for i in range(num_nodes):
-                    node_name = f"{cluster_name}-node-{i+1}" if num_nodes > 1 else cluster_name
-                    
+                    node_name = f"{cluster_name}-node-{i + 1}" if num_nodes > 1 else cluster_name
+
                     # Determine if this node is active (cluster is UP and has running jobs)
                     is_active = is_cluster_up and has_running_jobs
-                    
+
                     # Determine state
                     if not is_cluster_up:
                         node_state = state_str.upper()
@@ -1400,19 +1402,19 @@ class SkyPilotProvider(ComputeProvider):
                         node_state = "ALLOCATED"
                     else:
                         node_state = "IDLE"
-                    
+
                     # Build reason
                     if has_running_jobs and i == 0:
                         job_names = [j.job_name or f"job-{j.job_id}" for j in running_jobs[:3]]
                         reason = f"Running: {', '.join(job_names)}"
                     else:
                         reason = cluster_status.status_message or node_state
-                    
+
                     # Calculate allocated resources (assume first node gets allocation if jobs running)
                     cpus_allocated = (resource_info.cpus or 0) if (has_running_jobs and i == 0) else 0
                     memory_allocated = (resource_info.memory_gb or 0) if (has_running_jobs and i == 0) else 0
                     gpus_free = {} if (has_running_jobs and i == 0) else gpus_dict.copy()
-                    
+
                     node = {
                         "node_name": node_name,
                         "is_fixed": False,  # Cloud nodes are elastic
@@ -1426,10 +1428,10 @@ class SkyPilotProvider(ComputeProvider):
                             "gpus_free": gpus_free,
                             "memory_gb_total": resource_info.memory_gb or 0,
                             "memory_gb_allocated": memory_allocated,
-                        }
+                        },
                     }
                     nodes.append(node)
-                
+
                 # Build cluster detail
                 cluster_detail = {
                     "cluster_id": cluster_name,
@@ -1440,19 +1442,19 @@ class SkyPilotProvider(ComputeProvider):
                     "head_node_ip": provider_data.get("head_ip"),
                     "nodes": nodes,
                 }
-                
+
                 if cloud_provider:
                     cluster_detail["cloud_provider"] = cloud_provider
-                
+
                 all_clusters.append(cluster_detail)
             except Exception as e:
                 print(f"Warning: Failed to process cloud cluster {cluster_status.cluster_name}: {e}")
-        
+
         # Step 3: Process SSH node pools
         try:
             # Get SSH node pools
             response = self._make_authenticated_request("GET", "/ssh_node_pools", json_data=None, timeout=10)
-            
+
             if response and hasattr(response, "json"):
                 ssh_pools = response.json()
                 if isinstance(ssh_pools, dict):
@@ -1460,27 +1462,24 @@ class SkyPilotProvider(ComputeProvider):
                         try:
                             # Get node info using kubernetes_node_info endpoint
                             ssh_context = f"ssh-{pool_name}"
-                            
+
                             body = payloads.KubernetesNodeInfoRequestBody(context=ssh_context)
                             body_json = json.loads(body.model_dump_json())
-                            
+
                             if self.default_env_vars:
                                 body_json.setdefault("env_vars", {}).update(self.default_env_vars)
                             if self.default_entrypoint_command:
                                 body_json.setdefault("entrypoint_command", self.default_entrypoint_command)
                             body_json.setdefault("using_remote_api_server", False)
                             body_json.setdefault("override_skypilot_config", {})
-                            
+
                             node_info_response = self._make_authenticated_request(
-                                "POST",
-                                "/kubernetes_node_info",
-                                json_data=body_json,
-                                timeout=30
+                                "POST", "/kubernetes_node_info", json_data=body_json, timeout=30
                             )
-                            
+
                             if not node_info_response:
                                 continue
-                            
+
                             # Get request ID from headers
                             request_id = None
                             if self._server_common:
@@ -1488,15 +1487,16 @@ class SkyPilotProvider(ComputeProvider):
                                     request_id = self._server_common.get_request_id(node_info_response)
                                 except Exception:
                                     pass
-                            
+
                             if not request_id and hasattr(node_info_response, "headers"):
                                 request_id = node_info_response.headers.get("X-Skypilot-Request-ID")
-                            
+
                             if not request_id:
                                 continue
-                            
+
                             # Poll for result
                             import time
+
                             node_info_dict = {}
                             for attempt in range(10):
                                 time.sleep(0.5)
@@ -1508,27 +1508,31 @@ class SkyPilotProvider(ComputeProvider):
                                 except Exception:
                                     if attempt == 9:
                                         break
-                            
+
                             if not node_info_dict:
                                 continue
-                            
+
                             # Get the list of all hosts in the pool
                             pool_hosts = pool_info.get("hosts", [])
-                            
+
                             # Get clusters running on this pool
                             running_clusters = ssh_clusters_by_pool.get(pool_name, [])
-                            
+
                             # Build a map of cluster info with their resource usage
                             cluster_resource_map = {}
                             for cluster_status in running_clusters:
                                 try:
                                     cluster_name = cluster_status.cluster_name
-                                    state_str = cluster_status.state.name if hasattr(cluster_status.state, 'name') else str(cluster_status.state)
+                                    state_str = (
+                                        cluster_status.state.name
+                                        if hasattr(cluster_status.state, "name")
+                                        else str(cluster_status.state)
+                                    )
                                     is_cluster_up = state_str.upper() in ["UP", "INIT"]
-                                    
+
                                     # Get cluster resources
                                     resource_info = self.get_cluster_resources(cluster_name)
-                                    
+
                                     # Get running jobs
                                     running_jobs = []
                                     try:
@@ -1536,7 +1540,7 @@ class SkyPilotProvider(ComputeProvider):
                                         running_jobs = [j for j in jobs if j.state.name in ["RUNNING", "PENDING"]]
                                     except Exception:
                                         pass
-                                    
+
                                     # Convert GPUs to dict
                                     cluster_gpus = {}
                                     if resource_info.gpus:
@@ -1546,7 +1550,7 @@ class SkyPilotProvider(ComputeProvider):
                                                 gpu_count = gpu_info.get("count", 0)
                                                 if gpu_type:
                                                     cluster_gpus[gpu_type] = cluster_gpus.get(gpu_type, 0) + gpu_count
-                                    
+
                                     cluster_resource_map[cluster_name] = {
                                         "status": cluster_status,
                                         "state": state_str,
@@ -1558,10 +1562,10 @@ class SkyPilotProvider(ComputeProvider):
                                     }
                                 except Exception as e:
                                     print(f"Warning: Failed to get info for cluster {cluster_status.cluster_name}: {e}")
-                            
+
                             # Build nodes list - only physical nodes
                             nodes = []
-                            
+
                             # Process each physical node in the pool
                             for k8s_node_name, k8s_node_info in node_info_dict.items():
                                 # Get GPU info from kubernetes
@@ -1569,38 +1573,35 @@ class SkyPilotProvider(ComputeProvider):
                                 free_info = k8s_node_info.get("free", {})
                                 accelerator_type = k8s_node_info.get("accelerator_type")
                                 is_ready = k8s_node_info.get("is_ready", True)
-                                
+
                                 total_gpus = total_info.get("accelerator_count", 0)
                                 free_gpus_from_k8s = free_info.get("accelerators_available", 0)
-                                
+
                                 # Build GPU dicts
                                 gpus_dict = {}
                                 if accelerator_type and total_gpus > 0:
                                     gpus_dict[accelerator_type] = total_gpus
-                                
+
                                 # Calculate actual GPU allocation by checking running clusters
                                 # Since k8s_node_info might not reflect real-time allocation,
                                 # we manually calculate based on clusters running on this pool
                                 allocated_gpus = 0
                                 using_clusters = []
-                                
+
                                 for cluster_name, cluster_info in cluster_resource_map.items():
                                     if cluster_info["is_up"] and cluster_info["gpus"]:
                                         # This cluster is using GPUs
                                         for gpu_type, gpu_count in cluster_info["gpus"].items():
                                             if gpu_type == accelerator_type:
                                                 allocated_gpus += gpu_count
-                                                using_clusters.append({
-                                                    "name": cluster_name,
-                                                    "info": cluster_info
-                                                })
-                                
+                                                using_clusters.append({"name": cluster_name, "info": cluster_info})
+
                                 # Calculate free GPUs
                                 free_gpus = max(0, total_gpus - allocated_gpus)
                                 gpus_free_dict = {}
                                 if accelerator_type and free_gpus > 0:
                                     gpus_free_dict[accelerator_type] = free_gpus
-                                
+
                                 # Determine state and is_active based on calculated allocation
                                 if not is_ready:
                                     state = "DOWN"
@@ -1613,7 +1614,7 @@ class SkyPilotProvider(ComputeProvider):
                                     else:
                                         state = "MIXED"
                                     is_active = True
-                                    
+
                                     # Build reason with cluster info
                                     if using_clusters:
                                         cluster_details = []
@@ -1621,7 +1622,10 @@ class SkyPilotProvider(ComputeProvider):
                                             cluster_name = uc["name"]
                                             cluster_info = uc["info"]
                                             if cluster_info["running_jobs"]:
-                                                job_names = [j.job_name or f"job-{j.job_id}" for j in cluster_info["running_jobs"][:1]]
+                                                job_names = [
+                                                    j.job_name or f"job-{j.job_id}"
+                                                    for j in cluster_info["running_jobs"][:1]
+                                                ]
                                                 cluster_details.append(f"{cluster_name}: {job_names[0]}")
                                             else:
                                                 cluster_details.append(f"{cluster_name} ({cluster_info['state']})")
@@ -1632,10 +1636,10 @@ class SkyPilotProvider(ComputeProvider):
                                     state = "IDLE"
                                     is_active = False
                                     reason = f"{total_gpus} GPUs available" if total_gpus > 0 else "Available"
-                                
+
                                 node_name = k8s_node_info.get("name", k8s_node_name)
                                 node_ip = k8s_node_info.get("ip_address", node_name)
-                                
+
                                 # Create fixed node entry for the physical node
                                 node = {
                                     "node_name": node_name,
@@ -1650,10 +1654,10 @@ class SkyPilotProvider(ComputeProvider):
                                         "gpus_free": gpus_free_dict,
                                         "memory_gb_total": 0,  # Not provided by k8s node info
                                         "memory_gb_allocated": 0,
-                                    }
+                                    },
                                 }
                                 nodes.append(node)
-                            
+
                             # Add CPU-only nodes (hosts that don't appear in node_info_dict)
                             # These are hosts without GPUs but can run CPU-only jobs
                             gpu_node_ips = set()
@@ -1665,7 +1669,7 @@ class SkyPilotProvider(ComputeProvider):
                                     gpu_node_ips.add(ip)
                                 if name:
                                     gpu_node_names.add(name)
-                            
+
                             for host in pool_hosts:
                                 host_ip = host.get("ip")
                                 # Skip if this host is already shown as a GPU node
@@ -1675,29 +1679,29 @@ class SkyPilotProvider(ComputeProvider):
                                     cpu_clusters_using = []
                                     total_cpus_allocated = 0
                                     total_memory_allocated = 0
-                                    
+
                                     for cluster_name, cluster_info in cluster_resource_map.items():
                                         if cluster_info["is_up"] and not cluster_info["gpus"]:
                                             # This is a CPU-only cluster
-                                            cpu_clusters_using.append({
-                                                "name": cluster_name,
-                                                "info": cluster_info
-                                            })
+                                            cpu_clusters_using.append({"name": cluster_name, "info": cluster_info})
                                             total_cpus_allocated += cluster_info["cpus"]
                                             total_memory_allocated += cluster_info["memory_gb"]
-                                    
+
                                     # Determine state for CPU node
                                     if cpu_clusters_using:
                                         is_active = True
                                         state = "ALLOCATED"
-                                        
+
                                         # Build reason with cluster info
                                         cluster_details = []
                                         for uc in cpu_clusters_using[:2]:
                                             cluster_name = uc["name"]
                                             cluster_info = uc["info"]
                                             if cluster_info["running_jobs"]:
-                                                job_names = [j.job_name or f"job-{j.job_id}" for j in cluster_info["running_jobs"][:1]]
+                                                job_names = [
+                                                    j.job_name or f"job-{j.job_id}"
+                                                    for j in cluster_info["running_jobs"][:1]
+                                                ]
                                                 cluster_details.append(f"{cluster_name}: {job_names[0]}")
                                             else:
                                                 cluster_details.append(f"{cluster_name} ({cluster_info['state']})")
@@ -1706,7 +1710,7 @@ class SkyPilotProvider(ComputeProvider):
                                         is_active = False
                                         state = "IDLE"
                                         reason = "CPU-only node available"
-                                    
+
                                     cpu_node = {
                                         "node_name": host_ip,
                                         "is_fixed": True,
@@ -1718,12 +1722,14 @@ class SkyPilotProvider(ComputeProvider):
                                             "cpus_allocated": total_cpus_allocated,
                                             "gpus": {},  # No GPUs
                                             "gpus_free": {},
-                                            "memory_gb_total": total_memory_allocated if total_memory_allocated > 0 else 0,
+                                            "memory_gb_total": total_memory_allocated
+                                            if total_memory_allocated > 0
+                                            else 0,
                                             "memory_gb_allocated": total_memory_allocated,
-                                        }
+                                        },
                                     }
                                     nodes.append(cpu_node)
-                            
+
                             # Create SSH pool cluster entry
                             if nodes:
                                 cluster_detail = {
@@ -1740,26 +1746,25 @@ class SkyPilotProvider(ComputeProvider):
                             print(f"Warning: Failed to process SSH pool {pool_name}: {e}")
         except Exception as e:
             print(f"Warning: Failed to get SSH pools: {e}")
-        
+
         # Step 4: Add available cloud providers (no active clusters)
         try:
             with suppress_warnings_and_logs():
                 if SKYPILOT_AVAILABLE:
                     try:
                         enabled_clouds = get_cached_enabled_clouds_or_refresh(
-                            capability=CloudCapability.COMPUTE,
-                            raise_if_no_cloud_access=False
+                            capability=CloudCapability.COMPUTE, raise_if_no_cloud_access=False
                         )
-                        
+
                         # Get set of existing cloud providers
                         existing_providers = {c.get("cloud_provider") for c in all_clusters if c.get("elastic_enabled")}
-                        
+
                         # Add available clouds that don't have clusters
                         for cloud in enabled_clouds:
                             cloud_name = str(cloud).lower()
                             if "ssh" in cloud_name:
                                 continue  # Skip SSH, handled separately
-                            
+
                             cloud_upper = cloud_name.upper()
                             if cloud_upper not in existing_providers:
                                 cluster_detail = {
@@ -1770,14 +1775,14 @@ class SkyPilotProvider(ComputeProvider):
                                     "elastic_enabled": True,
                                     "max_nodes": None,
                                     "head_node_ip": None,
-                                    "nodes": []
+                                    "nodes": [],
                                 }
                                 all_clusters.append(cluster_detail)
                     except Exception:
                         pass
         except Exception:
             pass
-        
+
         return all_clusters
 
     def check(self) -> bool:
