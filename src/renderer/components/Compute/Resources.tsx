@@ -20,6 +20,7 @@ import {
   authenticatedFetch,
   getAPIFullPath,
 } from 'renderer/lib/transformerlab-api-sdk';
+import FixedComputeClusterVisualization from './FixedComputeClusterVisualization';
 
 interface Provider {
   id: string;
@@ -221,7 +222,7 @@ const Resources = () => {
                     },
                   }}
                 >
-                  <Table sx={{ minWidth: 700 }}>
+                  {/* <Table sx={{ minWidth: 700 }}>
                     <thead>
                       <tr>
                         <th>
@@ -376,9 +377,10 @@ const Resources = () => {
                         );
                       })}
                     </tbody>
-                  </Table>
+                  </Table> */}
                 </Sheet>
               )}
+              <FixedComputeClusterVisualization cluster={fixedClusters[0]} />
             </CardContent>
           </Card>
         </Grid>
@@ -534,7 +536,7 @@ const Resources = () => {
                         const cloudType = isFixed
                           ? backendType
                           : cluster.cloud_provider?.toUpperCase() ||
-                            cluster.cluster_name.toUpperCase();
+                            cluster?.cluster_name.toUpperCase();
 
                         return (
                           <tr key={`${cluster.cluster_id}-${node.node_name}`}>
