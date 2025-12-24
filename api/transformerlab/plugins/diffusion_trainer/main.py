@@ -8,7 +8,7 @@ import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
 from peft import LoraConfig
-from peft.utils import get_peft_model_state_dict, set_peft_model_state_dict
+from peft.utils import get_peft_model_state_dict
 from torchvision import transforms
 
 from diffusers import AutoPipelineForText2Image, StableDiffusionPipeline
@@ -16,7 +16,6 @@ from diffusers import AutoPipelineForText2Image, StableDiffusionPipeline
 from diffusers.optimization import get_scheduler
 from diffusers.training_utils import cast_training_params, compute_snr
 from diffusers.utils import convert_state_dict_to_diffusers
-from diffusers import UNet2DConditionModel
 
 # Try to import xformers for memory optimization
 try:
@@ -29,8 +28,6 @@ except ImportError:
 from transformerlab.sdk.v1.train import tlab_trainer
 from lab.dirs import get_workspace_dir
 from lab import storage
-
-from safetensors.torch import load_file
 
 workspace_dir = get_workspace_dir()
 
@@ -327,6 +324,11 @@ def train_diffusion_lora():
         eval_prompt = None
         args["eval_prompt"] = None
         args["eval_steps"] = 0
+    if args.get("model_architecture", "").strip() == "ZImagePipeline":
+        print("Disabling evaluation for ZImagePipeline as it is not supported.")
+        eval_prompt = None
+        args["eval_prompt"] = None
+        args["eval_steps"] = 0
     elif eval_prompt and eval_steps <= 0:
         print("Warning: eval_steps is set to 0, evaluation will not be performed.")
         eval_prompt = None
@@ -448,9 +450,9 @@ def train_diffusion_lora():
 
     is_flux = "FluxPipeline" in model_architecture
 
-    is_zimage = "Z-Image-Turbo" in pretrained_model_name_or_path or "Z-Image-Turbo" in model_architecture
+    is_zimage = "ZImagePipeline" in model_architecture
 
-    print(f"Architecture detection - SDXL: {is_sdxl}, SD3: {is_sd3}, Flux: {is_flux}, Z-Image: {is_zimage}")
+    print(f"Architecture detection - SDXL: {is_sdxl}, SD3: {is_sd3}, Flux: {is_flux}, ZImage: {is_zimage}")
 
     # Define target modules based on detected architecture
     if is_sdxl:
@@ -461,10 +463,14 @@ def train_diffusion_lora():
         # SD3 uses Multi-Modal DiT architecture
         target_modules = ["to_q", "to_k", "to_v", "to_out.0"]
         architecture_name = "SD3"
-    elif is_flux or is_zimage:
+    elif is_flux:
         # Flux uses transformer-based architecture
         target_modules = ["to_q", "to_k", "to_v", "to_out.0"]
-        architecture_name = "Flux" if is_flux else "Z-Image-Turbo"
+        architecture_name = "Flux"
+    elif is_zimage:
+        # ZImage uses a modified UNet architecture
+        target_modules = ["to_q", "to_k", "to_v", "to_out.0"]
+        architecture_name = "ZImage"
     else:
         # Default SD 1.x targets
         target_modules = ["to_k", "to_q", "to_v", "to_out.0"]
@@ -489,42 +495,6 @@ def train_diffusion_lora():
     unet.add_adapter(unet_lora_config)
     if mixed_precision == "fp16":
         cast_training_params(unet, dtype=torch.float32)
-
-    if is_zimage and args.get("training_adapter"):
-        adapter_path = args.get("training_adapter")
-        if adapter_path:
-            if adapter_path.endswith(".safetensors"):
-                state_dict = load_file(adapter_path)
-            else:
-                state_dict = torch.load(adapter_path, map_location="cpu")
-            unet.load_state_dict(state_dict, strict=False)
-            print(f"Loaded Z-Image Turbo training adapter from {adapter_path}")
-        else:
-            adapter_repo = "ostris/zimage_turbo_training_adapter"
-            adapter_filename = "zimage_turbo_training_adapter_v2.safetensors"
-            print(
-                f"No training_adapter provided. Auto-downloading recommended adapter: {adapter_filename} from {adapter_repo}"
-            )
-
-            try:
-                adapter_unet = UNet2DConditionModel.from_pretrained(
-                    adapter_repo,
-                    subfolder="",  # Root of repo
-                    filename=adapter_filename,
-                    torch_dtype=weight_dtype,
-                    variant=None,
-                    use_safetensors=True,
-                    low_cpu_mem_usage=True,
-                )
-                # Extract only the LoRA state dict
-                adapter_state_dict = get_peft_model_state_dict(adapter_unet)
-                # Apply to our training unet (strict=False to ignore base weights)
-                unet.load_state_dict(adapter_state_dict, strict=False)
-                del adapter_unet, adapter_state_dict
-                cleanup_pipeline()
-                print("Successfully auto-loaded Z-Image-Turbo training adapter v2")
-            except Exception as e:
-                print(f"Failed to auto-download Z-Image Turbo training adapter: {e}")
 
     lora_layers = filter(lambda p: p.requires_grad, unet.parameters())
 
@@ -582,15 +552,11 @@ def train_diffusion_lora():
 
         # Replace the model component with our trained version to include LoRA weights
         if model_component_name == "transformer":
-            pipeline_component = pipeline.transformer
+            pipeline.transformer = unet
         else:
-            pipeline_component = pipeline.unet
-        pipeline_component.add_adapter(unet_lora_config)
-
-        lora_state_dict = get_peft_model_state_dict(unet)
-        set_peft_model_state_dict(pipeline_component, lora_state_dict)
-
+            pipeline.unet = unet
         pipeline = pipeline.to(device)
+
         # Generate image
         with torch.no_grad():
             image = pipeline(
@@ -1194,7 +1160,7 @@ def train_diffusion_lora():
 
     if not saved_successfully and is_zimage:
         try:
-            # Z-Image pipelines may have their own save method
+            # ZImage pipelines may have their own save method
             from diffusers import ZImagePipeline
 
             ZImagePipeline.save_lora_weights(
@@ -1202,7 +1168,7 @@ def train_diffusion_lora():
                 unet_lora_layers=model_lora_state_dict,
                 safe_serialization=True,
             )
-            print(f"LoRA weights saved to {save_directory} using ZImagePipeline.save_lora_weights (Z-Image)")
+            print(f"LoRA weights saved to {save_directory} using ZImagePipeline.save_lora_weights (ZImage)")
             saved_successfully = True
         except Exception as e:
             print(f"Error with ZImagePipeline.save_lora_weights: {e}")
