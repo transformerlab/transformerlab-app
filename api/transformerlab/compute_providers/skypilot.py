@@ -9,6 +9,8 @@ import sys
 from io import StringIO
 from contextlib import contextmanager
 from typing import Dict, Any, Optional, Union, List
+import time
+
 
 from .base import ComputeProvider
 from .models import (
@@ -1378,7 +1380,11 @@ class SkyPilotProvider(ComputeProvider):
                 running_jobs = []
                 try:
                     jobs = self.list_jobs(cluster_name)
-                    running_jobs = [j for j in jobs if j.state.name in ["RUNNING", "PENDING"]]
+                    running_jobs = [
+                        j
+                        for j in jobs
+                        if getattr(j.state, "name", str(j.state)) in ["RUNNING", "PENDING"]
+                    ]
                 except Exception:
                     pass
 
@@ -1492,7 +1498,6 @@ class SkyPilotProvider(ComputeProvider):
                                 continue
 
                             # Poll for result
-                            import time
 
                             node_info_dict = {}
                             for attempt in range(10):
@@ -1534,8 +1539,13 @@ class SkyPilotProvider(ComputeProvider):
                                     running_jobs = []
                                     try:
                                         jobs = self.list_jobs(cluster_name)
-                                        running_jobs = [j for j in jobs if j.state.name in ["RUNNING", "PENDING"]]
-                                    except Exception:
+                                        running_jobs = [
+                                            j
+                                            for j in jobs
+                                            if getattr(j.state, "name", str(j.state)).upper()
+                                            in ["RUNNING", "PENDING"]
+                                        ]
+                                    except Exception as exc:
                                         pass
 
                                     # Convert GPUs to dict
@@ -1586,10 +1596,13 @@ class SkyPilotProvider(ComputeProvider):
                                 for cluster_name, cluster_info in cluster_resource_map.items():
                                     if cluster_info["is_up"] and cluster_info["gpus"]:
                                         # This cluster is using GPUs
+                                        matched = False
                                         for gpu_type, gpu_count in cluster_info["gpus"].items():
                                             if gpu_type == accelerator_type:
                                                 allocated_gpus += gpu_count
-                                                using_clusters.append({"name": cluster_name, "info": cluster_info})
+                                                matched = True
+                                        if matched:
+                                            using_clusters.append({"name": cluster_name, "info": cluster_info})
 
                                 # Calculate free GPUs
                                 free_gpus = max(0, total_gpus - allocated_gpus)
@@ -1670,6 +1683,9 @@ class SkyPilotProvider(ComputeProvider):
                                 if host_ip and host_ip not in gpu_node_ips and host_ip not in gpu_node_names:
                                     # This is a CPU-only node
                                     # Check if any CPU-only clusters are using it
+                                    # Note: This assumes all CPU-only clusters in the pool are running on every CPU-only host.
+                                    # In reality, only one host should show the allocation, but we can't determine which one.
+                                    # This is a limitation of the current implementation.
                                     cpu_clusters_using = []
                                     total_cpus_allocated = 0
                                     total_memory_allocated = 0
