@@ -1378,7 +1378,11 @@ class SkyPilotProvider(ComputeProvider):
                 running_jobs = []
                 try:
                     jobs = self.list_jobs(cluster_name)
-                    running_jobs = [j for j in jobs if j.state.name in ["RUNNING", "PENDING"]]
+                    running_jobs = [
+                        j
+                        for j in jobs
+                        if getattr(j.state, "name", str(j.state)) in ["RUNNING", "PENDING"]
+                    ]
                 except Exception:
                     pass
 
