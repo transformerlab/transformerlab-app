@@ -1,75 +1,64 @@
-
-    
 # Transformer Lab CLI
 
-Transformer Lab CLI
+![Main Screenshot](./screenshots/screenshot001.png)
 
-## Dev Prerequisites
+![Job Monitor Screenshot](./screenshots/screenshot002.png)
 
-- Bun
+# Usage
 
-## Installation
+## Install
 
-1. **Install Dependencies**
-```bash
-bun install
+(install instructions coming soon, for now follow Build Locally instructions below)
+
+## Usage:
+
+```
+ Usage: lab [OPTIONS] COMMAND [ARGS]...
+
+ Transformer Lab CLI
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --format        TEXT  Output format: pretty or json [default: pretty]        │
+│ --help                Show this message and exit.                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ version   Display the CLI version.                                           │
+│ config    View or set configuration values.                                  │
+│ status    Check the status of the server.                                    │
+│ login     Log in to Transformer Lab.                                         │
+│ logout    Log out from Transformer Lab.                                      │
+│ task      Task management commands                                           │
+│ job       Job management commands                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-2. **Build the Project**
-```bash
-bun run build
+# Development
+
+## Run (DEV):
+
 ```
-  
-## Usage
-
-### Development
-
-When developing, you can run commands like this:
-
-`bun run src/cli.tsx task list`
-
-And you can turn on DEBUG mode like this:
-
-`DEBUG=true bun run src/cli.tsx task list`
-
-### Production
-
-Once built, you can access the CLI using the lab command.
-1. Basics
-```bash
-# Check status and help
-lab
-
-# Login 
-lab login
-
-# View current git context
-lab context
+uv run src/transformerlab_cli/main.py
 ```
 
-2. Managing Tasks
-
-Navigate to a folder with code (or use the current folder) and add it as a task.
-```bash 
-# Add the current directory as a task
-# Follow the interactive prompts!
-lab task add .
-
-# Run a specific task (use the name generated in the previous step)
-lab task run task-17098234
+## Build Locally:
+```
+uv tool install .
 ```
 
-3. Monitoring Jobs
-```bash
-# See what is running
-lab job list
+or rebuild with:
+```
+uv tool install . --force --reinstall
+```
 
-# Get details on a specific job
-lab job info job-17098235
-``` 
+Adds a `lab` command to your terminal
 
-4. Interface
-```bash
-# Open the web dashboard
-lab web
+## Debug the Job Monitor:
+
+```
+uv run textual run --dev src/transformerlab_cli/commands/job_monitor/job_monitor.py
+```
+
+Run in browser (for fun?)
+```
+uv run textual serve src/transformerlab_cli/commands/job_monitor/job_monitor.py
 ```
