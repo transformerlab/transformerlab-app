@@ -37,16 +37,55 @@ Endpoints.Tasks = {
   ExportToTeamGallery: () => `${API_URL()}tasks/gallery/team/export`,
   AddToTeamGallery: () => `${API_URL()}tasks/gallery/team/add`,
   DeleteFromTeamGallery: () => `${API_URL()}tasks/gallery/team/delete`,
-  FetchTaskJson: (repoUrl: string, directory?: string) =>
-    `${API_URL()}tasks/fetch_task_json?repo_url=${encodeURIComponent(repoUrl)}${
-      directory ? `&directory=${encodeURIComponent(directory)}` : ''
-    }`,
+};
+
+Endpoints.Task = {
+  List: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/list`,
+  ListByType: (experimentId: string, type: string) =>
+    `${API_URL()}experiment/${experimentId}/task/list_by_type?type=${type}`,
+  ListByTypeInExperiment: (experimentId: string, type: string) =>
+    `${API_URL()}experiment/${experimentId}/task/list_by_type_in_experiment?type=${type}`,
+  ListBySubtypeInExperiment: (
+    experimentId: string,
+    subtype: string,
+    type?: string,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/task/list_by_subtype_in_experiment?subtype=${encodeURIComponent(
+      subtype,
+    )}${type ? `&type=${encodeURIComponent(type)}` : ''}`,
+  GetByID: (experimentId: string, id: string) =>
+    `${API_URL()}experiment/${experimentId}/task/${id}/get`,
+  UpdateTemplate: (experimentId: string, id: string) =>
+    `${API_URL()}experiment/${experimentId}/task/${id}/update`,
+  NewTemplate: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/new_task`,
+  DeleteTemplate: (experimentId: string, id: string) =>
+    `${API_URL()}experiment/${experimentId}/task/${id}/delete`,
+  Gallery: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery`,
+  ImportFromGallery: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/import`,
+  TeamGallery: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/team`,
+  ImportFromTeamGallery: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/team/import`,
+  ExportToTeamGallery: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/team/export`,
+  AddToTeamGallery: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/team/add`,
+  DeleteFromTeamGallery: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/team/delete`,
+  FetchTaskJson: (experimentId: string, url: string) =>
+    `${API_URL()}experiment/${experimentId}/task/fetch_task_json?url=${encodeURIComponent(url)}`,
 };
 
 Endpoints.ComputeProvider = {
   List: () => `${API_URL()}compute_provider/`,
+  LaunchTemplate: (providerId: string) =>
+    `${API_URL()}compute_provider/${providerId}/task/launch`,
   LaunchTask: (providerId: string) =>
-    `${API_URL()}compute_provider/${providerId}/tasks/launch`,
+    `${API_URL()}compute_provider/${providerId}/task/launch`, // Deprecated: use LaunchTemplate
   CheckJobStatus: (jobId: string) =>
     `${API_URL()}compute_provider/jobs/${jobId}/check-status`,
   CheckSweepStatus: (experimentId?: string, jobId?: string) => {
@@ -62,8 +101,10 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/jobs/${jobId}/sweep-results`,
   StopCluster: (providerId: string, clusterName: string) =>
     `${API_URL()}compute_provider/${providerId}/clusters/${clusterName}/stop`,
+  UploadTemplateFile: (providerId: string, taskId: string | number) =>
+    `${API_URL()}compute_provider/${providerId}/task/${taskId}/file-upload`,
   UploadTaskFile: (providerId: string, taskId: string | number) =>
-    `${API_URL()}compute_provider/${providerId}/tasks/${taskId}/file-upload`,
+    `${API_URL()}compute_provider/${providerId}/task/${taskId}/file-upload`, // Deprecated: use UploadTemplateFile
   Check: (providerId: string) =>
     `${API_URL()}compute_provider/${providerId}/check`,
 };
