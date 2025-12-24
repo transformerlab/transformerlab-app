@@ -55,7 +55,7 @@ class JobMonitorApp(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        self.theme = "nord"
+        self.theme = "tokyo-night"
         self.update_current_experiment()
         self.load_jobs()
 
