@@ -67,6 +67,10 @@ class JobMonitorApp(App):
     def action_add_task(self) -> None:
         self.push_screen(TaskAddModal())
 
+    def action_refresh(self) -> None:
+        """Refresh the job list."""
+        self.load_jobs()
+
     def update_current_experiment(self) -> None:
         """Update the title and subtitle with the current experiment."""
         current_experiment = get_current_experiment()
