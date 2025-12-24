@@ -220,7 +220,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             subtype,
             'REMOTE', // Filter by REMOTE type when filtering by subtype
           )
-        : chatAPI.Endpoints.Task.List()
+        : chatAPI.Endpoints.Task.List(experimentInfo.id)
       : null,
     fetcher,
   );
@@ -345,7 +345,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.DeleteTemplate(taskId),
+        chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo?.id || '', taskId),
         {
           method: 'GET',
         },
@@ -414,7 +414,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const handleExportToTeamGallery = async (taskId: string) => {
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.ExportToTeamGallery(),
+        chatAPI.Endpoints.Task.ExportToTeamGallery(experimentInfo?.id || ''),
         {
           method: 'POST',
           headers: {
@@ -511,9 +511,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
 
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.NewTemplate(),
+        chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
         {
-          method: 'PUT',
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -596,9 +596,9 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
       };
 
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.NewTemplate(),
+        chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
         {
-          method: 'PUT',
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -810,8 +810,51 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
           task={taskBeingEdited}
           providers={providers}
           isProvidersLoading={providersIsLoading}
-          onSaved={async () => {
-            await templatesMutate();
+          onSaved={async (updatedBody: any) => {
+            if (!experimentInfo?.id || !taskBeingEdited?.id) {
+              addNotification({
+                type: 'warning',
+                message: 'Missing experiment or task ID',
+              });
+              return;
+            }
+
+            try {
+              const response = await chatAPI.authenticatedFetch(
+                chatAPI.Endpoints.Task.UpdateTemplate(
+                  experimentInfo.id,
+                  taskBeingEdited.id,
+                ),
+                {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    accept: 'application/json',
+                  },
+                  body: JSON.stringify(updatedBody),
+                },
+              );
+
+              if (response.ok) {
+                await templatesMutate();
+                addNotification({
+                  type: 'success',
+                  message: 'Interactive task updated successfully',
+                });
+              } else {
+                const txt = await response.text();
+                addNotification({
+                  type: 'danger',
+                  message: `Failed to update interactive task: ${txt}`,
+                });
+              }
+            } catch (error) {
+              console.error('Error updating interactive task:', error);
+              addNotification({
+                type: 'danger',
+                message: 'Failed to update interactive task. Please try again.',
+              });
+            }
           }}
         />
       ) : (
