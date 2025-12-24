@@ -29,7 +29,8 @@ import ConnectionLostModal from './Shared/ConnectionLostModal';
 function StatsBar({ connection, setConnection }) {
   const [cs, setCS] = useState({ cpu: [0], gpu: [0], mem: [0] });
   const { server, isLoading, isError } = useServerStats();
-  const isCloudMode = (window as any).platform?.appmode === 'cloud';
+  // Always cloud mode now
+  const isCloudMode = true;
 
   useEffect(() => {
     if (connection === '') return;

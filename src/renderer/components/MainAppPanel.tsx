@@ -70,7 +70,7 @@ export const PageTracker = () => {
         context: {
           app: {
             version: window.platform?.version,
-            mode: window.platform?.appmode,
+            mode: 'cloud',
           },
         },
       });

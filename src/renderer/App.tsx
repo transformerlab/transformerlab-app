@@ -14,12 +14,9 @@ import customTheme from './lib/theme';
 import secretPurpleTheme from './lib/secretPurpleTheme';
 
 import './styles.css';
-import LoginModal from './components/Connect/LoginModal';
 
 import OutputTerminal from './components/OutputTerminal';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
-// import OutputTerminal from './components/OutputTerminal';
-import AutoUpdateModal from './components/AutoUpdateModal';
 import AnnouncementsModal from './components/Shared/AnnouncementsModal';
 import { NotificationProvider } from './components/Shared/NotificationSystem';
 import {
@@ -37,7 +34,6 @@ type AppContentProps = {
   logsDrawerHeight: number;
   setLogsDrawerHeight: (height: number) => void;
   themeSetter: (name: string) => void;
-  setSSHConnection: (conn: any) => void;
   setConnection: (conn: string) => void;
 };
 
@@ -48,7 +44,6 @@ function AppContent({
   logsDrawerHeight,
   setLogsDrawerHeight,
   themeSetter,
-  setSSHConnection,
   setConnection,
 }: AppContentProps) {
   const onOutputDrawerDrag = useCallback(
@@ -64,33 +59,21 @@ function AppContent({
 
   const authContext = useAuth();
 
-  // Only show LoginPage when:
+  // Show LoginPage when:
   // 1. Multi-user mode is enabled AND user is not authenticated
-  // 2. OR in single-user mode, user is not authenticated but has a connection (meaning auto-login failed)
-  // In single-user mode without connection, the LoginModal will handle connection and auto-login
+  // 2. OR user is not authenticated but has a connection (meaning auto-login failed)
+  // In cloud mode, connection should be set via environment variable or direct URL
   if (!authContext?.isAuthenticated) {
     // In multi-user mode, always show LoginPage
     if (process.env.MULTIUSER === 'true') {
       return <LoginPage />;
     }
-    // In single-user mode, only show LoginPage if we have a connection but aren't authenticated
-    // (meaning auto-login failed or connection was lost after being established)
+    // If we have a connection but aren't authenticated, show LoginPage
+    // (connection was established but auto-login failed)
     if (connection && connection !== '') {
       return <LoginPage />;
     }
-    // In single-user mode without connection, render just the LoginModal
-    // which will handle connection + auto-login
-    if (process.env.TL_FORCE_API_URL === 'false') {
-      return (
-        <LoginModal
-          setServer={setConnection}
-          connection={connection}
-          setTerminalDrawerOpen={setLogsDrawerOpen}
-          setSSHConnection={setSSHConnection}
-        />
-      );
-    }
-    // If TL_FORCE_API_URL is not 'false', show nothing (connection should be set via env var)
+    // If no connection, show nothing (connection should be set via env var in cloud mode)
     return null;
   }
 
@@ -194,16 +177,7 @@ function AppContent({
           />
         </Box>
       </Box>
-      <AutoUpdateModal />
       <AnnouncementsModal />
-      {process.env.TL_FORCE_API_URL === 'false' && (
-        <LoginModal
-          setServer={setConnection}
-          connection={connection}
-          setTerminalDrawerOpen={setLogsDrawerOpen}
-          setSSHConnection={setSSHConnection}
-        />
-      )}
     </Box>
   );
 }
@@ -259,7 +233,6 @@ export default function App() {
               logsDrawerHeight={logsDrawerHeight}
               setLogsDrawerHeight={setLogsDrawerHeight}
               themeSetter={themeSetter}
-              setSSHConnection={() => {}}
               setConnection={setConnection}
             />
           </ExperimentInfoProvider>
