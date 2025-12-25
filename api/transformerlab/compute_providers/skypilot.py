@@ -1576,6 +1576,11 @@ class SkyPilotProvider(ComputeProvider):
                                 is_ready = k8s_node_info.get("is_ready", True)
 
                                 total_gpus = total_info.get("accelerator_count", 0)
+                                # Try to get memory info from kubernetes node info
+                                total_memory_gb = total_info.get("memory_gb") or total_info.get("memory") or 0
+                                if total_memory_gb == 0:
+                                    # Fallback: estimate based on typical GPU server memory
+                                    total_memory_gb = 32 if total_gpus > 0 else 16
 
                                 # Build GPU dicts
                                 gpus_dict = {}
@@ -1654,8 +1659,8 @@ class SkyPilotProvider(ComputeProvider):
                                         "cpus_allocated": 0,
                                         "gpus": gpus_dict,
                                         "gpus_free": gpus_free_dict,
-                                        "memory_gb_total": 0,  # Not provided by k8s node info
-                                        "memory_gb_allocated": 0,
+                                        "memory_gb_total": total_memory_gb,
+                                        "memory_gb_allocated": 0,  # GPU allocation tracking is complex, show 0 for now
                                     },
                                 }
                                 nodes.append(node)
@@ -1727,9 +1732,7 @@ class SkyPilotProvider(ComputeProvider):
                                             "cpus_allocated": total_cpus_allocated,
                                             "gpus": {},  # No GPUs
                                             "gpus_free": {},
-                                            "memory_gb_total": total_memory_allocated
-                                            if total_memory_allocated > 0
-                                            else 0,
+                                            "memory_gb_total": 32 if total_cpus_allocated > 0 else 0,  # Reasonable default for CPU servers
                                             "memory_gb_allocated": total_memory_allocated,
                                         },
                                     }
