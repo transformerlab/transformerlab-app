@@ -1732,7 +1732,9 @@ class SkyPilotProvider(ComputeProvider):
                                             "cpus_allocated": total_cpus_allocated,
                                             "gpus": {},  # No GPUs
                                             "gpus_free": {},
-                                            "memory_gb_total": 32 if total_cpus_allocated > 0 else 0,  # Reasonable default for CPU servers
+                                            "memory_gb_total": 32
+                                            if total_cpus_allocated > 0
+                                            else 0,  # Reasonable default for CPU servers
                                             "memory_gb_allocated": total_memory_allocated,
                                         },
                                     }
