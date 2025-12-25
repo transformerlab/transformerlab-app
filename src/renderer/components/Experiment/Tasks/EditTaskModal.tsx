@@ -68,6 +68,7 @@ export default function EditTaskModal({
   const [diskSpace, setDiskSpace] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
+  const [minutesRequested, setMinutesRequested] = React.useState('60');
   const [setup, setSetup] = React.useState('');
   const [envVars, setEnvVars] = React.useState<
     Array<{ key: string; value: string }>
@@ -160,6 +161,15 @@ export default function EditTaskModal({
         : cfg.num_nodes != null
           ? String(cfg.num_nodes)
           : '',
+    );
+    setMinutesRequested(
+      isTemplate
+        ? taskAny.minutes_requested != null
+          ? String(taskAny.minutes_requested)
+          : '60'
+        : cfg.minutes_requested != null
+          ? String(cfg.minutes_requested)
+          : '60',
     );
     setSetup(
       isTemplate
@@ -425,6 +435,12 @@ export default function EditTaskModal({
       yamlData.envs = envs;
     }
 
+    // Minutes requested (task-level field)
+    if (minutesRequested) {
+      yamlData.minutes_requested =
+        parseInt(minutesRequested, 10) || minutesRequested;
+    }
+
     // Setup and run
     const setupValue = setupEditorRef?.current?.getValue?.() || setup;
     if (setupValue) yamlData.setup = setupValue;
@@ -609,6 +625,10 @@ export default function EditTaskModal({
           taskData.num_nodes = resources.num_nodes;
         }
       }
+      // Minutes requested (task-level field)
+      if (taskYaml.minutes_requested !== undefined) {
+        taskData.minutes_requested = taskYaml.minutes_requested;
+      }
 
       // Environment variables
       if (taskYaml.envs) {
@@ -666,6 +686,8 @@ export default function EditTaskModal({
         setAccelerators(taskData.accelerators);
       if (taskData.num_nodes !== undefined)
         setNumNodes(String(taskData.num_nodes));
+      if (taskData.minutes_requested !== undefined)
+        setMinutesRequested(String(taskData.minutes_requested));
       if (taskData.github_repo_url !== undefined)
         setGithubRepoUrl(taskData.github_repo_url);
       if (taskData.github_directory !== undefined)
@@ -887,6 +909,12 @@ export default function EditTaskModal({
           ? parsedData.num_nodes
           : numNodes
             ? parseInt(numNodes, 10)
+            : undefined,
+      minutes_requested:
+        useParsedData && parsedData.minutes_requested !== undefined
+          ? parsedData.minutes_requested
+          : minutesRequested
+            ? parseInt(minutesRequested, 10)
             : undefined,
       setup: setupValue || undefined,
       env_vars: Object.keys(envVarsObj).length > 0 ? envVarsObj : undefined,
@@ -1191,6 +1219,20 @@ export default function EditTaskModal({
                     onChange={(e) => setNumNodes(e.target.value)}
                     placeholder="e.g. 1"
                   />
+                </FormControl>
+
+                <FormControl sx={{ mt: 2 }}>
+                  <FormLabel>Minutes Requested (for quota tracking)</FormLabel>
+                  <Input
+                    type="number"
+                    value={minutesRequested}
+                    onChange={(e) => setMinutesRequested(e.target.value)}
+                    placeholder="e.g. 60"
+                  />
+                  <FormHelperText>
+                    Estimated minutes this task will run. Used for quota
+                    tracking.
+                  </FormHelperText>
                 </FormControl>
 
                 <FormControl sx={{ mt: 2 }}>
