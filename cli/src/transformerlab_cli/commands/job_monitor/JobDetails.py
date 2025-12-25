@@ -1,6 +1,6 @@
 import json
 from textual.app import ComposeResult
-from textual.widgets import Button, TextArea, ProgressBar, Static, Markdown
+from textual.widgets import Button, TextArea, ProgressBar, Static
 from textual.containers import Vertical, VerticalScroll, Horizontal
 from textual.screen import ModalScreen
 
