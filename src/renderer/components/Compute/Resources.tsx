@@ -168,13 +168,18 @@ const Resources = () => {
       </Box>
     );
   }
-console.log(providers)
+  console.log(providers);
   return (
     <Box sx={{ maxHeight: '80vh', overflowY: 'auto', p: 3, pb: 10 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Typography level="h4">
-          Resources
-        </Typography>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          mb: 2,
+        }}
+      >
+        <Typography level="h4">Resources</Typography>
         <Button
           variant="outlined"
           onClick={fetchClusters}
@@ -207,7 +212,8 @@ console.log(providers)
                 Fixed Compute
               </Typography>
               {fixedClusters.length === 0 ? (
-                providers.find(p => p.id === selectedProvider)?.type === 'skypilot' ? (
+                providers.find((p) => p.id === selectedProvider)?.type ===
+                'skypilot' ? (
                   <Typography level="body-sm" sx={{ color: 'warning.main' }}>
                     No cluster status received from SkyPilot. Try refreshing...
                   </Typography>
