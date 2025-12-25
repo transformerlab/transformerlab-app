@@ -15,6 +15,7 @@ import {
   Grid,
   Table,
   Sheet,
+  Button,
 } from '@mui/joy';
 import {
   authenticatedFetch,
@@ -167,12 +168,22 @@ const Resources = () => {
       </Box>
     );
   }
-
+console.log(providers)
   return (
     <Box sx={{ maxHeight: '80vh', overflowY: 'auto', p: 3, pb: 10 }}>
-      <Typography level="h4" mb={2}>
-        Resources
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Typography level="h4">
+          Resources
+        </Typography>
+        <Button
+          variant="outlined"
+          onClick={fetchClusters}
+          disabled={loading}
+          size="sm"
+        >
+          Refresh
+        </Button>
+      </Box>
       <FormControl sx={{ mb: 3, maxWidth: 400 }}>
         <FormLabel>Select Provider</FormLabel>
         <Select
@@ -196,9 +207,15 @@ const Resources = () => {
                 Fixed Compute
               </Typography>
               {fixedClusters.length === 0 ? (
-                <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
-                  No Fixed Compute nodes found.
-                </Typography>
+                providers.find(p => p.id === selectedProvider)?.type === 'skypilot' ? (
+                  <Typography level="body-sm" sx={{ color: 'warning.main' }}>
+                    No cluster status received from SkyPilot. Try refreshing...
+                  </Typography>
+                ) : (
+                  <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
+                    No Fixed Compute nodes found.
+                  </Typography>
+                )
               ) : (
                 <Sheet
                   variant="outlined"
@@ -380,7 +397,9 @@ const Resources = () => {
                   </Table> */}
                 </Sheet>
               )}
-              <FixedComputeClusterVisualization cluster={fixedClusters[0]} />
+              {fixedClusters.length > 0 && (
+                <FixedComputeClusterVisualization cluster={fixedClusters[0]} />
+              )}
             </CardContent>
           </Card>
         </Grid>
