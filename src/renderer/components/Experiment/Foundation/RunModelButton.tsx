@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { RiImageAiLine } from 'react-icons/ri';
 import { useEffect, useState } from 'react';
+import useSWR from 'swr';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 import {
   activateWorker,
@@ -41,6 +43,11 @@ function removeServerFromEndOfString(str) {
   }
 }
 
+function stripAnsiCodes(text) {
+  if (!text) return '';
+  return text.replace(/\u001b\[[0-9;]*m/g, '');
+}
+
 export default function RunModelButton({
   experimentInfo,
   killWorker,
@@ -49,6 +56,78 @@ export default function RunModelButton({
   setLogsDrawerOpen = null,
 }) {
   const [jobId, setJobId] = useState(null);
+  const apiUrl = chatAPI.API_URL();
+
+  const jobsListKey =
+    experimentInfo?.id && apiUrl
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(
+          experimentInfo.id,
+          'LOAD_MODEL',
+          '',
+        )
+      : null;
+  const { data: loadModelJobs } = useSWR(jobsListKey, fetcher, {
+    refreshInterval: 3000,
+    fallbackData: [],
+  });
+
+  const jobIdForLogs =
+    jobId && jobId !== -1
+      ? jobId
+      : Array.isArray(loadModelJobs) && loadModelJobs.length > 0
+        ? loadModelJobs[0]?.id
+        : null;
+
+  // Read tail from job data (prefer jobIdForLogs if available)
+  const { data: jobLogsData } = useSWR(
+    jobIdForLogs && experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.Get(experimentInfo.id, String(jobIdForLogs))
+      : null,
+    fetcher,
+    { refreshInterval: 2000 },
+  );
+
+  const [jobLogFull, setJobLogFull] = useState<string | null>(null);
+  const [jobLogLine, setJobLogLine] = useState<string | null>(null);
+
+  useEffect(() => {
+    const tail = jobLogsData?.job_data?.tail;
+    if (!tail || !Array.isArray(tail) || tail.length === 0) {
+      setJobLogFull(null);
+      setJobLogLine(null);
+      return;
+    }
+
+    const lines = tail.slice().filter(Boolean);
+    let candidate = lines
+      .slice()
+      .reverse()
+      .find((l: string) => {
+        if (!l || !l.trim()) return false;
+        // skip very noisy argument dumps
+        if (/args:\s*Namespace\(/i.test(l)) return false;
+        return true;
+      });
+
+    // fallback to the absolute last non-empty line if all were filtered
+    if (!candidate) {
+      candidate = lines
+        .slice()
+        .reverse()
+        .find((l: string) => l && l.trim());
+    }
+
+    const full = stripAnsiCodes(candidate || '');
+    setJobLogFull(full);
+
+    const MAX_LEN = 140;
+    if (full.length > MAX_LEN) {
+      const truncated = full.slice(0, MAX_LEN - 1).trimEnd() + '…';
+      setJobLogLine(truncated);
+    } else {
+      setJobLogLine(full || null);
+    }
+  }, [jobLogsData]);
   const [stopping, setStopping] = useState(false);
   const [showRunSettings, setShowRunSettings] = useState(false);
   const [inferenceSettings, setInferenceSettings] = useState({
@@ -293,67 +372,167 @@ export default function RunModelButton({
     checkValidDiffusion();
   }, [experimentInfo?.config?.foundation]);
 
+  // Add a SWR poll for the job status so we can show load progress
+  const { data: jobStatusData } = useSWR(
+    jobId && jobId !== -1 && experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.Get(experimentInfo.id, jobId)
+      : null,
+    fetcher,
+    { refreshInterval: 2000 },
+  );
+
   function Engine() {
     return (
       <>
         {models === null ? (
           <>
-            <Button
-              startDecorator={
-                jobId === -1 ? (
-                  <CircularProgress size="sm" thickness={2} />
-                ) : (
-                  <PlayCircleIcon />
-                )
-              }
-              color="success"
-              size="lg"
-              sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
-              onClick={async (e) => {
-                if (inferenceSettings?.inferenceEngine === null) {
-                  setShowRunSettings(!showRunSettings);
-                  return;
-                }
-
-                setJobId(-1);
-
-                const inferenceEngine = inferenceSettings?.inferenceEngine;
-
-                const response = await activateWorker(
-                  experimentInfo?.config?.foundation,
-                  experimentInfo?.config?.foundation_filename,
-                  experimentInfo?.config?.foundation_model_architecture,
-                  experimentInfo?.config?.adaptor,
-                  inferenceEngine,
-                  inferenceSettings,
-                  experimentInfo?.id,
-                );
-                if (response?.status == 'error') {
-                  if (setLogsDrawerOpen) {
-                    setLogsDrawerOpen(true);
-                  }
-                  if (
-                    response?.message?.includes(
-                      'Process terminated with exit code 1',
-                    )
-                  ) {
-                    alert(
-                      'Could not start model. Please check the console at the bottom of the page for detailed logs.',
-                    );
-                  } else {
-                    alert(`Failed to start model:\n${response?.message}`);
-                  }
-                  setJobId(null);
-                  return;
-                }
-                const job_id = response?.job_id;
-                setJobId(job_id);
-                mutate();
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: 1,
               }}
-              disabled={!isPossibleToRunAModel()}
             >
-              {isPossibleToRunAModel() ? 'Run' : 'No Available Engine'}
-            </Button>
+              <Button
+                startDecorator={
+                  jobId === -1 ? (
+                    <CircularProgress size="sm" thickness={2} />
+                  ) : (
+                    <PlayCircleIcon />
+                  )
+                }
+                color="success"
+                size="lg"
+                sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
+                onClick={async (e) => {
+                  if (inferenceSettings?.inferenceEngine === null) {
+                    setShowRunSettings(!showRunSettings);
+                    return;
+                  }
+
+                  setJobId(-1);
+
+                  const inferenceEngine = inferenceSettings?.inferenceEngine;
+
+                  const response = await activateWorker(
+                    experimentInfo?.config?.foundation,
+                    experimentInfo?.config?.foundation_filename,
+                    experimentInfo?.config?.foundation_model_architecture,
+                    experimentInfo?.config?.adaptor,
+                    inferenceEngine,
+                    inferenceSettings,
+                    experimentInfo?.id,
+                  );
+                  if (response?.status == 'error') {
+                    if (setLogsDrawerOpen) {
+                      setLogsDrawerOpen(true);
+                    }
+                    if (
+                      response?.message?.includes(
+                        'Process terminated with exit code 1',
+                      )
+                    ) {
+                      alert(
+                        'Could not start model. Please check the console at the bottom of the page for detailed logs.',
+                      );
+                    } else {
+                      alert(`Failed to start model:\n${response?.message}`);
+                    }
+                    setJobId(null);
+                    return;
+                  }
+                  const job_id = response?.job_id;
+                  setJobId(job_id);
+                  mutate();
+                }}
+                disabled={!isPossibleToRunAModel()}
+              >
+                {isPossibleToRunAModel() ? 'Run' : 'No Available Engine'}
+              </Button>
+
+              {jobId != null &&
+                // Show logs if the job_data.tail has entries, OR while job is still in-flight.
+                ((jobLogsData?.job_data?.tail &&
+                  jobLogsData.job_data.tail.length > 0) ||
+                  !jobStatusData ||
+                  !['SUCCESS', 'COMPLETE', 'FAILED', 'STOPPED'].includes(
+                    jobStatusData?.status,
+                  )) && (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      marginLeft: 0,
+                      marginTop: '6px',
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      {jobLogsData?.job_data?.tail &&
+                      jobLogsData.job_data.tail.length > 0 ? (
+                        <Typography
+                          level="body-sm"
+                          title={jobLogFull || undefined}
+                          sx={{
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            margin: 0,
+                            color: 'var(--joy-palette-neutral-700)',
+                            maxWidth: '40ch',
+                            fontFamily: 'inherit', // use app font (not monospace)
+                            fontWeight: 400,
+                          }}
+                        >
+                          {jobLogLine || 'Starting model...'}
+                        </Typography>
+                      ) : jobStatusData?.job_data?.message ? (
+                        <Typography
+                          level="body-sm"
+                          title={String(jobStatusData.job_data.message)}
+                          sx={{
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            margin: 0,
+                            color: 'var(--joy-palette-neutral-700)',
+                            maxWidth: '40ch',
+                            fontFamily: 'inherit',
+                            fontWeight: 400,
+                          }}
+                        >
+                          {jobStatusData.job_data.message}
+                        </Typography>
+                      ) : (
+                        <Typography
+                          level="body-sm"
+                          title={String(
+                            jobStatusData?.status || 'Starting model...',
+                          )}
+                          sx={{
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            margin: 0,
+                            color: 'var(--joy-palette-neutral-700)',
+                            maxWidth: '40ch',
+                            fontFamily: 'inherit',
+                            fontWeight: 400,
+                          }}
+                        >
+                          {jobStatusData?.status || 'Starting model...'}
+                        </Typography>
+                      )}
+                      {jobStatusData?.job_data?.progress != null && (
+                        <Typography level="body-xs" sx={{ color: 'gray' }}>
+                          Progress: {jobStatusData.job_data.progress}%
+                        </Typography>
+                      )}
+                    </div>
+                  </Box>
+                )}
+            </Box>
           </>
         ) : (
           <Button
