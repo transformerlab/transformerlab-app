@@ -1,9 +1,14 @@
-from fastapi import APIRouter, Body, Query, HTTPException, Depends, Request
+from fastapi import APIRouter, Body, Query, HTTPException, Depends, Request, UploadFile, File
 from typing import Optional
 from werkzeug.utils import secure_filename
 import json
 import yaml
+import zipfile
+import os
+import tempfile
 from sqlalchemy.ext.asyncio import AsyncSession
+from lab.dirs import get_workspace_dir
+from lab import storage
 
 from transformerlab.services.task_service import task_service
 from transformerlab.services.provider_service import list_team_providers
@@ -48,8 +53,8 @@ async def task_get_by_type(type: str):
     "/list_by_type_in_experiment",
     summary="Returns all the tasks of a certain type in a certain experiment, e.g TRAIN",
 )
-async def task_get_by_type_in_experiment(type: str, experiment_id: str):
-    tasks = task_service.task_get_by_type_in_experiment(type, experiment_id)
+async def task_get_by_type_in_experiment(experimentId: str, type: str):
+    tasks = task_service.task_get_by_type_in_experiment(type, experimentId)
     return tasks
 
 
@@ -58,11 +63,11 @@ async def task_get_by_type_in_experiment(type: str, experiment_id: str):
     summary="Returns all tasks for an experiment filtered by subtype and optionally by type",
 )
 async def task_get_by_subtype_in_experiment(
-    experiment_id: str,
+    experimentId: str,
     subtype: str,
     type: Optional[str] = Query(None, description="Optional task type filter (e.g., REMOTE)"),
 ):
-    tasks = task_service.task_get_by_subtype_in_experiment(experiment_id, subtype, type)
+    tasks = task_service.task_get_by_subtype_in_experiment(experimentId, subtype, type)
     return tasks
 
 
@@ -143,33 +148,37 @@ async def _resolve_provider(
 def _parse_yaml_to_task_data(yaml_content: str) -> dict:
     """
     Parse YAML content and convert it to the task structure.
-    Expected YAML format:
-    task:
-      name: task-name
-      resources:
-        compute_provider: provider-name
-        cpus: 2
-        memory: 4
-      envs:
-        KEY: value
-      setup: "command"
-      run: "command"
-      git_repo: "url"
-      git_repo_directory: "dir"
-      parameters: {...}
-      sweeps:
-        sweep_config: {...}
-        sweep_metric: "metric"
-        lower_is_better: true
-      files: # handled separately via file upload
+    Expected YAML format (all fields at root level):
+    name: task-name
+    resources:
+      compute_provider: provider-name
+      cpus: 2
+      memory: 4
+    envs:
+      KEY: value
+    setup: "command"
+    run: "command"
+    git_repo: "url"
+    git_repo_directory: "dir"
+    parameters: {...}
+    sweeps:
+      sweep_config: {...}
+      sweep_metric: "metric"
+      lower_is_better: true
+    files: # handled separately via file upload
     """
     # Parse YAML
     yaml_data = yaml.safe_load(yaml_content)
 
-    if not yaml_data or "task" not in yaml_data:
-        raise HTTPException(status_code=400, detail="YAML must contain a 'task' key")
+    if not yaml_data:
+        raise HTTPException(status_code=400, detail="YAML content is empty or invalid")
 
-    task_yaml = yaml_data["task"]
+    # Support both old format (with "task:" key) and new format (direct fields)
+    # for backward compatibility
+    if "task" in yaml_data:
+        task_yaml = yaml_data["task"]
+    else:
+        task_yaml = yaml_data
 
     # Convert YAML structure to task structure
     task_data = {}
@@ -230,42 +239,128 @@ def _parse_yaml_to_task_data(yaml_content: str) -> dict:
     return task_data
 
 
-@router.put("/new_task", summary="Create a new task")
+async def _store_zip_file(zip_file: UploadFile, task_id: str) -> str:
+    """
+    Store a zip file locally for a task.
+    Returns the stored path that should be mapped to ~/src in file_mounts.
+    """
+    workspace_dir = get_workspace_dir()
+    if not workspace_dir:
+        raise HTTPException(status_code=500, detail="Workspace directory is not configured")
+
+    # Create uploads/task/{task_id} directory
+    uploads_root = storage.join(workspace_dir, "uploads", "task")
+    storage.makedirs(uploads_root, exist_ok=True)
+
+    task_dir = storage.join(uploads_root, str(task_id))
+    storage.makedirs(task_dir, exist_ok=True)
+
+    # Generate a safe filename for the zip file
+    import uuid
+
+    original_name = zip_file.filename or "source.zip"
+    # Avoid path separators from filename
+    safe_name = original_name.split("/")[-1].split("\\")[-1]
+    suffix = uuid.uuid4().hex[:8]
+    stored_filename = f"{safe_name}.{suffix}"
+    stored_path = storage.join(task_dir, stored_filename)
+
+    try:
+        # Read zip file content
+        zip_content = await zip_file.read()
+
+        # Verify it's a valid zip file
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as temp_zip:
+            temp_zip.write(zip_content)
+            temp_zip_path = temp_zip.name
+
+        # Verify it's a valid zip file (but don't extract)
+        with zipfile.ZipFile(temp_zip_path, "r") as zip_ref:
+            # Just verify it can be opened, don't extract
+            zip_ref.testzip()
+
+        # Store the zip file
+        with storage.open(stored_path, "wb") as f:
+            f.write(zip_content)
+
+        # Clean up temp file
+        os.remove(temp_zip_path)
+
+        # Return the stored path (this will be mapped to ~/src)
+        return stored_path
+
+    except zipfile.BadZipFile:
+        if "temp_zip_path" in locals() and os.path.exists(temp_zip_path):
+            os.remove(temp_zip_path)
+        raise HTTPException(status_code=400, detail="Uploaded file is not a valid ZIP archive")
+    except Exception as e:
+        if "temp_zip_path" in locals() and os.path.exists(temp_zip_path):
+            os.remove(temp_zip_path)
+        raise HTTPException(status_code=500, detail=f"Error storing ZIP file: {str(e)}")
+
+
+@router.post("/new_task", summary="Create a new task")
 async def add_task(
     request: Request,
-    experiment_id: Optional[str] = Query(None),
+    experimentId: str,
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
+    zip_file: Optional[UploadFile] = File(None),
 ):
     """
     Create a new task. Accepts either:
     1. JSON object with task fields directly (Content-Type: application/json)
     2. YAML string (Content-Type: text/plain, text/yaml, or application/x-yaml)
+    3. Multipart/form-data with:
+       - yaml or json: YAML/JSON string as form field
+       - zip_file: Optional ZIP file (will be extracted to ~/src on remote server)
 
-    For YAML, the format should be:
-    task:
-      name: task-name
-      resources:
-        compute_provider: provider-name
-        cpus: 2
-        memory: 4
-      envs:
-        KEY: value
-      setup: "command"
-      run: "command"
-      git_repo: "url"
-      git_repo_directory: "dir"
-      parameters: {...}
-      sweeps:
-        sweep_config: {...}
-        sweep_metric: "metric"
-        lower_is_better: true
+    For YAML, the format should be (all fields at root level):
+    name: task-name
+    resources:
+      compute_provider: provider-name
+      cpus: 2
+      memory: 4
+    envs:
+      KEY: value
+    setup: "command"
+    run: "command"
+    git_repo: "url"
+    git_repo_directory: "dir"
+    parameters: {...}
+    sweeps:
+      sweep_config: {...}
+      sweep_metric: "metric"
+      lower_is_better: true
+
+    If a zip_file is provided, it will be stored locally and file_mounts will be set to map ~/src to the stored zip file path.
     """
     try:
         content_type = request.headers.get("content-type", "").lower()
+        task_data = None
+
+        # Check if it's multipart/form-data (for zip file support)
+        if "multipart/form-data" in content_type:
+            form = await request.form()
+
+            # Get YAML or JSON from form
+            yaml_content = form.get("yaml") or form.get("json")
+            if not yaml_content:
+                raise HTTPException(status_code=400, detail="YAML or JSON content is required in form data")
+
+            yaml_content_str = str(yaml_content)
+
+            try:
+                task_data = _parse_yaml_to_task_data(yaml_content_str)
+            except yaml.YAMLError as e:
+                raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Error parsing YAML: {str(e)}")
 
         # Check if it's YAML (text/plain or text/yaml)
-        if "text/plain" in content_type or "text/yaml" in content_type or "application/x-yaml" in content_type:
+        elif "text/plain" in content_type or "text/yaml" in content_type or "application/x-yaml" in content_type:
             # Read YAML string from body
             yaml_content = await request.body()
             yaml_content_str = yaml_content.decode("utf-8")
@@ -279,29 +374,36 @@ async def add_task(
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Error parsing YAML: {str(e)}")
 
-            # Inject experiment_id from query parameter if not in YAML
-            if experiment_id and "experiment_id" not in task_data:
-                task_data["experiment_id"] = experiment_id
-
-            # Add required fields if not present
-            if "type" not in task_data:
-                task_data["type"] = "REMOTE"
-            if "plugin" not in task_data:
-                task_data["plugin"] = "remote_orchestrator"
-
-            # Handle provider matching
-            await _resolve_provider(task_data, user_and_team, session)
-
-            # Perform secure_filename before adding the task
-            if "name" in task_data:
-                task_data["name"] = secure_filename(task_data["name"])
-
-            task_id = task_service.add_task(task_data)
-            return {"message": "OK", "id": task_id}
         else:
             # Handle JSON input (existing behavior)
             try:
                 new_task = await request.json()
+
+                # Inject experimentId from path parameter if not in JSON
+                if "experiment_id" not in new_task:
+                    new_task["experiment_id"] = experimentId
+
+                # Handle provider matching for JSON input
+                await _resolve_provider(new_task, user_and_team, session)
+
+                # Perform secure_filename before adding the task
+                if "name" in new_task:
+                    new_task["name"] = secure_filename(new_task["name"])
+
+                # All fields are stored directly in the JSON (not nested in inputs/outputs/config)
+                task_id = task_service.add_task(new_task)
+
+                # Handle zip file if provided (for JSON requests, zip_file would come from multipart)
+                if zip_file and zip_file.filename:
+                    try:
+                        zip_path = await _store_zip_file(zip_file, task_id)
+                        # Update task with file_mounts - map ~/src to the stored zip file
+                        task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
+                    except Exception as e:
+                        # Log error but don't fail task creation
+                        print(f"Warning: Failed to process zip file: {e}")
+
+                return {"message": "OK", "id": task_id}
             except json.JSONDecodeError:
                 # If JSON parsing fails, try YAML as fallback
                 yaml_content = await request.body()
@@ -319,18 +421,52 @@ async def add_task(
                 await _resolve_provider(task_data, user_and_team, session)
 
                 task_id = task_service.add_task(task_data)
+
+                # Handle zip file if provided
+                if zip_file and zip_file.filename:
+                    try:
+                        zip_path = await _store_zip_file(zip_file, task_id)
+                        # Update task with file_mounts - map ~/src to the stored zip file
+                        task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
+                    except Exception as e:
+                        # Log error but don't fail task creation
+                        print(f"Warning: Failed to process zip file: {e}")
+
                 return {"message": "OK", "id": task_id}
 
-            # Handle provider matching for JSON input
-            await _resolve_provider(new_task, user_and_team, session)
+        # Common processing for YAML-based requests
+        if task_data:
+            # Inject experimentId from path parameter if not in YAML
+            if "experiment_id" not in task_data:
+                task_data["experiment_id"] = experimentId
+
+            # Add required fields if not present
+            if "type" not in task_data:
+                task_data["type"] = "REMOTE"
+            if "plugin" not in task_data:
+                task_data["plugin"] = "remote_orchestrator"
+
+            # Handle provider matching
+            await _resolve_provider(task_data, user_and_team, session)
 
             # Perform secure_filename before adding the task
-            if "name" in new_task:
-                new_task["name"] = secure_filename(new_task["name"])
+            if "name" in task_data:
+                task_data["name"] = secure_filename(task_data["name"])
 
-            # All fields are stored directly in the JSON (not nested in inputs/outputs/config)
-            task_id = task_service.add_task(new_task)
+            task_id = task_service.add_task(task_data)
+
+            # Handle zip file if provided
+            if zip_file and zip_file.filename:
+                try:
+                    zip_path = await _store_zip_file(zip_file, task_id)
+                    # Update task with file_mounts - map ~/src to the stored zip file
+                    task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
+                except Exception as e:
+                    # Log error but don't fail task creation
+                    print(f"Warning: Failed to process zip file: {e}")
+
             return {"message": "OK", "id": task_id}
+
     except HTTPException:
         raise
     except Exception as e:
@@ -352,6 +488,7 @@ async def task_gallery():
 
 @router.post("/gallery/import", summary="Import a task from the tasks gallery")
 async def import_task_from_gallery(
+    experimentId: str,
     request: ImportTaskFromGalleryRequest,
     user_and_team=Depends(get_user_and_team),
 ):
@@ -429,7 +566,7 @@ async def import_task_from_gallery(
         "name": task_name,
         "type": "REMOTE",
         "plugin": "remote_orchestrator",
-        "experiment_id": request.experiment_id,
+        "experiment_id": experimentId,
         **task_config,  # All config fields go directly into task
     }
 
@@ -450,6 +587,7 @@ async def team_task_gallery():
 
 @router.post("/gallery/team/import", summary="Import a task from the team tasks gallery")
 async def import_task_from_team_gallery(
+    experimentId: str,
     request: ImportTaskFromTeamGalleryRequest,
     user_and_team=Depends(get_user_and_team),
 ):
@@ -522,7 +660,7 @@ async def import_task_from_team_gallery(
         "name": task_name,
         "type": "REMOTE",
         "plugin": "remote_orchestrator",
-        "experiment_id": request.experiment_id,
+        "experiment_id": experimentId,
         **task_config,  # All config fields go directly into task
     }
 

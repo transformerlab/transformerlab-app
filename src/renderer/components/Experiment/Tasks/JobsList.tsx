@@ -7,7 +7,6 @@ import Skeleton from '@mui/joy/Skeleton';
 import Box from '@mui/joy/Box';
 import {
   Trash2Icon,
-  InfoIcon,
   LineChartIcon,
   WaypointsIcon,
   ArchiveIcon,
@@ -153,24 +152,6 @@ const JobsList: React.FC<JobsListProps> = ({
             <tr key={job.id}>
               <td>
                 <b>{job.id}</b>
-                <br />
-                {job?.placeholder ? (
-                  <Skeleton variant="text" level="body-xs" width={60} />
-                ) : (
-                  <InfoIcon
-                    onClick={() => {
-                      const jobDataConfig = job?.job_data;
-                      if (typeof jobDataConfig === 'object') {
-                        alert(JSON.stringify(jobDataConfig, null, 2));
-                      } else {
-                        alert(jobDataConfig);
-                      }
-                    }}
-                    size="16px"
-                    color="var(--joy-palette-neutral-500)"
-                    style={{ cursor: 'pointer' }}
-                  />
-                )}
               </td>
               <td>{formatJobConfig(job)}</td>
               <td>

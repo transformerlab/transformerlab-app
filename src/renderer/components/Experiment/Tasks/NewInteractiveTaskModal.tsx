@@ -115,7 +115,9 @@ export default function NewInteractiveTaskModal({
         <ModalClose />
         <DialogTitle>New Interactive Task</DialogTitle>
         <form onSubmit={handleSubmit}>
-          <DialogContent sx={{ maxHeight: '60vh', overflow: 'auto' }}>
+          <DialogContent
+            sx={{ maxHeight: '60vh', overflow: 'auto', padding: 1 }}
+          >
             <Stack spacing={3}>
               <Typography level="body-sm">
                 Create a lightweight interactive task template that will launch

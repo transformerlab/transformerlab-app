@@ -28,6 +28,8 @@ import {
   ScanTextIcon,
   PlusIcon,
   Trash2Icon,
+  GraduationCapIcon,
+  ChartColumnIncreasingIcon,
 } from 'lucide-react';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -66,16 +68,40 @@ function generateGithubLink(repoUrl?: string, repoDir?: string) {
   return repoDir ? `${finalRepoUrl}/tree/main/${repoDir}` : finalRepoUrl;
 }
 
-function TaskIcon({ icon, color }: { icon: React.ReactNode; color?: string }) {
+function TaskIcon({ category }: { category: string }) {
+  let icon = <ScanTextIcon />;
+  let color: string = '#1976d2';
+
+  switch (category) {
+    case 'dataset-generation':
+      icon = <ScanTextIcon />;
+      color = '#1976d2';
+      break;
+    case 'training':
+      icon = <GraduationCapIcon />;
+      color = '#388e3c';
+      break;
+    case 'eval':
+      icon = <ChartColumnIncreasingIcon />;
+      color = '#d27d00';
+      break;
+    default:
+      icon = <ScanTextIcon />;
+      color = '#5b5e61ff';
+      break;
+  }
+
   return (
     <Box
       sx={{
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: 24,
-        height: 24,
-        color: color || 'inherit',
+        width: 32,
+        height: 32,
+        color,
+        backgroundColor: `${color}11`,
+        padding: '1px',
       }}
     >
       {icon}
@@ -120,7 +146,7 @@ function TaskCard({
               alignItems: 'flex-start',
             }}
           >
-            <TaskIcon icon={<ScanTextIcon />} color="#1976d2" />
+            <TaskIcon category={task?.metadata?.category} />
             {showCheckbox && (
               <Checkbox
                 checked={isSelected || false}
@@ -192,7 +218,17 @@ function TaskCard({
               </Box>
             )}
           </Box>
-          {task.config && (
+          {task?.metadata?.framework && (
+            /* Framework is an array of strings */
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              {task.metadata.framework.map((fw: string, fwIndex: number) => (
+                <Chip key={fwIndex} size="sm" variant="soft">
+                  {fw}
+                </Chip>
+              ))}
+            </Stack>
+          )}
+          {/* {task.config && (
             <Stack spacing={0.5}>
               <Typography level="body-xs" fontWeight="bold">
                 Compute:
@@ -215,7 +251,7 @@ function TaskCard({
                 )}
               </Stack>
             </Stack>
-          )}
+          )} */}
         </Stack>
         <CardActions>
           <Button
@@ -247,7 +283,9 @@ export default function TasksGallery() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { data, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Task.Gallery(),
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Task.Gallery(experimentInfo.id)
+      : null,
     fetcher,
   );
   const {
@@ -255,7 +293,12 @@ export default function TasksGallery() {
     isLoading: teamLoading,
     mutate: teamMutate,
     isError: teamError,
-  } = useSWR(chatAPI.Endpoints.Task.TeamGallery(), fetcher);
+  } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Task.TeamGallery(experimentInfo.id)
+      : null,
+    fetcher,
+  );
 
   const handleImport = async (galleryIndex: number) => {
     if (!experimentInfo?.id) {
@@ -332,7 +375,7 @@ export default function TasksGallery() {
     setIsSubmittingTeamTask(true);
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.AddToTeamGallery(),
+        chatAPI.Endpoints.Task.AddToTeamGallery(experimentInfo?.id || ''),
         {
           method: 'POST',
           headers: {
@@ -403,7 +446,9 @@ export default function TasksGallery() {
       for (const taskId of taskIds) {
         try {
           const response = await chatAPI.authenticatedFetch(
-            chatAPI.Endpoints.Task.DeleteFromTeamGallery(),
+            chatAPI.Endpoints.Task.DeleteFromTeamGallery(
+              experimentInfo?.id || '',
+            ),
             {
               method: 'POST',
               headers: {
