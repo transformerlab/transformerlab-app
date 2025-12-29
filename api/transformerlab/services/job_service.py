@@ -7,7 +7,6 @@ from lab import Experiment, Job
 from lab import dirs as lab_dirs
 from lab import storage
 from time import time
-from datetime import datetime
 
 # Allowed job types:
 ALLOWED_JOB_TYPES = [
