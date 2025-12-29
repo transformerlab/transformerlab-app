@@ -2,7 +2,6 @@ import tempfile
 import time
 import sys
 from pathlib import Path
-
 import pytest
 
 
@@ -101,7 +100,3 @@ def test_jobs_delete_by_id(client):
 def test_jobs_get_template(client):
     resp = client.get("/experiment/1/jobs/template/1")
     assert resp.status_code in (200, 404)
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v", "-s"])
