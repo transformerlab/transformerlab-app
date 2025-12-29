@@ -50,8 +50,8 @@ export function useModelStatus() {
   const api_url = API_URL();
   const url: string | null = api_url ? api_url + 'server/worker_healthz' : null;
 
-  // Poll every 2 seconds
-  const options = { refreshInterval: 2000 };
+  // Poll every 20 seconds
+  const options = { refreshInterval: 20000 };
 
   // eslint-disable-next-line prefer-const
   let { data, error, isLoading, mutate } = useSWR(url, fetcher, options);
@@ -91,8 +91,8 @@ export function useServerStats() {
   const api_url = API_URL();
   const url: string | null = api_url ? API_URL() + 'server/info' : null;
 
-  // Poll every 1 seconds
-  const options = { refreshInterval: 2000 };
+  // Poll every 20 seconds
+  const options = { refreshInterval: 20000 };
 
   // eslint-disable-next-line prefer-const
   let { data, error, isLoading } = useSWR(url, fetcher, options);

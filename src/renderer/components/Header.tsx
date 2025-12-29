@@ -418,7 +418,7 @@ export default function Header({ connection, setConnection }) {
     // Then check every 2 seconds for faster detection
     checkInterval = setInterval(() => {
       checkConnectionHealth();
-    }, 2000);
+    }, 20000);
 
     return () => {
       isMounted = false;
