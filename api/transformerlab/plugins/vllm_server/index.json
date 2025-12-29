@@ -35,6 +35,7 @@
     "LlavaLlamaForCausalLM",
     "LlavaQwenForCausalLM",
     "Qwen3VLForConditionalGeneration",
+    "Qwen3ForCausalLM",
     "Glm4MoeForCausalLM"
   ],
   "supported_hardware_architectures": ["cuda"],
