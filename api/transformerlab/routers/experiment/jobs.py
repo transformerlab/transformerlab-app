@@ -29,6 +29,7 @@ from transformerlab.compute_providers.models import JobState
 from transformerlab.utils.vscode_parser import get_vscode_tunnel_info
 from lab import Job
 from lab.dirs import get_workspace_dir
+from transformerlab.utils import zip_utils
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -1103,6 +1104,34 @@ async def get_artifacts(job_id: str, request: Request):
     artifacts.sort(key=lambda x: x["filename"], reverse=True)
 
     return {"artifacts": artifacts}
+
+
+@router.get("/{job_id}/artifacts/download_all")
+async def download_all_artifacts(job_id: str):
+    """
+    Download a zip file containing all artifacts for a job.
+    """
+    # 1. Gather all artifact file paths using service
+    all_file_paths = job_service.get_all_artifact_paths(job_id, storage)
+
+    if not all_file_paths:
+        return Response("No artifacts found for this job", status_code=404)
+
+    # 2. Create Zip File in memory
+    try:
+        zip_buffer = zip_utils.create_zip_from_storage(all_file_paths, storage)
+
+        filename = f"artifacts_{job_id}.zip"
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-cache",
+        }
+
+        return StreamingResponse(iter([zip_buffer.getvalue()]), media_type="application/zip", headers=headers)
+
+    except Exception as e:
+        print(f"Error creating zip file: {e}")
+        return Response("Failed to generate zip file", status_code=500)
 
 
 @router.get("/{job_id}/artifact/{filename}")
