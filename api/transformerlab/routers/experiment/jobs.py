@@ -29,7 +29,7 @@ from transformerlab.compute_providers.models import JobState
 from transformerlab.utils.vscode_parser import get_vscode_tunnel_info
 from lab import Job
 from lab.dirs import get_workspace_dir
-from transformerlab.utils import zip_utils
+from transformerlab.shared import zip_utils
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
