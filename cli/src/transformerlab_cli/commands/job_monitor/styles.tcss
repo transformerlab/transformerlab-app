@@ -55,16 +55,22 @@ JobDetails {
 /* The bottom artifacts panel */
 #job-artifacts-container {
   height: 1fr;
-  border-top: solid $primary-muted;
   background: $surface-lighten-1;
-  padding: 1;
   display: none;
   /* Hidden until job selected */
+  border: none;
+  padding: 1;
 }
 
 #job-artifacts-container.visible {
   display: block;
 }
+
+#job-artifacts {
+  height: 1fr;
+  overflow: auto;
+}
+
 
 #loading {
   width: 100%;

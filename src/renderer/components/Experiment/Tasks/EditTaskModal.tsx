@@ -643,11 +643,19 @@ export default function EditTaskModal({
         taskData.command = String(taskYaml.run);
       }
 
-      // GitHub
-      if (taskYaml.git_repo) {
+      // GitHub - support multiple naming conventions
+      if (taskYaml.github_repo_url) {
+        taskData.github_repo_url = String(taskYaml.github_repo_url);
+      } else if (taskYaml.git_repo) {
         taskData.github_repo_url = String(taskYaml.git_repo);
       }
-      if (taskYaml.git_repo_directory) {
+      if (taskYaml.github_repo_dir) {
+        taskData.github_directory = String(taskYaml.github_repo_dir);
+      } else if (taskYaml.github_repo_directory) {
+        taskData.github_directory = String(taskYaml.github_repo_directory);
+      } else if (taskYaml.github_directory) {
+        taskData.github_directory = String(taskYaml.github_directory);
+      } else if (taskYaml.git_repo_directory) {
         taskData.github_directory = String(taskYaml.git_repo_directory);
       }
 
@@ -1453,49 +1461,30 @@ export default function EditTaskModal({
                   </FormHelperText>
                 </FormControl>
 
-                {githubEnabled && (
+                <FormControl sx={{ mt: 2 }}>
+                  <FormLabel>GitHub Repository URL (Optional)</FormLabel>
+                  <Input
+                    value={githubRepoUrl}
+                    onChange={(e) => setGithubRepoUrl(e.target.value)}
+                    placeholder="https://github.com/owner/repo.git"
+                  />
+                  <FormHelperText>
+                    GitHub repository URL to clone before running the task
+                  </FormHelperText>
+                </FormControl>
+
+                {githubRepoUrl && (
                   <FormControl sx={{ mt: 2 }}>
-                    <FormLabel>GitHub Repository (Read-Only)</FormLabel>
-                    <Stack spacing={2} sx={{ mt: 1 }}>
-                      <FormControl>
-                        <FormLabel>GitHub Repository URL</FormLabel>
-                        <Input
-                          value={githubRepoUrl}
-                          disabled
-                          readOnly
-                          placeholder="https://github.com/owner/repo.git"
-                          sx={{
-                            bgcolor: 'background.level1',
-                            cursor: 'not-allowed',
-                          }}
-                        />
-                        <FormHelperText>
-                          GitHub repository URL (read-only - source of truth)
-                        </FormHelperText>
-                      </FormControl>
-                      {githubDirectory && (
-                        <FormControl>
-                          <FormLabel>Directory Path</FormLabel>
-                          <Input
-                            value={githubDirectory}
-                            disabled
-                            readOnly
-                            placeholder="path/to/directory"
-                            sx={{
-                              bgcolor: 'background.level1',
-                              cursor: 'not-allowed',
-                            }}
-                          />
-                          <FormHelperText>
-                            Directory path (read-only - source of truth)
-                          </FormHelperText>
-                        </FormControl>
-                      )}
-                    </Stack>
-                    <FormHelperText sx={{ mt: 1 }}>
-                      GitHub repository settings are read-only. To change the
-                      repository, create a new task. You can edit the parsed
-                      configuration values above.
+                    <FormLabel>
+                      GitHub Repository Directory (Optional)
+                    </FormLabel>
+                    <Input
+                      value={githubDirectory}
+                      onChange={(e) => setGithubDirectory(e.target.value)}
+                      placeholder="path/to/directory"
+                    />
+                    <FormHelperText>
+                      Optional subdirectory path within the repository
                     </FormHelperText>
                   </FormControl>
                 )}
