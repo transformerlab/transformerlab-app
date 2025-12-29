@@ -109,6 +109,7 @@ class SLURMProvider(ComputeProvider):
             return output
         except Exception as e:
             print(f"Error executing command: {e}")
+            raise e
         finally:
             ssh.close()
 
