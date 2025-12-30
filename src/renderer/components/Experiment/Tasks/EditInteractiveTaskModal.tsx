@@ -59,7 +59,7 @@ export default function EditInteractiveTaskModal({
   const [memory, setMemory] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [interactiveType, setInteractiveType] = React.useState<
-    'vscode' | 'jupyter' | 'vllm'
+    'vscode' | 'jupyter' | 'vllm' | 'ssh'
   >('vscode');
   const [setup, setSetup] = React.useState('');
   const [command, setCommand] = React.useState('');
@@ -68,6 +68,7 @@ export default function EditInteractiveTaskModal({
   const [modelName, setModelName] = React.useState('');
   const [hfToken, setHfToken] = React.useState('');
   const [tpSize, setTpSize] = React.useState('1');
+  const [ngrokAuthToken, setNgrokAuthToken] = React.useState('');
 
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
@@ -111,26 +112,33 @@ export default function EditInteractiveTaskModal({
     );
     const loadedInteractiveType = (taskAny.interactive_type ||
       cfg.interactive_type ||
-      'vscode') as 'vscode' | 'jupyter' | 'vllm';
+      'vscode') as 'vscode' | 'jupyter' | 'vllm' | 'ssh';
     setInteractiveType(loadedInteractiveType);
+
+    // Load environment variables based on interactive type
+    const envVars = isTemplate ? taskAny.env_vars : cfg.env_vars;
+    let parsedEnvVars: Record<string, string> = {};
+
+    if (envVars && typeof envVars === 'object') {
+      parsedEnvVars = envVars as Record<string, string>;
+    } else if (typeof envVars === 'string') {
+      try {
+        parsedEnvVars = JSON.parse(envVars) as Record<string, string>;
+      } catch {
+        // ignore parse errors
+      }
+    }
 
     // Load vLLM environment variables if this is a vLLM task
     if (loadedInteractiveType === 'vllm') {
-      const envVars = isTemplate ? taskAny.env_vars : cfg.env_vars;
-      if (envVars && typeof envVars === 'object') {
-        setModelName(envVars.MODEL_NAME || '');
-        setHfToken(envVars.HF_TOKEN || '');
-        setTpSize(envVars.TP_SIZE || '1');
-      } else if (typeof envVars === 'string') {
-        try {
-          const parsed = JSON.parse(envVars);
-          setModelName(parsed.MODEL_NAME || '');
-          setHfToken(parsed.HF_TOKEN || '');
-          setTpSize(parsed.TP_SIZE || '1');
-        } catch {
-          // ignore parse errors
-        }
-      }
+      setModelName(parsedEnvVars.MODEL_NAME || '');
+      setHfToken(parsedEnvVars.HF_TOKEN || '');
+      setTpSize(parsedEnvVars.TP_SIZE || '1');
+    }
+
+    // Load SSH environment variables if this is an SSH task
+    if (loadedInteractiveType === 'ssh') {
+      setNgrokAuthToken(parsedEnvVars.NGROK_AUTH_TOKEN || '');
     }
     setSetup(
       isTemplate
@@ -294,6 +302,17 @@ export default function EditInteractiveTaskModal({
         }
       }
 
+      // Add SSH-specific environment variables if this is an SSH task
+      if (interactiveType === 'ssh') {
+        const envVars: Record<string, string> = {};
+        if (ngrokAuthToken.trim()) {
+          envVars['NGROK_AUTH_TOKEN'] = ngrokAuthToken.trim();
+        }
+        if (Object.keys(envVars).length > 0) {
+          body.env_vars = envVars;
+        }
+      }
+
       // Preserve provider_name if we can infer it
       const provider = providers.find((p) => p.id === selectedProviderId);
       if (provider) {
@@ -314,7 +333,8 @@ export default function EditInteractiveTaskModal({
   const canSubmit =
     title.trim().length > 0 &&
     !!selectedProviderId &&
-    (interactiveType !== 'vllm' || modelName.trim().length > 0);
+    (interactiveType !== 'vllm' || modelName.trim().length > 0) &&
+    (interactiveType !== 'ssh' || ngrokAuthToken.trim().length > 0);
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -378,7 +398,9 @@ export default function EditInteractiveTaskModal({
                       ? 'VS Code'
                       : interactiveType === 'jupyter'
                         ? 'Jupyter'
-                        : 'vLLM'
+                        : interactiveType === 'vllm'
+                          ? 'vLLM'
+                          : 'SSH'
                   }
                   disabled
                   readOnly
@@ -428,6 +450,32 @@ export default function EditInteractiveTaskModal({
                     </FormHelperText>
                   </FormControl>
                 </>
+              )}
+
+              {interactiveType === 'ssh' && (
+                <FormControl required>
+                  <FormLabel>ngrok Auth Token</FormLabel>
+                  <Input
+                    type="password"
+                    value={ngrokAuthToken}
+                    onChange={(e) => setNgrokAuthToken(e.target.value)}
+                    placeholder="ngrok_..."
+                  />
+                  <FormHelperText>
+                    Your ngrok authentication token. Note: You may need to add a
+                    payment method to your ngrok account (it won't be charged,
+                    but it's necessary for SSH connections). You can get your
+                    token from
+                    <a
+                      href="https://dashboard.ngrok.com/get-started/your-authtoken"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      here
+                    </a>
+                    .
+                  </FormHelperText>
+                </FormControl>
               )}
 
               <Stack

@@ -33,11 +33,12 @@ type NewInteractiveTaskModalProps = {
     cpus?: string;
     memory?: string;
     accelerators?: string;
-    interactive_type: 'vscode' | 'jupyter' | 'vllm';
+    interactive_type: 'vscode' | 'jupyter' | 'vllm' | 'ssh';
     provider_id?: string;
     model_name?: string;
     hf_token?: string;
     tp_size?: string;
+    ngrok_auth_token?: string;
   }) => void;
   isSubmitting?: boolean;
   providers: ProviderOption[];
@@ -57,12 +58,13 @@ export default function NewInteractiveTaskModal({
   const [memory, setMemory] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [interactiveType, setInteractiveType] = React.useState<
-    'vscode' | 'jupyter' | 'vllm'
+    'vscode' | 'jupyter' | 'vllm' | 'ssh'
   >('vscode');
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
   const [modelName, setModelName] = React.useState('');
   const [hfToken, setHfToken] = React.useState('');
   const [tpSize, setTpSize] = React.useState('1');
+  const [ngrokAuthToken, setNgrokAuthToken] = React.useState('');
 
   React.useEffect(() => {
     if (!open) {
@@ -75,6 +77,7 @@ export default function NewInteractiveTaskModal({
       setModelName('');
       setHfToken('');
       setTpSize('1');
+      setNgrokAuthToken('');
     } else if (open && providers.length && !selectedProviderId) {
       setSelectedProviderId(providers[0].id);
     }
@@ -114,13 +117,15 @@ export default function NewInteractiveTaskModal({
       model_name: interactiveType === 'vllm' ? modelName : undefined,
       hf_token: interactiveType === 'vllm' ? hfToken : undefined,
       tp_size: interactiveType === 'vllm' ? tpSize : undefined,
+      ngrok_auth_token: interactiveType === 'ssh' ? ngrokAuthToken : undefined,
     });
   };
 
   const canSubmit =
     title.trim().length > 0 &&
     !!selectedProviderId &&
-    (interactiveType !== 'vllm' || modelName.trim().length > 0);
+    (interactiveType !== 'vllm' || modelName.trim().length > 0) &&
+    (interactiveType !== 'ssh' || ngrokAuthToken.trim().length > 0);
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -192,10 +197,12 @@ export default function NewInteractiveTaskModal({
                   <Radio value="vscode" label="VS Code" />
                   <Radio value="jupyter" label="Jupyter Notebook" />
                   <Radio value="vllm" label="vLLM Server" />
+                  <Radio value="ssh" label="SSH" />
                 </RadioGroup>
                 <FormHelperText>
                   Choose VS Code for remote development, Jupyter for notebook
-                  access, or vLLM for model serving via tunnel.
+                  access, vLLM for model serving, or SSH for direct terminal
+                  access via tunnel.
                 </FormHelperText>
               </FormControl>
 
@@ -241,6 +248,32 @@ export default function NewInteractiveTaskModal({
                 </>
               )}
 
+              {interactiveType === 'ssh' && (
+                <FormControl required>
+                  <FormLabel>ngrok Auth Token</FormLabel>
+                  <Input
+                    type="password"
+                    value={ngrokAuthToken}
+                    onChange={(e) => setNgrokAuthToken(e.target.value)}
+                    placeholder="ngrok_..."
+                  />
+                  <FormHelperText>
+                    Your ngrok authentication token. Note: You may need to add a
+                    payment method to your ngrok account (it won't be charged,
+                    but it's necessary for SSH connections). You can get your
+                    token from
+                    <a
+                      href="https://dashboard.ngrok.com/get-started/your-authtoken"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      here
+                    </a>
+                    .
+                  </FormHelperText>
+                </FormControl>
+              )}
+
               <Stack
                 direction="row"
                 spacing={2}
@@ -276,7 +309,7 @@ export default function NewInteractiveTaskModal({
 
               <FormHelperText>
                 Setup and command are pre-populated based on the selected
-                interactive type (VS Code, Jupyter, or vLLM).
+                interactive type (VS Code, Jupyter, vLLM, or SSH).
               </FormHelperText>
             </Stack>
           </DialogContent>

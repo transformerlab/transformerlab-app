@@ -20,6 +20,7 @@ import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveVSCodeModal from './InteractiveVSCodeModal';
 import InteractiveJupyterModal from './InteractiveJupyterModal';
 import InteractiveVllmModal from './InteractiveVllmModal';
+import InteractiveSshModal from './InteractiveSshModal';
 import EditTaskModal from './EditTaskModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -639,6 +640,21 @@ export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y wg
         // Environment variables (MODEL_NAME, HF_TOKEN, TP_SIZE) are passed via env_vars
         defaultCommand =
           `source ~/vllm-venv/bin/activate && python -u -m vllm.entrypoints.openai.api_server --model $MODEL_NAME --tensor-parallel-size $TP_SIZE --host 0.0.0.0 --port 8000 > /tmp/vllm.log 2>&1 & sleep 10 && cloudflared tunnel --url http://localhost:8000 2>&1 | tee /tmp/cloudflared.log; tail -f /tmp/vllm.log /tmp/cloudflared.log`.trim();
+      } else if (interactiveType === 'ssh') {
+        // Setup: Install ngrok
+        defaultSetup = `
+export DEBIAN_FRONTEND=noninteractive; curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+  | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+  ; echo "deb https://ngrok-agent.s3.amazonaws.com bookworm main" \
+  | sudo tee /etc/apt/sources.list.d/ngrok.list \
+  ; sudo apt update \
+  ; sudo apt install ngrok;`.trim();
+
+        // Command: Configure ngrok auth token, echo username, then start ngrok TCP tunnel on port 22
+        // Environment variable NGROK_AUTH_TOKEN is passed via env_vars
+        // Username will be parsed from paths like /home/<username>/.config/ngrok/ngrok.yml if echo fails
+        defaultCommand =
+          `export NGROK_AUTH_TOKEN=$NGROK_AUTH_TOKEN; ngrok config add-authtoken $NGROK_AUTH_TOKEN; echo USER_ID=$(whoami 2>/dev/null || basename $HOME 2>/dev/null || echo ''); ngrok tcp 22 --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/ngrok.log`.trim();
       } else {
         // VS Code setup
         defaultSetup = `
@@ -666,6 +682,13 @@ export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gn
         }
         if (data.tp_size) {
           envVars['TP_SIZE'] = data.tp_size;
+        }
+      }
+
+      // Add SSH-specific environment variables
+      if (interactiveType === 'ssh') {
+        if (data.ngrok_auth_token) {
+          envVars['NGROK_AUTH_TOKEN'] = data.ngrok_auth_token;
         }
       }
 
@@ -706,7 +729,9 @@ export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gn
             ? 'Jupyter'
             : (data.interactive_type || 'vscode') === 'vllm'
               ? 'vLLM'
-              : 'VS Code';
+              : (data.interactive_type || 'vscode') === 'ssh'
+                ? 'SSH'
+                : 'VS Code';
         addNotification({
           type: 'success',
           message: `Interactive template created. Use Queue to launch the ${interactiveTypeLabel} tunnel.`,
@@ -1095,6 +1120,15 @@ export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gn
         if (interactiveType === 'vllm') {
           return (
             <InteractiveVllmModal
+              jobId={interactiveJobForModal}
+              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+            />
+          );
+        }
+
+        if (interactiveType === 'ssh') {
+          return (
+            <InteractiveSshModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
             />
