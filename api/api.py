@@ -11,6 +11,7 @@ import signal
 import subprocess
 from contextlib import asynccontextmanager
 import sys
+from typing import AsyncGenerator, Optional
 from werkzeug.utils import secure_filename
 
 import fastapi
@@ -110,41 +111,87 @@ os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Docs on lifespan events: https://fastapi.tiangolo.com/advanced/events/"""
-    # Do the following at API Startup:
-    print_launch_message()
-    # Validate cloud credentials early - fail fast if missing
-    validate_cloud_credentials()
-    galleries.update_gallery_cache()
-    spawn_fastchat_controller_subprocess()
-    await db.init()  # This now runs Alembic migrations internally
-    # create_db_and_tables() is deprecated - migrations are handled in db.init()
-    print("✅ SEED DATA")
-    # Initialize experiments
-    seed_default_experiments()
-    # Seed default admin user
-    await seed_default_admin_user()
-    # Cancel any running jobs
-    cancel_in_progress_jobs()
 
-    if "--reload" in sys.argv:
-        await install_all_plugins()
-    # run the migrations
-    asyncio.create_task(migrate_models_table_to_filesystem())
-    asyncio.create_task(migrate_datasets_table_to_filesystem())
-    asyncio.create_task(migrate_job_and_experiment_to_filesystem())
-    asyncio.create_task(migrate_tasks_table_to_filesystem())
+    migration_tasks: list[asyncio.Task] = []
+    background_job_task: Optional[asyncio.Task] = None
 
-    if not os.getenv("TFL_API_STORAGE_URI"):
-        asyncio.create_task(run_over_and_over())
-    print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
-    yield
-    # Do the following at API Shutdown:
-    await db.close()
-    # Run the clean up function
-    cleanup_at_exit()
-    print("FastAPI LIFESPAN: Complete")
+    try:
+        # Startup
+        print_launch_message()
+        validate_cloud_credentials()
+        galleries.update_gallery_cache()
+        spawn_fastchat_controller_subprocess()
+
+        await db.init()
+
+        print("✅ SEED DATA")
+        seed_default_experiments()
+        await seed_default_admin_user()
+        cancel_in_progress_jobs()
+
+        if "--reload" in sys.argv:
+            await install_all_plugins()
+
+        # Start migration tasks
+        migration_tasks = [
+            asyncio.create_task(migrate_models_table_to_filesystem()),
+            asyncio.create_task(migrate_datasets_table_to_filesystem()),
+            asyncio.create_task(migrate_job_and_experiment_to_filesystem()),
+            asyncio.create_task(migrate_tasks_table_to_filesystem()),
+        ]
+
+        if not os.getenv("TFL_API_STORAGE_URI"):
+            background_job_task = asyncio.create_task(run_over_and_over())
+
+        print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
+
+        yield
+
+    finally:
+        # Shutdown
+        print("FastAPI LIFESPAN: Shutting down...")
+
+        await _cancel_task(background_job_task, "background job")
+        await _cancel_tasks(migration_tasks, "migration")
+
+        await db.close()
+        cleanup_at_exit()
+
+        print("FastAPI LIFESPAN: Complete")
+
+
+async def _cancel_task(task: Optional[asyncio.Task], name: str) -> None:
+    """Cancel a single task if it exists and is running."""
+    if task and not task.done():
+        print(f"Cancelling {name} task...")
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            print(f"Error cancelling {name} task: {e}")
+
+
+async def _cancel_tasks(tasks: list[asyncio.Task], name_prefix: str) -> None:
+    """Cancel multiple tasks."""
+    if not tasks:
+        return
+
+    print(f"Cancelling {len(tasks)} {name_prefix} tasks...")
+    for task in tasks:
+        if not task.done():
+            task.cancel()
+
+    # Wait for all cancellations to complete
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Log any unexpected errors (ignore CancelledError)
+    for i, result in enumerate(results):
+        if isinstance(result, Exception) and not isinstance(result, asyncio.CancelledError):
+            print(f"Error in {name_prefix} task {i + 1}: {result}")
 
 
 async def run_over_and_over():
