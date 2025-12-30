@@ -34,7 +34,7 @@ export default function InteractiveJupyterModal({
     if (jobId === -1 || !experimentInfo?.id) {
       return null;
     }
-    return chatAPI.Endpoints.Experiment.GetJupyterTunnelInfo(
+    return chatAPI.Endpoints.Experiment.GetTunnelInfo(
       experimentInfo.id,
       String(jobId),
     );

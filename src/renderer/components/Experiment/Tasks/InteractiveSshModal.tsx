@@ -33,7 +33,7 @@ export default function InteractiveSshModal({
     if (jobId === -1 || !experimentInfo?.id) {
       return null;
     }
-    return chatAPI.Endpoints.Experiment.GetSshTunnelInfo(
+    return chatAPI.Endpoints.Experiment.GetTunnelInfo(
       experimentInfo.id,
       String(jobId),
     );

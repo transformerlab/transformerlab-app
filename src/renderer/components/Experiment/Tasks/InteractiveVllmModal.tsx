@@ -33,7 +33,7 @@ export default function InteractiveVllmModal({
     if (jobId === -1 || !experimentInfo?.id) {
       return null;
     }
-    return chatAPI.Endpoints.Experiment.GetVllmTunnelInfo(
+    return chatAPI.Endpoints.Experiment.GetTunnelInfo(
       experimentInfo.id,
       String(jobId),
     );
