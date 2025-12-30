@@ -47,6 +47,9 @@ def _validate_aws_credentials() -> None:
     import boto3
     from botocore.exceptions import ProfileNotFound, NoCredentialsError
 
+    # Suppress botocore credential logging
+    boto3.set_stream_logger(name="botocore.credentials", level=logging.ERROR)
+
     try:
         # Try to create a session with the profile
         session = boto3.Session(profile_name=profile_name)
