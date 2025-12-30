@@ -368,9 +368,7 @@ async def get_tunnel_info_for_job(
     # Get interactive_type from job_data, default to 'vscode' for backward compatibility
     interactive_type = job_data.get("interactive_type", "vscode")
     if not interactive_type:
-        raise HTTPException(
-            status_code=400, detail="Job does not contain interactive_type in job_data"
-        )
+        raise HTTPException(status_code=400, detail="Job does not contain interactive_type in job_data")
 
     provider_id = job_data.get("provider_id")
     cluster_name = job_data.get("cluster_name")
