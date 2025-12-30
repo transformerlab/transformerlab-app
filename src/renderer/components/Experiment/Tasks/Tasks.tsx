@@ -605,68 +605,37 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     try {
       const interactiveType = data.interactive_type || 'vscode';
 
+      // Fetch interactive gallery to get setup and command templates
       let defaultSetup: string;
       let defaultCommand: string;
 
-      if (interactiveType === 'jupyter') {
-        // Setup: Install cloudflared and jupyter
-        defaultSetup = `
-export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y wget curl \
-&& pip install jupyter \
-&& curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /tmp/cloudflared \
-&& chmod +x /tmp/cloudflared && sudo mv /tmp/cloudflared /usr/local/bin/cloudflared;`.trim();
+      try {
+        const galleryResponse = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.InteractiveGallery(experimentInfo.id),
+          {
+            method: 'GET',
+          },
+        );
 
-        // Command: Start Jupyter without token (tunnel URL provides security) and cloudflared tunnel
-        // Start Jupyter in background, then start cloudflared tunnel
-        defaultCommand =
-          `jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password='' --notebook-dir=~ > /tmp/jupyter.log 2>&1 & sleep 3 && cloudflared tunnel --url http://localhost:8888 2>&1 | tee /tmp/cloudflared.log; tail -f /tmp/jupyter.log /tmp/cloudflared.log`.trim();
-      } else if (interactiveType === 'vllm') {
-        // Setup: Install uv, create venv, install vLLM and dependencies, install cloudflared
-        defaultSetup = `
-export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y wget curl python3-pip \
-&& curl -LsSf https://astral.sh/uv/install.sh | sh \
-&& export PATH="$HOME/.cargo/bin:$PATH" \
-&& uv venv ~/vllm-venv \
-&& source ~/vllm-venv/bin/activate \
-&& uv pip install "vllm>=0.11.0" \
-&& uv pip install "transformers>=4.57.1" \
-&& uv pip install qwen-vl-utils==0.0.14 \
-&& uv pip install flashinfer-python flashinfer-cubin \
-&& curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /tmp/cloudflared \
-&& chmod +x /tmp/cloudflared && sudo mv /tmp/cloudflared /usr/local/bin/cloudflared;`.trim();
+        if (galleryResponse.ok) {
+          const galleryData = await galleryResponse.json();
+          const template = galleryData.data?.find(
+            (t: any) => t.interactive_type === interactiveType,
+          );
 
-        // Command: Start vLLM server in background, then start cloudflared tunnel
-        // vLLM runs on port 8000 by default
-        // Environment variables (MODEL_NAME, HF_TOKEN, TP_SIZE) are passed via env_vars
-        defaultCommand =
-          `source ~/vllm-venv/bin/activate && python -u -m vllm.entrypoints.openai.api_server --model $MODEL_NAME --tensor-parallel-size $TP_SIZE --host 0.0.0.0 --port 8000 > /tmp/vllm.log 2>&1 & sleep 10 && cloudflared tunnel --url http://localhost:8000 2>&1 | tee /tmp/cloudflared.log; tail -f /tmp/vllm.log /tmp/cloudflared.log`.trim();
-      } else if (interactiveType === 'ssh') {
-        // Setup: Install ngrok
-        defaultSetup = `
-export DEBIAN_FRONTEND=noninteractive; curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
-  | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
-  ; echo "deb https://ngrok-agent.s3.amazonaws.com bookworm main" \
-  | sudo tee /etc/apt/sources.list.d/ngrok.list \
-  ; sudo apt update \
-  ; sudo apt install ngrok;`.trim();
+          if (!template) {
+            throw new Error(
+              `Template not found for interactive type: ${interactiveType}`,
+            );
+          }
 
-        // Command: Configure ngrok auth token, echo username, then start ngrok TCP tunnel on port 22
-        // Environment variable NGROK_AUTH_TOKEN is passed via env_vars
-        // Username will be parsed from paths like /home/<username>/.config/ngrok/ngrok.yml if echo fails
-        defaultCommand =
-          `export NGROK_AUTH_TOKEN=$NGROK_AUTH_TOKEN; ngrok config add-authtoken $NGROK_AUTH_TOKEN; echo USER_ID=$(whoami 2>/dev/null || basename $HOME 2>/dev/null || echo ''); ngrok tcp 22 --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/ngrok.log`.trim();
-      } else {
-        // VS Code setup
-        defaultSetup = `
-export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gnupg software-properties-common apt-transport-https wget \
-&& wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg \
-&& sudo install -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/ \
-&& echo "deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
-| sudo tee /etc/apt/sources.list.d/vscode.list \
-&& sudo apt update && sudo apt install -y code;`.trim();
-
-        defaultCommand =
-          'code tunnel --accept-server-license-terms --disable-telemetry'.trim();
+          defaultSetup = template.setup || '';
+          defaultCommand = template.command || '';
+        } else {
+          throw new Error('Failed to fetch interactive gallery');
+        }
+      } catch (error) {
+        throw error;
       }
 
       // Create template with flat structure

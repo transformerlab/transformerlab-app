@@ -18,6 +18,8 @@ MODEL_GROUP_GALLERY_FILE = "model-group-gallery.json"
 EXP_RECIPES_GALLERY_FILE = "exp-recipe-gallery.json"
 # Tasks gallery main file
 TASKS_GALLERY_FILE = "task-gallery.json"
+# Interactive tasks gallery (for interactive task templates)
+INTERACTIVE_GALLERY_FILE = "interactive-gallery.json"
 # Team-specific tasks gallery stored in workspace dir (per team)
 TEAM_TASKS_GALLERY_FILE = "team_specific_tasks.json"
 GALLERY_FILES = [
@@ -59,6 +61,14 @@ def get_exp_recipe_gallery():
 
 def get_tasks_gallery():
     return get_gallery_file(TASKS_GALLERY_FILE)
+
+
+def get_interactive_gallery():
+    """
+    Get the interactive tasks gallery.
+    This contains templates for interactive task types (vscode, jupyter, vllm, ssh).
+    """
+    return get_gallery_file(INTERACTIVE_GALLERY_FILE)
 
 
 def get_team_tasks_gallery():
