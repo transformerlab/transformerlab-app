@@ -14,6 +14,7 @@ from transformers import AutoTokenizer
 
 import os
 from pathlib import Path
+from datetime import date
 
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
@@ -32,6 +33,17 @@ from werkzeug.utils import secure_filename
 
 
 router = APIRouter(tags=["model"])
+
+
+def _parse_gallery_added_date(value) -> date:
+    if isinstance(value, date):
+        return value
+    if not value:
+        return date(2024, 2, 1)
+    try:
+        return date.fromisoformat(str(value))
+    except Exception:
+        return date(2024, 2, 1)
 
 
 def get_model_dir(model_id: str):
@@ -88,7 +100,7 @@ async def model_gallery_list_all():
 
     # Set a date one month in the past to identify "new" models
     one_month_ago = datetime.date.today() + dateutil.relativedelta.relativedelta(months=-1)
-    new_model_cutoff_date = one_month_ago.strftime("%Y-%m-%d")
+    new_model_cutoff_date = one_month_ago
 
     # Iterate through models and add any values needed in result
     for model in gallery:
@@ -104,8 +116,8 @@ async def model_gallery_list_all():
             model["added"] = "2024-02-01"
 
         # Application uses the new flag to decide whether to display a badge
-        # TODO: Probably shouldn't be doing > string comparison for dates
-        model["new"] = True if (model["added"] > new_model_cutoff_date) else False
+        model_added_date = _parse_gallery_added_date(model.get("added"))
+        model["new"] = True if (model_added_date > new_model_cutoff_date) else False
 
     return gallery
 
@@ -120,7 +132,7 @@ async def model_groups_list_all():
 
     # Define what counts as a “new” model
     one_month_ago = datetime.date.today() + dateutil.relativedelta.relativedelta(months=-1)
-    new_model_cutoff_date = one_month_ago.strftime("%Y-%m-%d")
+    new_model_cutoff_date = one_month_ago
 
     for group in gallery:
         if "models" not in group:
@@ -140,8 +152,8 @@ async def model_groups_list_all():
                 model["added"] = "2024-02-01"
 
             # Application uses the new flag to decide whether to display a badge
-            # TODO: Probably shouldn't be doing > string comparison for dates
-            model["new"] = True if (model["added"] > new_model_cutoff_date) else False
+            model_added_date = _parse_gallery_added_date(model.get("added"))
+            model["new"] = True if (model_added_date > new_model_cutoff_date) else False
 
     return gallery
 
