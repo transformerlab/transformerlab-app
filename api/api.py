@@ -19,7 +19,7 @@ import httpx
 
 # Using torch to test for CUDA and MPS support.
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -147,7 +147,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
 
-        yield
+        try:
+            yield
+        except asyncio.CancelledError:
+            print("FastAPI LIFESPAN: Received cancellation during runtime (SIGINT/SIGTERM).")
 
     finally:
         # Shutdown
@@ -275,6 +278,11 @@ async def set_org_context(request: Request, call_next):
             lab_set_org_id(org_id)
         response = await call_next(request)
         return response
+
+    except asyncio.CancelledError:
+        return Response(status_code=499)
+    except Exception:
+        raise
     finally:
         # Clear at end of request
         set_current_org_id(None)
