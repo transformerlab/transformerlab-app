@@ -17,6 +17,7 @@ import {
   Typography,
   Select,
   Option,
+  Alert,
 } from '@mui/joy';
 import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react';
 
@@ -249,29 +250,45 @@ export default function NewInteractiveTaskModal({
               )}
 
               {interactiveType === 'ssh' && (
-                <FormControl required>
-                  <FormLabel>ngrok Auth Token</FormLabel>
-                  <Input
-                    type="password"
-                    value={ngrokAuthToken}
-                    onChange={(e) => setNgrokAuthToken(e.target.value)}
-                    placeholder="ngrok_..."
-                  />
-                  <FormHelperText>
-                    Your ngrok authentication token. Note: You may need to add a
-                    payment method to your ngrok account (it won't be charged,
-                    but it's necessary for SSH connections). You can get your
-                    token from
-                    <a
-                      href="https://dashboard.ngrok.com/get-started/your-authtoken"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                <>
+                  <Alert color="warning" variant="soft">
+                    <Typography
+                      level="body-sm"
+                      fontWeight="bold"
+                      sx={{ mb: 0.5 }}
                     >
-                      here
-                    </a>
-                    .
-                  </FormHelperText>
-                </FormControl>
+                      Security Warning
+                    </Typography>
+                    <Typography level="body-xs">
+                      This will create a public TCP tunnel. Be careful when
+                      sharing the SSH command with anyone, as it provides direct
+                      access to your remote machine.
+                    </Typography>
+                  </Alert>
+                  <FormControl required>
+                    <FormLabel>ngrok Auth Token</FormLabel>
+                    <Input
+                      type="password"
+                      value={ngrokAuthToken}
+                      onChange={(e) => setNgrokAuthToken(e.target.value)}
+                      placeholder="ngrok_..."
+                    />
+                    <FormHelperText>
+                      Your ngrok authentication token. Note: You may need to add
+                      a payment method to your ngrok account (it won't be
+                      charged, but it's necessary for SSH connections). You can
+                      get your token from
+                      <a
+                        href="https://dashboard.ngrok.com/get-started/your-authtoken"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        here
+                      </a>
+                      .
+                    </FormHelperText>
+                  </FormControl>
+                </>
               )}
 
               <Stack
