@@ -153,10 +153,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # Shutdown
         print("FastAPI LIFESPAN: Shutting down...")
 
+        try:
+            await db.close()
+        except Exception as e:
+            print(f"Error closing database: {e}")
+
         await _cancel_task(background_job_task, "background job")
         await _cancel_tasks(migration_tasks, "migration")
 
-        await db.close()
         cleanup_at_exit()
 
         print("FastAPI LIFESPAN: Complete")
