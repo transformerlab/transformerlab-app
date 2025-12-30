@@ -59,12 +59,15 @@ export default function EditInteractiveTaskModal({
   const [memory, setMemory] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [interactiveType, setInteractiveType] = React.useState<
-    'vscode' | 'jupyter'
+    'vscode' | 'jupyter' | 'vllm'
   >('vscode');
   const [setup, setSetup] = React.useState('');
   const [command, setCommand] = React.useState('');
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
   const [isSaving, setIsSaving] = React.useState(false);
+  const [modelName, setModelName] = React.useState('');
+  const [hfToken, setHfToken] = React.useState('');
+  const [tpSize, setTpSize] = React.useState('1');
 
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
@@ -106,11 +109,29 @@ export default function EditInteractiveTaskModal({
     setAccelerators(
       isTemplate ? taskAny.accelerators || '' : cfg.accelerators || '',
     );
-    setInteractiveType(
-      (taskAny.interactive_type || cfg.interactive_type || 'vscode') as
-        | 'vscode'
-        | 'jupyter',
-    );
+    const loadedInteractiveType = (taskAny.interactive_type ||
+      cfg.interactive_type ||
+      'vscode') as 'vscode' | 'jupyter' | 'vllm';
+    setInteractiveType(loadedInteractiveType);
+
+    // Load vLLM environment variables if this is a vLLM task
+    if (loadedInteractiveType === 'vllm') {
+      const envVars = isTemplate ? taskAny.env_vars : cfg.env_vars;
+      if (envVars && typeof envVars === 'object') {
+        setModelName(envVars.MODEL_NAME || '');
+        setHfToken(envVars.HF_TOKEN || '');
+        setTpSize(envVars.TP_SIZE || '1');
+      } else if (typeof envVars === 'string') {
+        try {
+          const parsed = JSON.parse(envVars);
+          setModelName(parsed.MODEL_NAME || '');
+          setHfToken(parsed.HF_TOKEN || '');
+          setTpSize(parsed.TP_SIZE || '1');
+        } catch {
+          // ignore parse errors
+        }
+      }
+    }
     setSetup(
       isTemplate
         ? taskAny.setup != null
@@ -256,6 +277,23 @@ export default function EditInteractiveTaskModal({
         provider_id: selectedProviderId,
       };
 
+      // Add vLLM-specific environment variables if this is a vLLM task
+      if (interactiveType === 'vllm') {
+        const envVars: Record<string, string> = {};
+        if (modelName.trim()) {
+          envVars['MODEL_NAME'] = modelName.trim();
+        }
+        if (hfToken.trim()) {
+          envVars['HF_TOKEN'] = hfToken.trim();
+        }
+        if (tpSize.trim()) {
+          envVars['TP_SIZE'] = tpSize.trim();
+        }
+        if (Object.keys(envVars).length > 0) {
+          body.env_vars = envVars;
+        }
+      }
+
       // Preserve provider_name if we can infer it
       const provider = providers.find((p) => p.id === selectedProviderId);
       if (provider) {
@@ -273,7 +311,10 @@ export default function EditInteractiveTaskModal({
     }
   };
 
-  const canSubmit = title.trim().length > 0 && !!selectedProviderId;
+  const canSubmit =
+    title.trim().length > 0 &&
+    !!selectedProviderId &&
+    (interactiveType !== 'vllm' || modelName.trim().length > 0);
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -332,7 +373,13 @@ export default function EditInteractiveTaskModal({
               <FormControl>
                 <FormLabel>Interactive Type</FormLabel>
                 <Input
-                  value={interactiveType === 'vscode' ? 'VS Code' : 'Jupyter'}
+                  value={
+                    interactiveType === 'vscode'
+                      ? 'VS Code'
+                      : interactiveType === 'jupyter'
+                        ? 'Jupyter'
+                        : 'vLLM'
+                  }
                   disabled
                   readOnly
                 />
@@ -340,6 +387,48 @@ export default function EditInteractiveTaskModal({
                   Interactive type is fixed for this template.
                 </FormHelperText>
               </FormControl>
+
+              {interactiveType === 'vllm' && (
+                <>
+                  <FormControl required>
+                    <FormLabel>Model Name</FormLabel>
+                    <Input
+                      value={modelName}
+                      onChange={(e) => setModelName(e.target.value)}
+                      placeholder="e.g. meta-llama/Llama-2-7b-chat-hf"
+                    />
+                    <FormHelperText>
+                      HuggingFace model identifier
+                    </FormHelperText>
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>HuggingFace Token</FormLabel>
+                    <Input
+                      type="password"
+                      value={hfToken}
+                      onChange={(e) => setHfToken(e.target.value)}
+                      placeholder="hf_..."
+                    />
+                    <FormHelperText>
+                      Optional: Required for private/gated models
+                    </FormHelperText>
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>Tensor Parallel Size</FormLabel>
+                    <Input
+                      type="number"
+                      value={tpSize}
+                      onChange={(e) => setTpSize(e.target.value)}
+                      placeholder="1"
+                    />
+                    <FormHelperText>
+                      Number of GPUs for tensor parallelism (default: 1)
+                    </FormHelperText>
+                  </FormControl>
+                </>
+              )}
 
               <Stack
                 direction="row"

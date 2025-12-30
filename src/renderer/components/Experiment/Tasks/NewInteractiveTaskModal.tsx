@@ -33,8 +33,11 @@ type NewInteractiveTaskModalProps = {
     cpus?: string;
     memory?: string;
     accelerators?: string;
-    interactive_type: 'vscode' | 'jupyter';
+    interactive_type: 'vscode' | 'jupyter' | 'vllm';
     provider_id?: string;
+    model_name?: string;
+    hf_token?: string;
+    tp_size?: string;
   }) => void;
   isSubmitting?: boolean;
   providers: ProviderOption[];
@@ -54,9 +57,12 @@ export default function NewInteractiveTaskModal({
   const [memory, setMemory] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [interactiveType, setInteractiveType] = React.useState<
-    'vscode' | 'jupyter'
+    'vscode' | 'jupyter' | 'vllm'
   >('vscode');
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
+  const [modelName, setModelName] = React.useState('');
+  const [hfToken, setHfToken] = React.useState('');
+  const [tpSize, setTpSize] = React.useState('1');
 
   React.useEffect(() => {
     if (!open) {
@@ -66,6 +72,9 @@ export default function NewInteractiveTaskModal({
       setAccelerators('');
       setInteractiveType('vscode');
       setSelectedProviderId(providers[0]?.id || '');
+      setModelName('');
+      setHfToken('');
+      setTpSize('1');
     } else if (open && providers.length && !selectedProviderId) {
       setSelectedProviderId(providers[0].id);
     }
@@ -102,10 +111,16 @@ export default function NewInteractiveTaskModal({
       accelerators: accelerators || undefined,
       interactive_type: interactiveType,
       provider_id: selectedProviderId,
+      model_name: interactiveType === 'vllm' ? modelName : undefined,
+      hf_token: interactiveType === 'vllm' ? hfToken : undefined,
+      tp_size: interactiveType === 'vllm' ? tpSize : undefined,
     });
   };
 
-  const canSubmit = title.trim().length > 0 && !!selectedProviderId;
+  const canSubmit =
+    title.trim().length > 0 &&
+    !!selectedProviderId &&
+    (interactiveType !== 'vllm' || modelName.trim().length > 0);
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -169,17 +184,62 @@ export default function NewInteractiveTaskModal({
                 <RadioGroup
                   value={interactiveType}
                   onChange={(e) =>
-                    setInteractiveType(e.target.value as 'vscode' | 'jupyter')
+                    setInteractiveType(
+                      e.target.value as 'vscode' | 'jupyter' | 'vllm',
+                    )
                   }
                 >
                   <Radio value="vscode" label="VS Code" />
                   <Radio value="jupyter" label="Jupyter Notebook" />
+                  <Radio value="vllm" label="vLLM Server" />
                 </RadioGroup>
                 <FormHelperText>
-                  Choose VS Code for remote development or Jupyter for notebook
-                  access via tunnel.
+                  Choose VS Code for remote development, Jupyter for notebook
+                  access, or vLLM for model serving via tunnel.
                 </FormHelperText>
               </FormControl>
+
+              {interactiveType === 'vllm' && (
+                <>
+                  <FormControl required>
+                    <FormLabel>Model Name</FormLabel>
+                    <Input
+                      value={modelName}
+                      onChange={(e) => setModelName(e.target.value)}
+                      placeholder="e.g. meta-llama/Llama-2-7b-chat-hf"
+                    />
+                    <FormHelperText>
+                      HuggingFace model identifier
+                    </FormHelperText>
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>HuggingFace Token</FormLabel>
+                    <Input
+                      type="password"
+                      value={hfToken}
+                      onChange={(e) => setHfToken(e.target.value)}
+                      placeholder="hf_..."
+                    />
+                    <FormHelperText>
+                      Optional: Required for private/gated models
+                    </FormHelperText>
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>Tensor Parallel Size</FormLabel>
+                    <Input
+                      type="number"
+                      value={tpSize}
+                      onChange={(e) => setTpSize(e.target.value)}
+                      placeholder="1"
+                    />
+                    <FormHelperText>
+                      Number of GPUs for tensor parallelism (default: 1)
+                    </FormHelperText>
+                  </FormControl>
+                </>
+              )}
 
               <Stack
                 direction="row"
@@ -216,7 +276,7 @@ export default function NewInteractiveTaskModal({
 
               <FormHelperText>
                 Setup and command are pre-populated based on the selected
-                interactive type (VS Code or Jupyter).
+                interactive type (VS Code, Jupyter, or vLLM).
               </FormHelperText>
             </Stack>
           </DialogContent>
