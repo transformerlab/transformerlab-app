@@ -34,7 +34,7 @@ export default function InteractiveVSCodeModal({
     if (jobId === -1 || !experimentInfo?.id) {
       return null;
     }
-    return chatAPI.Endpoints.Experiment.GetVSCodeTunnelInfo(
+    return chatAPI.Endpoints.Experiment.GetTunnelInfo(
       experimentInfo.id,
       String(jobId),
     );

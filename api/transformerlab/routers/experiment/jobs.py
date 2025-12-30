@@ -26,10 +26,7 @@ from transformerlab.services.provider_service import get_team_provider, get_prov
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.compute_providers.models import JobState
-from transformerlab.utils.vscode_parser import get_vscode_tunnel_info
-from transformerlab.utils.jupyter_parser import get_jupyter_tunnel_info
-from transformerlab.utils.vllm_parser import get_vllm_tunnel_info
-from transformerlab.utils.ssh_parser import get_ssh_tunnel_info
+from transformerlab.shared.tunnel_parser import get_tunnel_info
 from lab import Job
 from lab.dirs import get_workspace_dir
 from transformerlab.shared import zip_utils
@@ -342,8 +339,8 @@ async def get_provider_job_logs(
     }
 
 
-@router.get("/{job_id}/vscode_tunnel_info")
-async def get_vscode_tunnel_info_for_job(
+@router.get("/{job_id}/tunnel_info")
+async def get_tunnel_info_for_job(
     experimentId: str,
     job_id: str,
     tail_lines: int = Query(400, ge=100, le=2000),
@@ -351,10 +348,10 @@ async def get_vscode_tunnel_info_for_job(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Parse provider logs for a REMOTE job and extract VS Code tunnel information.
+    Parse provider logs for a REMOTE job and extract tunnel information based on job type.
 
-    This uses the shared vscode_parser helper to extract auth code and tunnel URL
-    from the provider logs, and is intended for interactive VS Code tasks.
+    This route automatically determines the tunnel type from job_data.interactive_type
+    and uses the appropriate parser. Supports: 'vscode', 'jupyter', 'vllm', 'ssh'
     """
 
     job = job_service.job_get(job_id)
@@ -367,6 +364,11 @@ async def get_vscode_tunnel_info_for_job(
             job_data = json.loads(job_data)
         except JSONDecodeError:
             job_data = {}
+
+    # Get interactive_type from job_data, default to 'vscode' for backward compatibility
+    interactive_type = job_data.get("interactive_type", "vscode")
+    if not interactive_type:
+        raise HTTPException(status_code=400, detail="Job does not contain interactive_type in job_data")
 
     provider_id = job_data.get("provider_id")
     cluster_name = job_data.get("cluster_name")
@@ -426,295 +428,14 @@ async def get_vscode_tunnel_info_for_job(
         except TypeError:
             logs_text = str(raw_logs)
 
-    tunnel_info = get_vscode_tunnel_info(logs_text)
+    tunnel_info = get_tunnel_info(logs_text, interactive_type)
 
     return {
         **tunnel_info,
         "cluster_name": cluster_name,
         "provider_id": provider_id,
         "provider_job_id": str(provider_job_id),
-    }
-
-
-@router.get("/{job_id}/jupyter_tunnel_info")
-async def get_jupyter_tunnel_info_for_job(
-    experimentId: str,
-    job_id: str,
-    tail_lines: int = Query(400, ge=100, le=2000),
-    user_and_team=Depends(get_user_and_team),
-    session: AsyncSession = Depends(get_async_session),
-):
-    """
-    Parse provider logs for a REMOTE job and extract Jupyter notebook tunnel information.
-
-    This uses the shared jupyter_parser helper to extract token and tunnel URL
-    from the provider logs, and is intended for interactive Jupyter tasks.
-    """
-
-    job = job_service.job_get(job_id)
-    if not job or str(job.get("experiment_id")) != str(experimentId):
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    job_data = job.get("job_data") or {}
-    if not isinstance(job_data, dict):
-        try:
-            job_data = json.loads(job_data)
-        except JSONDecodeError:
-            job_data = {}
-
-    provider_id = job_data.get("provider_id")
-    cluster_name = job_data.get("cluster_name")
-    if not provider_id or not cluster_name:
-        raise HTTPException(
-            status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
-        )
-
-    provider = await get_team_provider(session, user_and_team["team_id"], provider_id)
-    if not provider:
-        raise HTTPException(status_code=404, detail="Provider not found")
-
-    try:
-        provider_instance = get_provider_instance(provider)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
-
-    # Determine provider-side job id in the same way as provider_logs
-    provider_job_id: Optional[str | int] = job_data.get("provider_job_id")
-
-    if provider_job_id is None:
-        provider_job_ids = job_data.get("provider_job_ids")
-        if isinstance(provider_job_ids, list) and provider_job_ids:
-            provider_job_id = provider_job_ids[-1]
-
-    if provider_job_id is None:
-        try:
-            provider_jobs = provider_instance.list_jobs(cluster_name)
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Failed to enumerate provider jobs: {exc}") from exc
-
-        if provider_jobs:
-            running_states = {JobState.RUNNING, JobState.PENDING}
-            chosen_job = next((pj for pj in provider_jobs if pj.state in running_states), provider_jobs[-1])
-            provider_job_id = chosen_job.job_id
-
-    if provider_job_id is None:
-        raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
-
-    try:
-        raw_logs = provider_instance.get_job_logs(
-            cluster_name,
-            provider_job_id,
-            tail_lines=tail_lines or None,
-            follow=False,
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
-
-    if isinstance(raw_logs, (bytes, bytearray)):
-        logs_text = raw_logs.decode("utf-8", errors="replace")
-    elif isinstance(raw_logs, str):
-        logs_text = raw_logs
-    else:
-        try:
-            logs_text = json.dumps(raw_logs, indent=2)
-        except TypeError:
-            logs_text = str(raw_logs)
-
-    tunnel_info = get_jupyter_tunnel_info(logs_text)
-
-    return {
-        **tunnel_info,
-        "cluster_name": cluster_name,
-        "provider_id": provider_id,
-        "provider_job_id": str(provider_job_id),
-    }
-
-
-@router.get("/{job_id}/vllm_tunnel_info")
-async def get_vllm_tunnel_info_for_job(
-    experimentId: str,
-    job_id: str,
-    tail_lines: int = Query(400, ge=100, le=2000),
-    user_and_team=Depends(get_user_and_team),
-    session: AsyncSession = Depends(get_async_session),
-):
-    """
-    Parse provider logs for a REMOTE job and extract vLLM server tunnel information.
-
-    This uses the shared vllm_parser helper to extract tunnel URL
-    from the provider logs, and is intended for interactive vLLM tasks.
-    """
-
-    job = job_service.job_get(job_id)
-    if not job or str(job.get("experiment_id")) != str(experimentId):
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    job_data = job.get("job_data") or {}
-    if not isinstance(job_data, dict):
-        try:
-            job_data = json.loads(job_data)
-        except JSONDecodeError:
-            job_data = {}
-
-    provider_id = job_data.get("provider_id")
-    cluster_name = job_data.get("cluster_name")
-    if not provider_id or not cluster_name:
-        raise HTTPException(
-            status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
-        )
-
-    provider = await get_team_provider(session, user_and_team["team_id"], provider_id)
-    if not provider:
-        raise HTTPException(status_code=404, detail="Provider not found")
-
-    try:
-        provider_instance = get_provider_instance(provider)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
-
-    # Determine provider-side job id in the same way as provider_logs
-    provider_job_id: Optional[str | int] = job_data.get("provider_job_id")
-
-    if provider_job_id is None:
-        provider_job_ids = job_data.get("provider_job_ids")
-        if isinstance(provider_job_ids, list) and provider_job_ids:
-            provider_job_id = provider_job_ids[-1]
-
-    if provider_job_id is None:
-        try:
-            provider_jobs = provider_instance.list_jobs(cluster_name)
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Failed to enumerate provider jobs: {exc}") from exc
-
-        if provider_jobs:
-            running_states = {JobState.RUNNING, JobState.PENDING}
-            chosen_job = next((pj for pj in provider_jobs if pj.state in running_states), provider_jobs[-1])
-            provider_job_id = chosen_job.job_id
-
-    if provider_job_id is None:
-        raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
-
-    try:
-        raw_logs = provider_instance.get_job_logs(
-            cluster_name,
-            provider_job_id,
-            tail_lines=tail_lines or None,
-            follow=False,
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
-
-    if isinstance(raw_logs, (bytes, bytearray)):
-        logs_text = raw_logs.decode("utf-8", errors="replace")
-    elif isinstance(raw_logs, str):
-        logs_text = raw_logs
-    else:
-        try:
-            logs_text = json.dumps(raw_logs, indent=2)
-        except TypeError:
-            logs_text = str(raw_logs)
-
-    tunnel_info = get_vllm_tunnel_info(logs_text)
-
-    return {
-        **tunnel_info,
-        "cluster_name": cluster_name,
-        "provider_id": provider_id,
-        "provider_job_id": str(provider_job_id),
-    }
-
-
-@router.get("/{job_id}/ssh_tunnel_info")
-async def get_ssh_tunnel_info_for_job(
-    experimentId: str,
-    job_id: str,
-    tail_lines: int = Query(400, ge=100, le=2000),
-    user_and_team=Depends(get_user_and_team),
-    session: AsyncSession = Depends(get_async_session),
-):
-    """
-    Parse provider logs for a REMOTE job and extract SSH tunnel information.
-
-    This uses the shared ssh_parser helper to extract domain, port, and username
-    from the provider logs, and is intended for interactive SSH tasks.
-    """
-
-    job = job_service.job_get(job_id)
-    if not job or str(job.get("experiment_id")) != str(experimentId):
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    job_data = job.get("job_data") or {}
-    if not isinstance(job_data, dict):
-        try:
-            job_data = json.loads(job_data)
-        except JSONDecodeError:
-            job_data = {}
-
-    provider_id = job_data.get("provider_id")
-    cluster_name = job_data.get("cluster_name")
-    if not provider_id or not cluster_name:
-        raise HTTPException(
-            status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
-        )
-
-    provider = await get_team_provider(session, user_and_team["team_id"], provider_id)
-    if not provider:
-        raise HTTPException(status_code=404, detail="Provider not found")
-
-    try:
-        provider_instance = get_provider_instance(provider)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
-
-    # Determine provider-side job id in the same way as provider_logs
-    provider_job_id: Optional[str | int] = job_data.get("provider_job_id")
-
-    if provider_job_id is None:
-        provider_job_ids = job_data.get("provider_job_ids")
-        if isinstance(provider_job_ids, list) and provider_job_ids:
-            provider_job_id = provider_job_ids[-1]
-
-    if provider_job_id is None:
-        try:
-            provider_jobs = provider_instance.list_jobs(cluster_name)
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Failed to enumerate provider jobs: {exc}") from exc
-
-        if provider_jobs:
-            running_states = {JobState.RUNNING, JobState.PENDING}
-            chosen_job = next((pj for pj in provider_jobs if pj.state in running_states), provider_jobs[-1])
-            provider_job_id = chosen_job.job_id
-
-    if provider_job_id is None:
-        raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
-
-    try:
-        raw_logs = provider_instance.get_job_logs(
-            cluster_name,
-            provider_job_id,
-            tail_lines=tail_lines or None,
-            follow=False,
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
-
-    if isinstance(raw_logs, (bytes, bytearray)):
-        logs_text = raw_logs.decode("utf-8", errors="replace")
-    elif isinstance(raw_logs, str):
-        logs_text = raw_logs
-    else:
-        try:
-            logs_text = json.dumps(raw_logs, indent=2)
-        except TypeError:
-            logs_text = str(raw_logs)
-
-    tunnel_info = get_ssh_tunnel_info(logs_text)
-
-    return {
-        **tunnel_info,
-        "cluster_name": cluster_name,
-        "provider_id": provider_id,
-        "provider_job_id": str(provider_job_id),
+        "interactive_type": interactive_type,
     }
 
 
