@@ -21,17 +21,16 @@
 - **CLI**: Typer-based Python CLI in `cli/`
 
 ## Code Style
-
-- **TypeScript**: ESLint with erb config, Prettier (single quotes), functional components
-- **Python**: Ruff (Black-compatible), 120 char line length, 4-space indent
 - **Imports**: Use existing patterns in neighboring files; check package.json/pyproject.toml before adding deps
 - **DB Tables**: Use existing patterns and dont create any table with a foreign key.
 - **Alembic Migrations**: Use existing patterns and dont create any migration with a foreign key. Try to autogenerate the migration if possible.
 - **TypeScript**:
+  - **Linting**: ESLint with erb config, Prettier (single quotes)   
   - **Strict Typing**: Avoid `any`. Define interfaces for all props and API responses to ensure type safety.
   - **Functional Components**: Use React functional components with Hooks. Avoid class components.
   - **State Management**: The app uses `easy-peasy` (Redux wrapper). Use actions for state mutations; avoid prop drilling deep hierarchies.
 - **Python**:
+  - **Linting**: Ruff (Black-compatible), 120 char line length, 4-space indent
   - **Type Hints**: Mandatory for all function arguments and return types.
   - **Pydantic**: Use Pydantic models (in `schemas/`) for distinct data validation and serialization layers.
   - **Service Pattern**: Business logic goes in `api/transformerlab/services/`, NOT in routers. Routers (`api/transformerlab/routers/`) should only handle HTTP request/response validation and calling services.
