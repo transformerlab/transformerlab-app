@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 import os
 from unittest.mock import MagicMock, mock_open
+from datetime import date
 
 
 def test_model_gallery(client):
@@ -29,6 +30,58 @@ def test_model_group_gallery(client):
     if data:
         model = data[0]
         assert "name" in model or "models" in model
+
+
+def test_model_gallery_new_badge_uses_dates(client):
+    mock_gallery = [
+        {"uniqueID": "m1", "added": "2025-01-15"},
+        {"uniqueID": "m2", "added": "2024-12-01"},
+        {"uniqueID": "m3", "added": "not-a-date"},
+        {"uniqueID": "m4"},
+    ]
+
+    with (
+        patch("transformerlab.routers.model.galleries.get_models_gallery", return_value=mock_gallery),
+        patch(
+            "transformerlab.routers.model.model_helper.list_installed_models", new_callable=AsyncMock, return_value=[]
+        ),
+        patch("transformerlab.routers.model._today", return_value=date(2025, 1, 31)),
+    ):
+        resp = client.get("/model/gallery")
+        assert resp.status_code == 200
+        data = resp.json()
+
+        assert {m["uniqueID"]: m["new"] for m in data} == {
+            "m1": True,
+            "m2": False,
+            "m3": False,
+            "m4": False,
+        }
+
+
+def test_model_group_gallery_new_badge_uses_dates(client):
+    mock_groups = [
+        {
+            "name": "g1",
+            "models": [
+                {"uniqueID": "m1", "added": "2025-01-15"},
+                {"uniqueID": "m2", "added": "2024-12-01"},
+            ],
+        }
+    ]
+
+    with (
+        patch("transformerlab.routers.model.galleries.get_model_groups_gallery", return_value=mock_groups),
+        patch(
+            "transformerlab.routers.model.model_helper.list_installed_models", new_callable=AsyncMock, return_value=[]
+        ),
+        patch("transformerlab.routers.model._today", return_value=date(2025, 1, 31)),
+    ):
+        resp = client.get("/model/model_groups_list")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data[0]["models"][0]["new"] is True
+        assert data[0]["models"][1]["new"] is False
 
 
 def make_mock_adapter_info(overrides={}):
