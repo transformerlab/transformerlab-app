@@ -1,6 +1,5 @@
-from cachetools import TTLCache
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from transformerlab.utils.api_key_utils import mask_key
 from transformerlab.shared.models.user_model import get_async_session
@@ -9,7 +8,6 @@ from transformerlab.models.users import current_active_user
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
 from transformerlab.shared.remote_workspace import create_bucket_for_team
-from fastapi_cache.decorator import cache
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Set
 from sqlalchemy import select, delete, update, func, and_
@@ -21,9 +19,6 @@ import io
 from lab import Experiment
 from lab.dirs import set_organization_id, get_workspace_dir
 from lab import storage
-
-
-_logo_missing_cache = TTLCache(maxsize=10000, ttl=3600)
 
 
 class TeamCreate(BaseModel):

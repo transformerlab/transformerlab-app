@@ -18,7 +18,7 @@ import httpx
 
 # Using torch to test for CUDA and MPS support.
 import uvicorn
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request, Body, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse

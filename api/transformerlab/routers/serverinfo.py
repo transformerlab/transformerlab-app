@@ -16,6 +16,7 @@ from fastapi_cache.decorator import cache
 # Could also use https://github.com/gpuopenanalytics/pynvml but this is simpler
 import psutil
 import torch
+from cachetools import TTLCache
 from lab.dirs import get_global_log_path
 from lab import HOME_DIR
 from lab import storage
@@ -404,8 +405,6 @@ async def watch_file(filename: str, start_from_beginning=False, force_polling=Tr
             yield (f"data: {json.dumps(new_lines)}\n\n")
             last_position = f.tell()
 
-
-from cachetools import TTLCache
 
 # Cache log existence for 1 hour to avoid slow S3 checks
 # We assume if it exists once, it keeps existing. If it doesn't, we create it and cache that.
