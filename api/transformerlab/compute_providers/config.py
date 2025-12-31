@@ -118,10 +118,9 @@ def create_compute_provider(config: ComputeProviderConfig):
     Returns:
         ComputeProvider instance
     """
-    from .skypilot import SkyPilotProvider
-    from .slurm import SLURMProvider
-
     if config.type == "skypilot":
+        from .skypilot import SkyPilotProvider
+
         if not config.server_url:
             raise ValueError("SkyPilot provider requires server_url in config")
         return SkyPilotProvider(
@@ -132,6 +131,8 @@ def create_compute_provider(config: ComputeProviderConfig):
             extra_config=config.extra_config,
         )
     elif config.type == "slurm":
+        from .slurm import SLURMProvider
+
         if config.mode == "rest":
             if not config.rest_url:
                 raise ValueError("SLURM provider in REST mode requires rest_url in config")
