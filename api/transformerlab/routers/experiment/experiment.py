@@ -43,7 +43,7 @@ router.include_router(router=task_router.router, prefix="/{experimentId}", tags=
 
 
 @router.get("/", summary="Get all Experiments", tags=["experiment"])
-@cache(expire=60)
+@cache(expire=3600)
 def experiments_get_all():
     """Get a list of all experiments"""
     return experiment_service.experiment_get_all()
@@ -54,11 +54,17 @@ def experiments_create(name: str):
     # Apply secure filename validation to the experiment name
     secure_name = secure_filename(name)
 
+    # Reserved names that could conflict with API routes or internal logic
+    reserved_names = {"new", "create", "delete", "update", "all", "list", ""}
+    if secure_name.lower() in reserved_names:
+        return {"status": "error", "message": f"Experiment name '{name}' is reserved and cannot be used"}
+
     newid = experiment_service.experiment_create(secure_name, {})
     return newid
 
 
 @router.get("/{id}", summary="Get Experiment by ID", tags=["experiment"])
+@cache(expire=60)  # Cache for 60 seconds to balance freshness and performance
 def experiment_get(id: str):
     data = experiment_service.experiment_get(id)
 

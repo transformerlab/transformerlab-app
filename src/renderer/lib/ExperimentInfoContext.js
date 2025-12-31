@@ -59,12 +59,22 @@ export function ExperimentInfoProvider({ connection, children }) {
   } = useSWR(
     experimentId ? chatAPI.Endpoints.Experiment.Get(experimentId) : null,
     fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 30000, // Dedupe requests within 30 seconds
+    },
   );
 
   // Fetch all experiments to auto-select first one when team changes
   const { data: allExperiments, mutate: mutateAllExperiments } = useSWR(
     chatAPI.API_URL() === null ? null : chatAPI.Endpoints.Experiment.GetAll(),
     fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 30000, // Dedupe requests within 30 seconds
+    },
   );
 
   // Auto-select first experiment when team changes and no experiment is selected

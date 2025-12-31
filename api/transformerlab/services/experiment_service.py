@@ -4,6 +4,8 @@ from lab import Experiment
 from lab import dirs as lab_dirs
 from lab import storage
 
+from transformerlab.middleware import cache
+
 
 def experiment_get_all():
     experiments = []
@@ -38,10 +40,15 @@ def experiment_get_all():
 
 def experiment_create(name: str, config: dict) -> str:
     Experiment.create_with_config(name, config)
+    # No cache to clear for create, as it's a new ID.
+    # But if we cached "list of experiments", we would clear it here.
     return name
 
 
 def experiment_get(id):
+    if id in ["new", "create", "delete", "update", "list", "all"]:
+        return None
+
     try:
         exp = Experiment.get(id)
         data = exp.get_json_data()
@@ -65,6 +72,12 @@ def experiment_delete(id):
     try:
         exp = Experiment.get(id)
         exp.delete()
+        # Invalidate cache
+        import asyncio
+
+        asyncio.create_task(
+            cache.clear_function_cache("transformerlab.routers.experiment.experiment", "experiment_get", id=id)
+        )
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
@@ -75,6 +88,11 @@ def experiment_update(id, config):
     try:
         exp = Experiment.get(id)
         exp.update_config(config)
+        import asyncio
+
+        asyncio.create_task(
+            cache.clear_function_cache("transformerlab.routers.experiment.experiment", "experiment_get", id=id)
+        )
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
@@ -85,6 +103,11 @@ def experiment_update_config(id, key, value):
     try:
         exp = Experiment.get(id)
         exp.update_config_field(key, value)
+        import asyncio
+
+        asyncio.create_task(
+            cache.clear_function_cache("transformerlab.routers.experiment.experiment", "experiment_get", id=id)
+        )
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
@@ -95,6 +118,11 @@ def experiment_save_prompt_template(id, template):
     try:
         exp_obj = Experiment.get(id)
         exp_obj.update_config_field("prompt_template", template)
+        import asyncio
+
+        asyncio.create_task(
+            cache.clear_function_cache("transformerlab.routers.experiment.experiment", "experiment_get", id=id)
+        )
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
@@ -105,6 +133,11 @@ def experiment_update_configs(id, updates: dict):
     try:
         exp_obj = Experiment.get(id)
         exp_obj.update_config(updates)
+        import asyncio
+
+        asyncio.create_task(
+            cache.clear_function_cache("transformerlab.routers.experiment.experiment", "experiment_get", id=id)
+        )
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
     except Exception as e:

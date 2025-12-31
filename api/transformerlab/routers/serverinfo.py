@@ -163,7 +163,7 @@ async def get_macmon_data():
 
 
 @router.get("/info")
-@cache(expire=60)
+@cache(expire=300)
 async def get_computer_information():
     # start with our static system information and add current performance details
     r = system_info
@@ -405,14 +405,24 @@ async def watch_file(filename: str, start_from_beginning=False, force_polling=Tr
             last_position = f.tell()
 
 
+from cachetools import TTLCache
+
+# Cache log existence for 1 hour to avoid slow S3 checks
+# We assume if it exists once, it keeps existing. If it doesn't, we create it and cache that.
+_log_existence_cache = TTLCache(maxsize=1, ttl=3600)
+
+
 @router.get("/stream_log")
 async def watch_log():
     global_log_path = get_global_log_path()
 
-    if not storage.exists(global_log_path):
-        # Create the file
-        with storage.open(global_log_path, "w") as f:
-            f.write("")
+    # Optimized existence check
+    if not _log_existence_cache.get(global_log_path):
+        if not storage.exists(global_log_path):
+            # Create the file
+            with storage.open(global_log_path, "w") as f:
+                f.write("")
+        _log_existence_cache[global_log_path] = True
     try:
         # Check if the path is an S3 or other remote filesystem path
         is_remote_path = global_log_path.startswith(("s3://", "gs://", "abfs://", "gcs://"))

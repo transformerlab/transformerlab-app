@@ -18,11 +18,12 @@ import httpx
 
 # Using torch to test for CUDA and MPS support.
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request, Body, UploadFile, File
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi_cache.decorator import cache
 
 from dotenv import load_dotenv
 
@@ -500,6 +501,7 @@ async def server_worker_stop():
 
 
 @app.get("/server/worker_healthz", tags=["serverinfo"])
+@cache(expire=60)
 async def server_worker_health(request: Request):
     models = []
     result = []
