@@ -5,6 +5,7 @@ This module provides functions to create buckets for teams when
 TFL_API_STORAGE_URI is enabled. Supports both S3 and GCS.
 """
 
+import logging
 import os
 import re
 import sys
@@ -46,6 +47,9 @@ def _validate_aws_credentials() -> None:
 
     import boto3
     from botocore.exceptions import ProfileNotFound, NoCredentialsError
+
+    # Suppress botocore credential logging
+    boto3.set_stream_logger(name="botocore.credentials", level=logging.ERROR)
 
     try:
         # Try to create a session with the profile
