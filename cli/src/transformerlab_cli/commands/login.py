@@ -16,5 +16,6 @@ def login(
     """Log in to Transformer Lab."""
     # Load config to set the base URL before attempting login
     config = load_config()
-    set_base_url(config.get("server"))
+    if config.get("server"):
+        set_base_url(config.get("server"))
     set_api_key(api_key)
