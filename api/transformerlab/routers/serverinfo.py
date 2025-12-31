@@ -11,6 +11,7 @@ from datetime import datetime
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi import APIRouter, HTTPException
 from typing import AsyncGenerator
+from fastapi_cache.decorator import cache
 
 # Could also use https://github.com/gpuopenanalytics/pynvml but this is simpler
 import psutil
@@ -162,6 +163,7 @@ async def get_macmon_data():
 
 
 @router.get("/info")
+@cache(expire=60)
 async def get_computer_information():
     # start with our static system information and add current performance details
     r = system_info

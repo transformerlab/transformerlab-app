@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, Request
+from fastapi_cache.decorator import cache
 from fastapi_users import exceptions
 from transformerlab.shared.models.user_model import get_async_session, create_personal_team
 from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole
@@ -352,6 +353,7 @@ async def update_current_user(
 
 
 @router.get("/users/me/teams")
+@cache(expire=3600)
 async def get_user_teams(user: User = Depends(current_active_user), session: AsyncSession = Depends(get_async_session)):
     """
     Get all teams the current user is a member of.

@@ -8,7 +8,7 @@ from transformerlab.models.users import current_active_user
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
 from transformerlab.shared.remote_workspace import create_bucket_for_team
-
+from fastapi_cache.decorator import cache
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from sqlalchemy import select, delete, update, func, and_
@@ -878,6 +878,7 @@ async def set_github_pat(
 
 
 @router.get("/teams/{team_id}/logo")
+@cache(expire=3600)
 async def get_team_logo(
     team_id: str,
     user_and_team=Depends(get_user_and_team),

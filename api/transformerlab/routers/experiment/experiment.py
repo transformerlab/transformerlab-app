@@ -4,6 +4,7 @@ import os
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Request
+from fastapi_cache.decorator import cache
 from fastapi.responses import FileResponse
 
 import transformerlab.services.experiment_service as experiment_service
@@ -42,6 +43,7 @@ router.include_router(router=task_router.router, prefix="/{experimentId}", tags=
 
 
 @router.get("/", summary="Get all Experiments", tags=["experiment"])
+@cache(expire=60)
 def experiments_get_all():
     """Get a list of all experiments"""
     return experiment_service.experiment_get_all()

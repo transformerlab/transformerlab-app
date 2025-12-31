@@ -26,6 +26,8 @@ from fastapi.responses import JSONResponse
 
 from dotenv import load_dotenv
 
+from transformerlab.middleware.cache import init_cache
+
 load_dotenv()
 
 
@@ -120,6 +122,7 @@ async def lifespan(app: FastAPI):
     spawn_fastchat_controller_subprocess()
     await db.init()  # This now runs Alembic migrations internally
     # create_db_and_tables() is deprecated - migrations are handled in db.init()
+    await init_cache()
     print("✅ SEED DATA")
     # Initialize experiments
     seed_default_experiments()
@@ -142,6 +145,7 @@ async def lifespan(app: FastAPI):
     yield
     # Do the following at API Shutdown:
     await db.close()
+    await close_cache()
     # Run the clean up function
     cleanup_at_exit()
     print("FastAPI LIFESPAN: Complete")
