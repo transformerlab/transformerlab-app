@@ -32,5 +32,5 @@ def login(
     if not login_success:
         # Even if login fails, show how to change server
         console.print("\n[yellow]To change the server URL, run:[/yellow]")
-        console.print("[bold]  lab config set server <SERVER_URL>[/bold]\n")
-        console.print("[dim]Example: lab config set server http://localhost:8000[/dim]")
+        console.print("[bold]  lab config server <SERVER_URL>[/bold]\n")
+        console.print("[dim]Example: lab config server http://localhost:8000[/dim]")
