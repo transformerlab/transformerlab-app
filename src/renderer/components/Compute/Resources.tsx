@@ -15,11 +15,14 @@ import {
   Grid,
   Table,
   Sheet,
+  Button,
+  Stack,
 } from '@mui/joy';
 import {
   authenticatedFetch,
   getAPIFullPath,
 } from 'renderer/lib/transformerlab-api-sdk';
+import { RotateCcw } from 'lucide-react';
 import FixedComputeClusterVisualization from './FixedComputeClusterVisualization';
 
 interface Provider {
@@ -118,6 +121,13 @@ const Resources = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    await fetchProviders();
+    if (selectedProvider) {
+      await fetchClusters();
+    }
+  };
+
   // Organize data into different sections
   const fixedClusters: Cluster[] = [];
   const elasticClusters: Cluster[] = [];
@@ -170,9 +180,30 @@ const Resources = () => {
 
   return (
     <Box sx={{ maxHeight: '80vh', overflowY: 'auto', p: 3, pb: 10 }}>
-      <Typography level="h4" mb={2}>
-        Resources
-      </Typography>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={2}
+      >
+        <Typography level="h4">Resources</Typography>
+        <Button
+          color="neutral"
+          variant="plain"
+          size="sm"
+          startDecorator={
+            loading ? (
+              <CircularProgress thickness={2} size="sm" color="neutral" />
+            ) : (
+              <RotateCcw size="20px" />
+            )
+          }
+          onClick={handleRefresh}
+          disabled={loading}
+        >
+          Refresh
+        </Button>
+      </Stack>
       <FormControl sx={{ mb: 3, maxWidth: 400 }}>
         <FormLabel>Select Provider</FormLabel>
         <Select
