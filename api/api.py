@@ -27,7 +27,7 @@ from fastapi_cache.decorator import cache
 
 from dotenv import load_dotenv
 
-from transformerlab.middleware.cache import init_cache
+from transformerlab.middleware.cache import close_cache, init_cache
 
 load_dotenv()
 
