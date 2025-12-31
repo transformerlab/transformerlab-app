@@ -35,6 +35,10 @@ from werkzeug.utils import secure_filename
 router = APIRouter(tags=["model"])
 
 
+def _today() -> date:
+    return datetime.date.today()
+
+
 def _parse_gallery_added_date(value) -> date:
     if isinstance(value, date):
         return value
@@ -99,7 +103,7 @@ async def model_gallery_list_all():
     local_model_names = set(model["model_id"] for model in local_models)
 
     # Set a date one month in the past to identify "new" models
-    one_month_ago = datetime.date.today() + dateutil.relativedelta.relativedelta(months=-1)
+    one_month_ago = _today() + dateutil.relativedelta.relativedelta(months=-1)
     new_model_cutoff_date = one_month_ago
 
     # Iterate through models and add any values needed in result
@@ -131,7 +135,7 @@ async def model_groups_list_all():
     local_model_names = set(model["model_id"] for model in local_models)
 
     # Define what counts as a “new” model
-    one_month_ago = datetime.date.today() + dateutil.relativedelta.relativedelta(months=-1)
+    one_month_ago = _today() + dateutil.relativedelta.relativedelta(months=-1)
     new_model_cutoff_date = one_month_ago
 
     for group in gallery:

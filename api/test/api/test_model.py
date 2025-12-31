@@ -42,8 +42,10 @@ def test_model_gallery_new_badge_uses_dates(client):
 
     with (
         patch("transformerlab.routers.model.galleries.get_models_gallery", return_value=mock_gallery),
-        patch("transformerlab.routers.model.model_helper.list_installed_models", new_callable=AsyncMock, return_value=[]),
-        patch("transformerlab.routers.model.datetime.date.today", return_value=date(2025, 1, 31)),
+        patch(
+            "transformerlab.routers.model.model_helper.list_installed_models", new_callable=AsyncMock, return_value=[]
+        ),
+        patch("transformerlab.routers.model._today", return_value=date(2025, 1, 31)),
     ):
         resp = client.get("/model/gallery")
         assert resp.status_code == 200
@@ -70,8 +72,10 @@ def test_model_group_gallery_new_badge_uses_dates(client):
 
     with (
         patch("transformerlab.routers.model.galleries.get_model_groups_gallery", return_value=mock_groups),
-        patch("transformerlab.routers.model.model_helper.list_installed_models", new_callable=AsyncMock, return_value=[]),
-        patch("transformerlab.routers.model.datetime.date.today", return_value=date(2025, 1, 31)),
+        patch(
+            "transformerlab.routers.model.model_helper.list_installed_models", new_callable=AsyncMock, return_value=[]
+        ),
+        patch("transformerlab.routers.model._today", return_value=date(2025, 1, 31)),
     ):
         resp = client.get("/model/model_groups_list")
         assert resp.status_code == 200
