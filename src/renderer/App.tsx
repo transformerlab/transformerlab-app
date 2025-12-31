@@ -83,7 +83,7 @@ function AppContent({
     fetchHealthz();
   }, []);
 
-  const isS3Mode = mode === 's3';
+  const isS3Mode = mode !== 'local';
 
   // Close logs drawer when switching to s3 mode
   useEffect(() => {
