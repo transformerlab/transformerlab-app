@@ -377,10 +377,8 @@ async def invite_member(
                     inviter_email=inviter_user.email,
                     invitation_url=invitation_url,
                 )
-
-                logging.warning("Failed to send team invitation email", exc_info=e)
                 email_sent = True
-                email_error = "Failed to send invitation email."
+                email_error = None
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=str(e))
             except (ConnectionError, RuntimeError) as e:
