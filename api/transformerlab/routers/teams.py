@@ -466,8 +466,9 @@ async def invite_member(
         raise HTTPException(status_code=400, detail=str(e))
     except (ConnectionError, RuntimeError) as e:
         # Log warning but don't fail the invitation
+        logging.warning("Failed to send team invitation email", exc_info=e)
         email_sent = False
-        email_error = str(e)
+        email_error = "Failed to send invitation email"
 
     return {
         "message": "Invitation created successfully",
