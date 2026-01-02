@@ -90,7 +90,7 @@ def cleanup_test_db():
                 pass  # Ignore errors if file is locked or already removed
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def client():
     # Initialize database tables for tests using Alembic migrations (same as production)
     from transformerlab.db.session import run_alembic_migrations  # noqa: E402
