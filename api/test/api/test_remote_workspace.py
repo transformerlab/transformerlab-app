@@ -1,4 +1,5 @@
 import asyncio
+import io
 import sys
 from unittest.mock import Mock, patch
 
@@ -10,6 +11,51 @@ def patch_sys_argv(monkeypatch):
     monkeypatch.setattr(
         sys, "argv", ["test", "--model_name", "dummy", "--job_id", "dummy", "--total_size_of_model_in_mb", "1"]
     )
+
+
+def test_download_all_artifacts_endpoint():
+    """
+    Test the download_all_artifacts endpoint.
+    Verifies that it correctly retrieves paths, creates a zip, and returns a streaming response.
+    """
+    mock_job_service = Mock()
+    mock_job_service.get_all_artifact_paths.return_value = ["path/to/artifact1.txt", "path/to/artifact2.png"]
+
+    mock_zip_buffer = io.BytesIO(b"fake zip content")
+    mock_create_zip = Mock(return_value=mock_zip_buffer)
+
+    with (
+        patch("transformerlab.routers.experiment.jobs.job_service", mock_job_service),
+        patch("transformerlab.routers.experiment.jobs.zip_utils.create_zip_from_storage", mock_create_zip),
+        patch("transformerlab.routers.experiment.jobs.storage", Mock()),
+    ):
+        from transformerlab.routers.experiment.jobs import download_all_artifacts
+
+        # Test 1: Successful download
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        response = loop.run_until_complete(download_all_artifacts("test_job_id"))
+        loop.close()
+
+        assert response.status_code == 200
+        assert response.media_type == "application/zip"
+        assert "Content-Disposition" in response.headers
+        assert response.headers["Content-Disposition"].startswith("attachment; filename=")
+
+        mock_job_service.get_all_artifact_paths.assert_called_once()
+        mock_create_zip.assert_called_once()
+
+        # Test 2: No artifacts found
+        mock_job_service.get_all_artifact_paths.return_value = []
+        mock_create_zip.reset_mock()
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        response_empty = loop.run_until_complete(download_all_artifacts("test_job_id_empty"))
+        loop.close()
+
+        assert response_empty.status_code == 404
+        mock_create_zip.assert_not_called()
 
 
 def test_s3_artifacts_lose_metadata_due_to_os_stat_bug():

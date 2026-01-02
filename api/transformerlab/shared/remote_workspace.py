@@ -5,11 +5,156 @@ This module provides functions to create buckets for teams when
 TFL_API_STORAGE_URI is enabled. Supports both S3 and GCS.
 """
 
+import logging
 import os
 import re
 from typing import List, Tuple
+import sys
 
 from lab.storage import REMOTE_WORKSPACE_HOST
+
+
+def validate_cloud_credentials() -> None:
+    """
+    Validate that cloud credentials are available when cloud storage is enabled.
+    This should be called at API startup to fail fast if credentials are missing.
+
+    Raises:
+        SystemExit: If cloud storage is enabled but credentials are missing
+    """
+    # Check if cloud storage is enabled
+    tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")
+
+    # If neither is set, no validation needed
+    if not tfl_storage_uri:
+        return
+
+    # If cloud storage is enabled, check credentials based on provider
+    if REMOTE_WORKSPACE_HOST == "aws":
+        _validate_aws_credentials()
+    elif REMOTE_WORKSPACE_HOST == "gcp":
+        _validate_gcp_credentials()
+
+
+def _validate_aws_credentials() -> None:
+    """
+    Validate that AWS credentials are available for the transformerlab-s3 profile.
+    Checks both profile-based credentials and environment variables.
+
+    Raises:
+        SystemExit: If AWS profile is not found or credentials are missing
+    """
+    profile_name = os.getenv("AWS_PROFILE", "transformerlab-s3")
+
+    import boto3
+    from botocore.exceptions import ProfileNotFound, NoCredentialsError
+
+    # Suppress botocore credential logging
+    boto3.set_stream_logger(name="botocore.credentials", level=logging.ERROR)
+
+    try:
+        # Try to create a session with the profile
+        session = boto3.Session(profile_name=profile_name)
+
+        # Try to get credentials - this will raise ProfileNotFound if profile doesn't exist
+        # or NoCredentialsError if credentials are missing
+        credentials = session.get_credentials()
+        if credentials is None:
+            raise NoCredentialsError()
+
+        # Try to verify credentials by getting caller identity
+        sts_client = session.client("sts")
+        sts_client.get_caller_identity()
+
+        print(f"✅ AWS credentials validated for profile '{profile_name}'")
+    except ProfileNotFound:
+        # Profile not found - try with default credential chain (env vars, default profile, etc.)
+        try:
+            session = boto3.Session()  # Use default credential chain
+            credentials = session.get_credentials()
+            if credentials is None:
+                raise NoCredentialsError()
+            sts_client = session.client("sts")
+            sts_client.get_caller_identity()
+            print(f"✅ AWS credentials validated (using default credential chain, profile '{profile_name}' not found)")
+        except NoCredentialsError:
+            print(
+                f"❌ ERROR: AWS profile '{profile_name}' not found and no default credentials available.\n"
+                f"   Cloud storage is enabled (TFL_API_STORAGE_URI) but AWS credentials are missing.\n"
+                f"   Please configure AWS credentials:\n"
+                f"   1. Create ~/.aws/credentials file with the following:\n"
+                f"      [{profile_name}]\n"
+                f"      aws_access_key_id = YOUR_ACCESS_KEY\n"
+                f"      aws_secret_access_key = YOUR_SECRET_KEY\n"
+                f"   2. Or set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables\n"
+                f"   3. Or configure credentials using 'aws configure --profile {profile_name}'",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+    except NoCredentialsError:
+        print(
+            f"❌ ERROR: AWS credentials not found.\n"
+            f"   Cloud storage is enabled (TFL_API_STORAGE_URI) but AWS credentials are missing.\n"
+            f"   Please configure AWS credentials:\n"
+            f"   1. Create ~/.aws/credentials file with profile '{profile_name}':\n"
+            f"      [{profile_name}]\n"
+            f"      aws_access_key_id = YOUR_ACCESS_KEY\n"
+            f"      aws_secret_access_key = YOUR_SECRET_KEY\n"
+            f"   2. Or configure credentials using 'aws configure --profile {profile_name}'",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    except Exception as e:
+        print(
+            f"❌ ERROR: Failed to validate AWS credentials: {e}\n"
+            f"   Cloud storage is enabled but credentials validation failed.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
+def _validate_gcp_credentials() -> None:
+    """
+    Validate that GCP credentials are available.
+
+    Raises:
+        SystemExit: If GCP credentials are missing
+    """
+    project_id = os.getenv("GCP_PROJECT")
+    if not project_id:
+        print(
+            "❌ ERROR: GCP_PROJECT is not set but cloud storage is enabled.\n"
+            "   Please set GCP_PROJECT environment variable.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    from google.cloud import storage
+    from google.auth.exceptions import DefaultCredentialsError
+
+    try:
+        # Try to create a client - this will raise DefaultCredentialsError if credentials are missing
+        client = storage.Client(project=project_id)
+        # Try to list buckets to verify credentials work
+        list(client.list_buckets(max_results=1))
+        print(f"✅ GCP credentials validated for project '{project_id}'")
+    except DefaultCredentialsError:
+        print(
+            "❌ ERROR: GCP credentials not found.\n"
+            "   Cloud storage is enabled (TFL_API_STORAGE_URI or TL_FORCE_API_URL=true) but GCP credentials are missing.\n"
+            "   Please configure GCP credentials:\n"
+            "   1. Set GOOGLE_APPLICATION_CREDENTIALS environment variable to path of service account key\n"
+            "   2. Or run 'gcloud auth application-default login'",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    except Exception as e:
+        print(
+            f"❌ ERROR: Failed to validate GCP credentials: {e}\n"
+            f"   Cloud storage is enabled but credentials validation failed.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3") -> bool:
