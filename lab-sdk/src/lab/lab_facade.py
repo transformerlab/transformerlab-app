@@ -1003,6 +1003,49 @@ class Lab:
         self._ensure_initialized()
         return self._job.get_artifact_paths()  # type: ignore[union-attr]
 
+    def list_models(self) -> list[Dict[str, Any]]:
+        """
+        List all local models available in the workspace.
+
+        Returns:
+            List of dictionaries containing model metadata. Each dictionary includes:
+            - model_id: The model identifier
+            - name: The model name
+            - json_data: Additional model metadata
+        """
+        return ModelService.list_all()
+
+    def get_model(self, model_id: str) -> ModelService:
+        """
+        Get a specific local model by ID.
+
+        Args:
+            model_id: The identifier of the model to retrieve
+
+        Returns:
+            Model: A Model instance for the specified model
+
+        Raises:
+            FileNotFoundError: If the model directory doesn't exist
+        """
+        return ModelService.get(model_id)
+
+    def get_model_path(self, model_id: str) -> str:
+        """
+        Get the filesystem path to a specific local model.
+
+        Args:
+            model_id: The identifier of the model
+
+        Returns:
+            str: The full path to the model directory
+
+        Raises:
+            FileNotFoundError: If the model doesn't exist
+        """
+        model = ModelService.get(model_id)
+        return model.get_dir()
+
     @property
     def experiment(self) -> Experiment:
         self._ensure_initialized()
