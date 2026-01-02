@@ -92,8 +92,8 @@ export default function TensorboardModal({
           await new Promise((r) => setTimeout(r, 3000));
 
           try {
-            const mode =
-              window?.platform?.appmode === 'cloud' ? 'no-cors' : 'cors';
+            // Always cloud mode, use 'no-cors'
+            const mode = 'no-cors';
             // eslint-disable-next-line no-await-in-loop
             const tensorboardIsReady = await chatAPI.authenticatedFetch(
               tensorboardUrl as any,
