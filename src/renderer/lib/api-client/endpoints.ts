@@ -509,12 +509,12 @@ Endpoints.Experiment = {
     tailLines: number = 400,
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/provider_logs?tail_lines=${tailLines}`,
-  GetVSCodeTunnelInfo: (
+  GetTunnelInfo: (
     experimentId: string,
     jobId: string,
     tailLines: number = 400,
   ) =>
-    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/vscode_tunnel_info?tail_lines=${tailLines}`,
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/tunnel_info?tail_lines=${tailLines}`,
   GetAdditionalDetails: (
     experimentId: string,
     jobId: string,

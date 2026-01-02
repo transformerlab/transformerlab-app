@@ -305,7 +305,11 @@ const JobsList: React.FC<JobsListProps> = ({
                     </Button>
                   )}
                   {job?.status === 'INTERACTIVE' &&
-                    job?.job_data?.interactive_type === 'vscode' && (
+                    (job?.job_data?.interactive_type === 'vscode' ||
+                      job?.job_data?.interactive_type === 'jupyter' ||
+                      job?.job_data?.interactive_type === 'vllm' ||
+                      job?.job_data?.interactive_type === 'ollama' ||
+                      job?.job_data?.interactive_type === 'ssh') && (
                       <Button
                         size="sm"
                         variant="plain"
