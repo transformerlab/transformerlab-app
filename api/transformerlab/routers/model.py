@@ -15,7 +15,6 @@ from transformers import AutoTokenizer
 
 
 import os
-from pathlib import Path
 from datetime import date
 
 from transformerlab.shared import shared
