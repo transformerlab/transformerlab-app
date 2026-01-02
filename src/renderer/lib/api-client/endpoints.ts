@@ -273,6 +273,8 @@ Endpoints.Plugins = {
   List: () => `${API_URL()}plugins/list`,
   RunPluginInstallScript: (pluginId: string) =>
     `${API_URL()}plugins/${pluginId}/run_installer_script`,
+  SuggestLoader: (modelArchitecture: string) =>
+    `${API_URL()}plugins/suggest_loader?model_architecture=${encodeURIComponent(modelArchitecture)}`,
 };
 
 // Following is no longer needed as it is replaced with useAPI
