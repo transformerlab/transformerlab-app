@@ -340,12 +340,23 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
         updateCurrentTeam(teams[0]);
         setTeamState(teams[0]);
       }
+
+      // Keep the cached team in sync if its name changed (e.g., rename)
+      const current = getCurrentTeam();
+      if (current) {
+        const updated = teams.find((t: Team) => t.id === current.id);
+        if (updated && updated.name !== current.name) {
+          const next = { id: updated.id, name: updated.name };
+          updateCurrentTeam(next);
+          setTeamState(next);
+        }
+      }
     } else if (teams && teams.length === 0) {
       // No teams available
       updateCurrentTeam(null);
       setTeamState(null);
     }
-  }, [teamsData, token]);
+  }, [teamsData, token, team]);
 
   // Login handler
   const handleLogin = useCallback(

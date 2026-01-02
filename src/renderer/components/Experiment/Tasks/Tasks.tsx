@@ -5,7 +5,7 @@ import { Button, LinearProgress, Stack, Typography } from '@mui/joy';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { PlusIcon } from 'lucide-react';
+import { PlusIcon, TerminalIcon } from 'lucide-react';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -16,12 +16,16 @@ import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
+import NewInteractiveTaskModal from './NewInteractiveTaskModal';
+import InteractiveVSCodeModal from './InteractiveVSCodeModal';
 import EditTaskModal from './EditTaskModal';
+import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
 import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
+import ViewSweepResultsModal from './ViewSweepResultsModal';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -30,6 +34,7 @@ dayjs.extend(relativeTime);
 
 export default function Tasks({ subtype }: { subtype?: string }) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskBeingEdited, setTaskBeingEdited] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,7 +45,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [viewArtifactsFromJob, setViewArtifactsFromJob] = useState(-1);
   const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
+  const [viewSweepResultsFromJob, setViewSweepResultsFromJob] = useState(-1);
   const [viewEvalResultsFromJob, setViewEvalResultsFromJob] = useState(-1);
+  const [interactiveJobForModal, setInteractiveJobForModal] = useState(-1);
   const [previewDatasetModal, setPreviewDatasetModal] = useState<{
     open: boolean;
     datasetId: string | null;
@@ -124,17 +131,25 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     };
   }, [pendingJobsStorageKey]);
 
-  const handleOpen = () => setModalOpen(true);
+  const isInteractivePage = subtype === 'interactive';
+
+  const handleOpen = () => {
+    if (isInteractivePage) {
+      setInteractiveModalOpen(true);
+    } else {
+      setModalOpen(true);
+    }
+  };
   const handleClose = () => setModalOpen(false);
   const handleEditClose = () => {
     setEditModalOpen(false);
     setTaskBeingEdited(null);
   };
 
-  // Fetch jobs with automatic polling
+  // Fetch REMOTE jobs with automatic polling
   const {
-    data: jobs,
-    error: jobsError,
+    data: jobsRemote,
+    isError: jobsIsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
   } = useSWR(
@@ -158,51 +173,84 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     },
   );
 
-  // Fetch tasks with useSWR
+  // Fetch SWEEP jobs using sweep-status endpoint (which also updates their status)
+  const { data: sweepStatusData, mutate: jobsSweepMutate } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.ComputeProvider.CheckSweepStatus(experimentInfo.id)
+      : null,
+    fetcher,
+    {
+      refreshInterval: 3000,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      refreshWhenHidden: true,
+      refreshWhenOffline: false,
+    },
+  );
+
+  // Extract SWEEP jobs from the sweep-status response
+  const jobsSweep = useMemo(() => {
+    if (
+      sweepStatusData?.status === 'success' &&
+      Array.isArray(sweepStatusData.jobs)
+    ) {
+      return sweepStatusData.jobs;
+    }
+    return [];
+  }, [sweepStatusData]);
+
+  // Combine REMOTE and SWEEP jobs (SWEEP jobs first)
+  const jobs = useMemo(() => {
+    const remoteJobs = Array.isArray(jobsRemote) ? jobsRemote : [];
+    const sweepJobs = Array.isArray(jobsSweep) ? jobsSweep : [];
+    return [...sweepJobs, ...remoteJobs];
+  }, [jobsRemote, jobsSweep]);
+
+  // Fetch templates with useSWR (templates replace remote tasks)
   const {
-    data: allTasks,
-    error: tasksError,
-    isLoading: tasksIsLoading,
-    mutate: tasksMutate,
+    data: allTemplates,
+    isError: templatesIsError,
+    isLoading: templatesIsLoading,
+    mutate: templatesMutate,
   } = useSWR(
     experimentInfo?.id
       ? subtype
-        ? chatAPI.Endpoints.Tasks.ListBySubtypeInExperiment(
+        ? chatAPI.Endpoints.Task.ListBySubtypeInExperiment(
             experimentInfo.id,
             subtype,
-            true,
+            'REMOTE', // Filter by REMOTE type when filtering by subtype
           )
-        : chatAPI.Endpoints.Tasks.List()
+        : chatAPI.Endpoints.Task.List(experimentInfo.id)
       : null,
     fetcher,
   );
 
-  // Filter tasks for remote tasks in this experiment only
-  // If subtype is provided, filter by subtype in task config
+  // Filter templates for this experiment only (if no subtype filter was applied)
   const tasks =
-    (Array.isArray(allTasks) ? allTasks : allTasks?.data || []) // in case API returns {data: []}
-      ?.filter(
-        (task: any) =>
-          task.remote_task === true &&
-          task.experiment_id === experimentInfo?.id,
-      ) || [];
+    (Array.isArray(allTemplates) ? allTemplates : allTemplates?.data || []) // in case API returns {data: []}
+      ?.filter((template: any) => {
+        // If subtype filter was applied via API, just filter by experiment
+        // Otherwise, filter by experiment only
+        return template.experiment_id === experimentInfo?.id;
+      }) || [];
 
-  // Check each LAUNCHING job individually via provider endpoints
+  // Check each LAUNCHING and recently completed REMOTE job individually via provider endpoints
   useEffect(() => {
     if (!jobs || !Array.isArray(jobs)) return;
 
-    const launchingJobs = jobs.filter(
+    const jobsToCheck = jobs.filter(
       (job: any) =>
         job.type === 'REMOTE' &&
-        job.status === 'LAUNCHING' &&
+        (job.status === 'LAUNCHING' ||
+          (job.status === 'COMPLETE' && job.job_data?.provider_id)) && // Also check recently completed jobs to ensure quota is recorded
         job.job_data?.provider_id, // Only check jobs with provider_id
     );
 
-    if (launchingJobs.length === 0) return;
+    if (jobsToCheck.length === 0) return;
 
     // Check each job individually
     const checkJobs = async () => {
-      for (const job of launchingJobs) {
+      for (const job of jobsToCheck) {
         try {
           const response = await fetchWithAuth(
             chatAPI.Endpoints.ComputeProvider.CheckJobStatus(String(job.id)),
@@ -214,6 +262,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             if (result.updated && result.new_status === 'COMPLETE') {
               setTimeout(() => jobsMutate(), 0);
             }
+            // For completed jobs, check-status will ensure quota is recorded if missing
           }
         } catch (error) {
           // Silently ignore errors for individual job checks
@@ -229,7 +278,42 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     return () => clearInterval(interval);
   }, [jobs, fetchWithAuth, jobsMutate]);
 
-  const loading = tasksIsLoading || jobsIsLoading;
+  // // Periodically ensure quota is recorded for all completed REMOTE jobs
+  // useEffect(() => {
+  //   if (!experimentInfo?.id) return;
+
+  //   const ensureQuotaRecorded = async () => {
+  //     try {
+  //       const response = await fetchWithAuth(
+  //         chatAPI.Endpoints.ComputeProvider.EnsureQuotaRecorded(
+  //           experimentInfo.id,
+  //         ),
+  //         { method: 'GET' },
+  //       );
+  //       if (response.ok) {
+  //         const result = await response.json();
+  //         // If any quota was recorded, refresh jobs to reflect changes
+  //         if (result.jobs_with_quota_recorded > 0) {
+  //           setTimeout(() => jobsMutate(), 0);
+  //         }
+  //       }
+  //     } catch (error) {
+  //       // Silently ignore errors for quota recording check
+  //       console.error('Failed to ensure quota recorded:', error);
+  //     }
+  //   };
+
+  //   // Check immediately and then every 30 seconds (less frequent than job status checks)
+  //   ensureQuotaRecorded();
+  //   const interval = setInterval(ensureQuotaRecorded, 30000);
+
+  //   return () => clearInterval(interval);
+  // }, [experimentInfo?.id, fetchWithAuth, jobsMutate]);
+
+  // Note: SWEEP job status is automatically updated when fetching via sweep-status endpoint
+  // No separate status check needed - the endpoint updates and returns all SWEEP jobs
+
+  const loading = templatesIsLoading || jobsIsLoading;
 
   // Remove any pending placeholders that are now present in jobs
   useEffect(() => {
@@ -289,13 +373,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     if (!experimentInfo?.id) return;
 
     // eslint-disable-next-line no-alert
-    if (!confirm('Are you sure you want to delete this task?')) {
+    if (!confirm('Are you sure you want to delete this template?')) {
       return;
     }
 
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Tasks.DeleteTask(taskId),
+        chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo?.id || '', taskId),
         {
           method: 'GET',
         },
@@ -304,21 +388,21 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       if (response.ok) {
         addNotification({
           type: 'success',
-          message: 'Task deleted successfully!',
+          message: 'Template deleted successfully!',
         });
-        // Refresh the data to remove the deleted task
-        await tasksMutate();
+        // Refresh the data to remove the deleted template
+        await templatesMutate();
       } else {
         addNotification({
           type: 'danger',
-          message: 'Failed to delete task. Please try again.',
+          message: 'Failed to delete template. Please try again.',
         });
       }
     } catch (error) {
-      console.error('Error deleting task:', error);
+      console.error('Error deleting template:', error);
       addNotification({
         type: 'danger',
-        message: 'Failed to delete task. Please try again.',
+        message: 'Failed to delete template. Please try again.',
       });
     }
   };
@@ -364,7 +448,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const handleExportToTeamGallery = async (taskId: string) => {
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Tasks.ExportToTeamGallery(),
+        chatAPI.Endpoints.Task.ExportToTeamGallery(experimentInfo?.id || ''),
         {
           method: 'POST',
           headers: {
@@ -378,7 +462,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         const txt = await response.text();
         addNotification({
           type: 'danger',
-          message: `Failed to export task: ${txt}`,
+          message: `Failed to export template: ${txt}`,
         });
         return;
       }
@@ -386,13 +470,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       const result = await response.json();
       addNotification({
         type: 'success',
-        message: result?.message || 'Task exported to team gallery.',
+        message: result?.message || 'Template exported to team gallery.',
       });
     } catch (error) {
-      console.error('Error exporting task:', error);
+      console.error('Error exporting template:', error);
       addNotification({
         type: 'danger',
-        message: 'Failed to export task. Please try again.',
+        message: 'Failed to export template. Please try again.',
       });
     }
   };
@@ -426,8 +510,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
     setIsSubmitting(true);
     try {
-      // Create a remote task template first
-      const config: any = {
+      // Create a template with all fields stored directly (flat structure)
+      const templatePayload: any = {
+        name: data.title,
+        type: 'REMOTE',
+        plugin: 'remote_orchestrator',
+        experiment_id: experimentInfo.id,
         cluster_name: data.cluster_name,
         command: data.command,
         cpus: data.cpus || undefined,
@@ -437,61 +525,141 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         num_nodes: data.num_nodes || undefined,
         setup: data.setup || undefined,
         env_vars: data.env_vars || undefined,
+        parameters: data.parameters || undefined,
         file_mounts: data.file_mounts || undefined,
-        github_enabled: data.github_enabled || undefined,
         github_repo_url: data.github_repo_url || undefined,
         github_directory: data.github_directory || undefined,
+        run_sweeps: data.run_sweeps || undefined,
+        sweep_config: data.sweep_config || undefined,
+        sweep_metric:
+          data.sweep_metric || (data.run_sweeps ? 'eval/loss' : undefined),
+        lower_is_better:
+          data.lower_is_better !== undefined ? data.lower_is_better : undefined,
+        provider_id: providerMeta.id,
+        provider_name: providerMeta.name,
       };
 
-      config.provider_id = providerMeta.id;
-      config.provider_name = providerMeta.name;
-
-      // Add subtype to config if provided
+      // Add subtype if provided
       if (subtype) {
-        config.subtype = subtype;
+        templatePayload.subtype = subtype;
       }
 
-      const payload = {
-        name: data.title,
-        type: 'REMOTE',
-        inputs: {},
-        config: config,
-        plugin: 'remote_orchestrator',
-        outputs: {},
-        experiment_id: experimentInfo.id,
-        remote_task: true,
-      } as any;
-
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Tasks.NewTask(),
+        chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
         {
-          method: 'PUT',
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(templatePayload),
         },
       );
 
       if (response.ok) {
         setModalOpen(false);
-        await tasksMutate();
+        await templatesMutate();
         addNotification({
           type: 'success',
-          message: 'Task created. Use Queue to launch remotely.',
+          message: 'Template created. Use Queue to launch remotely.',
         });
       } else {
         const txt = await response.text();
         addNotification({
           type: 'danger',
-          message: `Failed to create task: ${txt}`,
+          message: `Failed to create template: ${txt}`,
         });
       }
     } catch (error) {
-      console.error('Error creating task:', error);
+      console.error('Error creating template:', error);
       addNotification({
         type: 'danger',
-        message: 'Failed to create task. Please try again.',
+        message: 'Failed to create template. Please try again.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmitInteractive = async (data: any) => {
+    if (!experimentInfo?.id) {
+      addNotification({ type: 'warning', message: 'No experiment selected' });
+      return;
+    }
+
+    if (!providers.length) {
+      addNotification({
+        type: 'danger',
+        message:
+          'No providers available. Add a provider in the team settings first.',
+      });
+      return;
+    }
+
+    const providerMeta =
+      providers.find((p) => p.id === data.provider_id) || providers[0];
+
+    setIsSubmitting(true);
+    try {
+      const defaultSetup = `
+export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gnupg software-properties-common apt-transport-https wget \
+&& wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg \
+&& sudo install -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/ \
+&& echo "deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
+| sudo tee /etc/apt/sources.list.d/vscode.list \
+&& sudo apt update && sudo apt install -y code;`.trim();
+
+      const defaultCommand =
+        'code tunnel --accept-server-license-terms --disable-telemetry'.trim();
+
+      // Create template with flat structure
+      const templatePayload: any = {
+        name: data.title,
+        type: 'REMOTE',
+        plugin: 'remote_orchestrator',
+        experiment_id: experimentInfo.id,
+        cluster_name: data.title,
+        command: defaultCommand,
+        cpus: data.cpus || undefined,
+        memory: data.memory || undefined,
+        accelerators: data.accelerators || undefined,
+        setup: defaultSetup,
+        subtype: 'interactive',
+        interactive_type: data.interactive_type || 'vscode',
+        provider_id: providerMeta.id,
+        provider_name: providerMeta.name,
+      };
+
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(templatePayload),
+        },
+      );
+
+      if (response.ok) {
+        setInteractiveModalOpen(false);
+        await templatesMutate();
+        addNotification({
+          type: 'success',
+          message:
+            'Interactive template created. Use Queue to launch the VS Code tunnel.',
+        });
+      } else {
+        const txt = await response.text();
+        addNotification({
+          type: 'danger',
+          message: `Failed to create interactive template: ${txt}`,
+        });
+      }
+    } catch (error) {
+      console.error('Error creating interactive template:', error);
+      addNotification({
+        type: 'danger',
+        message: 'Failed to create interactive template. Please try again.',
       });
     } finally {
       setIsSubmitting(false);
@@ -501,13 +669,19 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const handleQueue = async (task: any) => {
     if (!experimentInfo?.id) return;
 
+    // For templates, all fields are stored directly (not nested in config)
+    // For backward compatibility, check if it's an old task format with nested config
     const cfg =
-      typeof task.config === 'string'
-        ? JSON.parse(task.config)
-        : task.config || {};
+      task.config !== undefined
+        ? typeof task.config === 'string'
+          ? JSON.parse(task.config)
+          : task.config
+        : task; // If no config field, assume it's a template with flat structure
 
     const providerId =
-      cfg.provider_id || (providers.length ? providers[0]?.id : null);
+      cfg.provider_id ||
+      task.provider_id ||
+      (providers.length ? providers[0]?.id : null);
     if (!providerId) {
       addNotification({
         type: 'danger',
@@ -544,28 +718,44 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     });
 
     try {
+      // For templates, fields are stored directly, so use task directly or cfg
       const payload = {
         experiment_id: experimentInfo.id,
         task_name: task.name,
-        cluster_name: cfg.cluster_name,
-        command: cfg.command,
-        subtype: cfg.subtype,
-        cpus: cfg.cpus,
-        memory: cfg.memory,
-        disk_space: cfg.disk_space,
-        accelerators: cfg.accelerators,
-        num_nodes: cfg.num_nodes,
-        setup: cfg.setup,
-        env_vars: cfg.env_vars || {},
-        file_mounts: cfg.file_mounts,
+        cluster_name: cfg.cluster_name || task.cluster_name,
+        command: cfg.command || task.command,
+        subtype: cfg.subtype || task.subtype,
+        interactive_type: cfg.interactive_type || task.interactive_type,
+        cpus: cfg.cpus || task.cpus,
+        memory: cfg.memory || task.memory,
+        disk_space: cfg.disk_space || task.disk_space,
+        accelerators: cfg.accelerators || task.accelerators,
+        num_nodes: cfg.num_nodes || task.num_nodes,
+        setup: cfg.setup || task.setup,
+        env_vars: cfg.env_vars || task.env_vars || {},
+        parameters: cfg.parameters || task.parameters || undefined,
+        file_mounts: cfg.file_mounts || task.file_mounts,
         provider_name: providerMeta.name,
-        github_enabled: cfg.github_enabled,
-        github_repo_url: cfg.github_repo_url,
-        github_directory: cfg.github_directory,
+        github_repo_url: cfg.github_repo_url || task.github_repo_url,
+        github_directory: cfg.github_directory || task.github_directory,
+        run_sweeps: cfg.run_sweeps || task.run_sweeps || undefined,
+        sweep_config: cfg.sweep_config || task.sweep_config || undefined,
+        sweep_metric:
+          cfg.sweep_metric ||
+          task.sweep_metric ||
+          (cfg.run_sweeps || task.run_sweeps ? 'eval/loss' : undefined),
+        lower_is_better:
+          cfg.lower_is_better !== undefined
+            ? cfg.lower_is_better
+            : task.lower_is_better !== undefined
+              ? task.lower_is_better
+              : undefined,
+        minutes_requested:
+          cfg.minutes_requested || task.minutes_requested || undefined,
       };
 
       const response = await fetchWithAuth(
-        chatAPI.Endpoints.ComputeProvider.LaunchTask(providerId),
+        chatAPI.Endpoints.ComputeProvider.LaunchTemplate(providerId),
         {
           method: 'POST',
           headers: {
@@ -594,10 +784,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           type: 'success',
           message: 'Provider cluster launch initiated.',
         });
-        await Promise.all([jobsMutate(), tasksMutate()]);
+        await Promise.all([jobsMutate(), templatesMutate()]);
       } else {
+        // FastAPI HTTPException uses 'detail' field, but some responses may use 'message'
         const message =
-          launchResult?.message || 'Failed to queue provider-backed task.';
+          launchResult?.detail ||
+          launchResult?.message ||
+          'Failed to queue provider-backed task.';
         addNotification({
           type: 'danger',
           message,
@@ -626,32 +819,106 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         overflow: 'hidden',
       }}
     >
-      <NewTaskModal
-        open={modalOpen}
-        onClose={handleClose}
-        onSubmit={handleSubmit}
-        isSubmitting={isSubmitting}
-        providers={providers}
-        isProvidersLoading={providersIsLoading}
-      />
-      <EditTaskModal
-        open={editModalOpen}
-        onClose={handleEditClose}
-        task={taskBeingEdited}
-        providers={providers}
-        isProvidersLoading={providersIsLoading}
-        onSaved={async () => {
-          await tasksMutate();
-        }}
-      />
+      {!isInteractivePage && (
+        <NewTaskModal
+          open={modalOpen}
+          onClose={handleClose}
+          experimentId={experimentInfo?.id}
+          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
+          providers={providers}
+          isProvidersLoading={providersIsLoading}
+        />
+      )}
+      {isInteractivePage && (
+        <NewInteractiveTaskModal
+          open={interactiveModalOpen}
+          onClose={() => setInteractiveModalOpen(false)}
+          onSubmit={handleSubmitInteractive}
+          isSubmitting={isSubmitting}
+          providers={providers}
+          isProvidersLoading={providersIsLoading}
+        />
+      )}
+      {taskBeingEdited &&
+      (taskBeingEdited as any).interactive_type &&
+      isInteractivePage ? (
+        <EditInteractiveTaskModal
+          open={editModalOpen}
+          onClose={handleEditClose}
+          task={taskBeingEdited}
+          providers={providers}
+          isProvidersLoading={providersIsLoading}
+          onSaved={async (updatedBody: any) => {
+            if (!experimentInfo?.id || !taskBeingEdited?.id) {
+              addNotification({
+                type: 'warning',
+                message: 'Missing experiment or task ID',
+              });
+              return;
+            }
+
+            try {
+              const response = await chatAPI.authenticatedFetch(
+                chatAPI.Endpoints.Task.UpdateTemplate(
+                  experimentInfo.id,
+                  taskBeingEdited.id,
+                ),
+                {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    accept: 'application/json',
+                  },
+                  body: JSON.stringify(updatedBody),
+                },
+              );
+
+              if (response.ok) {
+                await templatesMutate();
+                addNotification({
+                  type: 'success',
+                  message: 'Interactive task updated successfully',
+                });
+              } else {
+                const txt = await response.text();
+                addNotification({
+                  type: 'danger',
+                  message: `Failed to update interactive task: ${txt}`,
+                });
+              }
+            } catch (error) {
+              console.error('Error updating interactive task:', error);
+              addNotification({
+                type: 'danger',
+                message: 'Failed to update interactive task. Please try again.',
+              });
+            }
+          }}
+        />
+      ) : (
+        <EditTaskModal
+          open={editModalOpen}
+          onClose={handleEditClose}
+          task={taskBeingEdited}
+          providers={providers}
+          isProvidersLoading={providersIsLoading}
+          onSaved={async () => {
+            await templatesMutate();
+          }}
+        />
+      )}
       <Stack
         direction="row"
         justifyContent="space-between"
         alignItems="center"
         gap={2}
       >
-        <Typography level="title-md">Task Templates</Typography>
-        <Button startDecorator={<PlusIcon />} onClick={handleOpen}>
+        <Typography level="title-md">Tasks</Typography>
+        <Button
+          startDecorator={isInteractivePage ? <TerminalIcon /> : <PlusIcon />}
+          onClick={handleOpen}
+        >
           New
         </Button>
       </Stack>
@@ -666,7 +933,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           overflow: 'auto',
         }}
       >
-        {tasksIsLoading ? (
+        {templatesIsLoading ? (
           <LinearProgress />
         ) : (
           <TaskTemplateList
@@ -709,9 +976,19 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               setViewOutputFromSweepJob(true);
               setViewOutputFromJob(parseInt(jobId));
             }}
+            onViewSweepResults={(jobId) => {
+              setViewSweepResultsFromJob(parseInt(jobId));
+            }}
+            onViewInteractive={(jobId) =>
+              setInteractiveJobForModal(parseInt(jobId))
+            }
           />
         )}
       </Sheet>
+      <ViewSweepResultsModal
+        jobId={viewSweepResultsFromJob}
+        setJobId={(jobId: number) => setViewSweepResultsFromJob(jobId)}
+      />
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={(jobId: number) => setViewOutputFromJob(jobId)}
@@ -730,6 +1007,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewEvalResultsFromJob !== -1}
         onClose={() => setViewEvalResultsFromJob(-1)}
         jobId={viewEvalResultsFromJob}
+      />
+      <InteractiveVSCodeModal
+        jobId={interactiveJobForModal}
+        setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
       />
       <PreviewDatasetModal
         open={previewDatasetModal.open}

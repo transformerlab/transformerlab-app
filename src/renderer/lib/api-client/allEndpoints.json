@@ -57,6 +57,72 @@
       "path": "tasks/import_from_local_gallery"
     }
   },
+  "task": {
+    "getAll": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/task/list"
+    },
+    "get": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/task/{id}/get"
+    },
+    "getByType": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/task/list_by_type?type={type}"
+    },
+    "getByTypeInExperiment": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/task/list_by_type_in_experiment?type={type}"
+    },
+    "getBySubtypeInExperiment": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/task/list_by_subtype_in_experiment?subtype={subtype}&type={type}"
+    },
+    "create": {
+      "method": "POST",
+      "path": "experiment/{experimentId}/task/new_task"
+    },
+    "delete": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/task/{id}/delete"
+    },
+    "update": {
+      "method": "PUT",
+      "path": "experiment/{experimentId}/task/{id}/update"
+    },
+    "gallery": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/task/gallery"
+    },
+    "importFromGallery": {
+      "method": "POST",
+      "path": "experiment/{experimentId}/task/gallery/import"
+    },
+    "teamGallery": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/task/gallery/team"
+    },
+    "importFromTeamGallery": {
+      "method": "POST",
+      "path": "experiment/{experimentId}/task/gallery/team/import"
+    },
+    "exportToTeamGallery": {
+      "method": "POST",
+      "path": "experiment/{experimentId}/task/gallery/team/export"
+    },
+    "addToTeamGallery": {
+      "method": "POST",
+      "path": "experiment/{experimentId}/task/gallery/team/add"
+    },
+    "deleteFromTeamGallery": {
+      "method": "POST",
+      "path": "experiment/{experimentId}/task/gallery/team/delete"
+    },
+    "fetchTaskJson": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/task/fetch_task_json?url={url}"
+    }
+  },
   "server": {
     "info": {
       "method": "GET",
@@ -128,6 +194,10 @@
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/artifacts"
     },
+    "getArtifact": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/artifact/{filename}"
+    },
     "getJobsOfType": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/list?type={type}&status={status}"
@@ -139,6 +209,10 @@
     "getSweepResults": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/sweep_results"
+    },
+    "downloadAllArtifacts": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/artifacts/download_all"
     }
   },
   "datasets": {
@@ -244,15 +318,19 @@
     },
     "launchTask": {
       "method": "POST",
-      "path": "compute_provider/{providerId}/tasks/launch"
+      "path": "compute_provider/{providerId}/task/launch"
+    },
+    "launchTemplate": {
+      "method": "POST",
+      "path": "compute_provider/{providerId}/task/launch"
     },
     "checkJobStatus": {
       "method": "GET",
       "path": "compute_provider/jobs/{jobId}/check-status"
     },
-    "clusters": {
+    "providerClusters": {
       "method": "GET",
-      "path": "compute_provider/clusters"
+      "path": "compute_provider/{providerId}/clusters"
     },
     "stopCluster": {
       "method": "POST",
@@ -260,7 +338,15 @@
     },
     "uploadTaskFile": {
       "method": "POST",
-      "path": "compute_provider/{providerId}/tasks/{taskId}/file-upload"
+      "path": "compute_provider/{providerId}/task/{taskId}/file-upload"
+    },
+    "uploadTemplateFile": {
+      "method": "POST",
+      "path": "compute_provider/{providerId}/task/{taskId}/file-upload"
+    },
+    "usage-report": {
+      "method": "GET",
+      "path": "compute_provider/usage-report"
     }
   },
   "auth": {

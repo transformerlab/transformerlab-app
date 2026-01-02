@@ -1,9 +1,11 @@
 import json
+import os
 import time
-import requests
 from pathlib import Path
 from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 from lab import storage
+from lab import dirs
+from lab.dataset import Dataset as dataset_service
 
 
 class GenTLabPlugin(TLabPlugin):
@@ -121,35 +123,54 @@ class GenTLabPlugin(TLabPlugin):
 
         Args:
             output_file_path: Path to the generated file
+            dataset_id: Optional dataset ID to use
 
         Returns:
             bool: Whether upload was successful
         """
         try:
-            api_url = "http://localhost:8338/"
-
-            # Create a new dataset
+            # Determine dataset ID
             if not dataset_id:
-                params = {"dataset_id": f"{self.params.run_name}_{self.params.job_id}", "generated": True}
-            else:
-                params = {"dataset_id": dataset_id, "generated": True}
+                dataset_id = f"{self.params.run_name}_{self.params.job_id}"
 
-            response = requests.get(api_url + "data/new", params=params)
-            if response.status_code != 200:
-                raise RuntimeError(f"Error creating a new dataset: {response.json()}")
+            # Create a new dataset using internal SDK (same logic as /data/new endpoint)
+            # Check if dataset already exists
+            try:
+                _ = dataset_service.get(dataset_id)
+                print(f"Dataset '{dataset_id}' already exists, skipping creation")
+            except FileNotFoundError:
+                # Dataset doesn't exist, create it
+                dataset_path = dirs.dataset_dir_by_id(dataset_id)
+                if not storage.exists(dataset_path):
+                    storage.makedirs(dataset_path, exist_ok=True)
 
-            # Upload the file
-            with storage.open(output_file_path, "rb") as json_file:
-                files = {"files": json_file}
-                response = requests.post(api_url + "data/fileupload", params=params, files=files)
+                # Create filesystem metadata
+                try:
+                    ds = dataset_service.create(dataset_id)
+                    ds.set_metadata(
+                        location="local",
+                        description="",
+                        size=-1,
+                        json_data={"generated": True},
+                    )
+                except Exception as e:
+                    print(f"Failed to write dataset metadata to SDK store: {type(e).__name__}: {e}")
 
-            if response.status_code != 200:
-                raise RuntimeError(f"Error uploading the dataset: {response.json()}")
+            # Upload the file (same logic as /data/fileupload endpoint)
+            filename = os.path.basename(output_file_path)
+            target_path = storage.join(dirs.dataset_dir_by_id(dataset_id), filename)
 
-            # Adding dataset so it can be previewed.
+            # Copy the file to the dataset directory
+            storage.makedirs(dirs.dataset_dir_by_id(dataset_id), exist_ok=True)
+            with storage.open(output_file_path, "rb") as src_file:
+                content = src_file.read()
+                with storage.open(target_path, "wb") as dst_file:
+                    dst_file.write(content)
+
+            # Adding dataset so it can be previewed
             self.add_job_data("additional_output_path", output_file_path)
 
-            print(f"Dataset '{params['dataset_id']}' uploaded successfully to TransformerLab")
+            print(f"Dataset '{dataset_id}' uploaded successfully to TransformerLab")
             return True
 
         except Exception as e:

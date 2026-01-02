@@ -109,6 +109,7 @@ class SLURMProvider(ComputeProvider):
             return output
         except Exception as e:
             print(f"Error executing command: {e}")
+            raise e
         finally:
             ssh.close()
 
@@ -235,6 +236,31 @@ class SLURMProvider(ComputeProvider):
         script_content = "#!/bin/bash\n"
         script_content += f"#SBATCH --job-name={cluster_name}\n"
         script_content += "#SBATCH --requeue\n"
+
+        # Extract partition name from cluster_name or use provider config
+        partition = config.provider_config.get("partition") if config.provider_config else None
+
+        # If no partition in config, try to get from extra_config
+        if not partition and self.extra_config:
+            partition = self.extra_config.get("default_partition")
+
+        # If still no partition, try to detect from cluster_name
+        if not partition:
+            if cluster_name.startswith("slurm_partition_"):
+                partition = cluster_name.replace("slurm_partition_", "")
+            else:
+                # Try to query for first available partition
+                try:
+                    if self.mode == "ssh":
+                        output = self._ssh_execute("sinfo -h -o '%P' | head -1")
+                        partition = output.strip().rstrip("*")
+                    if not partition:
+                        partition = "normal"
+                except Exception:
+                    partition = "normal"
+
+        # Add partition specification
+        script_content += f"#SBATCH --partition={partition}\n"
 
         if config.num_nodes and config.num_nodes > 1:
             script_content += f"#SBATCH --nodes={config.num_nodes}\n"
@@ -398,11 +424,321 @@ class SLURMProvider(ComputeProvider):
             num_nodes=num_nodes,
         )
 
+    def get_clusters_detailed(self) -> List[Dict[str, Any]]:
+        """
+        Get detailed cluster information for SLURM.
+
+        For SLURM, we treat each partition as a cluster and get detailed node information.
+        """
+        try:
+            # Get detailed node information from SLURM
+            nodes_data = self._get_slurm_nodes_detailed()
+
+            # Group nodes by partition
+            partitions = {}
+            for node_data in nodes_data:
+                partition = node_data.get("partition", "default")
+                if partition not in partitions:
+                    partitions[partition] = []
+                partitions[partition].append(node_data)
+
+            # Build cluster details for each partition
+            clusters = []
+            for partition_name, partition_nodes in partitions.items():
+                nodes = []
+                total_nodes = len(partition_nodes)
+                total_active_nodes = 0
+
+                for node_data in partition_nodes:
+                    node_name = node_data.get("node_name", "unknown")
+                    state = node_data.get("state", "UNKNOWN")
+                    reason = node_data.get("reason", "N/A")
+
+                    # Determine if node is active (allocated or mixed)
+                    # Strip SLURM state suffixes: ~ (powered down), # (powering up), etc.
+                    base_state = state.rstrip("~#@$%*!").upper()
+                    is_active = base_state in ["ALLOCATED", "MIXED", "COMPLETING"]
+                    if is_active:
+                        total_active_nodes += 1
+
+                    # Parse resources
+                    cpus_total = node_data.get("cpus_total", 0)
+                    cpus_allocated = node_data.get("cpus_allocated", 0)
+                    memory_total = node_data.get("memory_total", 0)
+                    memory_allocated = node_data.get("memory_allocated", 0)
+                    gpus = node_data.get("gpus", {})
+                    gpus_free = node_data.get("gpus_free", {})
+
+                    node = {
+                        "node_name": node_name,
+                        "is_fixed": True,  # SLURM nodes are fixed infrastructure
+                        "is_active": is_active,
+                        "state": state,
+                        "reason": reason,
+                        "resources": {
+                            "cpus_total": cpus_total,
+                            "cpus_allocated": cpus_allocated,
+                            "gpus": gpus,
+                            "gpus_free": gpus_free,
+                            "memory_gb_total": memory_total,
+                            "memory_gb_allocated": memory_allocated,
+                        },
+                    }
+                    nodes.append(node)
+
+                cluster_detail = {
+                    "cluster_id": f"slurm_partition_{partition_name}",
+                    "cluster_name": partition_name,
+                    "backend_type": "SLURM",
+                    "elastic_enabled": False,  # SLURM clusters are fixed
+                    "max_nodes": total_nodes,
+                    "head_node_ip": self.ssh_host if self.mode == "ssh" else None,
+                    "nodes": nodes,
+                }
+                clusters.append(cluster_detail)
+
+            return clusters
+        except Exception as e:
+            print(f"Failed to get SLURM cluster details: {e}")
+            import traceback
+
+            traceback.print_exc()
+            return []
+
+    def _get_slurm_nodes_detailed(self) -> List[Dict[str, Any]]:
+        """
+        Get detailed node information from SLURM using sinfo and scontrol.
+
+        Returns a list of node dictionaries with detailed resource and state information.
+        """
+        nodes = []
+
+        if self.mode == "ssh":
+            # Use sinfo to get detailed node information
+            # Format: NodeName|Partition|State|Reason|CPUs|AllocCPUs|Memory|AllocMem|Gres|GresUsed
+            command = (
+                "sinfo -N -h -o '%N|%P|%T|%E|%c|%C|%m|%e|%G|%b' 2>/dev/null || sinfo -N -h -o '%N|%P|%T|%E|%c||%m||%G|'"
+            )
+            output = self._ssh_execute(command)
+
+            for line in output.strip().split("\n"):
+                if not line.strip():
+                    continue
+
+                parts = line.split("|")
+                if len(parts) < 5:
+                    continue
+
+                node_name = parts[0].strip()
+                partition = parts[1].strip()
+                state = parts[2].strip()
+                reason = parts[3].strip() if len(parts) > 3 and parts[3].strip() else "N/A"
+
+                # Parse CPUs
+                cpus_str = parts[4].strip() if len(parts) > 4 else "0"
+                cpus_total = int(cpus_str) if cpus_str.isdigit() else 0
+
+                # Parse allocated CPUs (may be in format "A/I/O/T" = Allocated/Idle/Other/Total)
+                cpus_allocated = 0
+                if len(parts) > 5 and parts[5].strip():
+                    alloc_str = parts[5].strip()
+                    if "/" in alloc_str:
+                        # Format: Allocated/Idle/Other/Total
+                        alloc_parts = alloc_str.split("/")
+                        if alloc_parts[0].isdigit():
+                            cpus_allocated = int(alloc_parts[0])
+                    elif alloc_str.isdigit():
+                        cpus_allocated = int(alloc_str)
+
+                # Parse Memory (in MB from sinfo)
+                memory_str = parts[6].strip() if len(parts) > 6 else "0"
+                memory_total = 0
+                if memory_str:
+                    # Remove any non-numeric suffixes like 'M' or '+'
+                    memory_str = memory_str.rstrip("+M")
+                    if memory_str.isdigit():
+                        memory_total = float(memory_str) / 1024.0  # Convert MB to GB
+
+                # Parse allocated memory
+                memory_allocated = 0
+                if len(parts) > 7 and parts[7].strip():
+                    alloc_mem_str = parts[7].strip().rstrip("+M")
+                    if alloc_mem_str.isdigit():
+                        memory_allocated = float(alloc_mem_str) / 1024.0
+
+                # Parse GPUs (Gres format: gpu:type:count or gpu:count)
+                gpus = {}
+                gpus_free = {}
+                if len(parts) > 8 and parts[8].strip():
+                    gres_str = parts[8].strip()
+                    gpus = self._parse_gres(gres_str)
+
+                # Parse GPU usage (GresUsed)
+                gpus_used = {}
+                if len(parts) > 9 and parts[9].strip():
+                    gres_used_str = parts[9].strip()
+                    gpus_used = self._parse_gres(gres_used_str)
+
+                # Calculate free GPUs
+                for gpu_type, total_count in gpus.items():
+                    used_count = gpus_used.get(gpu_type, 0)
+                    gpus_free[gpu_type] = max(0, total_count - used_count)
+
+                node = {
+                    "node_name": node_name,
+                    "partition": partition,
+                    "state": state,
+                    "reason": reason,
+                    "cpus_total": cpus_total,
+                    "cpus_allocated": cpus_allocated,
+                    "memory_total": memory_total,
+                    "memory_allocated": memory_allocated,
+                    "gpus": gpus,
+                    "gpus_free": gpus_free,
+                }
+                nodes.append(node)
+        else:
+            # REST API mode
+            try:
+                result = self._rest_request("GET", "/slurm/v0.0.39/nodes")
+                node_list = result.get("nodes", [])
+
+                for node_data in node_list:
+                    node_name = node_data.get("name", "unknown")
+                    partition = (
+                        node_data.get("partitions", ["default"])[0] if node_data.get("partitions") else "default"
+                    )
+                    state = (
+                        node_data.get("state", ["UNKNOWN"])[0]
+                        if isinstance(node_data.get("state"), list)
+                        else node_data.get("state", "UNKNOWN")
+                    )
+                    reason = node_data.get("reason", "N/A")
+
+                    cpus_total = node_data.get("cpus", 0)
+                    cpus_allocated = node_data.get("alloc_cpus", 0)
+
+                    # Memory in MB, convert to GB
+                    memory_total = node_data.get("real_memory", 0) / 1024.0
+                    memory_allocated = node_data.get("alloc_memory", 0) / 1024.0
+
+                    # Parse GPUs from gres
+                    gpus = {}
+                    gpus_free = {}
+                    if "gres" in node_data:
+                        gpus = self._parse_gres(node_data.get("gres", ""))
+                    if "gres_used" in node_data:
+                        gpus_used = self._parse_gres(node_data.get("gres_used", ""))
+                        for gpu_type, total_count in gpus.items():
+                            used_count = gpus_used.get(gpu_type, 0)
+                            gpus_free[gpu_type] = max(0, total_count - used_count)
+
+                    node = {
+                        "node_name": node_name,
+                        "partition": partition,
+                        "state": state,
+                        "reason": reason,
+                        "cpus_total": cpus_total,
+                        "cpus_allocated": cpus_allocated,
+                        "memory_total": memory_total,
+                        "memory_allocated": memory_allocated,
+                        "gpus": gpus,
+                        "gpus_free": gpus_free,
+                    }
+                    nodes.append(node)
+            except Exception as e:
+                print(f"Failed to get nodes via REST API: {e}")
+
+        return nodes
+
+    def _parse_gres(self, gres_str: str) -> Dict[str, int]:
+        """
+        Parse SLURM GRES (Generic Resources) string to extract GPU information.
+
+        Examples:
+            "gpu:2" -> {"GPU": 2}
+            "gpu:a100:4" -> {"A100": 4}
+            "gpu:v100:2,gpu:a100:1" -> {"V100": 2, "A100": 1}
+            "(null)" or "N/A" -> {}
+
+        Args:
+            gres_str: GRES string from sinfo/scontrol
+
+        Returns:
+            Dictionary mapping GPU type to count
+        """
+        gpus = {}
+
+        if not gres_str or gres_str.lower() in ["(null)", "n/a", "none", ""]:
+            return gpus
+
+        # Handle multiple GRES entries separated by comma
+        gres_entries = gres_str.split(",")
+
+        for entry in gres_entries:
+            entry = entry.strip()
+            if not entry or "gpu" not in entry.lower():
+                continue
+
+            # Split by colon: gpu:type:count or gpu:count
+            parts = entry.split(":")
+            if len(parts) < 2:
+                continue
+
+            if len(parts) == 2:
+                # Format: gpu:count
+                try:
+                    count = int(parts[1])
+                    gpus["GPU"] = gpus.get("GPU", 0) + count
+                except ValueError:
+                    continue
+            elif len(parts) >= 3:
+                # Format: gpu:type:count
+                gpu_type = parts[1].upper()
+                try:
+                    # Handle format like "gpu:a100:4(S:0-1)"
+                    count_str = parts[2].split("(")[0]
+                    count = int(count_str)
+                    gpus[gpu_type] = gpus.get(gpu_type, 0) + count
+                except ValueError:
+                    continue
+
+        return gpus
+
     def submit_job(self, cluster_name: str, job_config: JobConfig) -> Dict[str, Any]:
         """Submit a job using sbatch."""
         # Create a temporary SLURM script
         script_content = "#!/bin/bash\n"
         script_content += "#SBATCH --requeue\n"
+
+        # Extract partition name from cluster_name or use provider config
+        # cluster_name might be a job identifier like "slurm-test-job-15"
+        # Check if we have a partition specified in provider_config
+        partition = job_config.provider_config.get("partition") if job_config.provider_config else None
+
+        # If no partition in config, try to get from extra_config
+        if not partition and self.extra_config:
+            partition = self.extra_config.get("default_partition")
+
+        # If still no partition, try to detect from cluster_name
+        # If cluster_name looks like "slurm_partition_X", extract the partition
+        if not partition:
+            if cluster_name.startswith("slurm_partition_"):
+                partition = cluster_name.replace("slurm_partition_", "")
+            else:
+                # Default to "normal" or query sinfo to get the first available partition
+                try:
+                    if self.mode == "ssh":
+                        # Get first available partition
+                        output = self._ssh_execute("sinfo -h -o '%P' | head -1")
+                        partition = output.strip().rstrip("*")  # Remove trailing asterisk if default
+                    if not partition:
+                        partition = "normal"  # Fallback default
+                except Exception:
+                    partition = "normal"  # Fallback if query fails
+
+        # Add partition specification
+        script_content += f"#SBATCH --partition={partition}\n"
 
         if job_config.job_name:
             script_content += f"#SBATCH --job-name={job_config.job_name}\n"
@@ -449,20 +785,46 @@ class SLURMProvider(ComputeProvider):
         tail_lines: Optional[int] = None,
         follow: bool = False,
     ) -> Union[str, Any]:
-        """Get job logs using sacct or squeue."""
+        """Get job logs by finding and reading SLURM log files."""
         if self.mode == "ssh":
-            # Use sacct to get job logs
-            command = f"sacct -j {job_id} -o JobID,State,ExitCode,Start,End --noheader"
-            if tail_lines:
-                # For output logs, we'd need to find the log file
-                # This is simplified
-                command = f"tail -n {tail_lines} /path/to/logs/slurm-{job_id}.out"
-            output = self._ssh_execute(command)
-            return output
+            # Find SLURM log files using find command
+            # Look for slurm-{job_id}.out files in common locations
+            find_commands = [
+                f"find /home/{self.ssh_user} -name 'slurm-{job_id}.out' -type f 2>/dev/null",
+                f"find /tmp -name 'slurm-{job_id}.out' -type f 2>/dev/null",
+                f"find . -name 'slurm-{job_id}.out' -type f 2>/dev/null",
+                f"find /var/log/slurm -name 'slurm-{job_id}.out' -type f 2>/dev/null",
+            ]
+
+            log_file_path = None
+            for find_cmd in find_commands:
+                try:
+                    output = self._ssh_execute(find_cmd)
+                    if output.strip():
+                        # Take the first match
+                        log_file_path = output.strip().split("\n")[0]
+                        break
+                except Exception:
+                    continue
+
+            if log_file_path:
+                # Read the log file
+                if tail_lines:
+                    cat_command = f"tail -n {tail_lines} {log_file_path}"
+                else:
+                    cat_command = f"cat {log_file_path}"
+
+                try:
+                    log_content = self._ssh_execute(cat_command)
+                    return log_content
+                except Exception as e:
+                    return f"Error reading log file {log_file_path}: {e}"
+            else:
+                # Fallback: try to get job info and check common locations
+                return f"No log file found for job {job_id}. The job may still be running or logs may be in a different location."
         else:
-            # REST API
-            result = self._rest_request("GET", f"/slurm/v0.0.39/job/{job_id}")
-            return result.get("logs", str(result))
+            # REST API - this would need to be implemented based on SLURM REST API capabilities
+            return f"Log retrieval via REST API not implemented for job {job_id}"
 
     def cancel_job(self, cluster_name: str, job_id: Union[str, int]) -> Dict[str, Any]:
         """Cancel a job using scancel."""
@@ -476,13 +838,19 @@ class SLURMProvider(ComputeProvider):
             return result
 
     def list_jobs(self, cluster_name: str) -> List[JobInfo]:
-        """List jobs using squeue."""
+        """List jobs using squeue for active jobs and log files for completed jobs."""
+        jobs = []
+        seen_job_ids = set()
+
         if self.mode == "ssh":
-            # Use squeue to list jobs
-            command = f'squeue -u {self.ssh_user} -o "%i %j %T %S %e" --noheader'
-            output = self._ssh_execute(command)
-            jobs = []
-            for line in output.strip().split("\n"):
+            # Step 1: Get active jobs from squeue
+            print(f"[SLURM] Checking active jobs with squeue for user: {self.ssh_user}")
+            squeue_command = f'squeue -u {self.ssh_user} -o "%i %j %T" --noheader'
+            squeue_output = self._ssh_execute(squeue_command)
+
+            # Parse active jobs from squeue
+            active_job_count = 0
+            for line in squeue_output.strip().split("\n"):
                 if not line.strip():
                     continue
                 parts = line.split()
@@ -490,6 +858,7 @@ class SLURMProvider(ComputeProvider):
                     job_id = parts[0]
                     job_name = parts[1]
                     state_str = parts[2].upper()
+
                     try:
                         state = JobState[state_str]
                     except KeyError:
@@ -503,11 +872,40 @@ class SLURMProvider(ComputeProvider):
                             cluster_name=cluster_name,
                         )
                     )
-            return jobs
+                    seen_job_ids.add(job_id)
+                    active_job_count += 1
+
+            # Step 2: Find completed jobs by scanning log files
+            find_command = f"find /home/{self.ssh_user} -maxdepth 1 -name 'slurm-*.out' -type f -mtime -1 2>/dev/null"
+            find_output = self._ssh_execute(find_command)
+
+            completed_job_count = 0
+            for line in find_output.strip().split("\n"):
+                if not line.strip():
+                    continue
+
+                # Extract job ID from filename: slurm-{job_id}.out
+                filename = line.split("/")[-1]
+                if filename.startswith("slurm-") and filename.endswith(".out"):
+                    try:
+                        job_id = filename[6:-4]  # Remove 'slurm-' and '.out'
+                        if job_id.isdigit() and job_id not in seen_job_ids:
+                            jobs.append(
+                                JobInfo(
+                                    job_id=job_id,
+                                    job_name=job_id,
+                                    state=JobState.COMPLETED,
+                                    cluster_name=cluster_name,
+                                )
+                            )
+                            seen_job_ids.add(job_id)
+                            completed_job_count += 1
+                    except (ValueError, IndexError):
+                        continue
+
         else:
-            # REST API
+            # REST API mode
             result = self._rest_request("GET", "/slurm/v0.0.39/jobs")
-            jobs = []
             for job_data in result.get("jobs", []):
                 state_str = job_data.get("job_state", "UNKNOWN").upper()
                 try:
@@ -528,7 +926,8 @@ class SLURMProvider(ComputeProvider):
                         provider_data=job_data,
                     )
                 )
-            return jobs
+
+        return jobs
 
     def check(self) -> bool:
         """Check if the SLURM provider is active and accessible."""
