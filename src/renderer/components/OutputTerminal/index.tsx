@@ -55,9 +55,6 @@ const OutputTerminal = ({
     isProcessing.current = true;
     const line = lineQueue.current.shift()!;
     termRef.current.write(line.replace(/\n$/, '\r\n'));
-    if (terminalRef.current) {
-      terminalRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
 
     timeoutRef.current = setTimeout(() => {
       processQueue();

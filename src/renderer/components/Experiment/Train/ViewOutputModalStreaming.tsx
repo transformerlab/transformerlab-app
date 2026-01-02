@@ -12,7 +12,7 @@ import {
   TabPanel,
 } from '@mui/joy';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OutputTerminal from 'renderer/components/OutputTerminal';
@@ -52,6 +52,17 @@ export default function ViewOutputModalStreaming({
       setTab(0);
     }
   }, [sweeps, tab]);
+
+  // Memoize the logEndpoint to prevent OutputTerminal from reinitializing on every render
+  const logEndpoint = useMemo(
+    () =>
+      chatAPI.Endpoints.Experiment.StreamOutputFromJob(
+        experimentInfo.id,
+        jobId,
+        sweeps,
+      ),
+    [experimentInfo.id, jobId, sweeps],
+  );
 
   const renderResults = (results) => {
     if (!results || typeof results !== 'object') {
@@ -140,11 +151,7 @@ export default function ViewOutputModalStreaming({
               }}
             >
               <OutputTerminal
-                logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromJob(
-                  experimentInfo.id,
-                  jobId,
-                  sweeps,
-                )}
+                logEndpoint={logEndpoint}
                 lineAnimationDelay={5}
               />
             </Box>

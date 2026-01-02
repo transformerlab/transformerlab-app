@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import {
@@ -28,17 +29,23 @@ export default function ViewOutputModalStreaming({
 }: ViewOutputModalStreamingProps) {
   const { experimentInfo } = useExperimentInfo();
   if (!experimentInfo) return null;
-  const logEndpoint =
-    fileName !== ''
-      ? chatAPI.Endpoints.Experiment.StreamDetailedJSONReportFromJob(
-          experimentInfo.id,
-          jobId,
-          fileName,
-        )
-      : chatAPI.Endpoints.Experiment.StreamOutputFromJob(
-          experimentInfo.id,
-          jobId,
-        );
+
+  // Memoize the logEndpoint to prevent OutputTerminal from reinitializing on every render
+  const logEndpoint = useMemo(
+    () =>
+      fileName !== ''
+        ? chatAPI.Endpoints.Experiment.StreamDetailedJSONReportFromJob(
+            experimentInfo.id,
+            jobId,
+            fileName,
+          )
+        : chatAPI.Endpoints.Experiment.StreamOutputFromJob(
+            experimentInfo.id,
+            jobId,
+          ),
+    [experimentInfo.id, jobId, fileName],
+  );
+
   const titleSentence =
     fileName !== '' ? 'Detailed Report for Job' : 'Output from Job';
 
