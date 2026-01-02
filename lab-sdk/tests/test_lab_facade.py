@@ -790,3 +790,101 @@ def test_lab_ensure_initialized(tmp_path, monkeypatch):
             assert False, f"Should have raised RuntimeError for {method}"
         except RuntimeError:
             pass  # Expected
+
+
+def test_lab_list_models(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+    from lab.model import Model
+
+    # Create a test model
+    model1 = Model.create("test_model_1")
+    model1.set_metadata(name="Test Model 1")
+
+    # Create another test model
+    model2 = Model.create("test_model_2")
+    model2.set_metadata(name="Test Model 2")
+
+    lab = Lab()
+    # list_models doesn't require initialization
+    models = lab.list_models()
+
+    assert len(models) >= 2
+    model_ids = [m.get("model_id") for m in models]
+    assert "test_model_1" in model_ids
+    assert "test_model_2" in model_ids
+
+
+def test_lab_get_model(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+    from lab.model import Model
+
+    # Create a test model
+    model = Model.create("test_model_get")
+    model.set_metadata(name="Test Model")
+
+    lab = Lab()
+    # get_model doesn't require initialization
+    retrieved_model = lab.get_model("test_model_get")
+
+    assert retrieved_model.id == "test_model_get"
+    metadata = retrieved_model.get_metadata()
+    assert metadata["name"] == "Test Model"
+
+
+def test_lab_get_model_path(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+    from lab.model import Model
+
+    # Create a test model
+    model = Model.create("test_model_path")
+    expected_path = model.get_dir()
+
+    lab = Lab()
+    # get_model_path doesn't require initialization
+    path = lab.get_model_path("test_model_path")
+
+    assert path == expected_path
+    assert os.path.exists(path)
+
+
+def test_lab_get_model_nonexistent(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+
+    lab = Lab()
+    try:
+        lab.get_model("nonexistent_model")
+        assert False, "Should have raised FileNotFoundError"
+    except FileNotFoundError:
+        pass  # Expected
