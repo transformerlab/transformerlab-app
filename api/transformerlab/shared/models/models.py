@@ -1,5 +1,5 @@
 from typing import Optional, List
-from sqlalchemy import String, JSON, DateTime, func, Integer, Index, UUID, Date, Float
+from sqlalchemy import String, JSON, DateTime, func, Integer, Index, UUID, Date, Float, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID
 import uuid
@@ -11,13 +11,17 @@ class Base(DeclarativeBase):
 
 
 class Config(Base):
-    """Configuration key-value store model."""
+    """Configuration key-value store model. Supports user-specific, team-specific, and global configs."""
 
     __tablename__ = "config"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    key: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    team_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    key: Mapped[str] = mapped_column(String, nullable=False, index=True)
     value: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+    __table_args__ = (UniqueConstraint("user_id", "team_id", "key", name="uq_config_user_team_key"),)
 
 
 class Workflow(Base):

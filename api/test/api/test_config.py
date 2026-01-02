@@ -2,7 +2,7 @@
 def test_set_config(client):
     response = client.get("/config/set", params={"k": "api_test_key", "v": "test_value"})
     assert response.status_code == 200
-    assert response.json() == {"key": "api_test_key", "value": "test_value"}
+    assert response.json() == {"key": "api_test_key", "value": "test_value", "team_wide": True}
 
 
 def test_get_config(client):
