@@ -1,4 +1,10 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
+
+# These tests patch httpx.AsyncClient with a minimal async context manager so the
+# /v1/models endpoint can run normally (it uses "async with httpx.AsyncClient()").
+# We keep the test client itself synchronous (FastAPI TestClient), and only mock
+# the outbound controller HTTP calls.
 
 
 def _mock_async_client(*responses):
@@ -21,7 +27,7 @@ def _mock_async_client(*responses):
 
 
 def test_v1_models_returns_empty_permissions_and_sorted_models(client):
-    mock_list_models_resp = AsyncMock()
+    mock_list_models_resp = Mock()
     mock_list_models_resp.json.return_value = {"models": ["b", "a"]}
 
     _, async_client_ctx = _mock_async_client(mock_list_models_resp)
@@ -37,13 +43,13 @@ def test_v1_models_returns_empty_permissions_and_sorted_models(client):
 
 
 def test_v1_models_refreshes_workers_when_no_models_returned(client):
-    empty_models_resp = AsyncMock()
+    empty_models_resp = Mock()
     empty_models_resp.json.return_value = {"models": []}
 
-    refresh_resp = AsyncMock()
+    refresh_resp = Mock()
     refresh_resp.json.return_value = {}
 
-    models_after_refresh_resp = AsyncMock()
+    models_after_refresh_resp = Mock()
     models_after_refresh_resp.json.return_value = {"models": ["m1"]}
 
     mock_client, async_client_ctx = _mock_async_client(
