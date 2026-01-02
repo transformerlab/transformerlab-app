@@ -325,9 +325,11 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
         print("TFL_API_STORAGE_URI is not set, skipping bucket creation for existing teams")
         return (0, 0, ["TFL_API_STORAGE_URI is not set"])
 
-    # Log which provider will be used
-    provider = "GCS" if REMOTE_WORKSPACE_HOST == "gcp" else "S3"
-    print(f"Creating buckets for all teams using {provider} (REMOTE_WORKSPACE_HOST={REMOTE_WORKSPACE_HOST})")
+    # Log which remote host will be used
+    remote_workspace_host = "GCS" if REMOTE_WORKSPACE_HOST == "gcp" else "S3"
+    print(
+        f"Creating buckets for all teams using {remote_workspace_host} (REMOTE_WORKSPACE_HOST={REMOTE_WORKSPACE_HOST})"
+    )
 
     from sqlalchemy import select
 
