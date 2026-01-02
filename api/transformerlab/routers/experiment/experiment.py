@@ -119,6 +119,10 @@ def experiment_save_file_contents(id: str, filename: str, file_contents: Annotat
     if "/" in filename or "\\" in filename:
         return {"message": "Invalid file path - path traversal detected"}
 
+    # Limit the length of the file contents to 50,000 characters
+    if len(file_contents) > 50000:
+        return {"status": "error", "message": "File content exceeds the limit of 50,000 characters"}
+
     # Save the file contents securely
     with storage.open(file_path, "w", encoding="utf-8") as f:
         f.write(file_contents)

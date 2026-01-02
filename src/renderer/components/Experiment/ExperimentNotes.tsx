@@ -15,7 +15,16 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { authenticatedFetch } from 'renderer/lib/api-client/functions';
 import { PencilIcon, TypeOutline } from 'lucide-react';
-import { Box, Button, Typography } from '@mui/joy';
+import {
+  Box,
+  Button,
+  Typography,
+  Modal,
+  ModalDialog,
+  ModalClose,
+  DialogTitle,
+  DialogContent,
+} from '@mui/joy';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
 import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
 
@@ -29,12 +38,14 @@ function setTheme(editor: any, monaco: any) {
 }
 
 export default function ExperimentNotes({}) {
-  const editorRef = useRef(null);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [charCount, setCharCount] = useState(0);
+  const editorRef = useRef<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const { experimentInfo } = useExperimentInfo();
 
   // Fetch the experiment markdown
-  const { data, error, isLoading, mutate } = useSWR(
+  const { data, mutate } = useSWR(
     chatAPI.Endpoints.Experiment.GetFile(experimentId(), 'readme.md'),
     fetcher,
   );
@@ -43,20 +54,28 @@ export default function ExperimentNotes({}) {
     if (data) {
       if (editorRef?.current && typeof data === 'string') {
         editorRef?.current?.setValue(data);
+        setCharCount(data.length);
       }
     }
   }, [data]);
 
-  function handleEditorDidMount(editor, monaco) {
+  function handleEditorDidMount(editor: any, monaco: any) {
     editorRef.current = editor;
     if (editorRef?.current && typeof data === 'string') {
       editorRef?.current?.setValue(data);
+      setCharCount(data.length);
     }
     setTheme(editor, monaco);
   }
 
   function saveValue() {
     let value = editorRef?.current?.getValue();
+
+    // Limit check
+    if (value && value.length > 50000) {
+      setShowLimitModal(true);
+      return;
+    }
 
     // A blank string will cause the save to fail, so we replace it with a space
     if (value === '') {
@@ -109,6 +128,17 @@ export default function ExperimentNotes({}) {
         mb: 3,
       }}
     >
+      <Modal open={showLimitModal} onClose={() => setShowLimitModal(false)}>
+        <ModalDialog>
+          <ModalClose />
+          <DialogTitle>Character Limit Exceeded</DialogTitle>
+          <DialogContent>
+            Your notes exceed the 50,000 character limit. Please shorten them
+            before saving.
+          </DialogContent>
+        </ModalDialog>
+      </Modal>
+
       <Typography level="h3">Experiment Notes</Typography>
       {!isEditing && (
         <Sheet
@@ -178,6 +208,9 @@ export default function ExperimentNotes({}) {
                 wordWrap: 'on',
               }}
               onMount={handleEditorDidMount}
+              onChange={(value) => {
+                setCharCount(value?.length || 0);
+              }}
             />
           </Sheet>
         </Sheet>
@@ -195,11 +228,25 @@ export default function ExperimentNotes({}) {
       >
         {isEditing ? (
           <>
+            <Typography
+              level="body-sm"
+              sx={{
+                alignSelf: 'center',
+                mr: 2,
+                color:
+                  charCount > 50000
+                    ? 'danger.plainColor'
+                    : 'neutral.plainColor',
+              }}
+            >
+              {charCount} / 50000
+            </Typography>
             <Button
               onClick={() => {
                 saveValue();
               }}
               color="success"
+              disabled={charCount > 50000}
             >
               Save
             </Button>
