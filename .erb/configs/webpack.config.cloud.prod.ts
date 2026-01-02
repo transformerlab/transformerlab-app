@@ -23,7 +23,7 @@ const configuration: webpack.Configuration = {
 
   mode: 'production',
 
-  target: ['web', 'electron-renderer'],
+  target: 'web',
 
   entry: [
     path.join(webpackPaths.srcMainPath, 'preload-cloud.ts'),
