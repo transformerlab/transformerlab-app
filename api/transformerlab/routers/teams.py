@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from os import getenv
 from PIL import Image
 import io
+import logging
 
 from lab import Experiment
 from lab.dirs import set_organization_id, get_workspace_dir
@@ -382,8 +383,9 @@ async def invite_member(
                 raise HTTPException(status_code=400, detail=str(e))
             except (ConnectionError, RuntimeError) as e:
                 # Log warning but don't fail the invitation
+                logging.warning("Failed to send invitation email", exc_info=e)
                 email_sent = False
-                email_error = str(e)
+                email_error = "Failed to send invitation email"
 
             return {
                 "message": "Invitation renewed and resent",
@@ -413,9 +415,10 @@ async def invite_member(
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=str(e))
             except (ConnectionError, RuntimeError) as e:
+                logging.warning("Failed to send invitation email", exc_info=e)
                 # Log warning but don't fail the invitation
                 email_sent = False
-                email_error = str(e)
+                email_error = "Failed to send invitation email"
 
             return {
                 "message": "Invitation already exists and was resent",
@@ -461,8 +464,9 @@ async def invite_member(
         raise HTTPException(status_code=400, detail=str(e))
     except (ConnectionError, RuntimeError) as e:
         # Log warning but don't fail the invitation
+        logging.warning("Failed to send invitation email", exc_info=e)
         email_sent = False
-        email_error = str(e)
+        email_error = "Failed to send invitation email"
 
     return {
         "message": "Invitation created successfully",
