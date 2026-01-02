@@ -27,6 +27,7 @@ import {
   useExperimentInfo,
 } from './lib/ExperimentInfoContext';
 import * as chatAPI from './lib/transformerlab-api-sdk';
+import { apiHealthz } from './lib/transformerlab-api-sdk';
 import { AuthProvider, useAuth } from './lib/authContext';
 import LoginPage from './components/Login/LoginPage';
 
@@ -63,6 +64,33 @@ function AppContent({
   );
 
   const authContext = useAuth();
+  const [mode, setMode] = useState<string>('local');
+
+  // Fetch healthz to get the mode
+  useEffect(() => {
+    const fetchHealthz = async () => {
+      try {
+        const data = await apiHealthz();
+        if (data?.mode) {
+          const detectedMode = String(data.mode).trim();
+          setMode(detectedMode);
+        }
+      } catch (error) {
+        console.error('Failed to fetch healthz data:', error);
+      }
+    };
+
+    fetchHealthz();
+  }, []);
+
+  const isS3Mode = mode !== 'local';
+
+  // Close logs drawer when switching to s3 mode
+  useEffect(() => {
+    if (isS3Mode && logsDrawerOpen) {
+      setLogsDrawerOpen(false);
+    }
+  }, [isS3Mode, logsDrawerOpen, setLogsDrawerOpen]);
 
   // Only show LoginPage when:
   // 1. Multi-user mode is enabled AND user is not authenticated
@@ -104,10 +132,17 @@ function AppContent({
         width: '100dvw',
         overflow: 'hidden',
         gridTemplateColumns: '180px 1fr',
-        gridTemplateRows: logsDrawerOpen
-          ? `48px 5fr ${logsDrawerHeight}px`
-          : '48px 5fr 18px',
-        gridTemplateAreas: `
+        gridTemplateRows: isS3Mode
+          ? '48px 5fr'
+          : logsDrawerOpen
+            ? `48px 5fr ${logsDrawerHeight}px`
+            : '48px 5fr 18px',
+        gridTemplateAreas: isS3Mode
+          ? `
+          "sidebar header"
+          "sidebar main"
+        `
+          : `
           "sidebar header"
           "sidebar main"
           "sidebar footer"
@@ -139,61 +174,63 @@ function AppContent({
       >
         <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
       </Box>
-      <Box
-        sx={{
-          gridArea: 'footer',
-          display: 'flex',
-          flexDirection: 'column',
-          height: logsDrawerOpen ? '100%' : '18px',
-          width: '100%',
-          overflow: 'hidden',
-          alignItems: 'stretch',
-          backgroundColor: 'var(--joy-palette-background-level3)',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            height: '18px',
-            lineHeight: '18px',
-          }}
-        >
-          <div>&nbsp;</div>
-          {logsDrawerOpen ? (
-            <DraggableElipsis notifyOnMove={onOutputDrawerDrag} />
-          ) : (
-            <>&nbsp;</>
-          )}
-          <IconButton
-            sx={{ padding: 0, margin: 0, minHeight: 0 }}
-            onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
-          >
-            {logsDrawerOpen ? (
-              <ChevronDownIcon size="18px" />
-            ) : (
-              <ChevronUpIcon size="18px" />
-            )}
-          </IconButton>
-        </div>
+      {!isS3Mode && (
         <Box
           sx={{
-            height: logsDrawerOpen ? '100%' : '0px',
-            overflow: 'hidden',
-            border: logsDrawerOpen ? '10px solid #444' : '0',
-            padding: logsDrawerOpen ? '6px' : '0',
-            backgroundColor: '#000',
+            gridArea: 'footer',
+            display: 'flex',
+            flexDirection: 'column',
+            height: logsDrawerOpen ? '100%' : '18px',
             width: '100%',
+            overflow: 'hidden',
+            alignItems: 'stretch',
+            backgroundColor: 'var(--joy-palette-background-level3)',
           }}
         >
-          <OutputTerminal
-            key={connection}
-            logEndpoint={chatAPI.Endpoints.ServerInfo.StreamLog()}
-            initialMessage="** Running a Model will Display Output Here **"
-          />
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              height: '18px',
+              lineHeight: '18px',
+            }}
+          >
+            <div>&nbsp;</div>
+            {logsDrawerOpen ? (
+              <DraggableElipsis notifyOnMove={onOutputDrawerDrag} />
+            ) : (
+              <>&nbsp;</>
+            )}
+            <IconButton
+              sx={{ padding: 0, margin: 0, minHeight: 0 }}
+              onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
+            >
+              {logsDrawerOpen ? (
+                <ChevronDownIcon size="18px" />
+              ) : (
+                <ChevronUpIcon size="18px" />
+              )}
+            </IconButton>
+          </div>
+          <Box
+            sx={{
+              height: logsDrawerOpen ? '100%' : '0px',
+              overflow: 'hidden',
+              border: logsDrawerOpen ? '10px solid #444' : '0',
+              padding: logsDrawerOpen ? '6px' : '0',
+              backgroundColor: '#000',
+              width: '100%',
+            }}
+          >
+            <OutputTerminal
+              key={connection}
+              logEndpoint={chatAPI.Endpoints.ServerInfo.StreamLog()}
+              initialMessage="** Running a Model will Display Output Here **"
+            />
+          </Box>
         </Box>
-      </Box>
+      )}
       <AutoUpdateModal />
       <AnnouncementsModal />
       {process.env.TL_FORCE_API_URL === 'false' && (
