@@ -151,46 +151,10 @@ async def suggest_loader_plugin(model_architecture: str):
     if not compatible_plugins:
         return None
 
-    # Prioritize plugins based on device type
-    # Priority order:
-    # - For apple_silicon: prefer mlx_server, then other MLX plugins
-    # - For nvidia: prefer fastchat_server, then vllm_server, then others
-    # - For amd: prefer fastchat_server, then others
-    # - For cpu: prefer fastchat_server, then llama_cpp_server, then others
+    # Sort alphabetically by name and return the first one
+    compatible_plugins.sort(key=lambda p: p.get("name", ""))
 
-    def get_priority(plugin):
-        unique_id = plugin.get("uniqueId", "")
-        if device_type == "apple_silicon":
-            if unique_id == "mlx_server":
-                return 1
-            elif "mlx" in unique_id:
-                return 2
-            else:
-                return 3
-        elif device_type == "nvidia":
-            if unique_id == "fastchat_server":
-                return 1
-            elif unique_id == "vllm_server":
-                return 2
-            else:
-                return 3
-        elif device_type == "amd":
-            if unique_id == "fastchat_server":
-                return 1
-            else:
-                return 2
-        else:  # cpu
-            if unique_id == "fastchat_server":
-                return 1
-            elif unique_id == "llama_cpp_server":
-                return 2
-            else:
-                return 3
-
-    # Sort by priority, then by name
-    compatible_plugins.sort(key=lambda p: (get_priority(p), p.get("name", "")))
-
-    # Return the first (best) match
+    # Return the first match
     return compatible_plugins[0]
 
 
