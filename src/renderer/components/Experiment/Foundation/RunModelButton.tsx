@@ -26,7 +26,8 @@ import {
 import InferenceEngineModal from './InferenceEngineModal';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
-import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { useAPI, fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import React from 'react';
 
 import { Link } from 'react-router-dom';
@@ -83,6 +84,12 @@ export default function RunModelButton({
 
   const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
 
+  // Fetch plugin gallery to find compatible loader plugins that aren't installed
+  const { data: pluginGallery, isLoading: pluginGalleryLoading } = useSWR(
+    chatAPI.Endpoints.Plugins.Gallery(),
+    fetcher,
+  );
+
   const supportedEngines = React.useMemo(() => {
     if (!data || pipelineTagLoading) return [];
 
@@ -136,6 +143,33 @@ export default function RunModelButton({
         ),
     );
   }, [data, supportedEngines]);
+
+  // Find compatible loader plugins from gallery that aren't installed
+  const compatibleLoaderPlugins = React.useMemo(() => {
+    if (!pluginGallery || !archTag || pluginGalleryLoading) return [];
+
+    return pluginGallery.filter((plugin) => {
+      // Must be a loader plugin
+      if (plugin.type !== 'loader') return false;
+
+      // Must not be installed
+      if (plugin.installed === true) return false;
+
+      // Must support the model architecture
+      if (
+        Array.isArray(plugin.model_architectures) &&
+        plugin.model_architectures.length > 0
+      ) {
+        return plugin.model_architectures.some(
+          (arch) => arch.toLowerCase() === archTag.toLowerCase(),
+        );
+      }
+
+      return false;
+    });
+  }, [pluginGallery, archTag, pluginGalleryLoading]);
+
+  console.log('compatibleLoaderPlugins', compatibleLoaderPlugins);
 
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
@@ -472,12 +506,30 @@ export default function RunModelButton({
           <Alert startDecorator={<TriangleAlertIcon />} color="warning">
             <Typography level="body-sm">
               None of the installed Engines currently support this model
-              architecture. You can try a different engine in{' '}
-              <Link to="/plugins">
-                <Plug2Icon size="15px" />
-                Plugins
-              </Link>{' '}
-              , or you can try running it with an unsupported Engine by clicking{' '}
+              architecture.
+              {compatibleLoaderPlugins.length > 0 ? (
+                <>
+                  {' '}
+                  <b>{compatibleLoaderPlugins[0].name}</b> is compatible with
+                  this model architecture. Install it in{' '}
+                  <Link to="/plugins">
+                    <Plug2Icon size="15px" />
+                    Plugins
+                  </Link>
+                  .
+                </>
+              ) : (
+                <>
+                  {' '}
+                  You can try a different engine in{' '}
+                  <Link to="/plugins">
+                    <Plug2Icon size="15px" />
+                    Plugins
+                  </Link>
+                  .
+                </>
+              )}{' '}
+              Or you can try running it with an unsupported Engine by clicking{' '}
               <b>using Engine</b> below and check{' '}
               <b>Show unsupported engines</b>.
             </Typography>
@@ -495,9 +547,21 @@ export default function RunModelButton({
               <Plug2Icon size="15px" />
               Plugins
             </Link>{' '}
-            and install an Inference Engine. <b>FastChat Server</b> is a good
-            default for systems with a GPU. <b>Apple MLX Server</b> is the best
-            default for MacOS with Apple Silicon.
+            and install an Inference Engine.
+            {compatibleLoaderPlugins.length > 0 ? (
+              <>
+                {' '}
+                <b>{compatibleLoaderPlugins[0].name}</b> is compatible with this
+                model architecture.
+              </>
+            ) : (
+              <>
+                {' '}
+                <b>FastChat Server</b> is a good default for systems with a GPU.{' '}
+                <b>Apple MLX Server</b> is the best default for MacOS with Apple
+                Silicon.
+              </>
+            )}
           </Typography>
         </Alert>
       )}
