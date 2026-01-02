@@ -21,7 +21,7 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import transformerlab.services.job_service as job_service
-from transformerlab.services.job_service import job_update_status
+from transformerlab.services.job_service import get_artifacts_from_directory, get_artifacts_from_sdk, job_update_status
 from transformerlab.services.provider_service import get_team_provider, get_provider_instance
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
@@ -29,6 +29,7 @@ from transformerlab.compute_providers.models import JobState
 from transformerlab.utils.vscode_parser import get_vscode_tunnel_info
 from lab import Job
 from lab.dirs import get_workspace_dir
+from transformerlab.shared import zip_utils
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -1068,150 +1069,69 @@ async def get_checkpoints(job_id: str, request: Request):
 
 @router.get("/{job_id}/artifacts")
 async def get_artifacts(job_id: str, request: Request):
-    if job_id is None or job_id == "" or job_id == "-1":
-        return {"artifacts": []}
-
     """Get list of artifacts for a job"""
+
+    # Validate job_id
+    if not job_id or job_id in ("", "-1"):
+        return {"artifacts": []}
+
+    # Get job data
     job = job_service.job_get(job_id)
-    if job is None:
+    if not job:
         return {"artifacts": []}
 
-    job_data = job["job_data"]
+    # Try SDK method first
+    artifacts = get_artifacts_from_sdk(job_id, storage)
 
-    # First try to use the new SDK method to get artifacts
-    try:
-        from lab.job import Job
+    # Fallback to directory listing if SDK method fails
+    if artifacts is None:
+        job_data = job["job_data"]
+        artifacts_dir = job_data.get("artifacts_dir")
 
-        # Get artifacts using the SDK method
-        sdk_job = Job(job_id)
-        artifact_paths = sdk_job.get_artifact_paths()
+        # Use SDK's default artifacts directory if not specified
+        if not artifacts_dir:
+            try:
+                from lab.dirs import get_job_artifacts_dir
 
-        if artifact_paths:
-            artifacts = []
-            for artifact_path in artifact_paths:
-                try:
-                    # Try to get file info from storage
-                    try:
-                        file_info_list = storage.ls(artifact_path, detail=True)
-                        if file_info_list and isinstance(file_info_list, dict):
-                            file_info = file_info_list.get(artifact_path, {})
-                            filesize = file_info.get("size", 0)
-                            mtime = file_info.get("mtime", None)
-                            if mtime:
-                                formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                            else:
-                                formatted_time = None
-                        elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
-                            file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
-                            filesize = file_info.get("size", 0)
-                            mtime = file_info.get("mtime", None)
-                            if mtime:
-                                formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                            else:
-                                formatted_time = None
-                        else:
-                            # Fallback to os.stat for local files
-                            try:
-                                stat = os.stat(artifact_path)
-                                modified_time = stat.st_mtime
-                                filesize = stat.st_size
-                                formatted_time = datetime.fromtimestamp(modified_time).isoformat()
-                            except (OSError, AttributeError):
-                                formatted_time = None
-                                filesize = None
-                    except Exception:
-                        # If storage.ls fails, try os.stat as fallback
-                        try:
-                            stat = os.stat(artifact_path)
-                            modified_time = stat.st_mtime
-                            filesize = stat.st_size
-                            formatted_time = datetime.fromtimestamp(modified_time).isoformat()
-                        except (OSError, AttributeError):
-                            formatted_time = None
-                            filesize = None
+                artifacts_dir = get_job_artifacts_dir(job_id)
+            except Exception as e:
+                print(f"Error getting artifacts directory for job {job_id}: {e}")
+                return {"artifacts": []}
 
-                    filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
-                    artifact_dict = {"filename": filename}
-                    if formatted_time is not None:
-                        artifact_dict["date"] = formatted_time
-                    if filesize is not None:
-                        artifact_dict["size"] = filesize
-                    artifacts.append(artifact_dict)
-                except Exception as e:
-                    print(f"Error getting stat for artifact {artifact_path}: {e}")
-                    continue
+        artifacts = get_artifacts_from_directory(artifacts_dir, storage)
 
-            # Sort artifacts by filename in reverse (descending) order for consistent ordering
-            artifacts.sort(key=lambda x: x["filename"], reverse=True)
-            return {"artifacts": artifacts}
-    except Exception as e:
-        print(f"SDK artifact method failed for job {job_id}, falling back to legacy method: {e}")
-
-    # Fallback to the original logic if SDK method doesn't work or returns nothing
-    # Get artifacts directory from job_data or use default location
-    artifacts_dir = job_data.get("artifacts_dir")
-    if not artifacts_dir:
-        # Use the SDK's artifacts directory structure
-        from lab.dirs import get_job_artifacts_dir
-
-        artifacts_dir = get_job_artifacts_dir(job_id)
-
-    if not artifacts_dir or not storage.exists(artifacts_dir):
-        return {"artifacts": []}
-
-    artifacts = []
-    try:
-        items = storage.ls(artifacts_dir, detail=False)
-        for item in items:
-            file_path = item if isinstance(item, str) else str(item)
-            if storage.isfile(file_path):
-                filename = file_path.split("/")[-1] if "/" in file_path else file_path
-                try:
-                    # Try to get file info from storage
-                    file_info_list = storage.ls(file_path, detail=True)
-                    if file_info_list and isinstance(file_info_list, dict):
-                        file_info = file_info_list.get(file_path, {})
-                        filesize = file_info.get("size", 0)
-                        mtime = file_info.get("mtime", None)
-                        if mtime:
-                            formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                        else:
-                            formatted_time = None
-                    elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
-                        file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
-                        filesize = file_info.get("size", 0)
-                        mtime = file_info.get("mtime", None)
-                        if mtime:
-                            formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                        else:
-                            formatted_time = None
-                    else:
-                        # Fallback to os.stat for local files
-                        try:
-                            stat = os.stat(file_path)
-                            modified_time = stat.st_mtime
-                            filesize = stat.st_size
-                            formatted_time = datetime.fromtimestamp(modified_time).isoformat()
-                        except (OSError, AttributeError):
-                            formatted_time = None
-                            filesize = None
-                except Exception as e:
-                    print(f"Error getting stat for file {file_path}: {e}")
-                    formatted_time = None
-                    filesize = None
-                artifact_dict = {"filename": filename}
-                if formatted_time is not None:
-                    artifact_dict["date"] = formatted_time
-                if filesize is not None:
-                    artifact_dict["size"] = filesize
-                artifacts.append(artifact_dict)
-    except Exception as e:
-        print(f"Error reading artifacts directory {artifacts_dir}: {e}")
-
-    # Sort artifacts by filename in reverse (descending) order for consistent ordering
+    # Sort by filename in descending order for consistent ordering
     artifacts.sort(key=lambda x: x["filename"], reverse=True)
 
     return {"artifacts": artifacts}
+
+
+@router.get("/{job_id}/artifacts/download_all")
+async def download_all_artifacts(job_id: str):
+    """
+    Download a zip file containing all artifacts for a job.
+    """
+    # 1. Gather all artifact file paths using service
+    all_file_paths = job_service.get_all_artifact_paths(job_id, storage)
+
+    if not all_file_paths:
+        return Response("No artifacts found for this job", status_code=404)
+
+    # 2. Create Zip File in memory
+    try:
+        zip_buffer = zip_utils.create_zip_from_storage(all_file_paths, storage)
+
+        filename = f"artifacts_{job_id}.zip"
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-cache",
+        }
+
+        return StreamingResponse(iter([zip_buffer.getvalue()]), media_type="application/zip", headers=headers)
+
+    except Exception as e:
+        print(f"Error creating zip file: {e}")
+        return Response("Failed to generate zip file", status_code=500)
 
 
 @router.get("/{job_id}/artifact/{filename}")
