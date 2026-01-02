@@ -257,11 +257,11 @@ app.include_router(recipes.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(batched_prompts.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(fastchat_openai_api.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(updates.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(compute_provider.router)
 app.include_router(auth.router)
 app.include_router(api_keys.router)
 app.include_router(quota.router)
-app.include_router(updates.router)
 
 controller_process = None
 worker_process = None
