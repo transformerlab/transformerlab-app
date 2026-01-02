@@ -22,6 +22,9 @@ lab = "transformerlab_cli.main:app"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"*" = ["*.tcss", "*.css"]
+
 [dependency-groups]
 dev = [
     "textual>=6.11.0",

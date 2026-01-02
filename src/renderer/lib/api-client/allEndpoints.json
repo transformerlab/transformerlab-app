@@ -60,63 +60,67 @@
   "task": {
     "getAll": {
       "method": "GET",
-      "path": "task/list"
+      "path": "experiment/{experimentId}/task/list"
     },
     "get": {
       "method": "GET",
-      "path": "task/{id}/get"
+      "path": "experiment/{experimentId}/task/{id}/get"
     },
     "getByType": {
       "method": "GET",
-      "path": "task/list_by_type?type={type}"
+      "path": "experiment/{experimentId}/task/list_by_type?type={type}"
     },
     "getByTypeInExperiment": {
       "method": "GET",
-      "path": "task/list_by_type_in_experiment?type={type}&experiment_id={experiment_id}"
+      "path": "experiment/{experimentId}/task/list_by_type_in_experiment?type={type}"
     },
     "getBySubtypeInExperiment": {
       "method": "GET",
-      "path": "task/list_by_subtype_in_experiment?experiment_id={experiment_id}&subtype={subtype}&type={type}"
+      "path": "experiment/{experimentId}/task/list_by_subtype_in_experiment?subtype={subtype}&type={type}"
     },
     "create": {
-      "method": "PUT",
-      "path": "task/new_task"
+      "method": "POST",
+      "path": "experiment/{experimentId}/task/new_task"
     },
     "delete": {
       "method": "GET",
-      "path": "task/{id}/delete"
+      "path": "experiment/{experimentId}/task/{id}/delete"
     },
     "update": {
       "method": "PUT",
-      "path": "task/{id}/update"
+      "path": "experiment/{experimentId}/task/{id}/update"
     },
     "gallery": {
       "method": "GET",
-      "path": "task/gallery"
+      "path": "experiment/{experimentId}/task/gallery"
     },
     "importFromGallery": {
       "method": "POST",
-      "path": "task/gallery/import"
+      "path": "experiment/{experimentId}/task/gallery/import"
     },
     "teamGallery": {
       "method": "GET",
-      "path": "task/gallery/team"
+      "path": "experiment/{experimentId}/task/gallery/team"
     },
     "importFromTeamGallery": {
       "method": "POST",
-      "path": "task/gallery/team/import"
+      "path": "experiment/{experimentId}/task/gallery/team/import"
     },
     "exportToTeamGallery": {
       "method": "POST",
-      "path": "task/gallery/team/export"
+      "path": "experiment/{experimentId}/task/gallery/team/export"
     },
     "addToTeamGallery": {
       "method": "POST",
-      "path": "task/gallery/team/add"
+      "path": "experiment/{experimentId}/task/gallery/team/add"
     },
     "deleteFromTeamGallery": {
       "method": "POST",
-      "path": "task/gallery/team/delete"
+      "path": "experiment/{experimentId}/task/gallery/team/delete"
+    },
+    "fetchTaskJson": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/task/fetch_task_json?url={url}"
     }
   },
   "server": {
@@ -205,6 +209,10 @@
     "getSweepResults": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/sweep_results"
+    },
+    "downloadAllArtifacts": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/artifacts/download_all"
     }
   },
   "datasets": {

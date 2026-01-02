@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import { Box, Modal, ModalClose, ModalDialog, Typography } from '@mui/joy';
@@ -10,6 +11,17 @@ import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 export default function ViewOutputModalStreaming({ jobId, setJobId }) {
   const { experimentInfo } = useExperimentInfo();
   if (!experimentInfo) return null;
+
+  // Memoize the logEndpoint to prevent OutputTerminal from reinitializing on every render
+  const logEndpoint = useMemo(
+    () =>
+      chatAPI.Endpoints.Experiment.StreamOutputFromJob(
+        experimentInfo.id,
+        jobId,
+      ),
+    [experimentInfo.id, jobId],
+  );
+
   return (
     <Modal open={jobId != -1} onClose={() => setJobId(-1)}>
       <ModalDialog sx={{ width: '80vw', height: '80vh' }}>
@@ -25,13 +37,7 @@ export default function ViewOutputModalStreaming({ jobId, setJobId }) {
             width: '100%',
           }}
         >
-          <OutputTerminal
-            logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromJob(
-              experimentInfo.id,
-              jobId,
-            )}
-            lineAnimationDelay={5}
-          />
+          <OutputTerminal logEndpoint={logEndpoint} lineAnimationDelay={5} />
         </Box>
       </ModalDialog>
     </Modal>

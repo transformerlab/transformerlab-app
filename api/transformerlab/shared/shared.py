@@ -8,6 +8,7 @@ import sys
 import threading
 import time
 import unicodedata
+import math
 
 from anyio import open_process
 from anyio.streams.text import TextReceiveStream
@@ -1280,26 +1281,60 @@ async def get_job_output_file_name(job_id: str, plugin_name: str = None, experim
         raise e
 
 
-rainbow = [
-    "\033[38;5;196m",
-    "\033[38;5;202m",
-    "\033[38;5;226m",
-    "\033[38;5;082m",
-    "\033[38;5;021m",
-    "\033[38;5;093m",
-    "\033[38;5;163m",
-]
 reset = "\033[0m"
 
 
 def print_in_rainbow(text):
+    # Generate rainbow colors for the text
+    rainbow_colors = generate_rainbow_colors(text, time_step=0.1)
     for i, line in enumerate(text.split("\n")):
-        chunks = [line[i : i + 6] for i in range(0, len(line), 6)]
-        for j, chunk in enumerate(chunks):
-            print(rainbow[j % len(rainbow)], end="")
-            print(chunk, end="")
-            print(reset, end="")
+        for j, char in enumerate(line):
+            if char.isspace():
+                print(" ", end="")
+            else:
+                print(rainbow_colors[i][j], end="")
+                print(char, end="")
+                print(reset, end="")
         print("", flush=True)
+
+
+def generate_rainbow_colors(text: str, time_step: float) -> list[str]:
+    """
+    Generates a list of ANSI color codes for a rainbow effect.
+
+    Args:
+      text (str): The input ASCII art.
+      time_step (float): A time-based value to animate the colors.
+
+    Returns:
+      list[str]: A list of ANSI color codes corresponding to the rainbow effect.
+    """
+    rainbow_colors = []
+    lines = text.splitlines()
+
+    # Iterate over each character in the ASCII art
+    for y, line in enumerate(lines):
+        line_colors = []
+        for x, char in enumerate(line):
+            # Skip spaces to maintain the shape of the logo
+            if char.isspace():
+                line_colors.append("")
+                continue
+
+            # --- Rainbow Color Calculation ---
+            # We use sine waves to generate smooth, cycling RGB color values.
+            frequency = 0.1
+            red = int((math.sin(frequency * x + time_step) + 1) / 2 * 5)
+            green = int((math.sin(frequency * x + time_step + 2 * math.pi / 3) + 1) / 2 * 5)
+            blue = int((math.sin(frequency * x + time_step + 4 * math.pi / 3) + 1) / 2 * 5)
+
+            # Calculate the ANSI color code (216-color cube: 16 + 36*r + 6*g + b)
+            ansi_color_code = 16 + 36 * red + 6 * green + blue
+            line_colors.append(f"\033[38;5;{ansi_color_code}m")
+
+        rainbow_colors.append(line_colors)
+
+    return rainbow_colors
 
 
 def kill_sglang_subprocesses():

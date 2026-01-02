@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import { Box, Modal, ModalClose, ModalDialog, Typography } from '@mui/joy';
@@ -41,10 +41,17 @@ export default function ViewOutputModalStreaming({
     refreshInterval: 2000,
   });
 
-  // // Create a custom endpoint for export job output
-  const outputEndpoint = experimentInfo
-    ? chatAPI.Endpoints.Experiment.StreamOutputFromJob(experimentInfo.id, jobId)
-    : null;
+  // Memoize the outputEndpoint to prevent OutputTerminal from reinitializing on every render
+  const outputEndpoint = useMemo(
+    () =>
+      experimentInfo
+        ? chatAPI.Endpoints.Experiment.StreamOutputFromJob(
+            experimentInfo.id,
+            jobId,
+          )
+        : null,
+    [experimentInfo?.id, jobId],
+  );
 
   if (!experimentInfo) return null;
 

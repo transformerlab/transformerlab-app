@@ -68,6 +68,7 @@ export default function EditTaskModal({
   const [diskSpace, setDiskSpace] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
+  const [minutesRequested, setMinutesRequested] = React.useState('60');
   const [setup, setSetup] = React.useState('');
   const [envVars, setEnvVars] = React.useState<
     Array<{ key: string; value: string }>
@@ -75,13 +76,6 @@ export default function EditTaskModal({
   const [parameters, setParameters] = React.useState<
     Array<{ key: string; value: string; valueType: 'string' | 'json' }>
   >([{ key: '', value: '', valueType: 'string' }]);
-  const [fileMounts, setFileMounts] = React.useState<
-    Array<{
-      remotePath: string;
-      file?: File | null;
-      storedPath?: string;
-    }>
-  >([{ remotePath: '', file: null, storedPath: undefined }]);
   const [saving, setSaving] = React.useState(false);
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
   const [githubEnabled, setGithubEnabled] = React.useState(false);
@@ -101,6 +95,8 @@ export default function EditTaskModal({
   // YAML/GUI mode toggle (default to YAML)
   const [isYamlMode, setIsYamlMode] = React.useState(true);
   const [yamlContent, setYamlContent] = React.useState('');
+  // Store parsed YAML data to use directly in form submission
+  const parsedYamlDataRef = React.useRef<any>(null);
 
   React.useEffect(() => {
     if (!task) return;
@@ -166,6 +162,15 @@ export default function EditTaskModal({
           ? String(cfg.num_nodes)
           : '',
     );
+    setMinutesRequested(
+      isTemplate
+        ? taskAny.minutes_requested != null
+          ? String(taskAny.minutes_requested)
+          : '60'
+        : cfg.minutes_requested != null
+          ? String(cfg.minutes_requested)
+          : '60',
+    );
     setSetup(
       isTemplate
         ? taskAny.setup != null
@@ -217,25 +222,6 @@ export default function EditTaskModal({
       setParameters([{ key: '', value: '', valueType: 'string' }]);
     }
 
-    // Initialize file_mounts
-    const fileMounts = isTemplate ? taskAny.file_mounts : cfg.file_mounts;
-    if (fileMounts && typeof fileMounts === 'object') {
-      const fmArray = Object.entries(fileMounts).map(
-        ([remotePath, storedPath]) => ({
-          remotePath,
-          file: null,
-          storedPath: String(storedPath),
-        }),
-      );
-      setFileMounts(
-        fmArray.length > 0
-          ? fmArray
-          : [{ remotePath: '', file: null, storedPath: undefined }],
-      );
-    } else {
-      setFileMounts([{ remotePath: '', file: null, storedPath: undefined }]);
-    }
-
     // Initialize GitHub fields
     const githubRepoUrlValue = isTemplate
       ? taskAny.github_repo_url || ''
@@ -253,6 +239,8 @@ export default function EditTaskModal({
 
     // Initialize YAML mode
     setIsYamlMode(true);
+    // Clear parsed data when modal opens/closes or task changes
+    parsedYamlDataRef.current = null;
     setSweepMetric(
       isTemplate
         ? taskAny.sweep_metric || 'eval/loss'
@@ -408,42 +396,33 @@ export default function EditTaskModal({
     if (!task) return;
 
     const yamlData: any = {
-      task: {
-        name: title || task.name || 'untitled-task',
-      },
+      name: title || task.name || 'untitled-task',
     };
 
     // Resources
-    if (selectedProviderId) {
-      const provider = providers.find((p) => p.id === selectedProviderId);
-      if (provider) {
-        yamlData.task.resources = {
-          compute_provider: provider.name,
-        };
+    if (
+      selectedProviderId ||
+      cpus ||
+      memory ||
+      diskSpace ||
+      accelerators ||
+      numNodes
+    ) {
+      yamlData.resources = {};
+      if (selectedProviderId) {
+        const provider = providers.find((p) => p.id === selectedProviderId);
+        if (provider) {
+          yamlData.resources.compute_provider = provider.name;
+        }
       }
+      if (cpus) yamlData.resources.cpus = parseInt(cpus) || cpus;
+      if (memory) yamlData.resources.memory = parseInt(memory) || memory;
+      if (diskSpace)
+        yamlData.resources.disk_space = parseInt(diskSpace) || diskSpace;
+      if (accelerators) yamlData.resources.accelerators = accelerators;
+      if (numNodes)
+        yamlData.resources.num_nodes = parseInt(numNodes) || numNodes;
     }
-    if (cpus)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        cpus: parseInt(cpus) || cpus,
-      };
-    if (memory)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        memory: parseInt(memory) || memory,
-      };
-    if (diskSpace)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        disk_space: parseInt(diskSpace) || diskSpace,
-      };
-    if (accelerators)
-      yamlData.task.resources = { ...yamlData.task.resources, accelerators };
-    if (numNodes)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        num_nodes: parseInt(numNodes) || numNodes,
-      };
 
     // Environment variables
     const envs: Record<string, string> = {};
@@ -453,18 +432,24 @@ export default function EditTaskModal({
       }
     });
     if (Object.keys(envs).length > 0) {
-      yamlData.task.envs = envs;
+      yamlData.envs = envs;
+    }
+
+    // Minutes requested (task-level field)
+    if (minutesRequested) {
+      yamlData.minutes_requested =
+        parseInt(minutesRequested, 10) || minutesRequested;
     }
 
     // Setup and run
     const setupValue = setupEditorRef?.current?.getValue?.() || setup;
-    if (setupValue) yamlData.task.setup = setupValue;
+    if (setupValue) yamlData.setup = setupValue;
     const commandValue = commandEditorRef?.current?.getValue?.() || command;
-    if (commandValue) yamlData.task.run = commandValue;
+    if (commandValue) yamlData.run = commandValue;
 
     // GitHub
-    if (githubRepoUrl) yamlData.task.git_repo = githubRepoUrl;
-    if (githubDirectory) yamlData.task.git_repo_directory = githubDirectory;
+    if (githubRepoUrl) yamlData.git_repo = githubRepoUrl;
+    if (githubDirectory) yamlData.git_repo_directory = githubDirectory;
 
     // Parameters
     const parametersObj: Record<string, any> = {};
@@ -482,7 +467,7 @@ export default function EditTaskModal({
       }
     });
     if (Object.keys(parametersObj).length > 0) {
-      yamlData.task.parameters = parametersObj;
+      yamlData.parameters = parametersObj;
     }
 
     // Sweeps
@@ -497,7 +482,7 @@ export default function EditTaskModal({
         }
       });
       if (Object.keys(sweepConfig).length > 0) {
-        yamlData.task.sweeps = {
+        yamlData.sweeps = {
           sweep_config: sweepConfig,
           sweep_metric: sweepMetric || 'eval/loss',
           lower_is_better: lowerIsBetter,
@@ -511,10 +496,10 @@ export default function EditTaskModal({
   };
 
   // Parse YAML and populate form
-  const parseYamlToForm = async () => {
+  const parseYamlToForm = async (): Promise<boolean> => {
     if (!yamlContent.trim()) {
       addNotification({ type: 'warning', message: 'YAML content is empty' });
-      return;
+      return false;
     }
 
     try {
@@ -604,11 +589,13 @@ export default function EditTaskModal({
 
       const yamlData = parseYaml(yamlContent);
 
-      if (!yamlData || !yamlData.task) {
-        throw new Error("YAML must contain a 'task' key");
+      if (!yamlData) {
+        throw new Error('YAML content is empty or invalid');
       }
 
-      const taskYaml = yamlData.task;
+      // Support both old format (with "task:" key) and new format (direct fields)
+      // for backward compatibility
+      const taskYaml = yamlData.task || yamlData;
       const taskData: any = {};
 
       // Basic fields
@@ -638,6 +625,10 @@ export default function EditTaskModal({
           taskData.num_nodes = resources.num_nodes;
         }
       }
+      // Minutes requested (task-level field)
+      if (taskYaml.minutes_requested !== undefined) {
+        taskData.minutes_requested = taskYaml.minutes_requested;
+      }
 
       // Environment variables
       if (taskYaml.envs) {
@@ -652,11 +643,19 @@ export default function EditTaskModal({
         taskData.command = String(taskYaml.run);
       }
 
-      // GitHub
-      if (taskYaml.git_repo) {
+      // GitHub - support multiple naming conventions
+      if (taskYaml.github_repo_url) {
+        taskData.github_repo_url = String(taskYaml.github_repo_url);
+      } else if (taskYaml.git_repo) {
         taskData.github_repo_url = String(taskYaml.git_repo);
       }
-      if (taskYaml.git_repo_directory) {
+      if (taskYaml.github_repo_dir) {
+        taskData.github_directory = String(taskYaml.github_repo_dir);
+      } else if (taskYaml.github_repo_directory) {
+        taskData.github_directory = String(taskYaml.github_repo_directory);
+      } else if (taskYaml.github_directory) {
+        taskData.github_directory = String(taskYaml.github_directory);
+      } else if (taskYaml.git_repo_directory) {
         taskData.github_directory = String(taskYaml.git_repo_directory);
       }
 
@@ -680,18 +679,26 @@ export default function EditTaskModal({
         }
       }
 
-      // Populate form fields
-      if (taskData.name) setTitle(taskData.name);
-      if (taskData.cluster_name) setClusterName(taskData.cluster_name);
-      if (taskData.command) setCommand(taskData.command);
-      if (taskData.setup) setSetup(taskData.setup);
-      if (taskData.cpus) setCpus(String(taskData.cpus));
-      if (taskData.memory) setMemory(String(taskData.memory));
-      if (taskData.disk_space) setDiskSpace(String(taskData.disk_space));
-      if (taskData.accelerators) setAccelerators(taskData.accelerators);
-      if (taskData.num_nodes) setNumNodes(String(taskData.num_nodes));
-      if (taskData.github_repo_url) setGithubRepoUrl(taskData.github_repo_url);
-      if (taskData.github_directory)
+      // Populate form fields - always set values, even if empty, to ensure YAML values override existing form state
+      setTitle(taskData.name || '');
+      if (taskData.cluster_name !== undefined)
+        setClusterName(taskData.cluster_name);
+      setCommand(taskData.command || '');
+      if (taskData.setup !== undefined) setSetup(taskData.setup);
+      // For numeric fields, check for undefined specifically (0 is a valid value)
+      if (taskData.cpus !== undefined) setCpus(String(taskData.cpus));
+      if (taskData.memory !== undefined) setMemory(String(taskData.memory));
+      if (taskData.disk_space !== undefined)
+        setDiskSpace(String(taskData.disk_space));
+      if (taskData.accelerators !== undefined)
+        setAccelerators(taskData.accelerators);
+      if (taskData.num_nodes !== undefined)
+        setNumNodes(String(taskData.num_nodes));
+      if (taskData.minutes_requested !== undefined)
+        setMinutesRequested(String(taskData.minutes_requested));
+      if (taskData.github_repo_url !== undefined)
+        setGithubRepoUrl(taskData.github_repo_url);
+      if (taskData.github_directory !== undefined)
         setGithubDirectory(taskData.github_directory);
       setGithubEnabled(!!taskData.github_repo_url);
 
@@ -759,7 +766,13 @@ export default function EditTaskModal({
           setLowerIsBetter(taskData.lower_is_better);
       }
 
+      // Store parsed data for use in form submission
+      parsedYamlDataRef.current = taskData;
+
       addNotification({ type: 'success', message: 'YAML parsed successfully' });
+      // Wait for state to update
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      return true;
     } catch (error: any) {
       console.error('Error parsing YAML:', error);
       addNotification({
@@ -767,19 +780,34 @@ export default function EditTaskModal({
         message:
           error.message || 'Failed to parse YAML. Please check the format.',
       });
+      return false;
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Track if we just parsed YAML in this submission
+    let justParsedYaml = false;
+
     // If we're in YAML mode, parse it first
     if (isYamlMode) {
-      await parseYamlToForm();
+      const parsed = await parseYamlToForm();
+      if (!parsed) {
+        // Parsing failed, don't continue
+        return;
+      }
+      justParsedYaml = true;
       setIsYamlMode(false);
-      // Wait a bit for state to update
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Wait longer for state to update - React state updates are async
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
+
+    // Only use parsed data if we just parsed YAML in this submission
+    // This ensures we use the exact values from YAML, not stale state
+    // But if user is in GUI mode and made changes, use form state instead
+    const parsedData = parsedYamlDataRef.current;
+    const useParsedData = justParsedYaml && !!parsedData;
 
     const setupValue =
       setupEditorRef?.current?.getValue?.() ?? (setup || undefined);
@@ -799,6 +827,11 @@ export default function EditTaskModal({
       return;
     }
     setSaving(true);
+
+    // Clear the parsed data ref after using it
+    if (useParsedData) {
+      parsedYamlDataRef.current = null;
+    }
 
     // Convert env_vars array to object, filtering out empty entries
     const envVarsObj: Record<string, string> = {};
@@ -838,64 +871,6 @@ export default function EditTaskModal({
       }
     });
 
-    // Upload any files for file mounts and build mapping {remotePath: storedPath}
-    const fileMountsObj: Record<string, string> = {};
-    for (let i = 0; i < fileMounts.length; i += 1) {
-      const fm = fileMounts[i];
-      const remotePath = fm.remotePath.trim();
-      if (!remotePath) continue;
-
-      // If we already have a storedPath and no new file, reuse it
-      if (!fm.file && fm.storedPath) {
-        fileMountsObj[remotePath] = fm.storedPath;
-        continue;
-      }
-
-      if (!fm.file) continue;
-      if (!selectedProviderId) continue;
-
-      try {
-        const formData = new FormData();
-        formData.append('file', fm.file);
-        // Use 0 as template ID for now; stored path is independent of ID
-        const uploadUrl = chatAPI.Endpoints.ComputeProvider.UploadTemplateFile(
-          selectedProviderId,
-          0,
-        );
-        const resp = await chatAPI.authenticatedFetch(uploadUrl, {
-          method: 'POST',
-          body: formData,
-        });
-        if (!resp.ok) {
-          const txt = await resp.text();
-          addNotification({
-            type: 'danger',
-            message: `Failed to upload file for mount ${remotePath}: ${txt}`,
-          });
-          setSaving(false);
-          return;
-        }
-        const json = await resp.json();
-        if (json.status !== 'success' || !json.stored_path) {
-          addNotification({
-            type: 'danger',
-            message: `Upload for mount ${remotePath} did not return stored_path`,
-          });
-          setSaving(false);
-          return;
-        }
-        fileMountsObj[remotePath] = json.stored_path;
-      } catch (err) {
-        console.error(err);
-        addNotification({
-          type: 'danger',
-          message: `Failed to upload file for mount ${remotePath}`,
-        });
-        setSaving(false);
-        return;
-      }
-    }
-
     // For templates, all fields are stored directly (not nested in config)
     // Check if it's a template (no config or config is empty/doesn't have nested structure)
     const existingConfig = SafeJSONParse(task.config, {});
@@ -912,21 +887,48 @@ export default function EditTaskModal({
     // we'll use the template format
     const taskAny = task as any;
     const updateBody: any = {
-      name: title,
-      cluster_name: clusterName,
+      name:
+        useParsedData && parsedData.name !== undefined
+          ? parsedData.name
+          : title,
+      cluster_name:
+        useParsedData && parsedData.cluster_name !== undefined
+          ? parsedData.cluster_name
+          : clusterName,
       command: commandValue,
-      cpus: cpus || undefined,
-      memory: memory || undefined,
-      disk_space: diskSpace || undefined,
-      accelerators: accelerators || undefined,
-      num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
+      cpus:
+        useParsedData && parsedData.cpus !== undefined
+          ? parsedData.cpus
+          : cpus || undefined,
+      memory:
+        useParsedData && parsedData.memory !== undefined
+          ? parsedData.memory
+          : memory || undefined,
+      disk_space:
+        useParsedData && parsedData.disk_space !== undefined
+          ? parsedData.disk_space
+          : diskSpace || undefined,
+      accelerators:
+        useParsedData && parsedData.accelerators !== undefined
+          ? parsedData.accelerators
+          : accelerators || undefined,
+      num_nodes:
+        useParsedData && parsedData.num_nodes !== undefined
+          ? parsedData.num_nodes
+          : numNodes
+            ? parseInt(numNodes, 10)
+            : undefined,
+      minutes_requested:
+        useParsedData && parsedData.minutes_requested !== undefined
+          ? parsedData.minutes_requested
+          : minutesRequested
+            ? parseInt(minutesRequested, 10)
+            : undefined,
       setup: setupValue || undefined,
       env_vars: Object.keys(envVarsObj).length > 0 ? envVarsObj : undefined,
       parameters:
         Object.keys(parametersObj).length > 0 ? parametersObj : undefined,
       provider_id: selectedProviderId,
-      file_mounts:
-        Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
       // GitHub fields - preserve from existing template or use current values
       github_repo_url: isTemplate
         ? taskAny.github_repo_url || githubRepoUrl || undefined
@@ -988,7 +990,10 @@ export default function EditTaskModal({
 
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.UpdateTemplate(task.id),
+        chatAPI.Endpoints.Task.UpdateTemplate(
+          task.experiment_id || '',
+          task.id,
+        ),
         {
           method: 'PUT',
           headers: {
@@ -1067,6 +1072,11 @@ export default function EditTaskModal({
                   onChange={(e) => {
                     const newMode = e.target.checked;
                     setIsYamlMode(newMode);
+                    // Clear parsed data when manually switching to GUI mode
+                    // This ensures GUI mode uses form state, not old parsed YAML
+                    if (!newMode) {
+                      parsedYamlDataRef.current = null;
+                    }
                     if (newMode) {
                       // Switching to YAML mode - convert form data to YAML
                       convertTaskToYaml();
@@ -1217,6 +1227,20 @@ export default function EditTaskModal({
                     onChange={(e) => setNumNodes(e.target.value)}
                     placeholder="e.g. 1"
                   />
+                </FormControl>
+
+                <FormControl sx={{ mt: 2 }}>
+                  <FormLabel>Minutes Requested (for quota tracking)</FormLabel>
+                  <Input
+                    type="number"
+                    value={minutesRequested}
+                    onChange={(e) => setMinutesRequested(e.target.value)}
+                    placeholder="e.g. 60"
+                  />
+                  <FormHelperText>
+                    Estimated minutes this task will run. Used for quota
+                    tracking.
+                  </FormHelperText>
                 </FormControl>
 
                 <FormControl sx={{ mt: 2 }}>
@@ -1438,121 +1462,29 @@ export default function EditTaskModal({
                 </FormControl>
 
                 <FormControl sx={{ mt: 2 }}>
-                  <FormLabel>File Mounts</FormLabel>
+                  <FormLabel>GitHub Repository URL (Optional)</FormLabel>
+                  <Input
+                    value={githubRepoUrl}
+                    onChange={(e) => setGithubRepoUrl(e.target.value)}
+                    placeholder="https://github.com/owner/repo.git"
+                  />
                   <FormHelperText>
-                    For each mount, choose a remote path and upload a file to be
-                    staged on the server.
+                    GitHub repository URL to clone before running the task
                   </FormHelperText>
-                  <Stack spacing={1} sx={{ mt: 1 }}>
-                    {fileMounts.map((fm, index) => (
-                      <Stack
-                        key={index}
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                        sx={{ flexWrap: 'wrap' }}
-                      >
-                        <Input
-                          placeholder="/remote/path/on/cluster"
-                          value={fm.remotePath}
-                          onChange={(e) => {
-                            const next = [...fileMounts];
-                            next[index].remotePath = e.target.value;
-                            setFileMounts(next);
-                          }}
-                          sx={{ flex: 1, minWidth: '200px' }}
-                        />
-                        <input
-                          type="file"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0] || null;
-                            const next = [...fileMounts];
-                            next[index].file = file;
-                            setFileMounts(next);
-                          }}
-                        />
-                        <IconButton
-                          color="danger"
-                          variant="plain"
-                          onClick={() => {
-                            if (fileMounts.length === 1) {
-                              setFileMounts([
-                                {
-                                  remotePath: '',
-                                  file: null,
-                                  storedPath: undefined,
-                                },
-                              ]);
-                            } else {
-                              setFileMounts(
-                                fileMounts.filter((_, i) => i !== index),
-                              );
-                            }
-                          }}
-                        >
-                          <Trash2Icon size={16} />
-                        </IconButton>
-                      </Stack>
-                    ))}
-                    <Button
-                      variant="outlined"
-                      size="sm"
-                      startDecorator={<PlusIcon size={16} />}
-                      onClick={() =>
-                        setFileMounts([
-                          ...fileMounts,
-                          { remotePath: '', file: null, storedPath: undefined },
-                        ])
-                      }
-                    >
-                      Add File Mount
-                    </Button>
-                  </Stack>
                 </FormControl>
 
-                {githubEnabled && (
+                {githubRepoUrl && (
                   <FormControl sx={{ mt: 2 }}>
-                    <FormLabel>GitHub Repository (Read-Only)</FormLabel>
-                    <Stack spacing={2} sx={{ mt: 1 }}>
-                      <FormControl>
-                        <FormLabel>GitHub Repository URL</FormLabel>
-                        <Input
-                          value={githubRepoUrl}
-                          disabled
-                          readOnly
-                          placeholder="https://github.com/owner/repo.git"
-                          sx={{
-                            bgcolor: 'background.level1',
-                            cursor: 'not-allowed',
-                          }}
-                        />
-                        <FormHelperText>
-                          GitHub repository URL (read-only - source of truth)
-                        </FormHelperText>
-                      </FormControl>
-                      {githubDirectory && (
-                        <FormControl>
-                          <FormLabel>Directory Path</FormLabel>
-                          <Input
-                            value={githubDirectory}
-                            disabled
-                            readOnly
-                            placeholder="path/to/directory"
-                            sx={{
-                              bgcolor: 'background.level1',
-                              cursor: 'not-allowed',
-                            }}
-                          />
-                          <FormHelperText>
-                            Directory path (read-only - source of truth)
-                          </FormHelperText>
-                        </FormControl>
-                      )}
-                    </Stack>
-                    <FormHelperText sx={{ mt: 1 }}>
-                      GitHub repository settings are read-only. To change the
-                      repository, create a new task. You can edit the parsed
-                      configuration values above.
+                    <FormLabel>
+                      GitHub Repository Directory (Optional)
+                    </FormLabel>
+                    <Input
+                      value={githubDirectory}
+                      onChange={(e) => setGithubDirectory(e.target.value)}
+                      placeholder="path/to/directory"
+                    />
+                    <FormHelperText>
+                      Optional subdirectory path within the repository
                     </FormHelperText>
                   </FormControl>
                 )}

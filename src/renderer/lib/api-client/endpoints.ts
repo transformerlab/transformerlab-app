@@ -37,38 +37,47 @@ Endpoints.Tasks = {
   ExportToTeamGallery: () => `${API_URL()}tasks/gallery/team/export`,
   AddToTeamGallery: () => `${API_URL()}tasks/gallery/team/add`,
   DeleteFromTeamGallery: () => `${API_URL()}tasks/gallery/team/delete`,
-  FetchTaskJson: (url: string) =>
-    `${API_URL()}task/fetch_task_json?url=${encodeURIComponent(url)}`,
 };
 
 Endpoints.Task = {
-  List: () => `${API_URL()}task/list`,
-  ListByType: (type: string) => `${API_URL()}task/list_by_type?type=${type}`,
-  ListByTypeInExperiment: (type: string, experiment_id: string) =>
-    `${API_URL()}task/list_by_type_in_experiment?type=${type}&experiment_id=${
-      experiment_id
-    }`,
+  List: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/list`,
+  ListByType: (experimentId: string, type: string) =>
+    `${API_URL()}experiment/${experimentId}/task/list_by_type?type=${type}`,
+  ListByTypeInExperiment: (experimentId: string, type: string) =>
+    `${API_URL()}experiment/${experimentId}/task/list_by_type_in_experiment?type=${type}`,
   ListBySubtypeInExperiment: (
-    experiment_id: string,
+    experimentId: string,
     subtype: string,
     type?: string,
   ) =>
-    `${API_URL()}task/list_by_subtype_in_experiment?experiment_id=${experiment_id}&subtype=${encodeURIComponent(
+    `${API_URL()}experiment/${experimentId}/task/list_by_subtype_in_experiment?subtype=${encodeURIComponent(
       subtype,
     )}${type ? `&type=${encodeURIComponent(type)}` : ''}`,
-  GetByID: (id: string) => `${API_URL()}task/${id}/get`,
-  UpdateTemplate: (id: string) => `${API_URL()}task/${id}/update`,
-  NewTemplate: () => `${API_URL()}task/new_task`,
-  DeleteTemplate: (id: string) => `${API_URL()}task/${id}/delete`,
-  Gallery: () => `${API_URL()}task/gallery`,
+  GetByID: (experimentId: string, id: string) =>
+    `${API_URL()}experiment/${experimentId}/task/${id}/get`,
+  UpdateTemplate: (experimentId: string, id: string) =>
+    `${API_URL()}experiment/${experimentId}/task/${id}/update`,
+  NewTemplate: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/new_task`,
+  DeleteTemplate: (experimentId: string, id: string) =>
+    `${API_URL()}experiment/${experimentId}/task/${id}/delete`,
+  Gallery: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery`,
   ImportFromGallery: (experimentId: string) =>
-    `${API_URL()}task/gallery/import`,
-  TeamGallery: () => `${API_URL()}task/gallery/team`,
+    `${API_URL()}experiment/${experimentId}/task/gallery/import`,
+  TeamGallery: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/team`,
   ImportFromTeamGallery: (experimentId: string) =>
-    `${API_URL()}task/gallery/team/import`,
-  ExportToTeamGallery: () => `${API_URL()}task/gallery/team/export`,
-  AddToTeamGallery: () => `${API_URL()}task/gallery/team/add`,
-  DeleteFromTeamGallery: () => `${API_URL()}task/gallery/team/delete`,
+    `${API_URL()}experiment/${experimentId}/task/gallery/team/import`,
+  ExportToTeamGallery: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/team/export`,
+  AddToTeamGallery: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/team/add`,
+  DeleteFromTeamGallery: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/team/delete`,
+  FetchTaskJson: (experimentId: string, url: string) =>
+    `${API_URL()}experiment/${experimentId}/task/fetch_task_json?url=${encodeURIComponent(url)}`,
 };
 
 Endpoints.ComputeProvider = {
@@ -98,6 +107,15 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/${providerId}/task/${taskId}/file-upload`, // Deprecated: use UploadTemplateFile
   Check: (providerId: string) =>
     `${API_URL()}compute_provider/${providerId}/check`,
+  EnsureQuotaRecorded: (experimentId?: string, jobId?: string) => {
+    if (jobId) {
+      return `${API_URL()}compute_provider/jobs/ensure-quota-recorded?job_id=${jobId}`;
+    }
+    if (experimentId) {
+      return `${API_URL()}compute_provider/jobs/ensure-quota-recorded?experiment_id=${experimentId}`;
+    }
+    return `${API_URL()}compute_provider/jobs/ensure-quota-recorded`;
+  },
 };
 
 Endpoints.Workflows = {
@@ -558,4 +576,14 @@ Endpoints.Jobs = {
 
 Endpoints.Global = {
   PromptLog: () => `${API_URL()}prompt_log`,
+};
+
+Endpoints.Quota = {
+  GetMyStatus: () => `${API_URL()}quota/me`,
+  GetMyUsage: () => `${API_URL()}quota/me/usage`,
+  GetTeamQuota: (teamId: string) => `${API_URL()}quota/team/${teamId}`,
+  UpdateTeamQuota: (teamId: string) => `${API_URL()}quota/team/${teamId}`,
+  GetTeamUsers: (teamId: string) => `${API_URL()}quota/team/${teamId}/users`,
+  UpdateUserOverride: (userId: string, teamId: string) =>
+    `${API_URL()}quota/user/${userId}/team/${teamId}`,
 };

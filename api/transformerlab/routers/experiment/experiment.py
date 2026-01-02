@@ -20,6 +20,7 @@ from transformerlab.routers.experiment import (
     workflows,
     diffusion,
     jobs,
+    task as task_router,
 )
 from lab.dirs import get_workspace_dir
 
@@ -37,6 +38,7 @@ router.include_router(router=generations.router, prefix="/{experimentId}", tags=
 router.include_router(router=workflows.router, prefix="/{experimentId}", tags=["workflows"])
 router.include_router(router=diffusion.router, prefix="/{experimentId}", tags=["diffusion"])
 router.include_router(router=jobs.router, prefix="/{experimentId}", tags=["jobs"])
+router.include_router(router=task_router.router, prefix="/{experimentId}", tags=["task"])
 
 
 @router.get("/", summary="Get all Experiments", tags=["experiment"])

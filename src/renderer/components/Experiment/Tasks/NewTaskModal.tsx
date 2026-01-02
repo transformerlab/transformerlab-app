@@ -65,10 +65,10 @@ type NewTaskModalProps = {
     disk_space?: string;
     accelerators?: string;
     num_nodes?: number;
+    minutes_requested?: number;
     setup?: string;
     env_vars?: Record<string, string>;
     provider_id?: string;
-    file_mounts?: Record<string, string>;
     github_repo_url?: string;
     github_directory?: string;
     run_sweeps?: boolean;
@@ -93,12 +93,18 @@ function isGitHubUrl(url: string): boolean {
 }
 
 // Helper function to fetch task.json from any URL
-async function fetchTaskJsonFromUrl(taskJsonUrl: string): Promise<any | null> {
+async function fetchTaskJsonFromUrl(
+  taskJsonUrl: string,
+  experimentId: string,
+): Promise<any | null> {
   try {
     // Check if this is a GitHub URL (blob, raw, or repo URL)
     if (isGitHubUrl(taskJsonUrl)) {
       // Use the backend endpoint which supports GitHub PAT and handles URL conversion
-      const endpoint = chatAPI.Endpoints.Tasks.FetchTaskJson(taskJsonUrl);
+      const endpoint = chatAPI.Endpoints.Task.FetchTaskJson(
+        experimentId,
+        taskJsonUrl,
+      );
       const response = await chatAPI.authenticatedFetch(endpoint, {
         method: 'GET',
       });
@@ -184,6 +190,7 @@ export default function NewTaskModal({
   const [diskSpace, setDiskSpace] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
+  const [minutesRequested, setMinutesRequested] = React.useState('60');
   const [setup, setSetup] = React.useState('');
   const [envVars, setEnvVars] = React.useState<
     Array<{ key: string; value: string }>
@@ -191,14 +198,6 @@ export default function NewTaskModal({
   const [parameters, setParameters] = React.useState<
     Array<{ key: string; value: string; valueType: 'string' | 'json' }>
   >([{ key: '', value: '', valueType: 'string' }]);
-  const [fileMounts, setFileMounts] = React.useState<
-    Array<{
-      remotePath: string;
-      file?: File | null;
-      uploading?: boolean;
-      storedPath?: string;
-    }>
-  >([{ remotePath: '', file: null, uploading: false, storedPath: undefined }]);
   const [selectedProviderId, setSelectedProviderId] = useState('');
   const [enableSweeps, setEnableSweeps] = useState(false);
   const [sweepParams, setSweepParams] = useState<
@@ -234,12 +233,10 @@ export default function NewTaskModal({
       setDiskSpace('');
       setAccelerators('');
       setNumNodes('');
+      setMinutesRequested('');
       setSetup('');
       setEnvVars([{ key: '', value: '' }]);
       setParameters([{ key: '', value: '', valueType: 'string' }]);
-      setFileMounts([
-        { remotePath: '', file: null, uploading: false, storedPath: undefined },
-      ]);
       setSelectedProviderId(providers[0]?.id || '');
       setEnableSweeps(false);
       setSweepParams([]);
@@ -284,47 +281,44 @@ export default function NewTaskModal({
         // Convert task.json to YAML format
         const taskToYaml = (task: any): string => {
           const yamlData: any = {
-            task: {
-              name: task.name || task.title || 'my-task',
-            },
+            name: task.name || task.title || 'my-task',
           };
 
           if (task.resources || task.cpus || task.memory) {
-            yamlData.task.resources = {};
+            yamlData.resources = {};
             if (task.resources?.compute_provider) {
-              yamlData.task.resources.compute_provider =
+              yamlData.resources.compute_provider =
                 task.resources.compute_provider;
             }
-            if (task.cpus) yamlData.task.resources.cpus = task.cpus;
-            if (task.memory) yamlData.task.resources.memory = task.memory;
+            if (task.cpus) yamlData.resources.cpus = task.cpus;
+            if (task.memory) yamlData.resources.memory = task.memory;
             if (task.disk_space)
-              yamlData.task.resources.disk_space = task.disk_space;
+              yamlData.resources.disk_space = task.disk_space;
             if (task.accelerators)
-              yamlData.task.resources.accelerators = task.accelerators;
-            if (task.num_nodes)
-              yamlData.task.resources.num_nodes = task.num_nodes;
+              yamlData.resources.accelerators = task.accelerators;
+            if (task.num_nodes) yamlData.resources.num_nodes = task.num_nodes;
           }
 
-          if (task.env_vars) yamlData.task.envs = task.env_vars;
-          if (task.setup) yamlData.task.setup = task.setup;
-          if (task.command) yamlData.task.run = task.command;
+          if (task.env_vars) yamlData.envs = task.env_vars;
+          if (task.setup) yamlData.setup = task.setup;
+          if (task.command) yamlData.run = task.command;
           // Include GitHub repo info from task.json or extracted state
           if (githubRepoUrl) {
-            yamlData.task.git_repo = githubRepoUrl;
+            yamlData.git_repo = githubRepoUrl;
             if (githubDirectory) {
-              yamlData.task.git_repo_directory = githubDirectory;
+              yamlData.git_repo_directory = githubDirectory;
             }
           } else if (task.github_repo_url || task.git_repo) {
             // Fallback to task.json data if available
-            yamlData.task.git_repo = task.github_repo_url || task.git_repo;
+            yamlData.git_repo = task.github_repo_url || task.git_repo;
             if (task.github_directory || task.git_repo_directory) {
-              yamlData.task.git_repo_directory =
+              yamlData.git_repo_directory =
                 task.github_directory || task.git_repo_directory;
             }
           }
-          if (task.parameters) yamlData.task.parameters = task.parameters;
+          if (task.parameters) yamlData.parameters = task.parameters;
           if (task.run_sweeps && task.sweep_config) {
-            yamlData.task.sweeps = {
+            yamlData.sweeps = {
               sweep_config: task.sweep_config,
               sweep_metric: task.sweep_metric || 'eval/loss',
               lower_is_better:
@@ -358,21 +352,20 @@ export default function NewTaskModal({
       ) {
         // Use default template if no task.json and YAML is empty
         const defaultYamlData: any = {
-          task: {
-            name: 'my-task',
-            resources: {
-              cpus: 2,
-              memory: 4,
-            },
-            run: 'echo hello',
+          name: 'my-task',
+          resources: {
+            cpus: 2,
+            memory: 4,
           },
+          minutes_requested: 60,
+          run: 'echo hello',
         };
 
         // Add GitHub repo info if available (from task.json)
         if (githubRepoUrl) {
-          defaultYamlData.task.git_repo = githubRepoUrl;
+          defaultYamlData.git_repo = githubRepoUrl;
           if (githubDirectory) {
-            defaultYamlData.task.git_repo_directory = githubDirectory;
+            defaultYamlData.git_repo_directory = githubDirectory;
           }
         }
 
@@ -419,7 +412,7 @@ export default function NewTaskModal({
       return;
     }
     setIsLoadingTaskJson(true);
-    fetchTaskJsonFromUrl(taskJsonUrl)
+    fetchTaskJsonFromUrl(taskJsonUrl, experimentId)
       .then((data) => {
         if (data) {
           setTaskJsonData(data);
@@ -445,6 +438,8 @@ export default function NewTaskModal({
           if (data.disk_space) setDiskSpace(String(data.disk_space));
           if (data.accelerators) setAccelerators(data.accelerators);
           if (data.num_nodes) setNumNodes(String(data.num_nodes));
+          if (data.minutes_requested)
+            setMinutesRequested(String(data.minutes_requested));
           if (data.setup) setSetup(data.setup);
           if (data.env_vars && typeof data.env_vars === 'object') {
             const envVarsArray = Object.entries(data.env_vars).map(
@@ -680,61 +675,6 @@ export default function NewTaskModal({
       }
     }
 
-    // Upload any files for file mounts and build mapping {remotePath: storedPath}
-    const fileMountsObj: Record<string, string> = {};
-    for (let i = 0; i < fileMounts.length; i += 1) {
-      const fm = fileMounts[i];
-      const remotePath = fm.remotePath.trim();
-      if (!remotePath) continue;
-
-      // If we already have a storedPath (e.g. editing), just reuse it
-      if (!fm.file && fm.storedPath) {
-        fileMountsObj[remotePath] = fm.storedPath;
-        continue;
-      }
-
-      if (!fm.file) continue;
-      if (!selectedProviderId) continue;
-
-      try {
-        const formData = new FormData();
-        formData.append('file', fm.file);
-        // task_id is not yet created; we treat this as "task" upload, so use 0
-        const uploadUrl = chatAPI.Endpoints.ComputeProvider.UploadTemplateFile(
-          selectedProviderId,
-          0,
-        );
-        const resp = await chatAPI.authenticatedFetch(uploadUrl, {
-          method: 'POST',
-          body: formData,
-        });
-        if (!resp.ok) {
-          const txt = await resp.text();
-          addNotification({
-            type: 'danger',
-            message: `Failed to upload file for mount ${remotePath}: ${txt}`,
-          });
-          return;
-        }
-        const json = await resp.json();
-        if (json.status !== 'success' || !json.stored_path) {
-          addNotification({
-            type: 'danger',
-            message: `Upload for mount ${remotePath} did not return stored_path`,
-          });
-          return;
-        }
-        fileMountsObj[remotePath] = json.stored_path;
-      } catch (err) {
-        console.error(err);
-        addNotification({
-          type: 'danger',
-          message: `Failed to upload file for mount ${remotePath}`,
-        });
-        return;
-      }
-    }
-
     onSubmit({
       title,
       cluster_name: clusterName || title,
@@ -744,13 +684,14 @@ export default function NewTaskModal({
       disk_space: diskSpace || undefined,
       accelerators: accelerators || undefined,
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
+      minutes_requested: minutesRequested
+        ? parseInt(minutesRequested, 10)
+        : undefined,
       setup: setupValue || undefined,
       env_vars: Object.keys(envVarsObj).length > 0 ? envVarsObj : undefined,
       parameters:
         Object.keys(parametersObj).length > 0 ? parametersObj : undefined,
       provider_id: selectedProviderId,
-      file_mounts:
-        Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
       github_repo_url: githubRepoUrl || undefined,
       github_directory: githubDirectory || undefined,
       run_sweeps: enableSweeps && sweepConfig ? true : undefined,
@@ -774,12 +715,10 @@ export default function NewTaskModal({
     setDiskSpace('');
     setAccelerators('');
     setNumNodes('');
+    setMinutesRequested('');
     setSetup('');
     setEnvVars([{ key: '', value: '' }]);
     setParameters([{ key: '', value: '', valueType: 'string' }]);
-    setFileMounts([
-      { remotePath: '', file: null, uploading: false, storedPath: undefined },
-    ]);
     setSelectedProviderId(providers[0]?.id || '');
     try {
       setupEditorRef?.current?.setValue?.('');
@@ -986,42 +925,33 @@ export default function NewTaskModal({
   // Convert form data to YAML
   const convertFormToYaml = () => {
     const yamlData: any = {
-      task: {
-        name: title || 'untitled-task',
-      },
+      name: title || 'untitled-task',
     };
 
     // Resources
-    if (selectedProviderId) {
-      const provider = providers.find((p) => p.id === selectedProviderId);
-      if (provider) {
-        yamlData.task.resources = {
-          compute_provider: provider.name,
-        };
+    if (
+      selectedProviderId ||
+      cpus ||
+      memory ||
+      diskSpace ||
+      accelerators ||
+      numNodes
+    ) {
+      yamlData.resources = {};
+      if (selectedProviderId) {
+        const provider = providers.find((p) => p.id === selectedProviderId);
+        if (provider) {
+          yamlData.resources.compute_provider = provider.name;
+        }
       }
+      if (cpus) yamlData.resources.cpus = parseInt(cpus) || cpus;
+      if (memory) yamlData.resources.memory = parseInt(memory) || memory;
+      if (diskSpace)
+        yamlData.resources.disk_space = parseInt(diskSpace) || diskSpace;
+      if (accelerators) yamlData.resources.accelerators = accelerators;
+      if (numNodes)
+        yamlData.resources.num_nodes = parseInt(numNodes) || numNodes;
     }
-    if (cpus)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        cpus: parseInt(cpus) || cpus,
-      };
-    if (memory)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        memory: parseInt(memory) || memory,
-      };
-    if (diskSpace)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        disk_space: parseInt(diskSpace) || diskSpace,
-      };
-    if (accelerators)
-      yamlData.task.resources = { ...yamlData.task.resources, accelerators };
-    if (numNodes)
-      yamlData.task.resources = {
-        ...yamlData.task.resources,
-        num_nodes: parseInt(numNodes) || numNodes,
-      };
 
     // Environment variables
     const envs: Record<string, string> = {};
@@ -1031,20 +961,26 @@ export default function NewTaskModal({
       }
     });
     if (Object.keys(envs).length > 0) {
-      yamlData.task.envs = envs;
+      yamlData.envs = envs;
+    }
+
+    // Minutes requested (task-level field)
+    if (minutesRequested) {
+      yamlData.minutes_requested =
+        parseInt(minutesRequested, 10) || minutesRequested;
     }
 
     // Setup and run
     const setupValue = setupEditorRef?.current?.getValue?.() || setup;
-    if (setupValue) yamlData.task.setup = setupValue;
+    if (setupValue) yamlData.setup = setupValue;
     const commandValue = commandEditorRef?.current?.getValue?.() || command;
-    if (commandValue) yamlData.task.run = commandValue;
+    if (commandValue) yamlData.run = commandValue;
 
     // GitHub - include if available (extracted from task.json or manually set)
     if (githubRepoUrl) {
-      yamlData.task.git_repo = githubRepoUrl;
+      yamlData.git_repo = githubRepoUrl;
       if (githubDirectory) {
-        yamlData.task.git_repo_directory = githubDirectory;
+        yamlData.git_repo_directory = githubDirectory;
       }
     }
 
@@ -1064,7 +1000,7 @@ export default function NewTaskModal({
       }
     });
     if (Object.keys(parametersObj).length > 0) {
-      yamlData.task.parameters = parametersObj;
+      yamlData.parameters = parametersObj;
     }
 
     // Sweeps
@@ -1079,7 +1015,7 @@ export default function NewTaskModal({
         }
       });
       if (Object.keys(sweepConfig).length > 0) {
-        yamlData.task.sweeps = {
+        yamlData.sweeps = {
           sweep_config: sweepConfig,
           sweep_metric: sweepMetric || 'eval/loss',
           lower_is_better: lowerIsBetter,
@@ -1210,11 +1146,13 @@ export default function NewTaskModal({
 
       const yamlData = parseYaml(yamlContent);
 
-      if (!yamlData || !yamlData.task) {
-        throw new Error("YAML must contain a 'task' key");
+      if (!yamlData) {
+        throw new Error('YAML content is empty or invalid');
       }
 
-      const taskYaml = yamlData.task;
+      // Support both old format (with "task:" key) and new format (direct fields)
+      // for backward compatibility
+      const taskYaml = yamlData.task || yamlData;
       const taskData: any = {};
 
       // Basic fields
@@ -1244,6 +1182,10 @@ export default function NewTaskModal({
           taskData.num_nodes = resources.num_nodes;
         }
       }
+      // Minutes requested (task-level field)
+      if (taskYaml.minutes_requested !== undefined) {
+        taskData.minutes_requested = taskYaml.minutes_requested;
+      }
 
       // Environment variables
       if (taskYaml.envs) {
@@ -1258,11 +1200,19 @@ export default function NewTaskModal({
         taskData.command = String(taskYaml.run);
       }
 
-      // GitHub
-      if (taskYaml.git_repo) {
+      // GitHub - support multiple naming conventions
+      if (taskYaml.github_repo_url) {
+        taskData.github_repo_url = String(taskYaml.github_repo_url);
+      } else if (taskYaml.git_repo) {
         taskData.github_repo_url = String(taskYaml.git_repo);
       }
-      if (taskYaml.git_repo_directory) {
+      if (taskYaml.github_repo_dir) {
+        taskData.github_directory = String(taskYaml.github_repo_dir);
+      } else if (taskYaml.github_repo_directory) {
+        taskData.github_directory = String(taskYaml.github_repo_directory);
+      } else if (taskYaml.github_directory) {
+        taskData.github_directory = String(taskYaml.github_directory);
+      } else if (taskYaml.git_repo_directory) {
         taskData.github_directory = String(taskYaml.git_repo_directory);
       }
 
@@ -1296,6 +1246,8 @@ export default function NewTaskModal({
       if (taskData.disk_space) setDiskSpace(String(taskData.disk_space));
       if (taskData.accelerators) setAccelerators(taskData.accelerators);
       if (taskData.num_nodes) setNumNodes(String(taskData.num_nodes));
+      if (taskData.minutes_requested)
+        setMinutesRequested(String(taskData.minutes_requested));
       if (taskData.github_repo_url) setGithubRepoUrl(taskData.github_repo_url);
       if (taskData.github_directory)
         setGithubDirectory(taskData.github_directory);
@@ -1494,7 +1446,7 @@ export default function NewTaskModal({
                           // Set initial value if empty
                           if (!yamlContent || yamlContent.trim() === '') {
                             const defaultYaml =
-                              'task:\n  name: my-task\n  resources:\n    cpus: 2\n    memory: 4\n  run: "echo hello"';
+                              'name: my-task\nresources:\n  cpus: 2\n  memory: 4\nrun: "echo hello"';
                             editor.setValue(defaultYaml);
                             setYamlContent(defaultYaml);
                           } else {
@@ -1624,6 +1576,20 @@ export default function NewTaskModal({
                 </FormControl>
 
                 <FormControl>
+                  <FormLabel>Minutes Requested (for quota tracking)</FormLabel>
+                  <Input
+                    type="number"
+                    value={minutesRequested}
+                    onChange={(e) => setMinutesRequested(e.target.value)}
+                    placeholder="e.g. 60"
+                  />
+                  <FormHelperText>
+                    Estimated minutes this task will run. Used for quota
+                    tracking.
+                  </FormHelperText>
+                </FormControl>
+
+                <FormControl>
                   <FormLabel>Setup Command</FormLabel>
                   <div
                     data-form-type="other"
@@ -1650,6 +1616,34 @@ export default function NewTaskModal({
                     e.g. <code>pip install -r requirements.txt</code>
                   </FormHelperText>
                 </FormControl>
+
+                <FormControl>
+                  <FormLabel>GitHub Repository URL (Optional)</FormLabel>
+                  <Input
+                    value={githubRepoUrl}
+                    onChange={(e) => setGithubRepoUrl(e.target.value)}
+                    placeholder="https://github.com/owner/repo.git"
+                  />
+                  <FormHelperText>
+                    GitHub repository URL to clone before running the task
+                  </FormHelperText>
+                </FormControl>
+
+                {githubRepoUrl && (
+                  <FormControl>
+                    <FormLabel>
+                      GitHub Repository Directory (Optional)
+                    </FormLabel>
+                    <Input
+                      value={githubDirectory}
+                      onChange={(e) => setGithubDirectory(e.target.value)}
+                      placeholder="path/to/directory"
+                    />
+                    <FormHelperText>
+                      Optional subdirectory path within the repository
+                    </FormHelperText>
+                  </FormControl>
+                )}
 
                 <FormControl required>
                   <FormLabel>Command</FormLabel>
@@ -1938,87 +1932,6 @@ export default function NewTaskModal({
                     )}
                   </Stack>
                 </FormControl>
-
-                {taskMode === 'no-github' && (
-                  <FormControl>
-                    <FormLabel>File Mounts</FormLabel>
-                    <FormHelperText>
-                      For each mount, choose a remote path and upload a file to
-                      be staged on the server.
-                    </FormHelperText>
-                    <Stack spacing={1} sx={{ mt: 1 }}>
-                      {fileMounts.map((fm, index) => (
-                        <Stack
-                          key={index}
-                          direction="row"
-                          spacing={1}
-                          alignItems="center"
-                          sx={{ flexWrap: 'wrap' }}
-                        >
-                          <Input
-                            placeholder="/remote/path/on/cluster"
-                            value={fm.remotePath}
-                            onChange={(e) => {
-                              const next = [...fileMounts];
-                              next[index].remotePath = e.target.value;
-                              setFileMounts(next);
-                            }}
-                            sx={{ flex: 1, minWidth: '200px' }}
-                          />
-                          <input
-                            type="file"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0] || null;
-                              const next = [...fileMounts];
-                              next[index].file = file;
-                              setFileMounts(next);
-                            }}
-                          />
-                          <IconButton
-                            color="danger"
-                            variant="plain"
-                            onClick={() => {
-                              if (fileMounts.length === 1) {
-                                setFileMounts([
-                                  {
-                                    remotePath: '',
-                                    file: null,
-                                    uploading: false,
-                                    storedPath: undefined,
-                                  },
-                                ]);
-                              } else {
-                                setFileMounts(
-                                  fileMounts.filter((_, i) => i !== index),
-                                );
-                              }
-                            }}
-                          >
-                            <Trash2Icon size={16} />
-                          </IconButton>
-                        </Stack>
-                      ))}
-                      <Button
-                        variant="outlined"
-                        size="sm"
-                        startDecorator={<PlusIcon size={16} />}
-                        onClick={() =>
-                          setFileMounts([
-                            ...fileMounts,
-                            {
-                              remotePath: '',
-                              file: null,
-                              uploading: false,
-                              storedPath: undefined,
-                            },
-                          ])
-                        }
-                      >
-                        Add File Mount
-                      </Button>
-                    </Stack>
-                  </FormControl>
-                )}
               </>
             )}
           </Stack>

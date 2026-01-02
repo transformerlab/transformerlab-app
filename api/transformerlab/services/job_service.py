@@ -1,12 +1,13 @@
 import asyncio
+import datetime
 import json
 import os
-from typing import Optional, Tuple
+from typing import List, Dict, Optional, Tuple
 
 from lab import Experiment, Job
 from lab import dirs as lab_dirs
 from lab import storage
-
+from time import time
 
 # Allowed job types:
 ALLOWED_JOB_TYPES = [
@@ -358,6 +359,124 @@ def job_get_sweep_parent(child_job_id, experiment_id=None):
 ##################################
 
 
+async def _track_quota_for_job_status_change(
+    job_id: str, job_dict: dict, final_status: str, experiment_id: Optional[str], session: Optional[object]
+):
+    """
+    Track quota usage for a REMOTE job when it transitions to a terminal state.
+    This is called as a background task so it doesn't block job status updates.
+    """
+    try:
+        from transformerlab.db.session import async_session
+
+        # Use provided session or create a new one
+        if session:
+            await _record_quota_usage_internal(session, job_id, job_dict, final_status, experiment_id)
+        else:
+            # Create a new session for quota tracking
+            async with async_session() as new_session:
+                await _record_quota_usage_internal(new_session, job_id, job_dict, final_status, experiment_id)
+    except Exception as e:
+        print(f"Error in quota tracking background task for job {job_id}: {e}")
+
+
+async def _record_quota_usage_internal(
+    session: object, job_id: str, job_dict: dict, final_status: str, experiment_id: Optional[str]
+):
+    """
+    Internal helper to record quota usage. Assumes session is already provided.
+    """
+    from transformerlab.services import quota_service
+    from transformerlab.shared.models.models import User
+    from sqlalchemy import select
+
+    job_type = job_dict.get("type")
+    if job_type != "REMOTE":
+        return
+
+    job_data = job_dict.get("job_data") or {}
+    user_info = job_data.get("user_info") or {}
+    user_email = user_info.get("email")
+    if not user_email:
+        return
+
+    # Get team_id from job_data or experiment
+    team_id = job_data.get("team_id")
+    if not team_id:
+        # Try to get from experiment context if available
+        # For now, skip if we can't determine team_id
+        print(f"Job {job_id} missing team_id, skipping quota tracking")
+        return
+
+    # Check if job had start_time (entered LAUNCHING state)
+    start_time_str = job_data.get("start_time")
+    if not start_time_str:
+        # Job never entered LAUNCHING state, release quota hold if exists
+        await quota_service.release_quota_hold(session, job_id=job_id)
+        await session.commit()
+        return
+
+    # Get end time based on status
+    end_time_str = None
+    if final_status == "COMPLETE":
+        end_time_str = job_data.get("end_time")
+    elif final_status == "STOPPED":
+        end_time_str = job_data.get("stop_time") or job_data.get("end_time")
+    elif final_status in ("FAILED", "DELETED"):
+        end_time_str = job_data.get("end_time") or time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+
+    if not end_time_str:
+        end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+
+    # Calculate minutes used
+    try:
+        if isinstance(start_time_str, str):
+            start_dt = datetime.strptime(start_time_str, "%Y-%m-%d %H:%M:%S")
+        else:
+            start_dt = start_time_str
+
+        if isinstance(end_time_str, str):
+            end_dt = datetime.strptime(end_time_str, "%Y-%m-%d %H:%M:%S")
+        else:
+            end_dt = end_time_str
+
+        duration_seconds = (end_dt - start_dt).total_seconds()
+        minutes_used = round(duration_seconds / 60.0, 2)
+
+        if minutes_used < 0:
+            return
+
+        # Get user_id from email
+        stmt = select(User).where(User.email == user_email)
+        result = await session.execute(stmt)
+        # unique() is required because User has lazy="joined" relationships (oauth_accounts)
+        user = result.unique().scalar_one_or_none()
+        if not user:
+            return
+
+        user_id_str = str(user.id)
+
+        # Record quota usage
+        await quota_service.record_quota_usage(
+            session=session,
+            user_id=user_id_str,
+            team_id=team_id,
+            job_id=job_id,
+            experiment_id=experiment_id or "",
+            minutes_used=minutes_used,
+        )
+
+        # Convert quota hold to CONVERTED status
+        await quota_service.convert_quota_hold(session, job_id)
+
+        await session.commit()
+        print(f"Recorded quota usage: {minutes_used:.2f} minutes for job {job_id}")
+
+    except Exception as e:
+        print(f"Error recording quota usage for job {job_id}: {e}")
+        await session.rollback()
+
+
 async def _trigger_workflows_on_job_completion(job_id: str):
     """
     Trigger workflows when a job completes if the job type is in supported triggers.
@@ -395,16 +514,22 @@ async def _trigger_workflows_on_job_completion(job_id: str):
 
 
 async def job_update_status(
-    job_id: str, status: str, experiment_id: Optional[str] = None, error_msg: Optional[str] = None
+    job_id: str,
+    status: str,
+    experiment_id: Optional[str] = None,
+    error_msg: Optional[str] = None,
+    session: Optional[object] = None,  # AsyncSession type but using object to avoid circular imports
 ):
     """
     Update job status and trigger workflows if job is completed.
+    Also handles quota tracking for REMOTE jobs.
 
     Args:
         job_id: The ID of the job to update
         status: The new status to set
         experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
         error_msg: Optional error message to add to job data
+        session: Optional database session for quota tracking. If not provided, quota tracking will use a background task.
     """
     # Update the job status using SDK Job class
     try:
@@ -419,6 +544,26 @@ async def job_update_status(
         print(f"Error updating job {job_id}: {e}")
 
         pass
+
+    # Track quota for REMOTE jobs when they transition to terminal states
+    if status in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
+        try:
+            job_dict = job.get_json_data() if job else {}
+            if job_dict.get("type") == "REMOTE":
+                # If session is provided, await quota tracking in the same transaction
+                # Otherwise, run it as a background task
+                import asyncio
+
+                if session:
+                    # Await quota tracking when session is provided to ensure it's part of the same transaction
+                    await _track_quota_for_job_status_change(job_id, job_dict, status, experiment_id, session)
+                else:
+                    # Trigger quota tracking as background task (async, won't block)
+                    asyncio.create_task(
+                        _track_quota_for_job_status_change(job_id, job_dict, status, experiment_id, session)
+                    )
+        except Exception as e:
+            print(f"Error initiating quota tracking for job {job_id}: {e}")
 
     # # Trigger workflows if job status is COMPLETE
     # if status == "COMPLETE":
@@ -641,3 +786,141 @@ def job_mark_as_complete_if_running(job_id: int, experiment_id: int) -> None:
             lab_dirs.set_organization_id(None)
         except Exception:
             pass
+
+
+def get_file_metadata(file_path: str, storage) -> Dict[str, any]:
+    """
+    Extract file metadata (size, modified time) from storage or filesystem.
+    Returns dict with 'size' and 'mtime' keys, or empty values if unavailable.
+    """
+    try:
+        # Try storage.ls with detail=True first (works for S3 and local)
+        file_info_list = storage.ls(file_path, detail=True)
+
+        # Handle dict response (some storage backends)
+        if isinstance(file_info_list, dict):
+            file_info = file_info_list.get(file_path, {})
+            return {"size": file_info.get("size", 0), "mtime": file_info.get("mtime")}
+
+        # Handle list response
+        elif isinstance(file_info_list, list) and file_info_list:
+            file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
+            return {"size": file_info.get("size", 0), "mtime": file_info.get("mtime")}
+    except Exception as e:
+        print(f"storage.ls failed for {file_path}: {e}")
+
+    # Fallback to os.stat for local files only (won't work for S3)
+    if not file_path.startswith("s3://"):
+        try:
+            stat = os.stat(file_path)
+            return {"size": stat.st_size, "mtime": stat.st_mtime}
+        except (OSError, AttributeError) as e:
+            print(f"os.stat failed for {file_path}: {e}")
+
+    return {"size": None, "mtime": None}
+
+
+def format_artifact(file_path: str, storage) -> Optional[Dict[str, any]]:
+    """
+    Format a single artifact file into the response structure.
+    Returns None if the artifact can't be processed.
+    """
+    try:
+        filename = file_path.split("/")[-1] if "/" in file_path else file_path
+        metadata = get_file_metadata(file_path, storage)
+
+        artifact = {"filename": filename, "full_path": file_path}
+
+        if metadata["mtime"] is not None:
+            artifact["date"] = datetime.fromtimestamp(metadata["mtime"]).isoformat()
+
+        if metadata["size"] is not None:
+            artifact["size"] = metadata["size"]
+
+        return artifact
+    except Exception as e:
+        print(f"Error formatting artifact {file_path}: {e}")
+        return None
+
+
+def get_artifacts_from_sdk(job_id: str, storage) -> Optional[List[Dict]]:
+    """
+    Get artifacts using the SDK method.
+    Returns list of artifacts or None if SDK method fails.
+    """
+    try:
+        from lab.job import Job
+
+        sdk_job = Job(job_id)
+        artifact_paths = sdk_job.get_artifact_paths()
+
+        if not artifact_paths:
+            return None
+
+        artifacts = []
+        for artifact_path in artifact_paths:
+            artifact = format_artifact(artifact_path, storage)
+            if artifact:
+                artifacts.append(artifact)
+
+        return artifacts
+    except Exception as e:
+        print(f"SDK artifact method failed for job {job_id}: {e}")
+        return None
+
+
+def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict]:
+    """
+    Get artifacts by listing files in the artifacts directory.
+    Returns list of artifacts (empty if directory can't be read).
+    """
+    if not artifacts_dir or not storage.exists(artifacts_dir):
+        return []
+
+    artifacts = []
+    try:
+        items = storage.ls(artifacts_dir, detail=False)
+
+        for item in items:
+            file_path = item if isinstance(item, str) else str(item)
+
+            if storage.isfile(file_path):
+                artifact = format_artifact(file_path, storage)
+                if artifact:
+                    artifacts.append(artifact)
+    except Exception as e:
+        print(f"Error reading artifacts directory {artifacts_dir}: {e}")
+
+    return artifacts
+
+
+def get_all_artifact_paths(job_id: str, storage) -> List[str]:
+    """
+    Get all artifact file paths for a job.
+    Uses get_artifacts_from_sdk and get_artifacts_from_directory to retrieve paths.
+    """
+    # 1. Try SDK method
+    sdk_artifacts = get_artifacts_from_sdk(job_id, storage)
+    if sdk_artifacts:
+        return [a.get("full_path") for a in sdk_artifacts if a.get("full_path")]
+
+    # 2. Fallback to artifacts directory
+    job = job_get(job_id)
+    if job:
+        job_data = job.get("job_data", {})
+        artifacts_dir = job_data.get("artifacts_dir")
+
+        if not artifacts_dir:
+            try:
+                from lab.dirs import get_job_artifacts_dir
+
+                artifacts_dir = get_job_artifacts_dir(job_id)
+            except Exception:
+                pass
+
+        if artifacts_dir:
+            dir_artifacts = get_artifacts_from_directory(artifacts_dir, storage)
+            if dir_artifacts:
+                return [a.get("full_path") for a in dir_artifacts if a.get("full_path")]
+
+    return []
