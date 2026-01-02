@@ -86,7 +86,7 @@ def test_api_key_on_remote_server(api_key: str) -> int:
     with console.status("[bold cyan]Testing API key...", spinner="dots"):
         try:
             response = httpx.get(
-                AUTH_URL,
+                AUTH_URL(),
                 headers={"Authorization": f"Bearer {api_key}"},
                 timeout=10.0,
             )

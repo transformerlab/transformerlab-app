@@ -304,9 +304,10 @@ async def ensure_quota_recorded_for_completed_job(
         return False
 
     # Check if quota usage already recorded for this job
-    stmt = select(QuotaUsage).where(QuotaUsage.job_id == job_id)
+    # Note: job_id is not globally unique, so we must filter by both job_id and team_id
+    stmt = select(QuotaUsage).where(QuotaUsage.job_id == job_id, QuotaUsage.team_id == team_id)
     result = await session.execute(stmt)
-    existing_usage = result.scalar_one_or_none()
+    existing_usage = result.scalars().first()
     if existing_usage:
         return False  # Already recorded
 

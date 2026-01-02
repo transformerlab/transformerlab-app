@@ -11,7 +11,7 @@ from transformerlab_cli.commands.status import app as status_app
 from transformerlab_cli.commands.login import app as login_app
 from transformerlab_cli.commands.logout import app as logout_app
 from transformerlab_cli.commands.task import app as task_app
-from transformerlab_cli.commands.job import app as job_app  # Import job app
+from transformerlab_cli.commands.job import app as job_app
 
 
 # Create custom Help screen so we can show the logo
@@ -47,7 +47,7 @@ def common_setup(
     ctx: typer.Context, format: str = typer.Option("pretty", "--format", help="Output format: pretty or json")
 ):
     """Common setup code to run before any command."""
-    cli_state.output_format = format  # Set the output format in the singleton
+    cli_state.output_format = format
     if not ctx.invoked_subcommand:
         show_header(console)  # Display the logo when no command is provided
 
