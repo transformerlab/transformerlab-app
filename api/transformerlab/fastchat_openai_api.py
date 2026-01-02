@@ -41,7 +41,6 @@ from fastchat.protocol.openai_api_protocol import (
     ErrorResponse,
     ModelCard,
     ModelList,
-    ModelPermission,
     UsageInfo,
 )
 from pydantic import BaseModel as PydanticBaseModel
@@ -520,7 +519,7 @@ async def show_available_models():
             # TODO: return real model permission details
             model_cards = []
             for m in models:
-                model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
+                model_cards.append(ModelCard(id=m, root=m, permission=[]))
             return ModelList(data=model_cards)
 
         # If no models, refresh and try again
@@ -532,7 +531,7 @@ async def show_available_models():
     # TODO: return real model permission details
     model_cards = []
     for m in models:
-        model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
+        model_cards.append(ModelCard(id=m, root=m, permission=[]))
     return ModelList(data=model_cards)
 
 
