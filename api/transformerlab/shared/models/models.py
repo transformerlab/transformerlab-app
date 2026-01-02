@@ -1,5 +1,5 @@
 from typing import Optional, List
-from sqlalchemy import String, JSON, DateTime, func, Integer, Index, UUID
+from sqlalchemy import String, JSON, DateTime, func, Integer, Index, UUID, Date, Float
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID
 import uuid
@@ -192,3 +192,78 @@ class ApiKey(Base):
     expires_at: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     created_by_user_id: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class TeamQuota(Base):
+    """Team-level monthly quota configuration."""
+
+    __tablename__ = "team_quotas"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    team_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    monthly_quota_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    current_period_start: Mapped[Date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class UserQuotaOverride(Base):
+    """Per-user quota overrides (additional minutes beyond team quota)."""
+
+    __tablename__ = "user_quota_overrides"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String, nullable=False)
+    team_id: Mapped[str] = mapped_column(String, nullable=False)
+    monthly_quota_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    current_period_start: Mapped[Date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    __table_args__ = (Index("idx_user_quota_overrides_user_team", "user_id", "team_id", unique=True),)
+
+
+class QuotaUsage(Base):
+    """Tracks actual quota usage from completed REMOTE jobs."""
+
+    __tablename__ = "quota_usage"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String, nullable=False)
+    team_id: Mapped[str] = mapped_column(String, nullable=False)
+    job_id: Mapped[str] = mapped_column(String, nullable=False)
+    experiment_id: Mapped[str] = mapped_column(String, nullable=False)
+    minutes_used: Mapped[float] = mapped_column(Float, nullable=False)
+    period_start: Mapped[Date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index("idx_quota_usage_user_team_period", "user_id", "team_id", "period_start"),
+        Index("idx_quota_usage_job_id_team_id_unique", "job_id", "team_id", unique=True),
+    )
+
+
+class QuotaHold(Base):
+    """Tracks temporarily held quota when tasks are queued but not yet running."""
+
+    __tablename__ = "quota_holds"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String, nullable=False)
+    team_id: Mapped[str] = mapped_column(String, nullable=False)
+    task_id: Mapped[str] = mapped_column(String, nullable=False)
+    job_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    minutes_requested: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False)  # 'HELD', 'RELEASED', 'CONVERTED'
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    released_at: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("idx_quota_holds_user_team_status", "user_id", "team_id", "status"),
+        Index("idx_quota_holds_task_id", "task_id"),
+        Index("idx_quota_holds_job_id", "job_id"),
+    )

@@ -68,6 +68,7 @@ export default function EditTaskModal({
   const [diskSpace, setDiskSpace] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
+  const [minutesRequested, setMinutesRequested] = React.useState('60');
   const [setup, setSetup] = React.useState('');
   const [envVars, setEnvVars] = React.useState<
     Array<{ key: string; value: string }>
@@ -160,6 +161,15 @@ export default function EditTaskModal({
         : cfg.num_nodes != null
           ? String(cfg.num_nodes)
           : '',
+    );
+    setMinutesRequested(
+      isTemplate
+        ? taskAny.minutes_requested != null
+          ? String(taskAny.minutes_requested)
+          : '60'
+        : cfg.minutes_requested != null
+          ? String(cfg.minutes_requested)
+          : '60',
     );
     setSetup(
       isTemplate
@@ -425,6 +435,12 @@ export default function EditTaskModal({
       yamlData.envs = envs;
     }
 
+    // Minutes requested (task-level field)
+    if (minutesRequested) {
+      yamlData.minutes_requested =
+        parseInt(minutesRequested, 10) || minutesRequested;
+    }
+
     // Setup and run
     const setupValue = setupEditorRef?.current?.getValue?.() || setup;
     if (setupValue) yamlData.setup = setupValue;
@@ -609,6 +625,10 @@ export default function EditTaskModal({
           taskData.num_nodes = resources.num_nodes;
         }
       }
+      // Minutes requested (task-level field)
+      if (taskYaml.minutes_requested !== undefined) {
+        taskData.minutes_requested = taskYaml.minutes_requested;
+      }
 
       // Environment variables
       if (taskYaml.envs) {
@@ -623,11 +643,19 @@ export default function EditTaskModal({
         taskData.command = String(taskYaml.run);
       }
 
-      // GitHub
-      if (taskYaml.git_repo) {
+      // GitHub - support multiple naming conventions
+      if (taskYaml.github_repo_url) {
+        taskData.github_repo_url = String(taskYaml.github_repo_url);
+      } else if (taskYaml.git_repo) {
         taskData.github_repo_url = String(taskYaml.git_repo);
       }
-      if (taskYaml.git_repo_directory) {
+      if (taskYaml.github_repo_dir) {
+        taskData.github_directory = String(taskYaml.github_repo_dir);
+      } else if (taskYaml.github_repo_directory) {
+        taskData.github_directory = String(taskYaml.github_repo_directory);
+      } else if (taskYaml.github_directory) {
+        taskData.github_directory = String(taskYaml.github_directory);
+      } else if (taskYaml.git_repo_directory) {
         taskData.github_directory = String(taskYaml.git_repo_directory);
       }
 
@@ -666,6 +694,8 @@ export default function EditTaskModal({
         setAccelerators(taskData.accelerators);
       if (taskData.num_nodes !== undefined)
         setNumNodes(String(taskData.num_nodes));
+      if (taskData.minutes_requested !== undefined)
+        setMinutesRequested(String(taskData.minutes_requested));
       if (taskData.github_repo_url !== undefined)
         setGithubRepoUrl(taskData.github_repo_url);
       if (taskData.github_directory !== undefined)
@@ -887,6 +917,12 @@ export default function EditTaskModal({
           ? parsedData.num_nodes
           : numNodes
             ? parseInt(numNodes, 10)
+            : undefined,
+      minutes_requested:
+        useParsedData && parsedData.minutes_requested !== undefined
+          ? parsedData.minutes_requested
+          : minutesRequested
+            ? parseInt(minutesRequested, 10)
             : undefined,
       setup: setupValue || undefined,
       env_vars: Object.keys(envVarsObj).length > 0 ? envVarsObj : undefined,
@@ -1194,6 +1230,20 @@ export default function EditTaskModal({
                 </FormControl>
 
                 <FormControl sx={{ mt: 2 }}>
+                  <FormLabel>Minutes Requested (for quota tracking)</FormLabel>
+                  <Input
+                    type="number"
+                    value={minutesRequested}
+                    onChange={(e) => setMinutesRequested(e.target.value)}
+                    placeholder="e.g. 60"
+                  />
+                  <FormHelperText>
+                    Estimated minutes this task will run. Used for quota
+                    tracking.
+                  </FormHelperText>
+                </FormControl>
+
+                <FormControl sx={{ mt: 2 }}>
                   <FormLabel>Setup Command</FormLabel>
                   {/* <Textarea
                 minRows={2}
@@ -1411,49 +1461,30 @@ export default function EditTaskModal({
                   </FormHelperText>
                 </FormControl>
 
-                {githubEnabled && (
+                <FormControl sx={{ mt: 2 }}>
+                  <FormLabel>GitHub Repository URL (Optional)</FormLabel>
+                  <Input
+                    value={githubRepoUrl}
+                    onChange={(e) => setGithubRepoUrl(e.target.value)}
+                    placeholder="https://github.com/owner/repo.git"
+                  />
+                  <FormHelperText>
+                    GitHub repository URL to clone before running the task
+                  </FormHelperText>
+                </FormControl>
+
+                {githubRepoUrl && (
                   <FormControl sx={{ mt: 2 }}>
-                    <FormLabel>GitHub Repository (Read-Only)</FormLabel>
-                    <Stack spacing={2} sx={{ mt: 1 }}>
-                      <FormControl>
-                        <FormLabel>GitHub Repository URL</FormLabel>
-                        <Input
-                          value={githubRepoUrl}
-                          disabled
-                          readOnly
-                          placeholder="https://github.com/owner/repo.git"
-                          sx={{
-                            bgcolor: 'background.level1',
-                            cursor: 'not-allowed',
-                          }}
-                        />
-                        <FormHelperText>
-                          GitHub repository URL (read-only - source of truth)
-                        </FormHelperText>
-                      </FormControl>
-                      {githubDirectory && (
-                        <FormControl>
-                          <FormLabel>Directory Path</FormLabel>
-                          <Input
-                            value={githubDirectory}
-                            disabled
-                            readOnly
-                            placeholder="path/to/directory"
-                            sx={{
-                              bgcolor: 'background.level1',
-                              cursor: 'not-allowed',
-                            }}
-                          />
-                          <FormHelperText>
-                            Directory path (read-only - source of truth)
-                          </FormHelperText>
-                        </FormControl>
-                      )}
-                    </Stack>
-                    <FormHelperText sx={{ mt: 1 }}>
-                      GitHub repository settings are read-only. To change the
-                      repository, create a new task. You can edit the parsed
-                      configuration values above.
+                    <FormLabel>
+                      GitHub Repository Directory (Optional)
+                    </FormLabel>
+                    <Input
+                      value={githubDirectory}
+                      onChange={(e) => setGithubDirectory(e.target.value)}
+                      placeholder="path/to/directory"
+                    />
+                    <FormHelperText>
+                      Optional subdirectory path within the repository
                     </FormHelperText>
                   </FormControl>
                 )}

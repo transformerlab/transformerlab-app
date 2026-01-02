@@ -278,12 +278,35 @@ async def document_upload_links(experimentId: str, folder: str = None, data: dic
     if not storage.exists(markitdown_dir):
         storage.makedirs(markitdown_dir, exist_ok=True)
 
+    # Find the next available number for link_X.md files
+    existing_numbers = set()
+    if storage.exists(documents_dir):
+        try:
+            entries = storage.ls(documents_dir, detail=False)
+            for entry in entries:
+                name = os.path.basename(entry.rstrip("/"))
+                if name.startswith("link_") and name.endswith(".md"):
+                    try:
+                        # Extract number from "link_X.md"
+                        num_str = name[5:-3]  # Remove "link_" prefix and ".md" suffix
+                        existing_numbers.add(int(num_str))
+                    except ValueError:
+                        pass  # Skip if not a valid number
+        except Exception:
+            pass  # If listing fails, start from 1
+
+    # Find the starting number (next available)
+    next_number = 1
+    if existing_numbers:
+        next_number = max(existing_numbers) + 1
+
     md = MarkItDown(enable_plugins=False)
     for i, url in enumerate(urls):
         result = md.convert(url)
-        # Save the converted file
-        filename = storage.join(documents_dir, f"link_{i + 1}.md")
-        filename_md = storage.join(markitdown_dir, f"link_{i + 1}.md")
+        # Use the next available number, incrementing for each URL in the batch
+        file_number = next_number + i
+        filename = storage.join(documents_dir, f"link_{file_number}.md")
+        filename_md = storage.join(markitdown_dir, f"link_{file_number}.md")
         async with aiofiles.open(filename, "w", encoding="utf-8") as out_file:
             await out_file.write(result.markdown)
 

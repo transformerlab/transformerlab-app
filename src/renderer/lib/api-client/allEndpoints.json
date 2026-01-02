@@ -209,6 +209,10 @@
     "getSweepResults": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/sweep_results"
+    },
+    "downloadAllArtifacts": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/artifacts/download_all"
     }
   },
   "datasets": {
