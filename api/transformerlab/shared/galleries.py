@@ -28,6 +28,7 @@ GALLERY_FILES = [
     MODEL_GROUP_GALLERY_FILE,
     EXP_RECIPES_GALLERY_FILE,
     TASKS_GALLERY_FILE,
+    INTERACTIVE_GALLERY_FILE,
 ]
 
 TLAB_REMOTE_GALLERIES_URL = "https://raw.githubusercontent.com/transformerlab/galleries/main/"
