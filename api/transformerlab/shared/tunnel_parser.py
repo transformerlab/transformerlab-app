@@ -289,6 +289,75 @@ def get_vllm_tunnel_info(logs: str) -> dict:
     }
 
 
+def parse_ollama_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Parse Ollama server logs to extract tunnel URL.
+
+    Args:
+        logs: Job logs as string
+
+    Returns:
+        Tuple of (tunnel_url, ollama_url) - both can be None if not found
+    """
+    tunnel_url = None
+    ollama_url = None
+
+    try:
+        lines = logs.split("\n")
+
+        for line in lines:
+            # Parse cloudflared tunnel URL: "https://random-name.trycloudflare.com"
+            if not tunnel_url:
+                # Look for the full URL
+                match = re.search(r"(https://[a-zA-Z0-9-]+\.trycloudflare\.com)", line)
+                if match:
+                    tunnel_url = match.group(1)
+                else:
+                    # If no full URL, look for just the domain
+                    match = re.search(r"([a-zA-Z0-9-]+\.trycloudflare\.com)", line)
+                    if match:
+                        tunnel_url = f"https://{match.group(1)}"
+
+            # Also check for other tunnel services (ngrok, localtunnel, etc.)
+            if not tunnel_url:
+                # Check for ngrok: "https://abc123.ngrok-free.app"
+                match = re.search(r"(https://[a-zA-Z0-9-]+\.(?:ngrok-free\.app|ngrok\.io))", line)
+                if match:
+                    tunnel_url = match.group(1)
+
+        # Ollama URL is the same as tunnel URL (Ollama runs on port 11434, tunnel forwards to it)
+        ollama_url = tunnel_url
+
+        return tunnel_url, ollama_url
+
+    except Exception as e:
+        print(f"Error parsing Ollama tunnel logs: {e}")
+        return None, None
+
+
+def get_ollama_tunnel_info(logs: str) -> dict:
+    """
+    Get complete Ollama tunnel information from logs.
+
+    Args:
+        logs: Job logs as string
+
+    Returns:
+        Dictionary with tunnel information including full Ollama URL
+    """
+    tunnel_url, ollama_url = parse_ollama_tunnel_logs(logs)
+
+    # Tunnel is ready if we have the tunnel URL
+    is_ready = tunnel_url is not None
+
+    return {
+        "tunnel_url": tunnel_url,
+        "ollama_url": ollama_url,
+        "is_ready": is_ready,
+        "status": "ready" if is_ready else "loading",
+    }
+
+
 def get_ssh_tunnel_info(logs: str) -> dict:
     """
     Get complete SSH tunnel information from logs.
@@ -328,7 +397,7 @@ def get_tunnel_info(logs: str, interactive_type: str) -> dict:
 
     Args:
         logs: Job logs as string
-        interactive_type: Type of interactive task ('vscode', 'jupyter', 'vllm', 'ssh')
+        interactive_type: Type of interactive task ('vscode', 'jupyter', 'vllm', 'ollama', 'ssh')
 
     Returns:
         Dictionary with tunnel information specific to the interactive type
@@ -339,6 +408,8 @@ def get_tunnel_info(logs: str, interactive_type: str) -> dict:
         return get_jupyter_tunnel_info(logs)
     elif interactive_type == "vllm":
         return get_vllm_tunnel_info(logs)
+    elif interactive_type == "ollama":
+        return get_ollama_tunnel_info(logs)
     elif interactive_type == "ssh":
         return get_ssh_tunnel_info(logs)
     else:

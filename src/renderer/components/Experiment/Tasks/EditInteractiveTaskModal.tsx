@@ -59,7 +59,7 @@ export default function EditInteractiveTaskModal({
   const [memory, setMemory] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [interactiveType, setInteractiveType] = React.useState<
-    'vscode' | 'jupyter' | 'vllm' | 'ssh'
+    'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama'
   >('vscode');
   const [setup, setSetup] = React.useState('');
   const [command, setCommand] = React.useState('');
@@ -112,7 +112,7 @@ export default function EditInteractiveTaskModal({
     );
     const loadedInteractiveType = (taskAny.interactive_type ||
       cfg.interactive_type ||
-      'vscode') as 'vscode' | 'jupyter' | 'vllm' | 'ssh';
+      'vscode') as 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama';
     setInteractiveType(loadedInteractiveType);
 
     // Load environment variables based on interactive type
@@ -134,6 +134,11 @@ export default function EditInteractiveTaskModal({
       setModelName(parsedEnvVars.MODEL_NAME || '');
       setHfToken(parsedEnvVars.HF_TOKEN || '');
       setTpSize(parsedEnvVars.TP_SIZE || '1');
+    }
+
+    // Load Ollama environment variables if this is an Ollama task
+    if (loadedInteractiveType === 'ollama') {
+      setModelName(parsedEnvVars.MODEL_NAME || '');
     }
 
     // Load SSH environment variables if this is an SSH task
@@ -302,6 +307,17 @@ export default function EditInteractiveTaskModal({
         }
       }
 
+      // Add Ollama-specific environment variables if this is an Ollama task
+      if (interactiveType === 'ollama') {
+        const envVars: Record<string, string> = {};
+        if (modelName.trim()) {
+          envVars['MODEL_NAME'] = modelName.trim();
+        }
+        if (Object.keys(envVars).length > 0) {
+          body.env_vars = envVars;
+        }
+      }
+
       // Add SSH-specific environment variables if this is an SSH task
       if (interactiveType === 'ssh') {
         const envVars: Record<string, string> = {};
@@ -334,6 +350,7 @@ export default function EditInteractiveTaskModal({
     title.trim().length > 0 &&
     !!selectedProviderId &&
     (interactiveType !== 'vllm' || modelName.trim().length > 0) &&
+    (interactiveType !== 'ollama' || modelName.trim().length > 0) &&
     (interactiveType !== 'ssh' || ngrokAuthToken.trim().length > 0);
 
   return (
@@ -400,7 +417,9 @@ export default function EditInteractiveTaskModal({
                         ? 'Jupyter'
                         : interactiveType === 'vllm'
                           ? 'vLLM'
-                          : 'SSH'
+                          : interactiveType === 'ollama'
+                            ? 'Ollama'
+                            : 'SSH'
                   }
                   disabled
                   readOnly
@@ -447,6 +466,23 @@ export default function EditInteractiveTaskModal({
                     />
                     <FormHelperText>
                       Number of GPUs for tensor parallelism (default: 1)
+                    </FormHelperText>
+                  </FormControl>
+                </>
+              )}
+
+              {interactiveType === 'ollama' && (
+                <>
+                  <FormControl required>
+                    <FormLabel>Model Name</FormLabel>
+                    <Input
+                      value={modelName}
+                      onChange={(e) => setModelName(e.target.value)}
+                      placeholder="e.g. llama2, mistral, codellama"
+                    />
+                    <FormHelperText>
+                      Ollama model name (e.g. llama2, mistral, codellama). Use
+                      "ollama pull &lt;model&gt;" to download models.
                     </FormHelperText>
                   </FormControl>
                 </>

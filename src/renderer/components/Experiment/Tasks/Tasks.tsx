@@ -21,6 +21,7 @@ import InteractiveVSCodeModal from './InteractiveVSCodeModal';
 import InteractiveJupyterModal from './InteractiveJupyterModal';
 import InteractiveVllmModal from './InteractiveVllmModal';
 import InteractiveSshModal from './InteractiveSshModal';
+import InteractiveOllamaModal from './InteractiveOllamaModal';
 import EditTaskModal from './EditTaskModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -654,6 +655,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         }
       }
 
+      // Add Ollama-specific environment variables
+      if (interactiveType === 'ollama') {
+        if (data.model_name) {
+          envVars['MODEL_NAME'] = data.model_name;
+        }
+      }
+
       // Add SSH-specific environment variables
       if (interactiveType === 'ssh') {
         if (data.ngrok_auth_token) {
@@ -698,9 +706,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             ? 'Jupyter'
             : (data.interactive_type || 'vscode') === 'vllm'
               ? 'vLLM'
-              : (data.interactive_type || 'vscode') === 'ssh'
-                ? 'SSH'
-                : 'VS Code';
+              : (data.interactive_type || 'vscode') === 'ollama'
+                ? 'Ollama'
+                : (data.interactive_type || 'vscode') === 'ssh'
+                  ? 'SSH'
+                  : 'VS Code';
         addNotification({
           type: 'success',
           message: `Interactive template created. Use Queue to launch the ${interactiveTypeLabel} tunnel.`,
@@ -1098,6 +1108,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         if (interactiveType === 'ssh') {
           return (
             <InteractiveSshModal
+              jobId={interactiveJobForModal}
+              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+            />
+          );
+        }
+
+        if (interactiveType === 'ollama') {
+          return (
+            <InteractiveOllamaModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
             />
