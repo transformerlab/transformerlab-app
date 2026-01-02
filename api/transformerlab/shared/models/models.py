@@ -247,7 +247,7 @@ class QuotaUsage(Base):
 
     __table_args__ = (
         Index("idx_quota_usage_user_team_period", "user_id", "team_id", "period_start"),
-        Index("idx_quota_usage_job_id", "job_id"),
+        Index("idx_quota_usage_job_id_team_id_unique", "job_id", "team_id", unique=True),
     )
 
 
