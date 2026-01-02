@@ -18,13 +18,16 @@ import httpx
 
 # Using torch to test for CUDA and MPS support.
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi_cache.decorator import cache
 
 from dotenv import load_dotenv
+
+from transformerlab.middleware.cache import close_cache, init_cache
 
 load_dotenv()
 
@@ -120,6 +123,7 @@ async def lifespan(app: FastAPI):
     spawn_fastchat_controller_subprocess()
     await db.init()  # This now runs Alembic migrations internally
     # create_db_and_tables() is deprecated - migrations are handled in db.init()
+    await init_cache()
     print("✅ SEED DATA")
     # Initialize experiments
     seed_default_experiments()
@@ -142,6 +146,7 @@ async def lifespan(app: FastAPI):
     yield
     # Do the following at API Shutdown:
     await db.close()
+    await close_cache()
     # Run the clean up function
     cleanup_at_exit()
     print("FastAPI LIFESPAN: Complete")
@@ -496,6 +501,7 @@ async def server_worker_stop():
 
 
 @app.get("/server/worker_healthz", tags=["serverinfo"])
+@cache(expire=60)
 async def server_worker_health(request: Request):
     models = []
     result = []

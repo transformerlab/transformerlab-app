@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from transformerlab.utils.api_key_utils import mask_key
 from transformerlab.shared.models.user_model import get_async_session
@@ -8,9 +8,8 @@ from transformerlab.models.users import current_active_user
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
 from transformerlab.shared.remote_workspace import create_bucket_for_team
-
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, Set
 from sqlalchemy import select, delete, update, func, and_
 from datetime import datetime, timedelta
 from os import getenv
@@ -877,35 +876,29 @@ async def set_github_pat(
         raise HTTPException(status_code=500, detail="Failed to save GitHub PAT")
 
 
+_missing_logos: Set[str] = set()
+
+
 @router.get("/teams/{team_id}/logo")
-async def get_team_logo(
-    team_id: str,
-    user_and_team=Depends(get_user_and_team),
-):
-    """
-    Get team logo. Returns logo.png from workspace if it exists, otherwise returns 404.
-    Any team member can view the logo.
-    """
-    # Verify team_id matches the one in header
+async def get_team_logo(team_id: str, user_and_team=Depends(get_user_and_team)):
     if team_id != user_and_team["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    if team_id in _missing_logos:
+        # Already known missing → fail immediately
+        raise HTTPException(status_code=404, detail="Team logo not found")
 
     workspace_dir = get_workspace_dir()
     logo_path = storage.join(workspace_dir, "logo.png")
 
-    if not storage.exists(logo_path):
-        raise HTTPException(status_code=404, detail="Team logo not found")
-
     try:
-        # For local filesystem, return file directly
-        if not workspace_dir.startswith(("s3://", "gs://", "abfs://", "gcs://")):
-            return FileResponse(logo_path, media_type="image/png")
-        else:
-            # For remote storage, read and return as bytes
-            with storage.open(logo_path, "rb") as f:
-                return Response(content=f.read(), media_type="image/png")
+        if not storage.exists(logo_path):
+            _missing_logos.add(team_id)
+            raise HTTPException(status_code=404, detail="Team logo not found")
+
+        return FileResponse(logo_path, media_type="image/png")
     except Exception as e:
-        print(f"Error reading team logo: {e}")
+        print(f"Error reading logo: {e}")
         raise HTTPException(status_code=500, detail="Failed to read team logo")
 
 

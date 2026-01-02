@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import { Sheet } from '@mui/joy';
@@ -26,24 +26,28 @@ const OutputTerminal = ({
   const isProcessing = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleResize = debounce(() => {
-    if (termRef.current && terminalRef.current && fitAddon.current) {
-      // Check if container has dimensions before fitting
-      const rect = terminalRef.current.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        try {
-          // Additional check: ensure terminal element is in DOM and has xterm class
-          const xtermElement = terminalRef.current.querySelector('.xterm');
-          if (xtermElement) {
-            fitAddon.current.fit();
+  const handleResize = useMemo(
+    () =>
+      debounce(() => {
+        if (termRef.current && terminalRef.current && fitAddon.current) {
+          // Check if container has dimensions before fitting
+          const rect = terminalRef.current.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            try {
+              // Additional check: ensure terminal element is in DOM and has xterm class
+              const xtermElement = terminalRef.current.querySelector('.xterm');
+              if (xtermElement) {
+                fitAddon.current.fit();
+              }
+            } catch (error) {
+              // Ignore fit errors if dimensions aren't ready yet
+              console.warn('FitAddon fit failed:', error);
+            }
           }
-        } catch (error) {
-          // Ignore fit errors if dimensions aren't ready yet
-          console.warn('FitAddon fit failed:', error);
         }
-      }
-    }
-  }, 300);
+      }, 300),
+    [],
+  );
 
   const processQueue = useCallback(() => {
     if (!termRef.current) return;

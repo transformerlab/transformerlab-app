@@ -11,6 +11,7 @@ import shutil
 
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
+from fastapi_cache.decorator import cache
 
 from werkzeug.utils import secure_filename
 
@@ -348,6 +349,7 @@ async def run_installer_script(plugin_id: str):
 
 
 @router.get("/list", summary="List the plugins that are currently installed.")
+@cache(expire=3600)
 async def list_plugins() -> list[object]:
     """Get list of plugins that are currently installed"""
 

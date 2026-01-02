@@ -16,11 +16,14 @@ from werkzeug.utils import secure_filename
 
 from transformerlab.routers.plugins import plugin_gallery
 
+from fastapi_cache.decorator import cache
+from transformerlab.middleware import cache as cache_middleware
 
 router = APIRouter(prefix="/plugins", tags=["plugins"])
 
 
 @router.get("/list")
+@cache(expire=300)  # Cache for 5 minutes
 async def experiment_list_scripts(id: str, type: str = None, filter: str = None):
     """List all the scripts in the experiment"""
     # first get the experiment name:
@@ -149,6 +152,11 @@ async def plugin_download(id: int, plugin_slug: str):
 
     await client.aclose()
 
+    await client.aclose()
+
+    # Invalidate cache
+    await cache_middleware.clear_function_cache("transformerlab.routers.experiment.plugins", "experiment_list_scripts")
+
     return {"message": "OK"}
 
 
@@ -194,6 +202,8 @@ async def plugin_save_file_contents(id: str, pluginId: str, filename: str, file_
     with open(f"{script_path}/{filename}{file_ext}", "w") as f:
         print(f"Writing {script_path}/{filename}{file_ext}")
         f.write(file_contents)
+
+    await cache_middleware.clear_function_cache("transformerlab.routers.experiment.plugins", "experiment_list_scripts")
 
     return {"message": f"{script_path}/{filename}{file_ext} file contents saved"}
 
@@ -296,6 +306,8 @@ async def plugin_create_new_file(id: str, pluginId: str, filename: str):
         # f.write("")
         pass
 
+    await cache_middleware.clear_function_cache("transformerlab.routers.experiment.plugins", "experiment_list_scripts")
+
     return {"message": f"{script_path}/{filename}{file_ext} file created"}
 
 
@@ -333,6 +345,8 @@ async def plugin_delete_file(id: str, pluginId: str, filename: str):
 
     # now delete the file contents
     os.remove(f"{script_path}/{filename}{file_ext}")
+
+    await cache_middleware.clear_function_cache("transformerlab.routers.experiment.plugins", "experiment_list_scripts")
 
     return {"message": f"{script_path}/{filename}{file_ext} file deleted"}
 
@@ -373,5 +387,7 @@ async def plugin_new_plugin_directory(id: str, pluginId: str):
         json_content = json.dumps(index_json, indent=4)
         print(json_content)
         f.write(json.dumps(index_json, indent=4))
+
+    await cache_middleware.clear_function_cache("transformerlab.routers.experiment.plugins", "experiment_list_scripts")
 
     return {"message": f"{script_path} directory created"}

@@ -363,8 +363,10 @@ function StatsBar({ connection, setConnection }) {
 export default function Header({ connection, setConnection }) {
   const { experimentInfo } = useExperimentInfo();
   const [mode, setMode] = useState<string>('local');
-  const { isError, server } = useServerStats();
+  const { isError } = useServerStats();
   const [connectionLost, setConnectionLost] = useState(false);
+
+  const isS3Mode = mode === 's3';
 
   // Fetch healthz to get the mode
   useEffect(() => {
@@ -415,10 +417,17 @@ export default function Header({ connection, setConnection }) {
     // Check immediately
     checkConnectionHealth();
 
-    // Then check every 2 seconds for faster detection
-    checkInterval = setInterval(() => {
-      checkConnectionHealth();
-    }, 2000);
+    // Then check every 2 seconds for faster detection (or 20s if cloud/s3)
+    const isCloudMode =
+      isS3Mode ||
+      (window as any).platform?.appmode === 'cloud' ||
+      process.env.MULTIUSER === 'true';
+    checkInterval = setInterval(
+      () => {
+        checkConnectionHealth();
+      },
+      isCloudMode ? 20000 : 2000,
+    );
 
     return () => {
       isMounted = false;
@@ -426,7 +435,7 @@ export default function Header({ connection, setConnection }) {
         clearInterval(checkInterval);
       }
     };
-  }, [connection]);
+  }, [connection, isS3Mode]);
 
   // Also check if useServerStats reports an error (as a backup detection method)
   // Note: The direct apiHealthz check above is the primary method, this is just a backup
@@ -438,7 +447,6 @@ export default function Header({ connection, setConnection }) {
     // Don't override connectionLost=false here because the direct check above handles that
   }, [connection, isError]);
 
-  const isS3Mode = mode === 's3';
   // Show connection lost modal when we have a connection but it's lost
   const showConnectionLostModal = connection !== '' && connectionLost;
 

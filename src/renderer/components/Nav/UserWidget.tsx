@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Chip from '@mui/joy/Chip';
 import Avatar from '@mui/joy/Avatar';
 import Stack from '@mui/joy/Stack';
@@ -45,14 +45,25 @@ export default function LoginChip({}: Props) {
 
   const { data: teams } = useAPI('teams', ['list']);
   const [teamLogos, setTeamLogos] = useState<Record<string, string>>({});
+  const fetchedTeamIdsRef = useRef<Set<string>>(new Set());
 
-  // Fetch logos for all teams
+  // Fetch logos for all teams (only once per team, with caching)
   useEffect(() => {
     if (!teams?.teams || !authContext?.fetchWithAuth) return;
 
     const fetchLogos = async () => {
+      const fetchedIds = fetchedTeamIdsRef.current;
+
+      // Only fetch logos for teams we haven't tried yet
+      const teamsToFetch = teams.teams.filter(
+        (team: any) => !fetchedIds.has(team.id),
+      );
+
+      if (teamsToFetch.length === 0) return;
+
       const logoMap: Record<string, string> = {};
-      const promises = teams.teams.map(async (team: any) => {
+      const promises = teamsToFetch.map(async (team: any) => {
+        fetchedIds.add(team.id);
         try {
           const res = await authContext.fetchWithAuth(`teams/${team.id}/logo`, {
             method: 'GET',
@@ -67,11 +78,13 @@ export default function LoginChip({}: Props) {
         }
       });
       await Promise.all(promises);
-      setTeamLogos(logoMap);
+      if (Object.keys(logoMap).length > 0) {
+        setTeamLogos((prev) => ({ ...prev, ...logoMap }));
+      }
     };
 
     fetchLogos();
-  }, [teams?.teams, authContext?.fetchWithAuth]);
+  }, [teams?.teams, authContext?.fetchWithAuth, authContext]);
 
   // Cleanup object URLs when component unmounts
   useEffect(() => {

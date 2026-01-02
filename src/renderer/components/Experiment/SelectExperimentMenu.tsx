@@ -465,6 +465,21 @@ export default function SelectExperimentMenu({ models }) {
                     alert('Experiment name is required.');
                     return;
                   }
+                  // Check for reserved names that could conflict with API routes
+                  const reservedNames = [
+                    'new',
+                    'create',
+                    'delete',
+                    'update',
+                    'all',
+                    'list',
+                  ];
+                  if (reservedNames.includes(name.toLowerCase())) {
+                    alert(
+                      `Experiment name "${name}" is reserved and cannot be used.`,
+                    );
+                    return;
+                  }
                   // Check if experiment name already exists (fallback, as API also checks)
                   if (data?.some((exp: any) => exp.name === name)) {
                     alert('Experiment name already exists.');
