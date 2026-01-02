@@ -819,7 +819,7 @@ def format_artifact(file_path: str, storage) -> Optional[Dict[str, any]]:
         filename = file_path.split("/")[-1] if "/" in file_path else file_path
         metadata = get_file_metadata(file_path, storage)
 
-        artifact = {"filename": filename}
+        artifact = {"filename": filename, "full_path": file_path}
 
         if metadata["mtime"] is not None:
             artifact["date"] = datetime.fromtimestamp(metadata["mtime"]).isoformat()
@@ -882,3 +882,35 @@ def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict]:
         print(f"Error reading artifacts directory {artifacts_dir}: {e}")
 
     return artifacts
+
+
+def get_all_artifact_paths(job_id: str, storage) -> List[str]:
+    """
+    Get all artifact file paths for a job.
+    Uses get_artifacts_from_sdk and get_artifacts_from_directory to retrieve paths.
+    """
+    # 1. Try SDK method
+    sdk_artifacts = get_artifacts_from_sdk(job_id, storage)
+    if sdk_artifacts:
+        return [a.get("full_path") for a in sdk_artifacts if a.get("full_path")]
+
+    # 2. Fallback to artifacts directory
+    job = job_get(job_id)
+    if job:
+        job_data = job.get("job_data", {})
+        artifacts_dir = job_data.get("artifacts_dir")
+
+        if not artifacts_dir:
+            try:
+                from lab.dirs import get_job_artifacts_dir
+
+                artifacts_dir = get_job_artifacts_dir(job_id)
+            except Exception:
+                pass
+
+        if artifacts_dir:
+            dir_artifacts = get_artifacts_from_directory(artifacts_dir, storage)
+            if dir_artifacts:
+                return [a.get("full_path") for a in dir_artifacts if a.get("full_path")]
+
+    return []
