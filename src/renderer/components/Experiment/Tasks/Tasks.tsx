@@ -18,6 +18,10 @@ import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveVSCodeModal from './InteractiveVSCodeModal';
+import InteractiveJupyterModal from './InteractiveJupyterModal';
+import InteractiveVllmModal from './InteractiveVllmModal';
+import InteractiveSshModal from './InteractiveSshModal';
+import InteractiveOllamaModal from './InteractiveOllamaModal';
 import EditTaskModal from './EditTaskModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -600,18 +604,71 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
     setIsSubmitting(true);
     try {
-      const defaultSetup = `
-export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gnupg software-properties-common apt-transport-https wget \
-&& wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg \
-&& sudo install -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/ \
-&& echo "deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
-| sudo tee /etc/apt/sources.list.d/vscode.list \
-&& sudo apt update && sudo apt install -y code;`.trim();
+      const interactiveType = data.interactive_type || 'vscode';
 
-      const defaultCommand =
-        'code tunnel --accept-server-license-terms --disable-telemetry'.trim();
+      // Fetch interactive gallery to get setup and command templates
+      let defaultSetup: string;
+      let defaultCommand: string;
+
+      try {
+        const galleryResponse = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.InteractiveGallery(experimentInfo.id),
+          {
+            method: 'GET',
+          },
+        );
+
+        if (galleryResponse.ok) {
+          const galleryData = await galleryResponse.json();
+          const template = galleryData.data?.find(
+            (t: any) => t.interactive_type === interactiveType,
+          );
+
+          if (!template) {
+            throw new Error(
+              `Template not found for interactive type: ${interactiveType}`,
+            );
+          }
+
+          defaultSetup = template.setup || '';
+          defaultCommand = template.command || '';
+        } else {
+          throw new Error('Failed to fetch interactive gallery');
+        }
+      } catch (error) {
+        throw error;
+      }
 
       // Create template with flat structure
+      const envVars: Record<string, string> = {};
+
+      // Add vLLM-specific environment variables
+      if (interactiveType === 'vllm') {
+        if (data.model_name) {
+          envVars['MODEL_NAME'] = data.model_name;
+        }
+        if (data.hf_token) {
+          envVars['HF_TOKEN'] = data.hf_token;
+        }
+        if (data.tp_size) {
+          envVars['TP_SIZE'] = data.tp_size;
+        }
+      }
+
+      // Add Ollama-specific environment variables
+      if (interactiveType === 'ollama') {
+        if (data.model_name) {
+          envVars['MODEL_NAME'] = data.model_name;
+        }
+      }
+
+      // Add SSH-specific environment variables
+      if (interactiveType === 'ssh') {
+        if (data.ngrok_auth_token) {
+          envVars['NGROK_AUTH_TOKEN'] = data.ngrok_auth_token;
+        }
+      }
+
       const templatePayload: any = {
         name: data.title,
         type: 'REMOTE',
@@ -624,9 +681,10 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         accelerators: data.accelerators || undefined,
         setup: defaultSetup,
         subtype: 'interactive',
-        interactive_type: data.interactive_type || 'vscode',
+        interactive_type: interactiveType,
         provider_id: providerMeta.id,
         provider_name: providerMeta.name,
+        env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
       };
 
       const response = await chatAPI.authenticatedFetch(
@@ -643,10 +701,19 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
       if (response.ok) {
         setInteractiveModalOpen(false);
         await templatesMutate();
+        const interactiveTypeLabel =
+          (data.interactive_type || 'vscode') === 'jupyter'
+            ? 'Jupyter'
+            : (data.interactive_type || 'vscode') === 'vllm'
+              ? 'vLLM'
+              : (data.interactive_type || 'vscode') === 'ollama'
+                ? 'Ollama'
+                : (data.interactive_type || 'vscode') === 'ssh'
+                  ? 'SSH'
+                  : 'VS Code';
         addNotification({
           type: 'success',
-          message:
-            'Interactive template created. Use Queue to launch the VS Code tunnel.',
+          message: `Interactive template created. Use Queue to launch the ${interactiveTypeLabel} tunnel.`,
         });
       } else {
         const txt = await response.text();
@@ -1008,10 +1075,61 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         onClose={() => setViewEvalResultsFromJob(-1)}
         jobId={viewEvalResultsFromJob}
       />
-      <InteractiveVSCodeModal
-        jobId={interactiveJobForModal}
-        setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-      />
+      {(() => {
+        // Find the job to determine which modal to show
+        const job = jobs.find(
+          (j: any) => String(j.id) === String(interactiveJobForModal),
+        );
+        const interactiveType =
+          job?.job_data?.interactive_type ||
+          (typeof job?.job_data === 'string'
+            ? JSON.parse(job?.job_data || '{}')?.interactive_type
+            : null) ||
+          'vscode';
+
+        if (interactiveType === 'jupyter') {
+          return (
+            <InteractiveJupyterModal
+              jobId={interactiveJobForModal}
+              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+            />
+          );
+        }
+
+        if (interactiveType === 'vllm') {
+          return (
+            <InteractiveVllmModal
+              jobId={interactiveJobForModal}
+              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+            />
+          );
+        }
+
+        if (interactiveType === 'ssh') {
+          return (
+            <InteractiveSshModal
+              jobId={interactiveJobForModal}
+              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+            />
+          );
+        }
+
+        if (interactiveType === 'ollama') {
+          return (
+            <InteractiveOllamaModal
+              jobId={interactiveJobForModal}
+              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+            />
+          );
+        }
+
+        return (
+          <InteractiveVSCodeModal
+            jobId={interactiveJobForModal}
+            setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+          />
+        );
+      })()}
       <PreviewDatasetModal
         open={previewDatasetModal.open}
         setOpen={(open: boolean) =>

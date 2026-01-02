@@ -486,6 +486,13 @@ async def task_gallery():
     return {"status": "success", "data": gallery}
 
 
+@router.get("/gallery/interactive", summary="List all interactive task templates")
+async def interactive_gallery():
+    """Get the interactive tasks gallery (vscode, jupyter, vllm, ssh templates)"""
+    gallery = galleries.get_interactive_gallery()
+    return {"status": "success", "data": gallery}
+
+
 @router.post("/gallery/import", summary="Import a task from the tasks gallery")
 async def import_task_from_gallery(
     experimentId: str,
