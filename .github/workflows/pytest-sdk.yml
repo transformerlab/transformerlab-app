@@ -41,7 +41,5 @@ jobs:
           uv pip install -e .
 
       - name: Run SDK tests (uv)
-        env:
-          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: |
           uv run pytest

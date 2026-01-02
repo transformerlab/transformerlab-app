@@ -1,5 +1,6 @@
 import os
 import importlib
+import pytest
 
 
 def _fresh_import_dirs(monkeypatch):
@@ -11,7 +12,8 @@ def _fresh_import_dirs(monkeypatch):
     return importlib.import_module("lab.dirs")
 
 
-def test_dirs_structure_created(monkeypatch, tmp_path):
+@pytest.mark.asyncio
+async def test_dirs_structure_created(monkeypatch, tmp_path):
     home = tmp_path / ".tfl_home"
     ws = tmp_path / ".tfl_ws"
     home.mkdir()
@@ -22,12 +24,12 @@ def test_dirs_structure_created(monkeypatch, tmp_path):
     dirs = _fresh_import_dirs(monkeypatch)
 
     # Key directories exist
-    assert os.path.isdir(dirs.get_experiments_dir())
-    assert os.path.isdir(dirs.get_jobs_dir())
-    assert os.path.isdir(dirs.get_models_dir())
-    assert os.path.isdir(dirs.get_datasets_dir())
-    assert os.path.isdir(dirs.get_temp_dir())
-    assert os.path.isdir(dirs.get_prompt_templates_dir())
-    assert os.path.isdir(dirs.get_tools_dir())
-    assert os.path.isdir(dirs.get_batched_prompts_dir())
+    assert os.path.isdir(await dirs.get_experiments_dir())
+    assert os.path.isdir(await dirs.get_jobs_dir())
+    assert os.path.isdir(await dirs.get_models_dir())
+    assert os.path.isdir(await dirs.get_datasets_dir())
+    assert os.path.isdir(await dirs.get_temp_dir())
+    assert os.path.isdir(await dirs.get_prompt_templates_dir())
+    assert os.path.isdir(await dirs.get_tools_dir())
+    assert os.path.isdir(await dirs.get_batched_prompts_dir())
     assert os.path.isdir(dirs.get_galleries_cache_dir())

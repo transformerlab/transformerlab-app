@@ -50,7 +50,7 @@ async def list_prompts():
     batched_prompts = []
     from lab.dirs import get_batched_prompts_dir
 
-    batched_prompts_dir = get_batched_prompts_dir()
+    batched_prompts_dir = await get_batched_prompts_dir()
     for file in os.listdir(batched_prompts_dir):
         if file.endswith(".json"):
             with open(os.path.join(batched_prompts_dir, file), "r") as f:
@@ -74,7 +74,7 @@ async def new_prompt(name: Annotated[str, Body()], prompts: Annotated[Union[list
     slug = slugify(name)
     from lab.dirs import get_batched_prompts_dir
 
-    prompts_dir = get_batched_prompts_dir()
+    prompts_dir = await get_batched_prompts_dir()
     prompt_file = os.path.join(prompts_dir, f"{slug}.json")
 
     with open(prompt_file, "w") as f:
@@ -91,7 +91,7 @@ async def delete_prompt(prompt_id: str):
     prompt_id = secure_filename(prompt_id)
     from lab.dirs import get_batched_prompts_dir
 
-    prompts_dir = get_batched_prompts_dir()
+    prompts_dir = await get_batched_prompts_dir()
     prompt_file = os.path.join(prompts_dir, f"{prompt_id}.json")
 
     if os.path.exists(prompt_file):

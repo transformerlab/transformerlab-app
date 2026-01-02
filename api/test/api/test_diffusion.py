@@ -1,6 +1,24 @@
 import pytest
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock, AsyncMock, mock_open
 import json
+
+
+class AsyncContextManagerMock:
+    """Helper class to create async context manager mocks for storage.open"""
+
+    def __init__(self, file_content=""):
+        self.file_content = file_content
+        self.file_obj = MagicMock()
+        self.file_obj.read = AsyncMock(return_value=file_content)
+        self.file_obj.write = AsyncMock()
+        self.file_obj.__aiter__ = AsyncMock(return_value=iter([]))
+        self.file_obj.__anext__ = AsyncMock(side_effect=StopAsyncIteration)
+
+    async def __aenter__(self):
+        return self.file_obj
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return False
 
 
 def test_diffusion_generate_success(client):
@@ -189,7 +207,7 @@ def test_is_valid_diffusion_model_empty_class_name(client):
 def test_get_history_success(client):
     """Test getting diffusion history with default parameters"""
     with (
-        patch("transformerlab.routers.experiment.diffusion.load_history") as mock_load_history,
+        patch("transformerlab.routers.experiment.diffusion.load_history", new_callable=AsyncMock) as mock_load_history,
     ):
         mock_history = MagicMock()
         mock_history.images = []
@@ -211,7 +229,7 @@ def test_get_history_success(client):
 def test_get_history_with_pagination(client):
     """Test getting diffusion history with pagination parameters"""
     with (
-        patch("transformerlab.routers.experiment.diffusion.load_history") as mock_load_history,
+        patch("transformerlab.routers.experiment.diffusion.load_history", new_callable=AsyncMock) as mock_load_history,
     ):
         mock_history = MagicMock()
         mock_history.images = []
@@ -247,7 +265,9 @@ def test_get_history_invalid_offset(client):
 def test_get_image_by_id_not_found(client):
     """Test getting a non-existent image by ID"""
     with (
-        patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
+        patch(
+            "transformerlab.routers.experiment.diffusion.find_image_by_id", new_callable=AsyncMock
+        ) as mock_find_image,
     ):
         mock_find_image.return_value = None
 
@@ -259,7 +279,9 @@ def test_get_image_by_id_not_found(client):
 def test_get_image_by_id_index_out_of_range(client):
     """Test getting image with index out of range"""
     with (
-        patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
+        patch(
+            "transformerlab.routers.experiment.diffusion.find_image_by_id", new_callable=AsyncMock
+        ) as mock_find_image,
         patch("transformerlab.routers.experiment.diffusion.get_images_dir", return_value="/fake/images"),
         patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
         patch("transformerlab.routers.experiment.diffusion.storage.isdir", return_value=True),
@@ -280,7 +302,9 @@ def test_get_image_by_id_index_out_of_range(client):
 def test_get_image_info_by_id_success(client):
     """Test getting image metadata by ID"""
     with (
-        patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
+        patch(
+            "transformerlab.routers.experiment.diffusion.find_image_by_id", new_callable=AsyncMock
+        ) as mock_find_image,
         patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
         patch("transformerlab.routers.experiment.diffusion.storage.isdir", return_value=True),
         patch("transformerlab.routers.experiment.diffusion.storage.ls", return_value=["0.png", "1.png", "2.png"]),
@@ -303,7 +327,9 @@ def test_get_image_info_by_id_success(client):
 def test_get_image_count_success(client):
     """Test getting image count for an image set"""
     with (
-        patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
+        patch(
+            "transformerlab.routers.experiment.diffusion.find_image_by_id", new_callable=AsyncMock
+        ) as mock_find_image,
         patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
         patch("transformerlab.routers.experiment.diffusion.storage.isdir", return_value=True),
         patch("transformerlab.routers.experiment.diffusion.storage.ls", return_value=["0.png", "1.png"]),
@@ -322,14 +348,23 @@ def test_get_image_count_success(client):
         assert data["num_images"] == 2
 
 
-def test_delete_image_from_history_not_found(client):
+@pytest.mark.asyncio
+async def test_delete_image_from_history_not_found(client):
     """Test deleting a non-existent image from history"""
+    mock_file_content = '[{"id": "other-id", "image_path": "/fake/path.png"}]'
+    mock_context = AsyncContextManagerMock(mock_file_content)
+
     with (
-        patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
+        patch(
+            "transformerlab.routers.experiment.diffusion.get_history_file_path",
+            new_callable=AsyncMock,
+            return_value="/fake/history.json",
+        ),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", new_callable=AsyncMock, return_value=True),
         patch(
             "transformerlab.routers.experiment.diffusion.storage.open",
-            mock_open(read_data='[{"id": "other-id", "image_path": "/fake/path.png"}]'),
+            new_callable=AsyncMock,
+            return_value=mock_context,
         ),
     ):
         resp = client.delete("/experiment/test-exp-name/diffusion/history/non-existent-id")
@@ -337,27 +372,37 @@ def test_delete_image_from_history_not_found(client):
         assert "Image with ID non-existent-id not found" in resp.json()["detail"]
 
 
-def test_create_dataset_from_history_success(client):
+@pytest.mark.asyncio
+async def test_create_dataset_from_history_success(client):
     """Test creating a dataset from history images"""
     with (
-        patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
-        patch("transformerlab.routers.experiment.diffusion.Dataset.get") as mock_dataset_get,
-        patch("transformerlab.routers.experiment.diffusion.create_local_dataset") as mock_create_dataset,
-        patch("transformerlab.routers.experiment.diffusion.storage.makedirs"),
-        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
-        patch("transformerlab.routers.experiment.diffusion.storage.isdir", return_value=True),
+        patch(
+            "transformerlab.routers.experiment.diffusion.find_image_by_id", new_callable=AsyncMock
+        ) as mock_find_image,
+        patch("transformerlab.routers.experiment.diffusion.Dataset.get", new_callable=AsyncMock) as mock_dataset_get,
+        patch(
+            "transformerlab.routers.experiment.diffusion.create_local_dataset", new_callable=AsyncMock
+        ) as mock_create_dataset,
+        patch("transformerlab.routers.experiment.diffusion.storage.makedirs", new_callable=AsyncMock),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", new_callable=AsyncMock, return_value=True),
+        patch("transformerlab.routers.experiment.diffusion.storage.isdir", new_callable=AsyncMock, return_value=True),
         patch(
             "transformerlab.routers.experiment.diffusion.storage.ls",
+            new_callable=AsyncMock,
             return_value=["/fake/path/folder/0.png", "/fake/path/folder/1.png"],
         ),
-        patch("transformerlab.routers.experiment.diffusion.storage.copy_file"),
-        patch("transformerlab.routers.experiment.diffusion.storage.open", mock_open()),
+        patch("transformerlab.routers.experiment.diffusion.storage.copy_file", new_callable=AsyncMock),
+        patch(
+            "transformerlab.routers.experiment.diffusion.storage.open",
+            new_callable=AsyncMock,
+            return_value=AsyncContextManagerMock(""),
+        ),
     ):
         # Mock Dataset.get to raise FileNotFoundError for non-existent dataset (new behavior)
         mock_dataset_get.side_effect = FileNotFoundError("Directory for Dataset with id 'test-dataset' not found")
         # Configure Dataset.get().get_dir()
         mock_dataset = MagicMock()
-        mock_dataset.get_dir.return_value = "/fake/dataset"
+        mock_dataset.get_dir = AsyncMock(return_value="/fake/dataset")
         mock_create_dataset.return_value = mock_dataset
 
         # Create mock image
@@ -416,15 +461,17 @@ def test_create_dataset_invalid_image_ids(client):
 def test_create_dataset_existing_dataset(client):
     """Test creating dataset with name that already exists"""
     with (
-        patch("transformerlab.routers.experiment.diffusion.Dataset.get") as mock_dataset_get,
-        patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
+        patch("transformerlab.routers.experiment.diffusion.Dataset.get", new_callable=AsyncMock) as mock_dataset_get,
+        patch(
+            "transformerlab.routers.experiment.diffusion.find_image_by_id", new_callable=AsyncMock
+        ) as mock_find_image,
     ):
         # Mock Dataset.get to raise FileNotFoundError for non-existent dataset (new behavior)
         # but return a mock dataset for existing dataset
-        def mock_get_side_effect(dataset_id):
+        async def mock_get_side_effect(dataset_id):
             if dataset_id == "existing-dataset":
                 mock_dataset = MagicMock()
-                mock_dataset.get_dir.return_value = "/fake/path/to/existing-dataset"
+                mock_dataset.get_dir = AsyncMock(return_value="/fake/path/to/existing-dataset")
                 return mock_dataset
             else:
                 raise FileNotFoundError(f"Directory for Dataset with id '{dataset_id}' not found")
@@ -450,8 +497,10 @@ def test_create_dataset_existing_dataset(client):
 def test_create_dataset_no_images_found(client):
     """Test creating dataset when no images are found for given IDs"""
     with (
-        patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
-        patch("transformerlab.routers.experiment.diffusion.Dataset.get") as mock_dataset_get,
+        patch(
+            "transformerlab.routers.experiment.diffusion.find_image_by_id", new_callable=AsyncMock
+        ) as mock_find_image,
+        patch("transformerlab.routers.experiment.diffusion.Dataset.get", new_callable=AsyncMock) as mock_dataset_get,
     ):
         # Mock Dataset.get to raise FileNotFoundError for non-existent dataset (new behavior)
         mock_dataset_get.side_effect = FileNotFoundError("Directory for Dataset with id 'test-dataset' not found")
@@ -621,21 +670,27 @@ def test_is_valid_diffusion_model_inpainting_detection(client, inpainting_flag):
             assert "Architecture matches allowed SD" in data["reason"]
 
 
-def test_load_history_success():
+@pytest.mark.asyncio
+async def test_load_history_success():
     """Test loading history with valid data"""
+    mock_file_content = '[{"id": "test-id", "model": "test-model", "prompt": "test prompt", "adaptor": "", "adaptor_scale": 1.0, "num_inference_steps": 20, "guidance_scale": 7.5, "seed": 42, "image_path": "/fake/path.png", "timestamp": "2023-01-01T00:00:00", "upscaled": false, "upscale_factor": 1, "negative_prompt": "", "eta": 0.0, "clip_skip": 0, "guidance_rescale": 0.0, "height": 512, "width": 512, "generation_time": 5.0, "num_images": 1, "input_image_path": "", "strength": 0.8, "is_img2img": false, "mask_image_path": "", "is_inpainting": false}]'
+    mock_context = AsyncContextManagerMock(mock_file_content)
     with (
-        patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
+        patch(
+            "transformerlab.routers.experiment.diffusion.get_history_file_path",
+            new_callable=AsyncMock,
+            return_value="/fake/history.json",
+        ),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", new_callable=AsyncMock, return_value=True),
         patch(
             "transformerlab.routers.experiment.diffusion.storage.open",
-            mock_open(
-                read_data='[{"id": "test-id", "model": "test-model", "prompt": "test prompt", "adaptor": "", "adaptor_scale": 1.0, "num_inference_steps": 20, "guidance_scale": 7.5, "seed": 42, "image_path": "/fake/path.png", "timestamp": "2023-01-01T00:00:00", "upscaled": false, "upscale_factor": 1, "negative_prompt": "", "eta": 0.0, "clip_skip": 0, "guidance_rescale": 0.0, "height": 512, "width": 512, "generation_time": 5.0, "num_images": 1, "input_image_path": "", "strength": 0.8, "is_img2img": false, "mask_image_path": "", "is_inpainting": false}]'
-            ),
+            new_callable=AsyncMock,
+            return_value=mock_context,
         ),
     ):
         from transformerlab.routers.experiment.diffusion import load_history
 
-        result = load_history(limit=50, offset=0, experiment_name=None)
+        result = await load_history(limit=50, offset=0, experiment_name=None)
 
         assert result.total == 1
         assert len(result.images) == 1
@@ -644,7 +699,8 @@ def test_load_history_success():
         assert result.images[0].prompt == "test prompt"
 
 
-def test_load_history_with_pagination():
+@pytest.mark.asyncio
+async def test_load_history_with_pagination():
     """Test loading history with pagination parameters"""
     history_data = []
     for i in range(10):
@@ -678,16 +734,23 @@ def test_load_history_with_pagination():
             }
         )
 
+    mock_context = AsyncContextManagerMock(json.dumps(history_data))
     with (
-        patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
         patch(
-            "transformerlab.routers.experiment.diffusion.storage.open", mock_open(read_data=json.dumps(history_data))
+            "transformerlab.routers.experiment.diffusion.get_history_file_path",
+            new_callable=AsyncMock,
+            return_value="/fake/history.json",
+        ),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", new_callable=AsyncMock, return_value=True),
+        patch(
+            "transformerlab.routers.experiment.diffusion.storage.open",
+            new_callable=AsyncMock,
+            return_value=mock_context,
         ),
     ):
         from transformerlab.routers.experiment.diffusion import load_history
 
-        result = load_history(limit=3, offset=2, experiment_name=None)
+        result = await load_history(limit=3, offset=2, experiment_name=None)
 
         assert result.total == 10
         assert len(result.images) == 3
@@ -696,36 +759,52 @@ def test_load_history_with_pagination():
         assert result.images[2].id == "test-id-4"
 
 
-def test_load_history_no_file():
+@pytest.mark.asyncio
+async def test_load_history_no_file():
     """Test loading history when history file doesn't exist"""
     with (
-        patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=False),
+        patch(
+            "transformerlab.routers.experiment.diffusion.get_history_file_path",
+            new_callable=AsyncMock,
+            return_value="/fake/history.json",
+        ),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", new_callable=AsyncMock, return_value=False),
     ):
         from transformerlab.routers.experiment.diffusion import load_history
 
-        result = load_history(experiment_name=None)
+        result = await load_history(experiment_name=None)
 
         assert result.total == 0
         assert len(result.images) == 0
 
 
-def test_load_history_invalid_json():
+@pytest.mark.asyncio
+async def test_load_history_invalid_json():
     """Test loading history with corrupted JSON file"""
+    mock_context = AsyncContextManagerMock("invalid json")
     with (
-        patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("lab.storage.exists", return_value=True),
-        patch("transformerlab.routers.experiment.diffusion.storage.open", mock_open(read_data="invalid json")),
+        patch(
+            "transformerlab.routers.experiment.diffusion.get_history_file_path",
+            new_callable=AsyncMock,
+            return_value="/fake/history.json",
+        ),
+        patch("lab.storage.exists", new_callable=AsyncMock, return_value=True),
+        patch(
+            "transformerlab.routers.experiment.diffusion.storage.open",
+            new_callable=AsyncMock,
+            return_value=mock_context,
+        ),
     ):
         from transformerlab.routers.experiment.diffusion import load_history
 
-        result = load_history(experiment_name=None)
+        result = await load_history(experiment_name=None)
 
         assert result.total == 0
         assert len(result.images) == 0
 
 
-def test_find_image_by_id_success():
+@pytest.mark.asyncio
+async def test_find_image_by_id_success():
     """Test finding an image by ID successfully"""
     history_data = [
         {
@@ -784,16 +863,23 @@ def test_find_image_by_id_success():
         },
     ]
 
+    mock_context = AsyncContextManagerMock(json.dumps(history_data))
     with (
-        patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
         patch(
-            "transformerlab.routers.experiment.diffusion.storage.open", mock_open(read_data=json.dumps(history_data))
+            "transformerlab.routers.experiment.diffusion.get_history_file_path",
+            new_callable=AsyncMock,
+            return_value="/fake/history.json",
+        ),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", new_callable=AsyncMock, return_value=True),
+        patch(
+            "transformerlab.routers.experiment.diffusion.storage.open",
+            new_callable=AsyncMock,
+            return_value=mock_context,
         ),
     ):
         from transformerlab.routers.experiment.diffusion import find_image_by_id
 
-        result = find_image_by_id("test-id-2", experiment_name=None)
+        result = await find_image_by_id("test-id-2", experiment_name=None)
 
         assert result is not None
         assert result.id == "test-id-2"
@@ -801,7 +887,8 @@ def test_find_image_by_id_success():
         assert result.prompt == "test prompt 2"
 
 
-def test_find_image_by_id_not_found(client):
+@pytest.mark.asyncio
+async def test_find_image_by_id_not_found(client):
     """Test finding an image by ID when it doesn't exist"""
     history_data = [
         {
@@ -833,43 +920,65 @@ def test_find_image_by_id_not_found(client):
         }
     ]
 
+    mock_context = AsyncContextManagerMock(json.dumps(history_data))
     with (
-        patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=True),
         patch(
-            "transformerlab.routers.experiment.diffusion.storage.open", mock_open(read_data=json.dumps(history_data))
+            "transformerlab.routers.experiment.diffusion.get_history_file_path",
+            new_callable=AsyncMock,
+            return_value="/fake/history.json",
+        ),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", new_callable=AsyncMock, return_value=True),
+        patch(
+            "transformerlab.routers.experiment.diffusion.storage.open",
+            new_callable=AsyncMock,
+            return_value=mock_context,
         ),
     ):
         from transformerlab.routers.experiment.diffusion import find_image_by_id
 
-        result = find_image_by_id("non-existent-id", experiment_name=None)
+        result = await find_image_by_id("non-existent-id", experiment_name=None)
 
         assert result is None
 
 
-def test_find_image_by_id_no_file():
+@pytest.mark.asyncio
+async def test_find_image_by_id_no_file():
     """Test finding an image by ID when history file doesn't exist"""
     with (
-        patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("transformerlab.routers.experiment.diffusion.storage.exists", return_value=False),
+        patch(
+            "transformerlab.routers.experiment.diffusion.get_history_file_path",
+            new_callable=AsyncMock,
+            return_value="/fake/history.json",
+        ),
+        patch("transformerlab.routers.experiment.diffusion.storage.exists", new_callable=AsyncMock, return_value=False),
     ):
         from transformerlab.routers.experiment.diffusion import find_image_by_id
 
-        result = find_image_by_id("test-id", experiment_name=None)
+        result = await find_image_by_id("test-id", experiment_name=None)
 
         assert result is None
 
 
-def test_find_image_by_id_invalid_json():
+@pytest.mark.asyncio
+async def test_find_image_by_id_invalid_json():
     """Test finding an image by ID with corrupted JSON file"""
+    mock_context = AsyncContextManagerMock("invalid json")
     with (
-        patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
-        patch("lab.storage.exists", return_value=True),
-        patch("transformerlab.routers.experiment.diffusion.storage.open", mock_open(read_data="invalid json")),
+        patch(
+            "transformerlab.routers.experiment.diffusion.get_history_file_path",
+            new_callable=AsyncMock,
+            return_value="/fake/history.json",
+        ),
+        patch("lab.storage.exists", new_callable=AsyncMock, return_value=True),
+        patch(
+            "transformerlab.routers.experiment.diffusion.storage.open",
+            new_callable=AsyncMock,
+            return_value=mock_context,
+        ),
     ):
         from transformerlab.routers.experiment.diffusion import find_image_by_id
 
-        result = find_image_by_id("test-id", experiment_name=None)
+        result = await find_image_by_id("test-id", experiment_name=None)
 
         assert result is None
 

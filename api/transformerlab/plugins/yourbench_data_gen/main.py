@@ -1,3 +1,4 @@
+import asyncio
 import os
 import yaml
 import subprocess
@@ -20,12 +21,12 @@ def generate_config():
     print("Model loaded successfully")
     tlab_gen.progress_update(30)
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = asyncio.run(get_workspace_dir())
 
     tlab_gen.params.documents_dir = storage.join(
         workspace_dir, "experiments", tlab_gen.params.experiment_name, "documents", docs
     )
-    if not storage.isdir(tlab_gen.params.documents_dir):
+    if not asyncio.run(storage.isdir(tlab_gen.params.documents_dir)):
         raise FileNotFoundError("Please provide a directory containing all your files instead of individual files")
 
     base_url = getattr(trlab_model, "base_url", None)
@@ -126,8 +127,8 @@ def run_yourbench():
     output_dir = tlab_gen.get_output_file_path(dir_only=True)
     tlab_gen.params.local_dataset_dir = output_dir
     tlab_gen.params.output_dir = storage.join(output_dir, "temp")
-    if not storage.exists(tlab_gen.params.output_dir):
-        storage.makedirs(tlab_gen.params.output_dir)
+    if not asyncio.run(storage.exists(tlab_gen.params.output_dir)):
+        asyncio.run(storage.makedirs(tlab_gen.params.output_dir))
     config_path = storage.join(output_dir, f"yourbench_config_{tlab_gen.params.job_id}.yaml")
 
     # Generate the configuration
@@ -137,8 +138,11 @@ def run_yourbench():
     tlab_gen.progress_update(20)
 
     # Write the configuration to a file
-    with storage.open(config_path, "w") as config_file:
-        yaml.dump(config, config_file, default_flow_style=False)
+    async def _write_config():
+        async with await storage.open(config_path, "w") as config_file:
+            await config_file.write(yaml.dump(config, default_flow_style=False))
+
+    asyncio.run(_write_config())
 
     print(f"Configuration written to {config_path}")
     tlab_gen.add_job_data("config_file", config_path)
@@ -146,7 +150,7 @@ def run_yourbench():
     tlab_gen.progress_update(30)
 
     # Get the yourbench directory path
-    workspace_dir = get_workspace_dir()
+    workspace_dir = asyncio.run(get_workspace_dir())
     current_dir = storage.join(workspace_dir, "plugins", "yourbench_data_gen")
 
     # Run yourbench with the configuration

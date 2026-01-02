@@ -109,11 +109,11 @@ class TLabPlugin:
 
                     job_data = self.job.get_json_data()
                     if job_data.get("job_data", {}).get("completion_status", "") != "success":
-                        self.job.update_job_data_field("completion_status", "success")
+                        asyncio.run(self.job.update_job_data_field("completion_status", "success"))
 
                     job_data = self.job.get_json_data()
                     if job_data.get("job_data", {}).get("completion_status", "") != "Job completed successfully":
-                        self.job.update_job_data_field("completion_details", "Job completed successfully")
+                        asyncio.run(self.job.update_job_data_field("completion_details", "Job completed successfully"))
 
                     job_data = self.job.get_json_data()
                     if (
@@ -137,8 +137,10 @@ class TLabPlugin:
                     print(error_msg)
 
                     # Update job with failure status
-                    self.job.update_job_data_field("completion_status", "failed")
-                    self.job.update_job_data_field("completion_details", "Error occurred while executing job")
+                    asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
+                    asyncio.run(
+                        self.job.update_job_data_field("completion_details", "Error occurred while executing job")
+                    )
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                     if manual_logging and getattr(self.params, "wandb_run") is not None:
                         self.wandb_run.finish()
@@ -197,8 +199,8 @@ class TLabPlugin:
 
                         # Update final progress and success status
                         self.progress_update(progress_end)
-                        self.job.update_job_data_field("completion_status", "success")
-                        self.job.update_job_data_field("completion_details", "Job completed successfully")
+                        asyncio.run(self.job.update_job_data_field("completion_status", "success"))
+                        asyncio.run(self.job.update_job_data_field("completion_details", "Job completed successfully"))
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                         if manual_logging and getattr(self, "wandb_run") is not None:
                             self.wandb_run.finish()
@@ -215,8 +217,10 @@ class TLabPlugin:
                         print(error_msg)
 
                         # Update job with failure status
-                        self.job.update_job_data_field("completion_status", "failed")
-                        self.job.update_job_data_field("completion_details", "Error occurred while executing job")
+                        asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
+                        asyncio.run(
+                            self.job.update_job_data_field("completion_details", "Error occurred while executing job")
+                        )
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                         if manual_logging and getattr(self, "wandb_run") is not None:
                             self.wandb_run.finish()
@@ -237,17 +241,17 @@ class TLabPlugin:
 
     def progress_update(self, progress: int):
         """Update job progress using SDK directly"""
-        job_data = self.job.get_job_data()
+        job_data = asyncio.run(self.job.get_job_data())
         if job_data.get("sweep_progress") is not None:
             if int(job_data.get("sweep_progress")) != 100:
-                self.job.update_job_data_field("sweep_subprogress", progress)
+                asyncio.run(self.job.update_job_data_field("sweep_subprogress", progress))
                 return
 
-        self.job.update_progress(progress)
+        asyncio.run(self.job.update_progress(progress))
         # Check stop status using SDK
-        job_data = self.job.get_job_data()
+        job_data = asyncio.run(self.job.get_job_data())
         if job_data.get("stop", False):
-            self.job.update_status("STOPPED")
+            asyncio.run(self.job.update_status("STOPPED"))
             raise KeyboardInterrupt("Job stopped by user")
 
     def get_experiment_config(self, experiment_name: str):
@@ -256,7 +260,7 @@ class TLabPlugin:
 
     def add_job_data(self, key: str, value: Any):
         """Add data to job using SDK directly"""
-        self.job.update_job_data_field(key, value)
+        asyncio.run(self.job.update_job_data_field(key, value))
 
     def load_dataset(self, dataset_types: List[str] = ["train"], config_name: str = None):
         """Decorator for loading datasets with error handling"""
@@ -264,8 +268,8 @@ class TLabPlugin:
         self._ensure_args_parsed()
 
         if not self.params.dataset_name:
-            self.job.update_job_data_field("completion_status", "failed")
-            self.job.update_job_data_field("completion_details", "Dataset name not provided")
+            asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
+            asyncio.run(self.job.update_job_data_field("completion_details", "Dataset name not provided"))
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise ValueError("Dataset name not provided")
 
@@ -274,18 +278,25 @@ class TLabPlugin:
             dataset_target = get_dataset_path(self.params.dataset_name)
 
             # If this is a directory, prepare data_files excluding index.json and hidden files
-            is_dir = isinstance(dataset_target, str) and (
-                storage.isdir(dataset_target) if storage.exists(dataset_target) else os.path.isdir(dataset_target)
-            )
+            async def _check_dir():
+                if await storage.exists(dataset_target):
+                    return await storage.isdir(dataset_target)
+                return os.path.isdir(dataset_target)
+
+            is_dir = isinstance(dataset_target, str) and asyncio.run(_check_dir())
             data_files_map = None
             if is_dir:
                 try:
-                    if storage.exists(dataset_target):
-                        entries_full = storage.ls(dataset_target)
-                        # normalize to basenames
-                        entries = [e.rstrip("/").split("/")[-1] for e in entries_full]
-                    else:
-                        entries = os.listdir(dataset_target)
+
+                    async def _get_entries():
+                        if await storage.exists(dataset_target):
+                            entries_full = await storage.ls(dataset_target)
+                            # normalize to basenames
+                            return [e.rstrip("/").split("/")[-1] for e in entries_full]
+                        else:
+                            return os.listdir(dataset_target)
+
+                    entries = asyncio.run(_get_entries())
                 except Exception:
                     entries = []
 
@@ -297,17 +308,21 @@ class TLabPlugin:
                     lower = name.lower()
                     if not (lower.endswith(".json") or lower.endswith(".jsonl") or lower.endswith(".csv")):
                         continue
-                    full_path = (
-                        storage.join(dataset_target, name)
-                        if storage.exists(dataset_target)
-                        else os.path.join(dataset_target, name)
-                    )
-                    if storage.exists(dataset_target):
-                        if storage.isfile(full_path):
-                            filtered_files.append(full_path)
-                    else:
-                        if os.path.isfile(full_path):
-                            filtered_files.append(full_path)
+
+                    async def _check_file():
+                        if await storage.exists(dataset_target):
+                            full_path = storage.join(dataset_target, name)
+                            if await storage.isfile(full_path):
+                                return full_path
+                        else:
+                            full_path = os.path.join(dataset_target, name)
+                            if os.path.isfile(full_path):
+                                return full_path
+                        return None
+
+                    full_path = asyncio.run(_check_file())
+                    if full_path:
+                        filtered_files.append(full_path)
 
                 if len(filtered_files) > 0:
                     data_files_map = {"train": filtered_files}
@@ -390,8 +405,8 @@ class TLabPlugin:
         except Exception as e:
             error_msg = f"Error loading dataset: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)
-            self.job.update_job_data_field("completion_status", "failed")
-            self.job.update_job_data_field("completion_details", "Failed to load dataset")
+            asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
+            asyncio.run(self.job.update_job_data_field("completion_details", "Failed to load dataset"))
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 

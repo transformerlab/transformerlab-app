@@ -6,10 +6,11 @@ from . import storage
 
 
 class Dataset(BaseLabResource):
-    def get_dir(self):
+    async def get_dir(self):
         """Abstract method on BaseLabResource"""
         dataset_id_safe = secure_filename(str(self.id))
-        return storage.join(get_datasets_dir(), dataset_id_safe)
+        datasets_dir = await get_datasets_dir()
+        return storage.join(datasets_dir, dataset_id_safe)
 
     def _default_json(self):
         # Default metadata modeled after API dataset table fields
@@ -21,7 +22,7 @@ class Dataset(BaseLabResource):
             "json_data": {},
         }
 
-    def set_metadata(
+    async def set_metadata(
         self,
         *,
         location: str | None = None,
@@ -29,7 +30,7 @@ class Dataset(BaseLabResource):
         size: int | None = None,
         json_data: dict | None = None,
     ):
-        data = self.get_json_data()
+        data = await self.get_json_data()
         if location is not None:
             data["location"] = location
         if description is not None:
@@ -43,29 +44,29 @@ class Dataset(BaseLabResource):
                 current = {}
             current.update(json_data)
             data["json_data"] = current
-        self._set_json_data(data)
+        await self._set_json_data(data)
 
-    def get_metadata(self):
-        return self.get_json_data()
+    async def get_metadata(self):
+        return await self.get_json_data()
 
     @staticmethod
-    def list_all():
+    async def list_all():
         results = []
-        datasets_dir = get_datasets_dir()
-        if not storage.isdir(datasets_dir):
+        datasets_dir = await get_datasets_dir()
+        if not await storage.isdir(datasets_dir):
             return results
         try:
-            entries = storage.ls(datasets_dir, detail=False)
+            entries = await storage.ls(datasets_dir, detail=False)
         except Exception:
             entries = []
         for full in entries:
-            if not storage.isdir(full):
+            if not await storage.isdir(full):
                 continue
             # Attempt to read index.json (or latest snapshot)
             try:
                 entry = full.rstrip("/").split("/")[-1]
                 ds = Dataset(entry)
-                results.append(ds.get_metadata())
+                results.append(await ds.get_metadata())
             except Exception:
                 continue
         return results

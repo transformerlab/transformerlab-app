@@ -2,7 +2,9 @@ import os
 import re
 import subprocess
 import json
+import asyncio
 from lab import storage
+from lab.dirs import get_workspace_dir
 
 import pandas as pd
 import torch
@@ -88,10 +90,10 @@ def run_evaluation():
         model_args = f"model={model_name},trust_remote_code=True"
 
         if tlab_evals.params.model_adapter and tlab_evals.params.model_adapter.strip() != "":
-            from transformerlab.plugin import WORKSPACE_DIR
+            workspace_dir = asyncio.run(get_workspace_dir())
 
             adapter_path = storage.join(
-                WORKSPACE_DIR,
+                workspace_dir,
                 "adaptors",
                 secure_filename(tlab_evals.params.model_name),
                 tlab_evals.params.model_adapter,
@@ -115,10 +117,10 @@ def run_evaluation():
         model_args = f"pretrained={model_name},trust_remote_code=True"
 
         if tlab_evals.params.model_adapter and tlab_evals.params.model_adapter.strip() != "":
-            from transformerlab.plugin import WORKSPACE_DIR
+            workspace_dir = asyncio.run(get_workspace_dir())
 
             adapter_path = storage.join(
-                WORKSPACE_DIR,
+                workspace_dir,
                 "adaptors",
                 secure_filename(tlab_evals.params.model_name),
                 tlab_evals.params.model_adapter,

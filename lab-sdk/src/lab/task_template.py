@@ -10,7 +10,8 @@ class TaskTemplate(BaseLabResource):
     def get_dir(self):
         """Abstract method on BaseLabResource"""
         task_id_safe = secure_filename(str(self.id))
-        return storage.join(get_task_dir(), task_id_safe)
+        task_dir = get_task_dir()
+        return storage.join(task_dir, task_id_safe)
 
     def _default_json(self):
         # Default metadata - all fields stored directly (not nested in inputs/outputs/config)

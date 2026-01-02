@@ -9,6 +9,7 @@ import re
 import subprocess
 import os
 import time
+import asyncio
 
 
 # Import tlab_trainer from the SDK
@@ -91,10 +92,10 @@ def train_mlx_lora():
             print(lora_config)
 
     # Directory for storing temporary working files
-    workspace_dir = get_workspace_dir()
+    workspace_dir = asyncio.run(get_workspace_dir())
     data_directory = storage.join(workspace_dir, "plugins", "mlx_lora_trainer", "data")
-    if not storage.exists(data_directory):
-        storage.makedirs(data_directory)
+    if not asyncio.run(storage.exists(data_directory)):
+        asyncio.run(storage.makedirs(data_directory))
 
     prepare_dataset_files(
         data_directory=data_directory,
@@ -108,11 +109,11 @@ def train_mlx_lora():
     # Set output directory for the adaptor
     adaptor_output_dir = tlab_trainer.params.get("adaptor_output_dir", "")
     if adaptor_output_dir == "" or adaptor_output_dir is None:
-        workspace_dir = get_workspace_dir()
+        workspace_dir = asyncio.run(get_workspace_dir())
         adaptor_output_dir = storage.join(workspace_dir, "adaptors", tlab_trainer.params.model_name, adaptor_name)
         print("Using default adaptor output directory:", adaptor_output_dir)
-    if not storage.exists(adaptor_output_dir):
-        storage.makedirs(adaptor_output_dir)
+    if not asyncio.run(storage.exists(adaptor_output_dir)):
+        asyncio.run(storage.makedirs(adaptor_output_dir))
 
     # Get Python executable (from venv if available)
     python_executable = get_python_executable(plugin_dir)
@@ -229,12 +230,12 @@ def train_mlx_lora():
         if "/" in model_name:
             model_name = model_name.split("/")[-1]
         fused_model_name = f"{model_name}_{adaptor_name}"
-        workspace_dir = get_workspace_dir()
+        workspace_dir = asyncio.run(get_workspace_dir())
         fused_model_location = storage.join(workspace_dir, "models", fused_model_name)
 
         # Make the directory to save the fused model
-        if not storage.exists(fused_model_location):
-            storage.makedirs(fused_model_location)
+        if not asyncio.run(storage.exists(fused_model_location)):
+            asyncio.run(storage.makedirs(fused_model_location))
 
         fuse_popen_command = [
             python_executable,

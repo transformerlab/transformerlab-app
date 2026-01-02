@@ -16,7 +16,8 @@ def tmp_dataset_dir(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_load_local_dataset_filters_index_and_hidden(tmp_dataset_dir: Path, monkeypatch):
+@pytest.mark.asyncio
+async def test_load_local_dataset_filters_index_and_hidden(tmp_dataset_dir: Path, monkeypatch):
     # Import inside test to ensure module path resolution for monkeypatching
     from transformerlab.services import dataset_service
 
@@ -30,7 +31,7 @@ def test_load_local_dataset_filters_index_and_hidden(tmp_dataset_dir: Path, monk
 
     monkeypatch.setattr(dataset_service, "load_dataset", fake_load_dataset)
 
-    result = dataset_service.load_local_dataset(str(tmp_dataset_dir))
+    result = await dataset_service.load_local_dataset(str(tmp_dataset_dir))
 
     assert result == {"ok": True}
     assert captured["path"] == str(tmp_dataset_dir)
@@ -43,7 +44,8 @@ def test_load_local_dataset_filters_index_and_hidden(tmp_dataset_dir: Path, monk
     assert captured["streaming"] is False
 
 
-def test_load_local_dataset_uses_explicit_data_files(tmp_path: Path, monkeypatch):
+@pytest.mark.asyncio
+async def test_load_local_dataset_uses_explicit_data_files(tmp_path: Path, monkeypatch):
     from transformerlab.services import dataset_service
 
     # Explicit files provided (note: function should not re-filter these)
@@ -60,7 +62,9 @@ def test_load_local_dataset_uses_explicit_data_files(tmp_path: Path, monkeypatch
 
     monkeypatch.setattr(dataset_service, "load_dataset", fake_load_dataset)
 
-    result = dataset_service.load_local_dataset(str(tmp_path), data_files=["keep.me", "index.json"], streaming=True)
+    result = await dataset_service.load_local_dataset(
+        str(tmp_path), data_files=["keep.me", "index.json"], streaming=True
+    )
 
     assert result == {"ok": True}
     assert captured["path"] == str(tmp_path)
@@ -72,7 +76,8 @@ def test_load_local_dataset_uses_explicit_data_files(tmp_path: Path, monkeypatch
     assert captured["streaming"] is True
 
 
-def test_load_local_dataset_fallback_when_no_valid_files(tmp_path: Path, monkeypatch):
+@pytest.mark.asyncio
+async def test_load_local_dataset_fallback_when_no_valid_files(tmp_path: Path, monkeypatch):
     from transformerlab.services import dataset_service
 
     # Only metadata/hidden files present
@@ -89,7 +94,7 @@ def test_load_local_dataset_fallback_when_no_valid_files(tmp_path: Path, monkeyp
 
     monkeypatch.setattr(dataset_service, "load_dataset", fake_load_dataset)
 
-    result = dataset_service.load_local_dataset(str(tmp_path))
+    result = await dataset_service.load_local_dataset(str(tmp_path))
 
     assert result == {"ok": True}
     assert captured["path"] == str(tmp_path)

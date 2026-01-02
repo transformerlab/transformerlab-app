@@ -451,7 +451,7 @@ def train_with_trl(quick_test=True):
         lab.log(f"✅ Model saved to job models directory: {saved_path}")
 
         # Get the captured wandb URL from job data for reporting
-        job_data = lab.job.get_job_data()
+        job_data = lab.get_job_data()
         captured_wandb_url = job_data.get("wandb_run_url", "None")
         lab.log(f"📋 Final wandb URL stored in job data: {captured_wandb_url}")
 

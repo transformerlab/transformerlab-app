@@ -1,8 +1,112 @@
 import os
 import posixpath
 import contextvars
+from types import TracebackType
+from typing import Optional, Type
 
 import fsspec
+import aiofiles
+
+
+class AsyncFileWrapper:
+    """
+    Wrapper to make sync file objects work with async context managers.
+    This allows sync filesystem file objects to be used with 'async with'.
+    """
+
+    def __init__(self, file_obj):
+        # Store the file object (which may be a context manager)
+        self._file_obj = file_obj
+        self.file_obj = None
+        self._is_context_manager = hasattr(file_obj, "__enter__") and hasattr(file_obj, "__exit__")
+
+    async def __aenter__(self):
+        # Enter the sync context manager if it is one
+        if self._is_context_manager:
+            self.file_obj = self._file_obj.__enter__()
+        else:
+            self.file_obj = self._file_obj
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        if self._is_context_manager:
+            # Exit the sync context manager
+            self._file_obj.__exit__(exc_type, exc_val, exc_tb)
+        elif self.file_obj and hasattr(self.file_obj, "close"):
+            # Just close if no context manager protocol
+            self.file_obj.close()
+        self.file_obj = None
+
+    # Override common I/O methods to make them async-compatible
+    async def read(self, size=-1):
+        """Read from the file (async wrapper for sync read)."""
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return self.file_obj.read(size)
+
+    async def write(self, data):
+        """Write to the file (async wrapper for sync write)."""
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return self.file_obj.write(data)
+
+    async def readline(self, size=-1):
+        """Read a line from the file (async wrapper for sync readline)."""
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return self.file_obj.readline(size)
+
+    async def readlines(self, hint=-1):
+        """Read all lines from the file (async wrapper for sync readlines)."""
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return self.file_obj.readlines(hint)
+
+    async def seek(self, offset, whence=0):
+        """Seek to a position in the file (async wrapper for sync seek)."""
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return self.file_obj.seek(offset, whence)
+
+    async def tell(self):
+        """Get current file position (async wrapper for sync tell)."""
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return self.file_obj.tell()
+
+    async def flush(self):
+        """Flush the file buffer (async wrapper for sync flush)."""
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return self.file_obj.flush()
+
+    def __getattr__(self, name):
+        # Delegate all other attributes to the underlying file object
+        if self.file_obj is None:
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+        return getattr(self.file_obj, name)
+
+    def __iter__(self):
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        return iter(self.file_obj)
+
+    def __aiter__(self):
+        # For async iteration, we need to wrap the sync iterator
+        return self
+
+    async def __anext__(self):
+        if self.file_obj is None:
+            raise ValueError("File object not initialized. Use 'async with' to open the file.")
+        try:
+            return next(self.file_obj)
+        except StopIteration:
+            raise StopAsyncIteration
 
 
 # Context variable for storage URI (set by host app/session)
@@ -54,17 +158,17 @@ def _get_fs_and_root():
     return fs, root
 
 
-def root_uri() -> str:
+async def root_uri() -> str:
     _, root = _get_fs_and_root()
     return root
 
 
-def filesystem():
+async def filesystem():
     fs, _ = _get_fs_and_root()
     return fs
 
 
-def debug_info() -> dict:
+async def debug_info() -> dict:
     """Debug information about the current storage configuration."""
     context_uri = _current_tfl_storage_uri.get()
     env_uri = os.getenv("TFL_STORAGE_URI")
@@ -84,41 +188,45 @@ def join(*parts: str) -> str:
     return posixpath.join(*parts)
 
 
-def root_join(*parts: str) -> str:
-    return join(root_uri(), *parts)
+async def root_join(*parts: str) -> str:
+    root = await root_uri()
+    return join(root, *parts)
 
 
-def exists(path: str) -> bool:
-    return filesystem().exists(path)
+async def exists(path: str) -> bool:
+    fs = await filesystem()
+    return fs.exists(path)
 
 
-def isdir(path: str, fs=None) -> bool:
+async def isdir(path: str, fs=None) -> bool:
     try:
-        filesys = fs if fs is not None else filesystem()
+        filesys = fs if fs is not None else await filesystem()
         return filesys.isdir(path)
     except Exception:
         return False
 
 
-def isfile(path: str) -> bool:
+async def isfile(path: str) -> bool:
     try:
-        return filesystem().isfile(path)
+        fs = await filesystem()
+        return fs.isfile(path)
     except Exception:
         return False
 
 
-def makedirs(path: str, exist_ok: bool = True) -> None:
+async def makedirs(path: str, exist_ok: bool = True) -> None:
+    fs = await filesystem()
     try:
-        filesystem().makedirs(path, exist_ok=exist_ok)
+        fs.makedirs(path, exist_ok=exist_ok)
     except TypeError:
         # Some filesystems don't support exist_ok parameter
-        if not exist_ok or not exists(path):
-            filesystem().makedirs(path)
+        if not exist_ok or not await exists(path):
+            fs.makedirs(path)
 
 
-def ls(path: str, detail: bool = False, fs=None):
+async def ls(path: str, detail: bool = False, fs=None):
     # Use provided filesystem or get default
-    filesys = fs if fs is not None else filesystem()
+    filesys = fs if fs is not None else await filesystem()
     # Let fsspec parse the URI
     paths = filesys.ls(path, detail=detail)
     # Dont include the current path in the list
@@ -139,11 +247,12 @@ def ls(path: str, detail: bool = False, fs=None):
     return paths
 
 
-def find(path: str) -> list[str]:
-    return filesystem().find(path)
+async def find(path: str) -> list[str]:
+    fs = await filesystem()
+    return fs.find(path)
 
 
-def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
+async def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
     """
     Walk directory tree, yielding (root, dirs, files) tuples.
 
@@ -156,29 +265,35 @@ def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
     Yields:
         (root, dirs, files) tuples similar to os.walk()
     """
-    return filesystem().walk(path, maxdepth=maxdepth, topdown=topdown, on_error=on_error)
+    fs = await filesystem()
+    return fs.walk(path, maxdepth=maxdepth, topdown=topdown, on_error=on_error)
 
 
-def rm(path: str) -> None:
-    if exists(path):
-        filesystem().rm(path)
+async def rm(path: str) -> None:
+    if await exists(path):
+        fs = await filesystem()
+        fs.rm(path)
 
 
-def rm_tree(path: str) -> None:
-    if exists(path):
+async def rm_tree(path: str) -> None:
+    if await exists(path):
+        fs = await filesystem()
         try:
-            filesystem().rm(path, recursive=True)
+            fs.rm(path, recursive=True)
         except TypeError:
             # Some filesystems don't support recursive parameter
             # Use find() to get all files and remove them individually
-            files = find(path)
+            files = await find(path)
             for file_path in reversed(files):  # Remove files before directories
-                filesystem().rm(file_path)
+                fs.rm(file_path)
 
 
-def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kwargs):
+async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kwargs):
     """
     Open a file for reading or writing.
+
+    For local files, uses aiofiles for truly async file I/O.
+    For remote files (S3, GCS, etc.), uses fsspec sync file objects.
 
     Args:
         path: Path to the file
@@ -188,18 +303,29 @@ def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kwargs):
         **kwargs: Additional arguments passed to filesystem.open()
 
     Returns:
-        File-like object
+        File-like object (context manager for remote, async context manager for local)
     """
     if uncached:
         # Create an uncached filesystem instance
         # If fs is provided, use it to infer protocol/storage options, otherwise infer from path
-        filesys = _get_uncached_filesystem(path, fs=fs)
+        filesys = await _get_uncached_filesystem(path, fs=fs)
     else:
-        filesys = fs if fs is not None else filesystem()
-    return filesys.open(path, mode=mode, **kwargs)
+        filesys = fs if fs is not None else await filesystem()
+
+    # Check if this is a local filesystem
+    is_local = isinstance(filesys, fsspec.implementations.local.LocalFileSystem)
+
+    if is_local:
+        # Use aiofiles for local files to get truly async file I/O
+        return aiofiles.open(path, mode=mode, **kwargs)
+    else:
+        # Use sync filesystem open method, but wrap it in async context manager
+        # so it can be used with 'async with'
+        sync_file = filesys.open(path, mode=mode, **kwargs)
+        return AsyncFileWrapper(sync_file)
 
 
-def _get_uncached_filesystem(path: str, fs=None):
+async def _get_uncached_filesystem(path: str, fs=None):
     """
     Get a filesystem instance without caching for reading files.
     This prevents Etag caching issues when files are being modified concurrently.
@@ -245,13 +371,13 @@ def _get_uncached_filesystem(path: str, fs=None):
 
             if protocol:
                 # Create a new uncached filesystem with the same protocol and options
-                fs_uncached = fsspec.filesystem(
-                    protocol,
-                    skip_instance_cache=True,
-                    default_fill_cache=False,
-                    use_listings_cache=False,
-                    **storage_options,
-                )
+                fs_kwargs = {
+                    "skip_instance_cache": True,
+                    "default_fill_cache": False,
+                    "use_listings_cache": False,
+                }
+                fs_kwargs.update(storage_options)
+                fs_uncached = fsspec.filesystem(protocol, **fs_kwargs)
                 return fs_uncached
         except Exception:
             # If extraction fails, fall through to path-based inference
@@ -291,19 +417,36 @@ def _get_uncached_filesystem(path: str, fs=None):
             return fs_uncached
         else:
             # For local filesystems, just use the default
-            return filesystem()
+            return await filesystem()
 
 
-def copy_file(src: str, dest: str) -> None:
+def _get_fs_for_path(path: str):
+    """
+    Get filesystem for a given path, handling S3 storage_options correctly.
+    Returns (filesystem, parsed_path) tuple.
+    """
+    storage_options = {}
+    if path.startswith("s3://") and _AWS_PROFILE:
+        storage_options["profile"] = _AWS_PROFILE
+    return fsspec.core.url_to_fs(path, storage_options=storage_options if storage_options else None)
+
+
+async def copy_file(src: str, dest: str) -> None:
     """Copy a single file from src to dest across arbitrary filesystems."""
     # Use streaming copy to be robust across different filesystems
-    with fsspec.open(src, "rb") as r, fsspec.open(dest, "wb") as w:
-        for chunk in iter_chunks(r):
-            w.write(chunk)
+    # Get sync filesystems with proper storage_options handling
+    src_fs, _ = _get_fs_for_path(src)
+    dest_fs, _ = _get_fs_for_path(dest)
+
+    # Use sync filesystem methods (wrapped in async function for API compatibility)
+    with src_fs.open(src, "rb") as r:
+        with dest_fs.open(dest, "wb") as w:
+            for chunk in iter_chunks(r):
+                w.write(chunk)
 
 
 def iter_chunks(file_obj, chunk_size: int = 8 * 1024 * 1024):
-    """Helper to read file in chunks."""
+    """Helper to read file in chunks (synchronous)."""
     while True:
         data = file_obj.read(chunk_size)
         if not data:
@@ -311,11 +454,11 @@ def iter_chunks(file_obj, chunk_size: int = 8 * 1024 * 1024):
         yield data
 
 
-def copy_dir(src_dir: str, dest_dir: str) -> None:
+async def copy_dir(src_dir: str, dest_dir: str) -> None:
     """Recursively copy a directory tree across arbitrary filesystems."""
-    makedirs(dest_dir, exist_ok=True)
+    await makedirs(dest_dir, exist_ok=True)
     # Determine the source filesystem independently of destination
-    src_fs, _ = fsspec.core.url_to_fs(src_dir)
+    src_fs, _ = _get_fs_for_path(src_dir)
     try:
         src_files = src_fs.find(src_dir)
     except Exception:
@@ -332,6 +475,6 @@ def copy_dir(src_dir: str, dest_dir: str) -> None:
         # Ensure destination directory exists
         dest_parent = posixpath.dirname(dest_file)
         if dest_parent:
-            makedirs(dest_parent, exist_ok=True)
+            await makedirs(dest_parent, exist_ok=True)
         # Copy the file using streaming (robust across FSes)
-        copy_file(src_file, dest_file)
+        await copy_file(src_file, dest_file)

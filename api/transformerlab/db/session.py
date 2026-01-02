@@ -66,7 +66,7 @@ async def init():
     """
     global db
     # Migrate database from old location if necessary
-    old_db_base = os.path.join(get_workspace_dir(), "llmlab.sqlite3")
+    old_db_base = os.path.join(await get_workspace_dir(), "llmlab.sqlite3")
     if os.path.exists(old_db_base):
         if not os.path.exists(DATABASE_FILE_NAME):
             for ext in ["", "-wal", "-shm"]:

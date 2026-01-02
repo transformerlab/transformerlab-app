@@ -20,7 +20,7 @@ async def list_prompts():
         prompt_gallery = json.load(f)
 
     prompt_templates = []
-    prompts_dir = lab_dirs.get_prompt_templates_dir()
+    prompts_dir = await lab_dirs.get_prompt_templates_dir()
     for file in os.listdir(prompts_dir):
         if file.endswith(".json"):
             with open(os.path.join(prompts_dir, file), "r") as f:
@@ -42,7 +42,7 @@ async def new_prompt(title: Annotated[str, Body()], text: Annotated[str, Body()]
         return {"status": "error", "message": "The text must include the placeholder {text}"}
 
     slug = slugify(title)
-    prompts_dir = lab_dirs.get_prompt_templates_dir()
+    prompts_dir = await lab_dirs.get_prompt_templates_dir()
 
     prompt_file = os.path.join(prompts_dir, f"{slug}.json")
 
@@ -60,7 +60,7 @@ async def new_prompt(title: Annotated[str, Body()], text: Annotated[str, Body()]
 async def delete_prompt(prompt_id: str):
     """Delete a prompt template"""
 
-    prompts_dir = lab_dirs.get_prompt_templates_dir()
+    prompts_dir = await lab_dirs.get_prompt_templates_dir()
     prompt_file = os.path.join(prompts_dir, f"{prompt_id}.json")
 
     if os.path.exists(prompt_file):

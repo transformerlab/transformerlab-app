@@ -38,11 +38,11 @@ async def spawn_tensorboard(job_id: str):
 
     print("Starting tensorboard")
 
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     # First get the experiment name from the job
     experiment_id = job["experiment_id"]
     exp_obj = Experiment(experiment_id)
-    experiment_dir = exp_obj.get_dir()
+    experiment_dir = await exp_obj.get_dir()
     job_data = job["job_data"]
 
     if "template_name" not in job_data.keys():
@@ -52,6 +52,6 @@ async def spawn_tensorboard(job_id: str):
     template_name = secure_filename(template_name)
 
     logdir = storage.join(experiment_dir, "tensorboards", template_name)
-    storage.makedirs(logdir, exist_ok=True)
+    await storage.makedirs(logdir, exist_ok=True)
 
     tensorboard_process = subprocess.Popen(["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"])

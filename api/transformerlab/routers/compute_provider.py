@@ -93,18 +93,18 @@ async def upload_task_file_for_provider(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        workspace_dir = get_workspace_dir()
+        workspace_dir = await get_workspace_dir()
         if not workspace_dir:
             raise RuntimeError("Workspace directory is not configured")
 
         # uploads/task/{task_id}/
         uploads_root = storage.join(workspace_dir, "uploads", "task")
-        storage.makedirs(uploads_root, exist_ok=True)
+        await storage.makedirs(uploads_root, exist_ok=True)
 
         import uuid
 
         task_dir = storage.join(uploads_root, str(task_id))
-        storage.makedirs(task_dir, exist_ok=True)
+        await storage.makedirs(task_dir, exist_ok=True)
 
         # Use original filename with a random suffix to avoid collisions
         original_name = file.filename or "uploaded_file"
@@ -117,8 +117,8 @@ async def upload_task_file_for_provider(
         # Persist file contents
         await file.seek(0)
         content = await file.read()
-        with storage.open(stored_path, "wb") as f:
-            f.write(content)
+        async with await storage.open(stored_path, "wb") as f:
+            await f.write(content)
 
         return ProviderTemplateFileUploadResponse(
             status="success",
@@ -255,7 +255,7 @@ async def get_usage_report(
 
     # Get all experiments in the current workspace
     try:
-        experiments_data = Experiment.get_all()
+        experiments_data = await Experiment.get_all()
         experiments = [exp.get("id") for exp in experiments_data if exp.get("id")]
     except Exception as e:
         print(f"Error getting experiments: {e}")
@@ -266,7 +266,7 @@ async def get_usage_report(
 
     for experiment_id in experiments:
         try:
-            jobs = job_service.jobs_get_all(experiment_id=experiment_id, type="REMOTE")
+            jobs = await job_service.jobs_get_all(experiment_id=experiment_id, type="REMOTE")
             for job in jobs:
                 job_data = job.get("job_data", {}) or {}
 
@@ -1069,7 +1069,11 @@ async def launch_template_on_provider(
     # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING
     initial_status = "INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING"
 
-    job_id = job_service.job_create(type="REMOTE", status=initial_status, experiment_id=request.experiment_id)
+    job_id = await job_service.job_create(
+        type="REMOTE",
+        status=initial_status,
+        experiment_id=request.experiment_id,
+    )
 
     # Create quota hold if minutes_requested is provided
     quota_hold = None
@@ -1118,8 +1122,8 @@ async def launch_template_on_provider(
 
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
-        workspace_dir = get_workspace_dir()
-        github_pat = read_github_pat_from_workspace(workspace_dir)
+        workspace_dir = await get_workspace_dir()
+        github_pat = await read_github_pat_from_workspace(workspace_dir)
         github_setup = generate_github_clone_setup(
             repo_url=request.github_repo_url,
             directory=request.github_directory,
@@ -1140,7 +1144,7 @@ async def launch_template_on_provider(
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
     try:
-        storage_root = storage.root_uri()
+        storage_root = await storage.root_uri()
         # Check if it's a remote URI (not a local path)
         if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
             tfl_storage_uri = storage_root
@@ -1179,7 +1183,7 @@ async def launch_template_on_provider(
 
     for key, value in job_data.items():
         if value is not None:
-            job_service.job_update_job_data_insert_key_value(job_id, key, value, request.experiment_id)
+            await job_service.job_update_job_data_insert_key_value(job_id, key, value, request.experiment_id)
 
     disk_size = None
     if request.disk_space:
@@ -1226,7 +1230,7 @@ async def launch_template_on_provider(
 
     request_id = None
     if isinstance(launch_result, dict):
-        job_service.job_update_job_data_insert_key_value(
+        await job_service.job_update_job_data_insert_key_value(
             job_id,
             "provider_launch_result",
             launch_result,
@@ -1234,7 +1238,7 @@ async def launch_template_on_provider(
         )
         request_id = launch_result.get("request_id")
         if request_id:
-            job_service.job_update_job_data_insert_key_value(
+            await job_service.job_update_job_data_insert_key_value(
                 job_id,
                 "orchestrator_request_id",
                 request_id,
@@ -1263,7 +1267,7 @@ async def check_provider_job_status(
     team_id = user_and_team["team_id"]
 
     # Get the job
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -1349,7 +1353,7 @@ async def check_provider_job_status(
         try:
             # Set end_time when marking job as complete
             end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-            job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
+            await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
             # Pass session to job_update_status so quota tracking uses the same session
             await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id, session=session)
             # Commit the session to ensure quota tracking is persisted

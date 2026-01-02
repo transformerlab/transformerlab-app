@@ -338,11 +338,11 @@ def update_diffusion_history_paths(old_workspace: str, new_workspace: str):
         traceback.print_exc()
 
 
-def seed_default_experiments():
+async def seed_default_experiments():
     """Create a few default experiments if they do not exist (filesystem-backed)."""
     # Only seed default experiments if there are no experiments at all
     try:
-        existing_experiments = Experiment.get_all()
+        existing_experiments = await Experiment.get_all()
         if len(existing_experiments) > 0:
             return
     except Exception as e:
@@ -351,7 +351,7 @@ def seed_default_experiments():
 
     for name in ["alpha", "beta", "gamma"]:
         try:
-            exp = Experiment(name, create_new=True)
+            exp = await Experiment.create_or_get(name, create_new=True)
             # Sanity check to make sure nothing went wrong or no Exception was silently passed
             if exp.id != name:
                 raise Exception(f"Error creating experiment {name}: {exp.id} != {name}")
@@ -361,7 +361,7 @@ def seed_default_experiments():
             pass
 
 
-def cancel_in_progress_jobs():
+async def cancel_in_progress_jobs():
     """On startup, mark any RUNNING jobs as CANCELLED in the filesystem job store across all organizations."""
     # Get HOME_DIR
     try:
@@ -371,28 +371,28 @@ def cancel_in_progress_jobs():
 
     # Check all org directories
     orgs_dir = storage.join(home_dir, "orgs")
-    if storage.exists(orgs_dir) and storage.isdir(orgs_dir):
+    if await storage.exists(orgs_dir) and await storage.isdir(orgs_dir):
         try:
-            org_entries = storage.ls(orgs_dir, detail=False)
+            org_entries = await storage.ls(orgs_dir, detail=False)
             for org_path in org_entries:
-                if storage.isdir(org_path):
+                if await storage.isdir(org_path):
                     org_id = org_path.rstrip("/").split("/")[-1]
 
                     # Set org context to check jobs for this org
                     lab_dirs.set_organization_id(org_id)
 
                     try:
-                        jobs_dir = get_jobs_dir()
-                        if storage.exists(jobs_dir):
-                            entries = storage.ls(jobs_dir, detail=False)
+                        jobs_dir = await get_jobs_dir()
+                        if await storage.exists(jobs_dir):
+                            entries = await storage.ls(jobs_dir, detail=False)
                             for entry_path in entries:
-                                if storage.isdir(entry_path):
+                                if await storage.isdir(entry_path):
                                     try:
                                         # Extract the job ID from the path
                                         job_id = entry_path.rstrip("/").split("/")[-1]
-                                        job = Job.get(job_id)
-                                        if job.get_status() == "RUNNING":
-                                            job.update_status("CANCELLED")
+                                        job = await Job.get(job_id)
+                                        if await job.get_status() == "RUNNING":
+                                            await job.update_status("CANCELLED")
                                             print(f"Cancelled running job: {job_id} (org: {org_id})")
                                     except Exception:
                                         # If we can't access the job, continue to the next one
