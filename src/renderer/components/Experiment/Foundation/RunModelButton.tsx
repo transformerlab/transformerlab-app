@@ -84,11 +84,12 @@ export default function RunModelButton({
 
   const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
 
-  // Fetch plugin gallery to find compatible loader plugins that aren't installed
-  const { data: pluginGallery, isLoading: pluginGalleryLoading } = useSWR(
-    chatAPI.Endpoints.Plugins.Gallery(),
-    fetcher,
-  );
+  // Fetch suggested compatible loader plugin from API (platform-aware)
+  const { data: suggestedLoaderPlugin, isLoading: suggestedPluginLoading } =
+    useSWR(
+      archTag ? chatAPI.Endpoints.Plugins.SuggestLoader(archTag) : null,
+      fetcher,
+    );
 
   const supportedEngines = React.useMemo(() => {
     if (!data || pipelineTagLoading) return [];
@@ -144,32 +145,10 @@ export default function RunModelButton({
     );
   }, [data, supportedEngines]);
 
-  // Find compatible loader plugins from gallery that aren't installed
-  const compatibleLoaderPlugins = React.useMemo(() => {
-    if (!pluginGallery || !archTag || pluginGalleryLoading) return [];
-
-    return pluginGallery.filter((plugin) => {
-      // Must be a loader plugin
-      if (plugin.type !== 'loader') return false;
-
-      // Must not be installed
-      if (plugin.installed === true) return false;
-
-      // Must support the model architecture
-      if (
-        Array.isArray(plugin.model_architectures) &&
-        plugin.model_architectures.length > 0
-      ) {
-        return plugin.model_architectures.some(
-          (arch) => arch.toLowerCase() === archTag.toLowerCase(),
-        );
-      }
-
-      return false;
-    });
-  }, [pluginGallery, archTag, pluginGalleryLoading]);
-
-  console.log('compatibleLoaderPlugins', compatibleLoaderPlugins);
+  // Use the suggested loader plugin from API (platform-aware)
+  const compatibleLoaderPlugins = suggestedLoaderPlugin
+    ? [suggestedLoaderPlugin]
+    : [];
 
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null

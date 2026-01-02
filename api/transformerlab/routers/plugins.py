@@ -80,6 +80,120 @@ async def plugin_gallery():
     return gallery
 
 
+@router.get("/suggest_loader", summary="Suggest a compatible loader plugin for a model architecture.")
+async def suggest_loader_plugin(model_architecture: str):
+    """
+    Suggest a compatible loader plugin based on model architecture and platform.
+    Returns the best matching loader plugin that:
+    1. Supports the model architecture
+    2. Is compatible with the current platform/hardware
+    3. Is not already installed
+    """
+    # Import here to avoid circular dependency
+    import transformerlab.routers.serverinfo as serverinfo_module
+
+    device_type = serverinfo_module.system_info.get("device_type", "cpu")
+
+    # Map device_type to supported_hardware_architectures
+    # device_type: nvidia -> cuda, apple_silicon -> mlx, amd -> amd, cpu -> cpu
+    hardware_arch_map = {
+        "nvidia": "cuda",
+        "apple_silicon": "mlx",
+        "amd": "amd",
+        "cpu": "cpu",
+    }
+    required_hardware = hardware_arch_map.get(device_type, "cpu")
+
+    # Get all plugins from gallery
+    gallery = await plugin_gallery()
+
+    # Filter for loader plugins that:
+    # 1. Are of type "loader"
+    # 2. Are not installed
+    # 3. Support the model architecture
+    # 4. Support the current hardware architecture
+    compatible_plugins = []
+
+    for plugin in gallery:
+        # Must be a loader plugin
+        if plugin.get("type") != "loader":
+            continue
+
+        # Must not be installed
+        if plugin.get("installed", False):
+            continue
+
+        # Must support the model architecture
+        model_architectures = plugin.get("model_architectures", [])
+        if not isinstance(model_architectures, list):
+            continue
+
+        architecture_match = False
+        for arch in model_architectures:
+            if arch and arch.lower() == model_architecture.lower():
+                architecture_match = True
+                break
+
+        if not architecture_match:
+            continue
+
+        # Must support the current hardware architecture
+        supported_hardware = plugin.get("supported_hardware_architectures", [])
+        if not isinstance(supported_hardware, list):
+            continue
+
+        hardware_match = required_hardware in supported_hardware
+
+        if hardware_match:
+            compatible_plugins.append(plugin)
+
+    # If no compatible plugins found, return None
+    if not compatible_plugins:
+        return None
+
+    # Prioritize plugins based on device type
+    # Priority order:
+    # - For apple_silicon: prefer mlx_server, then other MLX plugins
+    # - For nvidia: prefer fastchat_server, then vllm_server, then others
+    # - For amd: prefer fastchat_server, then others
+    # - For cpu: prefer fastchat_server, then llama_cpp_server, then others
+
+    def get_priority(plugin):
+        unique_id = plugin.get("uniqueId", "")
+        if device_type == "apple_silicon":
+            if unique_id == "mlx_server":
+                return 1
+            elif "mlx" in unique_id:
+                return 2
+            else:
+                return 3
+        elif device_type == "nvidia":
+            if unique_id == "fastchat_server":
+                return 1
+            elif unique_id == "vllm_server":
+                return 2
+            else:
+                return 3
+        elif device_type == "amd":
+            if unique_id == "fastchat_server":
+                return 1
+            else:
+                return 2
+        else:  # cpu
+            if unique_id == "fastchat_server":
+                return 1
+            elif unique_id == "llama_cpp_server":
+                return 2
+            else:
+                return 3
+
+    # Sort by priority, then by name
+    compatible_plugins.sort(key=lambda p: (get_priority(p), p.get("name", "")))
+
+    # Return the first (best) match
+    return compatible_plugins[0]
+
+
 async def copy_plugin_files_to_workspace(plugin_id: str):
     plugin_id = secure_filename(plugin_id)
 
