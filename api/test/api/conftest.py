@@ -94,9 +94,7 @@ def cleanup_test_db():
 def client():
     # Initialize database tables for tests using Alembic migrations (same as production)
     from transformerlab.db.session import run_alembic_migrations  # noqa: E402
-    from transformerlab.shared.models.user_model import create_db_and_tables  # noqa: E402
     from transformerlab.services.experiment_init import seed_default_admin_user  # noqa: E402
-    import aiosqlite  # noqa: E402
 
     # Ensure test database directory exists
     test_db_dir = os.path.join("test", "tmp", "db")
@@ -114,19 +112,6 @@ def client():
 
     # Run Alembic migrations to create database schema (matches production)
     asyncio.run(run_alembic_migrations())
-
-    # Verify that workflow_runs table exists (it's excluded from autogeneration but created in initial migration)
-    # If it doesn't exist, fall back to creating all tables directly
-    async def verify_and_fallback():
-        test_db_path_abs = os.path.abspath(test_db_path)
-        async with aiosqlite.connect(test_db_path_abs) as db:
-            cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='workflow_runs'")
-            table_exists = await cursor.fetchone()
-            if not table_exists:
-                # Fallback: create all tables directly if migrations didn't create workflow_runs
-                await create_db_and_tables()
-
-    asyncio.run(verify_and_fallback())
     asyncio.run(seed_default_admin_user())
     controller_log_dir = os.path.join("test", "tmp", "workspace", "logs")
     os.makedirs(controller_log_dir, exist_ok=True)

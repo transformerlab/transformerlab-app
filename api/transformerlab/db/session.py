@@ -113,10 +113,10 @@ async def init():
 
             # Update existing workflow runs with experiment_id from their workflows
             await db.execute("""
-                UPDATE workflow_runs 
+                UPDATE workflow_runs
                 SET experiment_id = (
-                    SELECT experiment_id 
-                    FROM workflows 
+                    SELECT experiment_id
+                    FROM workflows
                     WHERE workflows.id = workflow_runs.workflow_id
                 )
             """)
