@@ -21,6 +21,7 @@ import InteractiveVSCodeModal from './InteractiveVSCodeModal';
 import InteractiveJupyterModal from './InteractiveJupyterModal';
 import InteractiveVllmModal from './InteractiveVllmModal';
 import InteractiveSshModal from './InteractiveSshModal';
+import InteractiveOllamaModal from './InteractiveOllamaModal';
 import EditTaskModal from './EditTaskModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -640,6 +641,21 @@ export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y wg
         // Environment variables (MODEL_NAME, HF_TOKEN, TP_SIZE) are passed via env_vars
         defaultCommand =
           `source ~/vllm-venv/bin/activate && python -u -m vllm.entrypoints.openai.api_server --model $MODEL_NAME --tensor-parallel-size $TP_SIZE --host 0.0.0.0 --port 8000 > /tmp/vllm.log 2>&1 & sleep 10 && cloudflared tunnel --url http://localhost:8000 2>&1 | tee /tmp/cloudflared.log; tail -f /tmp/vllm.log /tmp/cloudflared.log`.trim();
+      } else if (interactiveType === 'ollama') {
+        // Setup: Install Ollama and cloudflared
+        defaultSetup = `
+export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y wget curl \
+&& curl -fsSL https://ollama.com/install.sh | sh \
+&& sudo apt update && sudo apt install -y pciutils lshw \
+&& curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /tmp/cloudflared \
+&& chmod +x /tmp/cloudflared && sudo mv /tmp/cloudflared /usr/local/bin/cloudflared;`.trim();
+
+        // Command: Pull model if needed, start Ollama server, then start cloudflared tunnel
+        // Ollama runs on port 11434 by default
+        // OLLAMA_HOST=0.0.0.0:11434 makes Ollama accessible from all interfaces (required for cloudflared)
+        // Environment variable MODEL_NAME is passed via env_vars
+        defaultCommand =
+          `export OLLAMA_HOST=0.0.0.0:11434 && ollama serve > /tmp/ollama.log 2>&1 & sleep 3 && ollama pull $MODEL_NAME > /tmp/ollama-pull.log 2>&1 & sleep 5 && cloudflared tunnel --url http://localhost:11434 2>&1 | tee /tmp/cloudflared.log; tail -f /tmp/ollama.log /tmp/ollama-pull.log /tmp/cloudflared.log`.trim();
       } else if (interactiveType === 'ssh') {
         // Setup: Install ngrok
         defaultSetup = `
@@ -682,6 +698,13 @@ export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gn
         }
         if (data.tp_size) {
           envVars['TP_SIZE'] = data.tp_size;
+        }
+      }
+
+      // Add Ollama-specific environment variables
+      if (interactiveType === 'ollama') {
+        if (data.model_name) {
+          envVars['MODEL_NAME'] = data.model_name;
         }
       }
 
@@ -729,9 +752,11 @@ export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gn
             ? 'Jupyter'
             : (data.interactive_type || 'vscode') === 'vllm'
               ? 'vLLM'
-              : (data.interactive_type || 'vscode') === 'ssh'
-                ? 'SSH'
-                : 'VS Code';
+              : (data.interactive_type || 'vscode') === 'ollama'
+                ? 'Ollama'
+                : (data.interactive_type || 'vscode') === 'ssh'
+                  ? 'SSH'
+                  : 'VS Code';
         addNotification({
           type: 'success',
           message: `Interactive template created. Use Queue to launch the ${interactiveTypeLabel} tunnel.`,
@@ -1129,6 +1154,15 @@ export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gn
         if (interactiveType === 'ssh') {
           return (
             <InteractiveSshModal
+              jobId={interactiveJobForModal}
+              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+            />
+          );
+        }
+
+        if (interactiveType === 'ollama') {
+          return (
+            <InteractiveOllamaModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
             />

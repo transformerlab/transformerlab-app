@@ -34,7 +34,7 @@ type NewInteractiveTaskModalProps = {
     cpus?: string;
     memory?: string;
     accelerators?: string;
-    interactive_type: 'vscode' | 'jupyter' | 'vllm' | 'ssh';
+    interactive_type: 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama';
     provider_id?: string;
     model_name?: string;
     hf_token?: string;
@@ -59,7 +59,7 @@ export default function NewInteractiveTaskModal({
   const [memory, setMemory] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [interactiveType, setInteractiveType] = React.useState<
-    'vscode' | 'jupyter' | 'vllm' | 'ssh'
+    'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama'
   >('vscode');
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
   const [modelName, setModelName] = React.useState('');
@@ -115,7 +115,10 @@ export default function NewInteractiveTaskModal({
       accelerators: accelerators || undefined,
       interactive_type: interactiveType,
       provider_id: selectedProviderId,
-      model_name: interactiveType === 'vllm' ? modelName : undefined,
+      model_name:
+        interactiveType === 'vllm' || interactiveType === 'ollama'
+          ? modelName
+          : undefined,
       hf_token: interactiveType === 'vllm' ? hfToken : undefined,
       tp_size: interactiveType === 'vllm' ? tpSize : undefined,
       ngrok_auth_token: interactiveType === 'ssh' ? ngrokAuthToken : undefined,
@@ -126,6 +129,7 @@ export default function NewInteractiveTaskModal({
     title.trim().length > 0 &&
     !!selectedProviderId &&
     (interactiveType !== 'vllm' || modelName.trim().length > 0) &&
+    (interactiveType !== 'ollama' || modelName.trim().length > 0) &&
     (interactiveType !== 'ssh' || ngrokAuthToken.trim().length > 0);
 
   return (
@@ -191,19 +195,25 @@ export default function NewInteractiveTaskModal({
                   value={interactiveType}
                   onChange={(e) =>
                     setInteractiveType(
-                      e.target.value as 'vscode' | 'jupyter' | 'vllm',
+                      e.target.value as
+                        | 'vscode'
+                        | 'jupyter'
+                        | 'vllm'
+                        | 'ssh'
+                        | 'ollama',
                     )
                   }
                 >
                   <Radio value="vscode" label="VS Code" />
                   <Radio value="jupyter" label="Jupyter Notebook" />
                   <Radio value="vllm" label="vLLM Server" />
+                  <Radio value="ollama" label="Ollama" />
                   <Radio value="ssh" label="SSH" />
                 </RadioGroup>
                 <FormHelperText>
                   Choose VS Code for remote development, Jupyter for notebook
-                  access, vLLM for model serving, or SSH for direct terminal
-                  access via tunnel.
+                  access, vLLM for model serving, Ollama for running Ollama
+                  models, or SSH for direct terminal access via tunnel.
                 </FormHelperText>
               </FormControl>
 
@@ -244,6 +254,23 @@ export default function NewInteractiveTaskModal({
                     />
                     <FormHelperText>
                       Number of GPUs for tensor parallelism (default: 1)
+                    </FormHelperText>
+                  </FormControl>
+                </>
+              )}
+
+              {interactiveType === 'ollama' && (
+                <>
+                  <FormControl required>
+                    <FormLabel>Model Name</FormLabel>
+                    <Input
+                      value={modelName}
+                      onChange={(e) => setModelName(e.target.value)}
+                      placeholder="e.g. llama2, mistral, codellama"
+                    />
+                    <FormHelperText>
+                      Ollama model name (e.g. llama2, mistral, codellama). Use
+                      "ollama pull &lt;model&gt;" to download models.
                     </FormHelperText>
                   </FormControl>
                 </>
@@ -326,7 +353,7 @@ export default function NewInteractiveTaskModal({
 
               <FormHelperText>
                 Setup and command are pre-populated based on the selected
-                interactive type (VS Code, Jupyter, vLLM, or SSH).
+                interactive type (VS Code, Jupyter, vLLM, Ollama, or SSH).
               </FormHelperText>
             </Stack>
           </DialogContent>
