@@ -353,15 +353,6 @@ Endpoints.ServerInfo = {
   StreamLog: () => `${API_URL()}server/stream_log`,
 };
 
-Endpoints.Updates = {
-  Check: () => `${API_URL()}server/updates/check`,
-  Settings: () => `${API_URL()}server/updates/settings`,
-  Version: () => `${API_URL()}server/updates/version`,
-  Status: () => `${API_URL()}server/updates/status`,
-  StreamLogs: () => `${API_URL()}server/updates/stream_logs`,
-  Trigger: () => `${API_URL()}server/updates/trigger`,
-};
-
 Endpoints.Charts = {
   CompareEvals: (jobIds: string) =>
     `${API_URL()}evals/compare_evals?job_list=${jobIds}`,

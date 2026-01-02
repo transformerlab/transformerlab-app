@@ -1,14 +1,7 @@
 /* eslint-disable react/jsx-no-useless-fragment */
 import Sheet from '@mui/joy/Sheet';
 import { Sparklines, SparklinesLine } from 'react-sparklines';
-import {
-  Box,
-  Button,
-  LinearProgress,
-  Stack,
-  Tooltip,
-  Typography,
-} from '@mui/joy';
+import { Box, LinearProgress, Stack, Tooltip, Typography } from '@mui/joy';
 import {
   useServerStats,
   apiHealthz,
@@ -29,8 +22,6 @@ import ConnectionLostModal from './Shared/ConnectionLostModal';
 function StatsBar({ connection, setConnection }) {
   const [cs, setCS] = useState({ cpu: [0], gpu: [0], mem: [0] });
   const { server, isLoading, isError } = useServerStats();
-  // Always cloud mode now
-  const isCloudMode = true;
 
   useEffect(() => {
     if (connection === '') return;
@@ -296,24 +287,6 @@ function StatsBar({ connection, setConnection }) {
                           More about this computer
                         </ReactRouterLink>
                       </Typography>
-
-                      {!isCloudMode && (
-                        <Button
-                          variant="solid"
-                          color="danger"
-                          size="sm"
-                          sx={{ m: 0, p: 1 }}
-                          onClick={() => {
-                            // Clear the API URL when disconnecting
-                            if ((window as any).TransformerLab) {
-                              (window as any).TransformerLab.API_URL = null;
-                            }
-                            setConnection('');
-                          }}
-                        >
-                          Disconnect
-                        </Button>
-                      )}
                     </Stack>
                   </Box>
                 </Box>
