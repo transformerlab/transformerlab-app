@@ -5,19 +5,11 @@
   "plugin-format": "python",
   "type": "evaluator",
   "evalsType": "dataset",
-  "version": "0.2.14",
+  "version": "0.2.15",
   "git": "https://github.com/confident-ai/deepeval",
   "url": "https://github.com/confident-ai/deepeval",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx",
-    "amd"
-  ],
+  "files": ["main.py", "setup.sh"],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "_dataset": true,
   "_dataset_display_message": "Please upload a dataset file with columns: 'input', 'output', 'expected_output'. The context column is optional if using metrics which don't require it.",
   "setup-script": "setup.sh",
@@ -36,9 +28,7 @@
     },
     "limit": {
       "title": "Fraction of samples to evaluate",
-      "type": [
-        "number"
-      ],
+      "type": ["number"],
       "minimum": 0.0,
       "default": 1.0,
       "maximum": 1.0,

@@ -4,7 +4,7 @@
   "description": "Fastchat loads models for inference using Huggingface Transformers for generation.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.29",
+  "version": "1.0.30",
   "supports": [
     "chat",
     "completion",

@@ -4,7 +4,7 @@
   "description": "Runs llama-cpp-python server that can run GGUF models that work well on CPU only machines.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "model_architectures": ["GGUF"],
   "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "files": ["main.py", "setup.sh"],

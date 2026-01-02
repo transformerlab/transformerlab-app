@@ -4,18 +4,11 @@
   "description": "Generate tags/captions for image datasets using the WD14 tagger (Danbooru-style tagging via ONNX).",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "git": "",
   "url": "",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "amd"
-  ],
+  "files": ["main.py", "setup.sh"],
+  "supported_hardware_architectures": ["cpu", "cuda", "amd"],
   "_dataset": true,
   "setup-script": "setup.sh",
   "parameters": {

@@ -4,7 +4,7 @@
   "description": "",
   "plugin-format": "python",
   "type": "rag",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "model_architectures": [],
   "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "files": ["main.py", "setup.sh"],

@@ -5,22 +5,14 @@
   "plugin-format": "python",
   "evalsType": "dataset",
   "type": "evaluator",
-  "version": "0.2.17",
+  "version": "0.2.18",
   "git": "https://github.com/confident-ai/deepeval",
   "url": "https://github.com/confident-ai/deepeval",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "files": ["main.py", "setup.sh"],
   "_dataset": true,
   "_dataset_display_message": "Please upload a dataset file with columns: 'input', 'output', 'expected_output'. The context column is optional if using metrics which don't require it.",
   "setup-script": "setup.sh",
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx",
-    "amd"
-  ],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "parameters": {
     "generation_model": {
       "title": "Model which will act as Judge LLM",
@@ -64,10 +56,7 @@
           "include_context": {
             "type": "string",
             "title": "Include Context while evaluating?",
-            "enum": [
-              "Yes",
-              "No"
-            ],
+            "enum": ["Yes", "No"],
             "default": "No"
           }
         }
@@ -75,9 +64,7 @@
     },
     "limit": {
       "title": "Fraction of samples",
-      "type": [
-        "number"
-      ],
+      "type": ["number"],
       "minimum": 0.0,
       "default": 1.0,
       "maximum": 1.0,

@@ -4,7 +4,7 @@
   "description": "A plugin for fine-tuning Stable Diffusion using LoRA adapters.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "git": "",
   "url": "",
   "model_architectures": [
@@ -13,14 +13,8 @@
     "StableDiffusion3Pipeline",
     "FluxPipeline"
   ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
-  "supported_hardware_architectures": [
-    "cuda",
-    "amd"
-  ],
+  "files": ["main.py", "setup.sh"],
+  "supported_hardware_architectures": ["cuda", "amd"],
   "training_template_format": "none",
   "setup-script": "setup.sh",
   "parameters": {
@@ -88,12 +82,7 @@
       "title": "Image Interpolation Mode",
       "type": "string",
       "default": "lanczos",
-      "enum": [
-        "lanczos",
-        "bilinear",
-        "bicubic",
-        "nearest"
-      ]
+      "enum": ["lanczos", "bilinear", "bicubic", "nearest"]
     },
     "random_flip": {
       "title": "Random Horizontal Flip",
@@ -172,17 +161,12 @@
       "title": "Learning Rate",
       "type": "number",
       "default": 0.0001,
-      "minimum": 1e-07
+      "minimum": 1e-7
     },
     "lr_scheduler": {
       "title": "LR Scheduler",
       "type": "string",
-      "enum": [
-        "constant",
-        "linear",
-        "cosine",
-        "constant_with_warmup"
-      ],
+      "enum": ["constant", "linear", "cosine", "constant_with_warmup"],
       "default": "constant"
     },
     "lr_warmup_steps": {
@@ -208,7 +192,7 @@
     "adam_epsilon": {
       "title": "Adam Epsilon",
       "type": "number",
-      "default": 1e-08
+      "default": 1e-8
     },
     "max_grad_norm": {
       "title": "Max Grad Norm",
@@ -218,10 +202,7 @@
     "loss_type": {
       "title": "Loss Type",
       "type": "string",
-      "enum": [
-        "l2",
-        "huber"
-      ],
+      "enum": ["l2", "huber"],
       "default": "l2"
     },
     "huber_c": {
@@ -232,10 +213,7 @@
     "prediction_type": {
       "title": "Prediction Type",
       "type": "string",
-      "enum": [
-        "epsilon",
-        "v_prediction"
-      ],
+      "enum": ["epsilon", "v_prediction"],
       "default": "epsilon"
     },
     "snr_gamma": {
@@ -256,11 +234,7 @@
     "mixed_precision": {
       "title": "Mixed Precision",
       "type": "string",
-      "enum": [
-        "no",
-        "fp16",
-        "bf16"
-      ],
+      "enum": ["no", "fp16", "bf16"],
       "default": "no"
     },
     "enable_xformers_memory_efficient_attention": {

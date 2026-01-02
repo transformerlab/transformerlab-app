@@ -4,7 +4,7 @@
   "description": "An implementation of RLHF (Reward Modeling) using Llama Factory.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "model_architectures": [
     "GemmaForCausalLM",
     "LlamaForCausalLM",
@@ -16,14 +16,8 @@
     "Qwen3ForCausalLM",
     "Qwen3MoeForCausalLM"
   ],
-  "supported_hardware_architectures": [
-    "cuda",
-    "amd"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["cuda", "amd"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "training_template_format": "none",
   "training_data_instructions": "Enxure that the dataset below has the following required columns: \"conversations\", \"chosen\", \"rejected\"",
@@ -32,7 +26,7 @@
       "title": "Learning Rate",
       "type": "number",
       "default": 0.001,
-      "minimum": 1e-06
+      "minimum": 1e-6
     },
     "num_train_epochs": {
       "title": "Number of Training Epochs",

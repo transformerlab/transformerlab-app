@@ -4,20 +4,12 @@
   "description": "A training script adapted from https://www.philschmid.de/fine-tune-flan-t5-peft . Works with T5 models using transformers.Se2SecTrainer.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "1.0.10",
-  "model_architectures": [
-    "T5ForConditionalGeneration"
-  ],
-  "supported_hardware_architectures": [
-    "cuda",
-    "amd"
-  ],
+  "version": "1.0.11",
+  "model_architectures": ["T5ForConditionalGeneration"],
+  "supported_hardware_architectures": ["cuda", "amd"],
   "git": "",
   "url": "",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
     "adaptor_name": {
@@ -28,8 +20,8 @@
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
-      "default": 5e-05,
-      "minimum": 1e-06
+      "default": 5e-5,
+      "minimum": 1e-6
     },
     "num_train_epochs": {
       "title": "Number of Training Epochs",

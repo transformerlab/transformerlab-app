@@ -4,7 +4,7 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.1.46",
+  "version": "0.1.47",
   "supports": [
     "chat",
     "completion",
@@ -40,13 +40,8 @@
     "Ernie4_5_ForCausalLM",
     "GptOssForCausalLM"
   ],
-  "supported_hardware_architectures": [
-    "mlx"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["mlx"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
     "context_length": {
