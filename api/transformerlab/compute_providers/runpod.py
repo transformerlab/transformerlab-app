@@ -33,7 +33,7 @@ class RunPodProvider(ComputeProvider):
 
         Args:
             api_key: RunPod API key (required)
-            api_base_url: Base URL for RunPod API (defaults to https://api.runpod.io/v1)
+            api_base_url: Base URL for RunPod API (defaults to https://rest.runpod.io/v1)
             default_gpu_type: Default GPU type (e.g., "RTX 3090", "A100")
             default_region: Default region
             default_template_id: Default Docker template ID
@@ -41,7 +41,7 @@ class RunPodProvider(ComputeProvider):
             extra_config: Additional provider-specific configuration
         """
         self.api_key = api_key
-        self.api_base_url = (api_base_url or "https://api.runpod.io/v1").rstrip("/")
+        self.api_base_url = (api_base_url or "https://rest.runpod.io/v1").rstrip("/")
         self.default_gpu_type = default_gpu_type
         self.default_region = default_region
         self.default_template_id = default_template_id
@@ -148,6 +148,50 @@ class RunPodProvider(ComputeProvider):
         parts = accelerators.split(":")
         gpu_type = parts[0].strip()
 
+        # Common GPU type mappings (abbreviation -> full RunPod name)
+        gpu_mappings = {
+            "RTX3090": "NVIDIA GeForce RTX 3090",
+            "RTX3080": "NVIDIA GeForce RTX 3080",
+            "RTX3070": "NVIDIA GeForce RTX 3070",
+            "RTX4090": "NVIDIA GeForce RTX 4090",
+            "RTX4080": "NVIDIA GeForce RTX 4080",
+            "RTX4070TI": "NVIDIA GeForce RTX 4070 Ti",
+            "RTX3080TI": "NVIDIA GeForce RTX 3080 Ti",
+            "RTX3090TI": "NVIDIA GeForce RTX 3090 Ti",
+            "RTX5080": "NVIDIA GeForce RTX 5080",
+            "RTX5090": "NVIDIA GeForce RTX 5090",
+            "A100": "NVIDIA A100-SXM4-80GB",  # Default to SXM4-80GB
+            "A100-80GB": "NVIDIA A100-SXM4-80GB",
+            "A100-PCIE": "NVIDIA A100 80GB PCIe",
+            "A40": "NVIDIA A40",
+            "A30": "NVIDIA A30",
+            "A5000": "NVIDIA RTX A5000",
+            "A4500": "NVIDIA RTX A4500",
+            "A4000": "NVIDIA RTX A4000",
+            "A6000": "NVIDIA RTX A6000",
+            "A2000": "NVIDIA RTX A2000",
+            "L40": "NVIDIA L40",
+            "L40S": "NVIDIA L40S",
+            "L4": "NVIDIA L4",
+            "H100": "NVIDIA H100 80GB HBM3",  # Default to 80GB HBM3
+            "H100-PCIE": "NVIDIA H100 PCIe",
+            "H100-NVL": "NVIDIA H100 NVL",
+            "H200": "NVIDIA H200",
+            "H200-NVL": "NVIDIA H200 NVL",
+            "V100": "Tesla V100-PCIE-16GB",  # Default to PCIE-16GB
+            "V100-16GB": "Tesla V100-PCIE-16GB",
+            "V100-32GB": "Tesla V100-PCIE-32GB",
+            "T4": "Tesla T4",
+            "RTX6000": "NVIDIA RTX 6000 Ada Generation",
+            "RTX5000": "NVIDIA RTX 5000 Ada Generation",
+            "RTX4000": "NVIDIA RTX 4000 Ada Generation",
+            "RTX2000": "NVIDIA RTX 2000 Ada Generation",
+        }
+
+        # Check if we have a direct mapping
+        if gpu_type.upper() in gpu_mappings:
+            gpu_type = gpu_mappings[gpu_type.upper()]
+
         # Try to get GPU types from RunPod API
         try:
             response = self._make_request("GET", "/gpu-types")
@@ -162,11 +206,11 @@ class RunPodProvider(ComputeProvider):
                     if gt.get("id") == gpu_type or gt.get("name") == gpu_type:
                         return gt.get("id")
         except Exception:
-            # If API call fails, return the original value or default
+            # If API call fails, return the mapped value
             pass
 
-        # Fallback: return the GPU type as-is (might be a valid ID)
-        return gpu_type or self.default_gpu_type
+        # Fallback: return the mapped GPU type (might be a valid ID)
+        return gpu_type
 
     def _map_runpod_status_to_cluster_state(self, runpod_status: str) -> ClusterState:
         """
@@ -191,20 +235,70 @@ class RunPodProvider(ComputeProvider):
 
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         """Launch a pod using RunPod API."""
-        # Map GPU type
-        gpu_type_id = self._map_gpu_type_to_runpod(config.accelerators)
+        # Determine compute type based on accelerators
+        if config.accelerators:
+            # GPU pod
+            compute_type = "GPU"
+            gpu_type_id = self._map_gpu_type_to_runpod(config.accelerators)
+            if not gpu_type_id:
+                raise ValueError(
+                    "GPU type is required. Specify accelerators or set default_gpu_type in provider config."
+                )
 
-        if not gpu_type_id:
-            raise ValueError("GPU type is required. Specify accelerators or set default_gpu_type in provider config.")
+            # Parse GPU count from accelerator string (e.g., "RTX3090:2" -> 2)
+            parts = config.accelerators.split(":")
+            gpu_count = 1
+            if len(parts) > 1:
+                try:
+                    gpu_count = int(parts[1].strip())
+                except ValueError:
+                    gpu_count = 1
+
+            # Use GPU-enabled image
+            default_image = "runpod/pytorch:2.1.0-py3.10-cuda11.8.0-devel-ubuntu22.04"
+        else:
+            # CPU pod
+            compute_type = "CPU"
+            gpu_type_id = None
+            gpu_count = None
+            # Use basic CPU image
+            default_image = "ubuntu:22.04"
+
+        # Get image name from config or use default
+        image_name = config.provider_config.get("template_id") or self.default_template_id or default_image
 
         # Build pod creation payload
         pod_data = {
             "name": cluster_name,
-            "imageName": config.provider_config.get("template_id") or self.default_template_id,
-            "gpuTypeId": gpu_type_id,
+            "imageName": image_name,
+            "computeType": compute_type,
         }
 
-        # Add optional fields
+        # Add GPU-specific fields if GPU pod
+        if compute_type == "GPU":
+            pod_data["gpuTypeIds"] = [gpu_type_id]
+            pod_data["gpuCount"] = gpu_count
+
+        # Add CPU-specific fields if CPU pod
+        elif compute_type == "CPU":
+            # Set default CPU resources if not specified
+            pod_data["vcpuCount"] = config.cpus or 2
+            if config.memory:
+                # Convert memory to GB if specified as string with units
+                try:
+                    if isinstance(config.memory, str):
+                        # Parse memory string like "4GB" or "4096"
+                        if config.memory.upper().endswith("GB"):
+                            memory_gb = float(config.memory[:-2])
+                        elif config.memory.upper().endswith("MB"):
+                            memory_gb = float(config.memory[:-2]) / 1024
+                        else:
+                            memory_gb = float(config.memory)
+                    else:
+                        memory_gb = float(config.memory)
+                    pod_data["memoryInGb"] = memory_gb
+                except (ValueError, TypeError):
+                    pass  # Use default if parsing fails
         if config.disk_size:
             pod_data["volumeInGb"] = config.disk_size
         elif self.extra_config.get("default_volume_gb"):
@@ -222,12 +316,14 @@ class RunPodProvider(ComputeProvider):
             )
 
         if config.setup:
-            # RunPod doesn't have a setup script field, but we can use dockerArgs
-            pod_data["dockerArgs"] = config.setup
+            # RunPod uses dockerStartCmd for startup commands
+            pod_data["dockerStartCmd"] = [config.setup]
 
         if config.command:
-            # Store command in provider_config for later execution
-            pod_data["dockerArgs"] = (pod_data.get("dockerArgs", "") + f" && {config.command}").strip()
+            # Add command to dockerStartCmd
+            if "dockerStartCmd" not in pod_data:
+                pod_data["dockerStartCmd"] = []
+            pod_data["dockerStartCmd"].append(config.command)
 
         if self.default_region or config.region:
             pod_data["region"] = config.region or self.default_region
@@ -545,15 +641,19 @@ class RunPodProvider(ComputeProvider):
         """Check if the RunPod provider is active and accessible."""
         try:
             # Make a lightweight API call to verify API key is valid
+
             self._make_request("GET", "/pods", timeout=5)
             # If we get a response (even empty), the API key is valid
             return True
         except requests.exceptions.HTTPError as e:
             # 401/403 means invalid API key
             if hasattr(e, "response") and e.response.status_code in [401, 403]:
+                print(f"RunPod provider check failed: {e.response.text}")
                 return False
             # Other errors might be temporary
+            print(f"RunPod provider check failed: {e.response.text}")
             return False
-        except Exception:
+        except Exception as e:
+            print(f"RunPod provider check failed: {e}")
             # Connection errors, timeouts, etc.
             return False

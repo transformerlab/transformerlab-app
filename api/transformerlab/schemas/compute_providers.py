@@ -25,7 +25,7 @@ class ProviderConfigBase(BaseModel):
 
     # RunPod-specific config
     api_key: Optional[str] = None  # RunPod API key (sensitive)
-    api_base_url: Optional[str] = None  # Defaults to https://api.runpod.io/v1
+    api_base_url: Optional[str] = None  # Defaults to https://rest.runpod.io/v1
     default_gpu_type: Optional[str] = None  # Default GPU type (e.g., "RTX 3090", "A100")
     default_region: Optional[str] = None  # Default region
     default_template_id: Optional[str] = None  # Default Docker template ID

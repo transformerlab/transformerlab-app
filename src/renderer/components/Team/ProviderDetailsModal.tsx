@@ -43,7 +43,7 @@ const DEFAULT_CONFIGS = {
 }`,
   runpod: `{
   "api_key": "<Your RunPod API key>",
-  "api_base_url": "https://api.runpod.io/v1",
+  "api_base_url": "https://rest.runpod.io/v1",
   "default_gpu_type": "<e.g. RTX 3090, A100, or GPU type ID>",
   "default_region": "<optional region>",
   "default_template_id": "<optional Docker template ID>",
