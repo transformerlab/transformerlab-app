@@ -18,7 +18,7 @@ from fastchat.serve.model_worker import logger
 from lab import storage
 
 from mlx_audio.tts.generate import generate_audio
-from mlx_audio.stt.generate import generate
+from mlx_audio.stt.generate import generate_transcription as generate
 from datetime import datetime
 
 worker_id = str(uuid.uuid4())[:8]
