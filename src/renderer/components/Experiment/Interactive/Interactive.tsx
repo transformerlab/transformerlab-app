@@ -608,6 +608,24 @@ export default function Interactive() {
     }
   };
 
+  const getInteractiveTypeColor = (
+    interactiveType: string,
+  ): 'primary' | 'success' | 'warning' | 'danger' | 'neutral' => {
+    switch (interactiveType) {
+      case 'jupyter':
+        return 'warning';
+      case 'vllm':
+        return 'success';
+      case 'ollama':
+        return 'primary';
+      case 'ssh':
+        return 'danger';
+      case 'vscode':
+      default:
+        return 'primary';
+    }
+  };
+
   const handleViewInteractive = (jobId: number) => {
     setInteractiveJobForModal(jobId);
   };
@@ -784,7 +802,11 @@ export default function Interactive() {
                         >
                           {job.status}
                         </Chip>
-                        <Chip variant="outlined" size="sm">
+                        <Chip
+                          variant="soft"
+                          color={getInteractiveTypeColor(interactiveType)}
+                          size="sm"
+                        >
                           {getInteractiveTypeLabel(interactiveType)}
                         </Chip>
                       </Stack>
