@@ -812,12 +812,14 @@ export default function EditTaskModal({
     const useParsedData = justParsedYaml && !!parsedData;
 
     // Use parsed data for setup and command if available, otherwise use editor/state
-    const setupValue = useParsedData && parsedData.setup !== undefined
-      ? parsedData.setup
-      : setupEditorRef?.current?.getValue?.() ?? (setup || undefined);
-    const commandValue = useParsedData && parsedData.command !== undefined
-      ? parsedData.command
-      : commandEditorRef?.current?.getValue?.() ?? (command || undefined);
+    const setupValue =
+      useParsedData && parsedData.setup !== undefined
+        ? parsedData.setup
+        : (setupEditorRef?.current?.getValue?.() ?? (setup || undefined));
+    const commandValue =
+      useParsedData && parsedData.command !== undefined
+        ? parsedData.command
+        : (commandEditorRef?.current?.getValue?.() ?? (command || undefined));
 
     if (!task) return;
     if (!commandValue) {
@@ -845,7 +847,11 @@ export default function EditTaskModal({
 
     // Use parsed env_vars if available, otherwise convert from state array
     const envVarsObj: Record<string, string> = {};
-    if (useParsedData && parsedData.env_vars && typeof parsedData.env_vars === 'object') {
+    if (
+      useParsedData &&
+      parsedData.env_vars &&
+      typeof parsedData.env_vars === 'object'
+    ) {
       Object.entries(parsedData.env_vars).forEach(([key, value]) => {
         if (key.trim() && value) {
           envVarsObj[key.trim()] = String(value).trim();
@@ -861,7 +867,11 @@ export default function EditTaskModal({
 
     // Use parsed parameters if available, otherwise convert from state array
     const parametersObj: Record<string, any> = {};
-    if (useParsedData && parsedData.parameters && typeof parsedData.parameters === 'object') {
+    if (
+      useParsedData &&
+      parsedData.parameters &&
+      typeof parsedData.parameters === 'object'
+    ) {
       Object.entries(parsedData.parameters).forEach(([key, value]) => {
         if (key.trim()) {
           parametersObj[key.trim()] = value;
