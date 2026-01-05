@@ -177,7 +177,7 @@ const Resources = () => {
       </Box>
     );
   }
-
+  console.log(providers);
   return (
     <Box sx={{ maxHeight: '80vh', overflowY: 'auto', p: 3, pb: 10 }}>
       <Stack
@@ -227,9 +227,16 @@ const Resources = () => {
                 Fixed Compute
               </Typography>
               {fixedClusters.length === 0 ? (
-                <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
-                  No Fixed Compute nodes found.
-                </Typography>
+                providers.find((p) => p.id === selectedProvider)?.type ===
+                'skypilot' ? (
+                  <Typography level="body-sm" sx={{ color: 'warning.main' }}>
+                    No cluster status received from SkyPilot. Try refreshing...
+                  </Typography>
+                ) : (
+                  <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
+                    No Fixed Compute nodes found.
+                  </Typography>
+                )
               ) : (
                 <Sheet
                   variant="outlined"
@@ -411,7 +418,9 @@ const Resources = () => {
                   </Table> */}
                 </Sheet>
               )}
-              <FixedComputeClusterVisualization cluster={fixedClusters[0]} />
+              {fixedClusters.length > 0 && (
+                <FixedComputeClusterVisualization cluster={fixedClusters[0]} />
+              )}
             </CardContent>
           </Card>
         </Grid>
