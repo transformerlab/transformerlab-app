@@ -9,7 +9,11 @@ import {
 } from '@mui/joy';
 import { PlayIcon } from 'lucide-react';
 import { useState } from 'react';
-import { useAPI, getAPIFullPath, fetchWithAuth } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  useAPI,
+  getAPIFullPath,
+  fetchWithAuth,
+} from 'renderer/lib/transformerlab-api-sdk';
 import { formatBytes } from 'renderer/lib/utils';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
@@ -17,7 +21,9 @@ import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 export default function ViewCheckpointsModal({ open, onClose, jobId }) {
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
-  const [resumingCheckpoint, setResumingCheckpoint] = useState<string | null>(null);
+  const [resumingCheckpoint, setResumingCheckpoint] = useState<string | null>(
+    null,
+  );
   const { data, isLoading: checkpointsLoading } = useAPI(
     'jobs',
     ['getCheckpoints'],
@@ -46,7 +52,9 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        const errorData = await response
+          .json()
+          .catch(() => ({ detail: 'Unknown error' }));
         throw new Error(errorData.detail || `HTTP ${response.status}`);
       }
 
