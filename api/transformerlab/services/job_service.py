@@ -6,7 +6,6 @@ from typing import List, Dict, Optional, Tuple
 from lab import Experiment, Job
 from lab import dirs as lab_dirs
 from lab import storage
-from time import time
 
 # Allowed job types:
 ALLOWED_JOB_TYPES = [
