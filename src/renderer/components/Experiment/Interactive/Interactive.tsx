@@ -187,9 +187,15 @@ export default function Interactive() {
   // Build list with placeholders for pending job IDs
   const jobsWithPlaceholders = useMemo(() => {
     const baseJobs = Array.isArray(jobs) ? jobs : [];
+    
+    // Only show INTERACTIVE status jobs (not STOPPED)
+    const filteredJobs = baseJobs.filter((job: any) => {
+      return job.status === 'INTERACTIVE';
+    });
+    
     const pending = getPendingJobIds();
 
-    if (!pending.length) return baseJobs;
+    if (!pending.length) return filteredJobs;
 
     const allExistingIds = new Set(baseJobs.map((j: any) => String(j.id)));
 
@@ -204,7 +210,7 @@ export default function Interactive() {
         placeholder: true,
       }));
 
-    return [...placeholders, ...baseJobs];
+    return [...placeholders, ...filteredJobs];
   }, [jobs, getPendingJobIds, pendingIdsTrigger]);
 
   const handleDeleteTask = async (taskId: string) => {
@@ -340,34 +346,8 @@ export default function Interactive() {
       }
 
       // Create template with flat structure
-      const envVars: Record<string, string> = {};
-
-      // Add vLLM-specific environment variables
-      if (interactiveType === 'vllm') {
-        if (data.model_name) {
-          envVars['MODEL_NAME'] = data.model_name;
-        }
-        if (data.hf_token) {
-          envVars['HF_TOKEN'] = data.hf_token;
-        }
-        if (data.tp_size) {
-          envVars['TP_SIZE'] = data.tp_size;
-        }
-      }
-
-      // Add Ollama-specific environment variables
-      if (interactiveType === 'ollama') {
-        if (data.model_name) {
-          envVars['MODEL_NAME'] = data.model_name;
-        }
-      }
-
-      // Add SSH-specific environment variables
-      if (interactiveType === 'ssh') {
-        if (data.ngrok_auth_token) {
-          envVars['NGROK_AUTH_TOKEN'] = data.ngrok_auth_token;
-        }
-      }
+      // Use config_fields from the gallery-defined structure
+      const envVars: Record<string, string> = data.config_fields || {};
 
       const templatePayload: any = {
         name: data.title,

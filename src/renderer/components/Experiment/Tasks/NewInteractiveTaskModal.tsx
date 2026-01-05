@@ -11,19 +11,43 @@ import {
   ModalClose,
   ModalDialog,
   Stack,
-  Radio,
-  RadioGroup,
   FormHelperText,
   Typography,
   Select,
   Option,
   Alert,
+  Card,
+  CardContent,
+  Grid,
+  LinearProgress,
 } from '@mui/joy';
 import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 type ProviderOption = {
   id: string;
   name: string;
+};
+
+type ConfigField = {
+  field_name: string;
+  env_var: string;
+  field_type: 'str' | 'integer';
+  required?: boolean;
+  placeholder?: string;
+  help_text?: string;
+  password?: boolean;
+};
+
+type InteractiveTemplate = {
+  id: string;
+  interactive_type: string;
+  name: string;
+  description: string;
+  config_fields?: ConfigField[];
 };
 
 type NewInteractiveTaskModalProps = {
@@ -37,10 +61,7 @@ type NewInteractiveTaskModalProps = {
       accelerators?: string;
       interactive_type: 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama';
       provider_id?: string;
-      model_name?: string;
-      hf_token?: string;
-      tp_size?: string;
-      ngrok_auth_token?: string;
+      config_fields?: Record<string, string>;
     },
     shouldLaunch?: boolean,
   ) => void;
@@ -57,31 +78,47 @@ export default function NewInteractiveTaskModal({
   providers,
   isProvidersLoading = false,
 }: NewInteractiveTaskModalProps) {
+  const { experimentInfo } = useExperimentInfo();
+  const [step, setStep] = React.useState<'gallery' | 'config'>('gallery');
+  const [selectedTemplate, setSelectedTemplate] =
+    React.useState<InteractiveTemplate | null>(null);
   const [title, setTitle] = React.useState('');
   const [cpus, setCpus] = React.useState('');
   const [memory, setMemory] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
-  const [interactiveType, setInteractiveType] = React.useState<
-    'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama'
-  >('vscode');
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
-  const [modelName, setModelName] = React.useState('');
-  const [hfToken, setHfToken] = React.useState('');
-  const [tpSize, setTpSize] = React.useState('1');
-  const [ngrokAuthToken, setNgrokAuthToken] = React.useState('');
+  const [configFieldValues, setConfigFieldValues] = React.useState<
+    Record<string, string>
+  >({});
+
+  // Fetch interactive gallery
+  const {
+    data: galleryData,
+    isLoading: galleryIsLoading,
+  } = useSWR(
+    experimentInfo?.id && open
+      ? chatAPI.Endpoints.Task.InteractiveGallery(experimentInfo.id)
+      : null,
+    fetcher,
+  );
+
+  const gallery = React.useMemo(() => {
+    if (galleryData?.status === 'success' && Array.isArray(galleryData.data)) {
+      return galleryData.data as InteractiveTemplate[];
+    }
+    return [];
+  }, [galleryData]);
 
   React.useEffect(() => {
     if (!open) {
+      setStep('gallery');
+      setSelectedTemplate(null);
       setTitle('');
       setCpus('');
       setMemory('');
       setAccelerators('');
-      setInteractiveType('vscode');
+      setConfigFieldValues({});
       setSelectedProviderId(providers[0]?.id || '');
-      setModelName('');
-      setHfToken('');
-      setTpSize('1');
-      setNgrokAuthToken('');
     } else if (open && providers.length && !selectedProviderId) {
       setSelectedProviderId(providers[0].id);
     }
@@ -101,6 +138,32 @@ export default function NewInteractiveTaskModal({
     }
   }, [providers, selectedProviderId]);
 
+  const handleTemplateSelect = (template: InteractiveTemplate) => {
+    setSelectedTemplate(template);
+    setStep('config');
+    // Initialize config field values
+    const initialValues: Record<string, string> = {};
+    template.config_fields?.forEach((field) => {
+      if (field.field_type === 'integer' && field.env_var === 'TP_SIZE') {
+        initialValues[field.env_var] = '1';
+      }
+    });
+    setConfigFieldValues(initialValues);
+  };
+
+  const handleBack = () => {
+    setStep('gallery');
+    setSelectedTemplate(null);
+    setConfigFieldValues({});
+  };
+
+  const handleConfigFieldChange = (envVar: string, value: string) => {
+    setConfigFieldValues((prev) => ({
+      ...prev,
+      [envVar]: value,
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent, shouldLaunch: boolean = false) => {
     e.preventDefault();
     if (!title.trim()) {
@@ -111,180 +174,150 @@ export default function NewInteractiveTaskModal({
       return;
     }
 
+    if (!selectedTemplate) {
+      return;
+    }
+
+    // Validate required config fields
+    const requiredFields = selectedTemplate.config_fields?.filter(
+      (f) => f.required,
+    ) || [];
+    for (const field of requiredFields) {
+      if (!configFieldValues[field.env_var]?.trim()) {
+        return;
+      }
+    }
+
     onSubmit(
       {
         title: title.trim(),
         cpus: cpus || undefined,
         memory: memory || undefined,
         accelerators: accelerators || undefined,
-        interactive_type: interactiveType,
+        interactive_type: selectedTemplate.interactive_type as
+          | 'vscode'
+          | 'jupyter'
+          | 'vllm'
+          | 'ssh'
+          | 'ollama',
         provider_id: selectedProviderId,
-        model_name:
-          interactiveType === 'vllm' || interactiveType === 'ollama'
-            ? modelName
-            : undefined,
-        hf_token: interactiveType === 'vllm' ? hfToken : undefined,
-        tp_size: interactiveType === 'vllm' ? tpSize : undefined,
-        ngrok_auth_token:
-          interactiveType === 'ssh' ? ngrokAuthToken : undefined,
+        config_fields: configFieldValues,
       },
       shouldLaunch,
     );
   };
 
-  const canSubmit =
-    title.trim().length > 0 &&
-    !!selectedProviderId &&
-    (interactiveType !== 'vllm' || modelName.trim().length > 0) &&
-    (interactiveType !== 'ollama' || modelName.trim().length > 0) &&
-    (interactiveType !== 'ssh' || ngrokAuthToken.trim().length > 0);
+  const canSubmit = React.useMemo(() => {
+    if (!title.trim() || !selectedProviderId || !selectedTemplate) {
+      return false;
+    }
+
+    const requiredFields = selectedTemplate.config_fields?.filter(
+      (f) => f.required,
+    ) || [];
+    for (const field of requiredFields) {
+      if (!configFieldValues[field.env_var]?.trim()) {
+        return false;
+      }
+    }
+
+    return true;
+  }, [title, selectedProviderId, selectedTemplate, configFieldValues]);
 
   return (
     <Modal open={open} onClose={onClose}>
       <ModalDialog
-        sx={{ maxHeight: '80vh', width: '60vw', overflow: 'hidden' }}
+        sx={{ maxHeight: '80vh', width: step === 'gallery' ? '70vw' : '60vw', overflow: 'hidden' }}
       >
         <ModalClose />
-        <DialogTitle>New Interactive Task</DialogTitle>
+        <DialogTitle>
+          {step === 'gallery' ? 'New Interactive Task' : 'Configure Task'}
+        </DialogTitle>
         <form onSubmit={(e) => handleSubmit(e, false)}>
           <DialogContent
             sx={{ maxHeight: '60vh', overflow: 'auto', padding: 1 }}
           >
-            <Stack spacing={3}>
-              <Typography level="body-sm">
-                Create a lightweight interactive task template that will launch
-                a VS Code tunnel on a remote provider. For this demo, GitHub
-                options are disabled; only basic resources and type selection
-                are supported.
-              </Typography>
+            {step === 'gallery' ? (
+              <Stack spacing={2}>
+                <Typography level="body-sm">
+                  Select an interactive task type to get started.
+                </Typography>
+                {galleryIsLoading ? (
+                  <LinearProgress />
+                ) : gallery.length === 0 ? (
+                  <Typography level="body-sm" color="danger">
+                    No interactive task templates available.
+                  </Typography>
+                ) : (
+                  <Grid container spacing={2}>
+                    {gallery.map((template) => (
+                      <Grid xs={12} sm={6} md={4} key={template.id}>
+                        <Card
+                          variant="outlined"
+                          sx={{
+                            cursor: 'pointer',
+                            '&:hover': {
+                              boxShadow: 'md',
+                              borderColor: 'primary.500',
+                            },
+                          }}
+                          onClick={() => handleTemplateSelect(template)}
+                        >
+                          <CardContent>
+                            <Typography level="title-md">
+                              {template.name}
+                            </Typography>
+                            <Typography level="body-sm" sx={{ mt: 1 }}>
+                              {template.description}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                )}
+              </Stack>
+            ) : (
+              <Stack spacing={3}>
+                <FormControl required>
+                  <FormLabel>Title</FormLabel>
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Interactive session name"
+                    autoFocus
+                  />
+                </FormControl>
 
-              <FormControl required>
-                <FormLabel>Title</FormLabel>
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Interactive session name"
-                  autoFocus
-                />
-              </FormControl>
+                <FormControl>
+                  <FormLabel>Provider</FormLabel>
+                  <Select
+                    placeholder={
+                      providers.length
+                        ? 'Select a provider'
+                        : 'No providers configured'
+                    }
+                    value={selectedProviderId || null}
+                    onChange={(_, value) => setSelectedProviderId(value || '')}
+                    disabled={
+                      isSubmitting || isProvidersLoading || providers.length === 0
+                    }
+                    slotProps={{
+                      listbox: { sx: { maxHeight: 240 } },
+                    }}
+                  >
+                    {providers.map((provider) => (
+                      <Option key={provider.id} value={provider.id}>
+                        {provider.name}
+                      </Option>
+                    ))}
+                  </Select>
+                  <FormHelperText>
+                    Choose which provider should run this interactive session.
+                  </FormHelperText>
+                </FormControl>
 
-              <FormControl>
-                <FormLabel>Provider</FormLabel>
-                <Select
-                  placeholder={
-                    providers.length
-                      ? 'Select a provider'
-                      : 'No providers configured'
-                  }
-                  value={selectedProviderId || null}
-                  onChange={(_, value) => setSelectedProviderId(value || '')}
-                  disabled={
-                    isSubmitting || isProvidersLoading || providers.length === 0
-                  }
-                  slotProps={{
-                    listbox: { sx: { maxHeight: 240 } },
-                  }}
-                >
-                  {providers.map((provider) => (
-                    <Option key={provider.id} value={provider.id}>
-                      {provider.name}
-                    </Option>
-                  ))}
-                </Select>
-                <FormHelperText>
-                  Choose which provider should run this interactive session.
-                </FormHelperText>
-              </FormControl>
-
-              <FormControl>
-                <FormLabel>Interactive Type</FormLabel>
-                <RadioGroup
-                  value={interactiveType}
-                  onChange={(e) =>
-                    setInteractiveType(
-                      e.target.value as
-                        | 'vscode'
-                        | 'jupyter'
-                        | 'vllm'
-                        | 'ssh'
-                        | 'ollama',
-                    )
-                  }
-                >
-                  <Radio value="vscode" label="VS Code" />
-                  <Radio value="jupyter" label="Jupyter Notebook" />
-                  <Radio value="vllm" label="vLLM Server" />
-                  <Radio value="ollama" label="Ollama" />
-                  <Radio value="ssh" label="SSH" />
-                </RadioGroup>
-                <FormHelperText>
-                  Choose VS Code for remote development, Jupyter for notebook
-                  access, vLLM for model serving, Ollama for running Ollama
-                  models, or SSH for direct terminal access via tunnel.
-                </FormHelperText>
-              </FormControl>
-
-              {interactiveType === 'vllm' && (
-                <>
-                  <FormControl required>
-                    <FormLabel>Model Name</FormLabel>
-                    <Input
-                      value={modelName}
-                      onChange={(e) => setModelName(e.target.value)}
-                      placeholder="e.g. meta-llama/Llama-2-7b-chat-hf"
-                    />
-                    <FormHelperText>
-                      HuggingFace model identifier
-                    </FormHelperText>
-                  </FormControl>
-
-                  <FormControl>
-                    <FormLabel>HuggingFace Token</FormLabel>
-                    <Input
-                      type="password"
-                      value={hfToken}
-                      onChange={(e) => setHfToken(e.target.value)}
-                      placeholder="hf_..."
-                    />
-                    <FormHelperText>
-                      Optional: Required for private/gated models
-                    </FormHelperText>
-                  </FormControl>
-
-                  <FormControl>
-                    <FormLabel>Tensor Parallel Size</FormLabel>
-                    <Input
-                      type="number"
-                      value={tpSize}
-                      onChange={(e) => setTpSize(e.target.value)}
-                      placeholder="1"
-                    />
-                    <FormHelperText>
-                      Number of GPUs for tensor parallelism (default: 1)
-                    </FormHelperText>
-                  </FormControl>
-                </>
-              )}
-
-              {interactiveType === 'ollama' && (
-                <>
-                  <FormControl required>
-                    <FormLabel>Model Name</FormLabel>
-                    <Input
-                      value={modelName}
-                      onChange={(e) => setModelName(e.target.value)}
-                      placeholder="e.g. llama2, mistral, codellama"
-                    />
-                    <FormHelperText>
-                      Ollama model name (e.g. llama2, mistral, codellama). Use
-                      "ollama pull &lt;model&gt;" to download models.
-                    </FormHelperText>
-                  </FormControl>
-                </>
-              )}
-
-              {interactiveType === 'ssh' && (
-                <>
+                {selectedTemplate?.interactive_type === 'ssh' && (
                   <Alert color="warning" variant="soft">
                     <Typography
                       level="body-sm"
@@ -299,70 +332,81 @@ export default function NewInteractiveTaskModal({
                       access to your remote machine.
                     </Typography>
                   </Alert>
-                  <FormControl required>
-                    <FormLabel>ngrok Auth Token</FormLabel>
+                )}
+
+                {selectedTemplate?.config_fields &&
+                  selectedTemplate.config_fields.length > 0 && (
+                    <>
+                      {selectedTemplate.config_fields.map((field) => (
+                        <FormControl
+                          key={field.env_var}
+                          required={field.required}
+                        >
+                          <FormLabel>{field.field_name}</FormLabel>
+                          <Input
+                            type={
+                              field.password
+                                ? 'password'
+                                : field.field_type === 'integer'
+                                  ? 'number'
+                                  : 'text'
+                            }
+                            value={configFieldValues[field.env_var] || ''}
+                            onChange={(e) =>
+                              handleConfigFieldChange(
+                                field.env_var,
+                                e.target.value,
+                              )
+                            }
+                            placeholder={field.placeholder}
+                          />
+                          {field.help_text && (
+                            <FormHelperText>{field.help_text}</FormHelperText>
+                          )}
+                        </FormControl>
+                      ))}
+                    </>
+                  )}
+
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  sx={{ flexWrap: 'wrap', rowGap: 2 }}
+                >
+                  <FormControl sx={{ minWidth: '160px', flex: 1 }}>
+                    <FormLabel>CPUs</FormLabel>
                     <Input
-                      type="password"
-                      value={ngrokAuthToken}
-                      onChange={(e) => setNgrokAuthToken(e.target.value)}
-                      placeholder="ngrok_..."
+                      value={cpus}
+                      onChange={(e) => setCpus(e.target.value)}
+                      placeholder="e.g. 4"
                     />
-                    <FormHelperText>
-                      Your ngrok authentication token. Note: You may need to add
-                      a payment method to your ngrok account (it won't be
-                      charged, but it's necessary for SSH connections). You can
-                      get your token from
-                      <a
-                        href="https://dashboard.ngrok.com/get-started/your-authtoken"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        here
-                      </a>
-                      .
-                    </FormHelperText>
                   </FormControl>
-                </>
-              )}
 
-              <Stack
-                direction="row"
-                spacing={2}
-                sx={{ flexWrap: 'wrap', rowGap: 2 }}
-              >
-                <FormControl sx={{ minWidth: '160px', flex: 1 }}>
-                  <FormLabel>CPUs</FormLabel>
-                  <Input
-                    value={cpus}
-                    onChange={(e) => setCpus(e.target.value)}
-                    placeholder="e.g. 4"
-                  />
-                </FormControl>
+                  <FormControl sx={{ minWidth: '160px', flex: 1 }}>
+                    <FormLabel>Memory (GB)</FormLabel>
+                    <Input
+                      value={memory}
+                      onChange={(e) => setMemory(e.target.value)}
+                      placeholder="e.g. 16"
+                    />
+                  </FormControl>
 
-                <FormControl sx={{ minWidth: '160px', flex: 1 }}>
-                  <FormLabel>Memory (GB)</FormLabel>
-                  <Input
-                    value={memory}
-                    onChange={(e) => setMemory(e.target.value)}
-                    placeholder="e.g. 16"
-                  />
-                </FormControl>
+                  <FormControl sx={{ minWidth: '200px', flex: 2 }}>
+                    <FormLabel>Accelerators</FormLabel>
+                    <Input
+                      value={accelerators}
+                      onChange={(e) => setAccelerators(e.target.value)}
+                      placeholder="e.g. RTX3090:1 or H100:8"
+                    />
+                  </FormControl>
+                </Stack>
 
-                <FormControl sx={{ minWidth: '200px', flex: 2 }}>
-                  <FormLabel>Accelerators</FormLabel>
-                  <Input
-                    value={accelerators}
-                    onChange={(e) => setAccelerators(e.target.value)}
-                    placeholder="e.g. RTX3090:1 or H100:8"
-                  />
-                </FormControl>
+                <FormHelperText>
+                  Setup and command are pre-populated based on the selected
+                  interactive type.
+                </FormHelperText>
               </Stack>
-
-              <FormHelperText>
-                Setup and command are pre-populated based on the selected
-                interactive type (VS Code, Jupyter, vLLM, Ollama, or SSH).
-              </FormHelperText>
-            </Stack>
+            )}
           </DialogContent>
           <DialogActions>
             <Stack
@@ -373,38 +417,40 @@ export default function NewInteractiveTaskModal({
               <Button
                 variant="plain"
                 color="neutral"
-                onClick={onClose}
+                onClick={step === 'gallery' ? onClose : handleBack}
                 disabled={isSubmitting}
                 startDecorator={<ArrowLeftIcon size={16} />}
               >
-                Cancel
+                {step === 'gallery' ? 'Cancel' : 'Back'}
               </Button>
-              <Stack direction="row" spacing={2}>
-                <Button
-                  variant="outlined"
-                  loading={isSubmitting}
-                  disabled={isSubmitting || !canSubmit}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleSubmit(e, false);
-                  }}
-                >
-                  Save
-                </Button>
-                <Button
-                  variant="solid"
-                  color="primary"
-                  loading={isSubmitting}
-                  disabled={isSubmitting || !canSubmit}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleSubmit(e, true);
-                  }}
-                  endDecorator={<ArrowRightIcon size={16} />}
-                >
-                  Launch
-                </Button>
-              </Stack>
+              {step === 'config' && (
+                <Stack direction="row" spacing={2}>
+                  <Button
+                    variant="outlined"
+                    loading={isSubmitting}
+                    disabled={isSubmitting || !canSubmit}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleSubmit(e, false);
+                    }}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    variant="solid"
+                    color="primary"
+                    loading={isSubmitting}
+                    disabled={isSubmitting || !canSubmit}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleSubmit(e, true);
+                    }}
+                    endDecorator={<ArrowRightIcon size={16} />}
+                  >
+                    Launch
+                  </Button>
+                </Stack>
+              )}
             </Stack>
           </DialogActions>
         </form>
