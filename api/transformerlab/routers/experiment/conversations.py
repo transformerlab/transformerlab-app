@@ -12,6 +12,8 @@ from fastapi.responses import FileResponse
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
+audio_router = APIRouter(prefix="/conversations", tags=["conversations"])
+
 
 @router.get(path="/list")
 async def get_conversations(experimentId: str):
@@ -93,7 +95,7 @@ async def delete_conversation(experimentId: str, conversation_id: str):
     return {"message": f"Conversation {conversation_id} deleted"}
 
 
-@router.get(path="/list_audio")
+@audio_router.get(path="/list_audio")
 async def list_audio(experimentId: str):
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
@@ -127,7 +129,7 @@ async def list_audio(experimentId: str):
     return audio_files_metadata
 
 
-@router.get(path="/download_audio")
+@audio_router.get(path="/download_audio")
 async def download_audio(experimentId: str, filename: str, audioFolder: str = "audio"):
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
@@ -149,7 +151,7 @@ async def download_audio(experimentId: str, filename: str, audioFolder: str = "a
 
 
 # NOTE: For this endpoint, you must pass the metadata id (the .json file name), not the specific audio file name.
-@router.delete(path="/delete_audio")
+@audio_router.delete(path="/delete_audio")
 async def delete_audio(experimentId: str, id: str):
     """
     Delete an audio file associated with a specific experiment.
@@ -198,7 +200,7 @@ async def delete_audio(experimentId: str, id: str):
     return {"message": f"Audio file {id} deleted from experiment {experimentId}"}
 
 
-@router.get("/list_transcription")
+@audio_router.get("/list_transcription")
 async def list_transcription(experimentId: str):
     # Get experiment object and directory
     exp_obj = Experiment.get(experimentId)
@@ -251,7 +253,7 @@ async def list_transcription(experimentId: str):
     return transcription_files_metadata
 
 
-@router.get("/download_transcription")
+@audio_router.get("/download_transcription")
 async def download_transcription(experimentId: str, filename: str):
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
@@ -263,7 +265,7 @@ async def download_transcription(experimentId: str, filename: str):
     return FileResponse(path=file_path, filename=filename, media_type="text/plain")
 
 
-@router.delete("/delete_transcription")
+@audio_router.delete("/delete_transcription")
 async def delete_transcription(experimentId: str, id: str):
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
