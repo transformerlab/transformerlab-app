@@ -5,7 +5,6 @@ import {
   Chip,
   CircularProgress,
   Divider,
-  IconButton,
   Link,
   Modal,
   ModalClose,
@@ -13,21 +12,21 @@ import {
   Stack,
   Typography,
 } from '@mui/joy';
-import { CopyIcon, LogsIcon } from 'lucide-react';
+import { LogsIcon } from 'lucide-react';
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
-type InteractiveVSCodeModalProps = {
+type InteractiveSshModalProps = {
   jobId: number;
   setJobId: (jobId: number) => void;
 };
 
-export default function InteractiveVSCodeModal({
+export default function InteractiveSshModal({
   jobId,
   setJobId,
-}: InteractiveVSCodeModalProps) {
+}: InteractiveSshModalProps) {
   const { experimentInfo } = useExperimentInfo();
 
   const url = React.useMemo(() => {
@@ -70,8 +69,10 @@ export default function InteractiveVSCodeModal({
     return null;
   }
 
-  const authCode = data?.auth_code || null;
-  const tunnelUrl = data?.tunnel_url || null;
+  const domain = data?.domain || null;
+  const port = data?.port || null;
+  const username = data?.username || null;
+  const sshCommand = data?.ssh_command || null;
   const isReady = Boolean(data?.is_ready);
 
   return (
@@ -87,10 +88,11 @@ export default function InteractiveVSCodeModal({
         <ModalClose />
         <Stack spacing={1} sx={{ mb: 1 }}>
           <Typography level="title-lg">
-            VS Code Interactive Session (Job {jobId})
+            SSH Tunnel Interactive Session (Job {jobId})
           </Typography>
           <Typography level="body-sm" color="neutral">
-            Follow the steps below to authenticate and open your VS Code tunnel.
+            Access your remote machine via SSH through the ngrok tunnel. Use the
+            SSH command below to connect.
           </Typography>
         </Stack>
         <Divider />
@@ -117,19 +119,32 @@ export default function InteractiveVSCodeModal({
           </Stack>
 
           <Box>
-            <Typography level="title-md">Step 1: Authorize VS Code</Typography>
+            <Typography level="title-md">SSH Connection Details</Typography>
             <Typography level="body-sm" sx={{ mt: 0.5 }}>
-              When the VS Code tunnel starts, it prints an authorization code.
-              Copy the code below (when available), go to{' '}
-              <Link
-                href="https://github.com/login/device"
-                target="_blank"
-                rel="noreferrer"
-              >
-                https://github.com/login/device
-              </Link>{' '}
-              and complete the sign-in flow in your browser.
+              Once the tunnel is ready, use the SSH command below to connect to
+              your remote machine.
             </Typography>
+
+            {domain && port && (
+              <Box sx={{ mt: 2 }}>
+                <Typography level="body-sm" sx={{ mb: 1, fontWeight: 'bold' }}>
+                  Connection Information:
+                </Typography>
+                <Stack spacing={0.5} sx={{ mb: 2 }}>
+                  <Typography level="body-xs">
+                    Domain: <code>{domain}</code>
+                  </Typography>
+                  <Typography level="body-xs">
+                    Port: <code>{port}</code>
+                  </Typography>
+                  {username && (
+                    <Typography level="body-xs">
+                      Username: <code>{username}</code>
+                    </Typography>
+                  )}
+                </Stack>
+              </Box>
+            )}
 
             <Box
               sx={{
@@ -141,82 +156,75 @@ export default function InteractiveVSCodeModal({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: 1,
+                flexWrap: 'wrap',
+                bgcolor: 'background.level1',
               }}
             >
-              <Typography
-                level="h4"
-                sx={{ fontFamily: 'monospace', letterSpacing: '0.12em' }}
-              >
-                {authCode || 'Waiting for auth code from provider logs...'}
-              </Typography>
-              <IconButton
-                size="sm"
-                variant="soft"
-                onClick={() => handleCopy(authCode)}
-                disabled={!authCode}
-              >
-                <CopyIcon size={16} />
-              </IconButton>
-            </Box>
-
-            <Typography level="body-xs" sx={{ mt: 0.5 }}>
-              Tip: If the code never appears, check the job output and provider
-              logs to ensure the tunnel started correctly.
-            </Typography>
-          </Box>
-
-          <Divider />
-
-          <Box>
-            <Typography level="title-md">
-              Step 2: Open VS Code Tunnel
-            </Typography>
-            <Typography level="body-sm" sx={{ mt: 0.5 }}>
-              After you finish authorization, the tunnel URL will appear here.
-              Use it to open the remote environment in your browser-based VS
-              Code.
-            </Typography>
-
-            <Box
-              sx={{
-                mt: 1,
-                p: 1.5,
-                borderRadius: 'sm',
-                border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 1,
-              }}
-            >
-              {tunnelUrl ? (
+              {sshCommand ? (
                 <>
-                  <Link
-                    href={tunnelUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    level="title-md"
-                    sx={{ wordBreak: 'break-all' }}
+                  <Typography
+                    level="body-md"
+                    component="code"
+                    sx={{
+                      fontFamily: 'monospace',
+                      wordBreak: 'break-all',
+                      flex: 1,
+                      minWidth: 0,
+                    }}
                   >
-                    {tunnelUrl}
-                  </Link>
+                    {sshCommand}
+                  </Typography>
                   <Stack direction="row" spacing={1}>
                     <Button
                       size="sm"
                       variant="soft"
-                      onClick={() => handleCopy(tunnelUrl)}
+                      onClick={() => handleCopy(sshCommand)}
                     >
-                      Copy URL
+                      Copy Command
                     </Button>
                   </Stack>
                 </>
               ) : (
-                <Typography level="body-sm">
-                  Waiting for VS Code to print a tunnel URL in the provider
-                  logs...
+                <Typography level="body-sm" sx={{ flex: 1 }}>
+                  Waiting for tunnel to start. The SSH command will appear here
+                  once ngrok creates the tunnel...
                 </Typography>
               )}
             </Box>
+
+            {sshCommand && (
+              <Box
+                sx={{
+                  mt: 2,
+                  p: 1.5,
+                  bgcolor: 'background.level1',
+                  borderRadius: 'sm',
+                }}
+              >
+                <Typography level="body-sm" sx={{ mb: 1, fontWeight: 'bold' }}>
+                  Usage Instructions:
+                </Typography>
+                <Typography
+                  level="body-xs"
+                  component="pre"
+                  sx={{
+                    fontFamily: 'monospace',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-all',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  {`1. Copy the SSH command above
+2. Open your terminal
+3. Paste and run the command`}
+                </Typography>
+              </Box>
+            )}
+
+            <Typography level="body-xs" sx={{ mt: 1 }}>
+              Tip: If the command never appears, check the job output and
+              provider logs to ensure ngrok started correctly.
+            </Typography>
           </Box>
 
           <Divider />
@@ -228,7 +236,6 @@ export default function InteractiveVSCodeModal({
               startDecorator={<LogsIcon size={16} />}
               onClick={() => {
                 // Reuse the existing output modal via the main Tasks page
-                // This just nudges the user to open the standard Output modal.
                 window.dispatchEvent(
                   new CustomEvent('tflab-open-job-output', {
                     detail: { jobId },
