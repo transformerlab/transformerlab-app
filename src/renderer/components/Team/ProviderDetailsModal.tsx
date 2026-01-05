@@ -41,6 +41,14 @@ const DEFAULT_CONFIGS = {
   "ssh_key_path": "<Path to private key for SSH if present>",
   "ssh_port": 22
 }`,
+  runpod: `{
+  "api_key": "<Your RunPod API key>",
+  "api_base_url": "https://api.runpod.io/v1",
+  "default_gpu_type": "<e.g. RTX 3090, A100, or GPU type ID>",
+  "default_region": "<optional region>",
+  "default_template_id": "<optional Docker template ID>",
+  "default_network_volume_id": "<optional network volume ID>"
+}`,
 };
 
 export default function ProviderDetailsModal({
@@ -179,6 +187,7 @@ export default function ProviderDetailsModal({
             >
               <Option value="skypilot">Skypilot</Option>
               <Option value="slurm">SLURM</Option>
+              <Option value="runpod">RunPod</Option>
             </Select>
             {providerId && (
               <Typography

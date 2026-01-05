@@ -178,10 +178,10 @@ async def create_provider(
     user = owner_info["user"]
 
     # Validate provider type
-    if provider_data.type not in [ProviderType.SLURM, ProviderType.SKYPILOT]:
+    if provider_data.type not in [ProviderType.SLURM, ProviderType.SKYPILOT, ProviderType.RUNPOD]:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid provider type. Must be one of: {ProviderType.SLURM.value}, {ProviderType.SKYPILOT.value}",
+            detail=f"Invalid provider type. Must be one of: {ProviderType.SLURM.value}, {ProviderType.SKYPILOT.value}, {ProviderType.RUNPOD.value}",
         )
 
     # Check if provider name already exists for this team

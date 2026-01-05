@@ -149,6 +149,13 @@ def db_record_to_provider_config(record: TeamComputeProvider) -> ComputeProvider
         ssh_user=config_dict.get("ssh_user"),
         ssh_key_path=config_dict.get("ssh_key_path"),
         ssh_port=config_dict.get("ssh_port", 22),
+        # RunPod-specific config
+        api_key=config_dict.get("api_key"),
+        api_base_url=config_dict.get("api_base_url"),
+        default_gpu_type=config_dict.get("default_gpu_type"),
+        default_region=config_dict.get("default_region"),
+        default_template_id=config_dict.get("default_template_id"),
+        default_network_volume_id=config_dict.get("default_network_volume_id"),
         extra_config=config_dict.get("extra_config", {}),
     )
 
