@@ -19,15 +19,15 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
-type InteractiveVSCodeModalProps = {
+type InteractiveJupyterModalProps = {
   jobId: number;
   setJobId: (jobId: number) => void;
 };
 
-export default function InteractiveVSCodeModal({
+export default function InteractiveJupyterModal({
   jobId,
   setJobId,
-}: InteractiveVSCodeModalProps) {
+}: InteractiveJupyterModalProps) {
   const { experimentInfo } = useExperimentInfo();
 
   const url = React.useMemo(() => {
@@ -70,7 +70,8 @@ export default function InteractiveVSCodeModal({
     return null;
   }
 
-  const authCode = data?.auth_code || null;
+  const jupyterUrl = data?.jupyter_url || null;
+  const token = data?.token || null;
   const tunnelUrl = data?.tunnel_url || null;
   const isReady = Boolean(data?.is_ready);
 
@@ -87,10 +88,11 @@ export default function InteractiveVSCodeModal({
         <ModalClose />
         <Stack spacing={1} sx={{ mb: 1 }}>
           <Typography level="title-lg">
-            VS Code Interactive Session (Job {jobId})
+            Jupyter Notebook Interactive Session (Job {jobId})
           </Typography>
           <Typography level="body-sm" color="neutral">
-            Follow the steps below to authenticate and open your VS Code tunnel.
+            Access your Jupyter notebook through the tunnel URL below. The
+            tunnel URL provides secure access without requiring a token.
           </Typography>
         </Stack>
         <Divider />
@@ -117,18 +119,11 @@ export default function InteractiveVSCodeModal({
           </Stack>
 
           <Box>
-            <Typography level="title-md">Step 1: Authorize VS Code</Typography>
+            <Typography level="title-md">Access Jupyter Notebook</Typography>
             <Typography level="body-sm" sx={{ mt: 0.5 }}>
-              When the VS Code tunnel starts, it prints an authorization code.
-              Copy the code below (when available), go to{' '}
-              <Link
-                href="https://github.com/login/device"
-                target="_blank"
-                rel="noreferrer"
-              >
-                https://github.com/login/device
-              </Link>{' '}
-              and complete the sign-in flow in your browser.
+              Once the tunnel is ready, click the link below to open your
+              Jupyter notebook in your browser. The tunnel URL provides secure
+              access without requiring a token.
             </Typography>
 
             <Box
@@ -141,82 +136,48 @@ export default function InteractiveVSCodeModal({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: 1,
+                flexWrap: 'wrap',
               }}
             >
-              <Typography
-                level="h4"
-                sx={{ fontFamily: 'monospace', letterSpacing: '0.12em' }}
-              >
-                {authCode || 'Waiting for auth code from provider logs...'}
-              </Typography>
-              <IconButton
-                size="sm"
-                variant="soft"
-                onClick={() => handleCopy(authCode)}
-                disabled={!authCode}
-              >
-                <CopyIcon size={16} />
-              </IconButton>
-            </Box>
-
-            <Typography level="body-xs" sx={{ mt: 0.5 }}>
-              Tip: If the code never appears, check the job output and provider
-              logs to ensure the tunnel started correctly.
-            </Typography>
-          </Box>
-
-          <Divider />
-
-          <Box>
-            <Typography level="title-md">
-              Step 2: Open VS Code Tunnel
-            </Typography>
-            <Typography level="body-sm" sx={{ mt: 0.5 }}>
-              After you finish authorization, the tunnel URL will appear here.
-              Use it to open the remote environment in your browser-based VS
-              Code.
-            </Typography>
-
-            <Box
-              sx={{
-                mt: 1,
-                p: 1.5,
-                borderRadius: 'sm',
-                border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 1,
-              }}
-            >
-              {tunnelUrl ? (
+              {jupyterUrl ? (
                 <>
                   <Link
-                    href={tunnelUrl}
+                    href={jupyterUrl}
                     target="_blank"
                     rel="noreferrer"
                     level="title-md"
-                    sx={{ wordBreak: 'break-all' }}
+                    sx={{ wordBreak: 'break-all', flex: 1, minWidth: 0 }}
                   >
-                    {tunnelUrl}
+                    {jupyterUrl}
                   </Link>
                   <Stack direction="row" spacing={1}>
                     <Button
                       size="sm"
                       variant="soft"
-                      onClick={() => handleCopy(tunnelUrl)}
+                      onClick={() => handleCopy(jupyterUrl)}
                     >
                       Copy URL
                     </Button>
                   </Stack>
                 </>
               ) : (
-                <Typography level="body-sm">
-                  Waiting for VS Code to print a tunnel URL in the provider
-                  logs...
+                <Typography level="body-sm" sx={{ flex: 1 }}>
+                  Waiting for tunnel to start. The URL will appear here once
+                  ngrok creates the tunnel...
                 </Typography>
               )}
             </Box>
+
+            {token && (
+              <Typography level="body-xs" sx={{ mt: 0.5, color: 'neutral' }}>
+                Token: <code>{token}</code> (automatically included in URL)
+              </Typography>
+            )}
+
+            <Typography level="body-xs" sx={{ mt: 1 }}>
+              Tip: If the URL never appears, check the job output and provider
+              logs to ensure Jupyter and ngrok started correctly.
+            </Typography>
           </Box>
 
           <Divider />
@@ -228,7 +189,6 @@ export default function InteractiveVSCodeModal({
               startDecorator={<LogsIcon size={16} />}
               onClick={() => {
                 // Reuse the existing output modal via the main Tasks page
-                // This just nudges the user to open the standard Output modal.
                 window.dispatchEvent(
                   new CustomEvent('tflab-open-job-output', {
                     detail: { jobId },
