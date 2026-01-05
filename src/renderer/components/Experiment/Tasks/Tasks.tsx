@@ -18,6 +18,10 @@ import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveVSCodeModal from './InteractiveVSCodeModal';
+import InteractiveJupyterModal from './InteractiveJupyterModal';
+import InteractiveVllmModal from './InteractiveVllmModal';
+import InteractiveSshModal from './InteractiveSshModal';
+import InteractiveOllamaModal from './InteractiveOllamaModal';
 import EditTaskModal from './EditTaskModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -600,18 +604,117 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
     setIsSubmitting(true);
     try {
-      const defaultSetup = `
-export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gnupg software-properties-common apt-transport-https wget \
+      const interactiveType = data.interactive_type || 'vscode';
+
+      let defaultSetup: string;
+      let defaultCommand: string;
+
+      if (interactiveType === 'jupyter') {
+        // Setup: Install cloudflared and jupyter
+        defaultSetup = `
+export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y wget curl \
+&& pip install jupyter \
+&& curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /tmp/cloudflared \
+&& chmod +x /tmp/cloudflared && sudo mv /tmp/cloudflared /usr/local/bin/cloudflared;`.trim();
+
+        // Command: Start Jupyter without token (tunnel URL provides security) and cloudflared tunnel
+        // Start Jupyter in background, then start cloudflared tunnel
+        defaultCommand =
+          `jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password='' --notebook-dir=~ > /tmp/jupyter.log 2>&1 & sleep 3 && cloudflared tunnel --url http://localhost:8888 2>&1 | tee /tmp/cloudflared.log; tail -f /tmp/jupyter.log /tmp/cloudflared.log`.trim();
+      } else if (interactiveType === 'vllm') {
+        // Setup: Install uv, create venv, install vLLM and dependencies, install cloudflared
+        defaultSetup = `
+export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y wget curl python3-pip \
+&& curl -LsSf https://astral.sh/uv/install.sh | sh \
+&& export PATH="$HOME/.cargo/bin:$PATH" \
+&& uv venv ~/vllm-venv \
+&& source ~/vllm-venv/bin/activate \
+&& uv pip install "vllm>=0.11.0" \
+&& uv pip install "transformers>=4.57.1" \
+&& uv pip install qwen-vl-utils==0.0.14 \
+&& uv pip install flashinfer-python flashinfer-cubin \
+&& curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /tmp/cloudflared \
+&& chmod +x /tmp/cloudflared && sudo mv /tmp/cloudflared /usr/local/bin/cloudflared;`.trim();
+
+        // Command: Start vLLM server in background, then start cloudflared tunnel
+        // vLLM runs on port 8000 by default
+        // Environment variables (MODEL_NAME, HF_TOKEN, TP_SIZE) are passed via env_vars
+        defaultCommand =
+          `source ~/vllm-venv/bin/activate && python -u -m vllm.entrypoints.openai.api_server --model $MODEL_NAME --tensor-parallel-size $TP_SIZE --host 0.0.0.0 --port 8000 > /tmp/vllm.log 2>&1 & sleep 10 && cloudflared tunnel --url http://localhost:8000 2>&1 | tee /tmp/cloudflared.log; tail -f /tmp/vllm.log /tmp/cloudflared.log`.trim();
+      } else if (interactiveType === 'ollama') {
+        // Setup: Install Ollama and cloudflared
+        defaultSetup = `
+export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y wget curl \
+&& curl -fsSL https://ollama.com/install.sh | sh \
+&& sudo apt update && sudo apt install -y pciutils lshw \
+&& curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /tmp/cloudflared \
+&& chmod +x /tmp/cloudflared && sudo mv /tmp/cloudflared /usr/local/bin/cloudflared;`.trim();
+
+        // Command: Pull model if needed, start Ollama server, then start cloudflared tunnel
+        // Ollama runs on port 11434 by default
+        // OLLAMA_HOST=0.0.0.0:11434 makes Ollama accessible from all interfaces (required for cloudflared)
+        // Environment variable MODEL_NAME is passed via env_vars
+        defaultCommand =
+          `export OLLAMA_HOST=0.0.0.0:11434 && ollama serve > /tmp/ollama.log 2>&1 & sleep 3 && ollama pull $MODEL_NAME > /tmp/ollama-pull.log 2>&1 & sleep 5 && cloudflared tunnel --url http://localhost:11434 2>&1 | tee /tmp/cloudflared.log; tail -f /tmp/ollama.log /tmp/ollama-pull.log /tmp/cloudflared.log`.trim();
+      } else if (interactiveType === 'ssh') {
+        // Setup: Install ngrok
+        defaultSetup = `
+export DEBIAN_FRONTEND=noninteractive; curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+  | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+  ; echo "deb https://ngrok-agent.s3.amazonaws.com bookworm main" \
+  | sudo tee /etc/apt/sources.list.d/ngrok.list \
+  ; sudo apt update \
+  ; sudo apt install ngrok;`.trim();
+
+        // Command: Configure ngrok auth token, echo username, then start ngrok TCP tunnel on port 22
+        // Environment variable NGROK_AUTH_TOKEN is passed via env_vars
+        // Username will be parsed from paths like /home/<username>/.config/ngrok/ngrok.yml if echo fails
+        defaultCommand =
+          `export NGROK_AUTH_TOKEN=$NGROK_AUTH_TOKEN; ngrok config add-authtoken $NGROK_AUTH_TOKEN; echo USER_ID=$(whoami 2>/dev/null || basename $HOME 2>/dev/null || echo ''); ngrok tcp 22 --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/ngrok.log`.trim();
+      } else {
+        // VS Code setup
+        defaultSetup = `
+export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gnupg software-properties-common apt-transport-https wget \
 && wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg \
 && sudo install -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/ \
 && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
 | sudo tee /etc/apt/sources.list.d/vscode.list \
 && sudo apt update && sudo apt install -y code;`.trim();
 
-      const defaultCommand =
-        'code tunnel --accept-server-license-terms --disable-telemetry'.trim();
+        defaultCommand =
+          'code tunnel --accept-server-license-terms --disable-telemetry'.trim();
+      }
 
       // Create template with flat structure
+      const envVars: Record<string, string> = {};
+
+      // Add vLLM-specific environment variables
+      if (interactiveType === 'vllm') {
+        if (data.model_name) {
+          envVars['MODEL_NAME'] = data.model_name;
+        }
+        if (data.hf_token) {
+          envVars['HF_TOKEN'] = data.hf_token;
+        }
+        if (data.tp_size) {
+          envVars['TP_SIZE'] = data.tp_size;
+        }
+      }
+
+      // Add Ollama-specific environment variables
+      if (interactiveType === 'ollama') {
+        if (data.model_name) {
+          envVars['MODEL_NAME'] = data.model_name;
+        }
+      }
+
+      // Add SSH-specific environment variables
+      if (interactiveType === 'ssh') {
+        if (data.ngrok_auth_token) {
+          envVars['NGROK_AUTH_TOKEN'] = data.ngrok_auth_token;
+        }
+      }
+
       const templatePayload: any = {
         name: data.title,
         type: 'REMOTE',
@@ -624,9 +727,10 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         accelerators: data.accelerators || undefined,
         setup: defaultSetup,
         subtype: 'interactive',
-        interactive_type: data.interactive_type || 'vscode',
+        interactive_type: interactiveType,
         provider_id: providerMeta.id,
         provider_name: providerMeta.name,
+        env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
       };
 
       const response = await chatAPI.authenticatedFetch(
@@ -643,10 +747,19 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
       if (response.ok) {
         setInteractiveModalOpen(false);
         await templatesMutate();
+        const interactiveTypeLabel =
+          (data.interactive_type || 'vscode') === 'jupyter'
+            ? 'Jupyter'
+            : (data.interactive_type || 'vscode') === 'vllm'
+              ? 'vLLM'
+              : (data.interactive_type || 'vscode') === 'ollama'
+                ? 'Ollama'
+                : (data.interactive_type || 'vscode') === 'ssh'
+                  ? 'SSH'
+                  : 'VS Code';
         addNotification({
           type: 'success',
-          message:
-            'Interactive template created. Use Queue to launch the VS Code tunnel.',
+          message: `Interactive template created. Use Queue to launch the ${interactiveTypeLabel} tunnel.`,
         });
       } else {
         const txt = await response.text();
@@ -1008,10 +1121,61 @@ export export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt instal
         onClose={() => setViewEvalResultsFromJob(-1)}
         jobId={viewEvalResultsFromJob}
       />
-      <InteractiveVSCodeModal
-        jobId={interactiveJobForModal}
-        setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-      />
+      {(() => {
+        // Find the job to determine which modal to show
+        const job = jobs.find(
+          (j: any) => String(j.id) === String(interactiveJobForModal),
+        );
+        const interactiveType =
+          job?.job_data?.interactive_type ||
+          (typeof job?.job_data === 'string'
+            ? JSON.parse(job?.job_data || '{}')?.interactive_type
+            : null) ||
+          'vscode';
+
+        if (interactiveType === 'jupyter') {
+          return (
+            <InteractiveJupyterModal
+              jobId={interactiveJobForModal}
+              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+            />
+          );
+        }
+
+        if (interactiveType === 'vllm') {
+          return (
+            <InteractiveVllmModal
+              jobId={interactiveJobForModal}
+              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+            />
+          );
+        }
+
+        if (interactiveType === 'ssh') {
+          return (
+            <InteractiveSshModal
+              jobId={interactiveJobForModal}
+              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+            />
+          );
+        }
+
+        if (interactiveType === 'ollama') {
+          return (
+            <InteractiveOllamaModal
+              jobId={interactiveJobForModal}
+              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+            />
+          );
+        }
+
+        return (
+          <InteractiveVSCodeModal
+            jobId={interactiveJobForModal}
+            setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+          />
+        );
+      })()}
       <PreviewDatasetModal
         open={previewDatasetModal.open}
         setOpen={(open: boolean) =>
