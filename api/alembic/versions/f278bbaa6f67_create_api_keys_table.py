@@ -54,8 +54,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop api_keys table."""
-    op.drop_index(op.f("ix_api_keys_team_id"), table_name="api_keys")
-    op.drop_index(op.f("ix_api_keys_key_prefix"), table_name="api_keys")
-    op.drop_index(op.f("ix_api_keys_key_hash"), table_name="api_keys")
-    op.drop_index(op.f("ix_api_keys_user_id"), table_name="api_keys")
+    op.drop_index(op.f("ix_api_keys_team_id"), table_name="api_keys", if_exists=True)
+    op.drop_index(op.f("ix_api_keys_key_prefix"), table_name="api_keys", if_exists=True)
+    op.drop_index(op.f("ix_api_keys_key_hash"), table_name="api_keys", if_exists=True)
+    op.drop_index(op.f("ix_api_keys_user_id"), table_name="api_keys", if_exists=True)
     op.drop_table("api_keys")
