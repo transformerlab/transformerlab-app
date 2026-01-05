@@ -29,18 +29,21 @@ type ProviderOption = {
 type NewInteractiveTaskModalProps = {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: {
-    title: string;
-    cpus?: string;
-    memory?: string;
-    accelerators?: string;
-    interactive_type: 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama';
-    provider_id?: string;
-    model_name?: string;
-    hf_token?: string;
-    tp_size?: string;
-    ngrok_auth_token?: string;
-  }) => void;
+  onSubmit: (
+    data: {
+      title: string;
+      cpus?: string;
+      memory?: string;
+      accelerators?: string;
+      interactive_type: 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama';
+      provider_id?: string;
+      model_name?: string;
+      hf_token?: string;
+      tp_size?: string;
+      ngrok_auth_token?: string;
+    },
+    shouldLaunch?: boolean,
+  ) => void;
   isSubmitting?: boolean;
   providers: ProviderOption[];
   isProvidersLoading?: boolean;
@@ -98,7 +101,7 @@ export default function NewInteractiveTaskModal({
     }
   }, [providers, selectedProviderId]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent, shouldLaunch: boolean = false) => {
     e.preventDefault();
     if (!title.trim()) {
       return;
@@ -108,21 +111,25 @@ export default function NewInteractiveTaskModal({
       return;
     }
 
-    onSubmit({
-      title: title.trim(),
-      cpus: cpus || undefined,
-      memory: memory || undefined,
-      accelerators: accelerators || undefined,
-      interactive_type: interactiveType,
-      provider_id: selectedProviderId,
-      model_name:
-        interactiveType === 'vllm' || interactiveType === 'ollama'
-          ? modelName
-          : undefined,
-      hf_token: interactiveType === 'vllm' ? hfToken : undefined,
-      tp_size: interactiveType === 'vllm' ? tpSize : undefined,
-      ngrok_auth_token: interactiveType === 'ssh' ? ngrokAuthToken : undefined,
-    });
+    onSubmit(
+      {
+        title: title.trim(),
+        cpus: cpus || undefined,
+        memory: memory || undefined,
+        accelerators: accelerators || undefined,
+        interactive_type: interactiveType,
+        provider_id: selectedProviderId,
+        model_name:
+          interactiveType === 'vllm' || interactiveType === 'ollama'
+            ? modelName
+            : undefined,
+        hf_token: interactiveType === 'vllm' ? hfToken : undefined,
+        tp_size: interactiveType === 'vllm' ? tpSize : undefined,
+        ngrok_auth_token:
+          interactiveType === 'ssh' ? ngrokAuthToken : undefined,
+      },
+      shouldLaunch,
+    );
   };
 
   const canSubmit =
@@ -139,7 +146,7 @@ export default function NewInteractiveTaskModal({
       >
         <ModalClose />
         <DialogTitle>New Interactive Task</DialogTitle>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={(e) => handleSubmit(e, false)}>
           <DialogContent
             sx={{ maxHeight: '60vh', overflow: 'auto', padding: 1 }}
           >
@@ -372,15 +379,32 @@ export default function NewInteractiveTaskModal({
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                variant="solid"
-                loading={isSubmitting}
-                disabled={isSubmitting || !canSubmit}
-                endDecorator={<ArrowRightIcon size={16} />}
-              >
-                Create Interactive Task
-              </Button>
+              <Stack direction="row" spacing={2}>
+                <Button
+                  variant="outlined"
+                  loading={isSubmitting}
+                  disabled={isSubmitting || !canSubmit}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleSubmit(e, false);
+                  }}
+                >
+                  Save
+                </Button>
+                <Button
+                  variant="solid"
+                  color="primary"
+                  loading={isSubmitting}
+                  disabled={isSubmitting || !canSubmit}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleSubmit(e, true);
+                  }}
+                  endDecorator={<ArrowRightIcon size={16} />}
+                >
+                  Launch
+                </Button>
+              </Stack>
             </Stack>
           </DialogActions>
         </form>
