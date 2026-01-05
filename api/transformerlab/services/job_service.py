@@ -417,22 +417,28 @@ async def _record_quota_usage_internal(
     elif final_status == "STOPPED":
         end_time_str = job_data.get("stop_time") or job_data.get("end_time")
     elif final_status in ("FAILED", "DELETED"):
-        end_time_str = job_data.get("end_time") or time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+        end_time_str = job_data.get("end_time") or datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
     if not end_time_str:
-        end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+        end_time_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
     # Calculate minutes used
     try:
         if isinstance(start_time_str, str):
-            start_dt = datetime.strptime(start_time_str, "%Y-%m-%d %H:%M:%S")
-        else:
+            start_dt = datetime.datetime.strptime(start_time_str, "%Y-%m-%d %H:%M:%S")
+        elif isinstance(start_time_str, datetime.datetime):
             start_dt = start_time_str
+        else:
+            print(f"Invalid start_time_str type: {type(start_time_str)}, value: {start_time_str}")
+            return
 
         if isinstance(end_time_str, str):
-            end_dt = datetime.strptime(end_time_str, "%Y-%m-%d %H:%M:%S")
-        else:
+            end_dt = datetime.datetime.strptime(end_time_str, "%Y-%m-%d %H:%M:%S")
+        elif isinstance(end_time_str, datetime.datetime):
             end_dt = end_time_str
+        else:
+            print(f"Invalid end_time_str type: {type(end_time_str)}, value: {end_time_str}")
+            return
 
         duration_seconds = (end_dt - start_dt).total_seconds()
         minutes_used = round(duration_seconds / 60.0, 2)

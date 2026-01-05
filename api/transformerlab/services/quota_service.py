@@ -353,13 +353,19 @@ async def ensure_quota_recorded_for_completed_job(
 
         if isinstance(start_time_str, str):
             start_dt = datetime.strptime(start_time_str, "%Y-%m-%d %H:%M:%S")
-        else:
+        elif isinstance(start_time_str, datetime):
             start_dt = start_time_str
+        else:
+            print(f"Invalid start_time_str type: {type(start_time_str)}, value: {start_time_str}")
+            return False
 
         if isinstance(end_time_str, str):
             end_dt = datetime.strptime(end_time_str, "%Y-%m-%d %H:%M:%S")
-        else:
+        elif isinstance(end_time_str, datetime):
             end_dt = end_time_str
+        else:
+            print(f"Invalid end_time_str type: {type(end_time_str)}, value: {end_time_str}")
+            return False
 
         duration_seconds = (end_dt - start_dt).total_seconds()
         minutes_used = round(duration_seconds / 60.0, 2)
