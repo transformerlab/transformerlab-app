@@ -47,6 +47,7 @@ import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
 import { useAnalytics } from './Shared/analytics/AnalyticsContext';
 import SafeJSONParse from './Shared/SafeJSONParse';
 import Tasks from './Experiment/Tasks/Tasks';
+import Interactive from './Experiment/Interactive/Interactive';
 import Team from './Team/Team';
 import UsageReport from './Team/UsageReport';
 import TasksGallery from './TasksGallery/TasksGallery';
@@ -388,10 +389,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/experiment/tokenize" element={<Tokenize />} />
         <Route path="/experiment/training" element={<TrainLoRA />} />
         <Route path="/experiment/tasks" element={<Tasks />} />
-        <Route
-          path="/experiment/interactive"
-          element={<Tasks subtype="interactive" />}
-        />
+        <Route path="/experiment/interactive" element={<Interactive />} />
 
         <Route
           path="/experiment/eval"
