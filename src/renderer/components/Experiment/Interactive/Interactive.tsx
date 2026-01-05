@@ -695,7 +695,7 @@ export default function Interactive() {
         alignItems="center"
         gap={2}
       >
-        <Typography level="title-md">Interactive Jobs</Typography>
+        <Typography level="title-md">Running Services</Typography>
         <Button
           startDecorator={<TerminalIcon />}
           onClick={() => setInteractiveModalOpen(true)}
@@ -841,7 +841,7 @@ export default function Interactive() {
           </Box>
         )}
       </Sheet>
-      <Typography level="title-md">Re-launch Interactive Jobs</Typography>
+      <Typography level="title-md">History</Typography>
       <Sheet
         variant="soft"
         sx={{
