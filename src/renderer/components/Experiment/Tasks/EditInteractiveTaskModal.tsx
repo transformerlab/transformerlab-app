@@ -59,12 +59,16 @@ export default function EditInteractiveTaskModal({
   const [memory, setMemory] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [interactiveType, setInteractiveType] = React.useState<
-    'vscode' | 'jupyter'
+    'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama'
   >('vscode');
   const [setup, setSetup] = React.useState('');
   const [command, setCommand] = React.useState('');
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
   const [isSaving, setIsSaving] = React.useState(false);
+  const [modelName, setModelName] = React.useState('');
+  const [hfToken, setHfToken] = React.useState('');
+  const [tpSize, setTpSize] = React.useState('1');
+  const [ngrokAuthToken, setNgrokAuthToken] = React.useState('');
 
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
@@ -106,11 +110,41 @@ export default function EditInteractiveTaskModal({
     setAccelerators(
       isTemplate ? taskAny.accelerators || '' : cfg.accelerators || '',
     );
-    setInteractiveType(
-      (taskAny.interactive_type || cfg.interactive_type || 'vscode') as
-        | 'vscode'
-        | 'jupyter',
-    );
+    const loadedInteractiveType = (taskAny.interactive_type ||
+      cfg.interactive_type ||
+      'vscode') as 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama';
+    setInteractiveType(loadedInteractiveType);
+
+    // Load environment variables based on interactive type
+    const envVars = isTemplate ? taskAny.env_vars : cfg.env_vars;
+    let parsedEnvVars: Record<string, string> = {};
+
+    if (envVars && typeof envVars === 'object') {
+      parsedEnvVars = envVars as Record<string, string>;
+    } else if (typeof envVars === 'string') {
+      try {
+        parsedEnvVars = JSON.parse(envVars) as Record<string, string>;
+      } catch {
+        // ignore parse errors
+      }
+    }
+
+    // Load vLLM environment variables if this is a vLLM task
+    if (loadedInteractiveType === 'vllm') {
+      setModelName(parsedEnvVars.MODEL_NAME || '');
+      setHfToken(parsedEnvVars.HF_TOKEN || '');
+      setTpSize(parsedEnvVars.TP_SIZE || '1');
+    }
+
+    // Load Ollama environment variables if this is an Ollama task
+    if (loadedInteractiveType === 'ollama') {
+      setModelName(parsedEnvVars.MODEL_NAME || '');
+    }
+
+    // Load SSH environment variables if this is an SSH task
+    if (loadedInteractiveType === 'ssh') {
+      setNgrokAuthToken(parsedEnvVars.NGROK_AUTH_TOKEN || '');
+    }
     setSetup(
       isTemplate
         ? taskAny.setup != null
@@ -256,6 +290,45 @@ export default function EditInteractiveTaskModal({
         provider_id: selectedProviderId,
       };
 
+      // Add vLLM-specific environment variables if this is a vLLM task
+      if (interactiveType === 'vllm') {
+        const envVars: Record<string, string> = {};
+        if (modelName.trim()) {
+          envVars['MODEL_NAME'] = modelName.trim();
+        }
+        if (hfToken.trim()) {
+          envVars['HF_TOKEN'] = hfToken.trim();
+        }
+        if (tpSize.trim()) {
+          envVars['TP_SIZE'] = tpSize.trim();
+        }
+        if (Object.keys(envVars).length > 0) {
+          body.env_vars = envVars;
+        }
+      }
+
+      // Add Ollama-specific environment variables if this is an Ollama task
+      if (interactiveType === 'ollama') {
+        const envVars: Record<string, string> = {};
+        if (modelName.trim()) {
+          envVars['MODEL_NAME'] = modelName.trim();
+        }
+        if (Object.keys(envVars).length > 0) {
+          body.env_vars = envVars;
+        }
+      }
+
+      // Add SSH-specific environment variables if this is an SSH task
+      if (interactiveType === 'ssh') {
+        const envVars: Record<string, string> = {};
+        if (ngrokAuthToken.trim()) {
+          envVars['NGROK_AUTH_TOKEN'] = ngrokAuthToken.trim();
+        }
+        if (Object.keys(envVars).length > 0) {
+          body.env_vars = envVars;
+        }
+      }
+
       // Preserve provider_name if we can infer it
       const provider = providers.find((p) => p.id === selectedProviderId);
       if (provider) {
@@ -273,7 +346,12 @@ export default function EditInteractiveTaskModal({
     }
   };
 
-  const canSubmit = title.trim().length > 0 && !!selectedProviderId;
+  const canSubmit =
+    title.trim().length > 0 &&
+    !!selectedProviderId &&
+    (interactiveType !== 'vllm' || modelName.trim().length > 0) &&
+    (interactiveType !== 'ollama' || modelName.trim().length > 0) &&
+    (interactiveType !== 'ssh' || ngrokAuthToken.trim().length > 0);
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -332,7 +410,17 @@ export default function EditInteractiveTaskModal({
               <FormControl>
                 <FormLabel>Interactive Type</FormLabel>
                 <Input
-                  value={interactiveType === 'vscode' ? 'VS Code' : 'Jupyter'}
+                  value={
+                    interactiveType === 'vscode'
+                      ? 'VS Code'
+                      : interactiveType === 'jupyter'
+                        ? 'Jupyter'
+                        : interactiveType === 'vllm'
+                          ? 'vLLM'
+                          : interactiveType === 'ollama'
+                            ? 'Ollama'
+                            : 'SSH'
+                  }
                   disabled
                   readOnly
                 />
@@ -340,6 +428,91 @@ export default function EditInteractiveTaskModal({
                   Interactive type is fixed for this template.
                 </FormHelperText>
               </FormControl>
+
+              {interactiveType === 'vllm' && (
+                <>
+                  <FormControl required>
+                    <FormLabel>Model Name</FormLabel>
+                    <Input
+                      value={modelName}
+                      onChange={(e) => setModelName(e.target.value)}
+                      placeholder="e.g. meta-llama/Llama-2-7b-chat-hf"
+                    />
+                    <FormHelperText>
+                      HuggingFace model identifier
+                    </FormHelperText>
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>HuggingFace Token</FormLabel>
+                    <Input
+                      type="password"
+                      value={hfToken}
+                      onChange={(e) => setHfToken(e.target.value)}
+                      placeholder="hf_..."
+                    />
+                    <FormHelperText>
+                      Optional: Required for private/gated models
+                    </FormHelperText>
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>Tensor Parallel Size</FormLabel>
+                    <Input
+                      type="number"
+                      value={tpSize}
+                      onChange={(e) => setTpSize(e.target.value)}
+                      placeholder="1"
+                    />
+                    <FormHelperText>
+                      Number of GPUs for tensor parallelism (default: 1)
+                    </FormHelperText>
+                  </FormControl>
+                </>
+              )}
+
+              {interactiveType === 'ollama' && (
+                <>
+                  <FormControl required>
+                    <FormLabel>Model Name</FormLabel>
+                    <Input
+                      value={modelName}
+                      onChange={(e) => setModelName(e.target.value)}
+                      placeholder="e.g. llama2, mistral, codellama"
+                    />
+                    <FormHelperText>
+                      Ollama model name (e.g. llama2, mistral, codellama). Use
+                      "ollama pull &lt;model&gt;" to download models.
+                    </FormHelperText>
+                  </FormControl>
+                </>
+              )}
+
+              {interactiveType === 'ssh' && (
+                <FormControl required>
+                  <FormLabel>ngrok Auth Token</FormLabel>
+                  <Input
+                    type="password"
+                    value={ngrokAuthToken}
+                    onChange={(e) => setNgrokAuthToken(e.target.value)}
+                    placeholder="ngrok_..."
+                  />
+                  <FormHelperText>
+                    Your ngrok authentication token. Note: You may need to add a
+                    payment method to your ngrok account (it won't be charged,
+                    but it's necessary for SSH connections). You can get your
+                    token from
+                    <a
+                      href="https://dashboard.ngrok.com/get-started/your-authtoken"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      here
+                    </a>
+                    .
+                  </FormHelperText>
+                </FormControl>
+              )}
 
               <Stack
                 direction="row"
