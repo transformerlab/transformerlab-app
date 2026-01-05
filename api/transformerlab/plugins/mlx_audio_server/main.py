@@ -18,7 +18,8 @@ from fastchat.serve.model_worker import logger
 from lab import storage
 
 from mlx_audio.tts.generate import generate_audio
-from mlx_audio.stt.generate import generate_transcription as generate
+#from mlx_audio.stt.generate import generate_transcription as generate
+from mlx_audio.stt.generate import generate
 from datetime import datetime
 
 worker_id = str(uuid.uuid4())[:8]
@@ -105,7 +106,7 @@ class MLXAudioWorker(BaseModelWorker):
                 if lang_code:
                     kwargs["lang_code"] = lang_code
 
-                generate_audio(**kwargs)
+                await asyncio.to_thread(generate_audio, **kwargs)
 
                 audio_file_path = storage.join(audio_dir, f"{file_prefix}.{audio_format}")
                 if not storage.exists(audio_file_path):
@@ -157,7 +158,8 @@ class MLXAudioWorker(BaseModelWorker):
 
             try:
                 storage.makedirs(path=transcriptions_dir, exist_ok=True)
-                generate(
+                await asyncio.to_thread(
+                    generate,
                     audio_path=audio_path,
                     model_path=model,
                     format=format,
