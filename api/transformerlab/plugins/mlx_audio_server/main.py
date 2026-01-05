@@ -107,6 +107,13 @@ class MLXAudioWorker(BaseModelWorker):
 
                 generate_audio(**kwargs)
 
+                audio_file_path = storage.join(audio_dir, f"{file_prefix}.{audio_format}")
+                if not storage.exists(audio_file_path):
+                    return {
+                        "status": "error",
+                        "message": "Audio file was not generated",
+                    }
+
                 # Also save the parameters and metadata used to generate the audio
                 metadata = {
                     "type": "audio",
@@ -130,7 +137,7 @@ class MLXAudioWorker(BaseModelWorker):
 
                 return {
                     "status": "success",
-                    "message": f"{audio_dir}/{file_prefix}.{audio_format}",
+                    "message": f"{file_prefix}.{audio_format}",
                 }
             except Exception:
                 logger.error("Error generating audio")
@@ -158,6 +165,13 @@ class MLXAudioWorker(BaseModelWorker):
                     verbose=True,  # Set to False to disable print messages
                 )
 
+                transcription_file_path = storage.join(transcriptions_dir, f"{file_prefix}.{format}")
+                if not storage.exists(transcription_file_path):
+                    return {
+                        "status": "error",
+                        "message": "Transcription file was not generated",
+                    }
+
                 # Also save the parameters and metadata used to generate the audio
                 metadata = {
                     "type": "text",
@@ -176,7 +190,7 @@ class MLXAudioWorker(BaseModelWorker):
 
                 return {
                     "status": "success",
-                    "message": f"{transcriptions_dir}/{file_prefix}.{format}",
+                    "message": f"{file_prefix}.{format}",
                 }
             except Exception:
                 logger.error("Error generating transcription")
