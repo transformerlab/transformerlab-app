@@ -165,10 +165,12 @@ export default function Interactive() {
   );
 
   const tasks =
-    (Array.isArray(allTemplates) ? allTemplates : allTemplates?.data || [])
-      ?.filter((template: any) => {
-        return template.experiment_id === experimentInfo?.id;
-      }) || [];
+    (Array.isArray(allTemplates)
+      ? allTemplates
+      : allTemplates?.data || []
+    )?.filter((template: any) => {
+      return template.experiment_id === experimentInfo?.id;
+    }) || [];
 
   // Remove pending placeholders that are now present in jobs
   useEffect(() => {
@@ -761,9 +763,19 @@ export default function Interactive() {
                 <Card key={job.id} variant="outlined" sx={{ height: '100%' }}>
                   <CardContent>
                     <Stack spacing={2}>
-                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                        <Typography level="title-md" sx={{ flex: 1, minWidth: 0 }}>
-                          {jobData.cluster_name || jobData.template_name || `Job ${job.id}`}
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                        flexWrap="wrap"
+                      >
+                        <Typography
+                          level="title-md"
+                          sx={{ flex: 1, minWidth: 0 }}
+                        >
+                          {jobData.cluster_name ||
+                            jobData.template_name ||
+                            `Job ${job.id}`}
                         </Typography>
                         <Chip
                           variant="soft"
@@ -788,7 +800,11 @@ export default function Interactive() {
                             .format('MMM D, YYYY HH:mm:ss')}
                         </Typography>
                       )}
-                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        justifyContent="flex-end"
+                      >
                         {job.status === 'INTERACTIVE' &&
                           (interactiveType === 'vscode' ||
                             interactiveType === 'jupyter' ||
@@ -799,7 +815,9 @@ export default function Interactive() {
                               variant="soft"
                               color="primary"
                               size="sm"
-                              onClick={() => handleViewInteractive(parseInt(job.id))}
+                              onClick={() =>
+                                handleViewInteractive(parseInt(job.id))
+                              }
                             >
                               Interactive Setup
                             </Button>
@@ -905,4 +923,3 @@ export default function Interactive() {
     </Sheet>
   );
 }
-
