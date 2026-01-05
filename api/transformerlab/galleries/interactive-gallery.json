@@ -25,7 +25,7 @@
     "name": "vLLM Server",
     "description": "vLLM OpenAI-compatible API server via cloudflare tunnel",
     "setup": "export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y wget curl python3-pip && curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=\"$HOME/.cargo/bin:$PATH\" && uv venv ~/vllm-venv && source ~/vllm-venv/bin/activate && uv pip install \"vllm>=0.11.0\" && uv pip install \"transformers>=4.57.1\" && uv pip install qwen-vl-utils==0.0.14 && uv pip install flashinfer-python flashinfer-cubin && curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /tmp/cloudflared && chmod +x /tmp/cloudflared && sudo mv /tmp/cloudflared /usr/local/bin/cloudflared;",
-    "command": "source ~/vllm-venv/bin/activate && python -u -m vllm.entrypoints.openai.api_server --model $MODEL_NAME --tensor-parallel-size $TP_SIZE --host 0.0.0.0 --port 8000 > /tmp/vllm.log 2>&1 & sleep 10 && cloudflared tunnel --url http://localhost:8000 2>&1 | tee /tmp/cloudflared.log; tail -f /tmp/vllm.log /tmp/cloudflared.log",
+    "command": "source ~/vllm-venv/bin/activate && python -u -m vllm.entrypoints.openai.api_server --model $MODEL_NAME --tensor-parallel-size $TP_SIZE --host 0.0.0.0 --port 8000 --gpu-memory-utilization 0.9 > /tmp/vllm.log 2>&1 & sleep 10 && cloudflared tunnel --url http://localhost:8000 2>&1 | tee /tmp/cloudflared.log; tail -f /tmp/vllm.log /tmp/cloudflared.log",
     "required_env_vars": ["MODEL_NAME", "TP_SIZE"],
     "optional_env_vars": ["HF_TOKEN"]
   },
