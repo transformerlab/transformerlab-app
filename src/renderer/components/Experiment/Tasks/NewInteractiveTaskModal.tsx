@@ -92,10 +92,7 @@ export default function NewInteractiveTaskModal({
   >({});
 
   // Fetch interactive gallery
-  const {
-    data: galleryData,
-    isLoading: galleryIsLoading,
-  } = useSWR(
+  const { data: galleryData, isLoading: galleryIsLoading } = useSWR(
     experimentInfo?.id && open
       ? chatAPI.Endpoints.Task.InteractiveGallery(experimentInfo.id)
       : null,
@@ -179,9 +176,8 @@ export default function NewInteractiveTaskModal({
     }
 
     // Validate required config fields
-    const requiredFields = selectedTemplate.config_fields?.filter(
-      (f) => f.required,
-    ) || [];
+    const requiredFields =
+      selectedTemplate.config_fields?.filter((f) => f.required) || [];
     for (const field of requiredFields) {
       if (!configFieldValues[field.env_var]?.trim()) {
         return;
@@ -212,9 +208,8 @@ export default function NewInteractiveTaskModal({
       return false;
     }
 
-    const requiredFields = selectedTemplate.config_fields?.filter(
-      (f) => f.required,
-    ) || [];
+    const requiredFields =
+      selectedTemplate.config_fields?.filter((f) => f.required) || [];
     for (const field of requiredFields) {
       if (!configFieldValues[field.env_var]?.trim()) {
         return false;
@@ -227,7 +222,11 @@ export default function NewInteractiveTaskModal({
   return (
     <Modal open={open} onClose={onClose}>
       <ModalDialog
-        sx={{ maxHeight: '80vh', width: step === 'gallery' ? '70vw' : '60vw', overflow: 'hidden' }}
+        sx={{
+          maxHeight: '80vh',
+          width: step === 'gallery' ? '70vw' : '60vw',
+          overflow: 'hidden',
+        }}
       >
         <ModalClose />
         <DialogTitle>
@@ -300,7 +299,9 @@ export default function NewInteractiveTaskModal({
                     value={selectedProviderId || null}
                     onChange={(_, value) => setSelectedProviderId(value || '')}
                     disabled={
-                      isSubmitting || isProvidersLoading || providers.length === 0
+                      isSubmitting ||
+                      isProvidersLoading ||
+                      providers.length === 0
                     }
                     slotProps={{
                       listbox: { sx: { maxHeight: 240 } },

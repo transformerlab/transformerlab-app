@@ -187,12 +187,12 @@ export default function Interactive() {
   // Build list with placeholders for pending job IDs
   const jobsWithPlaceholders = useMemo(() => {
     const baseJobs = Array.isArray(jobs) ? jobs : [];
-    
+
     // Only show INTERACTIVE status jobs (not STOPPED)
     const filteredJobs = baseJobs.filter((job: any) => {
       return job.status === 'INTERACTIVE';
     });
-    
+
     const pending = getPendingJobIds();
 
     if (!pending.length) return filteredJobs;
