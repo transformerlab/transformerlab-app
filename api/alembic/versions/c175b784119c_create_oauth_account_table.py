@@ -55,6 +55,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop oauth_account table."""
-    op.drop_index("ix_oauth_account_oauth_name_account_id", table_name="oauth_account")
-    op.drop_index(op.f("ix_oauth_account_user_id"), table_name="oauth_account")
+    op.drop_index("ix_oauth_account_oauth_name_account_id", table_name="oauth_account", if_exists=True)
+    op.drop_index(op.f("ix_oauth_account_user_id"), table_name="oauth_account", if_exists=True)
     op.drop_table("oauth_account")
