@@ -5,3 +5,4 @@ uv pip install "librosa==0.11.0"
 python -m ensurepip --upgrade
 uv pip install misaki[ja]
 uv pip install misaki[zh]
+uv pip install "sounddevice"
