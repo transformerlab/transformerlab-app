@@ -315,15 +315,32 @@ class RunPodProvider(ComputeProvider):
                 config.provider_config.get("network_volume_id") or self.default_network_volume_id
             )
 
+        # Build dockerStartCmd - RunPod expects a single command string or array
+        # that will be executed by the container's entrypoint
+        docker_cmds = []
+
         if config.setup:
-            # RunPod uses dockerStartCmd for startup commands
-            pod_data["dockerStartCmd"] = [config.setup]
+            # Setup commands should run first
+            docker_cmds.append(config.setup)
 
         if config.command:
-            # Add command to dockerStartCmd
-            if "dockerStartCmd" not in pod_data:
-                pod_data["dockerStartCmd"] = []
-            pod_data["dockerStartCmd"].append(config.command)
+            # Main command to execute
+            docker_cmds.append(config.command)
+
+        # Join commands with && so they run sequentially
+        # Wrap in sh -c so complex commands with arguments work properly
+        if docker_cmds:
+            # If we have multiple commands, join them
+            combined_cmd = " && ".join(docker_cmds)
+            # Wrap in sh -c to ensure proper command execution
+            # This prevents issues with exec trying to find "echo hello" as a single executable
+            pod_data["dockerStartCmd"] = ["sh", "-c", combined_cmd]
+        elif config.setup:
+            # Just setup, no command
+            pod_data["dockerStartCmd"] = ["sh", "-c", config.setup]
+        elif config.command:
+            # Just command, no setup
+            pod_data["dockerStartCmd"] = ["sh", "-c", config.command]
 
         if self.default_region or config.region:
             pod_data["region"] = config.region or self.default_region
