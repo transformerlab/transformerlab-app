@@ -4,18 +4,11 @@
   "description": "Generates and uploads a dataset to Huggingface with the specified configurations.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.5",
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx"
-  ],
+  "version": "0.1.6",
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
   "git": "",
   "url": "",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "files": ["main.py", "setup.sh"],
   "_dataset": false,
   "setup-script": "setup.sh",
   "parameters": {
@@ -76,11 +69,7 @@
       "title": "Sampling mode for single-shot questions",
       "type": "string",
       "default": "count",
-      "enum": [
-        "count",
-        "all",
-        "percentage"
-      ]
+      "enum": ["count", "all", "percentage"]
     },
     "single_shot_sampling_value": {
       "title": "Value for sampling (count or percentage)",
@@ -96,11 +85,7 @@
       "title": "Sampling mode for multi-hop questions",
       "type": "string",
       "default": "percentage",
-      "enum": [
-        "count",
-        "all",
-        "percentage"
-      ]
+      "enum": ["count", "all", "percentage"]
     },
     "multi_hop_sampling_value": {
       "title": "Value for sampling (count or percentage)",
