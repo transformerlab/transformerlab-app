@@ -162,7 +162,7 @@ export default function InteractiveOllamaModal({
               ) : (
                 <Typography level="body-sm" sx={{ flex: 1 }}>
                   Waiting for tunnel to start. The URL will appear here once
-                  cloudflared creates the tunnel...
+                  ngrok creates the tunnel...
                 </Typography>
               )}
             </Box>
@@ -200,7 +200,7 @@ export default function InteractiveOllamaModal({
 
             <Typography level="body-xs" sx={{ mt: 1 }}>
               Tip: If the URL never appears, check the job output and provider
-              logs to ensure Ollama and cloudflared started correctly.
+              logs to ensure Ollama and ngrok started correctly.
             </Typography>
           </Box>
 

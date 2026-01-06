@@ -7,6 +7,7 @@ from transformerlab_cli.util.config import get_current_experiment
 
 from transformerlab_cli.commands.job_monitor.JobDetails import JobDetails
 from transformerlab_cli.commands.job_monitor.ExperimentSelectModal import ExperimentSelectModal
+from transformerlab_cli.commands.job_monitor.TaskAddModal import TaskAddModal
 
 from transformerlab_cli.commands.job_monitor.util import fetch_jobs
 
@@ -37,10 +38,11 @@ class JobMonitorApp(App):
         ("q", "quit", "Quit"),
         ("r", "refresh", "Refresh"),
         ("e", "set_experiment", "Set Experiment"),
+        ("a", "add_task", "Add Task"),
     ]
 
     def compose(self) -> ComposeResult:
-        yield Header(icon="🤓")
+        yield Header(icon="")
         with Horizontal(id="main-container"):
             # Left panel
             with Vertical(id="left-panel", classes="column"):
@@ -55,12 +57,19 @@ class JobMonitorApp(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        self.theme = "nord"
+        self.theme = "tokyo-night"
         self.update_current_experiment()
         self.load_jobs()
 
     def action_set_experiment(self) -> None:
         self.push_screen(ExperimentSelectModal())
+
+    def action_add_task(self) -> None:
+        self.push_screen(TaskAddModal())
+
+    def action_refresh(self) -> None:
+        """Refresh the job list."""
+        self.load_jobs()
 
     def update_current_experiment(self) -> None:
         """Update the title and subtitle with the current experiment."""
