@@ -215,7 +215,21 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   // Handle cases where url might be partial or full
   // Ideally fetchWithAuth is passed a relative path, but we handle both.
-  const fullUrl = url.startsWith('http') ? url : `${API_URL()}${url}`;
+  let fullUrl: string;
+  if (url.startsWith('http')) {
+    fullUrl = url;
+  } else {
+    const baseUrl = API_URL();
+    if (baseUrl === null) {
+      // Default to localhost API if API_URL is not set
+      // Ensure URL doesn't start with / (baseUrl already has trailing slash)
+      const cleanPath = url.startsWith('/') ? url.slice(1) : url;
+      fullUrl = `http://localhost:8338/${cleanPath}`;
+    } else {
+      // baseUrl already has trailing slash from API_URL()
+      fullUrl = `${baseUrl}${url}`;
+    }
+  }
 
   const headers: Record<string, string> = {
     ...((options.headers as Record<string, string>) || {}),
