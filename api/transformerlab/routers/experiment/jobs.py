@@ -21,16 +21,15 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import transformerlab.services.job_service as job_service
-from transformerlab.services.job_service import job_update_status
-from transformerlab.services.provider_service import (
-    get_team_provider,
-    get_provider_instance,
-)
+from transformerlab.services.job_service import get_artifacts_from_directory, get_artifacts_from_sdk, job_update_status
+from transformerlab.services.provider_service import get_team_provider, get_provider_instance
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.compute_providers.models import JobState
+from transformerlab.shared.tunnel_parser import get_tunnel_info
 from lab import Job
 from lab.dirs import get_workspace_dir
+from transformerlab.shared import zip_utils
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -281,6 +280,11 @@ async def get_provider_job_logs(
             provider_job_id = provider_job_ids[-1]
 
     if provider_job_id is None:
+        provider_launch_result = job_data.get("provider_launch_result")
+        if isinstance(provider_launch_result, dict):
+            provider_job_id = provider_launch_result.get("job_id")
+
+    if provider_job_id is None:
         try:
             provider_jobs = provider_instance.list_jobs(cluster_name)
         except Exception as exc:
@@ -332,6 +336,106 @@ async def get_provider_job_logs(
         "tail_lines": tail_lines,
         "logs": logs_text,
         "job_candidates": provider_job_candidates,
+    }
+
+
+@router.get("/{job_id}/tunnel_info")
+async def get_tunnel_info_for_job(
+    experimentId: str,
+    job_id: str,
+    tail_lines: int = Query(400, ge=100, le=2000),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Parse provider logs for a REMOTE job and extract tunnel information based on job type.
+
+    This route automatically determines the tunnel type from job_data.interactive_type
+    and uses the appropriate parser. Supports: 'vscode', 'jupyter', 'vllm', 'ssh'
+    """
+
+    job = job_service.job_get(job_id)
+    if not job or str(job.get("experiment_id")) != str(experimentId):
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job_data = job.get("job_data") or {}
+    if not isinstance(job_data, dict):
+        try:
+            job_data = json.loads(job_data)
+        except JSONDecodeError:
+            job_data = {}
+
+    # Get interactive_type from job_data, default to 'vscode' for backward compatibility
+    interactive_type = job_data.get("interactive_type", "vscode")
+    if not interactive_type:
+        raise HTTPException(status_code=400, detail="Job does not contain interactive_type in job_data")
+
+    provider_id = job_data.get("provider_id")
+    cluster_name = job_data.get("cluster_name")
+    if not provider_id or not cluster_name:
+        raise HTTPException(
+            status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
+        )
+
+    provider = await get_team_provider(session, user_and_team["team_id"], provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        provider_instance = get_provider_instance(provider)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
+
+    # Determine provider-side job id in the same way as provider_logs
+    provider_job_id: Optional[str | int] = job_data.get("provider_job_id")
+
+    if provider_job_id is None:
+        provider_job_ids = job_data.get("provider_job_ids")
+        if isinstance(provider_job_ids, list) and provider_job_ids:
+            provider_job_id = provider_job_ids[-1]
+
+    if provider_job_id is None:
+        try:
+            provider_jobs = provider_instance.list_jobs(cluster_name)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Failed to enumerate provider jobs: {exc}") from exc
+
+        if provider_jobs:
+            running_states = {JobState.RUNNING, JobState.PENDING}
+            chosen_job = next((pj for pj in provider_jobs if pj.state in running_states), provider_jobs[-1])
+            provider_job_id = chosen_job.job_id
+
+    if provider_job_id is None:
+        raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
+
+    try:
+        raw_logs = provider_instance.get_job_logs(
+            cluster_name,
+            provider_job_id,
+            tail_lines=tail_lines or None,
+            follow=False,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
+
+    if isinstance(raw_logs, (bytes, bytearray)):
+        logs_text = raw_logs.decode("utf-8", errors="replace")
+    elif isinstance(raw_logs, str):
+        logs_text = raw_logs
+    else:
+        try:
+            logs_text = json.dumps(raw_logs, indent=2)
+        except TypeError:
+            logs_text = str(raw_logs)
+
+    tunnel_info = get_tunnel_info(logs_text, interactive_type)
+
+    return {
+        **tunnel_info,
+        "cluster_name": cluster_name,
+        "provider_id": provider_id,
+        "provider_job_id": str(provider_job_id),
+        "interactive_type": interactive_type,
     }
 
 
@@ -971,17 +1075,89 @@ async def get_checkpoints(job_id: str, request: Request):
 
 @router.get("/{job_id}/artifacts")
 async def get_artifacts(job_id: str, request: Request):
-    if job_id is None or job_id == "" or job_id == "-1":
+    """Get list of artifacts for a job"""
+
+    # Validate job_id
+    if not job_id or job_id in ("", "-1"):
         return {"artifacts": []}
 
-    """Get list of artifacts for a job"""
+    # Get job data
+    job = job_service.job_get(job_id)
+    if not job:
+        return {"artifacts": []}
+
+    # Try SDK method first
+    artifacts = get_artifacts_from_sdk(job_id, storage)
+
+    # Fallback to directory listing if SDK method fails
+    if artifacts is None:
+        job_data = job["job_data"]
+        artifacts_dir = job_data.get("artifacts_dir")
+
+        # Use SDK's default artifacts directory if not specified
+        if not artifacts_dir:
+            try:
+                from lab.dirs import get_job_artifacts_dir
+
+                artifacts_dir = get_job_artifacts_dir(job_id)
+            except Exception as e:
+                print(f"Error getting artifacts directory for job {job_id}: {e}")
+                return {"artifacts": []}
+
+        artifacts = get_artifacts_from_directory(artifacts_dir, storage)
+
+    # Sort by filename in descending order for consistent ordering
+    artifacts.sort(key=lambda x: x["filename"], reverse=True)
+
+    return {"artifacts": artifacts}
+
+
+@router.get("/{job_id}/artifacts/download_all")
+async def download_all_artifacts(job_id: str):
+    """
+    Download a zip file containing all artifacts for a job.
+    """
+    # 1. Gather all artifact file paths using service
+    all_file_paths = job_service.get_all_artifact_paths(job_id, storage)
+
+    if not all_file_paths:
+        return Response("No artifacts found for this job", status_code=404)
+
+    # 2. Create Zip File in memory
+    try:
+        zip_buffer = zip_utils.create_zip_from_storage(all_file_paths, storage)
+
+        filename = f"artifacts_{job_id}.zip"
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-cache",
+        }
+
+        return StreamingResponse(iter([zip_buffer.getvalue()]), media_type="application/zip", headers=headers)
+
+    except Exception as e:
+        print(f"Error creating zip file: {e}")
+        return Response("Failed to generate zip file", status_code=500)
+
+
+@router.get("/{job_id}/artifact/{filename}")
+async def get_artifact(job_id: str, filename: str, task: str = "view"):
+    """
+    Serve individual artifact files for viewing or downloading.
+
+    Args:
+        job_id: The job ID
+        filename: The artifact filename
+        task: Either "view" or "download" (default: "view")
+    """
     job = job_service.job_get(job_id)
     if job is None:
-        return {"artifacts": []}
+        return Response("Job not found", status_code=404)
 
     job_data = job["job_data"]
 
-    # First try to use the new SDK method to get artifacts
+    # First try to use the new SDK method to get artifact paths
+    artifact_file_path = None
     try:
         from lab.job import Job
 
@@ -990,131 +1166,100 @@ async def get_artifacts(job_id: str, request: Request):
         artifact_paths = sdk_job.get_artifact_paths()
 
         if artifact_paths:
-            artifacts = []
+            # Look for the file in the artifact paths
+            filename_secure = secure_filename(filename)
             for artifact_path in artifact_paths:
-                try:
-                    # Try to get file info from storage
-                    try:
-                        file_info_list = storage.ls(artifact_path, detail=True)
-                        if file_info_list and isinstance(file_info_list, dict):
-                            file_info = file_info_list.get(artifact_path, {})
-                            filesize = file_info.get("size", 0)
-                            mtime = file_info.get("mtime", None)
-                            if mtime:
-                                formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                            else:
-                                formatted_time = None
-                        elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
-                            file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
-                            filesize = file_info.get("size", 0)
-                            mtime = file_info.get("mtime", None)
-                            if mtime:
-                                formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                            else:
-                                formatted_time = None
-                        else:
-                            # Fallback to os.stat for local files
-                            try:
-                                stat = os.stat(artifact_path)
-                                modified_time = stat.st_mtime
-                                filesize = stat.st_size
-                                formatted_time = datetime.fromtimestamp(modified_time).isoformat()
-                            except (OSError, AttributeError):
-                                formatted_time = None
-                                filesize = None
-                    except Exception:
-                        # If storage.ls fails, try os.stat as fallback
-                        try:
-                            stat = os.stat(artifact_path)
-                            modified_time = stat.st_mtime
-                            filesize = stat.st_size
-                            formatted_time = datetime.fromtimestamp(modified_time).isoformat()
-                        except (OSError, AttributeError):
-                            formatted_time = None
-                            filesize = None
-
-                    filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
-                    artifact_dict = {"filename": filename}
-                    if formatted_time is not None:
-                        artifact_dict["date"] = formatted_time
-                    if filesize is not None:
-                        artifact_dict["size"] = filesize
-                    artifacts.append(artifact_dict)
-                except Exception as e:
-                    print(f"Error getting stat for artifact {artifact_path}: {e}")
-                    continue
-
-            # Sort artifacts by filename in reverse (descending) order for consistent ordering
-            artifacts.sort(key=lambda x: x["filename"], reverse=True)
-            return {"artifacts": artifacts}
+                # Check if this path matches the filename
+                path_filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
+                if path_filename == filename_secure:
+                    artifact_file_path = artifact_path
+                    break
     except Exception as e:
-        print(f"SDK artifact method failed for job {job_id}, falling back to legacy method: {e}")
+        print(f"Error using SDK method to get artifact paths: {e}")
 
-    # Fallback to the original logic if SDK method doesn't work or returns nothing
-    # Get artifacts directory from job_data or use default location
-    artifacts_dir = job_data.get("artifacts_dir")
-    if not artifacts_dir:
-        # Use the SDK's artifacts directory structure
-        from lab.dirs import get_job_artifacts_dir
+    # Fallback to checking the artifacts directory
+    if artifact_file_path is None:
+        if "artifacts_dir" not in job_data or not job_data["artifacts_dir"]:
+            return Response("No artifacts directory found for this job", status_code=404)
 
-        artifacts_dir = get_job_artifacts_dir(job_id)
+        artifacts_dir = job_data["artifacts_dir"]
 
-    if not artifacts_dir or not storage.exists(artifacts_dir):
-        return {"artifacts": []}
+        if not storage.exists(artifacts_dir):
+            return Response("Artifacts directory not found", status_code=404)
 
-    artifacts = []
-    try:
-        items = storage.ls(artifacts_dir, detail=False)
-        for item in items:
-            file_path = item if isinstance(item, str) else str(item)
-            if storage.isfile(file_path):
-                filename = file_path.split("/")[-1] if "/" in file_path else file_path
-                try:
-                    # Try to get file info from storage
-                    file_info_list = storage.ls(file_path, detail=True)
-                    if file_info_list and isinstance(file_info_list, dict):
-                        file_info = file_info_list.get(file_path, {})
-                        filesize = file_info.get("size", 0)
-                        mtime = file_info.get("mtime", None)
-                        if mtime:
-                            formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                        else:
-                            formatted_time = None
-                    elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
-                        file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
-                        filesize = file_info.get("size", 0)
-                        mtime = file_info.get("mtime", None)
-                        if mtime:
-                            formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                        else:
-                            formatted_time = None
-                    else:
-                        # Fallback to os.stat for local files
-                        try:
-                            stat = os.stat(file_path)
-                            modified_time = stat.st_mtime
-                            filesize = stat.st_size
-                            formatted_time = datetime.fromtimestamp(modified_time).isoformat()
-                        except (OSError, AttributeError):
-                            formatted_time = None
-                            filesize = None
-                except Exception as e:
-                    print(f"Error getting stat for file {file_path}: {e}")
-                    formatted_time = None
-                    filesize = None
-                artifact_dict = {"filename": filename}
-                if formatted_time is not None:
-                    artifact_dict["date"] = formatted_time
-                if filesize is not None:
-                    artifact_dict["size"] = filesize
-                artifacts.append(artifact_dict)
-    except Exception as e:
-        print(f"Error reading artifacts directory {artifacts_dir}: {e}")
+        # Secure the filename to prevent directory traversal
+        filename_secure = secure_filename(filename)
+        artifact_file_path = storage.join(artifacts_dir, filename_secure)
 
-    # Sort artifacts by filename in reverse (descending) order for consistent ordering
-    artifacts.sort(key=lambda x: x["filename"], reverse=True)
+    # Ensure the file exists
+    if not storage.exists(artifact_file_path):
+        return Response("Artifact not found", status_code=404)
 
-    return {"artifacts": artifacts}
+    # Determine media type based on file extension
+    _, ext = os.path.splitext(filename.lower())
+    media_type_map = {
+        # Images
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+        # Videos
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".ogg": "video/ogg",
+        ".avi": "video/x-msvideo",
+        ".mov": "video/quicktime",
+        # JSON
+        ".json": "application/json",
+        # Text
+        ".txt": "text/plain",
+        ".log": "text/plain",
+        ".csv": "text/csv",
+        # Other
+        ".pdf": "application/pdf",
+        ".zip": "application/zip",
+    }
+
+    media_type = media_type_map.get(ext, "application/octet-stream")
+
+    # For JSON files in view mode, return the parsed content
+    if task == "view" and ext == ".json":
+        try:
+            with storage.open(artifact_file_path, "r") as f:
+                content = json.load(f)
+                return content
+        except Exception as e:
+            print(f"Error reading JSON file: {e}")
+            # Fall back to streaming response
+
+    # For download or other file types, stream the file
+    # Use StreamingResponse to support both local and remote files (e.g., s3://)
+    def generate():
+        with storage.open(artifact_file_path, "rb") as f:
+            while True:
+                chunk = f.read(8192)  # Read in 8KB chunks
+                if not chunk:
+                    break
+                yield chunk
+
+    headers = {}
+    if task == "download":
+        headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    else:
+        headers["Content-Disposition"] = f'inline; filename="{filename}"'
+
+    headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    headers["Pragma"] = "no-cache"
+    headers["Expires"] = "0"
+
+    return StreamingResponse(
+        generate(),
+        media_type=media_type,
+        headers=headers,
+    )
 
 
 @router.get("/{job_id}")

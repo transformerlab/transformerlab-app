@@ -14,12 +14,9 @@ import customTheme from './lib/theme';
 import secretPurpleTheme from './lib/secretPurpleTheme';
 
 import './styles.css';
-import LoginModal from './components/Connect/LoginModal';
 
 import OutputTerminal from './components/OutputTerminal';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
-// import OutputTerminal from './components/OutputTerminal';
-import AutoUpdateModal from './components/AutoUpdateModal';
 import AnnouncementsModal from './components/Shared/AnnouncementsModal';
 import { NotificationProvider } from './components/Shared/NotificationSystem';
 import {
@@ -27,6 +24,7 @@ import {
   useExperimentInfo,
 } from './lib/ExperimentInfoContext';
 import * as chatAPI from './lib/transformerlab-api-sdk';
+import { apiHealthz } from './lib/transformerlab-api-sdk';
 import { AuthProvider, useAuth } from './lib/authContext';
 import LoginPage from './components/Login/LoginPage';
 
@@ -37,7 +35,6 @@ type AppContentProps = {
   logsDrawerHeight: number;
   setLogsDrawerHeight: (height: number) => void;
   themeSetter: (name: string) => void;
-  setSSHConnection: (conn: any) => void;
   setConnection: (conn: string) => void;
 };
 
@@ -48,7 +45,6 @@ function AppContent({
   logsDrawerHeight,
   setLogsDrawerHeight,
   themeSetter,
-  setSSHConnection,
   setConnection,
 }: AppContentProps) {
   const onOutputDrawerDrag = useCallback(
@@ -63,34 +59,49 @@ function AppContent({
   );
 
   const authContext = useAuth();
+  const [mode, setMode] = useState<string>('local');
 
-  // Only show LoginPage when:
+  // Fetch healthz to get the mode
+  useEffect(() => {
+    const fetchHealthz = async () => {
+      try {
+        const data = await apiHealthz();
+        if (data?.mode) {
+          const detectedMode = String(data.mode).trim();
+          setMode(detectedMode);
+        }
+      } catch (error) {
+        console.error('Failed to fetch healthz data:', error);
+      }
+    };
+
+    fetchHealthz();
+  }, []);
+
+  const isS3Mode = mode !== 'local';
+
+  // Close logs drawer when switching to s3 mode
+  useEffect(() => {
+    if (isS3Mode && logsDrawerOpen) {
+      setLogsDrawerOpen(false);
+    }
+  }, [isS3Mode, logsDrawerOpen, setLogsDrawerOpen]);
+
+  // Show LoginPage when:
   // 1. Multi-user mode is enabled AND user is not authenticated
-  // 2. OR in single-user mode, user is not authenticated but has a connection (meaning auto-login failed)
-  // In single-user mode without connection, the LoginModal will handle connection and auto-login
+  // 2. OR user is not authenticated but has a connection (meaning auto-login failed)
+  // In cloud mode, connection should be set via environment variable or direct URL
   if (!authContext?.isAuthenticated) {
     // In multi-user mode, always show LoginPage
     if (process.env.MULTIUSER === 'true') {
       return <LoginPage />;
     }
-    // In single-user mode, only show LoginPage if we have a connection but aren't authenticated
-    // (meaning auto-login failed or connection was lost after being established)
+    // If we have a connection but aren't authenticated, show LoginPage
+    // (connection was established but auto-login failed)
     if (connection && connection !== '') {
       return <LoginPage />;
     }
-    // In single-user mode without connection, render just the LoginModal
-    // which will handle connection + auto-login
-    if (process.env.TL_FORCE_API_URL === 'false') {
-      return (
-        <LoginModal
-          setServer={setConnection}
-          connection={connection}
-          setTerminalDrawerOpen={setLogsDrawerOpen}
-          setSSHConnection={setSSHConnection}
-        />
-      );
-    }
-    // If TL_FORCE_API_URL is not 'false', show nothing (connection should be set via env var)
+    // If no connection, show nothing (connection should be set via env var in cloud mode)
     return null;
   }
 
@@ -104,10 +115,17 @@ function AppContent({
         width: '100dvw',
         overflow: 'hidden',
         gridTemplateColumns: '180px 1fr',
-        gridTemplateRows: logsDrawerOpen
-          ? `48px 5fr ${logsDrawerHeight}px`
-          : '48px 5fr 18px',
-        gridTemplateAreas: `
+        gridTemplateRows: isS3Mode
+          ? '48px 5fr'
+          : logsDrawerOpen
+            ? `48px 5fr ${logsDrawerHeight}px`
+            : '48px 5fr 18px',
+        gridTemplateAreas: isS3Mode
+          ? `
+          "sidebar header"
+          "sidebar main"
+        `
+          : `
           "sidebar header"
           "sidebar main"
           "sidebar footer"
@@ -139,71 +157,64 @@ function AppContent({
       >
         <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
       </Box>
-      <Box
-        sx={{
-          gridArea: 'footer',
-          display: 'flex',
-          flexDirection: 'column',
-          height: logsDrawerOpen ? '100%' : '18px',
-          width: '100%',
-          overflow: 'hidden',
-          alignItems: 'stretch',
-          backgroundColor: 'var(--joy-palette-background-level3)',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            height: '18px',
-            lineHeight: '18px',
-          }}
-        >
-          <div>&nbsp;</div>
-          {logsDrawerOpen ? (
-            <DraggableElipsis notifyOnMove={onOutputDrawerDrag} />
-          ) : (
-            <>&nbsp;</>
-          )}
-          <IconButton
-            sx={{ padding: 0, margin: 0, minHeight: 0 }}
-            onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
-          >
-            {logsDrawerOpen ? (
-              <ChevronDownIcon size="18px" />
-            ) : (
-              <ChevronUpIcon size="18px" />
-            )}
-          </IconButton>
-        </div>
+      {!isS3Mode && (
         <Box
           sx={{
-            height: logsDrawerOpen ? '100%' : '0px',
-            overflow: 'hidden',
-            border: logsDrawerOpen ? '10px solid #444' : '0',
-            padding: logsDrawerOpen ? '6px' : '0',
-            backgroundColor: '#000',
+            gridArea: 'footer',
+            display: 'flex',
+            flexDirection: 'column',
+            height: logsDrawerOpen ? '100%' : '18px',
             width: '100%',
+            overflow: 'hidden',
+            alignItems: 'stretch',
+            backgroundColor: 'var(--joy-palette-background-level3)',
           }}
         >
-          <OutputTerminal
-            key={connection}
-            logEndpoint={chatAPI.Endpoints.ServerInfo.StreamLog()}
-            initialMessage="** Running a Model will Display Output Here **"
-          />
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              height: '18px',
+              lineHeight: '18px',
+            }}
+          >
+            <div>&nbsp;</div>
+            {logsDrawerOpen ? (
+              <DraggableElipsis notifyOnMove={onOutputDrawerDrag} />
+            ) : (
+              <>&nbsp;</>
+            )}
+            <IconButton
+              sx={{ padding: 0, margin: 0, minHeight: 0 }}
+              onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
+            >
+              {logsDrawerOpen ? (
+                <ChevronDownIcon size="18px" />
+              ) : (
+                <ChevronUpIcon size="18px" />
+              )}
+            </IconButton>
+          </div>
+          <Box
+            sx={{
+              height: logsDrawerOpen ? '100%' : '0px',
+              overflow: 'hidden',
+              border: logsDrawerOpen ? '10px solid #444' : '0',
+              padding: logsDrawerOpen ? '6px' : '0',
+              backgroundColor: '#000',
+              width: '100%',
+            }}
+          >
+            <OutputTerminal
+              key={connection}
+              logEndpoint={chatAPI.Endpoints.ServerInfo.StreamLog()}
+              initialMessage="** Running a Model will Display Output Here **"
+            />
+          </Box>
         </Box>
-      </Box>
-      <AutoUpdateModal />
-      <AnnouncementsModal />
-      {process.env.TL_FORCE_API_URL === 'false' && (
-        <LoginModal
-          setServer={setConnection}
-          connection={connection}
-          setTerminalDrawerOpen={setLogsDrawerOpen}
-          setSSHConnection={setSSHConnection}
-        />
       )}
+      <AnnouncementsModal />
     </Box>
   );
 }
@@ -259,7 +270,6 @@ export default function App() {
               logsDrawerHeight={logsDrawerHeight}
               setLogsDrawerHeight={setLogsDrawerHeight}
               themeSetter={themeSetter}
-              setSSHConnection={() => {}}
               setConnection={setConnection}
             />
           </ExperimentInfoProvider>

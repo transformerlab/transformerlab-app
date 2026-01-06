@@ -7,7 +7,6 @@ import Skeleton from '@mui/joy/Skeleton';
 import Box from '@mui/joy/Box';
 import {
   Trash2Icon,
-  InfoIcon,
   LineChartIcon,
   WaypointsIcon,
   ArchiveIcon,
@@ -26,8 +25,10 @@ interface JobsListProps {
   onViewArtifacts?: (jobId: string) => void;
   onViewEvalImages?: (jobId: string) => void;
   onViewSweepOutput?: (jobId: string) => void;
+  onViewSweepResults?: (jobId: string) => void;
   onViewEvalResults?: (jobId: string) => void;
   onViewGeneratedDataset?: (jobId: string, datasetId: string) => void;
+  onViewInteractive?: (jobId: string) => void;
 }
 
 const JobsList: React.FC<JobsListProps> = ({
@@ -39,11 +40,54 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewArtifacts,
   onViewEvalImages,
   onViewSweepOutput,
+  onViewSweepResults,
   onViewEvalResults,
   onViewGeneratedDataset,
+  onViewInteractive,
 }) => {
   const formatJobConfig = (job: any) => {
     const jobData = job?.job_data || {};
+
+    // Handle sweep child jobs
+    if (jobData?.parent_sweep_job_id) {
+      const runIndex = jobData.sweep_run_index || 0;
+      const total = jobData.sweep_total || 0;
+      const sweepParams = jobData.sweep_params || {};
+      const paramStr = Object.entries(sweepParams)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(', ');
+      return (
+        <>
+          <b>
+            Sweep Run {runIndex}/{total}
+          </b>
+          {paramStr && (
+            <>
+              <br />
+              <small>{paramStr}</small>
+            </>
+          )}
+        </>
+      );
+    }
+
+    // Handle sweep parent jobs
+    if (jobData?.sweep_parent || job?.type === 'SWEEP') {
+      const total = jobData.sweep_total || 0;
+      const sweepConfig = jobData.sweep_config || {};
+      const configStr = Object.keys(sweepConfig).join(' × ');
+      return (
+        <>
+          <b>Sweep: {total} configurations</b>
+          {configStr && (
+            <>
+              <br />
+              <small>{configStr}</small>
+            </>
+          )}
+        </>
+      );
+    }
 
     // Prefer showing Cluster Name (if present) and the user identifier (name/email)
     const clusterName = jobData?.cluster_name;
@@ -108,24 +152,6 @@ const JobsList: React.FC<JobsListProps> = ({
             <tr key={job.id}>
               <td>
                 <b>{job.id}</b>
-                <br />
-                {job?.placeholder ? (
-                  <Skeleton variant="text" level="body-xs" width={60} />
-                ) : (
-                  <InfoIcon
-                    onClick={() => {
-                      const jobDataConfig = job?.job_data;
-                      if (typeof jobDataConfig === 'object') {
-                        alert(JSON.stringify(jobDataConfig, null, 2));
-                      } else {
-                        alert(jobDataConfig);
-                      }
-                    }}
-                    size="16px"
-                    color="var(--joy-palette-neutral-500)"
-                    style={{ cursor: 'pointer' }}
-                  />
-                )}
               </td>
               <td>{formatJobConfig(job)}</td>
               <td>
@@ -136,9 +162,7 @@ const JobsList: React.FC<JobsListProps> = ({
                   sx={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}
                 >
                   {job?.placeholder && (
-                    <>
-                      <Skeleton variant="rectangular" width={100} height={28} />
-                    </>
+                    <Skeleton variant="rectangular" width={100} height={28} />
                   )}
                   {job?.job_data?.tensorboard_output_dir && (
                     <Button
@@ -250,6 +274,27 @@ const JobsList: React.FC<JobsListProps> = ({
                         </Box>
                       </Button>
                     )}
+                  {(job?.type === 'SWEEP' || job?.job_data?.sweep_parent) &&
+                    job?.status === 'COMPLETE' && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewSweepResults?.(job?.id)}
+                        startDecorator={<LineChartIcon />}
+                      >
+                        <Box
+                          sx={{
+                            display: {
+                              xs: 'none',
+                              sm: 'none',
+                              md: 'inline-flex',
+                            },
+                          }}
+                        >
+                          Sweep Results
+                        </Box>
+                      </Button>
+                    )}
                   {job?.job_data?.sweep_output_file && (
                     <Button
                       size="sm"
@@ -259,6 +304,20 @@ const JobsList: React.FC<JobsListProps> = ({
                       Sweep Output
                     </Button>
                   )}
+                  {job?.status === 'INTERACTIVE' &&
+                    (job?.job_data?.interactive_type === 'vscode' ||
+                      job?.job_data?.interactive_type === 'jupyter' ||
+                      job?.job_data?.interactive_type === 'vllm' ||
+                      job?.job_data?.interactive_type === 'ollama' ||
+                      job?.job_data?.interactive_type === 'ssh') && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewInteractive?.(job?.id)}
+                      >
+                        Interactive Setup
+                      </Button>
+                    )}
                   {job?.job_data?.checkpoints && (
                     <Button
                       size="sm"

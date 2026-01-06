@@ -205,26 +205,45 @@ download_transformer_lab() {
   # Generate and save JWT secrets to .env file
   ENV_FILE="${TLAB_DIR}/.env"
 
-  # Only generate and save secrets if .env file doesn't exist
-  if [ ! -f "${ENV_FILE}" ]; then
-    ohai "Generating JWT secrets..."
-    # Generate random 64-byte secrets (128 hex characters) using /dev/urandom
-    JWT_SECRET=$(od -An -N 64 -tx1 /dev/urandom | tr -d ' \n')
-    REFRESH_SECRET=$(od -An -N 64 -tx1 /dev/urandom | tr -d ' \n')
+  # Check if secrets are present in .env file
+  NEED_JWT_SECRET=true
+  NEED_REFRESH_SECRET=true
 
-    # Create new .env file with generated secrets
-    echo "TRANSFORMERLAB_JWT_SECRET=${JWT_SECRET}" > "${ENV_FILE}"
-    echo "TRANSFORMERLAB_REFRESH_SECRET=${REFRESH_SECRET}" >> "${ENV_FILE}"
-    ohai "✅ JWT secrets generated and saved to ${ENV_FILE}"
+  if [ -f "${ENV_FILE}" ]; then
+    # Check if TRANSFORMERLAB_JWT_SECRET exists in the file
+    if grep -q "^TRANSFORMERLAB_JWT_SECRET=" "${ENV_FILE}"; then
+      NEED_JWT_SECRET=false
+    fi
+    # Check if TRANSFORMERLAB_REFRESH_SECRET exists in the file
+    if grep -q "^TRANSFORMERLAB_REFRESH_SECRET=" "${ENV_FILE}"; then
+      NEED_REFRESH_SECRET=false
+    fi
+  fi
+
+  # Generate and add missing secrets
+  if [ "$NEED_JWT_SECRET" = true ] || [ "$NEED_REFRESH_SECRET" = true ]; then
+    ohai "Generating missing JWT secrets..."
+
+    if [ "$NEED_JWT_SECRET" = true ]; then
+      JWT_SECRET=$(od -An -N 64 -tx1 /dev/urandom | tr -d ' \n')
+      echo "TRANSFORMERLAB_JWT_SECRET=${JWT_SECRET}" >> "${ENV_FILE}"
+      ohai "✅ Added TRANSFORMERLAB_JWT_SECRET to ${ENV_FILE}"
+    fi
+
+    if [ "$NEED_REFRESH_SECRET" = true ]; then
+      REFRESH_SECRET=$(od -An -N 64 -tx1 /dev/urandom | tr -d ' \n')
+      echo "TRANSFORMERLAB_REFRESH_SECRET=${REFRESH_SECRET}" >> "${ENV_FILE}"
+      ohai "✅ Added TRANSFORMERLAB_REFRESH_SECRET to ${ENV_FILE}"
+    fi
   else
-    ohai "✅ ${ENV_FILE} already exists, skipping secret generation"
+    ohai "✅ All JWT secrets already present in ${ENV_FILE}"
   fi
 
 
-  # Now do the same thing for the web app which is in a different repo called https://github.com/transformerlab/transformerlab-app
-  # Step 1: First get the latest release version:
+  # Download the web app static files from the latest release
+  # The web app is built and published as transformerlab_web.tar.gz in the same repo
   TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/transformerlab_web.tar.gz"
-  echo "APP Download Location: $TLAB_APP_URL"
+  echo "Web app download location: $TLAB_APP_URL"
 
   # Delete and recreate the target static files directory
   echo "Creating clean directory at ${TLAB_STATIC_WEB_DIR}"
@@ -236,9 +255,11 @@ download_transformer_lab() {
     # Extraction succeeded, proceed with unpacking
     tar -xzf /tmp/transformerlab_web.tar.gz -C "${TLAB_STATIC_WEB_DIR}"
 
-    # Move contents up one level and clean up
-    mv "${TLAB_STATIC_WEB_DIR}/transformerlab_web/"* "${TLAB_STATIC_WEB_DIR}/" 2>/dev/null || true
-    rmdir "${TLAB_STATIC_WEB_DIR}/transformerlab_web" 2>/dev/null || true
+    # Clean up any nested directories if they exist
+    if [ -d "${TLAB_STATIC_WEB_DIR}/transformerlab_web" ]; then
+      mv "${TLAB_STATIC_WEB_DIR}/transformerlab_web/"* "${TLAB_STATIC_WEB_DIR}/" 2>/dev/null || true
+      rmdir "${TLAB_STATIC_WEB_DIR}/transformerlab_web" 2>/dev/null || true
+    fi
 
     # Remove the temporary file
     rm /tmp/transformerlab_web.tar.gz
@@ -391,7 +412,7 @@ install_dependencies() {
   pip install uv
 
   echo "HAS_NVIDIA=$HAS_NVIDIA, HAS_AMD=$HAS_AMD"
-  PIP_WHEEL_FLAGS="--upgrade"
+  PIP_WHEEL_FLAGS=""
 
   # Determine the directory containing pyproject.toml
   if [ -e "$RUN_DIR/pyproject.toml" ]; then
@@ -414,7 +435,7 @@ install_dependencies() {
   elif [ "$HAS_AMD" = true ]; then
       echo "Installing requirements for ROCm:"
       cd "$PROJECT_DIR"
-      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match"
+      PIP_WHEEL_FLAGS+="--index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match"
       uv pip install ${PIP_WHEEL_FLAGS} .[rocm]
 
       if [ "$TLAB_ON_WSL" = 1 ]; then
@@ -434,7 +455,7 @@ install_dependencies() {
       cd "$PROJECT_DIR"
       if [[ -z "${TLAB_ON_MACOS}" ]]; then
           # Add the CPU-specific PyTorch index for non-macOS systems
-          PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
+          PIP_WHEEL_FLAGS+="--index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
       fi
 
       echo "Installing with CPU support"
@@ -455,11 +476,11 @@ install_dependencies() {
 }
 
 ##############################
-## Step 5: Install SkyPilot
+## Step 5: Install Compute Providers
 ##############################
 
-install_skypilot() {
-  title "Step 5: Install SkyPilot"
+install_providers() {
+  title "Step 5: Install Compute Providers"
   echo "🌘 Step 5: START"
 
   unset_conda_for_sure
@@ -475,6 +496,9 @@ install_skypilot() {
 
   echo "Installing SkyPilot with Kubernetes support..."
   uv pip install "skypilot[kubernetes]==0.10.5"
+
+  echo "Installing paramiko for SLURM provider support..."
+  uv pip install paramiko
 
   echo "🌕 Step 5: COMPLETE"
 }
@@ -556,8 +580,8 @@ else
       install_dependencies)
         install_dependencies
         ;;
-      install_skypilot)
-        install_skypilot
+      install_providers)
+        install_providers
         ;;
       doctor)
         doctor
@@ -570,7 +594,7 @@ else
         ;;
       *)
         # Print allowed arguments
-        echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies, install_skypilot] or leave blank to perform a full installation."
+        echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies, install_providers] or leave blank to perform a full installation."
         abort "❌ Unknown argument: $arg"
         ;;
     esac

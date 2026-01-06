@@ -47,7 +47,9 @@ import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
 import { useAnalytics } from './Shared/analytics/AnalyticsContext';
 import SafeJSONParse from './Shared/SafeJSONParse';
 import Tasks from './Experiment/Tasks/Tasks';
+import Interactive from './Experiment/Interactive/Interactive';
 import Team from './Team/Team';
+import UsageReport from './Team/UsageReport';
 import TasksGallery from './TasksGallery/TasksGallery';
 
 // // Define the app version
@@ -69,7 +71,7 @@ export const PageTracker = () => {
         context: {
           app: {
             version: window.platform?.version,
-            mode: window.platform?.appmode,
+            mode: 'cloud',
           },
         },
       });
@@ -387,6 +389,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/experiment/tokenize" element={<Tokenize />} />
         <Route path="/experiment/training" element={<TrainLoRA />} />
         <Route path="/experiment/tasks" element={<Tasks />} />
+        <Route path="/experiment/interactive" element={<Interactive />} />
 
         <Route
           path="/experiment/eval"
@@ -425,6 +428,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/logs" element={<Logs />} />
         <Route path="/user" element={<UserSettings />} />
         <Route path="/team" element={<Team />} />
+        <Route path="/team/usage-report" element={<UsageReport />} />
       </Routes>
     </>
   );

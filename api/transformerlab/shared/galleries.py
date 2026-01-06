@@ -17,7 +17,9 @@ DATA_GALLERY_FILE = "dataset-gallery.json"
 MODEL_GROUP_GALLERY_FILE = "model-group-gallery.json"
 EXP_RECIPES_GALLERY_FILE = "exp-recipe-gallery.json"
 # Tasks gallery main file
-TASKS_GALLERY_FILE = "tasks-gallery.json"
+TASKS_GALLERY_FILE = "task-gallery.json"
+# Interactive tasks gallery (for interactive task templates)
+INTERACTIVE_GALLERY_FILE = "interactive-gallery.json"
 # Team-specific tasks gallery stored in workspace dir (per team)
 TEAM_TASKS_GALLERY_FILE = "team_specific_tasks.json"
 GALLERY_FILES = [
@@ -26,6 +28,7 @@ GALLERY_FILES = [
     MODEL_GROUP_GALLERY_FILE,
     EXP_RECIPES_GALLERY_FILE,
     TASKS_GALLERY_FILE,
+    INTERACTIVE_GALLERY_FILE,
 ]
 
 TLAB_REMOTE_GALLERIES_URL = "https://raw.githubusercontent.com/transformerlab/galleries/main/"
@@ -59,6 +62,14 @@ def get_exp_recipe_gallery():
 
 def get_tasks_gallery():
     return get_gallery_file(TASKS_GALLERY_FILE)
+
+
+def get_interactive_gallery():
+    """
+    Get the interactive tasks gallery.
+    This contains templates for interactive task types (vscode, jupyter, vllm, ssh).
+    """
+    return get_gallery_file(INTERACTIVE_GALLERY_FILE)
 
 
 def get_team_tasks_gallery():
@@ -123,6 +134,40 @@ def add_team_task_to_gallery(entry: dict):
     except Exception as e:
         print(f"❌ Failed to write team tasks gallery: {e}")
         return get_team_tasks_gallery()
+
+
+def delete_team_task_from_gallery(task_id: str):
+    """
+    Delete a task entry from the team-specific gallery by id or title.
+    Returns True if deleted, False if not found.
+    """
+    from lab.dirs import get_workspace_dir
+    from lab import storage
+
+    workspace_dir = get_workspace_dir()
+    gallery_path = storage.join(workspace_dir, TEAM_TASKS_GALLERY_FILE)
+
+    try:
+        storage.makedirs(workspace_dir, exist_ok=True)
+        current = get_team_tasks_gallery()
+
+        # Filter out the task with matching id or title
+        filtered = []
+        found = False
+        for item in current:
+            if item.get("id") == task_id or item.get("title") == task_id:
+                found = True
+                continue
+            filtered.append(item)
+
+        if found:
+            with storage.open(gallery_path, "w") as f:
+                json.dump(filtered, f, indent=2)
+            return True
+        return False
+    except Exception as e:
+        print(f"❌ Failed to delete from team tasks gallery: {e}")
+        return False
 
 
 ######################
