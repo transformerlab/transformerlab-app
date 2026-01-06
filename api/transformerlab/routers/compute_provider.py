@@ -31,6 +31,7 @@ from transformerlab.compute_providers.base import ComputeProvider
 from transformerlab.compute_providers.models import (
     ClusterConfig,
     ClusterStatus,
+    ClusterState,
     ResourceInfo,
     JobConfig,
     JobInfo,
@@ -1329,15 +1330,74 @@ async def check_provider_job_status(
             "message": "Failed to instantiate provider",
         }
 
-    # Check jobs on the cluster
+    # RunPod doesn't have a job queue - check pod status instead
+    if provider.type == ProviderType.RUNPOD.value:
+        try:
+            cluster_status = provider_instance.get_cluster_status(cluster_name)
+            # For RunPod, the pod itself is the "job"
+            # Check if pod is in a terminal state
+            terminal_pod_states = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
+            pod_finished = cluster_status.state in terminal_pod_states
+
+            if pod_finished:
+                # Pod has finished, mark job as complete
+                try:
+                    end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+                    job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
+                    await job_service.job_update_status(
+                        job_id, "COMPLETE", experiment_id=experiment_id, session=session
+                    )
+                    await session.commit()
+
+                    return {
+                        "status": "success",
+                        "job_id": job_id,
+                        "updated": True,
+                        "new_status": "COMPLETE",
+                        "message": f"Pod finished (status: {cluster_status.state.value})",
+                    }
+                except Exception as exc:
+                    print(f"Failed to update job status: {exc}")
+                    return {
+                        "status": "error",
+                        "job_id": job_id,
+                        "message": "Failed to update job status",
+                    }
+            else:
+                # Pod is still running
+                return {
+                    "status": "success",
+                    "job_id": job_id,
+                    "updated": False,
+                    "current_status": "LAUNCHING",
+                    "message": f"Pod is still running (status: {cluster_status.state.value})",
+                }
+        except Exception as exc:
+            print(f"Failed to check RunPod pod status: {exc}")
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": f"Failed to check pod status: {exc}",
+            }
+
+    # For other providers (SkyPilot, SLURM), check jobs on the cluster
     try:
         provider_jobs = provider_instance.list_jobs(cluster_name)
+    except NotImplementedError:
+        # Provider doesn't support list_jobs
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "updated": False,
+            "current_status": job_status,
+            "message": "Provider does not support job status checking",
+        }
     except Exception as exc:
         print(f"Failed to list jobs for cluster {cluster_name}: {exc}")
         return {
             "status": "error",
             "job_id": job_id,
-            "message": "Failed to list jobs for cluster {cluster_name}",
+            "message": f"Failed to list jobs for cluster {cluster_name}: {exc}",
         }
 
     terminal_states = {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
@@ -1862,6 +1922,8 @@ async def submit_job(
             "cluster_name": cluster_name,
             "result": result,
         }
+    except NotImplementedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         print(f"Failed to submit job: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to submit job")
@@ -1897,6 +1959,9 @@ async def list_jobs(
             jobs = [job for job in jobs if job.state == state]
 
         return jobs
+    except NotImplementedError:
+        # Provider doesn't support listing jobs (e.g., RunPod)
+        return []
     except Exception as e:
         print(f"Failed to list jobs: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to list jobs")
@@ -1925,7 +1990,14 @@ async def get_job_info(
         provider_instance = get_provider_instance(provider)
 
         # List jobs and find the specific one
-        jobs = provider_instance.list_jobs(cluster_name)
+        try:
+            jobs = provider_instance.list_jobs(cluster_name)
+        except NotImplementedError:
+            # Provider doesn't support listing jobs (e.g., RunPod)
+            raise HTTPException(
+                status_code=400,
+                detail="This provider does not support job listing. RunPod uses pod-based execution, not a job queue.",
+            )
 
         # Convert job_id to appropriate type for comparison
         job_id_str = str(job_id)
@@ -1977,7 +2049,11 @@ async def get_job_logs(
         provider_instance = get_provider_instance(provider)
 
         # Get job logs
-        logs = provider_instance.get_job_logs(cluster_name, job_id, tail_lines=tail_lines, follow=follow)
+        try:
+            logs = provider_instance.get_job_logs(cluster_name, job_id, tail_lines=tail_lines, follow=follow)
+        except NotImplementedError:
+            # Provider doesn't support job logs (though RunPod returns a string message, not NotImplementedError)
+            logs = "Logs not available for this provider type."
 
         if follow:
             # Return streaming response
@@ -2069,6 +2145,8 @@ async def cancel_job(
             "cluster_name": cluster_name,
             "result": result,
         }
+    except NotImplementedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         print(f"Failed to cancel job: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to cancel job")

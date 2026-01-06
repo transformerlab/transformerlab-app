@@ -537,25 +537,7 @@ class RunPodProvider(ComputeProvider):
         Note: RunPod doesn't have a traditional job queue. We'll execute the command
         via the pod's exec endpoint or SSH if available.
         """
-        pod = self._find_pod_by_name(cluster_name)
-        if not pod:
-            raise ValueError(f"Pod '{cluster_name}' not found")
-
-        pod_id = pod.get("id")
-        if not pod_id:
-            raise ValueError(f"Pod '{cluster_name}' has no ID")
-
-        # RunPod doesn't have a job submission endpoint
-        # We'll return a job ID based on the pod and command
-        # In practice, you might need to SSH into the pod or use RunPod's exec feature
-        job_id = f"{pod_id}-{int(time.time())}"
-
-        return {
-            "job_id": job_id,
-            "pod_id": pod_id,
-            "cluster_name": cluster_name,
-            "message": "Job execution initiated (RunPod uses pod-based execution)",
-        }
+        raise NotImplementedError("RunPod doesn't have a job submission endpoint")
 
     def list_jobs(self, cluster_name: str) -> List[JobInfo]:
         """
@@ -564,9 +546,7 @@ class RunPodProvider(ComputeProvider):
         Note: RunPod doesn't have a job queue. We return empty list or could
         track jobs via pod execution history.
         """
-        # RunPod doesn't have a job queue system
-        # Return empty list or implement custom job tracking if needed
-        return []
+        raise NotImplementedError("RunPod doesn't have a job queue system")
 
     def get_job_logs(
         self,
@@ -583,7 +563,7 @@ class RunPodProvider(ComputeProvider):
         """
         # RunPod doesn't have a direct job logs endpoint
         # Would need to SSH into pod or use RunPod's pod logs endpoint
-        return "Logs not available via RunPod API. Use pod SSH access or RunPod console."
+        return "Logs not available via RunPod API. Use RunPod console."
 
     def cancel_job(self, cluster_name: str, job_id: Union[str, int]) -> Dict[str, Any]:
         """
@@ -592,12 +572,7 @@ class RunPodProvider(ComputeProvider):
         Note: RunPod doesn't have a job cancellation endpoint. We might need to
         SSH into the pod and kill the process.
         """
-        return {
-            "status": "error",
-            "message": "Job cancellation not supported via RunPod API. Use pod SSH access.",
-            "job_id": job_id,
-            "cluster_name": cluster_name,
-        }
+        raise NotImplementedError("RunPod doesn't have a job cancellation endpoint")
 
     def get_clusters_detailed(self) -> List[Dict[str, Any]]:
         """Get detailed cluster information."""
