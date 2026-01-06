@@ -13,6 +13,7 @@ import { FaGithub } from 'react-icons/fa6';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/authContext';
 import { useNotification } from '../Shared/NotificationSystem';
+import { API_URL } from '../../lib/api-client/urls';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -27,6 +28,32 @@ export default function LoginForm() {
   const { login } = useAuth();
   const { addNotification } = useNotification();
   const navigate = useNavigate();
+
+  // Auto-login for single user mode
+  useEffect(() => {
+    const autoLogin = async () => {
+      // Only attempt auto-login if we have a valid API URL (connection is established)
+      const apiUrl = API_URL();
+      if (!apiUrl) {
+        console.log('Skipping auto-login: no API URL available.');
+        return;
+      }
+
+      // Only auto-login if MULTIUSER is not enabled
+      if (process.env && process.env.MULTIUSER === 'true') {
+        return;
+      }
+
+      try {
+        console.log('Attempting auto-login for single user mode');
+        await login('admin@example.com', 'admin123');
+      } catch (error) {
+        console.error('Auto-login failed:', error);
+      }
+    };
+
+    autoLogin();
+  }, [login]);
 
   // Check OAuth status on component mount
   useEffect(() => {
