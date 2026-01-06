@@ -4,7 +4,7 @@
   "description": "Exports the current model to MLX format so it can be run on Apple Silicon.",
   "plugin-format": "python",
   "type": "exporter",
-  "version": "1.0.25",
+  "version": "1.0.26",
   "model_architectures": [
     "CohereForCausalLM",
     "DeepseekV2ForCausalLM",
