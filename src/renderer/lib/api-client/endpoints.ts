@@ -64,6 +64,8 @@ Endpoints.Task = {
     `${API_URL()}experiment/${experimentId}/task/${id}/delete`,
   Gallery: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/task/gallery`,
+  InteractiveGallery: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/interactive`,
   ImportFromGallery: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/task/gallery/import`,
   TeamGallery: (experimentId: string) =>
