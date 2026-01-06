@@ -88,8 +88,8 @@ def parse_jupyter_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str]]:
 
             # Also check for other tunnel services (ngrok, localtunnel, etc.)
             if not tunnel_url:
-                # Check for ngrok: "https://abc123.ngrok-free.app"
-                match = re.search(r"(https://[a-zA-Z0-9-]+\.(?:ngrok-free\.app|ngrok\.io))", line)
+                # Check for ngrok: "https://abc123.ngrok-free.app" or "https://abc123.ngrok-free.dev"
+                match = re.search(r"(https://[a-zA-Z0-9-]+\.(?:ngrok-free\.app|ngrok-free\.dev|ngrok\.io))", line)
                 if match:
                     tunnel_url = match.group(1)
 
@@ -131,8 +131,8 @@ def parse_vllm_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str]]:
 
             # Also check for other tunnel services (ngrok, localtunnel, etc.)
             if not tunnel_url:
-                # Check for ngrok: "https://abc123.ngrok-free.app"
-                match = re.search(r"(https://[a-zA-Z0-9-]+\.(?:ngrok-free\.app|ngrok\.io))", line)
+                # Check for ngrok: "https://abc123.ngrok-free.app" or "https://abc123.ngrok-free.dev"
+                match = re.search(r"(https://[a-zA-Z0-9-]+\.(?:ngrok-free\.app|ngrok-free\.dev|ngrok\.io))", line)
                 if match:
                     tunnel_url = match.group(1)
 
@@ -168,7 +168,9 @@ def parse_ssh_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[int], Opti
             # This appears in lines like: lvl=info msg="started tunnel" ... url=tcp://6.tcp.ngrok.io:10808
             if "url=tcp://" in line and not domain:
                 # Look for pattern: url=tcp://<domain>:<port>
-                match = re.search(r"url=tcp://([a-zA-Z0-9.-]+\.ngrok\.io|ngrok-free\.app|ngrok\.io):(\d+)", line)
+                match = re.search(
+                    r"url=tcp://([a-zA-Z0-9.-]+\.(?:ngrok\.io|ngrok-free\.app|ngrok-free\.dev)):(\d+)", line
+                )
                 if match:
                     domain = match.group(1)
                     try:
@@ -180,7 +182,8 @@ def parse_ssh_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[int], Opti
             if "Forwarding" in line and "tcp://" in line and not domain:
                 # Look for pattern: tcp://<domain>:<port> -> localhost:22
                 match = re.search(
-                    r"tcp://([a-zA-Z0-9.-]+\.ngrok\.io|ngrok-free\.app|ngrok\.io):(\d+)\s*->\s*localhost:22", line
+                    r"tcp://([a-zA-Z0-9.-]+\.(?:ngrok\.io|ngrok-free\.app|ngrok-free\.dev)):(\d+)\s*->\s*localhost:22",
+                    line,
                 )
                 if match:
                     domain = match.group(1)
@@ -320,8 +323,8 @@ def parse_ollama_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str]]:
 
             # Also check for other tunnel services (ngrok, localtunnel, etc.)
             if not tunnel_url:
-                # Check for ngrok: "https://abc123.ngrok-free.app"
-                match = re.search(r"(https://[a-zA-Z0-9-]+\.(?:ngrok-free\.app|ngrok\.io))", line)
+                # Check for ngrok: "https://abc123.ngrok-free.app" or "https://abc123.ngrok-free.dev"
+                match = re.search(r"(https://[a-zA-Z0-9-]+\.(?:ngrok-free\.app|ngrok-free\.dev|ngrok\.io))", line)
                 if match:
                     tunnel_url = match.group(1)
 

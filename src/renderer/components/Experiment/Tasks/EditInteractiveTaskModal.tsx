@@ -11,23 +11,44 @@ import {
   ModalClose,
   ModalDialog,
   Stack,
-  Radio,
-  RadioGroup,
   FormHelperText,
   Typography,
   Select,
   Option,
+  Alert,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 import { useRef } from 'react';
 import { SafeJSONParse } from '../../Shared/SafeJSONParse';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 const { parseTmTheme } = require('monaco-themes');
 
 type ProviderOption = {
   id: string;
   name: string;
+};
+
+type ConfigField = {
+  field_name: string;
+  env_var: string;
+  field_type: 'str' | 'integer';
+  required?: boolean;
+  placeholder?: string;
+  help_text?: string;
+  password?: boolean;
+};
+
+type InteractiveTemplate = {
+  id: string;
+  interactive_type: string;
+  name: string;
+  description: string;
+  config_fields?: ConfigField[];
 };
 
 function setTheme(editor: any, monaco: any) {
@@ -54,6 +75,7 @@ export default function EditInteractiveTaskModal({
   providers,
   isProvidersLoading = false,
 }: EditInteractiveTaskModalProps) {
+  const { experimentInfo } = useExperimentInfo();
   const [title, setTitle] = React.useState('');
   const [cpus, setCpus] = React.useState('');
   const [memory, setMemory] = React.useState('');
@@ -65,13 +87,44 @@ export default function EditInteractiveTaskModal({
   const [command, setCommand] = React.useState('');
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
   const [isSaving, setIsSaving] = React.useState(false);
-  const [modelName, setModelName] = React.useState('');
-  const [hfToken, setHfToken] = React.useState('');
-  const [tpSize, setTpSize] = React.useState('1');
-  const [ngrokAuthToken, setNgrokAuthToken] = React.useState('');
+  const [configFieldValues, setConfigFieldValues] = React.useState<
+    Record<string, string>
+  >({});
+  const [templateConfigFields, setTemplateConfigFields] = React.useState<
+    ConfigField[]
+  >([]);
 
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
+
+  // Fetch interactive gallery to get config_fields for the interactive type
+  const { data: galleryData, isLoading: galleryIsLoading } = useSWR(
+    experimentInfo?.id && open && interactiveType
+      ? chatAPI.Endpoints.Task.InteractiveGallery(experimentInfo.id)
+      : null,
+    fetcher,
+  );
+
+  const gallery = React.useMemo(() => {
+    if (galleryData?.status === 'success' && Array.isArray(galleryData.data)) {
+      return galleryData.data as InteractiveTemplate[];
+    }
+    return [];
+  }, [galleryData]);
+
+  // Update templateConfigFields when gallery loads or interactiveType changes
+  React.useEffect(() => {
+    if (gallery.length > 0 && interactiveType) {
+      const template = gallery.find(
+        (t) => t.interactive_type === interactiveType,
+      );
+      if (template?.config_fields) {
+        setTemplateConfigFields(template.config_fields);
+      } else {
+        setTemplateConfigFields([]);
+      }
+    }
+  }, [gallery, interactiveType]);
 
   React.useEffect(() => {
     if (!task) return;
@@ -115,7 +168,7 @@ export default function EditInteractiveTaskModal({
       'vscode') as 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama';
     setInteractiveType(loadedInteractiveType);
 
-    // Load environment variables based on interactive type
+    // Load environment variables
     const envVars = isTemplate ? taskAny.env_vars : cfg.env_vars;
     let parsedEnvVars: Record<string, string> = {};
 
@@ -129,22 +182,12 @@ export default function EditInteractiveTaskModal({
       }
     }
 
-    // Load vLLM environment variables if this is a vLLM task
-    if (loadedInteractiveType === 'vllm') {
-      setModelName(parsedEnvVars.MODEL_NAME || '');
-      setHfToken(parsedEnvVars.HF_TOKEN || '');
-      setTpSize(parsedEnvVars.TP_SIZE || '1');
-    }
+    // Load config field values from env_vars
+    const initialConfigFieldValues: Record<string, string> = {};
+    // We'll populate this once the gallery loads and we have config_fields
+    // For now, store all env vars
+    setConfigFieldValues(parsedEnvVars);
 
-    // Load Ollama environment variables if this is an Ollama task
-    if (loadedInteractiveType === 'ollama') {
-      setModelName(parsedEnvVars.MODEL_NAME || '');
-    }
-
-    // Load SSH environment variables if this is an SSH task
-    if (loadedInteractiveType === 'ssh') {
-      setNgrokAuthToken(parsedEnvVars.NGROK_AUTH_TOKEN || '');
-    }
     setSetup(
       isTemplate
         ? taskAny.setup != null
@@ -169,6 +212,46 @@ export default function EditInteractiveTaskModal({
       }
     }
   }, [task, providers]);
+
+  // Update configFieldValues when templateConfigFields changes (gallery loaded)
+  React.useEffect(() => {
+    if (templateConfigFields.length > 0 && task) {
+      const cfg = SafeJSONParse(task.config, {});
+      const taskAny = task as any;
+      const isTemplate =
+        !task.config ||
+        (typeof cfg === 'object' && Object.keys(cfg).length === 0) ||
+        (!cfg.command && !cfg.setup && (task as any).command);
+      const envVars = isTemplate ? taskAny.env_vars : cfg.env_vars;
+      let parsedEnvVars: Record<string, string> = {};
+
+      if (envVars && typeof envVars === 'object') {
+        parsedEnvVars = envVars as Record<string, string>;
+      } else if (typeof envVars === 'string') {
+        try {
+          parsedEnvVars = JSON.parse(envVars) as Record<string, string>;
+        } catch {
+          // ignore parse errors
+        }
+      }
+
+      // Initialize config field values from env_vars, with defaults for integer fields
+      const updatedValues: Record<string, string> = {};
+      templateConfigFields.forEach((field) => {
+        if (parsedEnvVars[field.env_var] !== undefined) {
+          updatedValues[field.env_var] = parsedEnvVars[field.env_var];
+        } else if (
+          field.field_type === 'integer' &&
+          field.env_var === 'TP_SIZE'
+        ) {
+          updatedValues[field.env_var] = '1';
+        } else {
+          updatedValues[field.env_var] = '';
+        }
+      });
+      setConfigFieldValues(updatedValues);
+    }
+  }, [templateConfigFields, task]);
 
   React.useEffect(() => {
     if (!providers.length) {
@@ -265,6 +348,13 @@ export default function EditInteractiveTaskModal({
     }
   }, [task, command, open]);
 
+  const handleConfigFieldChange = (envVar: string, value: string) => {
+    setConfigFieldValues((prev) => ({
+      ...prev,
+      [envVar]: value,
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!task) return;
@@ -290,43 +380,17 @@ export default function EditInteractiveTaskModal({
         provider_id: selectedProviderId,
       };
 
-      // Add vLLM-specific environment variables if this is a vLLM task
-      if (interactiveType === 'vllm') {
-        const envVars: Record<string, string> = {};
-        if (modelName.trim()) {
-          envVars['MODEL_NAME'] = modelName.trim();
+      // Use config_fields to build env_vars
+      const envVars: Record<string, string> = {};
+      templateConfigFields.forEach((field) => {
+        const value = configFieldValues[field.env_var];
+        if (value && value.trim()) {
+          envVars[field.env_var] = value.trim();
         }
-        if (hfToken.trim()) {
-          envVars['HF_TOKEN'] = hfToken.trim();
-        }
-        if (tpSize.trim()) {
-          envVars['TP_SIZE'] = tpSize.trim();
-        }
-        if (Object.keys(envVars).length > 0) {
-          body.env_vars = envVars;
-        }
-      }
+      });
 
-      // Add Ollama-specific environment variables if this is an Ollama task
-      if (interactiveType === 'ollama') {
-        const envVars: Record<string, string> = {};
-        if (modelName.trim()) {
-          envVars['MODEL_NAME'] = modelName.trim();
-        }
-        if (Object.keys(envVars).length > 0) {
-          body.env_vars = envVars;
-        }
-      }
-
-      // Add SSH-specific environment variables if this is an SSH task
-      if (interactiveType === 'ssh') {
-        const envVars: Record<string, string> = {};
-        if (ngrokAuthToken.trim()) {
-          envVars['NGROK_AUTH_TOKEN'] = ngrokAuthToken.trim();
-        }
-        if (Object.keys(envVars).length > 0) {
-          body.env_vars = envVars;
-        }
+      if (Object.keys(envVars).length > 0) {
+        body.env_vars = envVars;
       }
 
       // Preserve provider_name if we can infer it
@@ -346,12 +410,38 @@ export default function EditInteractiveTaskModal({
     }
   };
 
-  const canSubmit =
-    title.trim().length > 0 &&
-    !!selectedProviderId &&
-    (interactiveType !== 'vllm' || modelName.trim().length > 0) &&
-    (interactiveType !== 'ollama' || modelName.trim().length > 0) &&
-    (interactiveType !== 'ssh' || ngrokAuthToken.trim().length > 0);
+  const canSubmit = React.useMemo(() => {
+    if (!title.trim() || !selectedProviderId) {
+      return false;
+    }
+
+    // Validate required config fields
+    const requiredFields = templateConfigFields.filter((f) => f.required);
+    for (const field of requiredFields) {
+      if (!configFieldValues[field.env_var]?.trim()) {
+        return false;
+      }
+    }
+
+    return true;
+  }, [title, selectedProviderId, templateConfigFields, configFieldValues]);
+
+  const getInteractiveTypeLabel = (type: string) => {
+    switch (type) {
+      case 'vscode':
+        return 'VS Code';
+      case 'jupyter':
+        return 'Jupyter';
+      case 'vllm':
+        return 'vLLM';
+      case 'ollama':
+        return 'Ollama';
+      case 'ssh':
+        return 'SSH';
+      default:
+        return type;
+    }
+  };
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -410,17 +500,7 @@ export default function EditInteractiveTaskModal({
               <FormControl>
                 <FormLabel>Interactive Type</FormLabel>
                 <Input
-                  value={
-                    interactiveType === 'vscode'
-                      ? 'VS Code'
-                      : interactiveType === 'jupyter'
-                        ? 'Jupyter'
-                        : interactiveType === 'vllm'
-                          ? 'vLLM'
-                          : interactiveType === 'ollama'
-                            ? 'Ollama'
-                            : 'SSH'
-                  }
+                  value={getInteractiveTypeLabel(interactiveType)}
                   disabled
                   readOnly
                 />
@@ -429,89 +509,48 @@ export default function EditInteractiveTaskModal({
                 </FormHelperText>
               </FormControl>
 
-              {interactiveType === 'vllm' && (
-                <>
-                  <FormControl required>
-                    <FormLabel>Model Name</FormLabel>
-                    <Input
-                      value={modelName}
-                      onChange={(e) => setModelName(e.target.value)}
-                      placeholder="e.g. meta-llama/Llama-2-7b-chat-hf"
-                    />
-                    <FormHelperText>
-                      HuggingFace model identifier
-                    </FormHelperText>
-                  </FormControl>
-
-                  <FormControl>
-                    <FormLabel>HuggingFace Token</FormLabel>
-                    <Input
-                      type="password"
-                      value={hfToken}
-                      onChange={(e) => setHfToken(e.target.value)}
-                      placeholder="hf_..."
-                    />
-                    <FormHelperText>
-                      Optional: Required for private/gated models
-                    </FormHelperText>
-                  </FormControl>
-
-                  <FormControl>
-                    <FormLabel>Tensor Parallel Size</FormLabel>
-                    <Input
-                      type="number"
-                      value={tpSize}
-                      onChange={(e) => setTpSize(e.target.value)}
-                      placeholder="1"
-                    />
-                    <FormHelperText>
-                      Number of GPUs for tensor parallelism (default: 1)
-                    </FormHelperText>
-                  </FormControl>
-                </>
-              )}
-
-              {interactiveType === 'ollama' && (
-                <>
-                  <FormControl required>
-                    <FormLabel>Model Name</FormLabel>
-                    <Input
-                      value={modelName}
-                      onChange={(e) => setModelName(e.target.value)}
-                      placeholder="e.g. llama2, mistral, codellama"
-                    />
-                    <FormHelperText>
-                      Ollama model name (e.g. llama2, mistral, codellama). Use
-                      "ollama pull &lt;model&gt;" to download models.
-                    </FormHelperText>
-                  </FormControl>
-                </>
-              )}
-
               {interactiveType === 'ssh' && (
-                <FormControl required>
-                  <FormLabel>ngrok Auth Token</FormLabel>
-                  <Input
-                    type="password"
-                    value={ngrokAuthToken}
-                    onChange={(e) => setNgrokAuthToken(e.target.value)}
-                    placeholder="ngrok_..."
-                  />
-                  <FormHelperText>
-                    Your ngrok authentication token. Note: You may need to add a
-                    payment method to your ngrok account (it won't be charged,
-                    but it's necessary for SSH connections). You can get your
-                    token from
-                    <a
-                      href="https://dashboard.ngrok.com/get-started/your-authtoken"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      here
-                    </a>
-                    .
-                  </FormHelperText>
-                </FormControl>
+                <Alert color="warning" variant="soft">
+                  <Typography
+                    level="body-sm"
+                    fontWeight="bold"
+                    sx={{ mb: 0.5 }}
+                  >
+                    Security Warning
+                  </Typography>
+                  <Typography level="body-xs">
+                    This will create a public TCP tunnel. Be careful when
+                    sharing the SSH command with anyone, as it provides direct
+                    access to your remote machine.
+                  </Typography>
+                </Alert>
+              )}
+
+              {!galleryIsLoading && templateConfigFields.length > 0 && (
+                <>
+                  {templateConfigFields.map((field) => (
+                    <FormControl key={field.env_var} required={field.required}>
+                      <FormLabel>{field.field_name}</FormLabel>
+                      <Input
+                        type={
+                          field.password
+                            ? 'password'
+                            : field.field_type === 'integer'
+                              ? 'number'
+                              : 'text'
+                        }
+                        value={configFieldValues[field.env_var] || ''}
+                        onChange={(e) =>
+                          handleConfigFieldChange(field.env_var, e.target.value)
+                        }
+                        placeholder={field.placeholder}
+                      />
+                      {field.help_text && (
+                        <FormHelperText>{field.help_text}</FormHelperText>
+                      )}
+                    </FormControl>
+                  ))}
+                </>
               )}
 
               <Stack
