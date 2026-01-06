@@ -83,10 +83,6 @@ def mask_sensitive_config(config: Dict[str, Any], provider_type: str) -> Dict[st
     if "api_token" in masked and masked["api_token"]:
         masked["api_token"] = "***"
 
-    # Mask RunPod API key
-    if "api_key" in masked and masked["api_key"]:
-        masked["api_key"] = "***"
-
     # Mask any other sensitive fields
     if "password" in masked:
         masked["password"] = "***"
