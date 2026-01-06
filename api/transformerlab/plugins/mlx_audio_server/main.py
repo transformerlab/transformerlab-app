@@ -6,6 +6,7 @@ import sys
 import argparse
 import asyncio
 import uuid
+import os
 from contextlib import asynccontextmanager
 from typing import List
 import json
@@ -94,8 +95,7 @@ class MLXAudioWorker(BaseModelWorker):
                     "text": text,
                     "model_path": model,
                     "speed": speed,
-                    "file_prefix": storage.join(audio_dir, file_prefix),
-                    "sample_rate": sample_rate,
+                    "file_prefix": os.path.join(audio_dir, file_prefix),
                     "join_audio": True,
                     "verbose": True,
                     "temperature": temperature,
@@ -105,8 +105,7 @@ class MLXAudioWorker(BaseModelWorker):
                 if voice and lang_code:
                     kwargs["voice"] = voice
                     kwargs["lang_code"] = lang_code
-
-                await asyncio.to_thread(generate_audio, **kwargs)
+                generate_audio(**kwargs)
 
                 audio_file_path = storage.join(audio_dir, f"{file_prefix}.{audio_format}")
                 if not storage.exists(audio_file_path):
@@ -141,7 +140,7 @@ class MLXAudioWorker(BaseModelWorker):
                     "message": f"{file_prefix}.{audio_format}",
                 }
             except Exception:
-                logger.error("Error generating audio")
+                logger.error(f"Error generating audio")
                 return {
                     "status": "error",
                     "message": "Error generating audio",
@@ -303,7 +302,7 @@ def main():
         False,
     )
 
-    uvicorn.run(app, host=args.host, port=args.port, log_level="info", access_log=False)
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
 
 if __name__ == "__main__":
