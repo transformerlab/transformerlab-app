@@ -612,6 +612,7 @@ def run():
 
     if args.https:
         cert_path, key_path = ensure_persistent_self_signed_cert()
+        print("Serving HTTPS using self-signed certificate:", cert_path)
         uvicorn.run(
             "api:app", host=args.host, port=args.port, log_level="warning", ssl_certfile=cert_path, ssl_keyfile=key_path
         )
