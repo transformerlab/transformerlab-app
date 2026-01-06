@@ -27,8 +27,7 @@ export default function Api() {
           endDecorator={<ExternalLinkIcon />}
           variant="plain"
         >
-          Open in{' '}
-          {window?.platform?.appmode === 'cloud' ? 'New Tab' : 'Browser'}
+          Open in New Tab
         </Button>
       </Stack>
       <br />
