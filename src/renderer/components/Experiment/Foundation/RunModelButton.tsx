@@ -145,11 +145,6 @@ export default function RunModelButton({
     );
   }, [data, supportedEngines]);
 
-  // Use the suggested loader plugin from API (platform-aware)
-  const compatibleLoaderPlugins = suggestedLoaderPlugin
-    ? [suggestedLoaderPlugin]
-    : [];
-
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
   >(null);
@@ -486,11 +481,11 @@ export default function RunModelButton({
             <Typography level="body-sm">
               None of the installed Engines currently support this model
               architecture.
-              {compatibleLoaderPlugins.length > 0 ? (
+              {suggestedLoaderPlugin ? (
                 <>
                   {' '}
-                  <b>{compatibleLoaderPlugins[0].name}</b> is compatible with
-                  this model architecture. Install it in{' '}
+                  <b>{suggestedLoaderPlugin.name}</b> is compatible with this
+                  model architecture. Install it in{' '}
                   <Link to="/plugins">
                     <Plug2Icon size="15px" />
                     Plugins
@@ -527,10 +522,10 @@ export default function RunModelButton({
               Plugins
             </Link>{' '}
             and install an Inference Engine.
-            {compatibleLoaderPlugins.length > 0 ? (
+            {suggestedLoaderPlugin ? (
               <>
                 {' '}
-                <b>{compatibleLoaderPlugins[0].name}</b> is compatible with this
+                <b>{suggestedLoaderPlugin.name}</b> is compatible with this
                 model architecture.
               </>
             ) : (
