@@ -40,7 +40,7 @@ def upgrade() -> None:
     )
 
     # Drop the existing non-unique index
-    op.drop_index("idx_quota_usage_job_id", table_name="quota_usage")
+    op.drop_index("idx_quota_usage_job_id", table_name="quota_usage", if_exists=True)
 
     # Create a unique index on (job_id, team_id) - ensures one quota record per job per team
     op.create_index(
@@ -54,7 +54,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     # Drop the unique index
-    op.drop_index("idx_quota_usage_job_id_team_id_unique", table_name="quota_usage")
+    op.drop_index("idx_quota_usage_job_id_team_id_unique", table_name="quota_usage", if_exists=True)
 
     # Recreate the non-unique index
     op.create_index("idx_quota_usage_job_id", "quota_usage", ["job_id"], unique=False)
