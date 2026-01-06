@@ -1377,7 +1377,7 @@ async def check_provider_job_status(
             return {
                 "status": "error",
                 "job_id": job_id,
-                "message": f"Failed to check pod status: {exc}",
+                "message": "Failed to check pod status",
             }
 
     # For other providers (SkyPilot, SLURM), check jobs on the cluster
