@@ -8,7 +8,7 @@
 const getAppContext = () => ({
   app: {
     version: window.platform?.version,
-    mode: window.platform?.appmode,
+    mode: 'cloud', // Always cloud mode now
   },
 });
 

@@ -1,0 +1,123 @@
+Horizontal {
+  height: 100%;
+}
+
+#job-list-container {
+  border: solid $secondary;
+}
+
+ListView {
+  width: 100%;
+  display: none;
+  background: $background;
+}
+
+ListView.loaded {
+  display: block;
+}
+
+ListView>ListItem.--highlight {
+  background: red;
+  color: $text;
+  text-style: bold;
+}
+
+#job-list.highlighted {
+  border: red;
+}
+
+JobDetails {
+  width: 75%;
+  border: solid $secondary;
+  padding: 0 2;
+  height: 100%;
+  /* Ensure children stack vertically */
+  layout: vertical;
+}
+
+#job-progress {
+  display: none;
+  margin-bottom: 1;
+}
+
+#job-progress.visible {
+  display: block;
+}
+
+/* --- New Styles for Layout --- */
+
+/* The top details panel */
+#job-info-container {
+  height: 1fr;
+  margin-bottom: 1;
+}
+
+/* The bottom artifacts panel */
+#job-artifacts-container {
+  height: 1fr;
+  background: $surface-lighten-1;
+  display: none;
+  /* Hidden until job selected */
+  border: none;
+  padding: 1;
+}
+
+#job-artifacts-container.visible {
+  display: block;
+}
+
+#job-artifacts {
+  height: 1fr;
+  overflow: auto;
+}
+
+
+#loading {
+  width: 100%;
+  height: 100%;
+  content-align: center middle;
+}
+
+#job-buttons {
+  height: auto;
+  margin-top: 1;
+  padding: 0 0;
+  display: none;
+  background: $surface;
+}
+
+#job-buttons.visible {
+  display: block;
+}
+
+#job-buttons Button {
+  margin-right: 1;
+}
+
+/* Modal Styles */
+JobJsonModal {
+  align: center middle;
+}
+
+#json-modal-container {
+  width: 95%;
+  height: 95%;
+  border: thick $primary;
+  background: $surface;
+  padding: 1 2;
+}
+
+#json-modal-container TextArea {
+  height: 1fr;
+  margin-bottom: 1;
+  border: none;
+}
+
+#btn-close-modal {
+  width: 100%;
+  dock: bottom;
+}
+
+
+.job-list-item {
+}
