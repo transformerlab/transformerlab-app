@@ -63,6 +63,7 @@ from transformerlab.routers import (  # noqa: E402
     compute_provider,
     auth,
     api_keys,
+    quota,
 )
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
 import torch  # noqa: E402
@@ -93,6 +94,7 @@ from transformerlab.db.filesystem_migrations import (  # noqa: E402
 from transformerlab.shared.request_context import set_current_org_id  # noqa: E402
 from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
 from lab import storage  # noqa: E402
+from transformerlab.shared.remote_workspace import validate_cloud_credentials  # noqa: E402
 
 
 # The following environment variable can be used by other scripts
@@ -112,6 +114,8 @@ async def lifespan(app: FastAPI):
     """Docs on lifespan events: https://fastapi.tiangolo.com/advanced/events/"""
     # Do the following at API Startup:
     print_launch_message()
+    # Validate cloud credentials early - fail fast if missing
+    validate_cloud_credentials()
     galleries.update_gallery_cache()
     spawn_fastchat_controller_subprocess()
     await db.init()  # This now runs Alembic migrations internally
@@ -255,6 +259,7 @@ app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(compute_provider.router)
 app.include_router(auth.router)
 app.include_router(api_keys.router)
+app.include_router(quota.router)
 
 controller_process = None
 worker_process = None
@@ -587,7 +592,7 @@ def print_launch_message():
     with open(os.path.join(os.path.dirname(__file__), "transformerlab/launch_header_text.txt"), "r") as f:
         text = f.read()
         shared.print_in_rainbow(text)
-    print("https://www.lab.cloud\nhttps://github.com/transformerlab/transformerlab-api\n")
+    print("https://lab.cloud\nhttps://github.com/transformerlab/transformerlab-api\n")
 
 
 def run():

@@ -25,22 +25,12 @@
       "url": "https://github.com/dadmobile"
     }
   ],
-  "version": "0.27.4",
-  "main": "./src/main/main.ts",
+  "version": "0.27.6",
   "scripts": {
-    "build": "concurrently \"npm run build:main\" \"npm run build:renderer\" \"npm run build:cloud\"",
-    "build:main": "dotenv -e .env -- cross-env NODE_ENV=production TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.main.prod.ts",
-    "build:renderer": "dotenv -e .env -- cross-env NODE_ENV=production TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.renderer.prod.ts",
-    "build:cloud": "dotenv -e .env -- cross-env NODE_ENV=production TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.cloud.prod.ts",
-    "postinstall": "ts-node .erb/scripts/check-native-dep.js && electron-builder install-app-deps && cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.renderer.dev.dll.ts",
+    "build": "dotenv -e .env -- cross-env NODE_ENV=production TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.cloud.prod.ts",
+    "postinstall": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.cloud.dev.ts --mode development || true",
     "lint": "cross-env NODE_ENV=development eslint . --ext .js,.jsx,.ts,.tsx",
-    "package": "ts-node ./.erb/scripts/clean.js dist && npm run build && electron-builder build --publish never",
-    "rebuild": "electron-rebuild --parallel --types prod,dev,optional --module-dir release/app",
-    "start": "ts-node ./.erb/scripts/check-port-in-use.js && npm run start:renderer",
-    "start:main": "cross-env NODE_ENV=development electronmon -r ts-node/register/transpile-only .",
-    "start:preload": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.preload.dev.ts",
-    "start:preload-cloud": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.preload-cloud.dev.ts",
-    "start:renderer": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack serve --config ./.erb/configs/webpack.config.renderer.dev.ts",
+    "start": "dotenv -e .env -- cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack serve --config ./.erb/configs/webpack.config.cloud.dev.ts",
     "start:cloud": "dotenv -e .env -- cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack serve --config ./.erb/configs/webpack.config.cloud.dev.ts",
     "test": "jest",
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
@@ -66,7 +56,6 @@
   "jest": {
     "moduleDirectories": [
       "node_modules",
-      "release/app/node_modules",
       "src"
     ],
     "moduleFileExtensions": [
@@ -88,7 +77,6 @@
       "url": "http://localhost/"
     },
     "testPathIgnorePatterns": [
-      "release/app/dist",
       ".erb/dll"
     ],
     "transform": {
@@ -125,12 +113,6 @@
     "dayjs": "^1.11.13",
     "debug": "^4.3.4",
     "easy-peasy": "^6.1.0",
-    "electron-debug": "^3.2.0",
-    "electron-google-analytics4": "^1.2.1",
-    "electron-log": "^4.4.8",
-    "electron-ssh2": "^0.1.2",
-    "electron-store": "^8.1.0",
-    "electron-updater": "^6.3.0-alpha.6",
     "lucide-react": "^0.477.0",
     "monaco-themes": "^0.4.4",
     "morgan": "~1.10.0",
@@ -155,8 +137,6 @@
     "wavesurfer.js": "^7.10.1"
   },
   "devDependencies": {
-    "@electron/notarize": "^2.1.0",
-    "@electron/rebuild": "^3.3.0",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.10",
     "@svgr/webpack": "^8.0.1",
     "@teamsupercell/typings-for-css-modules-loader": "^2.5.2",
@@ -180,10 +160,6 @@
     "css-minimizer-webpack-plugin": "^5.0.0",
     "detect-port": "^1.5.1",
     "dotenv-cli": "^11.0.0",
-    "electron": "^26.2.1",
-    "electron-builder": "^24.6.4",
-    "electron-devtools-installer": "^3.2.0",
-    "electronmon": "^2.0.2",
     "eslint": "^8.42.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-erb": "^4.0.6",
@@ -224,93 +200,8 @@
     "webpack-dev-server": "^4.15.0",
     "webpack-merge": "^5.9.0"
   },
-  "build": {
-    "productName": "Transformer Lab",
-    "appId": "ai.transformerlab.app",
-    "asar": true,
-    "asarUnpack": "**\\*.{node,dll}",
-    "files": [
-      "dist",
-      "node_modules",
-      "package.json"
-    ],
-    "extraFiles": [],
-    "afterSign": ".erb/scripts/notarize.js",
-    "mac": {
-      "target": {
-        "target": "default",
-        "arch": [
-          "arm64",
-          "x64"
-        ]
-      },
-      "category": "public.app-category.developer-tools",
-      "type": "distribution",
-      "hardenedRuntime": true,
-      "entitlements": "assets/entitlements.mac.plist",
-      "entitlementsInherit": "assets/entitlements.mac.plist",
-      "gatekeeperAssess": false
-    },
-    "dmg": {
-      "contents": [
-        {
-          "x": 130,
-          "y": 220
-        },
-        {
-          "x": 410,
-          "y": 220,
-          "type": "link",
-          "path": "/Applications"
-        }
-      ]
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "publisherName": "Transformer Lab Inc."
-    },
-    "linux": {
-      "target": [
-        {
-          "target": "AppImage",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
-        }
-      ],
-      "category": "Development"
-    },
-    "directories": {
-      "app": "release/app",
-      "buildResources": "assets",
-      "output": "release/build"
-    },
-    "extraResources": [
-      "./assets/**"
-    ],
-    "publish": {
-      "provider": "github",
-      "owner": "transformerlab",
-      "repo": "transformerlab-app"
-    }
-  },
   "engines": {
     "node": ">=14.x",
     "npm": ">=7.x"
-  },
-  "electronmon": {
-    "patterns": [
-      "!**/**",
-      "src/main/**"
-    ],
-    "logLevel": "quiet"
   }
 }

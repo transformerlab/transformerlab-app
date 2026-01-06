@@ -1,0 +1,120 @@
+[
+  {
+    "id": "vscode",
+    "interactive_type": "vscode",
+    "name": "VS Code",
+    "description": "Remote VS Code development environment via tunnel",
+    "setup": "export DEBIAN_FRONTEND=noninteractive; sudo apt update && sudo apt install -y gnupg software-properties-common apt-transport-https wget && wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg && sudo install -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/ && echo \"deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main\" | sudo tee /etc/apt/sources.list.d/vscode.list && sudo apt update && sudo apt install -y code;",
+    "command": "code tunnel --accept-server-license-terms --disable-telemetry",
+    "config_fields": []
+  },
+  {
+    "id": "jupyter",
+    "interactive_type": "jupyter",
+    "name": "Jupyter Notebook",
+    "description": "Jupyter Lab notebook environment via ngrok tunnel",
+    "setup": "export DEBIAN_FRONTEND=noninteractive; curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null ; echo \"deb https://ngrok-agent.s3.amazonaws.com bookworm main\" | sudo tee /etc/apt/sources.list.d/ngrok.list ; sudo apt update ; sudo apt install -y ngrok && pip install jupyter;",
+    "command": "ngrok config add-authtoken $NGROK_AUTH_TOKEN; jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password='' --notebook-dir=~ > /tmp/jupyter.log 2>&1 & sleep 3 && ngrok http 8888 --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/jupyter.log /tmp/ngrok.log",
+    "config_fields": [
+      {
+        "field_name": "ngrok Auth Token",
+        "env_var": "NGROK_AUTH_TOKEN",
+        "field_type": "str",
+        "required": true,
+        "placeholder": "ngrok_...",
+        "help_text": "Your ngrok authentication token. You can get your token from https://dashboard.ngrok.com/get-started/your-authtoken.",
+        "password": true
+      }
+    ]
+  },
+  {
+    "id": "vllm",
+    "interactive_type": "vllm",
+    "name": "vLLM Server",
+    "description": "vLLM OpenAI-compatible API server via ngrok tunnel",
+    "setup": "export DEBIAN_FRONTEND=noninteractive; curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null ; echo \"deb https://ngrok-agent.s3.amazonaws.com bookworm main\" | sudo tee /etc/apt/sources.list.d/ngrok.list ; sudo apt update ; sudo apt install -y ngrok; wget curl python3-pip && curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=\"$HOME/.cargo/bin:$PATH\" && uv venv ~/vllm-venv && source ~/vllm-venv/bin/activate && uv pip install \"vllm>=0.11.0\" && uv pip install \"transformers>=4.57.1\" && uv pip install qwen-vl-utils==0.0.14 && uv pip install flashinfer-python flashinfer-cubin;",
+    "command": "ngrok config add-authtoken $NGROK_AUTH_TOKEN; source ~/vllm-venv/bin/activate && python -u -m vllm.entrypoints.openai.api_server --model $MODEL_NAME --tensor-parallel-size $TP_SIZE --host 0.0.0.0 --port 8000 --gpu-memory-utilization 0.9 > /tmp/vllm.log 2>&1 & sleep 10 && ngrok http 8000 --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/vllm.log /tmp/ngrok.log",
+    "config_fields": [
+      {
+        "field_name": "Model Name",
+        "env_var": "MODEL_NAME",
+        "field_type": "str",
+        "required": true,
+        "placeholder": "e.g. meta-llama/Llama-2-7b-chat-hf",
+        "help_text": "HuggingFace model identifier"
+      },
+      {
+        "field_name": "Tensor Parallel Size",
+        "env_var": "TP_SIZE",
+        "field_type": "integer",
+        "required": true,
+        "placeholder": "1",
+        "help_text": "Number of GPUs for tensor parallelism (default: 1)"
+      },
+      {
+        "field_name": "HuggingFace Token",
+        "env_var": "HF_TOKEN",
+        "field_type": "str",
+        "required": false,
+        "placeholder": "hf_...",
+        "help_text": "Optional: Required for private/gated models",
+        "password": true
+      },
+      {
+        "field_name": "ngrok Auth Token",
+        "env_var": "NGROK_AUTH_TOKEN",
+        "field_type": "str",
+        "required": true,
+        "placeholder": "ngrok_...",
+        "help_text": "Your ngrok authentication token. You can get your token from https://dashboard.ngrok.com/get-started/your-authtoken.",
+        "password": true
+      }
+    ]
+  },
+  {
+    "id": "ollama",
+    "interactive_type": "ollama",
+    "name": "Ollama Server",
+    "description": "Ollama model server via ngrok tunnel",
+    "setup": "export DEBIAN_FRONTEND=noninteractive; curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null ; echo \"deb https://ngrok-agent.s3.amazonaws.com bookworm main\" | sudo tee /etc/apt/sources.list.d/ngrok.list ; sudo apt update ; sudo apt install -y ngrok; wget curl && curl -fsSL https://ollama.com/install.sh | sh && sudo apt update && sudo apt install -y pciutils lshw;",
+    "command": "ngrok config add-authtoken $NGROK_AUTH_TOKEN; export OLLAMA_HOST=0.0.0.0:11434 && ollama serve > /tmp/ollama.log 2>&1 & sleep 3 && ollama pull $MODEL_NAME > /tmp/ollama-pull.log 2>&1 & sleep 5 && ngrok http 11434 --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/ollama.log /tmp/ollama-pull.log /tmp/ngrok.log",
+    "config_fields": [
+      {
+        "field_name": "Model Name",
+        "env_var": "MODEL_NAME",
+        "field_type": "str",
+        "required": true,
+        "placeholder": "e.g. llama2, mistral, codellama",
+        "help_text": "Ollama model name (e.g. llama2, mistral, codellama). Use \"ollama pull <model>\" to download models."
+      },
+      {
+        "field_name": "ngrok Auth Token",
+        "env_var": "NGROK_AUTH_TOKEN",
+        "field_type": "str",
+        "required": true,
+        "placeholder": "ngrok_...",
+        "help_text": "Your ngrok authentication token. You can get your token from https://dashboard.ngrok.com/get-started/your-authtoken.",
+        "password": true
+      }
+    ]
+  },
+  {
+    "id": "ssh",
+    "interactive_type": "ssh",
+    "name": "SSH via ngrok",
+    "description": "SSH access via ngrok TCP tunnel",
+    "setup": "export DEBIAN_FRONTEND=noninteractive; curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null ; echo \"deb https://ngrok-agent.s3.amazonaws.com bookworm main\" | sudo tee /etc/apt/sources.list.d/ngrok.list ; sudo apt update ; sudo apt install ngrok;",
+    "command": "ngrok config add-authtoken $NGROK_AUTH_TOKEN; echo USER_ID=$(whoami 2>/dev/null || basename $HOME 2>/dev/null || echo ''); ngrok tcp 22 --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/ngrok.log",
+    "config_fields": [
+      {
+        "field_name": "ngrok Auth Token",
+        "env_var": "NGROK_AUTH_TOKEN",
+        "field_type": "str",
+        "required": true,
+        "placeholder": "ngrok_...",
+        "help_text": "Your ngrok authentication token. Note: You may need to add a payment method to your ngrok account (it won't be charged, but it's necessary for SSH connections). You can get your token from https://dashboard.ngrok.com/get-started/your-authtoken.",
+        "password": true
+      }
+    ]
+  }
+]

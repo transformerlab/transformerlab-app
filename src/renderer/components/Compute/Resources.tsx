@@ -15,11 +15,15 @@ import {
   Grid,
   Table,
   Sheet,
+  Button,
+  Stack,
 } from '@mui/joy';
 import {
   authenticatedFetch,
   getAPIFullPath,
 } from 'renderer/lib/transformerlab-api-sdk';
+import { RotateCcw } from 'lucide-react';
+import FixedComputeClusterVisualization from './FixedComputeClusterVisualization';
 
 interface Provider {
   id: string;
@@ -117,6 +121,13 @@ const Resources = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    await fetchProviders();
+    if (selectedProvider) {
+      await fetchClusters();
+    }
+  };
+
   // Organize data into different sections
   const fixedClusters: Cluster[] = [];
   const elasticClusters: Cluster[] = [];
@@ -132,8 +143,10 @@ const Resources = () => {
 
     if (isFixed) {
       fixedClusters.push(cluster);
+      fixedClusters.backend_type = cluster.backend_type;
     } else {
       elasticClusters.push(cluster);
+      elasticClusters.backend_type = cluster.backend_type;
 
       // Group by cloud provider (use cloud_provider field if available, otherwise cluster_name)
       const cloudName =
@@ -164,12 +177,33 @@ const Resources = () => {
       </Box>
     );
   }
-
+  console.log(providers);
   return (
     <Box sx={{ maxHeight: '80vh', overflowY: 'auto', p: 3, pb: 10 }}>
-      <Typography level="h4" mb={2}>
-        Resources
-      </Typography>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={2}
+      >
+        <Typography level="h4">Resources</Typography>
+        <Button
+          color="neutral"
+          variant="plain"
+          size="sm"
+          startDecorator={
+            loading ? (
+              <CircularProgress thickness={2} size="sm" color="neutral" />
+            ) : (
+              <RotateCcw size="20px" />
+            )
+          }
+          onClick={handleRefresh}
+          disabled={loading}
+        >
+          Refresh
+        </Button>
+      </Stack>
       <FormControl sx={{ mb: 3, maxWidth: 400 }}>
         <FormLabel>Select Provider</FormLabel>
         <Select
@@ -193,9 +227,16 @@ const Resources = () => {
                 Fixed Compute
               </Typography>
               {fixedClusters.length === 0 ? (
-                <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
-                  No Fixed Compute nodes found.
-                </Typography>
+                providers.find((p) => p.id === selectedProvider)?.type ===
+                'skypilot' ? (
+                  <Typography level="body-sm" sx={{ color: 'warning.main' }}>
+                    No cluster status received from SkyPilot. Try refreshing...
+                  </Typography>
+                ) : (
+                  <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
+                    No Fixed Compute nodes found.
+                  </Typography>
+                )
               ) : (
                 <Sheet
                   variant="outlined"
@@ -219,10 +260,14 @@ const Resources = () => {
                     },
                   }}
                 >
-                  <Table sx={{ minWidth: 700 }}>
+                  {/* <Table sx={{ minWidth: 700 }}>
                     <thead>
                       <tr>
-                        <th>Node Pool</th>
+                        <th>
+                          {fixedClusters?.backend_type === 'SLURM'
+                            ? 'Partition'
+                            : 'Node Pool'}
+                        </th>
                         <th>Clusters</th>
                         <th>Jobs</th>
                         <th>Nodes</th>
@@ -370,8 +415,11 @@ const Resources = () => {
                         );
                       })}
                     </tbody>
-                  </Table>
+                  </Table> */}
                 </Sheet>
+              )}
+              {fixedClusters.length > 0 && (
+                <FixedComputeClusterVisualization cluster={fixedClusters[0]} />
               )}
             </CardContent>
           </Card>
@@ -528,7 +576,7 @@ const Resources = () => {
                         const cloudType = isFixed
                           ? backendType
                           : cluster.cloud_provider?.toUpperCase() ||
-                            cluster.cluster_name.toUpperCase();
+                            cluster?.cluster_name.toUpperCase();
 
                         return (
                           <tr key={`${cluster.cluster_id}-${node.node_name}`}>
