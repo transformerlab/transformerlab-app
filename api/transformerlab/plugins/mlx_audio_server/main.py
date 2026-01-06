@@ -2,7 +2,6 @@
 A model worker using Apple MLX Audio
 """
 
-import sys
 import argparse
 import asyncio
 import uuid
@@ -19,7 +18,8 @@ from fastchat.serve.model_worker import logger
 from lab import storage
 
 from mlx_audio.tts.generate import generate_audio
-#from mlx_audio.stt.generate import generate_transcription as generate
+
+# from mlx_audio.stt.generate import generate_transcription as generate
 from mlx_audio.stt.generate import generate
 from datetime import datetime
 
@@ -140,7 +140,7 @@ class MLXAudioWorker(BaseModelWorker):
                     "message": f"{file_prefix}.{audio_format}",
                 }
             except Exception:
-                logger.error(f"Error generating audio")
+                logger.error("Error generating audio")
                 return {
                     "status": "error",
                     "message": "Error generating audio",
