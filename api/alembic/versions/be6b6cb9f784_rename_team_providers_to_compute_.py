@@ -47,9 +47,9 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     # Drop new indexes
-    op.drop_index(op.f("ix_compute_providers_type"), table_name="compute_providers")
-    op.drop_index(op.f("ix_compute_providers_team_id"), table_name="compute_providers")
-    op.drop_index("idx_compute_provider_name", table_name="compute_providers")
+    op.drop_index(op.f("ix_compute_providers_type"), table_name="compute_providers", if_exists=True)
+    op.drop_index(op.f("ix_compute_providers_team_id"), table_name="compute_providers", if_exists=True)
+    op.drop_index("idx_compute_provider_name", table_name="compute_providers", if_exists=True)
 
     # Rename the table back first
     op.rename_table("compute_providers", "team_providers")

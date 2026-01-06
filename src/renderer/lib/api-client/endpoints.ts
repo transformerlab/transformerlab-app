@@ -64,6 +64,8 @@ Endpoints.Task = {
     `${API_URL()}experiment/${experimentId}/task/${id}/delete`,
   Gallery: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/task/gallery`,
+  InteractiveGallery: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/interactive`,
   ImportFromGallery: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/task/gallery/import`,
   TeamGallery: (experimentId: string) =>
@@ -518,12 +520,12 @@ Endpoints.Experiment = {
     tailLines: number = 400,
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/provider_logs?tail_lines=${tailLines}`,
-  GetVSCodeTunnelInfo: (
+  GetTunnelInfo: (
     experimentId: string,
     jobId: string,
     tailLines: number = 400,
   ) =>
-    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/vscode_tunnel_info?tail_lines=${tailLines}`,
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/tunnel_info?tail_lines=${tailLines}`,
   GetAdditionalDetails: (
     experimentId: string,
     jobId: string,

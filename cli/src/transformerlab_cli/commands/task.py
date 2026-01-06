@@ -59,15 +59,15 @@ def _check_if_zip_command_exists():
         raise typer.Exit(1)
 
 
-def add_task(task_yaml_path: str, from_url: str) -> None:
+def add_task(task_yaml_path: str, from_url: str):
     """Add a new task."""
     if task_yaml_path and from_url:
         console.print("[red]Error:[/red] Please provide either a file path or a URL, not both.")
-        raise typer.Exit(1)
+        return {"status_code": 400, "message": "Provide either a file path or a URL, not both."}
 
     if not task_yaml_path and not from_url:
         console.print("[red]Error:[/red] You must provide either a file path or a URL. Type --help for more info.")
-        raise typer.Exit(1)
+        return {"status_code": 400, "message": "Provide either a file path or a URL."}
 
     if from_url:
         console.print(f"[yellow]Fetching Task YAML from URL: {from_url}[/yellow]")
@@ -78,22 +78,29 @@ def add_task(task_yaml_path: str, from_url: str) -> None:
                     task_data = yaml.safe_load(response.text)
                 except yaml.YAMLError:
                     console.print("[red]Error:[/red] Failed to parse YAML from URL. Are you sure the URL is correct?")
-                    raise typer.Exit(1)
+                    return {"status_code": 422, "message": "Failed to parse YAML from URL."}
             else:
                 console.print(
                     f"[red]Error:[/red] Failed to fetch Task YAML from URL. Status code: {response.status_code}"
                 )
-                raise typer.Exit(1)
+                return {"status_code": response.status_code, "message": "Failed to fetch Task YAML from URL."}
         except requests.ConnectionError as e:
             console.print(f"[red]Error:[/red] Failed to connect to the URL: {from_url}. Details: {e}")
-            raise typer.Exit(1)
+            return {"status_code": 503, "message": "Failed to connect to the URL."}
         except requests.RequestException as e:
             console.print(f"[red]Error:[/red] An error occurred while fetching the URL: {from_url}. Details: {e}")
-            raise typer.Exit(1)
+            return {"status_code": 500, "message": "An error occurred while fetching the URL."}
     else:
         console.print(f"[yellow]Task add from file: '{task_yaml_path}'[/yellow]")
-        with open(task_yaml_path, "r") as f:
-            task_data = yaml.safe_load(f)
+        try:
+            with open(task_yaml_path, "r") as f:
+                task_data = yaml.safe_load(f)
+        except FileNotFoundError:
+            console.print("[red]Error:[/red] File not found.")
+            return {"status_code": 404, "message": "File not found."}
+        except yaml.YAMLError:
+            console.print("[red]Error:[/red] Failed to parse YAML from file.")
+            return {"status_code": 422, "message": "Failed to parse YAML from file."}
 
     console.print("[bold]Task YAML to be uploaded:[/bold]")
     console.print(yaml.dump(task_data))
@@ -139,7 +146,9 @@ def command_task_add(
 ):
     """Add a new task. Provide a file path directly, or use --from-url to fetch the YAML from a URL."""
     check_configs()
-    add_task(task_yaml_path, from_url)
+    response = add_task(task_yaml_path, from_url)
+    if response and response.get("status_code") != 200:
+        raise typer.Exit(1)
 
 
 @app.command("delete")
