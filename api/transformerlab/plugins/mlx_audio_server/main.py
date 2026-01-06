@@ -101,9 +101,9 @@ class MLXAudioWorker(BaseModelWorker):
                     "temperature": temperature,
                     "top_p": top_p,
                     "stream": stream,
-                    "voice": voice,
                 }
-                if lang_code:
+                if voice and lang_code:
+                    kwargs["voice"] = voice
                     kwargs["lang_code"] = lang_code
 
                 await asyncio.to_thread(generate_audio, **kwargs)
@@ -152,6 +152,12 @@ class MLXAudioWorker(BaseModelWorker):
             model = params.get("model", None)
             format = params.get("format", "txt")
             transcriptions_dir = params.get("output_path")
+            if not transcriptions_dir:
+                logger.error("output_path parameter is missing or None")
+                return {
+                    "status": "error",
+                    "message": "output_path parameter is required for STT",
+                }
 
             # Generate a UUID for this file name:
             file_prefix = str(uuid.uuid4())
@@ -297,9 +303,6 @@ def main():
         False,
     )
 
-    # Restore original stdout/stderr to prevent logging recursion
-    sys.stdout = sys.__stdout__
-    sys.stderr = sys.__stderr__
     uvicorn.run(app, host=args.host, port=args.port, log_level="info", access_log=False)
 
 
