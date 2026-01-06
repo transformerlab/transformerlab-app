@@ -28,6 +28,8 @@ import {
   ScanTextIcon,
   PlusIcon,
   Trash2Icon,
+  GraduationCapIcon,
+  ChartColumnIncreasingIcon,
 } from 'lucide-react';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -66,16 +68,40 @@ function generateGithubLink(repoUrl?: string, repoDir?: string) {
   return repoDir ? `${finalRepoUrl}/tree/main/${repoDir}` : finalRepoUrl;
 }
 
-function TaskIcon({ icon, color }: { icon: React.ReactNode; color?: string }) {
+function TaskIcon({ category }: { category: string }) {
+  let icon = <ScanTextIcon />;
+  let color: string = '#1976d2';
+
+  switch (category) {
+    case 'dataset-generation':
+      icon = <ScanTextIcon />;
+      color = '#1976d2';
+      break;
+    case 'training':
+      icon = <GraduationCapIcon />;
+      color = '#388e3c';
+      break;
+    case 'eval':
+      icon = <ChartColumnIncreasingIcon />;
+      color = '#d27d00';
+      break;
+    default:
+      icon = <ScanTextIcon />;
+      color = '#5b5e61ff';
+      break;
+  }
+
   return (
     <Box
       sx={{
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: 24,
-        height: 24,
-        color: color || 'inherit',
+        width: 32,
+        height: 32,
+        color,
+        backgroundColor: `${color}11`,
+        padding: '1px',
       }}
     >
       {icon}
@@ -120,7 +146,7 @@ function TaskCard({
               alignItems: 'flex-start',
             }}
           >
-            <TaskIcon icon={<ScanTextIcon />} color="#1976d2" />
+            <TaskIcon category={task?.metadata?.category} />
             {showCheckbox && (
               <Checkbox
                 checked={isSelected || false}
@@ -192,7 +218,17 @@ function TaskCard({
               </Box>
             )}
           </Box>
-          {task.config && (
+          {task?.metadata?.framework && (
+            /* Framework is an array of strings */
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              {task.metadata.framework.map((fw: string, fwIndex: number) => (
+                <Chip key={fwIndex} size="sm" variant="soft">
+                  {fw}
+                </Chip>
+              ))}
+            </Stack>
+          )}
+          {/* {task.config && (
             <Stack spacing={0.5}>
               <Typography level="body-xs" fontWeight="bold">
                 Compute:
@@ -215,7 +251,7 @@ function TaskCard({
                 )}
               </Stack>
             </Stack>
-          )}
+          )} */}
         </Stack>
         <CardActions>
           <Button
@@ -247,7 +283,9 @@ export default function TasksGallery() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { data, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Tasks.Gallery(),
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Task.Gallery(experimentInfo.id)
+      : null,
     fetcher,
   );
   const {
@@ -255,7 +293,12 @@ export default function TasksGallery() {
     isLoading: teamLoading,
     mutate: teamMutate,
     isError: teamError,
-  } = useSWR(chatAPI.Endpoints.Tasks.TeamGallery(), fetcher);
+  } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Task.TeamGallery(experimentInfo.id)
+      : null,
+    fetcher,
+  );
 
   const handleImport = async (galleryIndex: number) => {
     if (!experimentInfo?.id) {
@@ -271,8 +314,8 @@ export default function TasksGallery() {
     try {
       const endpoint =
         activeTab === 'team'
-          ? chatAPI.Endpoints.Tasks.ImportFromTeamGallery(experimentInfo.id)
-          : chatAPI.Endpoints.Tasks.ImportFromGallery(experimentInfo.id);
+          ? chatAPI.Endpoints.Task.ImportFromTeamGallery(experimentInfo.id)
+          : chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id);
       const response = await chatAPI.authenticatedFetch(endpoint, {
         method: 'POST',
         headers: {
@@ -308,10 +351,10 @@ export default function TasksGallery() {
       // Navigate to the tasks page for the experiment
       navigate(`/experiment/tasks`);
     } catch (err: any) {
-      console.error('Error importing task:', err);
+      console.error('Error importing template:', err);
       addNotification({
         type: 'danger',
-        message: `Failed to import task: ${err?.message || String(err)}`,
+        message: `Failed to import template: ${err?.message || String(err)}`,
       });
     } finally {
       setImportingIndex(null);
@@ -332,7 +375,7 @@ export default function TasksGallery() {
     setIsSubmittingTeamTask(true);
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Tasks.AddToTeamGallery(),
+        chatAPI.Endpoints.Task.AddToTeamGallery(experimentInfo?.id || ''),
         {
           method: 'POST',
           headers: {
@@ -346,7 +389,7 @@ export default function TasksGallery() {
         const errorText = await response.text();
         addNotification({
           type: 'danger',
-          message: `Failed to add team task: ${errorText}`,
+          message: `Failed to add team template: ${errorText}`,
         });
         return;
       }
@@ -354,16 +397,16 @@ export default function TasksGallery() {
       const result = await response.json();
       addNotification({
         type: 'success',
-        message: result?.message || 'Team task added successfully!',
+        message: result?.message || 'Team template added successfully!',
       });
 
       // Refresh the team gallery
       teamMutate();
     } catch (err: any) {
-      console.error('Error adding team task:', err);
+      console.error('Error adding team template:', err);
       addNotification({
         type: 'danger',
-        message: `Failed to add team task: ${err?.message || String(err)}`,
+        message: `Failed to add team template: ${err?.message || String(err)}`,
       });
     } finally {
       setIsSubmittingTeamTask(false);
@@ -388,7 +431,7 @@ export default function TasksGallery() {
     // eslint-disable-next-line no-alert
     if (
       !confirm(
-        `Are you sure you want to delete ${selectedTasks.size} task(s)? This action cannot be undone.`,
+        `Are you sure you want to delete ${selectedTasks.size} template(s)? This action cannot be undone.`,
       )
     ) {
       return;
@@ -403,7 +446,9 @@ export default function TasksGallery() {
       for (const taskId of taskIds) {
         try {
           const response = await chatAPI.authenticatedFetch(
-            chatAPI.Endpoints.Tasks.DeleteFromTeamGallery(),
+            chatAPI.Endpoints.Task.DeleteFromTeamGallery(
+              experimentInfo?.id || '',
+            ),
             {
               method: 'POST',
               headers: {
@@ -419,7 +464,7 @@ export default function TasksGallery() {
             failCount++;
           }
         } catch (err) {
-          console.error(`Error deleting task ${taskId}:`, err);
+          console.error(`Error deleting template ${taskId}:`, err);
           failCount++;
         }
       }
@@ -427,7 +472,7 @@ export default function TasksGallery() {
       if (successCount > 0) {
         addNotification({
           type: 'success',
-          message: `Successfully deleted ${successCount} task(s)${
+          message: `Successfully deleted ${successCount} template(s)${
             failCount > 0 ? `. ${failCount} failed.` : '.'
           }`,
         });
@@ -437,14 +482,14 @@ export default function TasksGallery() {
       } else {
         addNotification({
           type: 'danger',
-          message: 'Failed to delete tasks. Please try again.',
+          message: 'Failed to delete templates. Please try again.',
         });
       }
     } catch (err: any) {
-      console.error('Error deleting tasks:', err);
+      console.error('Error deleting templates:', err);
       addNotification({
         type: 'danger',
-        message: `Failed to delete tasks: ${err?.message || String(err)}`,
+        message: `Failed to delete templates: ${err?.message || String(err)}`,
       });
     } finally {
       setIsDeleting(false);

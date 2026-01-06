@@ -240,10 +240,10 @@ download_transformer_lab() {
   fi
 
 
-  # Now do the same thing for the web app which is in a different repo called https://github.com/transformerlab/transformerlab-app
-  # Step 1: First get the latest release version:
+  # Download the web app static files from the latest release
+  # The web app is built and published as transformerlab_web.tar.gz in the same repo
   TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/transformerlab_web.tar.gz"
-  echo "APP Download Location: $TLAB_APP_URL"
+  echo "Web app download location: $TLAB_APP_URL"
 
   # Delete and recreate the target static files directory
   echo "Creating clean directory at ${TLAB_STATIC_WEB_DIR}"
@@ -255,9 +255,11 @@ download_transformer_lab() {
     # Extraction succeeded, proceed with unpacking
     tar -xzf /tmp/transformerlab_web.tar.gz -C "${TLAB_STATIC_WEB_DIR}"
 
-    # Move contents up one level and clean up
-    mv "${TLAB_STATIC_WEB_DIR}/transformerlab_web/"* "${TLAB_STATIC_WEB_DIR}/" 2>/dev/null || true
-    rmdir "${TLAB_STATIC_WEB_DIR}/transformerlab_web" 2>/dev/null || true
+    # Clean up any nested directories if they exist
+    if [ -d "${TLAB_STATIC_WEB_DIR}/transformerlab_web" ]; then
+      mv "${TLAB_STATIC_WEB_DIR}/transformerlab_web/"* "${TLAB_STATIC_WEB_DIR}/" 2>/dev/null || true
+      rmdir "${TLAB_STATIC_WEB_DIR}/transformerlab_web" 2>/dev/null || true
+    fi
 
     # Remove the temporary file
     rm /tmp/transformerlab_web.tar.gz
@@ -410,7 +412,7 @@ install_dependencies() {
   pip install uv
 
   echo "HAS_NVIDIA=$HAS_NVIDIA, HAS_AMD=$HAS_AMD"
-  PIP_WHEEL_FLAGS="--upgrade"
+  PIP_WHEEL_FLAGS=""
 
   # Determine the directory containing pyproject.toml
   if [ -e "$RUN_DIR/pyproject.toml" ]; then
@@ -433,7 +435,7 @@ install_dependencies() {
   elif [ "$HAS_AMD" = true ]; then
       echo "Installing requirements for ROCm:"
       cd "$PROJECT_DIR"
-      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match"
+      PIP_WHEEL_FLAGS+="--index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match"
       uv pip install ${PIP_WHEEL_FLAGS} .[rocm]
 
       if [ "$TLAB_ON_WSL" = 1 ]; then
@@ -453,7 +455,7 @@ install_dependencies() {
       cd "$PROJECT_DIR"
       if [[ -z "${TLAB_ON_MACOS}" ]]; then
           # Add the CPU-specific PyTorch index for non-macOS systems
-          PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
+          PIP_WHEEL_FLAGS+="--index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
       fi
 
       echo "Installing with CPU support"

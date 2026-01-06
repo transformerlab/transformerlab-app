@@ -7,7 +7,7 @@ from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole, 
 from transformerlab.models.users import current_active_user
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
-from transformerlab.shared.s3_bucket import create_s3_bucket_for_team
+from transformerlab.shared.remote_workspace import create_bucket_for_team
 
 from pydantic import BaseModel, EmailStr
 from typing import Optional
@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from os import getenv
 from PIL import Image
 import io
+import logging
 
 from lab import Experiment
 from lab.dirs import set_organization_id, get_workspace_dir
@@ -94,7 +95,7 @@ async def create_team(
     # Create S3 bucket if TFL_API_STORAGE_URI is set
     if getenv("TFL_API_STORAGE_URI"):
         try:
-            create_s3_bucket_for_team(team.id, profile_name="transformerlab-s3")
+            create_bucket_for_team(team.id, profile_name="transformerlab-s3")
         except Exception as e:
             # Log error but don't fail team creation if bucket creation fails
             print(f"Warning: Failed to create S3 bucket for team {team.id}: {e}")
@@ -382,8 +383,9 @@ async def invite_member(
                 raise HTTPException(status_code=400, detail=str(e))
             except (ConnectionError, RuntimeError) as e:
                 # Log warning but don't fail the invitation
+                logging.warning("Failed to send invitation email", exc_info=e)
                 email_sent = False
-                email_error = str(e)
+                email_error = "Failed to send invitation email"
 
             return {
                 "message": "Invitation renewed and resent",
@@ -413,9 +415,10 @@ async def invite_member(
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=str(e))
             except (ConnectionError, RuntimeError) as e:
+                logging.warning("Failed to send invitation email", exc_info=e)
                 # Log warning but don't fail the invitation
                 email_sent = False
-                email_error = str(e)
+                email_error = "Failed to send invitation email"
 
             return {
                 "message": "Invitation already exists and was resent",
@@ -461,8 +464,9 @@ async def invite_member(
         raise HTTPException(status_code=400, detail=str(e))
     except (ConnectionError, RuntimeError) as e:
         # Log warning but don't fail the invitation
+        logging.warning("Failed to send invitation email", exc_info=e)
         email_sent = False
-        email_error = str(e)
+        email_error = "Failed to send invitation email"
 
     return {
         "message": "Invitation created successfully",

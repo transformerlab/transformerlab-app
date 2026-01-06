@@ -44,8 +44,8 @@ def upgrade() -> None:
     # Plugin table
     if table_exists("plugins"):
         # Drop all indexes on the table
-        op.drop_index(op.f("ix_plugins_name"), table_name="plugins")
-        op.drop_index(op.f("ix_plugins_type"), table_name="plugins")
+        op.drop_index(op.f("ix_plugins_name"), table_name="plugins", if_exists=True)
+        op.drop_index(op.f("ix_plugins_type"), table_name="plugins", if_exists=True)
         # Drop the table
         op.drop_table("plugins")
         # Create the table again
@@ -63,10 +63,10 @@ def upgrade() -> None:
     # TrainingTemplate table
     if table_exists("training_template"):
         # Drop all indexes on the table
-        op.drop_index(op.f("ix_training_template_name"), table_name="training_template")
-        op.drop_index(op.f("ix_training_template_created_at"), table_name="training_template")
-        op.drop_index(op.f("ix_training_template_type"), table_name="training_template")
-        op.drop_index(op.f("ix_training_template_updated_at"), table_name="training_template")
+        op.drop_index(op.f("ix_training_template_name"), table_name="training_template", if_exists=True)
+        op.drop_index(op.f("ix_training_template_created_at"), table_name="training_template", if_exists=True)
+        op.drop_index(op.f("ix_training_template_type"), table_name="training_template", if_exists=True)
+        op.drop_index(op.f("ix_training_template_updated_at"), table_name="training_template", if_exists=True)
         # Drop the table
         op.drop_table("training_template")
         # Create the table again
@@ -221,24 +221,24 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop all tables."""
-    op.drop_index(op.f("ix_team_invitations_token"), table_name="team_invitations")
-    op.drop_index(op.f("ix_team_invitations_team_id"), table_name="team_invitations")
-    op.drop_index(op.f("ix_team_invitations_status"), table_name="team_invitations")
-    op.drop_index(op.f("ix_team_invitations_email"), table_name="team_invitations")
-    op.drop_table("team_invitations")
-    op.drop_table("users_teams")
-    op.drop_table("teams")
-    op.drop_index(op.f("ix_workflow_runs_status"), table_name="workflow_runs")
-    op.drop_table("workflow_runs")
-    op.drop_index("idx_workflow_id_experiment", table_name="workflows")
-    op.drop_index(op.f("ix_workflows_status"), table_name="workflows")
-    op.drop_table("workflows")
+    op.drop_index(op.f("ix_team_invitations_token"), table_name="team_invitations", if_exists=True)
+    op.drop_index(op.f("ix_team_invitations_team_id"), table_name="team_invitations", if_exists=True)
+    op.drop_index(op.f("ix_team_invitations_status"), table_name="team_invitations", if_exists=True)
+    op.drop_index(op.f("ix_team_invitations_email"), table_name="team_invitations", if_exists=True)
+    op.drop_table("team_invitations", if_exists=True)
+    op.drop_table("users_teams", if_exists=True)
+    op.drop_table("teams", if_exists=True)
+    op.drop_index(op.f("ix_workflow_runs_status"), table_name="workflow_runs", if_exists=True)
+    op.drop_table("workflow_runs", if_exists=True)
+    op.drop_index("idx_workflow_id_experiment", table_name="workflows", if_exists=True)
+    op.drop_index(op.f("ix_workflows_status"), table_name="workflows", if_exists=True)
+    op.drop_table("workflows", if_exists=True)
 
-    op.drop_index(op.f("ix_config_key"), table_name="config")
-    op.drop_table("config")
+    op.drop_index(op.f("ix_config_key"), table_name="config", if_exists=True)
+    op.drop_table("config", if_exists=True)
     # User table - only drop if it was created by this migration
     try:
-        op.drop_index(op.f("ix_user_email"), table_name="user")
-        op.drop_table("user")
+        op.drop_index(op.f("ix_user_email"), table_name="user", if_exists=True)
+        op.drop_table("user", if_exists=True)
     except Exception:
         pass
