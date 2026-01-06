@@ -221,10 +221,12 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   } else {
     const baseUrl = API_URL();
     if (baseUrl === null) {
-      // Default to localhost API if API_URL is not set
+      // Default to same host as frontend with API port if API_URL is not set
       // Ensure URL doesn't start with / (baseUrl already has trailing slash)
       const cleanPath = url.startsWith('/') ? url.slice(1) : url;
-      fullUrl = `http://localhost:8338/${cleanPath}`;
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      fullUrl = `${protocol}//${hostname}:8338/${cleanPath}`;
     } else {
       // baseUrl already has trailing slash from API_URL()
       fullUrl = `${baseUrl}${url}`;
