@@ -40,7 +40,13 @@ export default function LoginForm() {
       }
 
       // Only auto-login if MULTIUSER is not enabled
-      if (process.env && process.env.MULTIUSER === 'true') {
+      // Check window.platform first (cloud mode), then fallback to process.env
+      const isMultiUserMode =
+        (window as any).platform?.multiuser === true ||
+        (typeof process !== 'undefined' &&
+          process.env &&
+          process.env.MULTIUSER === 'true');
+      if (isMultiUserMode) {
         return;
       }
 
