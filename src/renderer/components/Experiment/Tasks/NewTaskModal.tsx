@@ -2080,6 +2080,11 @@ export default function NewTaskModal({
       return true;
     }
     if (currentPhase === 'task-config') {
+      // In YAML mode, check if YAML content is not empty
+      if (isYamlMode) {
+        return yamlContent.trim().length > 0;
+      }
+      // In GUI mode, check if title is filled
       return title.trim().length > 0;
     }
     if (currentPhase === 'provider-env') {
