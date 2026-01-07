@@ -152,8 +152,8 @@ class JobDetails(Vertical):
             if response.status_code == 200:
                 # Get filename from Content-Disposition header if available
                 content_disposition = response.headers.get("Content-Disposition", "")
-                if 'filename=' in content_disposition:
-                    filename_part = content_disposition.split('filename=')[1].strip('"')
+                if "filename=" in content_disposition:
+                    filename_part = content_disposition.split("filename=")[1].strip('"')
                     if filename_part:
                         filename = filename_part
                         output_path = os.path.join(output_dir, filename)
