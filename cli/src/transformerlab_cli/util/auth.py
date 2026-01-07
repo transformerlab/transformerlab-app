@@ -1,6 +1,7 @@
 import httpx
 from rich.console import Console
 
+from transformerlab_cli.util.config import _save_config
 from transformerlab_cli.util.shared import CREDENTIALS_DIR, CREDENTIALS_FILE, AUTH_URL
 
 console = Console()
@@ -22,10 +23,19 @@ def set_api_key(api_key: str) -> bool:
 
     key_response = test_api_key_on_remote_server(api_key)
 
-    if key_response == 200:
+    if key_response.status_code == 200:
         try:
             CREDENTIALS_FILE.write_text(api_key)
             console.print("[green]✓[/green] API key validated and saved locally.")
+            data = key_response.json()
+            email = data.get("email", "N/A")
+            first_name = data.get("first_name", "N/A")
+            last_name = data.get("last_name", "N/A")
+            is_verified = data.get("is_verified", "N/A")
+            _save_config({"user_email": email})
+            console.print(
+                f"[green]✓[/green] Email: {email}, First Name: {first_name}, Last Name: {last_name}, Verified: {is_verified}"
+            )
             return True
         except PermissionError:
             console.print(f"[red]Error:[/red] Cannot write to {CREDENTIALS_FILE}")
@@ -33,14 +43,14 @@ def set_api_key(api_key: str) -> bool:
         except OSError as e:
             console.print(f"[red]Error:[/red] Failed to save credentials: {e}")
             return False
-    elif key_response == 401:
+    elif key_response.status_code == 401:
         console.print("[red]Error:[/red] Invalid API key")
         return False
-    elif key_response == 403:
+    elif key_response.status_code == 403:
         console.print("[red]Error:[/red] API key is not authorized")
         return False
     else:
-        console.print(f"[red]Error:[/red] Server returned status {key_response}")
+        console.print(f"[red]Error:[/red] Server returned status {key_response.status_code}")
         return False
 
 
@@ -78,7 +88,7 @@ def get_api_key() -> str | None:
         return None
 
 
-def test_api_key_on_remote_server(api_key: str) -> int:
+def test_api_key_on_remote_server(api_key: str) -> httpx.Response:
     """
     Test the provided API key against the remote server.
     Returns response status code.
@@ -94,7 +104,7 @@ def test_api_key_on_remote_server(api_key: str) -> int:
             console.print(f"[red]Error:[/red] Could not connect to server: {e}")
             return False
 
-    return response.status_code
+    return response
 
 
 def fetch_user_info(api_key: str) -> dict | None:
