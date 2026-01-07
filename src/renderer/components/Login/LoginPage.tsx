@@ -135,7 +135,7 @@ export default function LoginPage() {
           const envUrl = process.env.TL_API_URL;
           let apiUrl =
             !envUrl || envUrl === 'default' || envUrl.trim() === ''
-              ? 'http://localhost:8338'
+              ? `${window.location.protocol}//${window.location.hostname}:8338`
               : envUrl;
           apiUrl = apiUrl.replace(/\/$/, '');
           const url = `${apiUrl}/auth/verify`;

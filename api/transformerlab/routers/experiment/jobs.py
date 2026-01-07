@@ -26,7 +26,7 @@ from transformerlab.services.provider_service import get_team_provider, get_prov
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.compute_providers.models import JobState
-from transformerlab.utils.vscode_parser import get_vscode_tunnel_info
+from transformerlab.shared.tunnel_parser import get_tunnel_info
 from lab import Job
 from lab.dirs import get_workspace_dir
 from transformerlab.shared import zip_utils
@@ -341,8 +341,8 @@ async def get_provider_job_logs(
     }
 
 
-@router.get("/{job_id}/vscode_tunnel_info")
-async def get_vscode_tunnel_info_for_job(
+@router.get("/{job_id}/tunnel_info")
+async def get_tunnel_info_for_job(
     experimentId: str,
     job_id: str,
     tail_lines: int = Query(400, ge=100, le=2000),
@@ -350,10 +350,10 @@ async def get_vscode_tunnel_info_for_job(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Parse provider logs for a REMOTE job and extract VS Code tunnel information.
+    Parse provider logs for a REMOTE job and extract tunnel information based on job type.
 
-    This uses the shared vscode_parser helper to extract auth code and tunnel URL
-    from the provider logs, and is intended for interactive VS Code tasks.
+    This route automatically determines the tunnel type from job_data.interactive_type
+    and uses the appropriate parser. Supports: 'vscode', 'jupyter', 'vllm', 'ssh'
     """
 
     job = job_service.job_get(job_id)
@@ -366,6 +366,11 @@ async def get_vscode_tunnel_info_for_job(
             job_data = json.loads(job_data)
         except JSONDecodeError:
             job_data = {}
+
+    # Get interactive_type from job_data, default to 'vscode' for backward compatibility
+    interactive_type = job_data.get("interactive_type", "vscode")
+    if not interactive_type:
+        raise HTTPException(status_code=400, detail="Job does not contain interactive_type in job_data")
 
     provider_id = job_data.get("provider_id")
     cluster_name = job_data.get("cluster_name")
@@ -425,13 +430,14 @@ async def get_vscode_tunnel_info_for_job(
         except TypeError:
             logs_text = str(raw_logs)
 
-    tunnel_info = get_vscode_tunnel_info(logs_text)
+    tunnel_info = get_tunnel_info(logs_text, interactive_type)
 
     return {
         **tunnel_info,
         "cluster_name": cluster_name,
         "provider_id": provider_id,
         "provider_job_id": str(provider_job_id),
+        "interactive_type": interactive_type,
     }
 
 

@@ -133,6 +133,26 @@ async def lifespan(app: FastAPI):
     # Cancel any running jobs
     await cancel_in_progress_jobs()
 
+    # Create buckets for all existing teams if TFL_API_STORAGE_URI is enabled
+    if os.getenv("TFL_API_STORAGE_URI"):
+        print("✅ CHECKING BUCKETS FOR EXISTING TEAMS")
+        try:
+            from transformerlab.db.session import async_session
+            from transformerlab.shared.remote_workspace import create_buckets_for_all_teams
+
+            async with async_session() as session:
+                success_count, failure_count, error_messages = await create_buckets_for_all_teams(
+                    session, profile_name="transformerlab-s3"
+                )
+                if success_count > 0:
+                    print(f"✅ Created/verified buckets for {success_count} team(s)")
+                if failure_count > 0:
+                    print(f"⚠️  Failed to create buckets for {failure_count} team(s)")
+                    for error in error_messages:
+                        print(f"   - {error}")
+        except Exception as e:
+            print(f"⚠️  Error creating buckets for existing teams: {e}")
+
     if "--reload" in sys.argv:
         await install_all_plugins()
     # run the migrations

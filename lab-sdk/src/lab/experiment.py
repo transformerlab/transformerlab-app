@@ -122,6 +122,41 @@ class Experiment(BaseLabResource):
                             async with await storage.open(index_file, "r", uncached=True) as f:
                                 content = await f.read()
                                 data = json.loads(content)
+
+                            name = data.get("name")
+                            exp_id = data.get("id")
+
+                            # If both name and id are missing, skip this experiment
+                            if not name and not exp_id:
+                                print(f"Experiment at {exp_path} missing required 'name' and 'id' fields; skipping")
+                                continue
+
+                            # If name missing but id present, copy id -> name and persist
+                            if not name and exp_id:
+                                data["name"] = exp_id
+                                try:
+                                    with storage.open(index_file, "w") as wf:
+                                        json.dump(data, wf, indent=4)
+                                    name = exp_id
+                                except Exception:
+                                    # If we couldn't persist, skip to avoid inconsistent state
+                                    continue
+
+                            # If id missing but name present, copy name -> id and persist
+                            if not exp_id and name:
+                                data["id"] = name
+                                try:
+                                    async with await storage.open(index_file, "w") as wf:
+                                        content = json.dumps(data, indent=4)
+                                        await wf.write(content)
+                                    exp_id = name
+                                except Exception as e:
+                                    print(
+                                        f"Failed to write corrected index.json for experiment '{name}' at {index_file} (copied name -> id): {e}"
+                                    )
+                                    # If we couldn't persist, skip to avoid inconsistent state
+                                    continue
+
                             experiments.append(data)
                 except Exception:
                     pass
