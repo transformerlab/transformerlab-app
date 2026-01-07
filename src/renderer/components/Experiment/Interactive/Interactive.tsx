@@ -346,8 +346,8 @@ export default function Interactive() {
       }
 
       // Create template with flat structure
-      // Use config_fields from the gallery-defined structure
-      const envVars: Record<string, string> = data.config_fields || {};
+      // Use env_parameters from the gallery-defined structure
+      const envVars: Record<string, string> = data.env_parameters || {};
 
       const templatePayload: any = {
         name: data.title,

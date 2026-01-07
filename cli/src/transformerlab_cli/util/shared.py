@@ -25,4 +25,4 @@ def BASE_URL() -> str:
 
 
 def AUTH_URL() -> str:
-    return BASE_URL() + "/server/info"
+    return BASE_URL() + "/users/me"
