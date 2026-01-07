@@ -81,35 +81,8 @@ const ViewEvalResultsModal = ({
 
   // Reset selected file index when modal opens or files change
   useEffect(() => {
-    if (open && jobId && experimentInfo?.id) {
-      setIsLoading(true);
-      setError(null);
-      fetcher(chatAPI.Endpoints.Jobs.Get(experimentInfo.id, String(jobId)))
-        .then((job) => {
-          const jobData = job?.job_data || {};
-          const evalResults = jobData.eval_results || [];
-          if (Array.isArray(evalResults) && evalResults.length > 0) {
-            setEvalResultsFiles(evalResults);
-            // Reset to first file when modal opens
-            setSelectedFileIndex(0);
-          } else {
-            setEvalResultsFiles([]);
-            setError('No evaluation results found');
-            setIsLoading(false);
-          }
-        })
-        .catch((err) => {
-          console.error('Error fetching job data:', err);
-          setEvalResultsFiles([]);
-          setError('Failed to load evaluation results');
-          setIsLoading(false);
-        });
-    } else if (!open) {
-      // Reset state when modal closes
-      setIsLoading(false);
-      setError(null);
-      setEvalResultsFiles([]);
-      setReport({ header: [], body: [] });
+    if (open && evalResultsFiles.length > 0) {
+      setSelectedFileIndex(0);
     }
   }, [open, evalResultsFiles.length]);
 
