@@ -31,7 +31,6 @@ async def config_get(key: str, user_id: str | None = None, team_id: str | None =
     Priority order:
     1. User-specific (user_id set, team_id matches current team)
     2. Team-specific (user_id IS NULL, team_id set)
-    3. Global (user_id IS NULL, team_id IS NULL)
     """
     async with async_session() as session:
         # First try user-specific config (if user_id provided)
