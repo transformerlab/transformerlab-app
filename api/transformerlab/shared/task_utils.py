@@ -1,3 +1,6 @@
+import json
+
+
 def process_env_parameters_to_env_vars(config: dict) -> dict:
     """
     Process env_parameters from config/task.json and convert them to env_vars.
