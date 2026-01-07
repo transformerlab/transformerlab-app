@@ -97,4 +97,50 @@ def test_api_key_on_remote_server(api_key: str) -> int:
     return response.status_code
 
 
+def fetch_user_info(api_key: str) -> dict | None:
+    """
+    Fetch current user information from /users/me endpoint.
+    Returns user info dict or None on error.
+    """
+    from transformerlab_cli.util.shared import BASE_URL
+    
+    try:
+        response = httpx.get(
+            f"{BASE_URL()}/users/me",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        return response.json()
+    except httpx.RequestError as e:
+        console.print(f"[red]Error:[/red] Could not fetch user info: {e}")
+        return None
+    except httpx.HTTPStatusError as e:
+        console.print(f"[red]Error:[/red] Server returned status {e.response.status_code}")
+        return None
+
+
+def fetch_user_teams(api_key: str) -> dict | None:
+    """
+    Fetch user teams from /users/me/teams endpoint.
+    Returns teams info dict or None on error.
+    """
+    from transformerlab_cli.util.shared import BASE_URL
+    
+    try:
+        response = httpx.get(
+            f"{BASE_URL()}/users/me/teams",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        return response.json()
+    except httpx.RequestError as e:
+        console.print(f"[red]Error:[/red] Could not fetch teams info: {e}")
+        return None
+    except httpx.HTTPStatusError as e:
+        console.print(f"[red]Error:[/red] Server returned status {e.response.status_code}")
+        return None
+
+
 api_key = get_api_key()
