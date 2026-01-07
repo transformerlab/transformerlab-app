@@ -36,6 +36,9 @@ async def config_set(
     - If team_wide=True: Sets team-wide config (shared with all team members)
     - If team_wide=False: Sets user-specific config (only for this user)
     """
-    user_id = str(user.id) if user else None
-    await db.config_set(key=k, value=v, user_id=user_id, team_id=x_team_id, team_wide=team_wide)
-    return {"key": k, "value": v, "team_wide": team_wide}
+    # Determine user_id: if team_wide, set to None; otherwise use authenticated user's ID
+    user_id = None if team_wide else (str(user.id) if user else None)
+    await db.config_set(key=k, value=v, user_id=user_id, team_id=x_team_id)
+    # Compute team_wide from user_id for response (backward compatibility)
+    response_team_wide = user_id is None
+    return {"key": k, "value": v, "team_wide": response_team_wide}
