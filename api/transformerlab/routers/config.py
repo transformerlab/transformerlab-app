@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Header, Query, Depends
+from fastapi import APIRouter, Header, Query, Depends, HTTPException
+
 from typing import Optional
 import transformerlab.db.db as db
 from transformerlab.models.users import current_active_user
@@ -36,6 +37,11 @@ async def config_set(
     - If team_wide=True: Sets team-wide config (shared with all team members)
     - If team_wide=False: Sets user-specific config (only for this user)
     """
+
+    # Validate: user-specific configs require team_id
+    if not team_wide and not x_team_id:
+        raise HTTPException(status_code=400, detail="X-Team-Id header is required for user-specific configs")
+
     # Determine user_id: if team_wide, set to None; otherwise use authenticated user's ID
     user_id = None if team_wide else (str(user.id) if user else None)
     await db.config_set(key=k, value=v, user_id=user_id, team_id=x_team_id)

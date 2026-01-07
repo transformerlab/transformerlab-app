@@ -91,6 +91,9 @@ async def config_set(key: str, value: str, user_id: str | None = None, team_id: 
             )
         else:
             # User-specific config: both user_id and team_id are set
+            # Note: team_id should always be set when user_id is set (validated by router)
+            if team_id is None:
+                raise ValueError("team_id is required when user_id is set for user-specific configs")
             result = await session.execute(
                 select(Config).where(
                     Config.key == key,
