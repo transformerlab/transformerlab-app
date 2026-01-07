@@ -16,7 +16,6 @@ import {
   Link,
   Stack,
   Skeleton,
-  Drawer,
 } from '@mui/joy';
 import {
   CheckIcon,
@@ -185,10 +184,6 @@ export default function ModelGroups({ experimentInfo }) {
   const [debouncedGroupSearchText] = useDebounce(groupSearchText, 300);
   const [showFilters, setShowFilters] = useState(false);
 
-  // State for Sidebar
-  const [selectedModel, setSelectedModel] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
   const {
     data: groupData,
     isLoading,
@@ -251,36 +246,6 @@ export default function ModelGroups({ experimentInfo }) {
     }
   }, [groupData, selectedGroup]);
 
-  const handleModelClick = async (model) => {
-    setSelectedModel(model);
-    setIsSidebarOpen(true);
-
-    try {
-      const response = await fetch(
-        `/model/${model.id}/vram?revision=${model.revision || 'main'}`,
-      );
-      if (!response.ok) {
-        throw new Error('Failed to fetch VRAM requirements');
-      }
-      const vramData = await response.json();
-      setSelectedModel((prev) => ({
-        ...prev,
-        vramDetails: vramData,
-      }));
-    } catch (error) {
-      console.error('Error fetching VRAM requirements:', error);
-      setSelectedModel((prev) => ({
-        ...prev,
-        vramDetails: null,
-      }));
-    }
-  };
-
-  const handleSidebarClose = () => {
-    setIsSidebarOpen(false);
-    setSelectedModel(null);
-  };
-
   const getLicenseOptions = (models: any[]): string[] => {
     const lowercaseSet = new Set<string>();
     models?.forEach((m: any) => {
@@ -324,54 +289,6 @@ export default function ModelGroups({ experimentInfo }) {
         minHeight: 0,
       }}
     >
-      {/* Sidebar */}
-      <Drawer
-        open={isSidebarOpen}
-        onClose={handleSidebarClose}
-        anchor="right"
-        sx={{ width: 400 }}
-      >
-        <Box sx={{ p: 2 }}>
-          {selectedModel?.vramDetails ? (
-            <>
-              <Typography level="h5">{selectedModel.name}</Typography>
-              <Typography level="body-sm">
-                Total Memory: {selectedModel.vramDetails.total_memory}
-              </Typography>
-              <Typography level="body-sm">
-                Total Parameters: {selectedModel.vramDetails.param_count}
-              </Typography>
-              {selectedModel.vramDetails.components.map((component) => (
-                <Box key={component.name} sx={{ mt: 2 }}>
-                  <Typography level="h6">{component.name}</Typography>
-                  <Typography level="body-sm">
-                    Component Memory: {component.total_memory}
-                  </Typography>
-                  <Typography level="body-sm">
-                    Component Parameters: {component.param_count}
-                  </Typography>
-                  {component.dtypes.map((dtype) => (
-                    <Box key={dtype.dtype} sx={{ mt: 1 }}>
-                      <Typography level="body-sm">
-                        Data Type: {dtype.dtype}
-                      </Typography>
-                      <Typography level="body-sm">
-                        Memory: {dtype.memory}
-                      </Typography>
-                      <Typography level="body-sm">
-                        Parameters: {dtype.params}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Box>
-              ))}
-            </>
-          ) : (
-            <Typography>No VRAM details available</Typography>
-          )}
-        </Box>
-      </Drawer>
-
       <Box sx={{ position: 'relative', marginBottom: 2 }}>
         {experimentInfo && (
           <DownloadProgressBox
@@ -823,10 +740,7 @@ export default function ModelGroups({ experimentInfo }) {
                     filterByFilters(selectedGroup.models, searchText, filters),
                     getComparator(order, orderBy),
                   ).map((row) => (
-                    <tr
-                      key={row.uniqueID}
-                      onClick={() => handleModelClick(row)}
-                    >
+                    <tr key={row.uniqueID}>
                       <td>
                         <Typography level="body-sm">
                           {row.new && (
