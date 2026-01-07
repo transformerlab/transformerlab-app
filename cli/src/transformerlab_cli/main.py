@@ -10,6 +10,7 @@ from transformerlab_cli.commands.config import app as config_app
 from transformerlab_cli.commands.status import app as status_app
 from transformerlab_cli.commands.login import app as login_app
 from transformerlab_cli.commands.logout import app as logout_app
+from transformerlab_cli.commands.whoami import app as whoami_app
 from transformerlab_cli.commands.task import app as task_app
 from transformerlab_cli.commands.job import app as job_app
 
@@ -35,6 +36,7 @@ app.add_typer(config_app)
 app.add_typer(status_app)
 app.add_typer(login_app)
 app.add_typer(logout_app)
+app.add_typer(whoami_app)
 app.add_typer(task_app, name="task", help="Task management commands", no_args_is_help=True)
 app.add_typer(job_app, name="job", help="Job management commands", no_args_is_help=True)
 
