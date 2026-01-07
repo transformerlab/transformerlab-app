@@ -222,14 +222,22 @@ function AppContent({
 const INITIAL_LOGS_DRAWER_HEIGHT = 200; // Default height for logs drawer when first opened
 
 export default function App() {
-  // Normalize TL_API_URL - ensure it's either a valid URL or empty string
+  // Normalize TL_API_URL - ensure it's either a valid URL or default to same host as frontend
   const initialApiUrl = (() => {
     const envUrl = process.env?.TL_API_URL;
-    // If undefined, null, or the string "default", use empty string
+    // If undefined, null, or the string "default", use same host as frontend with API port
     if (!envUrl || envUrl === 'default' || envUrl.trim() === '') {
-      return '';
+      // Use the same protocol and hostname as the frontend, but with API port 8338
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      return `${protocol}//${hostname}:8338/`;
     }
-    return envUrl;
+    // Ensure the URL has a trailing slash
+    let url = envUrl.trim();
+    if (!url.endsWith('/')) {
+      url = url + '/';
+    }
+    return url;
   })();
 
   const [connection, setConnection] = useState(initialApiUrl);
