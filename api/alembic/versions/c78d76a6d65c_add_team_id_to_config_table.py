@@ -134,14 +134,28 @@ def downgrade() -> None:
     if "ix_config_key" in existing_index_names:
         op.drop_index("ix_config_key", table_name="config")
 
-    # Recreate the original unique index on key
-    op.create_index("ix_config_key", "config", ["key"], unique=True)
-
-    # Drop columns (SQLite requires batch mode for dropping columns)
+    # Drop columns using raw SQL to avoid batch mode type inference issues
+    # SQLite doesn't support DROP COLUMN directly, so we recreate the table
     if "team_id" in existing_columns or "user_id" in existing_columns:
-        with op.batch_alter_table("config", schema=None) as batch_op:
-            if "team_id" in existing_columns:
-                batch_op.drop_column("team_id")
-            if "user_id" in existing_columns:
-                batch_op.drop_column("user_id")
+        # Create new table without user_id and team_id columns
+        connection.execute(
+            sa.text("""
+                CREATE TABLE config_new (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    key VARCHAR NOT NULL,
+                    value VARCHAR
+                )
+            """)
+        )
+        # Copy data from old table to new table (only id, key, value columns)
+        connection.execute(sa.text("INSERT INTO config_new (id, key, value) SELECT id, key, value FROM config"))
+        # Drop old table (this also drops all indexes)
+        connection.execute(sa.text("DROP TABLE config"))
+        # Rename new table to original name
+        connection.execute(sa.text("ALTER TABLE config_new RENAME TO config"))
+        # Recreate the original unique index on key (it was dropped with the old table)
+        op.create_index("ix_config_key", "config", ["key"], unique=True)
+    else:
+        # If we're not dropping columns, just recreate the unique index on key
+        op.create_index("ix_config_key", "config", ["key"], unique=True)
     # ### end Alembic commands ###
