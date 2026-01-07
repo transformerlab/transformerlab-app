@@ -63,7 +63,8 @@ export function getPath(
   let { path } = endpoint;
   Object.entries(params).forEach(([key, value]) => {
     // Convert boolean values to lowercase strings for FastAPI compatibility
-    const stringValue = typeof value === 'boolean' ? String(value).toLowerCase() : String(value);
+    const stringValue =
+      typeof value === 'boolean' ? String(value).toLowerCase() : String(value);
     path = path.replace(`{${key}}`, stringValue);
   });
 
