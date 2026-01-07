@@ -101,7 +101,7 @@
   {
     "id": "ssh",
     "interactive_type": "ssh",
-    "name": "SSHxw",
+    "name": "SSH",
     "description": "SSH access via ngrok TCP tunnel",
     "setup": "export DEBIAN_FRONTEND=noninteractive; curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null ; echo \"deb https://ngrok-agent.s3.amazonaws.com bookworm main\" | sudo tee /etc/apt/sources.list.d/ngrok.list ; sudo apt update ; sudo apt install ngrok;",
     "command": "ngrok config add-authtoken $NGROK_AUTH_TOKEN; echo USER_ID=$(whoami 2>/dev/null || basename $HOME 2>/dev/null || echo ''); ngrok tcp 22 --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/ngrok.log",
