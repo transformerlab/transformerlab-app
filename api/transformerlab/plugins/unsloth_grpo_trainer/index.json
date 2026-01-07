@@ -4,7 +4,7 @@
   "description": "A GPRO trainer based on the unsloth grpo training notebooks",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "model_architectures": [
     "LlamaForCausalLM",
     "Qwen2ForCausalLM",
@@ -12,15 +12,10 @@
     "Qwen3ForCausalLM",
     "Qwen3MoeForCausalLM"
   ],
-  "supported_hardware_architectures": [
-    "cuda"
-  ],
+  "supported_hardware_architectures": ["cuda"],
   "git": "",
   "url": "",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "training_template_format": "alpaca",
   "parameters": {
@@ -65,19 +60,14 @@
     "learning_rate_schedule": {
       "title": "Learning Rate Schedule",
       "type": "string",
-      "enum": [
-        "constant",
-        "linear",
-        "cosine",
-        "constant_with_warmup"
-      ],
+      "enum": ["constant", "linear", "cosine", "constant_with_warmup"],
       "default": "constant"
     },
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
-      "default": 5e-05,
-      "minimum": 1e-06
+      "default": 5e-5,
+      "minimum": 1e-6
     },
     "num_train_epochs": {
       "title": "Number of Training Epochs",
@@ -146,7 +136,7 @@
       "type": "number",
       "minimum": 0.0,
       "maximum": 1.0,
-      "default": 1e-08
+      "default": 1e-8
     },
     "adaptor_name": {
       "title": "Adaptor Name",
