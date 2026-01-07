@@ -4,8 +4,8 @@ from unittest.mock import patch
 from transformerlab_cli.commands.status import status
 
 
-@patch('transformerlab_cli.commands.status.check_configs')
-@patch('transformerlab_cli.commands.status.check_server_status')
+@patch("transformerlab_cli.commands.status.check_configs")
+@patch("transformerlab_cli.commands.status.check_server_status")
 def test_status_command_success(mock_check_server_status, mock_check_configs):
     """Test the status command when both config check and server status succeed."""
     # Mock the functions to do nothing (success)
@@ -18,8 +18,8 @@ def test_status_command_success(mock_check_server_status, mock_check_configs):
     mock_check_server_status.assert_called_once()
 
 
-@patch('transformerlab_cli.commands.status.check_configs')
-@patch('transformerlab_cli.commands.status.check_server_status')
+@patch("transformerlab_cli.commands.status.check_configs")
+@patch("transformerlab_cli.commands.status.check_server_status")
 def test_status_command_config_failure(mock_check_server_status, mock_check_configs):
     """Test the status command when config check fails."""
     mock_check_configs.side_effect = SystemExit(1)
@@ -33,8 +33,8 @@ def test_status_command_config_failure(mock_check_server_status, mock_check_conf
     mock_check_server_status.assert_not_called()
 
 
-@patch('transformerlab_cli.commands.status.check_configs')
-@patch('transformerlab_cli.commands.status.check_server_status')
+@patch("transformerlab_cli.commands.status.check_configs")
+@patch("transformerlab_cli.commands.status.check_server_status")
 def test_status_command_server_failure(mock_check_server_status, mock_check_configs):
     """Test the status command when server status check fails."""
     mock_check_configs.return_value = None
