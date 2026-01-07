@@ -1,7 +1,9 @@
-import pytest
 from unittest.mock import patch
+from typer.testing import CliRunner
 
-from transformerlab_cli.commands.status import status
+from transformerlab_cli.main import app
+
+runner = CliRunner()
 
 
 @patch("transformerlab_cli.commands.status.check_configs")
@@ -12,8 +14,9 @@ def test_status_command_success(mock_check_server_status, mock_check_configs):
     mock_check_configs.return_value = None
     mock_check_server_status.return_value = None
 
-    status()
+    result = runner.invoke(app, ["status"])
 
+    assert result.exit_code == 0
     mock_check_configs.assert_called_once_with(output_format="json")
     mock_check_server_status.assert_called_once()
 
@@ -25,10 +28,9 @@ def test_status_command_config_failure(mock_check_server_status, mock_check_conf
     mock_check_configs.side_effect = SystemExit(1)
     mock_check_server_status.return_value = None
 
-    with pytest.raises(SystemExit) as excinfo:
-        status()
+    result = runner.invoke(app, ["status"])
 
-    assert excinfo.value.code == 1
+    assert result.exit_code == 1
     mock_check_configs.assert_called_once_with(output_format="json")
     mock_check_server_status.assert_not_called()
 
@@ -40,9 +42,8 @@ def test_status_command_server_failure(mock_check_server_status, mock_check_conf
     mock_check_configs.return_value = None
     mock_check_server_status.side_effect = SystemExit(1)
 
-    with pytest.raises(SystemExit) as excinfo:
-        status()
+    result = runner.invoke(app, ["status"])
 
-    assert excinfo.value.code == 1
+    assert result.exit_code == 1
     mock_check_configs.assert_called_once_with(output_format="json")
     mock_check_server_status.assert_called_once()
