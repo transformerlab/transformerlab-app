@@ -12,6 +12,7 @@ import {
   FormControl,
   FormLabel,
   Stack,
+  CircularProgress,
 } from '@mui/joy';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -68,6 +69,8 @@ const ViewEvalResultsModal = ({
   // Fetch job data to get list of eval results files
   useEffect(() => {
     if (open && jobId && experimentInfo?.id) {
+      setIsLoading(true);
+      setError(null);
       fetcher(chatAPI.Endpoints.Jobs.Get(experimentInfo.id, String(jobId)))
         .then((job) => {
           const jobData = job?.job_data || {};
@@ -79,12 +82,21 @@ const ViewEvalResultsModal = ({
           } else {
             setEvalResultsFiles([]);
             setError('No evaluation results found');
+            setIsLoading(false);
           }
         })
         .catch((err) => {
           console.error('Error fetching job data:', err);
           setEvalResultsFiles([]);
+          setError('Failed to load evaluation results');
+          setIsLoading(false);
         });
+    } else if (!open) {
+      // Reset state when modal closes
+      setIsLoading(false);
+      setError(null);
+      setEvalResultsFiles([]);
+      setReport({ header: [], body: [] });
     }
   }, [open, jobId, experimentInfo?.id]);
 
@@ -215,8 +227,20 @@ const ViewEvalResultsModal = ({
           )}
         </Stack>
         {isLoading ? (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Typography>Loading evaluation results...</Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              py: 8,
+              gap: 2,
+            }}
+          >
+            <CircularProgress size="lg" />
+            <Typography level="body-lg">
+              Loading evaluation results...
+            </Typography>
           </Box>
         ) : error ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>
