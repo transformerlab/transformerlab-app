@@ -1,11 +1,9 @@
 import typer
 from rich.console import Console
-from rich.prompt import Prompt
 
-from transformerlab_cli.util.auth import set_api_key
-from transformerlab_cli.util.config import load_config
-from transformerlab_cli.util.shared import set_base_url, BASE_URL
-from transformerlab_cli.util.config import _save_config
+from transformerlab_cli.util.auth import set_api_key, fetch_user_info, fetch_user_teams
+from transformerlab_cli.util.config import load_config, set_config
+from transformerlab_cli.util.shared import set_base_url
 
 
 app = typer.Typer()
@@ -14,55 +12,82 @@ console = Console()
 
 @app.command()
 def login(
-    serverURL: str = typer.Option(None, "--serverURL", help="Server URL"),
-    apiKey: str = typer.Option(None, "--apiKey", help="Your API key"),
+    api_key: str = typer.Option(None, "--api-key", help="Your API key"),
+    server: str = typer.Option(None, "--server", help="Server URL"),
 ):
     """Log in to Transformer Lab."""
     # Load config to set the base URL before attempting login
     config = load_config()
-    if config.get("server"):
-        set_base_url(config.get("server"))
-    else:
-        # If no server in config, use default
-        set_base_url(None)
 
-    # Interactive mode when no arguments provided
-    if serverURL is None and apiKey is None:
-        # Ask for server URL first
-        current_server = BASE_URL()
-        new_server = Prompt.ask("Server URL (enter for no change)", default=current_server).strip()
-        if not new_server:
-            new_server = current_server
-        if new_server != current_server:
-            set_base_url(new_server)
-            # Save new server to config
-            config["server"] = new_server
-            _save_config(config)
-            console.print(f"[green]Server URL updated to:[/green] {new_server}")
+    # Ask for server if not provided and not in config
+    if not server:
+        server = config.get("server")
 
-        # Then ask for API key
-        apiKey = Prompt.ask("API key").strip()
-    else:
-        # Handle serverURL if provided via argument
-        if serverURL is not None:
-            set_base_url(serverURL)
-            config["server"] = serverURL
-            _save_config(config)
-            console.print(f"[green]Server URL set to:[/green] {serverURL}")
+    if not server:
+        server = typer.prompt("Please enter the server URL", default="http://alpha.lab.cloud:8338")
 
-        # Show current server URL
-        current_server = BASE_URL()
-        console.print(f"\n[cyan]Current server:[/cyan] [green]{current_server}[/green]")
+    # Validate and set server URL
+    from transformerlab_cli.util.config import _validate_url
 
-        # If apiKey not provided, prompt for it
-        if apiKey is None:
-            apiKey = Prompt.ask("API key").strip()
+    normalized_url = _validate_url(server)
+    if normalized_url is None:
+        console.print(f"[red]Error:[/red] Invalid URL '{server}'")
+        console.print("[yellow]URL must start with http:// or https://[/yellow]")
+        raise typer.Exit(1)
+
+    server = normalized_url
+    set_base_url(server)
+
+    # Save server to config if it changed
+    if config.get("server") != server:
+        set_config("server", server)
+
+    # Show current server URL
+    console.print(f"\n[cyan]Current server:[/cyan] [green]{server}[/green]")
+
+    # Ask for API key if not provided
+    if not api_key:
+        api_key = typer.prompt("Please enter your API key", hide_input=True)
 
     # Attempt login
-    login_success = set_api_key(apiKey)
+    login_success = set_api_key(api_key)
 
     if not login_success:
         # Even if login fails, show how to change server
         console.print("\n[yellow]To change the server URL, run:[/yellow]")
         console.print("[bold]  lab config server <SERVER_URL>[/bold]\n")
         console.print("[dim]Example: lab config server http://localhost:8000[/dim]")
+        raise typer.Exit(1)
+
+    # Fetch user info and teams after successful login
+    with console.status("[bold cyan]Fetching user information...", spinner="dots"):
+        user_info = fetch_user_info(api_key)
+        teams_info = fetch_user_teams(api_key)
+
+    if user_info and teams_info:
+        # Save user email
+        user_email = user_info.get("email")
+        if user_email:
+            set_config("user_email", user_email)
+            console.print(f"[green]✓[/green] User email: [cyan]{user_email}[/cyan]")
+
+        # Save team info (prefer OWNER role, otherwise first team)
+        teams = teams_info.get("teams", [])
+        if teams:
+            # Look for OWNER role first
+            owner_team = next((t for t in teams if t.get("role") == "OWNER"), None)
+            selected_team = owner_team if owner_team else teams[0]
+
+            team_id = selected_team.get("id")
+            team_name = selected_team.get("name")
+
+            if team_id:
+                set_config("team_id", team_id)
+                console.print(f"[green]✓[/green] Team ID: [cyan]{team_id}[/cyan]")
+            if team_name:
+                set_config("team_name", team_name)
+                console.print(f"[green]✓[/green] Team name: [cyan]{team_name}[/cyan]")
+
+        console.print("\n[green]✓[/green] Login successful!")
+    else:
+        console.print("[yellow]Warning:[/yellow] Could not fetch user information, but login was successful.")

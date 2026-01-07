@@ -1,20 +1,17 @@
 import json
+from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from typing import Optional
-from werkzeug.utils import secure_filename
-from pydantic import BaseModel
-
 from lab import Dataset
-from transformerlab.services.job_service import job_create
+from pydantic import BaseModel
 from transformerlab.models import model_helper
+from transformerlab.routers.auth import get_user_and_team
+from transformerlab.services.job_service import job_create
 from transformerlab.services.tasks_service import tasks_service
 from transformerlab.shared import galleries
-from transformerlab.shared.github_utils import (
-    fetch_task_json_from_github_helper,
-    fetch_task_json_from_github,
-)
-from transformerlab.routers.auth import get_user_and_team
+from transformerlab.shared.github_utils import fetch_task_json_from_github, fetch_task_json_from_github_helper
+from transformerlab.shared.task_utils import process_env_parameters_to_env_vars
+from werkzeug.utils import secure_filename
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -385,6 +382,9 @@ async def import_task_from_gallery(
     if github_repo_dir:
         task_config["github_directory"] = github_repo_dir
 
+    # Process env_parameters into env_vars if present
+    task_config = process_env_parameters_to_env_vars(task_config)
+
     # Get task name from config or use title
     task_name = task_config.get("name") or task_config.get("cluster_name") or title
 
@@ -489,6 +489,9 @@ async def import_task_from_team_gallery(
         task_config["github_repo_url"] = github_repo_url
     if github_repo_dir:
         task_config["github_directory"] = github_repo_dir
+
+    # Process env_parameters into env_vars if present
+    task_config = process_env_parameters_to_env_vars(task_config)
 
     # Get task name from config or use title
     task_name = task_config.get("name") or task_config.get("cluster_name") or title
