@@ -4,7 +4,7 @@
   "description": "MLX PPO (Proximal Policy Optimization) Reinforcement Learning from AI Feedback (RLAIF) trainer for MLX models.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "model_architectures": [
     "MLX",
     "LlamaForCausalLM",
