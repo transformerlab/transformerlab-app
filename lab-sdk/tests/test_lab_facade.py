@@ -812,12 +812,12 @@ def test_lab_list_models(tmp_path, monkeypatch):
     from lab.model import Model
 
     # Create a test model
-    model1 = Model.create("test_model_1")
-    model1.set_metadata(name="Test Model 1")
+    model1 = asyncio.run(Model.create("test_model_1"))
+    asyncio.run(model1.set_metadata(name="Test Model 1"))
 
     # Create another test model
-    model2 = Model.create("test_model_2")
-    model2.set_metadata(name="Test Model 2")
+    model2 = asyncio.run(Model.create("test_model_2"))
+    asyncio.run(model2.set_metadata(name="Test Model 2"))
 
     lab = Lab()
     # list_models doesn't require initialization
@@ -842,15 +842,15 @@ def test_lab_get_model(tmp_path, monkeypatch):
     from lab.model import Model
 
     # Create a test model
-    model = Model.create("test_model_get")
-    model.set_metadata(name="Test Model")
+    model = asyncio.run(Model.create("test_model_get"))
+    asyncio.run(model.set_metadata(name="Test Model"))
 
     lab = Lab()
     # get_model doesn't require initialization
     retrieved_model = lab.get_model("test_model_get")
 
     assert retrieved_model.id == "test_model_get"
-    metadata = retrieved_model.get_metadata()
+    metadata = asyncio.run(retrieved_model.get_metadata())
     assert metadata["name"] == "Test Model"
 
 
@@ -867,8 +867,8 @@ def test_lab_get_model_path(tmp_path, monkeypatch):
     from lab.model import Model
 
     # Create a test model
-    model = Model.create("test_model_path")
-    expected_path = model.get_dir()
+    model = asyncio.run(Model.create("test_model_path"))
+    expected_path = asyncio.run(model.get_dir())
 
     lab = Lab()
     # get_model_path doesn't require initialization

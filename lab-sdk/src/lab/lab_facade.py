@@ -1165,7 +1165,7 @@ class Lab:
             - name: The model name
             - json_data: Additional model metadata
         """
-        return ModelService.list_all()
+        return _run_async(ModelService.list_all())
 
     def get_model(self, model_id: str) -> ModelService:
         """
@@ -1180,7 +1180,7 @@ class Lab:
         Raises:
             FileNotFoundError: If the model directory doesn't exist
         """
-        return ModelService.get(model_id)
+        return _run_async(ModelService.get(model_id))
 
     def get_model_path(self, model_id: str) -> str:
         """
@@ -1195,8 +1195,8 @@ class Lab:
         Raises:
             FileNotFoundError: If the model doesn't exist
         """
-        model = ModelService.get(model_id)
-        return model.get_dir()
+        model = _run_async(ModelService.get(model_id))
+        return _run_async(model.get_dir())
 
     @property
     def experiment(self) -> Experiment:
