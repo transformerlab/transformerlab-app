@@ -294,7 +294,7 @@ async def _store_zip_file(zip_file: UploadFile, task_id: str) -> str:
     Store a zip file locally for a task.
     Returns the stored path that should be mapped to ~/src in file_mounts.
     """
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     if not workspace_dir:
         raise HTTPException(status_code=500, detail="Workspace directory is not configured")
 
@@ -788,7 +788,7 @@ async def export_task_to_team_gallery(
         "github_repo_dir": task.get("github_directory"),
     }
 
-    galleries.add_team_task_to_gallery(gallery_entry)
+    await galleries.add_team_task_to_gallery(gallery_entry)
 
     return {
         "status": "success",
@@ -805,7 +805,7 @@ async def delete_team_task_from_gallery(
     """
     Delete a task from the team-specific gallery stored in workspace_dir.
     """
-    success = galleries.delete_team_task_from_gallery(request.task_id)
+    success = await galleries.delete_team_task_from_gallery(request.task_id)
     if success:
         return {
             "status": "success",
