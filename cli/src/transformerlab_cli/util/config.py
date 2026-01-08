@@ -2,7 +2,8 @@ import json
 from typing import Any
 from urllib.parse import urlparse
 
-from rich.console import Console
+# 1. Import the centralized console instead of creating a new one
+from transformerlab_cli.util.ui import console
 from rich.table import Table
 import typer
 
@@ -12,8 +13,6 @@ from transformerlab_cli.util.shared import CONFIG_DIR, CONFIG_FILE, set_base_url
 
 VALID_CONFIG_KEYS = ["server", "team_id", "team_name", "user_email", "current_experiment"]
 REQUIRED_CONFIG_KEYS = ["server", "team_id", "user_email"]
-
-console = Console()
 
 # We might as well just load the config once and cache it
 # to avoid repeated file reads
@@ -45,7 +44,8 @@ def _save_config(config: dict[str, Any]) -> bool:
         cached_config = config
         return True
     except OSError as e:
-        console.print(f"[red]Error:[/red] Failed to save config: {e}")
+        # THEME: [red] -> [error]
+        console.print(f"[error]Error:[/error] Failed to save config: {e}")
         return False
 
 
@@ -54,7 +54,8 @@ def list_config() -> None:
     config = load_config()
 
     if not config:
-        console.print("[yellow]No configuration values set[/yellow]")
+        # THEME: [yellow] -> [warning]
+        console.print("[warning]No configuration values set[/warning]")
         return
 
     json_with_key_value = [{"Key": k, "Value": str(v)} for k, v in sorted(config.items())]
@@ -63,7 +64,7 @@ def list_config() -> None:
         data=json_with_key_value,
         format_type="pretty",
         table_columns=["Key", "Value"],
-        title="Configuration",
+        title=None,
     )
 
 
@@ -90,23 +91,23 @@ def _validate_url(url: str) -> str | None:
 def set_config(key: str, value: str) -> bool:
     """Set a config value. Returns True on success."""
     if not key:
-        console.print("[red]Error:[/red] Key cannot be empty")
+        console.print("[error]Error:[/error] Key cannot be empty")
         return False
     if not value:
-        console.print("[red]Error:[/red] Value cannot be empty")
+        console.print("[error]Error:[/error] Value cannot be empty")
         return False
 
     if key not in VALID_CONFIG_KEYS:
         keys_list = ", ".join(VALID_CONFIG_KEYS)
-        console.print(f"[red]Error:[/red] Invalid config key '{key}'")
-        console.print(f"[yellow]Valid keys:[/yellow] {keys_list}")
+        console.print(f"[error]Error:[/error] Invalid config key '{key}'")
+        console.print(f"[warning]Valid keys:[/warning] {keys_list}")
         return False
 
     if key == "server":
         normalized_url = _validate_url(value)
         if normalized_url is None:
-            console.print(f"[red]Error:[/red] Invalid URL '{value}'")
-            console.print("[yellow]URL must start with http:// or https://[/yellow]")
+            console.print(f"[error]Error:[/error] Invalid URL '{value}'")
+            console.print("[warning]URL must start with http:// or https://[/warning]")
             return False
         value = normalized_url
 
@@ -114,7 +115,8 @@ def set_config(key: str, value: str) -> bool:
     config[key] = value
 
     if _save_config(config):
-        console.print(f"[green]✓[/green] Set [cyan]{key}[/cyan] = [green]{value}[/green]")
+        # THEME: [green] -> [success], [cyan] -> [label], [green] -> [value]
+        console.print(f"[success]✓[/success] Set [label]{key}[/label] = [value]{value}[/value]")
         return True
     return False
 
@@ -124,13 +126,15 @@ def delete_config(key: str) -> bool:
     config = load_config()
 
     if key not in config:
-        console.print(f"[yellow]Key '{key}' not found[/yellow]")
+        # THEME: [yellow] -> [warning]
+        console.print(f"[warning]Key '{key}' not found[/warning]")
         return False
 
     del config[key]
 
     if _save_config(config):
-        console.print(f"[green]✓[/green] Deleted [cyan]{key}[/cyan]")
+        # THEME: [green] -> [success], [cyan] -> [label]
+        console.print(f"[success]✓[/success] Deleted [label]{key}[/label]")
         return True
     return False
 
@@ -141,7 +145,7 @@ def check_configs(output_format: str = "pretty") -> None:
     missing_keys = [key for key in REQUIRED_CONFIG_KEYS if key not in config]
     if missing_keys:
         console.print(
-            "[yellow]Warning:[/yellow] The following configuration keys are missing: " + ", ".join(missing_keys)
+            "[warning]Warning:[/warning] The following configuration keys are missing: " + ", ".join(missing_keys)
         )
         console.print("Use the 'lab config' command to set them.")
         raise typer.Exit(1)
@@ -158,11 +162,17 @@ def check_configs(output_format: str = "pretty") -> None:
     team_name = config.get("team_id", "N/A")
     server = config.get("server", "N/A")
     experiment = "Not Implemented"
-    table = Table(show_header=True, header_style="bold magenta", box=None, title_justify="left")
-    table.add_column("User Email", style="cyan")
-    table.add_column("Team ID", style="cyan")
-    table.add_column("Server", style="cyan")
-    table.add_column("Experiment", style="cyan")
+
+    # THEME: Use "header" for table headers
+    table = Table(show_header=True, header_style="header", box=None, title_justify="left")
+
+    # THEME: Use "value" for the actual data columns (previously cyan)
+    # This keeps it consistent with 'whoami' where values are green (or whatever 'value' is mapped to)
+    table.add_column("User Email", style="value")
+    table.add_column("Team ID", style="value")
+    table.add_column("Server", style="value")
+    table.add_column("Experiment", style="value")
+
     table.add_row(user_email, team_name, server, experiment)
     console.rule()
     one_liner_logo(console)
