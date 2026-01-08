@@ -143,8 +143,8 @@
       "path": "config/get/{key}"
     },
     "set": {
-      "method": "PUT",
-      "path": "config/set?k={key}&v={value}"
+      "method": "GET",
+      "path": "config/set?k={key}&v={value}&team_wide={team_wide}"
     }
   },
   "models": {
