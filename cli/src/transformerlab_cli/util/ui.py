@@ -6,6 +6,8 @@ from rich.theme import Theme
 import json
 import csv
 import sys
+import re
+from datetime import datetime
 
 
 # 1. Define your centralized themes
@@ -51,6 +53,19 @@ THEMES = {
 selected_theme = "default"
 console = Console(theme=THEMES.get(selected_theme, THEMES["default"]))
 
+ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$")
+
+
+def format_value(value: str) -> str:
+    """Format a value, converting ISO dates to a human-readable format."""
+    if ISO_DATE_PATTERN.match(value):
+        try:
+            dt = datetime.fromisoformat(value)
+            return dt.strftime("%b %d, %Y %I:%M %p")
+        except ValueError:
+            pass
+    return value
+
 
 def render_table(data, format_type: str, table_columns: list, title: str | None) -> None:
     """Render data in specified format (table, json, or csv)."""
@@ -65,10 +80,11 @@ def render_table(data, format_type: str, table_columns: list, title: str | None)
                 col,
                 style="value",
                 no_wrap=False,
+                overflow="fold",
             )
 
         for row in data:
-            table.add_row(*[str(row.get(col.replace(" ", "_"), "N/A")) for col in table_columns])
+            table.add_row(*[format_value(str(row.get(col.replace(" ", "_"), "N/A"))) for col in table_columns])
 
         console.print(table)
 
