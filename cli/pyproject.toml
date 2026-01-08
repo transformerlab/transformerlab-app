@@ -27,5 +27,7 @@ where = ["src"]
 
 [dependency-groups]
 dev = [
+    "pytest",
     "textual>=6.11.0",
+    "typer[testing]",
 ]
