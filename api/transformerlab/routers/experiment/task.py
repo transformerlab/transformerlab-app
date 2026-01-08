@@ -470,7 +470,7 @@ async def add_task(
                 # Handle provider matching
                 await _resolve_provider(task_data, user_and_team, session)
 
-                task_id = await .add_task(task_data)
+                task_id = await task_service.add_task(task_data)
 
                 # Handle zip file if provided
                 if zip_file and zip_file.filename:
