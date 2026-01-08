@@ -12,7 +12,7 @@ console = Console()
 def render_table(data, format_type: str, table_columns: list, title: str) -> None:
     """Render data in specified format (table, json, or csv)."""
     if format_type == "pretty":
-        table = Table(title=title)
+        table = Table(title=None, title_justify="left", show_header=True, header_style="bold magenta")
         for col in table_columns:
             table.add_column(col, style="cyan", no_wrap=True)
 

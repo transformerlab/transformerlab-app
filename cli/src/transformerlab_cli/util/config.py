@@ -158,7 +158,7 @@ def check_configs(output_format: str = "pretty") -> None:
     team_name = config.get("team_id", "N/A")
     server = config.get("server", "N/A")
     experiment = "Not Implemented"
-    table = Table(show_header=True, header_style="bold magenta", box=None)
+    table = Table(show_header=True, header_style="bold magenta", box=None, title_justify="left")
     table.add_column("User Email", style="cyan")
     table.add_column("Team ID", style="cyan")
     table.add_column("Server", style="cyan")
