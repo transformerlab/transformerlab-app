@@ -149,7 +149,7 @@ class TaskTemplate(BaseLabResource):
         """Get a specific task by ID"""
         try:
             task = await TaskTemplate.get(task_id)
-            return task.get_metadata()
+            return await task.get_metadata()
         except FileNotFoundError:
             return None
 
