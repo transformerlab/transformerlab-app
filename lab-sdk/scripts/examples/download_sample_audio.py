@@ -13,19 +13,31 @@ def download_sample_audio() -> str:
     lab.save_artifact on the returned path.
     """
 
-    # Simple, freely-usable test audio file (small ~few KB WAV tone)
-    url = "https://file-examples.com/wp-content/storage/2017/11/file_example_WAV_1MG.wav"
+    # Simple, freely-usable test audio files (small WAV clips)
+    # Try multiple URLs so the script is resilient if one host goes down
+    urls = [
+        # Short 3-second WAV sample
+        "https://samplelib.com/lib/preview/wav/sample-3s.wav",
+    ]
 
     output_dir = Path(os.getenv("OUTPUT_DIR", "./output_artifacts"))
     output_dir.mkdir(parents=True, exist_ok=True)
 
     output_path = output_dir / "sample_audio.wav"
 
-    print(f"Downloading sample audio from {url}")
-    urlretrieve(url, output_path)  # nosec: B310 - simple demo helper
-    print(f"Saved sample audio to: {output_path.resolve()}")
+    last_error: Exception | None = None
+    for url in urls:
+        try:
+            print(f"Downloading sample audio from {url}")
+            urlretrieve(url, output_path)  # nosec: B310 - simple demo helper
+            print(f"Saved sample audio to: {output_path.resolve()}")
+            return str(output_path)
+        except Exception as e:  # pragma: no cover - network/demo only
+            last_error = e
+            print(f"Failed to download from {url}: {e}")
 
-    return str(output_path)
+    # If we get here, all URLs failed
+    raise RuntimeError(f"Failed to download sample audio from all URLs. Last error: {last_error}")
 
 
 def main() -> None:
