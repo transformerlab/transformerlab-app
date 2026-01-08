@@ -1420,7 +1420,7 @@ async def ensure_quota_recorded_for_completed_jobs(
         }
 
     # Get all REMOTE jobs for the experiment
-    jobs = job_service.jobs_get_all(type="REMOTE", experiment_id=experiment_id)
+    jobs = await job_service.jobs_get_all(type="REMOTE", experiment_id=experiment_id)
 
     jobs_processed = 0
     jobs_recorded = 0
