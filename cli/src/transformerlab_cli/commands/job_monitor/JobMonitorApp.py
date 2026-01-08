@@ -2,7 +2,6 @@ from textual.app import App, ComposeResult
 from textual.widgets import Header, Footer, ListView, LoadingIndicator, ListItem, Label
 from textual.containers import Horizontal, Vertical, Container
 from textual import work
-from textual.theme import Theme
 
 from transformerlab_cli.util.config import get_current_experiment
 
