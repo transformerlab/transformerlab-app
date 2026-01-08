@@ -21,7 +21,7 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import transformerlab.services.job_service as job_service
-from transformerlab.services.job_service import get_artifacts_from_directory, get_artifacts_from_sdk, job_update_status
+from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
 from transformerlab.services.provider_service import get_team_provider, get_provider_instance
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
