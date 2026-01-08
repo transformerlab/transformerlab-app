@@ -48,7 +48,7 @@ THEMES = {
 
 # 2. Initialize Console with the Theme
 # You could eventually load 'selected_theme' from a config file or env var
-selected_theme = "dracula"
+selected_theme = "default"
 console = Console(theme=THEMES.get(selected_theme, THEMES["default"]))
 
 
@@ -61,7 +61,11 @@ def render_table(data, format_type: str, table_columns: list, title: str | None)
         for col in table_columns:
             # THEME: Use 'value' style for the column content
             # This ensures all data rows appear in the standard data color
-            table.add_column(col, style="value", no_wrap=True)
+            table.add_column(
+                col,
+                style="value",
+                no_wrap=False,
+            )
 
         for row in data:
             table.add_row(*[str(row.get(col.replace(" ", "_"), "N/A")) for col in table_columns])
