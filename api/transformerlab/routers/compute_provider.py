@@ -60,17 +60,6 @@ def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
     return normalized or "remote-template"
 
 
-def _get_provider_instances(providers: list[TeamComputeProvider]) -> Dict[str, ComputeProvider]:
-    """Instantiate providers safely."""
-    instances: Dict[str, ComputeProvider] = {}
-    for provider in providers:
-        try:
-            instances[provider.id] = get_provider_instance(provider)
-        except Exception as exc:
-            print(f"Failed to instantiate provider {provider.id}: {exc}")
-    return instances
-
-
 @router.post("/{provider_id}/task/{task_id}/file-upload", response_model=ProviderTemplateFileUploadResponse)
 async def upload_task_file_for_provider(
     provider_id: str,
@@ -562,46 +551,6 @@ async def check_provider(
 # ============================================================================
 
 
-@router.post("/{provider_id}/clusters/{cluster_name}/launch")
-async def launch_cluster(
-    provider_id: str,
-    cluster_name: str,
-    config: ClusterConfig,
-    user_and_team=Depends(get_user_and_team),
-    session: AsyncSession = Depends(get_async_session),
-):
-    """
-    Launch/provision a new cluster using the specified provider.
-    Requires X-Team-Id header and team membership.
-    """
-    team_id = user_and_team["team_id"]
-
-    provider = await get_team_provider(session, team_id, provider_id)
-    if not provider:
-        raise HTTPException(status_code=404, detail="Provider not found")
-
-    try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
-
-        if not config.cluster_name:
-            config.cluster_name = cluster_name
-        config.provider_name = provider.name
-        config.provider_id = provider.id
-
-        # Launch cluster
-        result = provider_instance.launch_cluster(cluster_name, config)
-
-        return {
-            "status": "success",
-            "message": f"Cluster '{cluster_name}' launch initiated",
-            "cluster_name": cluster_name,
-            "result": result,
-        }
-    except Exception:
-        raise HTTPException(status_code=500, detail="Failed to launch cluster")
-
-
 def _get_aws_credentials_from_file(profile_name: str = "transformerlab-s3") -> Tuple[Optional[str], Optional[str]]:
     """
     Read AWS credentials from ~/.aws/credentials file for the specified profile.
@@ -802,6 +751,9 @@ async def _launch_sweep_jobs(
 
             provider_display_name = request.provider_name or provider.name
 
+            # Load team secrets for template replacement
+            team_secrets = load_team_secrets()
+
             # Generate all parameter combinations
             param_names = list(sweep_config.keys())
             param_values = [sweep_config[name] for name in param_names]
@@ -832,6 +784,11 @@ async def _launch_sweep_jobs(
 
                 # Prepare environment variables
                 env_vars = request.env_vars.copy() if request.env_vars else {}
+
+                # Replace {{secret.<name>}} patterns in env_vars
+                if env_vars and team_secrets:
+                    env_vars = replace_secrets_in_dict(env_vars, team_secrets)
+
                 env_vars["_TFL_JOB_ID"] = str(child_job_id)
                 env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
 
@@ -872,10 +829,24 @@ async def _launch_sweep_jobs(
                     )
                     setup_commands.append(github_setup)
 
+                # Add user-provided setup if any (replace secrets in setup)
                 if request.setup:
-                    setup_commands.append(request.setup)
+                    setup_with_secrets = (
+                        replace_secret_placeholders(request.setup, team_secrets) if team_secrets else request.setup
+                    )
+                    setup_commands.append(setup_with_secrets)
 
                 final_setup = ";".join(setup_commands) if setup_commands else None
+
+                # Replace secrets in command
+                command_with_secrets = (
+                    replace_secret_placeholders(request.command, team_secrets) if team_secrets else request.command
+                )
+
+                # Replace secrets in parameters if present
+                parameters_with_secrets = merged_params
+                if merged_params and team_secrets:
+                    parameters_with_secrets = replace_secrets_in_dict(merged_params, team_secrets)
 
                 # Store child job data
                 child_job_data = {
@@ -886,7 +857,7 @@ async def _launch_sweep_jobs(
                     "task_name": f"{request.task_name or 'Task'} (Sweep {i + 1}/{total_configs})"
                     if request.task_name
                     else None,
-                    "command": request.command,
+                    "command": command_with_secrets,
                     "cluster_name": formatted_cluster_name,
                     "subtype": request.subtype,
                     "cpus": request.cpus,
@@ -897,7 +868,7 @@ async def _launch_sweep_jobs(
                     "setup": final_setup,
                     "env_vars": env_vars if env_vars else None,
                     "file_mounts": request.file_mounts or None,
-                    "parameters": merged_params or None,
+                    "parameters": parameters_with_secrets or None,
                     "provider_id": provider.id,
                     "provider_type": provider.type,
                     "provider_name": provider_display_name,
@@ -923,7 +894,7 @@ async def _launch_sweep_jobs(
                     cluster_name=formatted_cluster_name,
                     provider_name=provider_display_name,
                     provider_id=provider.id,
-                    command=request.command,
+                    command=command_with_secrets,
                     setup=final_setup,
                     env_vars=env_vars,
                     cpus=request.cpus,
