@@ -1132,7 +1132,7 @@ async def download_all_artifacts(job_id: str):
 
     # 2. Create Zip File in memory
     try:
-        zip_buffer = zip_utils.create_zip_from_storage(all_file_paths, storage)
+        zip_buffer = await zip_utils.create_zip_from_storage(all_file_paths, storage)
 
         filename = f"artifacts_{job_id}.zip"
         headers = {

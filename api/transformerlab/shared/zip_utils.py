@@ -3,7 +3,7 @@ import zipfile
 from typing import List
 
 
-def create_zip_from_storage(file_paths: List[str], storage) -> io.BytesIO:
+async def create_zip_from_storage(file_paths: List[str], storage) -> io.BytesIO:
     """
     Create a zip file in an in-memory buffer from a list of storage file paths.
 
@@ -24,17 +24,17 @@ def create_zip_from_storage(file_paths: List[str], storage) -> io.BytesIO:
                 filename = file_path.split("/")[-1] if "/" in file_path else file_path
 
                 # Check if file exists to avoid errors
-                if not storage.exists(file_path):
+                if not await storage.exists(file_path):
                     print(f"File not found during zipping: {file_path}")
                     continue
 
-                if not storage.isfile(file_path):
+                if not await storage.isfile(file_path):
                     # Skip directories
                     continue
 
                 # Read file content from storage
-                with storage.open(file_path, "rb") as f:
-                    file_content = f.read()
+                async with await storage.open(file_path, "rb") as f:
+                    file_content = await f.read()
                     zip_file.writestr(filename, file_content)
             except Exception as e:
                 print(f"Error adding file {file_path} to zip: {e}")
