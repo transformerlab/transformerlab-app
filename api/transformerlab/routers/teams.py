@@ -9,13 +9,14 @@ from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
 from transformerlab.shared.remote_workspace import create_bucket_for_team
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from sqlalchemy import select, delete, update, func, and_
 from datetime import datetime, timedelta
 from os import getenv
 from PIL import Image
 import io
+import json
 import logging
 
 from lab import Experiment
@@ -69,6 +70,10 @@ class AcceptInvitationRequest(BaseModel):
 
 class GitHubPATRequest(BaseModel):
     pat: Optional[str] = None
+
+
+class TeamSecretsRequest(BaseModel):
+    secrets: dict[str, str] = Field(..., description="Team secrets as key-value pairs")
 
 
 router = APIRouter(tags=["teams"])
@@ -1018,3 +1023,87 @@ async def delete_team_logo(
     except Exception as e:
         print(f"Error deleting team logo: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete team logo")
+
+
+@router.get("/teams/{team_id}/secrets")
+async def get_team_secrets(
+    team_id: str,
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Get team secrets. Only team members can view (but values will be masked for security).
+    """
+    # Verify team_id matches the one in header
+    if team_id != user_and_team["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    workspace_dir = get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, "team_secrets.json")
+
+    try:
+        if not storage.exists(secrets_path):
+            return {"status": "success", "secrets": {}}
+
+        with storage.open(secrets_path, "r") as f:
+            secrets = json.load(f)
+
+        # Mask all secret values for security
+        masked_secrets = {key: "***" for key in secrets.keys()}
+
+        return {
+            "status": "success",
+            "secrets": masked_secrets,
+            "secret_keys": list(secrets.keys()),
+        }
+    except Exception as e:
+        print(f"Error reading team secrets: {e}")
+        raise HTTPException(status_code=500, detail="Failed to read team secrets")
+
+
+@router.put("/teams/{team_id}/secrets")
+async def set_team_secrets(
+    team_id: str,
+    secrets_data: TeamSecretsRequest,
+    owner_info=Depends(require_team_owner),
+):
+    """
+    Set team secrets. Only team owners can set/update secrets.
+    Stored in workspace/team_secrets.json file.
+    """
+    # Verify team_id matches the one in header
+    if team_id != owner_info["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    workspace_dir = get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, "team_secrets.json")
+
+    try:
+        # Validate that all keys are valid environment variable names
+        # Environment variable names can contain letters, numbers, and underscores
+        import re
+
+        valid_key_pattern = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+        for key in secrets_data.secrets.keys():
+            if not valid_key_pattern.match(key):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid secret key '{key}'. Secret keys must start with a letter or underscore and contain only letters, numbers, and underscores.",
+                )
+
+        # Ensure workspace directory exists
+        storage.makedirs(workspace_dir, exist_ok=True)
+
+        # Write secrets to file
+        with storage.open(secrets_path, "w") as f:
+            json.dump(secrets_data.secrets, f, indent=2)
+
+        return {
+            "status": "success",
+            "message": "Team secrets saved successfully",
+            "secret_keys": list(secrets_data.secrets.keys()),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving team secrets: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save team secrets")

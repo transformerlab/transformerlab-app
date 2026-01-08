@@ -2,6 +2,7 @@
 
 import os
 import time
+import json
 import configparser
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
@@ -1102,6 +1103,21 @@ async def launch_template_on_provider(
 
     # Prepare environment variables - start with a copy of requested env_vars
     env_vars = request.env_vars.copy() if request.env_vars else {}
+
+    # Load team secrets and add them as environment variables with TLAB_SECRET_ prefix
+    workspace_dir = get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, "team_secrets.json")
+    try:
+        if storage.exists(secrets_path):
+            with storage.open(secrets_path, "r") as f:
+                team_secrets = json.load(f)
+                # Add each secret as TLAB_SECRET_<SECRETNAME>
+                for secret_name, secret_value in team_secrets.items():
+                    env_var_name = f"TLAB_SECRET_{secret_name}"
+                    env_vars[env_var_name] = secret_value
+    except Exception as e:
+        # Log error but don't fail task launch if secrets can't be loaded
+        print(f"Warning: Failed to load team secrets: {e}")
 
     # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
     aws_profile = "transformerlab-s3"

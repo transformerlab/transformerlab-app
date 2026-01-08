@@ -34,6 +34,7 @@ import RenameTeamModal from './RenameTeamModal';
 import InviteUserModal from './InviteUserModal';
 import ProviderDetailsModal from './ProviderDetailsModal';
 import QuotaSettingsSection from './QuotaSettingsSection';
+import TeamSecretsSection from './TeamSecretsSection';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 /*
@@ -996,7 +997,10 @@ export default function UserLoginTest(): JSX.Element {
         </Box>
 
         {iAmOwner && (
-          <QuotaSettingsSection teamId={authContext.team?.id || ''} />
+          <>
+            <QuotaSettingsSection teamId={authContext.team?.id || ''} />
+            <TeamSecretsSection teamId={authContext.team?.id || ''} />
+          </>
         )}
       </Box>
       <RenameTeamModal
