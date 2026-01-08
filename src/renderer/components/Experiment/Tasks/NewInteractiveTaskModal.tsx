@@ -47,7 +47,7 @@ type InteractiveTemplate = {
   interactive_type: string;
   name: string;
   description: string;
-  config_fields?: ConfigField[];
+  env_parameters?: ConfigField[];
 };
 
 type NewInteractiveTaskModalProps = {
@@ -61,7 +61,7 @@ type NewInteractiveTaskModalProps = {
       accelerators?: string;
       interactive_type: 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama';
       provider_id?: string;
-      config_fields?: Record<string, string>;
+      env_parameters?: Record<string, string>;
     },
     shouldLaunch?: boolean,
   ) => void;
@@ -140,7 +140,7 @@ export default function NewInteractiveTaskModal({
     setStep('config');
     // Initialize config field values
     const initialValues: Record<string, string> = {};
-    template.config_fields?.forEach((field) => {
+    template.env_parameters?.forEach((field) => {
       if (field.field_type === 'integer' && field.env_var === 'TP_SIZE') {
         initialValues[field.env_var] = '1';
       }
@@ -177,7 +177,7 @@ export default function NewInteractiveTaskModal({
 
     // Validate required config fields
     const requiredFields =
-      selectedTemplate.config_fields?.filter((f) => f.required) || [];
+      selectedTemplate.env_parameters?.filter((f) => f.required) || [];
     for (const field of requiredFields) {
       if (!configFieldValues[field.env_var]?.trim()) {
         return;
@@ -197,7 +197,7 @@ export default function NewInteractiveTaskModal({
           | 'ssh'
           | 'ollama',
         provider_id: selectedProviderId,
-        config_fields: configFieldValues,
+        env_parameters: configFieldValues,
       },
       shouldLaunch,
     );
@@ -209,7 +209,7 @@ export default function NewInteractiveTaskModal({
     }
 
     const requiredFields =
-      selectedTemplate.config_fields?.filter((f) => f.required) || [];
+      selectedTemplate.env_parameters?.filter((f) => f.required) || [];
     for (const field of requiredFields) {
       if (!configFieldValues[field.env_var]?.trim()) {
         return false;
@@ -335,10 +335,10 @@ export default function NewInteractiveTaskModal({
                   </Alert>
                 )}
 
-                {selectedTemplate?.config_fields &&
-                  selectedTemplate.config_fields.length > 0 && (
+                {selectedTemplate?.env_parameters &&
+                  selectedTemplate.env_parameters.length > 0 && (
                     <>
-                      {selectedTemplate.config_fields.map((field) => (
+                      {selectedTemplate.env_parameters.map((field) => (
                         <FormControl
                           key={field.env_var}
                           required={field.required}
