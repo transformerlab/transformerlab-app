@@ -532,7 +532,7 @@ async def task_delete_all():
 @router.get("/gallery", summary="List all tasks from the tasks gallery")
 async def task_gallery():
     """Get the tasks gallery from the JSON file (same as tasks gallery)"""
-    gallery = galleries.get_tasks_gallery()
+    gallery = await galleries.get_tasks_gallery()
     return {"status": "success", "data": gallery}
 
 
@@ -554,7 +554,7 @@ async def import_task_from_gallery(
     Creates a new task using the gallery entry's config and GitHub info.
     Uses the team's GitHub PAT if available.
     """
-    gallery = galleries.get_tasks_gallery()
+    gallery = await galleries.get_tasks_gallery()
 
     # Find the gallery entry by index or ID
     try:
@@ -641,7 +641,7 @@ async def import_task_from_gallery(
 @router.get("/gallery/team", summary="List team-specific tasks from the team gallery")
 async def team_task_gallery():
     """Get the team-specific tasks gallery stored in workspace_dir (same as tasks gallery)"""
-    gallery = galleries.get_team_tasks_gallery()
+    gallery = await galleries.get_team_tasks_gallery()
     return {"status": "success", "data": gallery}
 
 
@@ -654,7 +654,7 @@ async def import_task_from_team_gallery(
     """
     Import a task from the team-specific tasks gallery (workspace_dir/team_specific_tasks.json).
     """
-    gallery = galleries.get_team_tasks_gallery()
+    gallery = await galleries.get_team_tasks_gallery()
 
     # Find the gallery entry by index or ID
     try:
