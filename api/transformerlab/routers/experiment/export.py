@@ -4,6 +4,7 @@ import time
 import asyncio
 import subprocess
 import sys
+from typing import Optional
 
 from fastapi import APIRouter
 
@@ -27,7 +28,8 @@ async def run_exporter_script(
     plugin_architecture: str,
     plugin_params: str = "{}",
     job_id: str = None,
-    org_id: str = None,
+    org_id: Optional[str] = None,
+    user_id: Optional[str] = None,
 ):
     """
     plugin_name: the id of the exporter plugin to run
@@ -148,11 +150,39 @@ async def run_exporter_script(
     subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + args
 
     # Prepare environment variables for subprocess
-    # Pass organization_id via environment variable if provided
+    # Pass organization_id and user_id via environment variable
+    # Priority: use org_id parameter, then try to get from workspace
     process_env = None
-    if org_id:
+    team_id = org_id
+    if not team_id:
+        # Try to get org_id from workspace path
+        from lab.dirs import get_workspace_dir
+
+        workspace_dir = get_workspace_dir()
+        if "/orgs/" in workspace_dir:
+            team_id = workspace_dir.split("/orgs/")[-1].split("/")[0]
+
+    if team_id:
         process_env = os.environ.copy()
-        process_env["_TFL_ORG_ID"] = org_id
+        process_env["_TFL_ORG_ID"] = team_id
+
+    # Get user_id: from parameter or job_data (for calls from shared.run_job)
+    resolved_user_id = user_id
+    if not resolved_user_id and job_id:
+        try:
+            job_row = job_get(job_id)
+            job_data = job_row.get("job_data", {})
+            if isinstance(job_data, str):
+                job_data = json.loads(job_data)
+            if isinstance(job_data, dict) and "user_id" in job_data:
+                resolved_user_id = job_data["user_id"]
+        except Exception:
+            pass  # If we can't get job_data, just continue without user_id
+
+    if resolved_user_id:
+        if process_env is None:
+            process_env = os.environ.copy()
+        process_env["_TFL_USER_ID"] = resolved_user_id
 
     try:
         # Get the output file path

@@ -721,9 +721,23 @@ def main():
     # Set organization ID from environment variable if provided
     # This allows the subprocess to have the correct org context without leaking to the API
     org_id = os.environ.get("_TFL_ORG_ID")
+    user_id = os.environ.get("_TFL_USER_ID")  # Optional user_id for user-specific configs
     if org_id:
         set_organization_id(org_id)
         print(f"Set organization context for subprocess: {org_id}")
+
+        # Set HF_TOKEN from team/user-specific config
+        # This allows huggingface_hub to use the team's/user's token without global cache files
+        # Priority: user-specific -> team-wide -> global
+        try:
+            from transformerlab.plugin_sdk.transformerlab.plugin import get_db_config_value
+
+            hf_token = get_db_config_value("HuggingfaceUserAccessToken", team_id=org_id, user_id=user_id)
+            if hf_token:
+                os.environ["HF_TOKEN"] = hf_token
+                print(f"Set HF_TOKEN from {'user' if user_id else 'team'} config")
+        except Exception as e:
+            print(f"Warning: Could not set HF_TOKEN from team/user config: {e}")
 
     try:
         model_is_downloaded = Event()  # A threadsafe flag to coordinate threads

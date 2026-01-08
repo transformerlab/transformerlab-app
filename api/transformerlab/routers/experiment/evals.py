@@ -3,7 +3,7 @@ import json
 import os
 import subprocess
 import sys
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
@@ -157,8 +157,23 @@ async def get_evaluation_plugin_file_contents(experimentId: str, plugin_name: st
 
 
 @router.get("/run_evaluation_script")
-async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: str, job_id: str, org_id: str = None):
-    job_config = (await job_get(job_id))["job_data"]
+async def run_evaluation_script(
+    experimentId: str,
+    plugin_name: str,
+    eval_name: str,
+    job_id: str,
+    org_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+):
+    job_config_raw = (await job_get(job_id))["job_data"]
+    # Ensure job_config is a dict
+    if isinstance(job_config_raw, str):
+        try:
+            job_config = json.loads(job_config_raw)
+        except Exception:
+            job_config = {}
+    else:
+        job_config = job_config_raw
     eval_config = job_config.get("config", {})
     print(eval_config)
     experiment_details = await experiment_get(id=experimentId)
@@ -276,11 +291,32 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
     print(f">EVAL Output file: {job_output_file}")
 
     # Prepare environment variables for subprocess
-    # Pass organization_id via environment variable if provided
+    # Pass organization_id and user_id via environment variable
+    # Priority: use org_id parameter, then try to get from workspace
     process_env = None
-    if org_id:
+    team_id = org_id
+    if not team_id:
+        # Try to get org_id from workspace path
+        from lab.dirs import get_workspace_dir
+
+        workspace_dir = get_workspace_dir()
+        if "/orgs/" in workspace_dir:
+            team_id = workspace_dir.split("/orgs/")[-1].split("/")[0]
+
+    if team_id:
         process_env = os.environ.copy()
-        process_env["_TFL_ORG_ID"] = org_id
+        process_env["_TFL_ORG_ID"] = team_id
+
+    # Get user_id: from parameter or job_data (for calls from shared.run_job)
+    resolved_user_id = user_id
+    if not resolved_user_id:
+        if isinstance(job_config, dict) and "user_id" in job_config:
+            resolved_user_id = job_config["user_id"]
+
+    if resolved_user_id:
+        if process_env is None:
+            process_env = os.environ.copy()
+        process_env["_TFL_USER_ID"] = resolved_user_id
 
     async with await storage.open(job_output_file, "w") as f:
         process = await asyncio.create_subprocess_exec(

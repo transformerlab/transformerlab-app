@@ -407,6 +407,37 @@ async def _get_org_id_for_subprocess():
     return None
 
 
+def _get_user_id_for_subprocess(job_details: dict = None):
+    """
+    Helper function to get user_id from job_details if available.
+    Checks job_data for user_id or user_info.
+    Returns None if not found.
+    """
+    if not job_details:
+        return None
+
+    # Try to get user_id directly from job_data
+    job_data = job_details.get("job_data", {})
+    if isinstance(job_data, str):
+        try:
+            import json
+
+            job_data = json.loads(job_data)
+        except Exception:
+            job_data = {}
+
+    # Check for user_id in job_data
+    if isinstance(job_data, dict):
+        # Some jobs store user_id directly
+        if "user_id" in job_data:
+            return job_data["user_id"]
+        # Some jobs store user_info with email, we'd need to look up user_id
+        # For now, we'll just return None if user_id isn't directly available
+        # This can be enhanced later to look up user_id from email if needed
+
+    return None
+
+
 async def run_job(job_id: str, job_config, experiment_name: str = "default", job_details: dict = None):
     # This runs a specified job number defined
     # by template_id
@@ -417,11 +448,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     master_job_type = job_details["type"]
     print(master_job_type)
 
-    # Get organization_id for passing to plugin subprocesses
+    # Get organization_id and user_id for passing to plugin subprocesses
     org_id = await _get_org_id_for_subprocess()
+    user_id = _get_user_id_for_subprocess(job_details)
     subprocess_env = {}
     if org_id:
         subprocess_env["_TFL_ORG_ID"] = org_id
+    if user_id:
+        subprocess_env["_TFL_USER_ID"] = user_id
 
     # Only pass env if it has values (empty dict is falsy, so this works)
     subprocess_env_or_none = subprocess_env if subprocess_env else None
@@ -472,7 +506,11 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if not await storage.exists(evals_output_file):
             async with await storage.open(evals_output_file, "w") as f:
                 await f.write("")
-        await run_evaluation_script(experiment_name, plugin_name, eval_name, job_id, org_id=org_id)
+        # Pass user_id extracted from job_details if available
+        user_id_from_job = _get_user_id_for_subprocess(job_details)
+        await run_evaluation_script(
+            experiment_name, plugin_name, eval_name, job_id, org_id=org_id, user_id=user_id_from_job
+        )
         # Check if stop button was clicked and update status accordingly
         job_row = await job_service.job_get(job_id)
         job_data = job_row.get("job_data", None) if job_row else None
@@ -504,7 +542,11 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             async with await storage.open(gen_output_file, "w") as f:
                 await f.write("")
 
-        await run_generation_script(experiment_name, plugin_name, generation_name, job_id, org_id=org_id)
+        # Pass user_id extracted from job_details if available
+        user_id_from_job = _get_user_id_for_subprocess(job_details)
+        await run_generation_script(
+            experiment_name, plugin_name, generation_name, job_id, org_id=org_id, user_id=user_id_from_job
+        )
 
         # Check should_stop flag and update status accordingly
         job_row = await job_service.job_get(job_id)
@@ -552,12 +594,15 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         plugin_params = json.dumps(config["params"])
 
         # Call the existing run_exporter_script function with the existing job_id
+        # Pass user_id extracted from job_details if available
+        user_id_from_job = _get_user_id_for_subprocess(job_details)
         result = await run_exporter_script(
             id=experiment_name,
             plugin_name=plugin_name,
             plugin_architecture=plugin_architecture,
             plugin_params=plugin_params,
             job_id=job_id,
+            user_id=user_id_from_job,
             org_id=org_id,
         )
 
