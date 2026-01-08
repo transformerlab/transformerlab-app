@@ -9,6 +9,7 @@ from transformerlab_cli.util.config import get_current_experiment
 from transformerlab_cli.commands.job_monitor.JobDetails import JobDetails
 from transformerlab_cli.commands.job_monitor.ExperimentSelectModal import ExperimentSelectModal
 from transformerlab_cli.commands.job_monitor.TaskAddModal import TaskAddModal
+from transformerlab_cli.commands.job_monitor.TaskListModal import TaskListModal
 
 from transformerlab_cli.commands.job_monitor.util import fetch_jobs
 
@@ -48,6 +49,7 @@ class JobMonitorApp(App):
         ("r", "refresh", "Refresh"),
         ("e", "set_experiment", "Set Experiment"),
         ("a", "add_task", "Add Task"),
+        ("l", "list_tasks", "List Tasks"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -77,6 +79,9 @@ class JobMonitorApp(App):
 
     def action_add_task(self) -> None:
         self.push_screen(TaskAddModal())
+
+    def action_list_tasks(self) -> None:
+        self.push_screen(TaskListModal())
 
     def action_refresh(self) -> None:
         """Refresh the job list."""
