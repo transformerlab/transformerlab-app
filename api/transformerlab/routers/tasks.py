@@ -169,7 +169,12 @@ async def tasks_delete_all():
 
 
 @router.get("/{task_id}/queue", summary="Queue a task to run")
-async def queue_task(task_id: str, input_override: str = "{}", output_override: str = "{}"):
+async def queue_task(
+    task_id: str,
+    input_override: str = "{}",
+    output_override: str = "{}",
+    user_and_team=Depends(get_user_and_team),
+):
     task_to_queue = tasks_service.tasks_get_by_id(task_id)
     if task_to_queue is None:
         return {"message": "TASK NOT FOUND"}
@@ -264,8 +269,14 @@ async def queue_task(task_id: str, input_override: str = "{}", output_override: 
         for key in output_override.keys():
             job_data["config"][key] = output_override[key]
         job_data["plugin"] = task_to_queue["plugin"]
+
+    # Store user_id in job_data for user-specific configs when job runs
+    user = user_and_team.get("user") if user_and_team else None
+    if user:
+        job_data["user_id"] = str(user.id)
+
     job_id = job_create(
-        type=("EXPORT" if job_type == "EXPORT" else job_type),
+        type=job_type,
         status=job_status,
         experiment_id=task_to_queue["experiment_id"],
         job_data=json.dumps(job_data),

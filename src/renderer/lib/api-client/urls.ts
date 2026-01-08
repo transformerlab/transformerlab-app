@@ -62,7 +62,10 @@ export function getPath(
   // Step 3: Replace placeholders in the path with values from params:
   let { path } = endpoint;
   Object.entries(params).forEach(([key, value]) => {
-    path = path.replace(`{${key}}`, value);
+    // Convert boolean values to lowercase strings for FastAPI compatibility
+    const stringValue =
+      typeof value === 'boolean' ? String(value).toLowerCase() : String(value);
+    path = path.replace(`{${key}}`, stringValue);
   });
 
   // Step 4: Return the full path:
