@@ -135,8 +135,9 @@ class Experiment(BaseLabResource):
                             if not name and exp_id:
                                 data["name"] = exp_id
                                 try:
-                                    with storage.open(index_file, "w") as wf:
-                                        json.dump(data, wf, indent=4)
+                                    async with await storage.open(index_file, "w") as wf:
+                                        content = json.dumps(data, indent=4)
+                                        await wf.write(content)
                                     name = exp_id
                                 except Exception:
                                     # If we couldn't persist, skip to avoid inconsistent state

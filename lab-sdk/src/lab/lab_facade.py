@@ -200,7 +200,7 @@ class Lab:
         if not self._job:
             return None
 
-        job_data = _run_async(self._job.get_job_data())
+        job_data = await self._job.get_job_data()
         if not job_data:
             return None
 

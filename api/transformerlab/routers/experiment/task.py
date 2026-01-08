@@ -300,10 +300,10 @@ async def _store_zip_file(zip_file: UploadFile, task_id: str) -> str:
 
     # Create uploads/task/{task_id} directory
     uploads_root = storage.join(workspace_dir, "uploads", "task")
-    storage.makedirs(uploads_root, exist_ok=True)
+    await storage.makedirs(uploads_root, exist_ok=True)
 
     task_dir = storage.join(uploads_root, str(task_id))
-    storage.makedirs(task_dir, exist_ok=True)
+    await storage.makedirs(task_dir, exist_ok=True)
 
     # Generate a safe filename for the zip file
     import uuid
@@ -330,8 +330,8 @@ async def _store_zip_file(zip_file: UploadFile, task_id: str) -> str:
             zip_ref.testzip()
 
         # Store the zip file
-        with storage.open(stored_path, "wb") as f:
-            f.write(zip_content)
+        async with await storage.open(stored_path, "wb") as f:
+            await f.write(zip_content)
 
         # Clean up temp file
         os.remove(temp_zip_path)

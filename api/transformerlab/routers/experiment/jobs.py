@@ -660,7 +660,7 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
         file_index = 0
     file_path = eval_results_list[file_index]
 
-    if not storage.exists(file_path):
+    if not await storage.exists(file_path):
         return Response("Evaluation results file not found", media_type="text/csv")
 
     # Determine file format
@@ -676,10 +676,10 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
 
     if task == "download":
         # Use StreamingResponse to support both local and remote files
-        def generate():
-            with storage.open(file_path, "rb") as f:
+        async def generate():
+            async with await storage.open(file_path, "rb") as f:
                 while True:
-                    chunk = f.read(8192)  # Read in 8KB chunks
+                    chunk = await f.read(8192)  # Read in 8KB chunks
                     if not chunk:
                         break
                     yield chunk
@@ -695,8 +695,9 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
 
     # For view, convert CSV to JSON format
     if file_path.endswith(".csv"):
-        with storage.open(file_path, "r") as csvfile:
-            contents = csv.reader(csvfile, delimiter=",", quotechar='"')
+        async with await storage.open(file_path, "r") as csvfile:
+            content_str = await csvfile.read()
+            contents = csv.reader(content_str.splitlines(), delimiter=",", quotechar='"')
             csv_content = {"header": [], "body": []}
             for i, row in enumerate(contents):
                 if i == 0:
@@ -705,8 +706,9 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
                     csv_content["body"].append(row)
             return csv_content
     elif file_path.endswith(".json"):
-        with storage.open(file_path, "r") as jsonfile:
-            content = json.load(jsonfile)
+        async with await storage.open(file_path, "r") as jsonfile:
+            content_str = await jsonfile.read()
+            content = json.loads(content_str)
             # If it's a list of records, convert to header/body format
             if isinstance(content, list) and len(content) > 0:
                 if isinstance(content[0], dict):
@@ -716,8 +718,8 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
             return content
     else:
         # For other file types, just return as text
-        with storage.open(file_path, "r") as f:
-            return f.read()
+        async with await storage.open(file_path, "r") as f:
+            return await f.read()
 
 
 @router.get("/{job_id}/get_eval_images")
@@ -734,7 +736,7 @@ async def get_eval_images(job_id: str):
 
     images_dir = job_data["eval_images_dir"]
 
-    if not storage.exists(images_dir):
+    if not await storage.exists(images_dir):
         return {"images": []}
 
     # Supported image extensions
@@ -742,7 +744,7 @@ async def get_eval_images(job_id: str):
     images = []
     try:
         # Use storage.ls to list directory contents
-        items = storage.ls(images_dir, detail=True)
+        items = await storage.ls(images_dir, detail=True)
         for item in items:
             # Handle both dict (detail=True) and string (detail=False) formats
             if isinstance(item, dict):
@@ -763,13 +765,13 @@ async def get_eval_images(job_id: str):
             else:
                 # Fallback for string format - check if it's a file
                 file_path = item if isinstance(item, str) else str(item)
-                if storage.isfile(file_path):
+                if await storage.isfile(file_path):
                     filename = file_path.split("/")[-1] if "/" in file_path else file_path
                     _, ext = os.path.splitext(filename.lower())
                     if ext in image_extensions:
                         # Try to get file info - for remote storage, stats might not be available
                         try:
-                            items_detail = storage.ls(file_path, detail=True)
+                            items_detail = await storage.ls(file_path, detail=True)
                             if items_detail and isinstance(items_detail[0], dict):
                                 file_info = items_detail[0]
                                 images.append(
@@ -821,7 +823,7 @@ async def get_eval_image(job_id: str, filename: str):
 
     images_dir = job_data["eval_images_dir"]
 
-    if not storage.exists(images_dir):
+    if not await storage.exists(images_dir):
         return Response("Images directory not found", status_code=404)
 
     # Secure the filename to prevent directory traversal
@@ -829,7 +831,7 @@ async def get_eval_image(job_id: str, filename: str):
     file_path = storage.join(images_dir, filename)
 
     # Ensure the file exists
-    if not storage.exists(file_path):
+    if not await storage.exists(file_path):
         return Response("Image not found", status_code=404)
 
     # For security, verify the file path is within the images directory
@@ -886,7 +888,7 @@ async def get_checkpoints(job_id: str, request: Request):
             checkpoints = []
             for checkpoint_path in checkpoint_paths:
                 try:
-                    if storage.isdir(checkpoint_path):
+                    if await storage.isdir(checkpoint_path):
                         # Don't set formatted_time and filesize for directories
                         formatted_time = None
                         filesize = None
@@ -894,7 +896,7 @@ async def get_checkpoints(job_id: str, request: Request):
                         # Try to get file info from storage
                         try:
                             # Use storage.ls to get file details if available
-                            file_info_list = storage.ls(checkpoint_path, detail=True)
+                            file_info_list = await storage.ls(checkpoint_path, detail=True)
                             if file_info_list and isinstance(file_info_list, dict):
                                 file_info = file_info_list.get(checkpoint_path, {})
                                 filesize = file_info.get("size", 0)
@@ -972,12 +974,12 @@ async def get_checkpoints(job_id: str, request: Request):
         from lab.dirs import get_job_checkpoints_dir
 
         checkpoints_dir = get_job_checkpoints_dir(job_id)
-    if not checkpoints_dir or not storage.exists(checkpoints_dir):
+    if not checkpoints_dir or not await storage.exists(checkpoints_dir):
         return {"checkpoints": []}
-    elif storage.isdir(checkpoints_dir):
+    elif await storage.isdir(checkpoints_dir):
         checkpoints = []
         try:
-            items = storage.ls(checkpoints_dir, detail=False)
+            items = await storage.ls(checkpoints_dir, detail=False)
             for item in items:
                 file_path = item if isinstance(item, str) else str(item)
                 filename = file_path.split("/")[-1] if "/" in file_path else file_path
@@ -985,7 +987,7 @@ async def get_checkpoints(job_id: str, request: Request):
                 if fnmatch(filename, "*_adapters.safetensors"):
                     # Try to get file info
                     try:
-                        file_info_list = storage.ls(file_path, detail=True)
+                        file_info_list = await storage.ls(file_path, detail=True)
                         if file_info_list and isinstance(file_info_list, dict):
                             file_info = file_info_list.get(file_path, {})
                             filesize = file_info.get("size", 0)
@@ -1010,7 +1012,7 @@ async def get_checkpoints(job_id: str, request: Request):
                         print(f"Error getting file info for {file_path}: {e}")
                         checkpoints.append({"filename": filename, "date": None, "size": None})
                 # allow directories too
-                elif storage.isdir(file_path):
+                elif await storage.isdir(file_path):
                     checkpoints.append({"filename": filename, "date": None, "size": None})
             if checkpoints:
                 return {"checkpoints": checkpoints}
@@ -1025,7 +1027,7 @@ async def get_checkpoints(job_id: str, request: Request):
 
     checkpoints = []
     try:
-        items = storage.ls(checkpoints_dir, detail=False)
+        items = await storage.ls(checkpoints_dir, detail=False)
         for item in items:
             file_path = item if isinstance(item, str) else str(item)
             filename = file_path.split("/")[-1] if "/" in file_path else file_path
@@ -1033,7 +1035,7 @@ async def get_checkpoints(job_id: str, request: Request):
             if fnmatch(filename, checkpoints_file_filter):
                 try:
                     # Try to get file info from storage
-                    file_info_list = storage.ls(file_path, detail=True)
+                    file_info_list = await storage.ls(file_path, detail=True)
                     if file_info_list and isinstance(file_info_list, dict):
                         file_info = file_info_list.get(file_path, {})
                         filesize = file_info.get("size", 0)
@@ -1092,7 +1094,7 @@ async def get_artifacts(job_id: str, request: Request):
         return {"artifacts": []}
 
     # Try SDK method first
-    artifacts = get_artifacts_from_sdk(job_id, storage)
+    artifacts = await get_artifacts_from_sdk(job_id, storage)
 
     # Fallback to directory listing if SDK method fails
     if artifacts is None:
@@ -1109,7 +1111,7 @@ async def get_artifacts(job_id: str, request: Request):
                 print(f"Error getting artifacts directory for job {job_id}: {e}")
                 return {"artifacts": []}
 
-        artifacts = get_artifacts_from_directory(artifacts_dir, storage)
+        artifacts = await get_artifacts_from_directory(artifacts_dir, storage)
 
     # Sort by filename in descending order for consistent ordering
     artifacts.sort(key=lambda x: x["filename"], reverse=True)
@@ -1123,7 +1125,7 @@ async def download_all_artifacts(job_id: str):
     Download a zip file containing all artifacts for a job.
     """
     # 1. Gather all artifact file paths using service
-    all_file_paths = job_service.get_all_artifact_paths(job_id, storage)
+    all_file_paths = await job_service.get_all_artifact_paths(job_id, storage)
 
     if not all_file_paths:
         return Response("No artifacts found for this job", status_code=404)
@@ -1189,7 +1191,7 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
 
         artifacts_dir = job_data["artifacts_dir"]
 
-        if not storage.exists(artifacts_dir):
+        if not await storage.exists(artifacts_dir):
             return Response("Artifacts directory not found", status_code=404)
 
         # Secure the filename to prevent directory traversal
@@ -1197,7 +1199,7 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
         artifact_file_path = storage.join(artifacts_dir, filename_secure)
 
     # Ensure the file exists
-    if not storage.exists(artifact_file_path):
+    if not await storage.exists(artifact_file_path):
         return Response("Artifact not found", status_code=404)
 
     # Determine media type based on file extension
@@ -1233,8 +1235,9 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
     # For JSON files in view mode, return the parsed content
     if task == "view" and ext == ".json":
         try:
-            with storage.open(artifact_file_path, "r") as f:
-                content = json.load(f)
+            async with await storage.open(artifact_file_path, "r") as f:
+                content_str = await f.read()
+                content = json.loads(content_str)
                 return content
         except Exception as e:
             print(f"Error reading JSON file: {e}")
@@ -1242,10 +1245,10 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
 
     # For download or other file types, stream the file
     # Use StreamingResponse to support both local and remote files (e.g., s3://)
-    def generate():
-        with storage.open(artifact_file_path, "rb") as f:
+    async def generate():
+        async with await storage.open(artifact_file_path, "rb") as f:
             while True:
-                chunk = f.read(8192)  # Read in 8KB chunks
+                chunk = await f.read(8192)  # Read in 8KB chunks
                 if not chunk:
                     break
                 yield chunk
@@ -1291,9 +1294,9 @@ async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
 
         if sweeps:
             output_file = job_data.get("sweep_output_file", None)
-            if output_file is not None and storage.exists(output_file):
-                with storage.open(output_file, "r") as f:
-                    output = f.read()
+            if output_file is not None and await storage.exists(output_file):
+                async with await storage.open(output_file, "r") as f:
+                    output = await f.read()
                 return output
             else:
                 # Fall back to regular output file logic
@@ -1304,9 +1307,9 @@ async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
             experiment_id = job["experiment_id"]
             output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_id)
 
-        if storage.exists(output_file_name):
-            with storage.open(output_file_name, "r") as f:
-                output = f.read()
+        if await storage.exists(output_file_name):
+            async with await storage.open(output_file_name, "r") as f:
+                output = await f.read()
             return output
         else:
             return "Output file not found"
@@ -1338,10 +1341,11 @@ async def sweep_results(job_id: str):
                 job_data = {}
 
         output_file = job_data.get("sweep_results_file", None)
-        if output_file and storage.exists(output_file):
+        if output_file and await storage.exists(output_file):
             try:
-                with storage.open(output_file, "r") as f:
-                    output = json.load(f)
+                async with await storage.open(output_file, "r") as f:
+                    content_str = await f.read()
+                    output = json.loads(content_str)
                 return {"status": "success", "data": output}
             except json.JSONDecodeError as e:
                 print(f"JSON decode error for job {job_id}: {e}")

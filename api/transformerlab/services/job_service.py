@@ -793,14 +793,14 @@ def job_mark_as_complete_if_running(job_id: int, experiment_id: int) -> None:
             pass
 
 
-def get_file_metadata(file_path: str, storage) -> Dict[str, any]:
+async def get_file_metadata(file_path: str, storage) -> Dict[str, any]:
     """
     Extract file metadata (size, modified time) from storage or filesystem.
     Returns dict with 'size' and 'mtime' keys, or empty values if unavailable.
     """
     try:
         # Try storage.ls with detail=True first (works for S3 and local)
-        file_info_list = storage.ls(file_path, detail=True)
+        file_info_list = await storage.ls(file_path, detail=True)
 
         # Handle dict response (some storage backends)
         if isinstance(file_info_list, dict):
@@ -825,14 +825,14 @@ def get_file_metadata(file_path: str, storage) -> Dict[str, any]:
     return {"size": None, "mtime": None}
 
 
-def format_artifact(file_path: str, storage) -> Optional[Dict[str, any]]:
+async def format_artifact(file_path: str, storage) -> Optional[Dict[str, any]]:
     """
     Format a single artifact file into the response structure.
     Returns None if the artifact can't be processed.
     """
     try:
         filename = file_path.split("/")[-1] if "/" in file_path else file_path
-        metadata = get_file_metadata(file_path, storage)
+        metadata = await get_file_metadata(file_path, storage)
 
         artifact = {"filename": filename, "full_path": file_path}
 
@@ -848,7 +848,7 @@ def format_artifact(file_path: str, storage) -> Optional[Dict[str, any]]:
         return None
 
 
-def get_artifacts_from_sdk(job_id: str, storage) -> Optional[List[Dict]]:
+async def get_artifacts_from_sdk(job_id: str, storage) -> Optional[List[Dict]]:
     """
     Get artifacts using the SDK method.
     Returns list of artifacts or None if SDK method fails.
@@ -864,7 +864,7 @@ def get_artifacts_from_sdk(job_id: str, storage) -> Optional[List[Dict]]:
 
         artifacts = []
         for artifact_path in artifact_paths:
-            artifact = format_artifact(artifact_path, storage)
+            artifact = await format_artifact(artifact_path, storage)
             if artifact:
                 artifacts.append(artifact)
 
@@ -874,23 +874,23 @@ def get_artifacts_from_sdk(job_id: str, storage) -> Optional[List[Dict]]:
         return None
 
 
-def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict]:
+async def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict]:
     """
     Get artifacts by listing files in the artifacts directory.
     Returns list of artifacts (empty if directory can't be read).
     """
-    if not artifacts_dir or not storage.exists(artifacts_dir):
+    if not artifacts_dir or not await storage.exists(artifacts_dir):
         return []
 
     artifacts = []
     try:
-        items = storage.ls(artifacts_dir, detail=False)
+        items = await storage.ls(artifacts_dir, detail=False)
 
         for item in items:
             file_path = item if isinstance(item, str) else str(item)
 
-            if storage.isfile(file_path):
-                artifact = format_artifact(file_path, storage)
+            if await storage.isfile(file_path):
+                artifact = await format_artifact(file_path, storage)
                 if artifact:
                     artifacts.append(artifact)
     except Exception as e:
@@ -899,18 +899,18 @@ def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict]:
     return artifacts
 
 
-def get_all_artifact_paths(job_id: str, storage) -> List[str]:
+async def get_all_artifact_paths(job_id: str, storage) -> List[str]:
     """
     Get all artifact file paths for a job.
     Uses get_artifacts_from_sdk and get_artifacts_from_directory to retrieve paths.
     """
     # 1. Try SDK method
-    sdk_artifacts = get_artifacts_from_sdk(job_id, storage)
+    sdk_artifacts = await get_artifacts_from_sdk(job_id, storage)
     if sdk_artifacts:
         return [a.get("full_path") for a in sdk_artifacts if a.get("full_path")]
 
     # 2. Fallback to artifacts directory
-    job = job_get(job_id)
+    job = await job_get(job_id)
     if job:
         job_data = job.get("job_data", {})
         artifacts_dir = job_data.get("artifacts_dir")
@@ -924,7 +924,7 @@ def get_all_artifact_paths(job_id: str, storage) -> List[str]:
                 pass
 
         if artifacts_dir:
-            dir_artifacts = get_artifacts_from_directory(artifacts_dir, storage)
+            dir_artifacts = await get_artifacts_from_directory(artifacts_dir, storage)
             if dir_artifacts:
                 return [a.get("full_path") for a in dir_artifacts if a.get("full_path")]
 

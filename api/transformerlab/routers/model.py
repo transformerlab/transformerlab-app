@@ -945,13 +945,13 @@ async def model_delete_peft(model_id: str, peft: str):
     secure_model_id = secure_filename(model_id)
     adaptors_dir = storage.join(workspace_dir, "adaptors", secure_model_id)
     # Check if the peft exists
-    if storage.exists(adaptors_dir):
+    if await storage.exists(adaptors_dir):
         peft_path = storage.join(adaptors_dir, peft)
     else:
         # Assume the adapter is stored in the older naming convention format
         peft_path = storage.join(workspace_dir, "adaptors", model_id, peft)
 
-    storage.rm_tree(peft_path)
+    await storage.rm_tree(peft_path)
 
     return {"message": "success"}
 

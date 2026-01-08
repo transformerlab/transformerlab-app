@@ -837,7 +837,7 @@ async def _launch_sweep_jobs(
                 # Get TFL_STORAGE_URI
                 tfl_storage_uri = None
                 try:
-                    storage_root = storage.root_uri()
+                    storage_root = await storage.root_uri()
                     if storage_root and any(
                         storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")
                     ):

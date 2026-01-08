@@ -227,8 +227,8 @@ async def migrate_workspace_to_org(team_id: str):
             pass
 
         # Recreate workspace directory (default sdk behaviour is to create this directory again when auth isnt done -- which will happen at startup)
-        if not storage.exists(old_workspace):
-            storage.makedirs(old_workspace, exist_ok=True)
+        if not await storage.exists(old_workspace):
+            await storage.makedirs(old_workspace, exist_ok=True)
 
         # Add a text file in the old workspace saying where the migration happened
         with open(os.path.join(old_workspace, "migration.txt"), "w") as f:
