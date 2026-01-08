@@ -1523,7 +1523,7 @@ async def check_sweep_status_all(
     Only updates status for running/launching jobs.
     """
     # Get all SWEEP jobs for this experiment
-    all_sweep_jobs = job_service.jobs_get_all(experiment_id=experiment_id, type="SWEEP", status="")
+    all_sweep_jobs = await job_service.jobs_get_all(experiment_id=experiment_id, type="SWEEP", status="")
 
     # Update status for each running/launching sweep job
     updated_jobs = []
