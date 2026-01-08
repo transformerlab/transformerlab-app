@@ -164,11 +164,23 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
         Team Secrets
       </Typography>
       <Typography level="body-sm" color="neutral" mb={2}>
-        Secrets are automatically injected into all launched tasks as environment
-        variables with the prefix <code>TLAB_SECRET_</code>. For example, a secret
-        named <code>API_KEY</code> will be available as{' '}
-        <code>TLAB_SECRET_API_KEY</code>.
+        Secrets can be referenced in task configurations using the syntax{' '}
+        <code>{'{{secret.<secret_name>}}'}</code>. The system will automatically
+        replace these placeholders with the actual secret values when launching tasks.
       </Typography>
+      <Alert color="primary" variant="soft" sx={{ mb: 2 }}>
+        <Typography level="body-sm">
+          <strong>Usage examples:</strong>
+          <br />
+          • In command: <code>python script.py --api-key {'{{secret.API_KEY}}'}</code>
+          <br />
+          • In setup: <code>export TOKEN={'{{secret.TOKEN}}'}</code>
+          <br />
+          • In env_vars: <code>{'{'} "API_KEY": "{'{{secret.API_KEY}}'}" {'}'}</code>
+          <br />
+          • In Python code: <code>lab.get_secret("API_KEY")</code>
+        </Typography>
+      </Alert>
 
       {error && (
         <Alert color="danger" sx={{ mb: 2 }}>

@@ -45,6 +45,7 @@ from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
     generate_github_clone_setup,
 )
+from transformerlab.shared.secret_utils import load_team_secrets, replace_secrets_in_dict, replace_secret_placeholders
 from typing import Any
 
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
@@ -232,7 +233,6 @@ async def get_usage_report(
     Aggregates usage data by user, provider, and resources.
     Only accessible to team owners.
     """
-    import json
     from datetime import datetime
     from lab import Experiment
 
@@ -1101,23 +1101,15 @@ async def launch_template_on_provider(
 
     provider_display_name = request.provider_name or provider.name
 
+    # Load team secrets for template replacement
+    team_secrets = load_team_secrets()
+
     # Prepare environment variables - start with a copy of requested env_vars
     env_vars = request.env_vars.copy() if request.env_vars else {}
 
-    # Load team secrets and add them as environment variables with TLAB_SECRET_ prefix
-    workspace_dir = get_workspace_dir()
-    secrets_path = storage.join(workspace_dir, "team_secrets.json")
-    try:
-        if storage.exists(secrets_path):
-            with storage.open(secrets_path, "r") as f:
-                team_secrets = json.load(f)
-                # Add each secret as TLAB_SECRET_<SECRETNAME>
-                for secret_name, secret_value in team_secrets.items():
-                    env_var_name = f"TLAB_SECRET_{secret_name}"
-                    env_vars[env_var_name] = secret_value
-    except Exception as e:
-        # Log error but don't fail task launch if secrets can't be loaded
-        print(f"Warning: Failed to load team secrets: {e}")
+    # Replace {{secret.<name>}} patterns in env_vars
+    if env_vars and team_secrets:
+        env_vars = replace_secrets_in_dict(env_vars, team_secrets)
 
     # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
     aws_profile = "transformerlab-s3"
@@ -1143,9 +1135,10 @@ async def launch_template_on_provider(
         )
         setup_commands.append(github_setup)
 
-    # Add user-provided setup if any
+    # Add user-provided setup if any (replace secrets in setup)
     if request.setup:
-        setup_commands.append(request.setup)
+        setup_with_secrets = replace_secret_placeholders(request.setup, team_secrets) if team_secrets else request.setup
+        setup_commands.append(setup_with_secrets)
 
     final_setup = ";".join(setup_commands) if setup_commands else None
 
@@ -1170,9 +1163,21 @@ async def launch_template_on_provider(
         # env_vars["AWS_ACCESS_KEY_ID"] = aws_access_key_id
         # env_vars["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
 
+    # Replace secrets in command
+    command_with_secrets = (
+        replace_secret_placeholders(request.command, team_secrets) if team_secrets else request.command
+    )
+
+    # Replace secrets in parameters if present
+    parameters_with_secrets = None
+    if request.parameters and team_secrets:
+        parameters_with_secrets = replace_secrets_in_dict(request.parameters, team_secrets)
+    else:
+        parameters_with_secrets = request.parameters
+
     job_data = {
         "task_name": request.task_name,
-        "command": request.command,
+        "command": command_with_secrets,
         "cluster_name": formatted_cluster_name,
         "subtype": request.subtype,
         "interactive_type": request.interactive_type,
@@ -1184,7 +1189,7 @@ async def launch_template_on_provider(
         "setup": final_setup,
         "env_vars": env_vars if env_vars else None,
         "file_mounts": request.file_mounts or None,
-        "parameters": request.parameters or None,
+        "parameters": parameters_with_secrets or None,
         "provider_id": provider.id,
         "provider_type": provider.type,
         "provider_name": provider_display_name,
@@ -1208,7 +1213,7 @@ async def launch_template_on_provider(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
         provider_id=provider.id,
-        command=request.command,
+        command=command_with_secrets,
         setup=final_setup,
         env_vars=env_vars,
         cpus=request.cpus,

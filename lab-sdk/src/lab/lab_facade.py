@@ -122,6 +122,46 @@ class Lab:
 
         return {}
 
+    def get_secret(self, secret_name: str) -> Optional[str]:
+        """
+        Get a team secret by name.
+
+        This method reads team secrets from the workspace/team_secrets.json file.
+        Secrets are stored per-team and can be configured in Team Settings.
+
+        Args:
+            secret_name: Name of the secret to retrieve
+
+        Returns:
+            The secret value as a string, or None if the secret doesn't exist or can't be loaded.
+
+        Example:
+            from lab import lab
+
+            lab.init(experiment_id="alpha")
+            api_key = lab.get_secret("API_KEY")
+            if api_key:
+                # do cool stuff with the API key
+                pass
+        """
+        import json
+        from . import storage
+        from .dirs import get_workspace_dir
+
+        try:
+            workspace_dir = get_workspace_dir()
+            secrets_path = storage.join(workspace_dir, "team_secrets.json")
+
+            if not storage.exists(secrets_path):
+                return None
+
+            with storage.open(secrets_path, "r") as f:
+                secrets = json.load(f)
+                return secrets.get(secret_name)
+        except Exception as e:
+            print(f"Warning: Failed to load team secret '{secret_name}': {e}")
+            return None
+
     # ------------- convenience logging -------------
     def log(self, message: str) -> None:
         self._ensure_initialized()
