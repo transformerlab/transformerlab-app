@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from transformerlab.utils.api_key_utils import mask_key
@@ -1029,9 +1029,12 @@ async def delete_team_logo(
 async def get_team_secrets(
     team_id: str,
     user_and_team=Depends(get_user_and_team),
+    include_values: bool = Query(False, description="Include actual secret values (only for team owners)"),
 ):
     """
-    Get team secrets. Only team members can view (but values will be masked for security).
+    Get team secrets. 
+    - Team members can view secret keys only (values are masked).
+    - Team owners can view actual values by setting include_values=true.
     """
     # Verify team_id matches the one in header
     if team_id != user_and_team["team_id"]:
@@ -1047,14 +1050,23 @@ async def get_team_secrets(
         with storage.open(secrets_path, "r") as f:
             secrets = json.load(f)
 
-        # Mask all secret values for security
-        masked_secrets = {key: "***" for key in secrets.keys()}
-
-        return {
-            "status": "success",
-            "secrets": masked_secrets,
-            "secret_keys": list(secrets.keys()),
-        }
+        # Check if user is team owner and requested values
+        is_owner = user_and_team.get("role") == TeamRole.OWNER.value
+        if include_values and is_owner:
+            # Return actual values for team owners
+            return {
+                "status": "success",
+                "secrets": secrets,
+                "secret_keys": list(secrets.keys()),
+            }
+        else:
+            # Mask all secret values for security
+            masked_secrets = {key: "***" for key in secrets.keys()}
+            return {
+                "status": "success",
+                "secrets": masked_secrets,
+                "secret_keys": list(secrets.keys()),
+            }
     except Exception as e:
         print(f"Error reading team secrets: {e}")
         raise HTTPException(status_code=500, detail="Failed to read team secrets")
