@@ -4,6 +4,9 @@ from werkzeug.utils import secure_filename
 from .dirs import get_tasks_dir
 from .labresource import BaseLabResource
 from . import storage
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Task(BaseLabResource):
@@ -99,12 +102,12 @@ class Task(BaseLabResource):
         results = []
         tasks_dir = get_tasks_dir()
         if not storage.isdir(tasks_dir):
-            print(f"Tasks directory does not exist: {tasks_dir}")
+            logger.debug(f"Tasks directory does not exist: {tasks_dir}")
             return results
         try:
             entries = storage.ls(tasks_dir, detail=False)
         except Exception as e:
-            print(f"Exception listing tasks directory: {e}")
+            logger.error(f"Exception listing tasks directory: {e}")
             entries = []
         for full in entries:
             if not storage.isdir(full):
@@ -116,7 +119,7 @@ class Task(BaseLabResource):
 
                 results.append(task.get_metadata())
             except Exception:
-                print(f"Exception getting metadata for task: {entry}")
+                logger.error(f"Exception getting metadata for task: {entry}")
                 continue
         # Sort by created_at descending to match database behavior
         results.sort(key=lambda x: x.get("created_at", ""), reverse=True)

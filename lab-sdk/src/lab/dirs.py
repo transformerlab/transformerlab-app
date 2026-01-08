@@ -5,14 +5,18 @@ import contextvars
 from werkzeug.utils import secure_filename
 from . import storage
 from .storage import _current_tfl_storage_uri, REMOTE_WORKSPACE_HOST
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 # TFL_HOME_DIR
 if "TFL_HOME_DIR" in os.environ and not (_current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")):
     HOME_DIR = os.environ["TFL_HOME_DIR"]
     if not os.path.exists(HOME_DIR):
-        print(f"Error: Home directory {HOME_DIR} does not exist")
+        logger.error(f"Error: Home directory {HOME_DIR} does not exist")
         exit(1)
-    print(f"Home directory is set to: {HOME_DIR}")
+    logger.info("Home directory is set to: %s", HOME_DIR)
 else:
     # If TFL_STORAGE_URI is set (via context or env), HOME_DIR concept maps to storage.root_uri()
     HOME_DIR = (
@@ -22,7 +26,7 @@ else:
     )
     if not (_current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")):
         os.makedirs(name=HOME_DIR, exist_ok=True)
-        print(f"Using default home directory: {HOME_DIR}")
+        logger.info(f"Using default home directory: {HOME_DIR}")
 
 # Context var for organization id (set by host app/session)
 _current_org_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("current_org_id", default=None)
@@ -60,7 +64,7 @@ def get_workspace_dir() -> str:
     ):
         value = os.environ["TFL_WORKSPACE_DIR"]
         if not os.path.exists(value):
-            print(f"Error: Workspace directory {value} does not exist")
+            logger.error(f"Error: Workspace directory {value} does not exist")
             exit(1)
         return value
 
