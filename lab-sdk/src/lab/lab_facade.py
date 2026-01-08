@@ -159,7 +159,7 @@ class Lab:
                 secrets = json.load(f)
                 return secrets.get(secret_name)
         except Exception as e:
-            print(f"Warning: Failed to load team secret '{secret_name}': {e}")
+            print(f"Warning: Failed to load team secret: {e}")
             return None
 
     # ------------- convenience logging -------------
