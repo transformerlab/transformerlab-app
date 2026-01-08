@@ -1032,7 +1032,7 @@ async def get_team_secrets(
     include_values: bool = Query(False, description="Include actual secret values (only for team owners)"),
 ):
     """
-    Get team secrets. 
+    Get team secrets.
     - Team members can view secret keys only (values are masked).
     - Team owners can view actual values by setting include_values=true.
     """

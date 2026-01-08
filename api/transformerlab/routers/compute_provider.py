@@ -27,8 +27,7 @@ from transformerlab.schemas.compute_providers import (
     ProviderTemplateLaunchRequest,
     ProviderTemplateFileUploadResponse,
 )
-from transformerlab.shared.models.models import ProviderType, TeamComputeProvider
-from transformerlab.compute_providers.base import ComputeProvider
+from transformerlab.shared.models.models import ProviderType
 from transformerlab.compute_providers.models import (
     ClusterConfig,
     ClusterStatus,
