@@ -87,7 +87,7 @@ async def task_get_all():
 
 @router.get("/{task_id}/get", summary="Gets all the data for a single task")
 async def task_get_by_id(task_id: str):
-    task = task_service.task_get_by_id(task_id)
+    task = await task_service.task_get_by_id(task_id)
     if task is None:
         return {"message": "NOT FOUND"}
     return task
@@ -95,7 +95,7 @@ async def task_get_by_id(task_id: str):
 
 @router.get("/list_by_type", summary="Returns all the tasks of a certain type, e.g TRAIN")
 async def task_get_by_type(type: str):
-    tasks = task_service.task_get_by_type(type)
+    tasks = await task_service.task_get_by_type(type)
     return tasks
 
 
@@ -104,7 +104,7 @@ async def task_get_by_type(type: str):
     summary="Returns all the tasks of a certain type in a certain experiment, e.g TRAIN",
 )
 async def task_get_by_type_in_experiment(experimentId: str, type: str):
-    tasks = task_service.task_get_by_type_in_experiment(type, experimentId)
+    tasks = await task_service.task_get_by_type_in_experiment(type, experimentId)
     return tasks
 
 
@@ -117,7 +117,7 @@ async def task_get_by_subtype_in_experiment(
     subtype: str,
     type: Optional[str] = Query(None, description="Optional task type filter (e.g., REMOTE)"),
 ):
-    tasks = task_service.task_get_by_subtype_in_experiment(experimentId, subtype, type)
+    tasks = await task_service.task_get_by_subtype_in_experiment(experimentId, subtype, type)
     return tasks
 
 
@@ -126,7 +126,7 @@ async def update_task(task_id: str, new_task: dict = Body()):
     # Perform secure_filename before updating the task
     if "name" in new_task:
         new_task["name"] = secure_filename(new_task["name"])
-    success = task_service.update_task(task_id, new_task)
+    success = await task_service.update_task(task_id, new_task)
     if success:
         return {"message": "OK"}
     else:
@@ -135,7 +135,7 @@ async def update_task(task_id: str, new_task: dict = Body()):
 
 @router.get("/{task_id}/delete", summary="Deletes a task")
 async def delete_task(task_id: str):
-    success = task_service.delete_task(task_id)
+    success = await task_service.delete_task(task_id)
     if success:
         return {"message": "OK"}
     else:
@@ -441,14 +441,14 @@ async def add_task(
                     new_task["name"] = secure_filename(new_task["name"])
 
                 # All fields are stored directly in the JSON (not nested in inputs/outputs/config)
-                task_id = task_service.add_task(new_task)
+                task_id = await task_service.add_task(new_task)
 
                 # Handle zip file if provided (for JSON requests, zip_file would come from multipart)
                 if zip_file and zip_file.filename:
                     try:
                         zip_path = await _store_zip_file(zip_file, task_id)
                         # Update task with file_mounts - map ~/src to the stored zip file
-                        task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
+                        await task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
                     except Exception as e:
                         # Log error but don't fail task creation
                         print(f"Warning: Failed to process zip file: {e}")
@@ -470,14 +470,14 @@ async def add_task(
                 # Handle provider matching
                 await _resolve_provider(task_data, user_and_team, session)
 
-                task_id = task_service.add_task(task_data)
+                task_id = await .add_task(task_data)
 
                 # Handle zip file if provided
                 if zip_file and zip_file.filename:
                     try:
                         zip_path = await _store_zip_file(zip_file, task_id)
                         # Update task with file_mounts - map ~/src to the stored zip file
-                        task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
+                        await task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
                     except Exception as e:
                         # Log error but don't fail task creation
                         print(f"Warning: Failed to process zip file: {e}")
@@ -503,14 +503,14 @@ async def add_task(
             if "name" in task_data:
                 task_data["name"] = secure_filename(task_data["name"])
 
-            task_id = task_service.add_task(task_data)
+            task_id = await task_service.add_task(task_data)
 
             # Handle zip file if provided
             if zip_file and zip_file.filename:
                 try:
                     zip_path = await _store_zip_file(zip_file, task_id)
                     # Update task with file_mounts - map ~/src to the stored zip file
-                    task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
+                    await task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
                 except Exception as e:
                     # Log error but don't fail task creation
                     print(f"Warning: Failed to process zip file: {e}")
@@ -525,7 +525,7 @@ async def add_task(
 
 @router.get("/delete_all", summary="Wipe all tasks")
 async def task_delete_all():
-    task_service.task_delete_all()
+    await task_service.task_delete_all()
     return {"message": "OK"}
 
 
@@ -633,7 +633,7 @@ async def import_task_from_gallery(
     # Perform secure_filename before adding the task
     new_task["name"] = secure_filename(new_task["name"])
 
-    task_service.add_task(new_task)
+    await task_service.add_task(new_task)
 
     return {"status": "success", "message": f"Task '{task_name}' imported successfully"}
 
@@ -730,7 +730,7 @@ async def import_task_from_team_gallery(
     # Perform secure_filename before adding the task
     new_task["name"] = secure_filename(new_task["name"])
 
-    task_service.add_task(new_task)
+    await task_service.add_task(new_task)
 
     return {"status": "success", "message": f"Task '{task_name}' imported successfully"}
 
@@ -744,7 +744,7 @@ async def export_task_to_team_gallery(
     Export a task into the team-specific gallery stored in workspace_dir.
     Tasks store all fields directly (not nested in config).
     """
-    task = task_service.task_get_by_id(request.task_id)
+    task = await task_service.task_get_by_id(request.task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
