@@ -484,7 +484,7 @@ class Lab:
             else:
                 storage.copy_file(src, dest)
 
-            # Initialize model service for metadata and provenance creation
+            # Initialize model service for metadata creation
             model_service = ModelService(base_name)
 
             # Create Model metadata so it appears in Model Zoo
@@ -520,45 +520,6 @@ class Lab:
                 self.log(f"Model saved to Model Zoo as '{base_name}'")
             except Exception as e:
                 self.log(f"Warning: Model saved but metadata creation failed: {str(e)}")
-                # Try to detect architecture for provenance even if metadata creation failed
-                if architecture is None:
-                    try:
-                        architecture = model_service.detect_architecture(dest)
-                    except Exception:
-                        pass
-
-            # Create provenance data
-            try:
-                # Create MD5 checksums for all model files
-                md5_objects = model_service.create_md5_checksums(dest)
-
-                # Prepare provenance metadata from job data
-                job_data = self._job.get_job_data()
-
-                provenance_metadata = {
-                    "job_id": job_id,
-                    "model_name": parent_model or job_data.get("model_name"),
-                    "model_architecture": architecture,
-                    "input_model": parent_model,
-                    "dataset": job_data.get("dataset"),
-                    "adaptor_name": job_data.get("adaptor_name", None),
-                    "parameters": job_data.get("_config", {}),
-                    "start_time": job_data.get("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())),
-                    "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                    "md5_checksums": md5_objects,
-                }
-
-                # Create the _tlab_provenance.json file
-                provenance_file = model_service.create_provenance_file(
-                    model_path=dest,
-                    model_name=base_name,
-                    model_architecture=architecture,
-                    md5_objects=md5_objects,
-                    provenance_data=provenance_metadata,
-                )
-                self.log(f"Provenance file created at: {provenance_file}")
-            except Exception as e:
-                self.log(f"Warning: Model saved but provenance creation failed: {str(e)}")
 
             # Track in job_data
             try:
@@ -833,7 +794,7 @@ class Lab:
                          detect from config.json for directory-based models.
             pipeline_tag: Optional pipeline tag. If not provided and parent_model is given,
                          will attempt to fetch from parent model on HuggingFace.
-            parent_model: Optional parent model name/ID for provenance tracking.
+            parent_model: Optional parent model name/ID.
 
         Returns:
             The destination path on disk.
