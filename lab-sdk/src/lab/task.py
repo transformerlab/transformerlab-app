@@ -119,8 +119,23 @@ class Task(BaseLabResource):
             except Exception:
                 print(f"Exception getting metadata for task: {entry}")
                 continue
+
         # Sort by created_at descending to match database behavior
-        results.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        def sort_key(x):
+            created_at = x.get("created_at")
+            if created_at is None:
+                # Put items without created_at at the end (will sort last when reverse=True)
+                return ""
+            # Handle datetime objects
+            if isinstance(created_at, datetime):
+                return created_at.timestamp()
+            # Handle numeric timestamps
+            if isinstance(created_at, (int, float)):
+                return created_at
+            # Handle string dates (ISO format strings sort correctly)
+            return str(created_at)
+
+        results.sort(key=sort_key, reverse=True)
         return results
 
     @staticmethod
