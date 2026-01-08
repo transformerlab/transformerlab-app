@@ -27,14 +27,16 @@ def test_download_all_artifacts_endpoint():
 
     mock_zip_buffer = io.BytesIO(b"fake zip content")
 
-    async def mock_create_zip(file_paths, storage):
-        return mock_zip_buffer
+    # Track calls to create_zip
+    create_zip_calls = []
 
-    mock_create_zip_func = mock_create_zip
+    async def mock_create_zip(file_paths, storage):
+        create_zip_calls.append((file_paths, storage))
+        return mock_zip_buffer
 
     with (
         patch("transformerlab.routers.experiment.jobs.job_service", mock_job_service),
-        patch("transformerlab.routers.experiment.jobs.zip_utils.create_zip_from_storage", mock_create_zip_func),
+        patch("transformerlab.routers.experiment.jobs.zip_utils.create_zip_from_storage", mock_create_zip),
         patch("transformerlab.routers.experiment.jobs.storage", Mock()),
     ):
         from transformerlab.routers.experiment.jobs import download_all_artifacts
@@ -50,16 +52,15 @@ def test_download_all_artifacts_endpoint():
         assert "Content-Disposition" in response.headers
         assert response.headers["Content-Disposition"].startswith("attachment; filename=")
 
-        # Verify the async function was called (can't use assert_called_once on async functions easily)
-        assert mock_job_service.get_all_artifact_paths is not None
-        # Note: Can't easily assert async function calls, but if we got here, it worked
+        # Verify the async function was called
+        assert len(create_zip_calls) == 1
 
         # Test 2: No artifacts found
         async def mock_get_all_artifact_paths_empty(job_id, storage):
             return []
 
         mock_job_service.get_all_artifact_paths = mock_get_all_artifact_paths_empty
-        mock_create_zip.reset_mock()
+        create_zip_calls.clear()  # Reset call tracking
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -67,7 +68,7 @@ def test_download_all_artifacts_endpoint():
         loop.close()
 
         assert response_empty.status_code == 404
-        mock_create_zip.assert_not_called()
+        assert len(create_zip_calls) == 0  # Should not have been called
 
 
 def test_s3_artifacts_lose_metadata_due_to_os_stat_bug():
