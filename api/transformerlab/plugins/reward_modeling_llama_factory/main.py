@@ -13,6 +13,7 @@ import time
 import json
 import yaml
 import re
+import asyncio
 
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import get_python_executable
@@ -25,7 +26,7 @@ plugin_dir = os.path.dirname(os.path.realpath(__file__))
 print("Plugin dir:", plugin_dir)
 
 # Directory for storing temporary working files
-workspace_dir = get_workspace_dir()
+workspace_dir = asyncio.run(get_workspace_dir())
 data_directory = storage.join(workspace_dir, "temp", "llama_factory_reward", "data")
 if not storage.exists(data_directory):
     storage.makedirs(data_directory)

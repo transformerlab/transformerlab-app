@@ -5,22 +5,22 @@ from lab import dirs as lab_dirs
 from lab import storage
 
 
-def experiment_get_all():
+async def experiment_get_all():
     experiments = []
-    experiments_dir = lab_dirs.get_experiments_dir()
-    if storage.exists(experiments_dir):
+    experiments_dir = await lab_dirs.get_experiments_dir()
+    if await storage.exists(experiments_dir):
         try:
-            exp_dirs = storage.ls(experiments_dir, detail=False)
+            exp_dirs = await storage.ls(experiments_dir, detail=False)
             # Sort the directories
             exp_dirs = sorted(exp_dirs)
             for exp_path in exp_dirs:
                 # Skip if this is the experiments directory itself (shouldn't happen but safety check)
                 if exp_path.rstrip("/") == experiments_dir.rstrip("/"):
                     continue
-                if storage.isdir(exp_path):
+                if await storage.isdir(exp_path):
                     # Check if this directory is actually a valid experiment by checking for index.json
                     index_file = storage.join(exp_path, "index.json")
-                    if not storage.exists(index_file):
+                    if not await storage.exists(index_file):
                         # Skip directories that don't have index.json (not valid experiments)
                         continue
                     # Extract the directory name from the path
@@ -28,7 +28,7 @@ def experiment_get_all():
                     # Skip if the extracted name is the experiments directory itself (shouldn't happen but safety check)
                     if exp_dir == "experiments":
                         continue
-                    exp_dict = experiment_get(exp_dir)
+                    exp_dict = await experiment_get(exp_dir)
                     if exp_dict:
                         experiments.append(exp_dict)
         except Exception:
@@ -36,15 +36,15 @@ def experiment_get_all():
     return experiments
 
 
-def experiment_create(name: str, config: dict) -> str:
-    Experiment.create_with_config(name, config)
+async def experiment_create(name: str, config: dict) -> str:
+    await Experiment.create_with_config(name, config)
     return name
 
 
-def experiment_get(id):
+async def experiment_get(id):
     try:
-        exp = Experiment.get(id)
-        data = exp.get_json_data()
+        exp = await Experiment.get(id)
+        data = await exp.get_json_data()
         # Parse config field from JSON string to dict if needed
         config = data.get("config", {})
         if isinstance(config, str):
@@ -61,50 +61,50 @@ def experiment_get(id):
         return None
 
 
-def experiment_delete(id):
+async def experiment_delete(id):
     try:
-        exp = Experiment.get(id)
-        exp.delete()
+        exp = await Experiment.get(id)
+        await exp.delete()
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
         print(f"Error deleting experiment {id}: {e}")
 
 
-def experiment_update(id, config):
+async def experiment_update(id, config):
     try:
-        exp = Experiment.get(id)
-        exp.update_config(config)
+        exp = await Experiment.get(id)
+        await exp.update_config(config)
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
         print(f"Error updating experiment {id}: {e}")
 
 
-def experiment_update_config(id, key, value):
+async def experiment_update_config(id, key, value):
     try:
-        exp = Experiment.get(id)
-        exp.update_config_field(key, value)
+        exp = await Experiment.get(id)
+        await exp.update_config_field(key, value)
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
         print(f"Error updating experiment config key {key}: {e}")
 
 
-def experiment_save_prompt_template(id, template):
+async def experiment_save_prompt_template(id, template):
     try:
-        exp_obj = Experiment.get(id)
-        exp_obj.update_config_field("prompt_template", template)
+        exp_obj = await Experiment.get(id)
+        await exp_obj.update_config_field("prompt_template", template)
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
         print(f"Error saving prompt template: {e}")
 
 
-def experiment_update_configs(id, updates: dict):
+async def experiment_update_configs(id, updates: dict):
     try:
-        exp_obj = Experiment.get(id)
-        exp_obj.update_config(updates)
+        exp_obj = await Experiment.get(id)
+        await exp_obj.update_config(updates)
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
     except Exception as e:

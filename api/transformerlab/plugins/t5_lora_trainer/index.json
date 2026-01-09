@@ -4,7 +4,7 @@
   "description": "A training script adapted from https://www.philschmid.de/fine-tune-flan-t5-peft . Works with T5 models using transformers.Se2SecTrainer.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "model_architectures": ["T5ForConditionalGeneration"],
   "supported_hardware_architectures": ["cuda", "amd"],
   "git": "",

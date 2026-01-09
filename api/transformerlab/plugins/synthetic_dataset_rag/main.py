@@ -2,6 +2,7 @@ import os
 import random
 from typing import List
 import pandas as pd
+import asyncio
 
 import fitz
 from langchain.docstore.document import Document as LangchainDocument
@@ -33,7 +34,7 @@ def get_docs_list(docs: str) -> List[dict]:
     Supports text files, PDFs, and other document formats
     """
     docs_list = docs.split(",")
-    workspace_dir = get_workspace_dir()
+    workspace_dir = asyncio.run(get_workspace_dir())
 
     documents_dir = storage.join(workspace_dir, "experiments", tlab_gen.params.experiment_name, "documents")
     # Use the markdown files if they exist

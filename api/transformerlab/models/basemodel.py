@@ -99,10 +99,10 @@ class BaseModel:
         from lab.model import Model as ModelService
 
         try:
-            model_service = ModelService.create(self.id)
+            model_service = await ModelService.create(self.id)
         except FileExistsError:
-            model_service = ModelService.get(self.id)
-        model_service.set_metadata(model_id=self.id, name=self.name, json_data=json_data)
+            model_service = await ModelService.get(self.id)
+        await model_service.set_metadata(model_id=self.id, name=self.name, json_data=json_data)
 
 
 # MODEL UTILITY FUNCTIONS

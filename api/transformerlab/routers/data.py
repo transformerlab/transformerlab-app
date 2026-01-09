@@ -35,10 +35,10 @@ jinja_environment = Environment()
 sandboxed_jinja2_environment = SandboxedEnvironment()
 
 
-def log(msg):
-    global_log_path = get_global_log_path()
-    with storage.open(global_log_path, "a") as f:
-        f.write(msg + "\n")
+async def log(msg):
+    global_log_path = await get_global_log_path()
+    async with await storage.open(global_log_path, "a") as f:
+        await f.write(msg + "\n")
 
 
 router = APIRouter(prefix="/data", tags=["datasets"])
@@ -68,10 +68,10 @@ class ErrorResponse(BaseModel):
     },
 )
 async def dataset_gallery() -> Any:
-    gallery = galleries.get_data_gallery()
+    gallery = await galleries.get_data_gallery()
     # list datasets from filesystem store
     try:
-        local_datasets = dataset_service.list_all()
+        local_datasets = await dataset_service.list_all()
     except Exception:
         local_datasets = []
 
@@ -85,7 +85,8 @@ async def dataset_gallery() -> Any:
 async def dataset_info(dataset_id: str):
     # Read from filesystem store
     try:
-        d = dataset_service.get(dataset_id).get_metadata()
+        d_obj = await dataset_service.get(dataset_id)
+        d = await d_obj.get_metadata()
     except FileNotFoundError:
         d = None
     if d is None:
@@ -94,7 +95,8 @@ async def dataset_info(dataset_id: str):
     # This means it is a custom dataset the user uploaded
     if d.get("location") == "local":
         try:
-            dataset = dataset_service_module.load_local_dataset(dirs.dataset_dir_by_id(dataset_id))
+            dataset_dir = await dirs.dataset_dir_by_id(dataset_id)
+            dataset = await dataset_service_module.load_local_dataset(dataset_dir)
         except EmptyDatasetError:
             return {"status": "error", "message": "The dataset is empty."}
         split = list(dataset.keys())[0]
@@ -162,7 +164,8 @@ async def dataset_preview(
 ) -> Any:
     # Read from filesystem store
     try:
-        d = dataset_service.get(dataset_id).get_metadata()
+        d_obj = await dataset_service.get(dataset_id)
+        d = await d_obj.get_metadata()
     except FileNotFoundError:
         d = None
     dataset_len = 0
@@ -170,7 +173,8 @@ async def dataset_preview(
 
     try:
         if d.get("location") == "local":
-            dataset = dataset_service_module.load_local_dataset(dirs.dataset_dir_by_id(dataset_id), streaming=streaming)
+            dataset_dir = await dirs.dataset_dir_by_id(dataset_id)
+            dataset = await dataset_service_module.load_local_dataset(dataset_dir, streaming=streaming)
         else:
             dataset_config = (d.get("json_data") or {}).get("dataset_config", None)
             config_name = (d.get("json_data") or {}).get("config_name", None)
@@ -313,7 +317,8 @@ def convert_audio_array_to_wav(array, sampling_rate):
 
 async def load_and_slice_dataset(dataset_id: str, offset: int, limit: int):
     try:
-        d = dataset_service.get(dataset_id).get_metadata()
+        d_obj = await dataset_service.get(dataset_id)
+        d = await d_obj.get_metadata()
     except FileNotFoundError:
         d = None
     dataset_len = 0
@@ -321,7 +326,8 @@ async def load_and_slice_dataset(dataset_id: str, offset: int, limit: int):
     # This means it is a custom dataset the user uploaded
     if d and d.get("location") == "local":
         try:
-            dataset = dataset_service_module.load_local_dataset(dirs.dataset_dir_by_id(dataset_id))
+            dataset_dir = await dirs.dataset_dir_by_id(dataset_id)
+            dataset = await dataset_service_module.load_local_dataset(dataset_dir)
         except Exception as e:
             print(f"Error loading dataset: {type(e).__name__}: {e}")
             return {"status": "error", "message": "An internal error has occurred."}
@@ -453,30 +459,33 @@ async def dataset_edit_with_template(
     offset: int = Query(0, ge=0, description="Starting index"),
     limit: int = Query(10, ge=1, le=1000, description="Max items to fetch"),
 ):
-    dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
-    if not storage.exists(dataset_dir):
+    dataset_dir = await dirs.dataset_dir_by_id(slugify(dataset_id))
+    if not await storage.exists(dataset_dir):
         return {"status": "error", "message": "Dataset directory not found"}
 
     rows = []
     index = 0
 
-    for root, _, files in storage.walk(dataset_dir):
+    async for root, _, files in storage.walk(dataset_dir):
         for file in files:
             if file.lower().endswith((".json", ".jsonl", ".csv")):
                 # Convert root to string for storage.open
                 metadata_path = storage.join(root, file)
                 try:
                     if file.endswith(".jsonl"):
-                        with storage.open(metadata_path, "r", encoding="utf-8") as f:
-                            data = [json.loads(line) for line in f]
+                        async with await storage.open(metadata_path, "r", encoding="utf-8") as f:
+                            content = await f.read()
+                            data = [json.loads(line) for line in content.splitlines()]
                     elif file.endswith(".json"):
-                        with storage.open(metadata_path, "r", encoding="utf-8") as f:
-                            data = json.load(f)
+                        async with await storage.open(metadata_path, "r", encoding="utf-8") as f:
+                            content = await f.read()
+                            data = json.loads(content)
                             if isinstance(data, dict):
                                 data = [data]
                     elif file.endswith(".csv"):
-                        with storage.open(metadata_path, "r", encoding="utf-8") as f:
-                            reader = csv.DictReader(f)
+                        async with await storage.open(metadata_path, "r", encoding="utf-8") as f:
+                            content = await f.read()
+                            reader = csv.DictReader(content.splitlines())
                             data = [row for row in reader]
                     else:
                         continue
@@ -504,15 +513,15 @@ async def dataset_edit_with_template(
                         continue
 
                     # Use storage.exists for check, but PIL.open for actual image reading
-                    if not storage.exists(image_path):
-                        log(f"Image not found: {image_path}")
+                    if not await storage.exists(image_path):
+                        await log(f"Image not found: {image_path}")
                         continue
 
                     try:
                         # For PIL, we need a local file, not a storage URI
                         # Download to temp if needed or use PIL directly with storage
-                        with storage.open(image_path, "rb") as f:
-                            img_bytes = f.read()
+                        async with await storage.open(image_path, "rb") as f:
+                            img_bytes = await f.read()
                         img = PILImage.open(BytesIO(img_bytes))
                         buffer = BytesIO()
                         img.save(buffer, format="JPEG")
@@ -563,17 +572,17 @@ async def dataset_edit_with_template(
     summary="Save edited metadata and create a new dataset with reorganized files and updated metadata.",
 )
 async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
-    old_dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
-    if not storage.exists(old_dataset_dir):
+    old_dataset_dir = await dirs.dataset_dir_by_id(slugify(dataset_id))
+    if not await storage.exists(old_dataset_dir):
         return {"status": "error", "message": "Source dataset not found"}
 
     new_dataset_id = slugify(new_dataset_id)
-    new_dataset_dir = dirs.dataset_dir_by_id(new_dataset_id)
+    new_dataset_dir = await dirs.dataset_dir_by_id(new_dataset_id)
 
-    if storage.exists(new_dataset_dir):
+    if await storage.exists(new_dataset_dir):
         return {"status": "error", "message": "New dataset already exists"}
 
-    storage.makedirs(new_dataset_dir, exist_ok=True)
+    await storage.makedirs(new_dataset_dir, exist_ok=True)
 
     # Read updates
     updates_raw = await file.read()
@@ -585,22 +594,25 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
 
     # Scan source metadata
     source_map = {}
-    for root, _, files in storage.walk(old_dataset_dir):
+    async for root, _, files in storage.walk(old_dataset_dir):
         for f in files:
             if f.lower().endswith((".json", ".jsonl", ".csv")):
                 metadata_path = storage.join(root, f)
                 try:
                     if f.endswith(".jsonl"):
-                        with storage.open(metadata_path, "r", encoding="utf-8") as meta_file:
-                            data = [json.loads(line) for line in meta_file]
+                        async with await storage.open(metadata_path, "r", encoding="utf-8") as meta_file:
+                            content = await meta_file.read()
+                            data = [json.loads(line) for line in content.splitlines()]
                     elif f.endswith(".json"):
-                        with storage.open(metadata_path, "r", encoding="utf-8") as meta_file:
-                            data = json.load(meta_file)
+                        async with await storage.open(metadata_path, "r", encoding="utf-8") as meta_file:
+                            content = await meta_file.read()
+                            data = json.loads(content)
                             if isinstance(data, dict):
                                 data = [data]
                     elif f.endswith(".csv"):
-                        with storage.open(metadata_path, "r", encoding="utf-8") as meta_file:
-                            reader = csv.DictReader(meta_file)
+                        async with await storage.open(metadata_path, "r", encoding="utf-8") as meta_file:
+                            content = await meta_file.read()
+                            reader = csv.DictReader(content.splitlines())
                             data = [row for row in reader]
                     else:
                         continue
@@ -639,25 +651,25 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
 
         source_info = source_map.get(file_name)
         if not source_info:
-            log(f"Warning: Source info not found for {file_name}, skipping")
+            await log(f"Warning: Source info not found for {file_name}, skipping")
             continue
 
         source_path = storage.join(source_info["metadata_root"], file_name)
-        if not storage.exists(source_path):
-            log(f"Warning: Source image file not found {source_path}, skipping")
+        if not await storage.exists(source_path):
+            await log(f"Warning: Source image file not found {source_path}, skipping")
             continue
 
         if final_label == "":
             dest_folder = storage.join(new_dataset_dir, final_split)
         else:
             dest_folder = storage.join(new_dataset_dir, final_split, final_label)
-        storage.makedirs(dest_folder, exist_ok=True)
+        await storage.makedirs(dest_folder, exist_ok=True)
         # Get just the filename for dest
         file_basename = Path(file_name).name
         dest_path = storage.join(dest_folder, file_basename)
 
         try:
-            storage.copy_file(source_path, dest_path)
+            await storage.copy_file(source_path, dest_path)
         except Exception as e:
             print(f"Failed to copy {source_path} to {dest_path}: {e}")
             return {"status": "error", "message": "Failed to copy from source to destination"}
@@ -681,10 +693,10 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
         folder = storage.join(new_dataset_dir, split, label)
         metadata_file = storage.join(folder, "metadata.jsonl")
         try:
-            with storage.open(metadata_file, "w", encoding="utf-8") as f:
+            async with await storage.open(metadata_file, "w", encoding="utf-8") as f:
                 for entry in entries:
                     full_entry = {col: entry.get(col, "") for col in all_columns}
-                    f.write(json.dumps(full_entry) + "\n")
+                    await f.write(json.dumps(full_entry) + "\n")
         except Exception as e:
             print(f"Failed to write metadata file {metadata_file}: {e}")
             return {"status": "error", "message": "Failed to write metadata file!"}
@@ -704,7 +716,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
 async def dataset_download(dataset_id: str, config_name: str = None):
     # Ensure we don't already have this dataset in filesystem store
     try:
-        _ = dataset_service.get(dataset_id)
+        _ = await dataset_service.get(dataset_id)
         return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
     except FileNotFoundError:
         pass
@@ -712,7 +724,7 @@ async def dataset_download(dataset_id: str, config_name: str = None):
     # Try to get the dataset info from the gallery
     gallery = []
     json_data = {}
-    gallery = galleries.get_data_gallery()
+    gallery = await galleries.get_data_gallery()
     for dataset in gallery:
         if dataset["huggingfacerepo"] == dataset_id:
             json_data = dataset
@@ -726,24 +738,24 @@ async def dataset_download(dataset_id: str, config_name: str = None):
             ds_builder = load_dataset_builder(path=dataset_id, name=config_name, trust_remote_code=True)
         else:
             ds_builder = load_dataset_builder(dataset_id, trust_remote_code=True)
-        log(f"Dataset builder loaded for dataset_id: {dataset_id}")
+        await log(f"Dataset builder loaded for dataset_id: {dataset_id}")
 
     except ValueError as e:
-        log(f"ValueError occurred: {type(e).__name__}: {e}")
+        await log(f"ValueError occurred: {type(e).__name__}: {e}")
         if "Config name is missing" in str(e):
             return {"status": "error", "message": "Please enter the folder_name of the dataset from huggingface"}
         else:
             return {"status": "error", "message": "An internal error has occurred!"}
 
     except DatasetNotFoundError as e:
-        log(f"DatasetNotFoundError occurred: {e}")
+        await log(f"DatasetNotFoundError occurred: {e}")
         return {
             "status": "error",
             "message": f"Dataset '{dataset_id}' not found or is private. Please check the dataset ID.",
         }
 
     except Exception as e:
-        log(f"Exception occurred: {type(e).__name__}: {e}")
+        await log(f"Exception occurred: {type(e).__name__}: {e}")
         return {"status": "error", "message": "An internal error has occurred!"}
 
     dataset_size = ds_builder.info.download_size
@@ -766,55 +778,56 @@ async def dataset_download(dataset_id: str, config_name: str = None):
     # Create filesystem metadata
     try:
         try:
-            sdk_ds = dataset_service.get(dataset_id)
+            sdk_ds = await dataset_service.get(dataset_id)
         except FileNotFoundError:
-            sdk_ds = dataset_service.create(dataset_id)
-        sdk_ds.set_metadata(
+            sdk_ds = await dataset_service.create(dataset_id)
+        await sdk_ds.set_metadata(
             location="huggingfacehub",
             description=ds_builder.info.description or "",
             size=dataset_size,
             json_data=json_data,
         )
-        log(f"Dataset created in filesystem for dataset_id: {dataset_id}")
+        await log(f"Dataset created in filesystem for dataset_id: {dataset_id}")
     except Exception as e:
         print(f"Failed to write dataset metadata to SDK store: {type(e).__name__}: {e}")
 
     # Download the dataset
     # Later on we can move this to a job
     async def load_dataset_thread(dataset_id, config_name=None):
-        logFile = storage.open(get_global_log_path(), "a")
-        flushLogFile = FlushFile(logFile)
-        with contextlib.redirect_stdout(flushLogFile), contextlib.redirect_stderr(flushLogFile):
-            try:
-                if config_name is not None:
-                    dataset = load_dataset(path=dataset_id, name=config_name, trust_remote_code=True)
-                else:
-                    dataset = load_dataset(dataset_id, trust_remote_code=True)
-                print(f"Dataset downloaded for dataset_id: {dataset_id}")
-                return dataset
+        global_log_path = await get_global_log_path()
+        async with await storage.open(global_log_path, "a") as logFile:
+            flushLogFile = FlushFile(logFile)
+            with contextlib.redirect_stdout(flushLogFile), contextlib.redirect_stderr(flushLogFile):
+                try:
+                    if config_name is not None:
+                        dataset = load_dataset(path=dataset_id, name=config_name, trust_remote_code=True)
+                    else:
+                        dataset = load_dataset(dataset_id, trust_remote_code=True)
+                    print(f"Dataset downloaded for dataset_id: {dataset_id}")
+                    return dataset
 
-            except ValueError as e:
-                error_msg = f"{type(e).__name__}: {e}"
-                print(error_msg)
-                raise ValueError(e)
+                except ValueError as e:
+                    error_msg = f"{type(e).__name__}: {e}"
+                    print(error_msg)
+                    raise ValueError(e)
 
-            except Exception as e:
-                error_msg = f"{type(e).__name__}: {e}"
-                print(error_msg)
-                raise
+                except Exception as e:
+                    error_msg = f"{type(e).__name__}: {e}"
+                    print(error_msg)
+                    raise
 
     try:
         dataset = await load_dataset_thread(dataset_id, config_name)
 
     except ValueError as e:
-        log(f"Exception occurred while downloading dataset: {type(e).__name__}: {e}")
+        await log(f"Exception occurred while downloading dataset: {type(e).__name__}: {e}")
         if "Config name is missing" in str(e):
             return {"status": "error", "message": "Please enter the folder_name of the dataset from huggingface"}
         else:
             return {"status": "error", "message": "An internal error has occurred!"}
 
     except Exception as e:
-        log(f"Exception occurred while downloading dataset: {type(e).__name__}: {e}")
+        await log(f"Exception occurred while downloading dataset: {type(e).__name__}: {e}")
         return {"status": "error", "message": "An internal error has occurred!"}
 
     return {"status": "success"}
@@ -824,7 +837,7 @@ async def dataset_download(dataset_id: str, config_name: str = None):
 async def dataset_list(generated: bool = True):
     # Filesystem-only list
     try:
-        merged_list = dataset_service.list_all()
+        merged_list = await dataset_service.list_all()
     except Exception:
         merged_list = []
 
@@ -850,7 +863,7 @@ async def dataset_list(generated: bool = True):
 @router.get("/generated_datasets_list", summary="List available generated datasets.")
 async def generated_datasets_list():
     try:
-        merged_list = dataset_service.list_all()
+        merged_list = await dataset_service.list_all()
     except Exception:
         merged_list = []
     result = []
@@ -872,20 +885,20 @@ async def dataset_new(dataset_id: str, generated: bool = False):
 
     # Check to make sure we don't have a dataset with this name (filesystem)
     try:
-        _ = dataset_service.get(dataset_id)
+        _ = await dataset_service.get(dataset_id)
         return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
     except FileNotFoundError:
         pass
 
     # Now make a directory that maps to the above dataset_id
     # Check if the directory already exists
-    dataset_path = dirs.dataset_dir_by_id(dataset_id)
-    if not storage.exists(dataset_path):
-        storage.makedirs(dataset_path, exist_ok=True)
+    dataset_path = await dirs.dataset_dir_by_id(dataset_id)
+    if not await storage.exists(dataset_path):
+        await storage.makedirs(dataset_path, exist_ok=True)
     # Create filesystem metadata
     try:
-        ds = dataset_service.create(dataset_id)
-        ds.set_metadata(
+        ds = await dataset_service.create(dataset_id)
+        await ds.set_metadata(
             location="local",
             description="",
             size=-1,
@@ -900,7 +913,8 @@ async def dataset_new(dataset_id: str, generated: bool = False):
 async def dataset_delete(dataset_id: str):
     dataset_id = secure_filename(dataset_id)
     # delete directory and contents. ignore_errors because we don't care if the directory doesn't exist
-    storage.rm_tree(dirs.dataset_dir_by_id(dataset_id))
+    dataset_dir = await dirs.dataset_dir_by_id(dataset_id)
+    await storage.rm_tree(dataset_dir)
     return {"status": "success"}
 
 
@@ -925,11 +939,12 @@ async def create_upload_file(dataset_id: str, files: list[UploadFile]):
 
         try:
             content = await file.read()
-            target_path = storage.join(dirs.dataset_dir_by_id(dataset_id), str(file.filename))
+            dataset_dir = await dirs.dataset_dir_by_id(dataset_id)
+            target_path = storage.join(dataset_dir, str(file.filename))
             # aiofiles doesn't support URIs, so we need to use storage.open instead
-            storage.makedirs(storage.join(dirs.dataset_dir_by_id(dataset_id)), exist_ok=True)
-            with storage.open(target_path, "wb") as out_file:
-                out_file.write(content)
+            await storage.makedirs(dataset_dir, exist_ok=True)
+            async with await storage.open(target_path, "wb") as out_file:
+                await out_file.write(content)
             uploaded_filenames.append(str(file.filename))
         except Exception:
             raise HTTPException(status_code=403, detail="There was a problem uploading the file")
@@ -937,8 +952,8 @@ async def create_upload_file(dataset_id: str, files: list[UploadFile]):
     # Update dataset metadata with uploaded files
     if uploaded_filenames:
         try:
-            ds = dataset_service.get(dataset_id)
-            current_data = ds.get_metadata()
+            ds = await dataset_service.get(dataset_id)
+            current_data = await ds.get_metadata()
             json_data = current_data.get("json_data", {})
             # Add files list if not present or merge with existing
             existing_files = json_data.get("files", [])
@@ -947,7 +962,7 @@ async def create_upload_file(dataset_id: str, files: list[UploadFile]):
             else:
                 all_files = uploaded_filenames
             json_data["files"] = all_files
-            ds.set_metadata(json_data=json_data)
+            await ds.set_metadata(json_data=json_data)
         except Exception as e:
             print(f"Failed to update dataset metadata with files: {type(e).__name__}: {e}")
 

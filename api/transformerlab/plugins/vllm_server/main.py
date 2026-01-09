@@ -8,6 +8,7 @@ import torch
 import threading
 import site
 import shutil
+import asyncio
 
 from fastchat.constants import TEMP_IMAGE_DIR
 
@@ -86,7 +87,8 @@ else:
 print("Starting vLLM server...", file=sys.stderr)
 
 # Use storage.makedirs for workspace paths (TLAB_TEMP_IMAGE_DIR), os.makedirs for system paths
-if TEMP_IMAGE_DIR.startswith(get_workspace_dir()):
+workspace_dir = asyncio.run(get_workspace_dir())
+if TEMP_IMAGE_DIR.startswith(workspace_dir):
     storage.makedirs(TEMP_IMAGE_DIR, exist_ok=True)
 else:
     os.makedirs(TEMP_IMAGE_DIR, exist_ok=True)

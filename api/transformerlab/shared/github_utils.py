@@ -12,7 +12,7 @@ from lab import storage
 from lab.dirs import get_workspace_dir
 
 
-def read_github_pat_from_workspace(workspace_dir: str) -> Optional[str]:
+async def read_github_pat_from_workspace(workspace_dir: str) -> Optional[str]:
     """Read GitHub PAT from workspace/github_pat.txt file.
 
     Args:
@@ -23,9 +23,9 @@ def read_github_pat_from_workspace(workspace_dir: str) -> Optional[str]:
     """
     try:
         pat_path = storage.join(workspace_dir, "github_pat.txt")
-        if storage.exists(pat_path):
-            with storage.open(pat_path, "r") as f:
-                pat = f.read().strip()
+        if await storage.exists(pat_path):
+            async with await storage.open(pat_path, "r") as f:
+                pat = (await f.read()).strip()
                 if pat:
                     return pat
     except Exception as e:
@@ -132,8 +132,8 @@ async def _fetch_task_json_impl(
     file_path = file_path.strip("/")
 
     # Get GitHub PAT from workspace
-    workspace_dir = get_workspace_dir()
-    github_pat = read_github_pat_from_workspace(workspace_dir)
+    workspace_dir = await get_workspace_dir()
+    github_pat = await read_github_pat_from_workspace(workspace_dir)
 
     # Build GitHub API URL with optional ref parameter
     api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
