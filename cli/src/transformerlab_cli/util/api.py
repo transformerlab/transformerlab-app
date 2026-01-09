@@ -8,22 +8,24 @@ from transformerlab_cli.util.shared import BASE_URL
 from transformerlab_cli.util.auth import api_key
 
 
-def get(path: str) -> httpx.Response:
+def get(path: str, timeout: float = 10.0, follow_redirects: bool = True) -> httpx.Response:
     """
-    Makes an HTTP request to the specified URL with the given method, headers, data, and parameters.
+    Makes a GET HTTP request to the specified URL.
 
     Args:
-        url (str): The URL to send the request to.
-        method (str): The HTTP method to use (e.g., 'GET', 'POST', etc.). Default is 'GET'.
+        path (str): The API path to send the request to.
+        timeout (float): Request timeout in seconds. Default is 10.0.
+        follow_redirects (bool): Whether to follow redirects. Default is True.
 
     Returns:
         httpx.Response: The response object from the HTTP request.
     """
-    with httpx.Client(timeout=10.0) as client:
+    with httpx.Client(timeout=timeout) as client:
         response = client.request(
             method="GET",
             url=f"{BASE_URL()}{path}",
             headers={"Authorization": f"Bearer {api_key}"},
+            follow_redirects=follow_redirects,
         )
     return response
 

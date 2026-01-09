@@ -4,7 +4,7 @@
   "description": "vLLM is a fast and easy-to-use library for LLM inference and serving.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.24",
+  "version": "1.0.26",
   "supports": [
     "chat",
     "completion",
@@ -35,6 +35,7 @@
     "LlavaLlamaForCausalLM",
     "LlavaQwenForCausalLM",
     "Qwen3VLForConditionalGeneration",
+    "Qwen3ForCausalLM",
     "Glm4MoeForCausalLM"
   ],
   "supported_hardware_architectures": ["cuda"],

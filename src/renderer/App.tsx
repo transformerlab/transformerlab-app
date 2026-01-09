@@ -78,14 +78,14 @@ function AppContent({
     fetchHealthz();
   }, []);
 
-  const isS3Mode = mode !== 'local';
+  const isLocalMode = mode === 'local';
 
-  // Close logs drawer when switching to s3 mode
+  // Close logs drawer when switching to non-local mode
   useEffect(() => {
-    if (isS3Mode && logsDrawerOpen) {
+    if (!isLocalMode && logsDrawerOpen) {
       setLogsDrawerOpen(false);
     }
-  }, [isS3Mode, logsDrawerOpen, setLogsDrawerOpen]);
+  }, [isLocalMode, logsDrawerOpen, setLogsDrawerOpen]);
 
   // Show LoginPage when:
   // 1. Multi-user mode is enabled AND user is not authenticated
@@ -115,12 +115,12 @@ function AppContent({
         width: '100dvw',
         overflow: 'hidden',
         gridTemplateColumns: '180px 1fr',
-        gridTemplateRows: isS3Mode
+        gridTemplateRows: !isLocalMode
           ? '48px 5fr'
           : logsDrawerOpen
             ? `48px 5fr ${logsDrawerHeight}px`
             : '48px 5fr 18px',
-        gridTemplateAreas: isS3Mode
+        gridTemplateAreas: !isLocalMode
           ? `
           "sidebar header"
           "sidebar main"
@@ -157,7 +157,7 @@ function AppContent({
       >
         <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
       </Box>
-      {!isS3Mode && (
+      {isLocalMode && (
         <Box
           sx={{
             gridArea: 'footer',
@@ -222,14 +222,22 @@ function AppContent({
 const INITIAL_LOGS_DRAWER_HEIGHT = 200; // Default height for logs drawer when first opened
 
 export default function App() {
-  // Normalize TL_API_URL - ensure it's either a valid URL or empty string
+  // Normalize TL_API_URL - ensure it's either a valid URL or default to same host as frontend
   const initialApiUrl = (() => {
     const envUrl = process.env?.TL_API_URL;
-    // If undefined, null, or the string "default", use empty string
+    // If undefined, null, or the string "default", use same host as frontend with API port
     if (!envUrl || envUrl === 'default' || envUrl.trim() === '') {
-      return '';
+      // Use the same protocol and hostname as the frontend, but with API port 8338
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      return `${protocol}//${hostname}:8338/`;
     }
-    return envUrl;
+    // Ensure the URL has a trailing slash
+    let url = envUrl.trim();
+    if (!url.endsWith('/')) {
+      url = url + '/';
+    }
+    return url;
   })();
 
   const [connection, setConnection] = useState(initialApiUrl);

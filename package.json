@@ -35,6 +35,7 @@
     "test": "jest",
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
+    "format:api": "prettier --write \"api/transformerlab/plugins/**/*.json\"",
     "api:install": "cd api && ./install.sh",
     "api:start": "cd api && ./run.sh"
   },

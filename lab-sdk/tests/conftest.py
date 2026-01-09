@@ -2,6 +2,9 @@ import os
 import sys
 import pytest
 
+# Configure pytest-asyncio
+pytest_plugins = ("pytest_asyncio",)
+
 
 @pytest.fixture(autouse=True)
 def _isolate_imports_and_home(monkeypatch, tmp_path):

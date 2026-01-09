@@ -4,7 +4,7 @@
   "description": "An implementation of Supervised Finetuning using Llama Factory.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.16",
+  "version": "0.0.18",
   "model_architectures": [
     "GemmaForCausalLM",
     "LlamaForCausalLM",
@@ -16,14 +16,8 @@
     "Qwen3ForCausalLM",
     "Qwen3MoeForCausalLM"
   ],
-  "supported_hardware_architectures": [
-    "cuda",
-    "amd"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["cuda", "amd"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "training_template_format": "alpaca",
   "parameters": {
@@ -37,7 +31,7 @@
       "title": "Learning Rate",
       "type": "number",
       "default": 0.001,
-      "minimum": 1e-06
+      "minimum": 1e-6
     },
     "num_train_epochs": {
       "title": "Number of Training Epochs",

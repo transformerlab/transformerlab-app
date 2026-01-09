@@ -3,7 +3,7 @@ import json
 import os
 import subprocess
 import sys
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
@@ -26,7 +26,7 @@ async def experiment_add_evaluation(experimentId: str, plugin: Any = Body()):
     directory, we can modify the plugin code for the specific experiment without affecting
     other experiments that use the same plugin."""
 
-    experiment = experiment_get(experimentId)
+    experiment = await experiment_get(experimentId)
 
     if experiment is None:
         return {"message": f"Experiment {experimentId} does not exist"}
@@ -53,7 +53,7 @@ async def experiment_add_evaluation(experimentId: str, plugin: Any = Body()):
 
     evaluations.append(evaluation)
 
-    experiment_update_config(experimentId, "evaluations", evaluations)
+    await experiment_update_config(experimentId, "evaluations", evaluations)
 
     return {"message": f"Experiment {experimentId} updated with plugin {plugin_name}"}
 
@@ -62,7 +62,7 @@ async def experiment_add_evaluation(experimentId: str, plugin: Any = Body()):
 async def experiment_delete_eval(experimentId: str, eval_name: str):
     """Delete an evaluation from an experiment. This will delete the directory in the experiment
     and remove the global plugin from the specific experiment."""
-    experiment = experiment_get(experimentId)
+    experiment = await experiment_get(experimentId)
 
     if experiment is None:
         return {"message": f"Experiment {experimentId} does not exist"}
@@ -77,7 +77,7 @@ async def experiment_delete_eval(experimentId: str, eval_name: str):
     # remove the evaluation from the list:
     evaluations = [e for e in evaluations if e["name"] != eval_name]
 
-    experiment_update_config(experimentId, "evaluations", evaluations)
+    await experiment_update_config(experimentId, "evaluations", evaluations)
 
     return {"message": f"Evaluation {eval_name} deleted from experiment {experimentId}"}
 
@@ -89,7 +89,7 @@ async def experiment_delete_eval(experimentId: str, eval_name: str):
 async def edit_evaluation_task(experimentId: str, plugin: Any = Body()):
     """Get the contents of the evaluation"""
     try:
-        experiment = experiment_get(experimentId)
+        experiment = await experiment_get(experimentId)
 
         # if the experiment does not exist, return an error:
         if experiment is None:
@@ -133,7 +133,7 @@ async def edit_evaluation_task(experimentId: str, plugin: Any = Body()):
 @router.get("/get_evaluation_plugin_file_contents")
 async def get_evaluation_plugin_file_contents(experimentId: str, plugin_name: str):
     # first get the experiment name:
-    data = experiment_get(experimentId)
+    data = await experiment_get(experimentId)
 
     # if the experiment does not exist, return an error:
     if data is None:
@@ -144,7 +144,7 @@ async def get_evaluation_plugin_file_contents(experimentId: str, plugin_name: st
     # print(f"{EXPERIMENTS_DIR}/{experiment_name}/evals/{eval_name}/main.py")
 
     file_name = "main.py"
-    plugin_path = lab_dirs.plugin_dir_by_name(plugin_name)
+    plugin_path = await lab_dirs.plugin_dir_by_name(plugin_name)
 
     # now get the file contents
     try:
@@ -157,11 +157,26 @@ async def get_evaluation_plugin_file_contents(experimentId: str, plugin_name: st
 
 
 @router.get("/run_evaluation_script")
-async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: str, job_id: str, org_id: str = None):
-    job_config = (job_get(job_id))["job_data"]
+async def run_evaluation_script(
+    experimentId: str,
+    plugin_name: str,
+    eval_name: str,
+    job_id: str,
+    org_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+):
+    job_config_raw = (await job_get(job_id))["job_data"]
+    # Ensure job_config is a dict
+    if isinstance(job_config_raw, str):
+        try:
+            job_config = json.loads(job_config_raw)
+        except Exception:
+            job_config = {}
+    else:
+        job_config = job_config_raw
     eval_config = job_config.get("config", {})
     print(eval_config)
-    experiment_details = experiment_get(id=experimentId)
+    experiment_details = await experiment_get(id=experimentId)
 
     if experiment_details is None:
         return {"message": f"Experiment {experimentId} does not exist"}
@@ -193,7 +208,8 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
     from lab.dirs import get_temp_dir
 
     plugin_json_file = "plugin_input_" + secure_filename(str(plugin_name)) + ".json"
-    input_file = storage.join(get_temp_dir(), plugin_json_file)
+    temp_dir = await get_temp_dir()
+    input_file = storage.join(temp_dir, plugin_json_file)
 
     # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
     # and should be done in the API itself
@@ -216,14 +232,14 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
     job_output_file = await shared.get_job_output_file_name(job_id, plugin_name, experimentId)
 
     input_contents = {"experiment": experiment_details, "config": template_config}
-    with storage.open(input_file, "w") as outfile:
-        json.dump(input_contents, outfile, indent=4)
+    async with await storage.open(input_file, "w") as outfile:
+        await outfile.write(json.dumps(input_contents, indent=4))
 
     # For now, even though we have the file above, we are also going to pass all params
     # as command line arguments to the script.
 
     # Create a list of all the parameters:
-    script_directory = lab_dirs.plugin_dir_by_name(plugin_name)
+    script_directory = await lab_dirs.plugin_dir_by_name(plugin_name)
     extra_args = ["--plugin_dir", script_directory]
     for key in template_config:
         extra_args.append("--" + key)
@@ -275,36 +291,57 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
     print(f">EVAL Output file: {job_output_file}")
 
     # Prepare environment variables for subprocess
-    # Pass organization_id via environment variable if provided
+    # Pass organization_id and user_id via environment variable
+    # Priority: use org_id parameter, then try to get from workspace
     process_env = None
-    if org_id:
-        process_env = os.environ.copy()
-        process_env["_TFL_ORG_ID"] = org_id
+    team_id = org_id
+    if not team_id:
+        # Try to get org_id from workspace path
+        from lab.dirs import get_workspace_dir
 
-    with storage.open(job_output_file, "w") as f:
+        workspace_dir = await get_workspace_dir()
+        if "/orgs/" in workspace_dir:
+            team_id = workspace_dir.split("/orgs/")[-1].split("/")[0]
+
+    if team_id:
+        process_env = os.environ.copy()
+        process_env["_TFL_ORG_ID"] = team_id
+
+    # Get user_id: from parameter or job_data (for calls from shared.run_job)
+    resolved_user_id = user_id
+    if not resolved_user_id:
+        if isinstance(job_config, dict) and "user_id" in job_config:
+            resolved_user_id = job_config["user_id"]
+
+    if resolved_user_id:
+        if process_env is None:
+            process_env = os.environ.copy()
+        process_env["_TFL_USER_ID"] = resolved_user_id
+
+    async with await storage.open(job_output_file, "w") as f:
         process = await asyncio.create_subprocess_exec(
             *subprocess_command, stdout=f, stderr=subprocess.PIPE, env=process_env
         )
         await process.communicate()
 
-    with storage.open(output_file, "w") as f:
+    async with await storage.open(output_file, "w") as f:
         # Copy all contents from job_output_file to output_file
-        with storage.open(job_output_file, "r") as job_output:
-            for line in job_output:
-                f.write(line)
+        async with await storage.open(job_output_file, "r") as job_output:
+            async for line in job_output:
+                await f.write(line)
 
 
 @router.get("/get_output")
 async def get_output(experimentId: str, eval_name: str):
     """Get the output of an evaluation"""
     eval_name = secure_filename(eval_name)  # sanitize the input
-    data = experiment_get(experimentId)
+    data = await experiment_get(experimentId)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {experimentId} does not exist"}
 
     eval_output_file = await lab_dirs.eval_output_file(experimentId, eval_name)
-    if not storage.exists(eval_output_file):
+    if not await storage.exists(eval_output_file):
         return {"message": "Output file does not exist"}
 
     print(f"Returning output file: {eval_output_file}.")

@@ -136,8 +136,9 @@ export default function ModelStore() {
     fetcher,
   );
 
-  // Set isHFAccessTokenSet to true if message in canLogInToHuggingFace is 'OK'
-  const isHFAccessTokenSet = canLogInToHuggingFace?.message === 'OK';
+  // Set isHFAccessTokenSet to true if message in canLogInToHuggingFace starts with 'OK'
+  const isHFAccessTokenSet =
+    canLogInToHuggingFace?.message?.startsWith('OK') ?? false;
 
   // On page load, check if there are any models currently being downloaded, and if so,
   // Record the jobID and model Name

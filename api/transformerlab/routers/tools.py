@@ -3,7 +3,7 @@ import os
 import subprocess
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Header
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -56,15 +56,15 @@ async def list_tools(
 
 
 @router.get("/all", summary="Returns all available MCP tools in OpenAI format for completions API")
-async def get_all_tools():
+async def get_all_tools(x_team_id: str | None = Header(None, alias="X-Team-Id")):
     """Returns all available MCP tools converted to OpenAI format for completions API"""
     try:
         tool_descriptions = []
 
-        # Get MCP server config directly from database
+        # Get MCP server config directly from database (team-specific)
         mcp_config = None
         try:
-            config_text = await db.config_get(key="MCP_SERVER")
+            config_text = await db.config_get(key="MCP_SERVER", team_id=x_team_id)
             if config_text:
                 mcp_config = json.loads(config_text)
         except Exception:

@@ -4,37 +4,25 @@
   "description": "Generates QA pairs, chain-of-thought, or summaries using Meta's synthetic-data-kit and vLLM-based or proxy-backed models.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.6",
+  "version": "0.1.8",
   "git": "",
   "url": "",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
-  "supported_hardware_architectures": [
-    "cuda",
-    "mlx"
-  ],
+  "files": ["main.py", "setup.sh"],
+  "supported_hardware_architectures": ["cuda", "mlx"],
   "_dataset": false,
   "setup-script": "setup.sh",
   "parameters": {
     "generation_model": {
       "title": "Generation Model. Only local models can be used",
       "type": "string",
-      "enum": [
-        "local"
-      ],
+      "enum": ["local"],
       "default": "local",
       "required": true
     },
     "task_type": {
       "title": "Generation Type",
       "type": "string",
-      "enum": [
-        "qa",
-        "cot",
-        "summary"
-      ],
+      "enum": ["qa", "cot", "summary"],
       "default": "qa",
       "required": true
     },
@@ -59,11 +47,7 @@
     "output_format": {
       "title": "Output Format",
       "type": "string",
-      "enum": [
-        "jsonl",
-        "alpaca",
-        "chatml"
-      ],
+      "enum": ["jsonl", "alpaca", "chatml"],
       "default": "jsonl"
     },
     "prompt_template": {

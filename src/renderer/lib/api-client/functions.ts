@@ -89,7 +89,8 @@ export async function downloadModelFromGallery(
 export async function activeModels() {
   let response;
   try {
-    response = await authenticatedFetch(`${API_URL()}v1/models`);
+    // Pass just the path - fetchWithAuth will handle prepending the base URL
+    response = await authenticatedFetch('v1/models');
     // console.log('response ok?' + response.ok);
     const result = await response.json();
     return result;
@@ -104,7 +105,8 @@ export async function activeModels() {
 export async function apiHealthz() {
   let response;
   try {
-    response = await authenticatedFetch(`${API_URL()}healthz`);
+    // Pass just the path - fetchWithAuth will handle prepending the base URL
+    response = await authenticatedFetch('healthz');
     // console.log('response ok?' + response.ok);
     const result = await response.json();
     return result;
@@ -118,7 +120,8 @@ export async function controllerHealthz() {
   let response;
   try {
     // For now we hard code the worker to the default FastChat API port of 21002
-    response = await authenticatedFetch(API_URL() + 'v1/models', {
+    // Pass just the path - fetchWithAuth will handle prepending the base URL
+    response = await authenticatedFetch('v1/models', {
       method: 'GET',
     });
     if (response.ok) {
@@ -135,7 +138,8 @@ export async function controllerHealthz() {
 export async function localaiHealthz() {
   let response;
   try {
-    response = await authenticatedFetch(API_URL() + 'v1/models');
+    // Pass just the path - fetchWithAuth will handle prepending the base URL
+    response = await authenticatedFetch('v1/models');
     // console.log('response ok?' + response.ok);
     const result = await response.json();
     return result;
@@ -148,7 +152,8 @@ export async function localaiHealthz() {
 export async function getComputerInfo() {
   let response;
   try {
-    response = await authenticatedFetch(API_URL() + 'server/info');
+    // Pass just the path - fetchWithAuth will handle prepending the base URL
+    response = await authenticatedFetch('server/info');
     // console.log('response ok?' + response.ok);
     const result = await response.json();
     return result;
@@ -181,21 +186,9 @@ export async function activateWorker(
   const paramsJSON = JSON.stringify(parameters);
 
   try {
-    response = await authenticatedFetch(
-      API_URL() +
-        'server/worker_start?model_name=' +
-        model +
-        '&adaptor=' +
-        adaptorName +
-        '&model_architecture=' +
-        modelArchitecture +
-        '&engine=' +
-        engine +
-        '&experiment_id=' +
-        experimentId +
-        '&parameters=' +
-        paramsJSON,
-    );
+    // Pass just the path with query params - fetchWithAuth will handle prepending the base URL
+    const queryString = `server/worker_start?model_name=${model}&adaptor=${adaptorName}&model_architecture=${modelArchitecture}&engine=${engine}&experiment_id=${experimentId}&parameters=${paramsJSON}`;
+    response = await authenticatedFetch(queryString);
     const result = await response.json();
     return result;
   } catch (error) {
@@ -207,7 +200,8 @@ export async function activateWorker(
 export async function killWorker() {
   let response;
   try {
-    response = await authenticatedFetch(API_URL() + 'server/worker_stop');
+    // Pass just the path - fetchWithAuth will handle prepending the base URL
+    response = await authenticatedFetch('server/worker_stop');
     const result = await response.json();
     return result;
   } catch (error) {

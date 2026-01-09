@@ -1,3 +1,4 @@
+import asyncio
 import time
 import traceback
 
@@ -52,16 +53,16 @@ class ExportTLabPlugin(TLabPlugin):
                 self.add_job_data("model_name", self.params.model_name)
 
                 # Update starting progress
-                self.job.update_progress(progress_start)
+                asyncio.run(self.job.update_progress(progress_start))
 
                 try:
                     # Call the wrapped function
                     result = func(*args, **kwargs)
 
                     # Update final progress and success status
-                    self.job.update_progress(progress_end)
-                    self.job.update_job_data_field("completion_status", "success")
-                    self.job.update_job_data_field("completion_details", "Export completed successfully")
+                    asyncio.run(self.job.update_progress(progress_end))
+                    asyncio.run(self.job.update_job_data_field("completion_status", "success"))
+                    asyncio.run(self.job.update_job_data_field("completion_details", "Export completed successfully"))
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
 
                     return result
@@ -72,8 +73,8 @@ class ExportTLabPlugin(TLabPlugin):
                     print(error_msg)
 
                     # Log the error
-                    self.job.update_job_data_field("completion_status", "failed")
-                    self.job.update_job_data_field("completion_details", f"Error occured: {str(e)}")
+                    asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
+                    asyncio.run(self.job.update_job_data_field("completion_details", f"Error occured: {str(e)}"))
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
 
                     raise

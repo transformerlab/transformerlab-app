@@ -8,13 +8,14 @@ from transformerlab_cli.util.config import get_current_experiment
 from transformerlab_cli.commands.job_monitor.JobDetails import JobDetails
 from transformerlab_cli.commands.job_monitor.ExperimentSelectModal import ExperimentSelectModal
 from transformerlab_cli.commands.job_monitor.TaskAddModal import TaskAddModal
+from transformerlab_cli.commands.job_monitor.TaskListModal import TaskListModal
 
 from transformerlab_cli.commands.job_monitor.util import fetch_jobs
 
 
 class JobListItem(ListItem):
     def __init__(self, job: dict) -> None:
-        super().__init__(classes="job-list-item")  # Added CSS class
+        super().__init__(classes="job-list-item")
         self.job = job
 
     def compose(self) -> ComposeResult:
@@ -22,9 +23,17 @@ class JobListItem(ListItem):
         task_name = job_data.get("task_name", "Unknown")
         status = self.job.get("status", "N/A")
 
-        # Simple styling for the list item
-        yield Label(f"[bold][{self.job.get('id', '?')}] {task_name}[/bold]")
-        status_color = "$success" if status == "COMPLETED" else "$error" if status == "FAILED" else "$warning"
+        # THEME: Use $secondary (Pink) for the ID/Header to match CLI 'header'
+        yield Label(f"[bold $secondary]{task_name} [{self.job.get('id', '?')}][/]")
+
+        # THEME: Use Textual variables ($success, $error) which we mapped above
+        if status == "COMPLETED":
+            status_color = "$success"
+        elif status == "FAILED":
+            status_color = "$error"
+        else:
+            status_color = "$warning"
+
         yield Label(f"Status: [{status_color}]{status}[/{status_color}]")
 
 
@@ -39,6 +48,7 @@ class JobMonitorApp(App):
         ("r", "refresh", "Refresh"),
         ("e", "set_experiment", "Set Experiment"),
         ("a", "add_task", "Add Task"),
+        ("l", "list_tasks", "List Tasks"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -57,7 +67,9 @@ class JobMonitorApp(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        # 2. Register and Apply the Theme
         self.theme = "tokyo-night"
+
         self.update_current_experiment()
         self.load_jobs()
 
@@ -66,6 +78,9 @@ class JobMonitorApp(App):
 
     def action_add_task(self) -> None:
         self.push_screen(TaskAddModal())
+
+    def action_list_tasks(self) -> None:
+        self.push_screen(TaskListModal())
 
     def action_refresh(self) -> None:
         """Refresh the job list."""
@@ -92,19 +107,26 @@ class JobMonitorApp(App):
     def show_loading(self) -> None:
         loading = self.query_one("#loading", LoadingIndicator)
         loading.display = True
-        job_list = self.query_one("#job-list", ListView)
-        job_list.display = False
+        try:
+            job_list = self.query_one("#job-list", ListView)
+            job_list.display = False
+        except Exception:
+            pass
 
     def populate_jobs(self, jobs: list[dict]) -> None:
         loading = self.query_one("#loading", LoadingIndicator)
         loading.display = False
 
-        job_list = self.query_one("#job-list", ListView)
-        job_list.display = True
-        job_list.clear()
+        try:
+            job_list = self.query_one("#job-list", ListView)
+            job_list.display = True
+            job_list.clear()
 
-        for job in jobs:
-            job_list.append(JobListItem(job))
+            for job in jobs:
+                job_list.append(JobListItem(job))
+        except Exception:
+            # Handle case where widget might be unmounted during refresh
+            pass
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         if isinstance(event.item, JobListItem):
