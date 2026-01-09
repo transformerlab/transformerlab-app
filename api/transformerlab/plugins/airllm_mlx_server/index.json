@@ -4,7 +4,7 @@
   "description": "Performing inference using AirLLM on your Apple Silicon machine",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "model_architectures": [
     "MLX",
     "CohereForCausalLM",

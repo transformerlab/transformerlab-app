@@ -10,7 +10,16 @@ readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Transformer Lab", email = "developers@lab.cloud" }]
 license = { file = "LICENSE" }
-dependencies = ["werkzeug", "pytest", "wandb", "fsspec", "s3fs", "gcsfs"]
+dependencies = [
+  "werkzeug",
+  "pytest",
+  "pytest-asyncio",
+  "wandb",
+  "fsspec",
+  "s3fs",
+  "aiofiles",
+  "gcsfs",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/transformerlab/transformerlab-app"
@@ -21,3 +30,5 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

@@ -1,6 +1,7 @@
 import pytest
 import os
 import json
+import asyncio
 from io import BytesIO
 from PIL import Image
 from pathlib import Path
@@ -13,7 +14,7 @@ def cleanup_dataset(dataset_id, client):
     from transformerlab.shared.shared import slugify
     import shutil
 
-    dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
+    dataset_dir = asyncio.run(dirs.dataset_dir_by_id(slugify(dataset_id)))
     shutil.rmtree(dataset_dir, ignore_errors=True)
     client.get(f"/data/delete?dataset_id={dataset_id}")
 
@@ -54,7 +55,7 @@ def test_data_info(client):
 def test_save_metadata(client):
     source_dataset_id = "source_dataset"
     new_dataset_id = "destination_dataset"
-    dataset_dir = dirs.dataset_dir_by_id(slugify(source_dataset_id))
+    dataset_dir = asyncio.run(dirs.dataset_dir_by_id(slugify(source_dataset_id)))
     os.makedirs(dataset_dir, exist_ok=True)
 
     # Create dummy JPEG image
@@ -96,7 +97,7 @@ def test_save_metadata(client):
     data = response.json()
     assert data["status"] == "success"
 
-    new_dataset_dir = Path(dirs.dataset_dir_by_id(slugify(new_dataset_id)))
+    new_dataset_dir = Path(asyncio.run(dirs.dataset_dir_by_id(slugify(new_dataset_id))))
     assert new_dataset_dir.exists()
 
     cleanup_dataset(source_dataset_id, client)
@@ -106,7 +107,7 @@ def test_save_metadata(client):
 @pytest.mark.skip(reason="Skipping as it contains application-specific logic")
 def test_edit_with_template(client):
     dataset_id = "test_dataset"
-    dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
+    dataset_dir = asyncio.run(dirs.dataset_dir_by_id(slugify(dataset_id)))
     os.makedirs(dataset_dir, exist_ok=True)
 
     image_path = os.path.join(dataset_dir, "image.jpg")

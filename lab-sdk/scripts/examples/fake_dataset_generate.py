@@ -82,7 +82,7 @@ def generate_dataset():
         lab.log(f"Dataset generation completed in {generation_duration}")
 
         # Get generated dataset from job data
-        job_data = lab.job.get_job_data()
+        job_data = lab.get_job_data()
         generated_datasets = job_data.get("generated_datasets", [])
 
         if generated_datasets:

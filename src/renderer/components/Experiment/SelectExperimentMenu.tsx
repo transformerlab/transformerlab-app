@@ -144,8 +144,8 @@ export default function SelectExperimentMenu({ models }) {
   );
 
   const hasProviders = providers.length > 0;
-  const isS3Mode = mode === 's3';
-  const shouldShowSimpleDialog = hasProviders || isS3Mode;
+  const isLocalMode = mode === 'local';
+  const shouldShowSimpleDialog = !isLocalMode;
 
   // Fetch healthz to get the mode
   useEffect(() => {

@@ -4,7 +4,7 @@
   "description": "A text-to-speech (TTS), speech-to-text(STT) library built on Apple's MLX framework, providing efficient speech synthesis on Apple Silicon.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "supports": ["Text-to-Speech", "Audio", "Speech-to-Text"],
   "model_architectures": ["MLXTextToSpeech", "StyleTTS2", "MLXSpeechToText"],
   "supported_hardware_architectures": ["mlx"],

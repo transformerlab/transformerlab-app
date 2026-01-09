@@ -4,7 +4,7 @@
   "description": "Fastchat loads vision models for inference using Huggingface Transformers for generation.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "model_architectures": [
     "LlavaForConditionalGeneration",
     "Mistral3ForConditionalGeneration"

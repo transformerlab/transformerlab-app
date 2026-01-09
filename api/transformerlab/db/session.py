@@ -37,12 +37,15 @@ async def run_alembic_migrations():
         api_dir = os.path.dirname(os.path.dirname(current_dir))
 
         # Run alembic upgrade head
+        # Pass environment variables to ensure DATABASE_URL is available in subprocess
+        env = os.environ.copy()
         result = subprocess.run(
             [sys.executable, "-m", "alembic", "upgrade", "head"],
             cwd=api_dir,
             capture_output=True,
             text=True,
             check=False,
+            env=env,
         )
 
         if result.returncode != 0:
@@ -66,7 +69,7 @@ async def init():
     """
     global db
     # Migrate database from old location if necessary
-    old_db_base = os.path.join(get_workspace_dir(), "llmlab.sqlite3")
+    old_db_base = os.path.join(await get_workspace_dir(), "llmlab.sqlite3")
     if os.path.exists(old_db_base):
         if not os.path.exists(DATABASE_FILE_NAME):
             for ext in ["", "-wal", "-shm"]:
@@ -92,25 +95,32 @@ async def init():
     # This replaces the previous create_all() call
     await run_alembic_migrations()
 
-    # Check if experiment_id column exists in workflow_runs table
-    cursor = await db.execute("PRAGMA table_info(workflow_runs)")
-    columns = await cursor.fetchall()
-    has_experiment_id = any(column[1] == "experiment_id" for column in columns)
+    # Check if workflow_runs table exists before checking/modifying columns
+    cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='workflow_runs'")
+    table_exists = await cursor.fetchone()
+    await cursor.close()
 
-    if not has_experiment_id:
-        # Add experiment_id column
-        await db.execute("ALTER TABLE workflow_runs ADD COLUMN experiment_id INTEGER")
+    if table_exists:
+        # Check if experiment_id column exists in workflow_runs table
+        cursor = await db.execute("PRAGMA table_info(workflow_runs)")
+        columns = await cursor.fetchall()
+        await cursor.close()
+        has_experiment_id = any(column[1] == "experiment_id" for column in columns)
 
-        # Update existing workflow runs with experiment_id from their workflows
-        await db.execute("""
-            UPDATE workflow_runs 
-            SET experiment_id = (
-                SELECT experiment_id 
-                FROM workflows 
-                WHERE workflows.id = workflow_runs.workflow_id
-            )
-        """)
-        await db.commit()
+        if not has_experiment_id:
+            # Add experiment_id column
+            await db.execute("ALTER TABLE workflow_runs ADD COLUMN experiment_id INTEGER")
+
+            # Update existing workflow runs with experiment_id from their workflows
+            await db.execute("""
+                UPDATE workflow_runs
+                SET experiment_id = (
+                    SELECT experiment_id
+                    FROM workflows
+                    WHERE workflows.id = workflow_runs.workflow_id
+                )
+            """)
+            await db.commit()
 
     print("✅ Database initialized")
 

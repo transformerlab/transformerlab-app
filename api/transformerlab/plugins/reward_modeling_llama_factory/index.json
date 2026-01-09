@@ -4,7 +4,7 @@
   "description": "An implementation of RLHF (Reward Modeling) using Llama Factory.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "model_architectures": [
     "GemmaForCausalLM",
     "LlamaForCausalLM",

@@ -4,7 +4,7 @@
   "description": "SFT training using Huggingface autotrain",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "model_architectures": [
     "LlamaForCausalLM",
     "MistralForCausalLM",
