@@ -4,7 +4,7 @@
   "description": "A GPRO trainer based using a Multi GPU setup trained using TRL and Accelerate",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "model_architectures": [
     "LlamaForCausalLM",
     "Qwen2ForCausalLM",

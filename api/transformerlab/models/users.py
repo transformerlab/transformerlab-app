@@ -213,12 +213,14 @@ google_oauth_client = GoogleOAuth2(
 GOOGLE_OAUTH_ENABLED = os.getenv("GOOGLE_OAUTH_ENABLED", "false").lower() == "true" and bool(
     os.getenv("GOOGLE_OAUTH_CLIENT_ID") and os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
 )
+# Check if we're in MULTIUSER mode
+MULTIUSER_MODE = os.getenv("MULTIUSER", "false").lower() != "false"
 
-if not GOOGLE_OAUTH_ENABLED:
+if not GOOGLE_OAUTH_ENABLED and MULTIUSER_MODE:
     print(
         "⚠️  Google OAuth not configured. Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET to enable Google login."
     )
-else:
+elif GOOGLE_OAUTH_ENABLED and MULTIUSER_MODE:
     print("✅ Google OAuth configured and ready.")
 
 # --- GitHub OAuth Configuration ---
@@ -232,11 +234,11 @@ GITHUB_OAUTH_ENABLED = os.getenv("GITHUB_OAUTH_ENABLED", "false").lower() == "tr
     os.getenv("GITHUB_OAUTH_CLIENT_ID") and os.getenv("GITHUB_OAUTH_CLIENT_SECRET")
 )
 
-if not GITHUB_OAUTH_ENABLED:
+if not GITHUB_OAUTH_ENABLED and MULTIUSER_MODE:
     print(
         "⚠️  GitHub OAuth not configured. Set GITHUB_OAUTH_CLIENT_ID and GITHUB_OAUTH_CLIENT_SECRET to enable GitHub login."
     )
-else:
+elif GITHUB_OAUTH_ENABLED and MULTIUSER_MODE:
     print("✅ GitHub OAuth configured and ready.")
 
 

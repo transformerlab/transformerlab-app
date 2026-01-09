@@ -6,7 +6,6 @@ from typing import List, Dict, Optional, Tuple
 from lab import Experiment, Job
 from lab import dirs as lab_dirs
 from lab import storage
-from time import time
 
 # Allowed job types:
 ALLOWED_JOB_TYPES = [
@@ -417,22 +416,28 @@ async def _record_quota_usage_internal(
     elif final_status == "STOPPED":
         end_time_str = job_data.get("stop_time") or job_data.get("end_time")
     elif final_status in ("FAILED", "DELETED"):
-        end_time_str = job_data.get("end_time") or time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+        end_time_str = job_data.get("end_time") or datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
     if not end_time_str:
-        end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+        end_time_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
     # Calculate minutes used
     try:
         if isinstance(start_time_str, str):
-            start_dt = datetime.strptime(start_time_str, "%Y-%m-%d %H:%M:%S")
-        else:
+            start_dt = datetime.datetime.strptime(start_time_str, "%Y-%m-%d %H:%M:%S")
+        elif isinstance(start_time_str, datetime.datetime):
             start_dt = start_time_str
+        else:
+            print(f"Invalid start_time_str type: {type(start_time_str)}, value: {start_time_str}")
+            return
 
         if isinstance(end_time_str, str):
-            end_dt = datetime.strptime(end_time_str, "%Y-%m-%d %H:%M:%S")
-        else:
+            end_dt = datetime.datetime.strptime(end_time_str, "%Y-%m-%d %H:%M:%S")
+        elif isinstance(end_time_str, datetime.datetime):
             end_dt = end_time_str
+        else:
+            print(f"Invalid end_time_str type: {type(end_time_str)}, value: {end_time_str}")
+            return
 
         duration_seconds = (end_dt - start_dt).total_seconds()
         minutes_used = round(duration_seconds / 60.0, 2)
@@ -872,9 +877,18 @@ def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict]:
         items = storage.ls(artifacts_dir, detail=False)
 
         for item in items:
-            file_path = item if isinstance(item, str) else str(item)
+            # Handle both string paths and dict responses from storage.ls
+            if isinstance(item, dict):
+                # Extract path from dict (some storage backends return dicts even with detail=False)
+                file_path = item.get("name") or item.get("path") or str(item)
+                # Skip if it's a directory
+                if item.get("type") == "directory":
+                    continue
+            else:
+                file_path = str(item)
 
-            if storage.isfile(file_path):
+            # Ensure we have a valid file path (not a directory)
+            if file_path and storage.isfile(file_path):
                 artifact = format_artifact(file_path, storage)
                 if artifact:
                     artifacts.append(artifact)

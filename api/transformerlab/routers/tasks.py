@@ -1,20 +1,17 @@
 import json
+from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from typing import Optional
-from werkzeug.utils import secure_filename
-from pydantic import BaseModel
-
 from lab import Dataset
-from transformerlab.services.job_service import job_create
+from pydantic import BaseModel
 from transformerlab.models import model_helper
+from transformerlab.routers.auth import get_user_and_team
+from transformerlab.services.job_service import job_create
 from transformerlab.services.tasks_service import tasks_service
 from transformerlab.shared import galleries
-from transformerlab.shared.github_utils import (
-    fetch_task_json_from_github_helper,
-    fetch_task_json_from_github,
-)
-from transformerlab.routers.auth import get_user_and_team
+from transformerlab.shared.github_utils import fetch_task_json_from_github, fetch_task_json_from_github_helper
+from transformerlab.shared.task_utils import process_env_parameters_to_env_vars
+from werkzeug.utils import secure_filename
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -172,7 +169,12 @@ async def tasks_delete_all():
 
 
 @router.get("/{task_id}/queue", summary="Queue a task to run")
-async def queue_task(task_id: str, input_override: str = "{}", output_override: str = "{}"):
+async def queue_task(
+    task_id: str,
+    input_override: str = "{}",
+    output_override: str = "{}",
+    user_and_team=Depends(get_user_and_team),
+):
     task_to_queue = tasks_service.tasks_get_by_id(task_id)
     if task_to_queue is None:
         return {"message": "TASK NOT FOUND"}
@@ -267,8 +269,14 @@ async def queue_task(task_id: str, input_override: str = "{}", output_override: 
         for key in output_override.keys():
             job_data["config"][key] = output_override[key]
         job_data["plugin"] = task_to_queue["plugin"]
+
+    # Store user_id in job_data for user-specific configs when job runs
+    user = user_and_team.get("user") if user_and_team else None
+    if user:
+        job_data["user_id"] = str(user.id)
+
     job_id = job_create(
-        type=("EXPORT" if job_type == "EXPORT" else job_type),
+        type=job_type,
         status=job_status,
         experiment_id=task_to_queue["experiment_id"],
         job_data=json.dumps(job_data),
@@ -374,6 +382,9 @@ async def import_task_from_gallery(
     if github_repo_dir:
         task_config["github_directory"] = github_repo_dir
 
+    # Process env_parameters into env_vars if present
+    task_config = process_env_parameters_to_env_vars(task_config)
+
     # Get task name from config or use title
     task_name = task_config.get("name") or task_config.get("cluster_name") or title
 
@@ -478,6 +489,9 @@ async def import_task_from_team_gallery(
         task_config["github_repo_url"] = github_repo_url
     if github_repo_dir:
         task_config["github_directory"] = github_repo_dir
+
+    # Process env_parameters into env_vars if present
+    task_config = process_env_parameters_to_env_vars(task_config)
 
     # Get task name from config or use title
     task_name = task_config.get("name") or task_config.get("cluster_name") or title

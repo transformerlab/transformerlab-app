@@ -14,12 +14,9 @@ import customTheme from './lib/theme';
 import secretPurpleTheme from './lib/secretPurpleTheme';
 
 import './styles.css';
-import LoginModal from './components/Connect/LoginModal';
 
 import OutputTerminal from './components/OutputTerminal';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
-// import OutputTerminal from './components/OutputTerminal';
-import AutoUpdateModal from './components/AutoUpdateModal';
 import AnnouncementsModal from './components/Shared/AnnouncementsModal';
 import { NotificationProvider } from './components/Shared/NotificationSystem';
 import {
@@ -38,7 +35,6 @@ type AppContentProps = {
   logsDrawerHeight: number;
   setLogsDrawerHeight: (height: number) => void;
   themeSetter: (name: string) => void;
-  setSSHConnection: (conn: any) => void;
   setConnection: (conn: string) => void;
 };
 
@@ -49,7 +45,6 @@ function AppContent({
   logsDrawerHeight,
   setLogsDrawerHeight,
   themeSetter,
-  setSSHConnection,
   setConnection,
 }: AppContentProps) {
   const onOutputDrawerDrag = useCallback(
@@ -92,33 +87,21 @@ function AppContent({
     }
   }, [isS3Mode, logsDrawerOpen, setLogsDrawerOpen]);
 
-  // Only show LoginPage when:
+  // Show LoginPage when:
   // 1. Multi-user mode is enabled AND user is not authenticated
-  // 2. OR in single-user mode, user is not authenticated but has a connection (meaning auto-login failed)
-  // In single-user mode without connection, the LoginModal will handle connection and auto-login
+  // 2. OR user is not authenticated but has a connection (meaning auto-login failed)
+  // In cloud mode, connection should be set via environment variable or direct URL
   if (!authContext?.isAuthenticated) {
     // In multi-user mode, always show LoginPage
     if (process.env.MULTIUSER === 'true') {
       return <LoginPage />;
     }
-    // In single-user mode, only show LoginPage if we have a connection but aren't authenticated
-    // (meaning auto-login failed or connection was lost after being established)
+    // If we have a connection but aren't authenticated, show LoginPage
+    // (connection was established but auto-login failed)
     if (connection && connection !== '') {
       return <LoginPage />;
     }
-    // In single-user mode without connection, render just the LoginModal
-    // which will handle connection + auto-login
-    if (process.env.TL_FORCE_API_URL === 'false') {
-      return (
-        <LoginModal
-          setServer={setConnection}
-          connection={connection}
-          setTerminalDrawerOpen={setLogsDrawerOpen}
-          setSSHConnection={setSSHConnection}
-        />
-      );
-    }
-    // If TL_FORCE_API_URL is not 'false', show nothing (connection should be set via env var)
+    // If no connection, show nothing (connection should be set via env var in cloud mode)
     return null;
   }
 
@@ -231,16 +214,7 @@ function AppContent({
           </Box>
         </Box>
       )}
-      <AutoUpdateModal />
       <AnnouncementsModal />
-      {process.env.TL_FORCE_API_URL === 'false' && (
-        <LoginModal
-          setServer={setConnection}
-          connection={connection}
-          setTerminalDrawerOpen={setLogsDrawerOpen}
-          setSSHConnection={setSSHConnection}
-        />
-      )}
     </Box>
   );
 }
@@ -248,14 +222,22 @@ function AppContent({
 const INITIAL_LOGS_DRAWER_HEIGHT = 200; // Default height for logs drawer when first opened
 
 export default function App() {
-  // Normalize TL_API_URL - ensure it's either a valid URL or empty string
+  // Normalize TL_API_URL - ensure it's either a valid URL or default to same host as frontend
   const initialApiUrl = (() => {
     const envUrl = process.env?.TL_API_URL;
-    // If undefined, null, or the string "default", use empty string
+    // If undefined, null, or the string "default", use same host as frontend with API port
     if (!envUrl || envUrl === 'default' || envUrl.trim() === '') {
-      return '';
+      // Use the same protocol and hostname as the frontend, but with API port 8338
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      return `${protocol}//${hostname}:8338/`;
     }
-    return envUrl;
+    // Ensure the URL has a trailing slash
+    let url = envUrl.trim();
+    if (!url.endsWith('/')) {
+      url = url + '/';
+    }
+    return url;
   })();
 
   const [connection, setConnection] = useState(initialApiUrl);
@@ -296,7 +278,6 @@ export default function App() {
               logsDrawerHeight={logsDrawerHeight}
               setLogsDrawerHeight={setLogsDrawerHeight}
               themeSetter={themeSetter}
-              setSSHConnection={() => {}}
               setConnection={setConnection}
             />
           </ExperimentInfoProvider>

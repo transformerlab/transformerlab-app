@@ -29,6 +29,56 @@ from transformerlab.schemas.task import (
 router = APIRouter(prefix="/task", tags=["task"])
 
 
+def process_env_parameters_to_env_vars(config: dict) -> dict:
+    """
+    Process env_parameters from config/task.json and convert them to env_vars.
+
+    For each env_parameter:
+    - If it has env_var and value, add to env_vars with that value
+    - If it has only env_var (no value), add to env_vars with blank value
+
+    Args:
+        config: Dictionary that may contain env_parameters
+
+    Returns:
+        Updated config with env_vars populated from env_parameters
+    """
+    if not isinstance(config, dict):
+        return config
+
+    env_parameters = config.get("env_parameters", [])
+    if not isinstance(env_parameters, list):
+        return config
+
+    # Initialize env_vars if not present
+    if "env_vars" not in config:
+        config["env_vars"] = {}
+    elif not isinstance(config["env_vars"], dict):
+        # If env_vars exists but is not a dict, try to convert it
+        try:
+            if isinstance(config["env_vars"], str):
+                config["env_vars"] = json.loads(config["env_vars"])
+            else:
+                config["env_vars"] = {}
+        except (json.JSONDecodeError, TypeError):
+            config["env_vars"] = {}
+
+    # Process each env_parameter
+    for param in env_parameters:
+        if not isinstance(param, dict):
+            continue
+
+        env_var = param.get("env_var")
+        if not env_var:
+            continue
+
+        # If value is provided, use it; otherwise use blank string
+        value = param.get("value", "")
+        config["env_vars"][env_var] = value
+
+    return config
+
+
 @router.get("/list", summary="Returns all the tasks")
 async def task_get_all():
     tasks = task_service.task_get_all()
@@ -559,6 +609,9 @@ async def import_task_from_gallery(
     if github_repo_dir:
         task_config["github_directory"] = github_repo_dir
 
+    # Process env_parameters into env_vars if present
+    task_config = process_env_parameters_to_env_vars(task_config)
+
     # Get task name from config or use title
     task_name = task_config.get("name") or task_config.get("cluster_name") or title
 
@@ -652,6 +705,9 @@ async def import_task_from_team_gallery(
         task_config["github_repo_url"] = github_repo_url
     if github_repo_dir:
         task_config["github_directory"] = github_repo_dir
+
+    # Process env_parameters into env_vars if present
+    task_config = process_env_parameters_to_env_vars(task_config)
 
     # Get task name from config or use title
     task_name = task_config.get("name") or task_config.get("cluster_name") or title
@@ -787,10 +843,10 @@ async def fetch_task_json_endpoint(
     blob_pattern = r"^https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)/task\.json$"
     blob_match = re.match(blob_pattern, url)
     if blob_match:
-        owner, repo, branch, path = blob_match.groups()
+        owner, repo, branch_or_commit, path = blob_match.groups()
         repo_url = f"https://github.com/{owner}/{repo}.git"
         directory = path.rstrip("/")
-        task_json = await fetch_task_json_from_github(repo_url, directory)
+        task_json = await fetch_task_json_from_github(repo_url, directory, ref=branch_or_commit)
         return {
             "status": "success",
             "data": task_json,
@@ -803,10 +859,10 @@ async def fetch_task_json_endpoint(
     raw_pattern = r"^https://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.+)/task\.json$"
     raw_match = re.match(raw_pattern, url)
     if raw_match:
-        owner, repo, branch, path = raw_match.groups()
+        owner, repo, branch_or_commit, path = raw_match.groups()
         repo_url = f"https://github.com/{owner}/{repo}.git"
         directory = path.rstrip("/")
-        task_json = await fetch_task_json_from_github(repo_url, directory)
+        task_json = await fetch_task_json_from_github(repo_url, directory, ref=branch_or_commit)
         return {
             "status": "success",
             "data": task_json,
