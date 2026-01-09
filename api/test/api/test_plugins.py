@@ -14,6 +14,19 @@ def test_plugins_gallery(client):
         assert "name" in plugin or "description" in plugin
 
 
+def test_plugins_gallery_remote_mode(client, monkeypatch):
+    """Test that plugins/gallery returns empty list in remote mode (TFL_API_STORAGE_URI is set)"""
+    # Set TFL_API_STORAGE_URI to enable remote mode
+    monkeypatch.setenv("TFL_API_STORAGE_URI", "true")
+
+    # The endpoint reads env vars at request time, so monkeypatch should work
+    resp = client.get("/plugins/gallery")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert data == []  # Should return empty list in remote mode
+
+
 def test_plugins_list(client):
     resp = client.get("/plugins/list")
     assert resp.status_code == 200
@@ -22,6 +35,19 @@ def test_plugins_list(client):
     if data:
         plugin = data[0]
         assert "name" in plugin or "description" in plugin
+
+
+def test_plugins_list_remote_mode(client, monkeypatch):
+    """Test that plugins/list returns empty list in remote mode (TFL_API_STORAGE_URI is set)"""
+    # Set TFL_API_STORAGE_URI to enable remote mode
+    monkeypatch.setenv("TFL_API_STORAGE_URI", "true")
+
+    # The endpoint reads env vars at request time, so monkeypatch should work
+    resp = client.get("/plugins/list")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert data == []  # Should return empty list in remote mode
 
 
 def test_plugins_install(client):
