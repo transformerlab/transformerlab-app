@@ -25,6 +25,7 @@ from transformerlab.schemas.compute_providers import (
     mask_sensitive_config,
     ProviderTemplateLaunchRequest,
     ProviderTemplateFileUploadResponse,
+    ResumeFromCheckpointRequest,
 )
 from transformerlab.shared.models.models import ProviderType, TeamComputeProvider
 from transformerlab.compute_providers.base import ComputeProvider
@@ -1701,6 +1702,230 @@ async def get_sweep_results(
         "status": "success",
         "data": aggregated_results,
     }
+
+
+@router.post("/jobs/{job_id}/resume_from_checkpoint")
+async def resume_from_checkpoint(
+    job_id: str,
+    experimentId: str = Query(..., description="Experiment ID"),
+    request: ResumeFromCheckpointRequest = ...,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Resume a REMOTE job from a checkpoint by creating a new job with the same configuration
+    and setting parent_job_id and resumed_from_checkpoint in job_data.
+    """
+    import json
+    from transformerlab.services import job_service
+    from lab.dirs import get_job_checkpoints_dir
+    from lab import storage
+    import time
+
+    # Get the original job
+    original_job = job_service.job_get(job_id)
+    if not original_job or str(original_job.get("experiment_id")) != str(experimentId):
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Validate it's a REMOTE job
+    if original_job.get("type") != "REMOTE":
+        raise HTTPException(status_code=400, detail="Resume from checkpoint is only supported for REMOTE jobs")
+
+    # Get job_data
+    job_data = original_job.get("job_data") or {}
+    if not isinstance(job_data, dict):
+        try:
+            job_data = json.loads(job_data)
+        except json.JSONDecodeError:
+            job_data = {}
+
+    # Validate required fields for REMOTE job relaunch
+    provider_id = job_data.get("provider_id")
+    command = job_data.get("command")
+    if not provider_id or not command:
+        raise HTTPException(
+            status_code=400,
+            detail="Original job is missing required fields (provider_id or command) for resume",
+        )
+
+    # Verify checkpoint exists using workspace-aware path resolution
+    checkpoints_dir = get_job_checkpoints_dir(job_id)
+    checkpoint_path = storage.join(checkpoints_dir, request.checkpoint)
+    if not storage.exists(checkpoint_path):
+        raise HTTPException(status_code=404, detail=f"Checkpoint '{request.checkpoint}' not found")
+
+    # Get provider
+    team_id = user_and_team["team_id"]
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    # Create new REMOTE job
+    initial_status = "INTERACTIVE" if job_data.get("subtype") == "interactive" else "LAUNCHING"
+    new_job_id = job_service.job_create(type="REMOTE", status=initial_status, experiment_id=experimentId, job_data={})
+
+    # Set parent_job_id and resumed_from_checkpoint in job_data
+    job_service.job_update_job_data_insert_key_value(new_job_id, "parent_job_id", job_id, experimentId)
+    job_service.job_update_job_data_insert_key_value(
+        new_job_id, "resumed_from_checkpoint", request.checkpoint, experimentId
+    )
+
+    # Copy all original job launch configuration
+    config_fields = [
+        "command",
+        "task_name",
+        "subtype",
+        "interactive_type",
+        "cpus",
+        "memory",
+        "disk_space",
+        "accelerators",
+        "num_nodes",
+        "setup",
+        "env_vars",
+        "file_mounts",
+        "parameters",
+        "provider_id",
+        "provider_type",
+        "provider_name",
+        "github_repo_url",
+        "github_directory",
+        "user_info",
+        "team_id",
+    ]
+
+    for field in config_fields:
+        value = job_data.get(field)
+        if value is not None:
+            job_service.job_update_job_data_insert_key_value(new_job_id, field, value, experimentId)
+
+    # Relaunch via provider - replicate launch logic from compute_provider.py
+    try:
+        provider_instance = get_provider_instance(provider)
+    except Exception as exc:
+        await job_service.job_update_status(new_job_id, "FAILED", experimentId, error_msg=str(exc))
+        raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
+
+    # Build cluster name
+    base_name = job_data.get("task_name") or provider.name
+    formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{new_job_id}"
+
+    # Get user info
+    user = user_and_team.get("user")
+    user_info = {}
+    if user:
+        if getattr(user, "first_name", None) or getattr(user, "last_name", None):
+            user_info["name"] = " ".join(
+                part for part in [getattr(user, "first_name", ""), getattr(user, "last_name", "")] if part
+            ).strip()
+        if getattr(user, "email", None):
+            user_info["email"] = getattr(user, "email")
+
+    provider_display_name = job_data.get("provider_name") or provider.name
+
+    # Prepare environment variables
+    env_vars = (job_data.get("env_vars") or {}).copy()
+    env_vars["_TFL_JOB_ID"] = str(new_job_id)
+    env_vars["_TFL_EXPERIMENT_ID"] = experimentId
+
+    # Get TFL_STORAGE_URI from storage context
+    tfl_storage_uri = None
+    try:
+        storage_root = storage.root_uri()
+        if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
+            tfl_storage_uri = storage_root
+    except Exception:
+        pass
+
+    if tfl_storage_uri:
+        env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
+        env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
+
+    # Build setup script
+    setup_commands = []
+    # Add GitHub clone setup if enabled
+    github_repo_url = job_data.get("github_repo_url")
+    if github_repo_url:
+        workspace_dir = get_workspace_dir()
+        github_pat = read_github_pat_from_workspace(workspace_dir)
+        github_setup = generate_github_clone_setup(
+            repo_url=github_repo_url,
+            directory=job_data.get("github_directory"),
+            github_pat=github_pat,
+        )
+        setup_commands.append(github_setup)
+
+    # Add user-provided setup if any
+    original_setup = job_data.get("setup")
+    if original_setup:
+        setup_commands.append(original_setup)
+
+    final_setup = ";".join(setup_commands) if setup_commands else None
+
+    # Update job_data with launch configuration
+    launch_job_data = {
+        "task_name": job_data.get("task_name"),
+        "command": command,
+        "cluster_name": formatted_cluster_name,
+        "subtype": job_data.get("subtype"),
+        "interactive_type": job_data.get("interactive_type"),
+        "cpus": job_data.get("cpus"),
+        "memory": job_data.get("memory"),
+        "disk_space": job_data.get("disk_space"),
+        "accelerators": job_data.get("accelerators"),
+        "num_nodes": job_data.get("num_nodes"),
+        "setup": final_setup,
+        "env_vars": env_vars if env_vars else None,
+        "file_mounts": job_data.get("file_mounts") or None,
+        "parameters": job_data.get("parameters") or None,
+        "provider_id": provider.id,
+        "provider_type": provider.type,
+        "provider_name": provider_display_name,
+        "user_info": user_info or None,
+        "team_id": team_id,
+        "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+    }
+
+    for key, value in launch_job_data.items():
+        if value is not None:
+            job_service.job_update_job_data_insert_key_value(new_job_id, key, value, experimentId)
+
+    # Build ClusterConfig
+    disk_size = None
+    if job_data.get("disk_space"):
+        try:
+            disk_size = int(job_data.get("disk_space"))
+        except (TypeError, ValueError):
+            disk_size = None
+
+    cluster_config = ClusterConfig(
+        cluster_name=formatted_cluster_name,
+        provider_name=provider_display_name,
+        provider_id=provider.id,
+        command=command,
+        setup=final_setup,
+        env_vars=env_vars,
+        cpus=job_data.get("cpus"),
+        memory=job_data.get("memory"),
+        accelerators=job_data.get("accelerators"),
+        num_nodes=job_data.get("num_nodes"),
+        disk_size=disk_size,
+        file_mounts=job_data.get("file_mounts") or {},
+        provider_config={"requested_disk_space": job_data.get("disk_space")},
+    )
+
+    # Launch cluster
+    try:
+        provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
+        return {
+            "job_id": new_job_id,
+            "message": "Job relaunched from checkpoint",
+            "cluster_name": formatted_cluster_name,
+        }
+    except Exception as exc:
+        print(f"Failed to launch cluster: {exc}")
+        await job_service.job_update_status(new_job_id, "FAILED", experimentId, error_msg=str(exc))
+        raise HTTPException(status_code=500, detail=f"Failed to relaunch job: {exc}") from exc
 
 
 @router.post("/{provider_id}/clusters/{cluster_name}/stop")

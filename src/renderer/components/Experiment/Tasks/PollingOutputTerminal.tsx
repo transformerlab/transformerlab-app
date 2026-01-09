@@ -98,19 +98,47 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
 
   // Reset state when jobId changes
   useEffect(() => {
+    // Clear any pending timeouts first
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    // Stop processing queue
+    isProcessing.current = false;
+    // Clear the queue
+    lineQueue.current = [];
+    // Reset state
     setLastContent('');
     setHasReceivedData(false);
+    // Clear terminal when jobId changes - use a small delay to ensure it happens after any pending writes
+    if (termRef.current) {
+      // Use requestAnimationFrame to ensure this happens after any pending renders
+      requestAnimationFrame(() => {
+        if (termRef.current) {
+          termRef.current.write('\x1b[2J\x1b[H');
+        }
+      });
+    }
   }, [jobId]);
 
   // Terminal initialization (only once)
   useEffect(() => {
     termRef.current = new Terminal({
       smoothScrollDuration: 200,
+      convertEol: true,
+      cursorBlink: false,
+      cursorStyle: 'block',
+      theme: {
+        background: '#000000',
+        foreground: '#ffffff',
+      },
     });
     termRef.current.loadAddon(fitAddon.current);
 
     if (terminalRef.current) {
       termRef.current.open(terminalRef.current);
+      // Clear terminal immediately after opening to ensure clean state
+      termRef.current.write('\x1b[2J\x1b[H');
     }
 
     fitAddon.current.fit();
@@ -150,7 +178,9 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
 
     // Show loading message only if we don't have data yet and haven't shown anything
     if (!outputData && !error && !hasReceivedData && initialMessage) {
-      termRef.current.write(initialMessage + '\r\n');
+      // Clear terminal first to ensure clean state, then write loading message
+      // Use a single write to avoid flicker
+      termRef.current.write('\x1b[2J\x1b[H' + initialMessage + '\r\n');
       return;
     }
 
@@ -158,11 +188,18 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
     if (outputData) {
       // Handle case where API returns a string instead of array
       if (typeof outputData === 'string') {
-        if (!hasReceivedData && termRef.current) {
-          // Use ANSI escape sequences to completely clear the screen and move cursor to top
-          termRef.current.write('\x1b[2J\x1b[H');
-          setHasReceivedData(true);
+        if (outputData !== lastContent) {
+          if (!hasReceivedData && termRef.current) {
+            // Use ANSI escape sequences to completely clear the screen and move cursor to top
+            termRef.current.write('\x1b[2J\x1b[H');
+            setHasReceivedData(true);
+          }
+          // If content changed, clear and show new content
+          if (lastContent && termRef.current) {
+            termRef.current.write('\x1b[2J\x1b[H');
+          }
           addLinesOneByOne([outputData]);
+          setLastContent(outputData);
         }
         return;
       }
@@ -221,10 +258,20 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
               // Use ANSI escape sequences to completely clear the screen and move cursor to top
               termRef.current.write('\x1b[2J\x1b[H');
               setHasReceivedData(true);
-            }
-            // Only add lines if there's actual content (not empty or error message)
-            if (!isEmptyOutput) {
-              addLinesOneByOne(outputData);
+              // Only add lines if there's actual content (not empty or error message)
+              if (!isEmptyOutput) {
+                // Write first batch directly to avoid timing issues, then queue the rest
+                if (outputData.length > 0) {
+                  // Write first line directly
+                  termRef.current.write(outputData[0] + '\r\n');
+                  // Queue remaining lines
+                  if (outputData.length > 1) {
+                    addLinesOneByOne(outputData.slice(1));
+                  }
+                } else {
+                  addLinesOneByOne(outputData);
+                }
+              }
             }
           }
 
@@ -243,7 +290,7 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
       const errorMessage = `Error fetching output: ${error.message}`;
       addLinesOneByOne([errorMessage]);
     }
-  }, [outputData, lastContent, error, hasReceivedData]);
+  }, [outputData, lastContent, error, hasReceivedData, initialMessage]);
 
   return (
     <Sheet
@@ -254,9 +301,7 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
         height: '100%',
       }}
       ref={terminalRef}
-    >
-      &nbsp;
-    </Sheet>
+    />
   );
 };
 

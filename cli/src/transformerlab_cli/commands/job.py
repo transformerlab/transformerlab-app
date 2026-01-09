@@ -1,8 +1,10 @@
 import typer
+import os
+from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 from rich import print
-from rich.progress import Progress
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, DownloadColumn, TransferSpeedColumn
 from rich.panel import Panel
 from rich.text import Text
 from urllib.parse import urlparse
@@ -161,6 +163,75 @@ def list_artifacts(job_id: str, output_format: str = "pretty") -> None:
         console.print(f"[red]Error:[/red] Failed to fetch artifacts. Status code: {response.status_code}")
 
 
+def download_artifacts(job_id: str, output_dir: str = None) -> None:
+    """Download all artifacts for a job as a zip file."""
+    if output_dir is None:
+        output_dir = os.getcwd()
+    else:
+        output_dir = os.path.abspath(output_dir)
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    # Determine output filename
+    filename = f"artifacts_{job_id}.zip"
+    output_path = os.path.join(output_dir, filename)
+
+    # Check if file already exists
+    if os.path.exists(output_path):
+        console.print(f"[yellow]Warning:[/yellow] File {output_path} already exists. It will be overwritten.")
+
+    try:
+        with console.status(f"[bold green]Downloading artifacts for job {job_id}...[/bold green]", spinner="dots"):
+            response = api.get(f"/jobs/{job_id}/artifacts/download_all", timeout=300.0)
+
+        if response.status_code == 200:
+            # Get filename from Content-Disposition header if available
+            content_disposition = response.headers.get("Content-Disposition", "")
+            if "filename=" in content_disposition:
+                # Extract filename from Content-Disposition header
+                filename_part = content_disposition.split("filename=")[1].strip('"')
+                if filename_part:
+                    filename = filename_part
+                    output_path = os.path.join(output_dir, filename)
+
+            # Write the file with progress tracking
+            content_length = response.headers.get("Content-Length")
+            total_size = int(content_length) if content_length else None
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                DownloadColumn(),
+                TransferSpeedColumn(),
+            ) as progress:
+                task = progress.add_task(f"[cyan]Downloading {filename}...", total=total_size)
+
+                with open(output_path, "wb") as f:
+                    if total_size:
+                        # Show progress if we know the total size
+                        downloaded = 0
+                        for chunk in response.iter_bytes(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                progress.update(task, completed=downloaded)
+                    else:
+                        # Just write without progress if we don't know the size
+                        f.write(response.content)
+                        progress.update(task, completed=1, total=1)
+
+            console.print(f"[green]✓[/green] Successfully downloaded artifacts to: {output_path}")
+        elif response.status_code == 404:
+            console.print(f"[red]Error:[/red] No artifacts found for job {job_id}.")
+        else:
+            console.print(f"[red]Error:[/red] Failed to download artifacts. Status code: {response.status_code}")
+            if response.text:
+                console.print(f"[red]Response:[/red] {response.text[:200]}")
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] Failed to download artifacts: {e}")
+
+
 @app.command("artifacts")
 def command_job_artifacts(
     job_id: str = typer.Argument(..., help="Job ID to list artifacts for"),
@@ -168,6 +239,18 @@ def command_job_artifacts(
     """List artifacts for a job."""
     check_configs()
     list_artifacts(job_id)
+
+
+@app.command("download")
+def command_job_download(
+    job_id: str = typer.Argument(..., help="Job ID to download artifacts for"),
+    output_dir: str = typer.Option(
+        None, "--output", "-o", help="Output directory for the zip file (default: current directory)"
+    ),
+):
+    """Download all artifacts for a job as a zip file."""
+    check_configs()
+    download_artifacts(job_id, output_dir)
 
 
 @app.command("list")

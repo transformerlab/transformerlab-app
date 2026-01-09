@@ -4,7 +4,7 @@
   "description": "Run RAG on dataset queries and generate evaluation results.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "git": "https://github.com/transformerlab/transformerlab",
   "url": "https://github.com/transformerlab/transformerlab",
   "files": ["main.py", "setup.sh"],

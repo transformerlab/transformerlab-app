@@ -9,6 +9,7 @@ import {
   Box,
   Typography,
   IconButton,
+  Switch,
 } from '@mui/joy';
 
 import { getAPIFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
@@ -30,6 +31,7 @@ export default function AIProviderModal({
   selectedProvider: Provider | null;
 }) {
   const [showApiKey, setShowApiKey] = React.useState(false);
+  const [teamWide, setTeamWide] = React.useState(true);
 
   const { data: apiKey, mutate: mutateApiKey } = useAPI('config', ['get'], {
     key: selectedProvider?.keyName,
@@ -40,6 +42,7 @@ export default function AIProviderModal({
       getAPIFullPath('config', ['set'], {
         key: provider.keyName,
         value: token,
+        team_wide: teamWide,
       }),
     );
     mutateApiKey();
@@ -224,6 +227,20 @@ export default function AIProviderModal({
               </ol>
             </>
           )}
+          <FormControl
+            orientation="horizontal"
+            sx={{ mt: 2, gap: 1, alignItems: 'center' }}
+          >
+            <FormLabel sx={{ mr: 1 }}>
+              {teamWide
+                ? 'Team-wide (all members can use)'
+                : 'User-specific (only you)'}
+            </FormLabel>
+            <Switch
+              checked={teamWide}
+              onChange={(e) => setTeamWide(e.target.checked)}
+            />
+          </FormControl>
           <Box
             sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}
           >
