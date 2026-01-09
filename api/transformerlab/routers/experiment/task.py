@@ -843,10 +843,10 @@ async def fetch_task_json_endpoint(
     blob_pattern = r"^https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)/task\.json$"
     blob_match = re.match(blob_pattern, url)
     if blob_match:
-        owner, repo, branch_or_commit, path = blob_match.groups()
+        owner, repo, branch, path = blob_match.groups()
         repo_url = f"https://github.com/{owner}/{repo}.git"
         directory = path.rstrip("/")
-        task_json = await fetch_task_json_from_github(repo_url, directory, ref=branch_or_commit)
+        task_json = await fetch_task_json_from_github(repo_url, directory)
         return {
             "status": "success",
             "data": task_json,
@@ -859,10 +859,10 @@ async def fetch_task_json_endpoint(
     raw_pattern = r"^https://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.+)/task\.json$"
     raw_match = re.match(raw_pattern, url)
     if raw_match:
-        owner, repo, branch_or_commit, path = raw_match.groups()
+        owner, repo, branch, path = raw_match.groups()
         repo_url = f"https://github.com/{owner}/{repo}.git"
         directory = path.rstrip("/")
-        task_json = await fetch_task_json_from_github(repo_url, directory, ref=branch_or_commit)
+        task_json = await fetch_task_json_from_github(repo_url, directory)
         return {
             "status": "success",
             "data": task_json,
