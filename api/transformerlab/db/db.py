@@ -1,5 +1,4 @@
 from sqlalchemy import select
-from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upsert
 
 # from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,17 +24,93 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 ###############
 
 
-async def config_get(key: str):
+async def config_get(key: str, user_id: str | None = None, team_id: str | None = None):
+    """
+    Get config value with priority: user-specific -> team-specific -> global.
+
+    Priority order:
+    1. User-specific (user_id set, team_id matches current team)
+    2. Team-specific (user_id IS NULL, team_id set)
+    """
     async with async_session() as session:
-        result = await session.execute(select(Config.value).where(Config.key == key))
+        # First try user-specific config (if user_id provided)
+        if user_id and team_id:
+            result = await session.execute(
+                select(Config.value)
+                .where(Config.key == key, Config.user_id == user_id, Config.team_id == team_id)
+                .limit(1)
+            )
+            row = result.scalar_one_or_none()
+            if row is not None:
+                return row
+
+        # Then try team-specific config (user_id IS NULL, team_id set)
+        if team_id:
+            result = await session.execute(
+                select(Config.value)
+                .where(Config.key == key, Config.user_id.is_(None), Config.team_id == team_id)
+                .limit(1)
+            )
+            row = result.scalar_one_or_none()
+            if row is not None:
+                return row
+
+        # Finally fallback to global config (user_id IS NULL, team_id IS NULL)
+        result = await session.execute(
+            select(Config.value).where(Config.key == key, Config.user_id.is_(None), Config.team_id.is_(None)).limit(1)
+        )
         row = result.scalar_one_or_none()
         return row
 
 
-async def config_set(key: str, value: str):
-    stmt = insert(Config).values(key=key, value=value)
-    stmt = stmt.on_conflict_do_update(index_elements=["key"], set_={"value": value})
+async def config_set(key: str, value: str, user_id: str | None = None, team_id: str | None = None):
+    """
+    Set config value.
+
+    Args:
+        key: Config key
+        value: Config value
+        user_id: User ID for user-specific config. If None, sets team-wide config.
+        team_id: Team ID for team-specific config. If None, sets global config.
+
+    Config types:
+    - User-specific: user_id is set, team_id is set
+    - Team-wide: user_id is None, team_id is set
+    """
     async with async_session() as session:
-        await session.execute(stmt)
+        # Check if config already exists
+        if user_id is None and team_id is None:
+            # Global config: both user_id and team_id are NULL
+            result = await session.execute(
+                select(Config).where(Config.key == key, Config.user_id.is_(None), Config.team_id.is_(None))
+            )
+        elif user_id is None:
+            # Team-wide config: user_id is NULL, team_id is set
+            result = await session.execute(
+                select(Config).where(Config.key == key, Config.user_id.is_(None), Config.team_id == team_id)
+            )
+        else:
+            # User-specific config: both user_id and team_id are set
+            # Note: team_id should always be set when user_id is set (validated by router)
+            if team_id is None:
+                raise ValueError("team_id is required when user_id is set for user-specific configs")
+            result = await session.execute(
+                select(Config).where(
+                    Config.key == key,
+                    Config.user_id == user_id,
+                    Config.team_id == team_id,
+                )
+            )
+
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            # Update existing config
+            existing.value = value
+        else:
+            # Insert new config
+            new_config = Config(key=key, value=value, user_id=user_id, team_id=team_id)
+            session.add(new_config)
+
         await session.commit()
     return

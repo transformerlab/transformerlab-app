@@ -1,6 +1,6 @@
 import uuid
 from typing import Optional
-from fastapi import Depends, Request, Response
+from fastapi import Depends, Request, Response, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas, exceptions
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy, Strategy
@@ -10,6 +10,7 @@ from httpx_oauth.clients.github import GitHubOAuth2
 from transformerlab.shared.models.user_model import get_async_session, create_personal_team, get_user_db
 from transformerlab.shared.models.models import User, UserTeam, TeamRole
 from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
+from sqlalchemy.ext.asyncio import AsyncSession
 import os
 
 
@@ -212,12 +213,14 @@ google_oauth_client = GoogleOAuth2(
 GOOGLE_OAUTH_ENABLED = os.getenv("GOOGLE_OAUTH_ENABLED", "false").lower() == "true" and bool(
     os.getenv("GOOGLE_OAUTH_CLIENT_ID") and os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
 )
+# Check if we're in MULTIUSER mode
+MULTIUSER_MODE = os.getenv("MULTIUSER", "false").lower() != "false"
 
-if not GOOGLE_OAUTH_ENABLED:
+if not GOOGLE_OAUTH_ENABLED and MULTIUSER_MODE:
     print(
         "⚠️  Google OAuth not configured. Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET to enable Google login."
     )
-else:
+elif GOOGLE_OAUTH_ENABLED and MULTIUSER_MODE:
     print("✅ Google OAuth configured and ready.")
 
 # --- GitHub OAuth Configuration ---
@@ -231,11 +234,11 @@ GITHUB_OAUTH_ENABLED = os.getenv("GITHUB_OAUTH_ENABLED", "false").lower() == "tr
     os.getenv("GITHUB_OAUTH_CLIENT_ID") and os.getenv("GITHUB_OAUTH_CLIENT_SECRET")
 )
 
-if not GITHUB_OAUTH_ENABLED:
+if not GITHUB_OAUTH_ENABLED and MULTIUSER_MODE:
     print(
         "⚠️  GitHub OAuth not configured. Set GITHUB_OAUTH_CLIENT_ID and GITHUB_OAUTH_CLIENT_SECRET to enable GitHub login."
     )
-else:
+elif GITHUB_OAUTH_ENABLED and MULTIUSER_MODE:
     print("✅ GitHub OAuth configured and ready.")
 
 
@@ -303,4 +306,62 @@ fastapi_users = FastAPIUsers[User, uuid.UUID](
     [auth_backend, oauth_backend],
 )
 
-current_active_user = fastapi_users.current_user(active=True)
+
+# Custom current_active_user that supports both JWT and API key authentication
+async def current_active_user(
+    request: Request,
+    session: AsyncSession = Depends(get_async_session),
+) -> User:
+    """
+    Custom authentication dependency that supports both JWT and API key authentication.
+    This replaces the default fastapi_users.current_user() to add API key support.
+    """
+    # Import here to avoid circular dependency
+    from transformerlab.shared.api_key_auth import extract_api_key_from_request, validate_api_key_and_get_user
+    from transformerlab.utils.api_key_utils import validate_api_key_format
+
+    # Check if request has an API key (starts with "tl-")
+    api_key = extract_api_key_from_request(request)
+
+    if api_key:
+        # API key authentication
+        try:
+            user, _, _ = await validate_api_key_and_get_user(api_key, session)
+            if not user.is_active:
+                raise HTTPException(status_code=401, detail="User is not active")
+            return user
+        except HTTPException as e:
+            # Re-raise the specific HTTPException from API key validation
+            raise e
+
+    # Try JWT authentication
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:]  # Remove "Bearer " prefix
+
+        # If it's not an API key format, try JWT validation
+        if not validate_api_key_format(token):
+            from transformerlab.shared.models.models import OAuthAccount
+            from transformerlab.shared.models.user_model import SQLAlchemyUserDatabaseWithOAuth
+
+            try:
+                # Create user_db instance
+                user_db = SQLAlchemyUserDatabaseWithOAuth(session, User, OAuthAccount)
+
+                # Create user_manager instance
+                user_manager = UserManager(user_db)
+
+                # Validate JWT token
+                strategy = auth_backend.get_strategy()
+                user = await strategy.read_token(token, user_manager)
+
+                if user and user.is_active:
+                    return user
+                elif user and not user.is_active:
+                    raise HTTPException(status_code=401, detail="User is not active")
+            except Exception:
+                # Token validation failed (expired, invalid, etc.)
+                pass
+
+    # If we get here, neither API key nor JWT worked
+    raise HTTPException(status_code=401, detail="Authentication required")

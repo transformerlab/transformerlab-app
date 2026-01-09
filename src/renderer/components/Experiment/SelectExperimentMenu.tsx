@@ -144,8 +144,8 @@ export default function SelectExperimentMenu({ models }) {
   );
 
   const hasProviders = providers.length > 0;
-  const isS3Mode = mode === 's3';
-  const shouldShowSimpleDialog = hasProviders || isS3Mode;
+  const isLocalMode = mode === 'local';
+  const shouldShowSimpleDialog = !isLocalMode;
 
   // Fetch healthz to get the mode
   useEffect(() => {
@@ -175,6 +175,12 @@ export default function SelectExperimentMenu({ models }) {
 
   const createNewExperiment = useCallback(
     async (name: string, fromRecipeId = null) => {
+      // Prevent creation if experiments list is still loading or unavailable
+      if (isLoading || !data) {
+        alert('Please wait for experiments to load before creating a new one.');
+        return;
+      }
+
       let newId = 0;
 
       if (fromRecipeId === null) {
@@ -202,16 +208,29 @@ export default function SelectExperimentMenu({ models }) {
         }
         newId = responseJson?.data?.experiment_id;
       }
+
+      // After creation, refresh the list and ensure the new experiment is in it before updating state
+      await mutate();
+      const updatedData = await mutate(); // Wait for mutate to complete and get fresh data
+      const newExperimentExists = updatedData?.some(
+        (exp: any) => exp.id === newId,
+      );
+      if (!newExperimentExists) {
+        alert(
+          'Experiment created, but failed to load in the list. Please refresh and try again.',
+        );
+        return;
+      }
+
       setExperimentId(newId);
       createHandleClose(newId);
-      mutate();
 
       // Navigate to Notes page if experiment was created from a recipe AND recipe is not blank
       if (fromRecipeId !== null && fromRecipeId !== -1) {
         navigate('/experiment/notes');
       }
     },
-    [setExperimentId, mutate, navigate],
+    [setExperimentId, mutate, navigate, isLoading, data],
   );
 
   return (
@@ -253,7 +272,7 @@ export default function SelectExperimentMenu({ models }) {
                   sx={{
                     backgroundColor: 'transparent !important',
                     fontSize: '20px',
-                    color: 'var(--joy-palette-neutral-plainDisabledColor)',
+                    color: 'var(--joy-palette-neutralDisabledColor)',
                     paddingLeft: 1,
                     paddingRight: 0,
                     minHeight: '22px',
@@ -371,46 +390,50 @@ export default function SelectExperimentMenu({ models }) {
             >
               {isLoading && <MenuItem>Loading...</MenuItem>}
               {data &&
-                data.map((experiment: any) => {
-                  return (
-                    <MenuItem
-                      selected={experimentInfo?.name === experiment.name}
-                      variant={
-                        experimentInfo?.name === experiment.name
-                          ? 'soft'
-                          : undefined
-                      }
-                      onClick={createHandleClose(experiment.name)}
-                      key={experiment.id}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        textOverflow: 'ellipsis',
-                        overflow: 'hidden',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      <span
-                        style={{
-                          overflow: 'hidden',
+                data
+                  .filter(
+                    (experiment: any) => experiment?.id && experiment?.name,
+                  ) // skip bad rows
+                  .map((experiment: any) => {
+                    return (
+                      <MenuItem
+                        selected={experimentInfo?.id === experiment.id}
+                        variant={
+                          experimentInfo?.id === experiment.id
+                            ? 'soft'
+                            : undefined
+                        }
+                        onClick={createHandleClose(experiment.id)}
+                        key={experiment.id}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
                           textOverflow: 'ellipsis',
+                          overflow: 'hidden',
                           whiteSpace: 'nowrap',
-                          flex: 1,
-                          minWidth: 0,
                         }}
-                        title={experiment.name}
                       >
-                        {experiment.name}
-                      </span>
-                      {experimentInfo?.name === experiment.name && (
-                        <CheckIcon style={{ marginLeft: 'auto' }} />
-                      )}
-                    </MenuItem>
-                  );
-                })}
+                        <span
+                          style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                          title={experiment.name}
+                        >
+                          {experiment.name}
+                        </span>
+                        {experimentInfo?.id === experiment.id && (
+                          <CheckIcon style={{ marginLeft: 'auto' }} />
+                        )}
+                      </MenuItem>
+                    );
+                  })}
             </Box>
             <Divider />
-            <MenuItem onClick={() => setModalOpen(true)}>
+            <MenuItem onClick={() => setModalOpen(true)} disabled={isLoading}>
               <ListItemDecorator>
                 <PlusCircleIcon strokeWidth={1} />
               </ListItemDecorator>
@@ -434,13 +457,19 @@ export default function SelectExperimentMenu({ models }) {
                 }}
                 onSubmit={async (e) => {
                   e.preventDefault();
+                  if (isLoading || !data) {
+                    alert(
+                      'Please wait for experiments to load before creating a new one.',
+                    );
+                    return;
+                  }
                   const formData = new FormData(e.currentTarget);
                   const name = formData.get('experiment-name') as string;
                   if (!name || name.trim() === '') {
                     alert('Experiment name is required.');
                     return;
                   }
-                  // Check if experiment name already exists
+                  // Check if experiment name already exists (fallback, as API also checks)
                   if (data?.some((exp: any) => exp.name === name)) {
                     alert('Experiment name already exists.');
                     return;

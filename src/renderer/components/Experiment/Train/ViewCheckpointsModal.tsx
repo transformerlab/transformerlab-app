@@ -8,7 +8,9 @@ import {
   Box,
 } from '@mui/joy';
 import { PlayIcon } from 'lucide-react';
-import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { useState } from 'react';
+import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 import { formatBytes } from 'renderer/lib/utils';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
@@ -16,6 +18,9 @@ import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 export default function ViewCheckpointsModal({ open, onClose, jobId }) {
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
+  const [resumingCheckpoint, setResumingCheckpoint] = useState<string | null>(
+    null,
+  );
   const { data, isLoading: checkpointsLoading } = useAPI(
     'jobs',
     ['getCheckpoints'],
@@ -23,12 +28,47 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
   );
 
   const handleRestartFromCheckpoint = async (checkpoint) => {
-    // TODO: Implement checkpoint resume functionality
-    // This feature is currently disabled
-    addNotification({
-      type: 'info',
-      message: 'Checkpoint resume functionality is not currently available',
-    });
+    if (!experimentInfo?.id) {
+      addNotification({
+        type: 'error',
+        message: 'Experiment ID is required',
+      });
+      return;
+    }
+
+    setResumingCheckpoint(checkpoint.filename);
+    try {
+      const url = getAPIFullPath('compute_provider', ['resumeFromCheckpoint'], {
+        jobId,
+        experimentId: experimentInfo.id,
+      });
+
+      const response = await fetchWithAuth(url, {
+        method: 'POST',
+        body: JSON.stringify({ checkpoint: checkpoint.filename }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(errorData.detail || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      addNotification({
+        type: 'success',
+        message: `Job ${result.job_id} queued to resume from checkpoint "${checkpoint.filename}"`,
+      });
+      onClose();
+    } catch (error) {
+      addNotification({
+        type: 'error',
+        message: `Failed to resume from checkpoint: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
+    } finally {
+      setResumingCheckpoint(null);
+    }
   };
 
   let noCheckpoints = false;
@@ -121,6 +161,8 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                               handleRestartFromCheckpoint(checkpoint)
                             }
                             startDecorator={<PlayIcon />}
+                            loading={resumingCheckpoint === checkpoint.filename}
+                            disabled={resumingCheckpoint !== null}
                           >
                             Restart training from here
                           </Button>

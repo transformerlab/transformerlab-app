@@ -215,7 +215,23 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   // Handle cases where url might be partial or full
   // Ideally fetchWithAuth is passed a relative path, but we handle both.
-  const fullUrl = url.startsWith('http') ? url : `${API_URL()}${url}`;
+  let fullUrl: string;
+  if (url.startsWith('http')) {
+    fullUrl = url;
+  } else {
+    const baseUrl = API_URL();
+    if (baseUrl === null) {
+      // Default to same host as frontend with API port if API_URL is not set
+      // Ensure URL doesn't start with / (baseUrl already has trailing slash)
+      const cleanPath = url.startsWith('/') ? url.slice(1) : url;
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      fullUrl = `${protocol}//${hostname}:8338/${cleanPath}`;
+    } else {
+      // baseUrl already has trailing slash from API_URL()
+      fullUrl = `${baseUrl}${url}`;
+    }
+  }
 
   const headers: Record<string, string> = {
     ...((options.headers as Record<string, string>) || {}),
@@ -340,12 +356,23 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
         updateCurrentTeam(teams[0]);
         setTeamState(teams[0]);
       }
+
+      // Keep the cached team in sync if its name changed (e.g., rename)
+      const current = getCurrentTeam();
+      if (current) {
+        const updated = teams.find((t: Team) => t.id === current.id);
+        if (updated && updated.name !== current.name) {
+          const next = { id: updated.id, name: updated.name };
+          updateCurrentTeam(next);
+          setTeamState(next);
+        }
+      }
     } else if (teams && teams.length === 0) {
       // No teams available
       updateCurrentTeam(null);
       setTeamState(null);
     }
-  }, [teamsData, token]);
+  }, [teamsData, token, team]);
 
   // Login handler
   const handleLogin = useCallback(

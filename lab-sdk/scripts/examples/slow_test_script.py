@@ -159,7 +159,7 @@ def train():
         config_artifact_path = lab.save_artifact(config_file, "training_config.json")
         lab.log(f"Saved training config: {config_artifact_path}")
         # Get the captured wandb URL from job data for reporting
-        job_data = lab.job.get_job_data()
+        job_data = lab.get_job_data()
         captured_wandb_url = job_data.get("wandb_run_url", "None")
         lab.log(f"📋 Final wandb URL stored in job data: {captured_wandb_url}")
         sleep(300)

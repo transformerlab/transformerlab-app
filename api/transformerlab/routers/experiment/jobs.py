@@ -21,23 +21,22 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import transformerlab.services.job_service as job_service
-from transformerlab.services.job_service import job_update_status
-from transformerlab.services.provider_service import (
-    get_team_provider,
-    get_provider_instance,
-)
+from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
+from transformerlab.services.provider_service import get_team_provider, get_provider_instance
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.compute_providers.models import JobState
+from transformerlab.shared.tunnel_parser import get_tunnel_info
 from lab import Job
 from lab.dirs import get_workspace_dir
+from transformerlab.shared import zip_utils
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
 async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subtype: str = ""):
-    jobs = job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
+    jobs = await job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
 
     # Optional filter by job_data.subtype
     if subtype:
@@ -58,7 +57,7 @@ async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subt
 
 @router.get("/delete/{job_id}")
 async def job_delete(job_id: str, experimentId: str):
-    job_service.job_delete(job_id, experiment_id=experimentId)
+    await job_service.job_delete(job_id, experiment_id=experimentId)
     return {"message": "OK"}
 
 
@@ -69,12 +68,14 @@ async def job_create(
     status: str = "CREATED",
     data: str = "{}",
 ):
-    jobid = job_service.job_create(type=type, status=status, job_data=data, experiment_id=experimentId)
+    jobid = await job_service.job_create(type=type, status=status, job_data=data, experiment_id=experimentId)
     return jobid
 
 
 async def job_create_task(script: str, job_data: str = "{}", experimentId: str = None):
-    jobid = job_service.job_create(type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experimentId)
+    jobid = await job_service.job_create(
+        type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experimentId
+    )
     return jobid
 
 
@@ -86,12 +87,12 @@ async def job_update(job_id: str, status: str, experimentId: str):
 
 async def start_next_job():
     # Count running jobs across all organizations
-    num_running_jobs = job_service.job_count_running_across_all_orgs()
+    num_running_jobs = await job_service.job_count_running_across_all_orgs()
     if num_running_jobs > 0:
         return {"message": "A job is already running"}
 
     # Get next queued job across all organizations
-    nextjob, org_id = job_service.jobs_get_next_queued_job_across_all_orgs()
+    nextjob, org_id = await job_service.jobs_get_next_queued_job_across_all_orgs()
 
     if nextjob:
         print(f"Starting Next Job in Queue: {nextjob}")
@@ -134,19 +135,19 @@ async def start_next_job():
 async def stop_job(job_id: str, experimentId: str):
     # The way a job is stopped is simply by adding "stop: true" to the job_data
     # This will be checked by the plugin as it runs
-    job_service.job_stop(job_id, experiment_id=experimentId)
+    await job_service.job_stop(job_id, experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/delete_all")
 async def job_delete_all(experimentId: str):
-    job_service.job_delete_all(experiment_id=experimentId)
+    await job_service.job_delete_all(experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/{job_id}")
 async def get_training_job(job_id: str):
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     return job
@@ -159,7 +160,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
     Uses the same logic as stream_job_output but returns content directly.
     """
     try:
-        job = job_service.job_get(job_id)
+        job = await job_service.job_get(job_id)
         if job is None:
             return "Job not found"
 
@@ -176,7 +177,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
         # Handle sweeps case first
         if sweeps:
             output_file = job_data.get("sweep_output_file", None)
-            if output_file is not None and storage.exists(output_file):
+            if output_file is not None and await storage.exists(output_file):
                 output_file_name = output_file
             else:
                 # Fall back to regular output file logic
@@ -186,10 +187,10 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
             output_file_name = await shared.get_job_output_file_name(job_id)
 
         # Read and return the file content as JSON array of lines
-        if storage.exists(output_file_name):
+        if await storage.exists(output_file_name):
             lines = []
-            with storage.open(output_file_name, "r") as f:
-                for line in f:
+            async with await storage.open(output_file_name, "r") as f:
+                async for line in f:
                     lines.append(line.rstrip("\n"))  # Remove trailing newline
             return lines
         else:
@@ -203,10 +204,10 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
             await asyncio.sleep(4)
             try:
                 output_file_name = await shared.get_job_output_file_name(job_id)
-                if storage.exists(output_file_name):
+                if await storage.exists(output_file_name):
                     lines = []
-                    with storage.open(output_file_name, "r") as f:
-                        for line in f:
+                    async with await storage.open(output_file_name, "r") as f:
+                        async for line in f:
                             lines.append(line.rstrip("\n"))  # Remove trailing newline
                     return lines
                 else:
@@ -216,12 +217,12 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                 print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
                 # Use the Job class to get the proper directory and create the file
                 job_obj = Job(job_id)
-                output_file_name = job_obj.get_log_path()
+                output_file_name = await job_obj.get_log_path()
                 # Get directory by removing filename from path using storage.join
                 output_dir = storage.join(*output_file_name.split("/")[:-1]) if "/" in output_file_name else "."
-                storage.makedirs(output_dir, exist_ok=True)
-                with storage.open(output_file_name, "w") as f:
-                    f.write("")
+                await storage.makedirs(output_dir, exist_ok=True)
+                async with await storage.open(output_file_name, "w") as f:
+                    await f.write("")
                 return []
         else:
             print(f"ValueError in get_tasks_job_output: {e}")
@@ -244,7 +245,7 @@ async def get_provider_job_logs(
     Fetch the raw job logs directly from the underlying compute provider for a REMOTE job.
     """
 
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if not job or str(job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -279,6 +280,11 @@ async def get_provider_job_logs(
         provider_job_ids = job_data.get("provider_job_ids")
         if isinstance(provider_job_ids, list) and provider_job_ids:
             provider_job_id = provider_job_ids[-1]
+
+    if provider_job_id is None:
+        provider_launch_result = job_data.get("provider_launch_result")
+        if isinstance(provider_launch_result, dict):
+            provider_job_id = provider_launch_result.get("job_id")
 
     if provider_job_id is None:
         try:
@@ -335,6 +341,106 @@ async def get_provider_job_logs(
     }
 
 
+@router.get("/{job_id}/tunnel_info")
+async def get_tunnel_info_for_job(
+    experimentId: str,
+    job_id: str,
+    tail_lines: int = Query(400, ge=100, le=2000),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Parse provider logs for a REMOTE job and extract tunnel information based on job type.
+
+    This route automatically determines the tunnel type from job_data.interactive_type
+    and uses the appropriate parser. Supports: 'vscode', 'jupyter', 'vllm', 'ssh'
+    """
+
+    job = job_service.job_get(job_id)
+    if not job or str(job.get("experiment_id")) != str(experimentId):
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job_data = job.get("job_data") or {}
+    if not isinstance(job_data, dict):
+        try:
+            job_data = json.loads(job_data)
+        except JSONDecodeError:
+            job_data = {}
+
+    # Get interactive_type from job_data, default to 'vscode' for backward compatibility
+    interactive_type = job_data.get("interactive_type", "vscode")
+    if not interactive_type:
+        raise HTTPException(status_code=400, detail="Job does not contain interactive_type in job_data")
+
+    provider_id = job_data.get("provider_id")
+    cluster_name = job_data.get("cluster_name")
+    if not provider_id or not cluster_name:
+        raise HTTPException(
+            status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
+        )
+
+    provider = await get_team_provider(session, user_and_team["team_id"], provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        provider_instance = get_provider_instance(provider)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
+
+    # Determine provider-side job id in the same way as provider_logs
+    provider_job_id: Optional[str | int] = job_data.get("provider_job_id")
+
+    if provider_job_id is None:
+        provider_job_ids = job_data.get("provider_job_ids")
+        if isinstance(provider_job_ids, list) and provider_job_ids:
+            provider_job_id = provider_job_ids[-1]
+
+    if provider_job_id is None:
+        try:
+            provider_jobs = provider_instance.list_jobs(cluster_name)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Failed to enumerate provider jobs: {exc}") from exc
+
+        if provider_jobs:
+            running_states = {JobState.RUNNING, JobState.PENDING}
+            chosen_job = next((pj for pj in provider_jobs if pj.state in running_states), provider_jobs[-1])
+            provider_job_id = chosen_job.job_id
+
+    if provider_job_id is None:
+        raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
+
+    try:
+        raw_logs = provider_instance.get_job_logs(
+            cluster_name,
+            provider_job_id,
+            tail_lines=tail_lines or None,
+            follow=False,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
+
+    if isinstance(raw_logs, (bytes, bytearray)):
+        logs_text = raw_logs.decode("utf-8", errors="replace")
+    elif isinstance(raw_logs, str):
+        logs_text = raw_logs
+    else:
+        try:
+            logs_text = json.dumps(raw_logs, indent=2)
+        except TypeError:
+            logs_text = str(raw_logs)
+
+    tunnel_info = get_tunnel_info(logs_text, interactive_type)
+
+    return {
+        **tunnel_info,
+        "cluster_name": cluster_name,
+        "provider_id": provider_id,
+        "provider_job_id": str(provider_job_id),
+        "interactive_type": interactive_type,
+    }
+
+
 # Templates
 
 
@@ -371,7 +477,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
     Enhanced version combining the best of both train and jobs routers.
     """
     try:
-        job = job_service.job_get(job_id)
+        job = await job_service.job_get(job_id)
 
         job_data = job.get("job_data", {})
 
@@ -386,7 +492,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
         # Handle sweeps case first
         if sweeps:
             output_file = job_data.get("sweep_output_file", None)
-            if output_file is not None and storage.exists(output_file):
+            if output_file is not None and await storage.exists(output_file):
                 output_file_name = output_file
             else:
                 # Fall back to regular output file logic
@@ -408,12 +514,12 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
                 # Use the Job class to get the proper directory and create the file
                 job_obj = Job(job_id)
-                output_file_name = job_obj.get_log_path()
+                output_file_name = await job_obj.get_log_path()
                 # Get directory by removing filename from path using storage.join
                 output_dir = storage.join(*output_file_name.split("/")[:-1]) if "/" in output_file_name else "."
-                storage.makedirs(output_dir, exist_ok=True)
-                with storage.open(output_file_name, "w") as f:
-                    f.write("")
+                await storage.makedirs(output_dir, exist_ok=True)
+                async with await storage.open(output_file_name, "w") as f:
+                    await f.write("")
         else:
             print(f"ValueError in stream_job_output: {e}")
             return StreamingResponse(
@@ -440,7 +546,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
 
 @router.get("/{job_id}/stream_detailed_json_report")
 async def stream_detailed_json_report(job_id: str, file_name: str):
-    if not storage.exists(file_name):
+    if not await storage.exists(file_name):
         print(f"File not found: {file_name}")
         return "File not found", 404
 
@@ -454,7 +560,7 @@ async def stream_detailed_json_report(job_id: str, file_name: str):
 
 @router.get("/{job_id}/get_additional_details")
 async def stream_job_additional_details(job_id: str, task: str = "view"):
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -470,13 +576,14 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
     if task == "download":
         return FileResponse(file_path, filename=filename, media_type=file_format)
 
-    if not storage.exists(file_path):
+    if not await storage.exists(file_path):
         return Response("No additional details found for this evaluation", media_type="text/csv")
 
     # convert csv to JSON, but do not assume that \n marks the end of a row as cells can
     # contain fields that start and end with " and contain \n. Use a CSV parser instead.
-    with storage.open(file_path, "r") as csvfile:
-        contents = csv.reader(csvfile, delimiter=",", quotechar='"')
+    async with await storage.open(file_path, "r") as csvfile:
+        contents_text = await csvfile.read()
+        contents = csv.reader(contents_text.splitlines(), delimiter=",", quotechar='"')
         # convert the csv to a JSON object
         csv_content = {"header": [], "body": []}
         for i, row in enumerate(contents):
@@ -489,23 +596,24 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
 
 @router.get("/{job_id}/get_figure_json")
 async def get_figure_path(job_id: str):
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
     file_path = job_data.get("plot_data_path", None)
 
-    if file_path is None or not storage.exists(file_path):
+    if file_path is None or not await storage.exists(file_path):
         return Response("No plot data found for this evaluation", media_type="text/csv")
 
-    with storage.open(file_path, "r") as f:
-        content = json.loads(f.read())
+    async with await storage.open(file_path, "r") as f:
+        content_str = await f.read()
+        content = json.loads(content_str)
     return content
 
 
 @router.get("/{job_id}/get_generated_dataset")
 async def get_generated_dataset(job_id: str):
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     # Get experiment name
@@ -517,11 +625,12 @@ async def get_generated_dataset(job_id: str):
     else:
         return Response("No dataset found for this evaluation", media_type="text/csv")
 
-    if not storage.exists(json_file_path):
+    if not await storage.exists(json_file_path):
         return Response("No dataset found for this evaluation", media_type="text/csv")
     else:
-        with storage.open(json_file_path, "r") as f:
-            json_content = json.loads(f.read())
+        async with await storage.open(json_file_path, "r") as f:
+            json_content_str = await f.read()
+            json_content = json.loads(json_content_str)
 
         df = pd.DataFrame(json_content)
 
@@ -533,7 +642,7 @@ async def get_generated_dataset(job_id: str):
 @router.get("/{job_id}/get_eval_results")
 async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0):
     """Get evaluation results for a job"""
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -551,7 +660,7 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
         file_index = 0
     file_path = eval_results_list[file_index]
 
-    if not storage.exists(file_path):
+    if not await storage.exists(file_path):
         return Response("Evaluation results file not found", media_type="text/csv")
 
     # Determine file format
@@ -567,10 +676,10 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
 
     if task == "download":
         # Use StreamingResponse to support both local and remote files
-        def generate():
-            with storage.open(file_path, "rb") as f:
+        async def generate():
+            async with await storage.open(file_path, "rb") as f:
                 while True:
-                    chunk = f.read(8192)  # Read in 8KB chunks
+                    chunk = await f.read(8192)  # Read in 8KB chunks
                     if not chunk:
                         break
                     yield chunk
@@ -586,8 +695,9 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
 
     # For view, convert CSV to JSON format
     if file_path.endswith(".csv"):
-        with storage.open(file_path, "r") as csvfile:
-            contents = csv.reader(csvfile, delimiter=",", quotechar='"')
+        async with await storage.open(file_path, "r") as csvfile:
+            content_str = await csvfile.read()
+            contents = csv.reader(content_str.splitlines(), delimiter=",", quotechar='"')
             csv_content = {"header": [], "body": []}
             for i, row in enumerate(contents):
                 if i == 0:
@@ -596,8 +706,9 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
                     csv_content["body"].append(row)
             return csv_content
     elif file_path.endswith(".json"):
-        with storage.open(file_path, "r") as jsonfile:
-            content = json.load(jsonfile)
+        async with await storage.open(file_path, "r") as jsonfile:
+            content_str = await jsonfile.read()
+            content = json.loads(content_str)
             # If it's a list of records, convert to header/body format
             if isinstance(content, list) and len(content) > 0:
                 if isinstance(content[0], dict):
@@ -607,14 +718,14 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
             return content
     else:
         # For other file types, just return as text
-        with storage.open(file_path, "r") as f:
-            return f.read()
+        async with await storage.open(file_path, "r") as f:
+            return await f.read()
 
 
 @router.get("/{job_id}/get_eval_images")
 async def get_eval_images(job_id: str):
     """Get list of evaluation images for a job"""
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -625,7 +736,7 @@ async def get_eval_images(job_id: str):
 
     images_dir = job_data["eval_images_dir"]
 
-    if not storage.exists(images_dir):
+    if not await storage.exists(images_dir):
         return {"images": []}
 
     # Supported image extensions
@@ -633,7 +744,7 @@ async def get_eval_images(job_id: str):
     images = []
     try:
         # Use storage.ls to list directory contents
-        items = storage.ls(images_dir, detail=True)
+        items = await storage.ls(images_dir, detail=True)
         for item in items:
             # Handle both dict (detail=True) and string (detail=False) formats
             if isinstance(item, dict):
@@ -654,13 +765,13 @@ async def get_eval_images(job_id: str):
             else:
                 # Fallback for string format - check if it's a file
                 file_path = item if isinstance(item, str) else str(item)
-                if storage.isfile(file_path):
+                if await storage.isfile(file_path):
                     filename = file_path.split("/")[-1] if "/" in file_path else file_path
                     _, ext = os.path.splitext(filename.lower())
                     if ext in image_extensions:
                         # Try to get file info - for remote storage, stats might not be available
                         try:
-                            items_detail = storage.ls(file_path, detail=True)
+                            items_detail = await storage.ls(file_path, detail=True)
                             if items_detail and isinstance(items_detail[0], dict):
                                 file_info = items_detail[0]
                                 images.append(
@@ -701,7 +812,7 @@ async def get_eval_images(job_id: str):
 @router.get("/{job_id}/image/{filename}")
 async def get_eval_image(job_id: str, filename: str):
     """Serve individual evaluation image files"""
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -712,7 +823,7 @@ async def get_eval_image(job_id: str, filename: str):
 
     images_dir = job_data["eval_images_dir"]
 
-    if not storage.exists(images_dir):
+    if not await storage.exists(images_dir):
         return Response("Images directory not found", status_code=404)
 
     # Secure the filename to prevent directory traversal
@@ -720,7 +831,7 @@ async def get_eval_image(job_id: str, filename: str):
     file_path = storage.join(images_dir, filename)
 
     # Ensure the file exists
-    if not storage.exists(file_path):
+    if not await storage.exists(file_path):
         return Response("Image not found", status_code=404)
 
     # For security, verify the file path is within the images directory
@@ -760,7 +871,7 @@ async def get_checkpoints(job_id: str, request: Request):
         return {"checkpoints": []}
 
     """Get list of checkpoints for a job"""
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return {"checkpoints": []}
 
@@ -777,7 +888,7 @@ async def get_checkpoints(job_id: str, request: Request):
             checkpoints = []
             for checkpoint_path in checkpoint_paths:
                 try:
-                    if storage.isdir(checkpoint_path):
+                    if await storage.isdir(checkpoint_path):
                         # Don't set formatted_time and filesize for directories
                         formatted_time = None
                         filesize = None
@@ -785,7 +896,7 @@ async def get_checkpoints(job_id: str, request: Request):
                         # Try to get file info from storage
                         try:
                             # Use storage.ls to get file details if available
-                            file_info_list = storage.ls(checkpoint_path, detail=True)
+                            file_info_list = await storage.ls(checkpoint_path, detail=True)
                             if file_info_list and isinstance(file_info_list, dict):
                                 file_info = file_info_list.get(checkpoint_path, {})
                                 filesize = file_info.get("size", 0)
@@ -854,7 +965,7 @@ async def get_checkpoints(job_id: str, request: Request):
             config = {}
     model_name = config.get("model_name", "")
     adaptor_name = config.get("adaptor_name", "adaptor")
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     default_adaptor_dir = storage.join(workspace_dir, "adaptors", secure_filename(model_name), adaptor_name)
 
     # Get job directory
@@ -862,13 +973,13 @@ async def get_checkpoints(job_id: str, request: Request):
     if not checkpoints_dir:
         from lab.dirs import get_job_checkpoints_dir
 
-        checkpoints_dir = get_job_checkpoints_dir(job_id)
-    if not checkpoints_dir or not storage.exists(checkpoints_dir):
+        checkpoints_dir = await get_job_checkpoints_dir(job_id)
+    if not checkpoints_dir or not await storage.exists(checkpoints_dir):
         return {"checkpoints": []}
-    elif storage.isdir(checkpoints_dir):
+    elif await storage.isdir(checkpoints_dir):
         checkpoints = []
         try:
-            items = storage.ls(checkpoints_dir, detail=False)
+            items = await storage.ls(checkpoints_dir, detail=False)
             for item in items:
                 file_path = item if isinstance(item, str) else str(item)
                 filename = file_path.split("/")[-1] if "/" in file_path else file_path
@@ -876,7 +987,7 @@ async def get_checkpoints(job_id: str, request: Request):
                 if fnmatch(filename, "*_adapters.safetensors"):
                     # Try to get file info
                     try:
-                        file_info_list = storage.ls(file_path, detail=True)
+                        file_info_list = await storage.ls(file_path, detail=True)
                         if file_info_list and isinstance(file_info_list, dict):
                             file_info = file_info_list.get(file_path, {})
                             filesize = file_info.get("size", 0)
@@ -901,7 +1012,7 @@ async def get_checkpoints(job_id: str, request: Request):
                         print(f"Error getting file info for {file_path}: {e}")
                         checkpoints.append({"filename": filename, "date": None, "size": None})
                 # allow directories too
-                elif storage.isdir(file_path):
+                elif await storage.isdir(file_path):
                     checkpoints.append({"filename": filename, "date": None, "size": None})
             if checkpoints:
                 return {"checkpoints": checkpoints}
@@ -916,7 +1027,7 @@ async def get_checkpoints(job_id: str, request: Request):
 
     checkpoints = []
     try:
-        items = storage.ls(checkpoints_dir, detail=False)
+        items = await storage.ls(checkpoints_dir, detail=False)
         for item in items:
             file_path = item if isinstance(item, str) else str(item)
             filename = file_path.split("/")[-1] if "/" in file_path else file_path
@@ -924,7 +1035,7 @@ async def get_checkpoints(job_id: str, request: Request):
             if fnmatch(filename, checkpoints_file_filter):
                 try:
                     # Try to get file info from storage
-                    file_info_list = storage.ls(file_path, detail=True)
+                    file_info_list = await storage.ls(file_path, detail=True)
                     if file_info_list and isinstance(file_info_list, dict):
                         file_info = file_info_list.get(file_path, {})
                         filesize = file_info.get("size", 0)
@@ -971,17 +1082,79 @@ async def get_checkpoints(job_id: str, request: Request):
 
 @router.get("/{job_id}/artifacts")
 async def get_artifacts(job_id: str, request: Request):
-    if job_id is None or job_id == "" or job_id == "-1":
+    """Get list of artifacts for a job"""
+
+    # Validate job_id
+    if not job_id or job_id in ("", "-1"):
         return {"artifacts": []}
 
     """Get list of artifacts for a job"""
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return {"artifacts": []}
 
+    # Use get_job_artifacts_dir to get the artifacts directory directly
+    try:
+        from lab.dirs import get_job_artifacts_dir
+
+        artifacts_dir = await get_job_artifacts_dir(job_id)
+        artifacts = await get_artifacts_from_directory(artifacts_dir, storage)
+    except Exception as e:
+        print(f"Error getting artifacts for job {job_id}: {e}")
+        artifacts = []
+
+    # Sort by filename in descending order for consistent ordering
+    artifacts.sort(key=lambda x: x["filename"], reverse=True)
+
+    return {"artifacts": artifacts}
+
+
+@router.get("/{job_id}/artifacts/download_all")
+async def download_all_artifacts(job_id: str):
+    """
+    Download a zip file containing all artifacts for a job.
+    """
+    # 1. Gather all artifact file paths using service
+    all_file_paths = await job_service.get_all_artifact_paths(job_id, storage)
+
+    if not all_file_paths:
+        return Response("No artifacts found for this job", status_code=404)
+
+    # 2. Create Zip File in memory
+    try:
+        zip_buffer = await zip_utils.create_zip_from_storage(all_file_paths, storage)
+
+        filename = f"artifacts_{job_id}.zip"
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-cache",
+        }
+
+        return StreamingResponse(iter([zip_buffer.getvalue()]), media_type="application/zip", headers=headers)
+
+    except Exception as e:
+        print(f"Error creating zip file: {e}")
+        return Response("Failed to generate zip file", status_code=500)
+
+
+@router.get("/{job_id}/artifact/{filename}")
+async def get_artifact(job_id: str, filename: str, task: str = "view"):
+    """
+    Serve individual artifact files for viewing or downloading.
+
+    Args:
+        job_id: The job ID
+        filename: The artifact filename
+        task: Either "view" or "download" (default: "view")
+    """
+    job = job_service.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
+
     job_data = job["job_data"]
 
-    # First try to use the new SDK method to get artifacts
+    # First try to use the new SDK method to get artifact paths
+    artifact_file_path = None
     try:
         from lab.job import Job
 
@@ -990,142 +1163,117 @@ async def get_artifacts(job_id: str, request: Request):
         artifact_paths = sdk_job.get_artifact_paths()
 
         if artifact_paths:
-            artifacts = []
+            # Look for the file in the artifact paths
+            filename_secure = secure_filename(filename)
             for artifact_path in artifact_paths:
-                try:
-                    # Try to get file info from storage
-                    try:
-                        file_info_list = storage.ls(artifact_path, detail=True)
-                        if file_info_list and isinstance(file_info_list, dict):
-                            file_info = file_info_list.get(artifact_path, {})
-                            filesize = file_info.get("size", 0)
-                            mtime = file_info.get("mtime", None)
-                            if mtime:
-                                formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                            else:
-                                formatted_time = None
-                        elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
-                            file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
-                            filesize = file_info.get("size", 0)
-                            mtime = file_info.get("mtime", None)
-                            if mtime:
-                                formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                            else:
-                                formatted_time = None
-                        else:
-                            # Fallback to os.stat for local files
-                            try:
-                                stat = os.stat(artifact_path)
-                                modified_time = stat.st_mtime
-                                filesize = stat.st_size
-                                formatted_time = datetime.fromtimestamp(modified_time).isoformat()
-                            except (OSError, AttributeError):
-                                formatted_time = None
-                                filesize = None
-                    except Exception:
-                        # If storage.ls fails, try os.stat as fallback
-                        try:
-                            stat = os.stat(artifact_path)
-                            modified_time = stat.st_mtime
-                            filesize = stat.st_size
-                            formatted_time = datetime.fromtimestamp(modified_time).isoformat()
-                        except (OSError, AttributeError):
-                            formatted_time = None
-                            filesize = None
-
-                    filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
-                    artifact_dict = {"filename": filename}
-                    if formatted_time is not None:
-                        artifact_dict["date"] = formatted_time
-                    if filesize is not None:
-                        artifact_dict["size"] = filesize
-                    artifacts.append(artifact_dict)
-                except Exception as e:
-                    print(f"Error getting stat for artifact {artifact_path}: {e}")
-                    continue
-
-            # Sort artifacts by filename in reverse (descending) order for consistent ordering
-            artifacts.sort(key=lambda x: x["filename"], reverse=True)
-            return {"artifacts": artifacts}
+                # Check if this path matches the filename
+                path_filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
+                if path_filename == filename_secure:
+                    artifact_file_path = artifact_path
+                    break
     except Exception as e:
-        print(f"SDK artifact method failed for job {job_id}, falling back to legacy method: {e}")
+        print(f"Error using SDK method to get artifact paths: {e}")
 
-    # Fallback to the original logic if SDK method doesn't work or returns nothing
-    # Get artifacts directory from job_data or use default location
-    artifacts_dir = job_data.get("artifacts_dir")
-    if not artifacts_dir:
-        # Use the SDK's artifacts directory structure
-        from lab.dirs import get_job_artifacts_dir
+    # Fallback to checking the artifacts directory
+    if artifact_file_path is None:
+        if "artifacts_dir" not in job_data or not job_data["artifacts_dir"]:
+            return Response("No artifacts directory found for this job", status_code=404)
 
-        artifacts_dir = get_job_artifacts_dir(job_id)
+        artifacts_dir = job_data["artifacts_dir"]
 
-    if not artifacts_dir or not storage.exists(artifacts_dir):
-        return {"artifacts": []}
+        if not await storage.exists(artifacts_dir):
+            return Response("Artifacts directory not found", status_code=404)
 
-    artifacts = []
-    try:
-        items = storage.ls(artifacts_dir, detail=False)
-        for item in items:
-            file_path = item if isinstance(item, str) else str(item)
-            if storage.isfile(file_path):
-                filename = file_path.split("/")[-1] if "/" in file_path else file_path
-                try:
-                    # Try to get file info from storage
-                    file_info_list = storage.ls(file_path, detail=True)
-                    if file_info_list and isinstance(file_info_list, dict):
-                        file_info = file_info_list.get(file_path, {})
-                        filesize = file_info.get("size", 0)
-                        mtime = file_info.get("mtime", None)
-                        if mtime:
-                            formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                        else:
-                            formatted_time = None
-                    elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
-                        file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
-                        filesize = file_info.get("size", 0)
-                        mtime = file_info.get("mtime", None)
-                        if mtime:
-                            formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                        else:
-                            formatted_time = None
-                    else:
-                        # Fallback to os.stat for local files
-                        try:
-                            stat = os.stat(file_path)
-                            modified_time = stat.st_mtime
-                            filesize = stat.st_size
-                            formatted_time = datetime.fromtimestamp(modified_time).isoformat()
-                        except (OSError, AttributeError):
-                            formatted_time = None
-                            filesize = None
-                except Exception as e:
-                    print(f"Error getting stat for file {file_path}: {e}")
-                    formatted_time = None
-                    filesize = None
-                artifact_dict = {"filename": filename}
-                if formatted_time is not None:
-                    artifact_dict["date"] = formatted_time
-                if filesize is not None:
-                    artifact_dict["size"] = filesize
-                artifacts.append(artifact_dict)
-    except Exception as e:
-        print(f"Error reading artifacts directory {artifacts_dir}: {e}")
+        # Secure the filename to prevent directory traversal
+        filename_secure = secure_filename(filename)
+        artifact_file_path = storage.join(artifacts_dir, filename_secure)
 
-    # Sort artifacts by filename in reverse (descending) order for consistent ordering
-    artifacts.sort(key=lambda x: x["filename"], reverse=True)
+    # Ensure the file exists
+    if not await storage.exists(artifact_file_path):
+        return Response("Artifact not found", status_code=404)
 
-    return {"artifacts": artifacts}
+    # Determine media type based on file extension
+    _, ext = os.path.splitext(filename.lower())
+    media_type_map = {
+        # Images
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+        # Videos
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".ogg": "video/ogg",
+        ".avi": "video/x-msvideo",
+        ".mov": "video/quicktime",
+        # Audio
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+        ".m4a": "audio/mp4",
+        ".flac": "audio/flac",
+        # JSON
+        ".json": "application/json",
+        # Text
+        ".txt": "text/plain",
+        ".log": "text/plain",
+        ".csv": "text/csv",
+        # Other
+        ".pdf": "application/pdf",
+        ".zip": "application/zip",
+    }
+
+    media_type = media_type_map.get(ext, "application/octet-stream")
+
+    # For JSON files in view mode, return the parsed content
+    if task == "view" and ext == ".json":
+        try:
+            async with await storage.open(artifact_file_path, "r") as f:
+                content_str = await f.read()
+                content = json.loads(content_str)
+                return content
+        except Exception as e:
+            print(f"Error reading JSON file: {e}")
+            # Fall back to streaming response
+
+    # For download or other file types, stream the file
+    # Use StreamingResponse to support both local and remote files (e.g., s3://)
+    async def generate():
+        async with await storage.open(artifact_file_path, "rb") as f:
+            while True:
+                chunk = await f.read(8192)  # Read in 8KB chunks
+                if not chunk:
+                    break
+                yield chunk
+
+    headers = {}
+    if task == "download":
+        headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    else:
+        headers["Content-Disposition"] = f'inline; filename="{filename}"'
+
+    headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    headers["Pragma"] = "no-cache"
+    headers["Expires"] = "0"
+
+    return StreamingResponse(
+        generate(),
+        media_type=media_type,
+        headers=headers,
+    )
 
 
 @router.get("/{job_id}")
 async def get_training_job_by_path(job_id: str):
-    return job_service.job_get(job_id)
+    return await job_service.job_get(job_id)
 
 
 @router.get("/{job_id}/output")
 async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
     try:
-        job = job_service.job_get(job_id)
+        job = await job_service.job_get(job_id)
         if job is None:
             return "Job not found"
 
@@ -1141,9 +1289,9 @@ async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
 
         if sweeps:
             output_file = job_data.get("sweep_output_file", None)
-            if output_file is not None and storage.exists(output_file):
-                with storage.open(output_file, "r") as f:
-                    output = f.read()
+            if output_file is not None and await storage.exists(output_file):
+                async with await storage.open(output_file, "r") as f:
+                    output = await f.read()
                 return output
             else:
                 # Fall back to regular output file logic
@@ -1154,9 +1302,9 @@ async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
             experiment_id = job["experiment_id"]
             output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_id)
 
-        if storage.exists(output_file_name):
-            with storage.open(output_file_name, "r") as f:
-                output = f.read()
+        if await storage.exists(output_file_name):
+            async with await storage.open(output_file_name, "r") as f:
+                output = await f.read()
             return output
         else:
             return "Output file not found"
@@ -1173,7 +1321,7 @@ async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
 @router.get("/{job_id}/sweep_results")
 async def sweep_results(job_id: str):
     try:
-        job = job_service.job_get(job_id)
+        job = await job_service.job_get(job_id)
         if job is None:
             return {"status": "error", "message": "Job not found."}
 
@@ -1188,10 +1336,11 @@ async def sweep_results(job_id: str):
                 job_data = {}
 
         output_file = job_data.get("sweep_results_file", None)
-        if output_file and storage.exists(output_file):
+        if output_file and await storage.exists(output_file):
             try:
-                with storage.open(output_file, "r") as f:
-                    output = json.load(f)
+                async with await storage.open(output_file, "r") as f:
+                    content_str = await f.read()
+                    output = json.loads(content_str)
                 return {"status": "success", "data": output}
             except json.JSONDecodeError as e:
                 print(f"JSON decode error for job {job_id}: {e}")

@@ -84,6 +84,8 @@ ALLOWED_TEXT2IMG_ARCHITECTURES = [
     "StableDiffusionXLControlNetInpaintPipeline",
     "IFInpaintingPipeline",
     "IFPipeline",
+    "DiffusionPipeline",
+    "ZImagePipeline",
 ]
 
 # Allowed architectures for img2img pipelines
@@ -151,11 +153,23 @@ def _setup_diffusion_logger():
 
     # File handler
     try:
+        import asyncio
         from lab.dirs import get_global_log_path
 
-        file_handler = logging.FileHandler(get_global_log_path(), encoding="utf-8")
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+        # Check if there's already an event loop running
+        # If so, we can't use asyncio.run() and must skip file handler setup
+        # to avoid the "coroutine was never awaited" warning
+        try:
+            asyncio.get_running_loop()
+            # There's a running loop, skip file handler setup
+            # (can't use asyncio.run() when loop is already running)
+        except RuntimeError:
+            # No running event loop, safe to use asyncio.run()
+            # Create and immediately await the coroutine
+            log_path = asyncio.run(get_global_log_path())
+            file_handler = logging.FileHandler(log_path, encoding="utf-8")
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
     except Exception:
         pass  # Continue without file logging if there's an issue
 
@@ -276,9 +290,9 @@ class CreateDatasetRequest(BaseModel):
 HISTORY_FILE = "history.json"
 
 
-def get_diffusion_dir(experiment_name: str = None, workspace_dir: str | None = None):
+async def get_diffusion_dir(experiment_name: str = None, workspace_dir: str | None = None):
     """Get the diffusion directory path"""
-    base = workspace_dir or get_workspace_dir()
+    base = workspace_dir or await get_workspace_dir()
 
     if experiment_name is not None:
         # New experiment-specific path
@@ -288,32 +302,32 @@ def get_diffusion_dir(experiment_name: str = None, workspace_dir: str | None = N
         return storage.join(base, "diffusion")
 
 
-def get_images_dir(experiment_name: str = None, workspace_dir: str | None = None):
+async def get_images_dir(experiment_name: str = None, workspace_dir: str | None = None):
     """Get the images directory path"""
-    return storage.join(get_diffusion_dir(experiment_name, workspace_dir), "images")
+    return storage.join(await get_diffusion_dir(experiment_name, workspace_dir), "images")
 
 
-def get_history_file_path(experiment_name: str = None, workspace_dir: str | None = None):
+async def get_history_file_path(experiment_name: str = None, workspace_dir: str | None = None):
     """Get the history file path"""
     # Create a history file in the diffusion directory if it doesn't exist
-    return storage.join(get_diffusion_dir(experiment_name, workspace_dir), HISTORY_FILE)
+    return storage.join(await get_diffusion_dir(experiment_name, workspace_dir), HISTORY_FILE)
 
 
-def ensure_directories(experiment_name: str = None, workspace_dir: str | None = None):
+async def ensure_directories(experiment_name: str = None, workspace_dir: str | None = None):
     """Ensure diffusion and images directories exist"""
-    diffusion_dir = get_diffusion_dir(experiment_name, workspace_dir)
-    images_dir = get_images_dir(experiment_name, workspace_dir)
-    history_file_path = get_history_file_path(experiment_name, workspace_dir)
+    diffusion_dir = await get_diffusion_dir(experiment_name, workspace_dir)
+    images_dir = await get_images_dir(experiment_name, workspace_dir)
+    history_file_path = await get_history_file_path(experiment_name, workspace_dir)
 
-    storage.makedirs(diffusion_dir, exist_ok=True)
-    storage.makedirs(images_dir, exist_ok=True)
-    if not storage.exists(history_file_path):
-        with storage.open(history_file_path, "a"):
+    await storage.makedirs(diffusion_dir, exist_ok=True)
+    await storage.makedirs(images_dir, exist_ok=True)
+    if not await storage.exists(history_file_path):
+        async with await storage.open(history_file_path, "a"):
             # Create the history file if it doesn't exist
             pass
 
 
-def load_history(
+async def load_history(
     limit: int = 50, offset: int = 0, experiment_name: str = None, workspace_dir: str | None = None
 ) -> HistoryResponse:
     """Load image generation history from both new and old paths for backward compatibility"""
@@ -322,20 +336,20 @@ def load_history(
     # Load from new experiment-specific path if experiment info is provided
     if experiment_name is not None:
         try:
-            new_history_file = get_history_file_path(experiment_name, workspace_dir)
-            if storage.exists(new_history_file):
-                with storage.open(new_history_file, "r") as f:
-                    new_history_data = json.load(f)
+            new_history_file = await get_history_file_path(experiment_name, workspace_dir)
+            if await storage.exists(new_history_file):
+                async with await storage.open(new_history_file, "r") as f:
+                    new_history_data = json.loads(await f.read())
                     all_images.extend(new_history_data)
         except (json.JSONDecodeError, FileNotFoundError):
             pass
 
     # Load from legacy global path for backward compatibility
     try:
-        legacy_history_file = get_history_file_path(None, workspace_dir)  # No experiment → legacy path
-        if storage.exists(legacy_history_file):
-            with storage.open(legacy_history_file, "r") as f:
-                legacy_history_data = json.load(f)
+        legacy_history_file = await get_history_file_path(None, workspace_dir)  # No experiment → legacy path
+        if await storage.exists(legacy_history_file):
+            async with await storage.open(legacy_history_file, "r") as f:
+                legacy_history_data = json.loads(await f.read())
                 all_images.extend(legacy_history_data)
     except (json.JSONDecodeError, FileNotFoundError):
         pass
@@ -361,7 +375,7 @@ def load_history(
     return HistoryResponse(images=items, total=total_items)
 
 
-def find_image_by_id(
+async def find_image_by_id(
     image_id: str, experiment_name: str = None, workspace_dir: str | None = None
 ) -> ImageHistoryItem | None:
     """Find a specific image by ID without loading all history, searching both new and old paths"""
@@ -369,10 +383,10 @@ def find_image_by_id(
     # Search in new experiment-specific path first if experiment info is provided
     if experiment_name is not None:
         try:
-            new_history_file = get_history_file_path(experiment_name, workspace_dir)
-            if storage.exists(new_history_file):
-                with storage.open(new_history_file, "r") as f:
-                    history = json.load(f)
+            new_history_file = await get_history_file_path(experiment_name, workspace_dir)
+            if await storage.exists(new_history_file):
+                async with await storage.open(new_history_file, "r") as f:
+                    history = json.loads(await f.read())
                     for item in history:
                         if item.get("id") == image_id:
                             return ImageHistoryItem(**item)
@@ -381,10 +395,10 @@ def find_image_by_id(
 
     # Search in legacy global path for backward compatibility
     try:
-        legacy_history_file = get_history_file_path(None, workspace_dir)  # No experiment → legacy path
-        if storage.exists(legacy_history_file):
-            with storage.open(legacy_history_file, "r") as f:
-                history = json.load(f)
+        legacy_history_file = await get_history_file_path(None, workspace_dir)  # No experiment → legacy path
+        if await storage.exists(legacy_history_file):
+            async with await storage.open(legacy_history_file, "r") as f:
+                history = json.loads(await f.read())
                 for item in history:
                     if item.get("id") == image_id:
                         return ImageHistoryItem(**item)
@@ -423,11 +437,14 @@ async def generate_image(experimentId: str, request: DiffusionRequest, http_requ
                 "config": request_dict,
             }
 
-            job_id = job_create(type="DIFFUSION", status="QUEUED", job_data=job_config, experiment_id=experimentId)
+            job_id = await job_create(
+                type="DIFFUSION", status="QUEUED", job_data=job_config, experiment_id=experimentId
+            )
 
             # Get experiment name for experiment-specific paths
-            images_folder = storage.join(get_images_dir(experimentId), generation_id)
-            if not images_folder.startswith(get_images_dir(experimentId)):  # Validate containment
+            images_dir = await get_images_dir(experimentId)
+            images_folder = storage.join(images_dir, generation_id)
+            if not images_folder.startswith(images_dir):  # Validate containment
                 raise HTTPException(status_code=400, detail="Invalid generation_id: Path traversal detected.")
             tmp_json_path = storage.join(images_folder, "tmp_json.json")
 
@@ -466,8 +483,8 @@ async def is_valid_diffusion(experimentId: str, request: DiffusionRequest):
         try:
             from lab.model import Model as ModelService
 
-            model_service = ModelService.get(model_id)
-            model_data = model_service.get_metadata()
+            model_service = await ModelService.get(model_id)
+            model_data = await model_service.get_metadata()
 
             if model_data and model_data.get("json_data"):
                 json_data = model_data["json_data"]
@@ -548,8 +565,8 @@ async def get_history(experimentId: str, limit: int = 50, offset: int = 0, http_
         raise HTTPException(status_code=400, detail="Offset must be non-negative")
 
     # Get experiment name for experiment-specific paths
-    workspace_dir = get_workspace_dir()
-    return load_history(limit=limit, offset=offset, experiment_name=experimentId, workspace_dir=workspace_dir)
+    workspace_dir = await get_workspace_dir()
+    return await load_history(limit=limit, offset=offset, experiment_name=experimentId, workspace_dir=workspace_dir)
 
 
 @router.get("/history/{image_id}", summary="Get the actual image by ID")
@@ -573,11 +590,11 @@ async def get_image_by_id(
         mask_image: Whether to return the mask image instead of generated image
     """
     # Get experiment name for experiment-specific paths
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
 
     if step:
         # If step is requested, we need to check if intermediate images were saved
-        images_dir = get_images_dir(experimentId, workspace_dir)
+        images_dir = await get_images_dir(experimentId, workspace_dir)
         image_dir_based_on_id = storage.join(images_dir, image_id)
 
         # Ensure the constructed path is within the intended base directory
@@ -585,7 +602,7 @@ async def get_image_by_id(
             raise HTTPException(status_code=400, detail="Invalid image ID or path traversal attempt detected")
 
         # Check if the image path is a directory (new format)
-        if not storage.isdir(image_dir_based_on_id):
+        if not await storage.isdir(image_dir_based_on_id):
             raise HTTPException(status_code=404, detail=f"Image path is not a directory for image ID {image_id}")
 
         # Construct the path for the step image
@@ -593,13 +610,13 @@ async def get_image_by_id(
         if not step_image_path.startswith(images_dir):
             raise HTTPException(status_code=400, detail="Invalid path traversal attempt detected")
 
-        if not storage.exists(step_image_path):
+        if not await storage.exists(step_image_path):
             raise HTTPException(status_code=404, detail=f"Step image file not found at {step_image_path}")
 
         return FileResponse(step_image_path)
 
     # Use the efficient function to find the specific image
-    image_item = find_image_by_id(image_id, experimentId, workspace_dir)
+    image_item = await find_image_by_id(image_id, experimentId, workspace_dir)
 
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
@@ -610,7 +627,7 @@ async def get_image_by_id(
         if not image_item.mask_image_path or not image_item.mask_image_path.strip():
             raise HTTPException(status_code=404, detail=f"No mask image found for image ID {image_id}")
         image_path = image_item.mask_image_path
-        if not storage.exists(image_path):
+        if not await storage.exists(image_path):
             raise HTTPException(status_code=404, detail=f"Mask image file not found at {image_path}")
     elif input_image:
         # Return the input image if requested and available
@@ -618,18 +635,18 @@ async def get_image_by_id(
             raise HTTPException(status_code=404, detail=f"No input image found for image ID {image_id}")
 
         image_path = image_item.input_image_path
-        if not storage.exists(image_path):
+        if not await storage.exists(image_path):
             raise HTTPException(status_code=404, detail=f"Input image file not found at {image_path}")
     elif preprocessed:
         if not image_item.processed_image or not image_item.processed_image.strip():
             raise HTTPException(status_code=404, detail=f"No preprocessed image found for image ID {image_id}")
         image_path = image_item.processed_image
-        if not storage.exists(image_path):
+        if not await storage.exists(image_path):
             raise HTTPException(status_code=404, detail=f"Preprocessed image file not found at {image_path}")
     else:
         # Return the generated output image (default behavior)
         # Check if image_path is a folder (new format) or a file (old format)
-        if storage.isdir(image_item.image_path):
+        if await storage.isdir(image_item.image_path):
             # New format: folder with numbered images
             if index < 0 or index >= (image_item.num_images if hasattr(image_item, "num_images") else 1):
                 raise HTTPException(
@@ -646,7 +663,7 @@ async def get_image_by_id(
                 raise HTTPException(status_code=404, detail="Only index 0 available for this image set")
             image_path = image_item.image_path
 
-        if not storage.exists(image_path):
+        if not await storage.exists(image_path):
             raise HTTPException(status_code=404, detail=f"Image file not found at {image_path}")
 
     return FileResponse(image_path)
@@ -664,21 +681,21 @@ async def get_image_info_by_id(image_id: str, experimentId: str, http_request: R
         Image metadata including number of images available
     """
     # Get experiment name for experiment-specific paths
-    workspace_dir = get_workspace_dir()
-    image_item = find_image_by_id(image_id, experimentId, workspace_dir)
+    workspace_dir = await get_workspace_dir()
+    image_item = await find_image_by_id(image_id, experimentId, workspace_dir)
 
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
 
     # Check if image folder/file exists
-    if not storage.exists(image_item.image_path):
+    if not await storage.exists(image_item.image_path):
         raise HTTPException(status_code=404, detail=f"Image path not found at {image_item.image_path}")
 
     # Determine number of images available
     num_images = 1  # Default for old format
-    if storage.isdir(image_item.image_path):
+    if await storage.isdir(image_item.image_path):
         # Count PNG files in the directory
-        entries = storage.ls(image_item.image_path, detail=False)
+        entries = await storage.ls(image_item.image_path, detail=False)
         png_files = [f for f in entries if f.endswith(".png") and f.replace(".png", "").isdigit()]
         num_images = len(png_files)
 
@@ -701,21 +718,21 @@ async def get_image_count(image_id: str, experimentId: str, http_request: Reques
         Number of images available
     """
     # Get experiment name for experiment-specific paths
-    workspace_dir = get_workspace_dir()
-    image_item = find_image_by_id(image_id, experimentId, workspace_dir)
+    workspace_dir = await get_workspace_dir()
+    image_item = await find_image_by_id(image_id, experimentId, workspace_dir)
 
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
 
     # Check if image folder/file exists
-    if not storage.exists(image_item.image_path):
+    if not await storage.exists(image_item.image_path):
         raise HTTPException(status_code=404, detail=f"Image path not found at {image_item.image_path}")
 
     # Determine number of images available
     num_images = 1  # Default for old format
-    if storage.isdir(image_item.image_path):
+    if await storage.isdir(image_item.image_path):
         # Count PNG files in the directory
-        entries = storage.ls(image_item.image_path, detail=False)
+        entries = await storage.ls(image_item.image_path, detail=False)
         png_files = [f for f in entries if f.endswith(".png") and f.replace(".png", "").isdigit()]
         num_images = len(png_files)
 
@@ -737,14 +754,14 @@ async def get_all_images(image_id: str, experimentId: str, http_request: Request
     import tempfile
 
     # Get experiment name for experiment-specific paths
-    workspace_dir = get_workspace_dir()
-    image_item = find_image_by_id(image_id, experimentId, workspace_dir)
+    workspace_dir = await get_workspace_dir()
+    image_item = await find_image_by_id(image_id, experimentId, workspace_dir)
 
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
 
     # Check if image folder/file exists
-    if not storage.exists(image_item.image_path):
+    if not await storage.exists(image_item.image_path):
         raise HTTPException(status_code=404, detail=f"Image path not found at {image_item.image_path}")
 
     # Create a temporary zip file
@@ -753,16 +770,16 @@ async def get_all_images(image_id: str, experimentId: str, http_request: Request
 
     try:
         with zipfile.ZipFile(temp_zip.name, "w", zipfile.ZIP_DEFLATED) as zipf:
-            if storage.isdir(image_item.image_path):
+            if await storage.isdir(image_item.image_path):
                 # New format: add all PNG files from the directory
-                entries = storage.ls(image_item.image_path, detail=False)
+                entries = await storage.ls(image_item.image_path, detail=False)
                 for entry in entries:
                     filename = entry.rstrip("/").split("/")[-1]
                     if filename.endswith(".png") and filename.replace(".png", "").isdigit():
                         file_path = entry  # Use the full path from storage.ls
                         # Download to temp if remote, then add to zip
-                        with storage.open(file_path, "rb") as remote_file:
-                            content = remote_file.read()
+                        async with await storage.open(file_path, "rb") as remote_file:
+                            content = await remote_file.read()
                             zipf.writestr(filename, content)
             else:
                 # Old format: add the single file
@@ -770,8 +787,8 @@ async def get_all_images(image_id: str, experimentId: str, http_request: Request
                 # Extract just the filename for the zip
                 filename = file_path.rstrip("/").split("/")[-1]
                 # Download to temp if remote, then add to zip
-                with storage.open(file_path, "rb") as remote_file:
-                    content = remote_file.read()
+                async with await storage.open(file_path, "rb") as remote_file:
+                    content = await remote_file.read()
                     zipf.writestr(filename, content)
 
         return FileResponse(
@@ -797,16 +814,16 @@ async def delete_image_from_history(experimentId: str, image_id: str, http_reque
         image_id: The unique ID of the image set to delete
     """
     # Get experiment name for experiment-specific paths
-    workspace_dir = get_workspace_dir()
-    history_file = get_history_file_path(experimentId, workspace_dir)
+    workspace_dir = await get_workspace_dir()
+    history_file = await get_history_file_path(experimentId, workspace_dir)
 
-    if not storage.exists(history_file):
+    if not await storage.exists(history_file):
         raise HTTPException(status_code=404, detail="No history found")
 
     try:
         # Load current history
-        with storage.open(history_file, "r") as f:
-            history = json.load(f)
+        async with await storage.open(history_file, "r") as f:
+            history = json.loads(await f.read())
 
         # Find and remove the item
         item_to_remove = None
@@ -822,24 +839,24 @@ async def delete_image_from_history(experimentId: str, image_id: str, http_reque
 
         # Remove image files/folder
         image_path = item_to_remove["image_path"]
-        if storage.exists(image_path):
-            if storage.isdir(image_path):
+        if await storage.exists(image_path):
+            if await storage.isdir(image_path):
                 # New format: remove entire folder
-                storage.rm_tree(image_path)
+                await storage.rm_tree(image_path)
             else:
                 # Old format: remove single file
-                storage.rm(image_path)
+                await storage.rm(image_path)
 
         # Remove input image if it exists
-        if item_to_remove.get("input_image_path") and storage.exists(item_to_remove["input_image_path"]):
-            storage.rm(item_to_remove["input_image_path"])
+        if item_to_remove.get("input_image_path") and await storage.exists(item_to_remove["input_image_path"]):
+            await storage.rm(item_to_remove["input_image_path"])
         # Remove processed image if it exists
-        if item_to_remove.get("processed_image") and storage.exists(item_to_remove["processed_image"]):
-            storage.rm(item_to_remove["processed_image"])
+        if item_to_remove.get("processed_image") and await storage.exists(item_to_remove["processed_image"]):
+            await storage.rm(item_to_remove["processed_image"])
 
         # Save updated history
-        with storage.open(history_file, "w") as f:
-            json.dump(updated_history, f, indent=2)
+        async with await storage.open(history_file, "w") as f:
+            await f.write(json.dumps(updated_history, indent=2))
 
         return JSONResponse(
             content={"message": f"Image set {image_id} deleted successfully", "deleted_item": item_to_remove}
@@ -855,51 +872,51 @@ async def clear_history(experimentId: str, http_request: Request = None):
     """
     try:
         # Get experiment name for experiment-specific paths
-        workspace_dir = get_workspace_dir()
-        history_file = get_history_file_path(experimentId, workspace_dir)
-        images_dir = get_images_dir(experimentId, workspace_dir)
+        workspace_dir = await get_workspace_dir()
+        history_file = await get_history_file_path(experimentId, workspace_dir)
+        images_dir = await get_images_dir(experimentId, workspace_dir)
 
         # Load current history to get image paths
         deleted_count = 0
-        if storage.exists(history_file):
-            with storage.open(history_file, "r") as f:
-                history = json.load(f)
+        if await storage.exists(history_file):
+            async with await storage.open(history_file, "r") as f:
+                history = json.loads(await f.read())
 
             # Remove all image files/folders
             for item in history:
                 image_path = item["image_path"]
-                if storage.exists(image_path):
-                    if storage.isdir(image_path):
+                if await storage.exists(image_path):
+                    if await storage.isdir(image_path):
                         # New format: remove folder and count files inside
-                        entries = storage.ls(image_path, detail=False)
+                        entries = await storage.ls(image_path, detail=False)
                         file_count = len([f for f in entries if f.endswith(".png")])
-                        storage.rm_tree(image_path)
+                        await storage.rm_tree(image_path)
                         deleted_count += file_count
                     else:
                         # Old format: remove single file
-                        storage.rm(image_path)
+                        await storage.rm(image_path)
                         deleted_count += 1
 
                 # Remove input image if it exists
-                if item.get("input_image_path") and storage.exists(item["input_image_path"]):
-                    storage.rm(item["input_image_path"])
+                if item.get("input_image_path") and await storage.exists(item["input_image_path"]):
+                    await storage.rm(item["input_image_path"])
                 # Remove processed image if it exists
-                if item.get("processed_image") and storage.exists(item["processed_image"]):
-                    storage.rm(item["processed_image"])
+                if item.get("processed_image") and await storage.exists(item["processed_image"]):
+                    await storage.rm(item["processed_image"])
 
             # Clear history file
-            with storage.open(history_file, "w") as f:
-                json.dump([], f)
+            async with await storage.open(history_file, "w") as f:
+                await f.write(json.dumps([]))
 
         # Remove any remaining files/folders in images directory
-        if storage.exists(images_dir):
-            for entry in storage.ls(images_dir, detail=False):
+        if await storage.exists(images_dir):
+            for entry in await storage.ls(images_dir, detail=False):
                 item_name = entry.rstrip("/").split("/")[-1]
                 item_path = storage.join(images_dir, item_name)
-                if storage.isdir(item_path):
-                    storage.rm_tree(item_path)
+                if await storage.isdir(item_path):
+                    await storage.rm_tree(item_path)
                 elif item_name.endswith(".png"):
-                    storage.rm(item_path)
+                    await storage.rm(item_path)
 
         return JSONResponse(
             content={
@@ -933,7 +950,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
 
     # Check if dataset already exists
     try:
-        Dataset.get(dataset_id)
+        await Dataset.get(dataset_id)
         # If we get here, the dataset exists
         raise HTTPException(status_code=400, detail=f"Dataset '{dataset_id}' already exists")
     except FileNotFoundError:
@@ -943,7 +960,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
     # Find selected images efficiently
     selected_images = []
     for image_id in image_ids:
-        image_item = find_image_by_id(image_id, experimentId)
+        image_item = await find_image_by_id(image_id, experimentId)
         if image_item:
             selected_images.append(image_item)
 
@@ -953,9 +970,9 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
     # Calculate total image count (accounting for multi-image generations)
     total_image_count = 0
     for image_item in selected_images:
-        if storage.isdir(image_item.image_path):
+        if await storage.isdir(image_item.image_path):
             # Count images in folder
-            entries = storage.ls(image_item.image_path, detail=False)
+            entries = await storage.ls(image_item.image_path, detail=False)
             image_files = [f for f in entries if f.endswith(".png") and f.replace(".png", "").isdigit()]
             total_image_count += len(image_files)
         else:
@@ -971,14 +988,14 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
             "image_count": total_image_count,
             "created_from_image_ids": image_ids,
         }
-        new_dataset = create_local_dataset(dataset_id, json_data=json_data)
+        new_dataset = await create_local_dataset(dataset_id, json_data=json_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create dataset: {str(e)}")
 
     # Create dataset directory
-    dataset_dir = new_dataset.get_dir()
+    dataset_dir = await new_dataset.get_dir()
     images_dir = storage.join(dataset_dir, "train")
-    storage.makedirs(images_dir, exist_ok=True)
+    await storage.makedirs(images_dir, exist_ok=True)
 
     # Prepare dataset metadata and copy images
     dataset_records = []
@@ -987,10 +1004,10 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
     for image_item in selected_images:
         try:
             # Check if this is a multi-image generation (folder) or single image
-            if storage.isdir(image_item.image_path):
+            if await storage.isdir(image_item.image_path):
                 # Multi-image generation - process each image in the folder
                 image_files = []
-                for entry in storage.ls(image_item.image_path, detail=False):
+                for entry in await storage.ls(image_item.image_path, detail=False):
                     filename = entry.rstrip("/").split("/")[-1]
                     if filename.endswith(".png") and filename.replace(".png", "").isdigit():
                         image_files.append(filename)
@@ -1006,8 +1023,8 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
                     dest_image_path = storage.join(images_dir, dataset_filename)
 
                     # Copy image file
-                    if storage.exists(src_image_path):
-                        storage.copy_file(src_image_path, dest_image_path)
+                    if await storage.exists(src_image_path):
+                        await storage.copy_file(src_image_path, dest_image_path)
                     else:
                         log_print(f"Warning: Image file not found at {src_image_path}")
                         continue
@@ -1053,8 +1070,8 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
                 dest_image_path = storage.join(images_dir, dataset_filename)
 
                 # Copy image file
-                if storage.exists(image_item.image_path):
-                    storage.copy_file(image_item.image_path, dest_image_path)
+                if await storage.exists(image_item.image_path):
+                    await storage.copy_file(image_item.image_path, dest_image_path)
                 else:
                     log_print(f"Warning: Image file not found at {image_item.image_path}")
                     continue
@@ -1097,20 +1114,20 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
 
     if not dataset_records:
         # Clean up if no images were successfully processed
-        new_dataset.delete()
+        await new_dataset.delete()
         raise HTTPException(status_code=500, detail="Failed to process any images")
 
     # Save dataset as JSONL file
     try:
         # Make train directory if it doesn't exist
-        storage.makedirs(images_dir, exist_ok=True)
+        await storage.makedirs(images_dir, exist_ok=True)
         dataset_file = storage.join(dataset_dir, "train", "metadata.jsonl")
-        with storage.open(dataset_file, "w") as f:
+        async with await storage.open(dataset_file, "w") as f:
             for record in dataset_records:
-                f.write(json.dumps(record) + "\n")
+                await f.write(json.dumps(record) + "\n")
     except Exception as e:
         # Clean up on failure
-        new_dataset.delete()
+        await new_dataset.delete()
         raise HTTPException(status_code=500, detail=f"Failed to save dataset: {str(e)}")
 
     return JSONResponse(
@@ -1158,10 +1175,10 @@ async def get_new_generation_id(experimentId: str, http_request: Request = None)
     Returns a new unique generation ID and creates the images folder for it.
     """
     generation_id = str(uuid.uuid4())
-    workspace_dir = get_workspace_dir()
-    ensure_directories(experimentId, workspace_dir)
-    images_folder = storage.join(get_images_dir(experimentId, workspace_dir), generation_id)
-    storage.makedirs(images_folder, exist_ok=True)
+    workspace_dir = await get_workspace_dir()
+    await ensure_directories(experimentId, workspace_dir)
+    images_folder = storage.join(await get_images_dir(experimentId, workspace_dir), generation_id)
+    await storage.makedirs(images_folder, exist_ok=True)
     return {"generation_id": generation_id, "images_folder": images_folder}
 
 
@@ -1173,18 +1190,18 @@ async def get_file(experimentId: str, generation_id: str):
         uuid.UUID(sanitized_id)  # Validate UUID format
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid generation ID format")
-    root_dir = get_images_dir(experimentId)
+    root_dir = await get_images_dir(experimentId)
     file_path = storage.join(root_dir, sanitized_id, "tmp_json.json")
-    if not storage.exists(file_path):
+    if not await storage.exists(file_path):
         raise HTTPException(status_code=404, detail=f"Output JSON file not found at {file_path}")
     try:
         if not file_path.startswith(root_dir):
             raise HTTPException(status_code=400, detail="Invalid file path")
-        if not storage.isfile(file_path):
+        if not await storage.isfile(file_path):
             raise HTTPException(status_code=404, detail="File not found")
 
-        with storage.open(file_path, "r") as f:
-            data = json.load(f)
+        async with await storage.open(file_path, "r") as f:
+            data = json.loads(await f.read())
 
         return JSONResponse(content=data)
 

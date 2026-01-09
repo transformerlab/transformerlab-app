@@ -4,19 +4,11 @@
   "description": "Use LLMs to create synthetic data for your usecases from reference documents.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.22",
+  "version": "0.1.24",
   "git": "https://github.com/confident-ai/deepeval",
   "url": "https://github.com/confident-ai/deepeval",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx",
-    "amd"
-  ],
+  "files": ["main.py", "setup.sh"],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "_dataset": false,
   "setup-script": "setup.sh",
   "parameters": {
