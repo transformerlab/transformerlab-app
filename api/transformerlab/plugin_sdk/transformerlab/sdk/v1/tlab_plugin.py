@@ -107,18 +107,18 @@ class TLabPlugin:
                     # Update final progress and success status
                     self.progress_update(progress_end)
 
-                    job_data = self.job.get_json_data()
+                    job_data = asyncio.run(self.job.get_json_data())
                     if job_data.get("job_data", {}).get("completion_status", "") != "success":
                         asyncio.run(self.job.update_job_data_field("completion_status", "success"))
 
-                    job_data = self.job.get_json_data()
-                    if job_data.get("job_data", {}).get("completion_status", "") != "Job completed successfully":
+                    job_data = asyncio.run(self.job.get_json_data())
+                    if job_data.get("job_data", {}).get("completion_details", "") != "Job completed successfully":
                         asyncio.run(self.job.update_job_data_field("completion_details", "Job completed successfully"))
 
-                    job_data = self.job.get_json_data()
+                    job_data = asyncio.run(self.job.get_json_data())
                     if (
-                        job_data.get("job_data", {}).get("end_time", "") is not None
-                        and job_data.get("job_data", {}).get("end_time", "") != ""
+                        job_data.get("job_data", {}).get("end_time", "") is None
+                        or job_data.get("job_data", {}).get("end_time", "") == ""
                     ):
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
 
@@ -199,8 +199,8 @@ class TLabPlugin:
 
                         # Update final progress and success status
                         self.progress_update(progress_end)
-                        asyncio.run(self.job.update_job_data_field("completion_status", "success"))
-                        asyncio.run(self.job.update_job_data_field("completion_details", "Job completed successfully"))
+                        await self.job.update_job_data_field("completion_status", "success")
+                        await self.job.update_job_data_field("completion_details", "Job completed successfully")
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                         if manual_logging and getattr(self, "wandb_run") is not None:
                             self.wandb_run.finish()
@@ -217,10 +217,8 @@ class TLabPlugin:
                         print(error_msg)
 
                         # Update job with failure status
-                        asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
-                        asyncio.run(
-                            self.job.update_job_data_field("completion_details", "Error occurred while executing job")
-                        )
+                        await self.job.update_job_data_field("completion_status", "failed")
+                        await self.job.update_job_data_field("completion_details", "Error occurred while executing job")
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                         if manual_logging and getattr(self, "wandb_run") is not None:
                             self.wandb_run.finish()
@@ -546,7 +544,7 @@ class TLabPlugin:
     def _start_worker_sync(self, model_server=None):
         """Start the local model server and wait for it to be ready"""
         # Get experiment_id from the job
-        experiment_id = self.job.get_experiment_id() if self.job else None
+        experiment_id = asyncio.run(self.job.get_experiment_id()) if self.job else None
 
         params = {
             "model_name": self.params.model_name,
