@@ -395,7 +395,7 @@ async def cancel_in_progress_jobs():
                                         if await job.get_status() == "RUNNING":
                                             # Skip REMOTE jobs - they should not be cancelled on startup
                                             job_data = await job.get_json_data(uncached=True)
-                                            job_type = await job_data.get("type", "")
+                                            job_type = job_data.get("type", "")
                                             if job_type == "REMOTE":
                                                 print(f"Skipping REMOTE job: {job_id} (org: {org_id})")
                                             else:
