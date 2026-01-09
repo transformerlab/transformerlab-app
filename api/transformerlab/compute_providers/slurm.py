@@ -1,5 +1,6 @@
 """SLURM provider implementation."""
 
+import asyncio
 import requests
 import os
 from typing import Dict, Any, Optional, Union, List
@@ -131,8 +132,8 @@ class SLURMProvider(ComputeProvider):
         local_path = os.path.expanduser(local_path)
 
         # Determine existence and directory-ness using storage first, then os.*
-        if storage.exists(local_path):
-            is_dir = storage.isdir(local_path)
+        if asyncio.run(storage.exists(local_path)):
+            is_dir = asyncio.run(storage.isdir(local_path))
         else:
             raise FileNotFoundError(f"Local path for file_mounts does not exist: {local_path}")
 
@@ -184,7 +185,7 @@ class SLURMProvider(ComputeProvider):
 
             if is_dir:
                 # Recursively upload directory contents
-                walker = storage.walk(local_path)
+                walker = asyncio.run(storage.walk(local_path))
                 for root, _dirs, files in walker:
                     rel = os.path.relpath(root, local_path)
                     if rel == ".":
@@ -193,7 +194,7 @@ class SLURMProvider(ComputeProvider):
                         remote_root = f"{remote_path.rstrip('/')}/{rel}"
                     _mkdir_p(remote_root)
                     for fname in files:
-                        local_f = storage.join(root, fname)
+                        local_f = asyncio.run(storage.join(root, fname))
                         remote_f = f"{remote_root.rstrip('/')}/{fname}"
                         _upload_file(local_f, remote_f)
             else:

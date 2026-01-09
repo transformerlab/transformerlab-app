@@ -83,7 +83,10 @@ async def test_delete_plugin_files_from_workspace():
     # Create a temporary plugin directory structure
     with tempfile.TemporaryDirectory() as temp_dir:
         # Mock the get_plugin_dir function to use our temp directory
-        with patch("lab.dirs.get_plugin_dir", return_value=temp_dir):
+        async def mock_get_plugin_dir():
+            return temp_dir
+
+        with patch("lab.dirs.get_plugin_dir", side_effect=mock_get_plugin_dir):
             test_plugin_id = "test_plugin_to_delete"
             plugin_path = os.path.join(temp_dir, test_plugin_id)
 
@@ -110,7 +113,11 @@ async def test_delete_plugin_files_from_workspace_nonexistent():
     from transformerlab.routers.plugins import delete_plugin_files_from_workspace
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        with patch("lab.dirs.get_plugin_dir", return_value=temp_dir):
+
+        async def mock_get_plugin_dir():
+            return temp_dir
+
+        with patch("lab.dirs.get_plugin_dir", side_effect=mock_get_plugin_dir):
             # This should not raise an error even if plugin doesn't exist
             await delete_plugin_files_from_workspace("nonexistent_plugin")
 
@@ -138,10 +145,16 @@ async def test_copy_plugin_files_to_workspace():
         with open(test_file, "w") as f:
             f.write('{"name": "Test Plugin", "version": "1.0"}')
 
+        async def mock_get_plugin_dir():
+            return plugin_dir
+
+        async def mock_plugin_dir_by_name(name):
+            return os.path.join(plugin_dir, name)
+
         with (
             patch.object(dirs, "PLUGIN_PRELOADED_GALLERY", gallery_dir),
-            patch("lab.dirs.get_plugin_dir", return_value=plugin_dir),
-            patch("lab.dirs.plugin_dir_by_name", lambda x: os.path.join(plugin_dir, x)),
+            patch("lab.dirs.get_plugin_dir", side_effect=mock_get_plugin_dir),
+            patch("lab.dirs.plugin_dir_by_name", side_effect=mock_plugin_dir_by_name),
         ):
             # Copy the plugin
             await copy_plugin_files_to_workspace(test_plugin_id)

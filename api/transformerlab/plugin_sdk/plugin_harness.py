@@ -12,6 +12,7 @@ import os
 import sys
 import argparse
 import traceback
+import asyncio
 
 
 parser = argparse.ArgumentParser()
@@ -23,7 +24,7 @@ def set_config_env_vars(env_var: str, target_env_var: str = None, user_id: str =
     try:
         from transformerlab.plugin import get_db_config_value
 
-        value = get_db_config_value(env_var, user_id=user_id, team_id=team_id)
+        value = asyncio.run(get_db_config_value(env_var, user_id=user_id, team_id=team_id))
         if value:
             os.environ[target_env_var] = value
             print(f"Set {target_env_var} from {'user' if user_id else 'team'} config: {value}")
