@@ -691,7 +691,7 @@ async def find_previous_node_and_job(current_node, workflow_run, workflow_config
     return previous_job
 
 
-def extract_previous_job_outputs(previous_job):
+async def extract_previous_job_outputs(previous_job):
     """Extracts relevant output information from a completed job."""
     outputs = {}
     if previous_job is None or "job_data" not in previous_job or not previous_job["job_data"]:
@@ -704,7 +704,7 @@ def extract_previous_job_outputs(previous_job):
     try:
         from lab.dirs import get_models_dir
 
-        fuse_pretext = get_models_dir() + "/"
+        fuse_pretext = (await get_models_dir()) + "/"
     except Exception:
         fuse_pretext = ""
 
@@ -829,7 +829,7 @@ async def queue_job_for_node(node: dict, workflow_run: dict, workflow_config: di
     previous_job = await find_previous_node_and_job(node, workflow_run, workflow_config)
 
     # Extract outputs from the previous job
-    previous_outputs = extract_previous_job_outputs(previous_job)
+    previous_outputs = await extract_previous_job_outputs(previous_job)
 
     # Prepare inputs and outputs for the new job
     inputs_json, outputs_json = prepare_next_task_io(task_def, previous_outputs)

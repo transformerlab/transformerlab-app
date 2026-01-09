@@ -89,7 +89,7 @@ class MLXAudioWorker(BaseModelWorker):
             lang_code = params.get("lang_code", None)
             stream = params.get("stream", False)
 
-            experiment_dir = get_experiments_dir()
+            experiment_dir = await get_experiments_dir()
             audio_dir_name = secure_filename(params.get("audio_dir", "audio"))
             audio_dir = storage.join(experiment_dir, audio_dir_name)
             storage.makedirs(name=audio_dir, exist_ok=True)

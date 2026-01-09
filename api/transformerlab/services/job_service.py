@@ -931,7 +931,7 @@ async def get_all_artifact_paths(job_id: str, storage) -> List[str]:
             try:
                 from lab.dirs import get_job_artifacts_dir
 
-                artifacts_dir = get_job_artifacts_dir(job_id)
+                artifacts_dir = await get_job_artifacts_dir(job_id)
             except Exception:
                 pass
 

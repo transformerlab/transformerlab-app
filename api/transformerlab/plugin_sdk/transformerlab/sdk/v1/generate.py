@@ -152,7 +152,7 @@ class GenTLabPlugin(TLabPlugin):
                     print(f"Dataset '{dataset_id_local}' already exists, skipping creation")
                 except FileNotFoundError:
                     # Dataset doesn't exist, create it
-                    dataset_path = dirs.dataset_dir_by_id(dataset_id_local)
+                    dataset_path = await dirs.dataset_dir_by_id(dataset_id_local)
                     if not await storage.exists(dataset_path):
                         await storage.makedirs(dataset_path, exist_ok=True)
 
@@ -170,10 +170,11 @@ class GenTLabPlugin(TLabPlugin):
 
                 # Upload the file (same logic as /data/fileupload endpoint)
                 filename = os.path.basename(output_file_path)
-                target_path = storage.join(dirs.dataset_dir_by_id(dataset_id_local), filename)
+                dataset_dir = await dirs.dataset_dir_by_id(dataset_id_local)
+                target_path = storage.join(dataset_dir, filename)
 
                 # Copy the file to the dataset directory
-                await storage.makedirs(dirs.dataset_dir_by_id(dataset_id_local), exist_ok=True)
+                await storage.makedirs(dataset_dir, exist_ok=True)
                 async with await storage.open(output_file_path, "rb") as src_file:
                     content = await src_file.read()
                     async with await storage.open(target_path, "wb") as dst_file:

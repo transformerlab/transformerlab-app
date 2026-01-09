@@ -973,7 +973,7 @@ async def get_checkpoints(job_id: str, request: Request):
     if not checkpoints_dir:
         from lab.dirs import get_job_checkpoints_dir
 
-        checkpoints_dir = get_job_checkpoints_dir(job_id)
+        checkpoints_dir = await get_job_checkpoints_dir(job_id)
     if not checkpoints_dir or not await storage.exists(checkpoints_dir):
         return {"checkpoints": []}
     elif await storage.isdir(checkpoints_dir):
