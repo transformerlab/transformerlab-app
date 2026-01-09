@@ -13,6 +13,7 @@ import {
 } from '@mui/joy';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import '@xterm/xterm/css/xterm.css';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -189,11 +190,14 @@ export default function ViewOutputModalStreaming({
               sx={{
                 borderRadius: '8px',
                 border: '1px solid #444',
-                padding: '0 0 0 0.5rem',
+                padding: 0,
                 backgroundColor: '#000',
                 width: '100%',
                 flex: 1,
                 minHeight: 0,
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
               <PollingOutputTerminal

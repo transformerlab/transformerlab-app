@@ -441,6 +441,24 @@ export default function NewTaskModal({
           if (data.minutes_requested)
             setMinutesRequested(String(data.minutes_requested));
           if (data.setup) setSetup(data.setup);
+          // Process env_parameters into env_vars if present
+          if (data.env_parameters && Array.isArray(data.env_parameters)) {
+            // Initialize env_vars if not present
+            if (!data.env_vars || typeof data.env_vars !== 'object') {
+              data.env_vars = {};
+            }
+
+            // Process each env_parameter
+            data.env_parameters.forEach((param: any) => {
+              if (param && typeof param === 'object' && param.env_var) {
+                // If value is provided, use it; otherwise use blank string
+                const value =
+                  param.value !== undefined ? String(param.value) : '';
+                data.env_vars[param.env_var] = value;
+              }
+            });
+          }
+
           if (data.env_vars && typeof data.env_vars === 'object') {
             const envVarsArray = Object.entries(data.env_vars).map(
               ([key, value]) => ({
@@ -2062,6 +2080,11 @@ export default function NewTaskModal({
       return true;
     }
     if (currentPhase === 'task-config') {
+      // In YAML mode, check if YAML content is not empty
+      if (isYamlMode) {
+        return yamlContent.trim().length > 0;
+      }
+      // In GUI mode, check if title is filled
       return title.trim().length > 0;
     }
     if (currentPhase === 'provider-env') {

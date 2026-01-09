@@ -123,7 +123,8 @@ def train_mlx_lora():
     popen_command = [
         python_executable,
         "-um",
-        "mlx_lm.lora",
+        "mlx_lm",
+        "lora",
         "--model",
         tlab_trainer.params.model_name,
         "--iters",
@@ -239,7 +240,8 @@ def train_mlx_lora():
         fuse_popen_command = [
             python_executable,
             "-m",
-            "mlx_lm.fuse",
+            "mlx_lm",
+            "fuse",
             "--model",
             tlab_trainer.params.model_name,
             "--adapter-path",

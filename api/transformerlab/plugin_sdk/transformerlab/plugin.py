@@ -3,6 +3,7 @@ import json
 import sqlite3
 import sys
 from pathlib import Path
+from typing import Optional
 
 from jinja2 import Environment
 from transformers import AutoTokenizer
@@ -84,12 +85,61 @@ def get_dataset_path(dataset_id: str):
     return dataset_id
 
 
-def get_db_config_value(key: str):
+def get_db_config_value(key: str, team_id: Optional[str] = None, user_id: Optional[str] = None):
     """
-    Returns the value of a config key from the database.
+    Returns the value of a config key from the database with priority:
+    user-specific -> team-wide -> global config.
+
+    Args:
+        key: Config key to retrieve
+        team_id: Optional team_id. If None, extracted from workspace_dir path.
+        user_id: Optional user_id. If None, only team-wide and global configs are checked.
+
+    Priority order:
+    1. User-specific (user_id set, team_id matches)
+    2. Team-wide (user_id IS NULL, team_id set)
+    3. Global (user_id IS NULL, team_id IS NULL)
     """
     db = get_db_connection()
-    cursor = db.execute("SELECT value FROM config WHERE key = ?", (key,))
+
+    # Extract team_id from workspace_dir if not provided
+    if team_id is None:
+        try:
+            workspace_dir = get_workspace_dir()
+            if workspace_dir and "/orgs/" in workspace_dir:
+                # Extract team_id from path like ~/.transformerlab/orgs/<team_id>/workspace
+                parts = workspace_dir.split("/orgs/")
+                if len(parts) > 1:
+                    team_id = parts[1].split("/")[0]
+        except Exception:
+            pass  # If we can't get team_id, fall back to global config
+
+    # Get user_id from environment if not provided
+    if user_id is None:
+        user_id = os.environ.get("_TFL_USER_ID")
+
+    # Priority 1: User-specific config (if user_id and team_id are provided)
+    if user_id and team_id:
+        cursor = db.execute(
+            "SELECT value FROM config WHERE key = ? AND user_id = ? AND team_id = ?", (key, user_id, team_id)
+        )
+        row = cursor.fetchone()
+        cursor.close()
+        if row is not None:
+            return row[0]
+
+    # Priority 2: Team-wide config (user_id IS NULL, team_id set)
+    if team_id:
+        cursor = db.execute(
+            "SELECT value FROM config WHERE key = ? AND user_id IS NULL AND team_id = ?", (key, team_id)
+        )
+        row = cursor.fetchone()
+        cursor.close()
+        if row is not None:
+            return row[0]
+
+    # Priority 3: Global config (user_id IS NULL, team_id IS NULL)
+    cursor = db.execute("SELECT value FROM config WHERE key = ? AND user_id IS NULL AND team_id IS NULL", (key,))
     row = cursor.fetchone()
     cursor.close()
 
@@ -99,6 +149,20 @@ def get_db_config_value(key: str):
 
 
 def test_wandb_login(project_name: str = "TFL_Training"):
+    """
+    Check if WANDB is configured and can be used.
+    Checks WANDB_API_KEY environment variable first (set by plugin_harness),
+    then falls back to netrc file for backward compatibility.
+    """
+    # First check for WANDB_API_KEY in environment (set by plugin_harness from database)
+    wandb_api_key = os.environ.get("WANDB_API_KEY")
+    if wandb_api_key and wandb_api_key.strip():
+        os.environ["WANDB_PROJECT"] = project_name
+        os.environ["WANDB_DISABLED"] = "false"
+        report_to = ["tensorboard", "wandb"]
+        return True, report_to
+
+    # Fallback to netrc file for backward compatibility
     import netrc
 
     netrc_path = Path.home() / (".netrc" if os.name != "nt" else "_netrc")
@@ -109,12 +173,10 @@ def test_wandb_login(project_name: str = "TFL_Training"):
             os.environ["WANDB_DISABLED"] = "false"
             report_to = ["tensorboard", "wandb"]
             return True, report_to
-        else:
-            os.environ["WANDB_DISABLED"] = "true"
-            return False, ["tensorboard"]
-    else:
-        os.environ["WANDB_DISABLED"] = "true"
-        return False, ["tensorboard"]
+
+    # No WANDB credentials found
+    os.environ["WANDB_DISABLED"] = "true"
+    return False, ["tensorboard"]
 
 
 def experiment_get(id):

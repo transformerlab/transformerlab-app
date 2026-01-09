@@ -877,9 +877,18 @@ def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict]:
         items = storage.ls(artifacts_dir, detail=False)
 
         for item in items:
-            file_path = item if isinstance(item, str) else str(item)
+            # Handle both string paths and dict responses from storage.ls
+            if isinstance(item, dict):
+                # Extract path from dict (some storage backends return dicts even with detail=False)
+                file_path = item.get("name") or item.get("path") or str(item)
+                # Skip if it's a directory
+                if item.get("type") == "directory":
+                    continue
+            else:
+                file_path = str(item)
 
-            if storage.isfile(file_path):
+            # Ensure we have a valid file path (not a directory)
+            if file_path and storage.isfile(file_path):
                 artifact = format_artifact(file_path, storage)
                 if artifact:
                     artifacts.append(artifact)
