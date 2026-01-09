@@ -191,14 +191,26 @@ class Lab:
             checkpoint_path = storage.join(checkpoints_dir, checkpoint_name)
 
             # Security check: ensure the checkpoint path is within the checkpoints directory
-            # Normalize paths using posixpath for cross-platform compatibility (works for both local and remote storage)
-            checkpoint_path_normalized = posixpath.normpath(checkpoint_path).rstrip("/")
-            checkpoints_dir_normalized = posixpath.normpath(checkpoints_dir).rstrip("/")
+            # Handle remote storage URIs (s3://, gs://, etc.) differently from local paths
+            is_remote = checkpoint_path.startswith(("s3://", "gs://", "gcs://", "abfs://"))
 
-            # Check if checkpoint path is strictly within checkpoints directory (not the directory itself)
-            # For remote storage (s3://, etc.), ensure we're checking within the same bucket/path
-            if not checkpoint_path_normalized.startswith(checkpoints_dir_normalized + "/"):
-                return None
+            if is_remote:
+                # For remote storage, normalize only the path portion after the protocol
+                # posixpath.normpath breaks S3 URI format, so we need to handle it manually
+                checkpoint_path_normalized = checkpoint_path.rstrip("/")
+                checkpoints_dir_normalized = checkpoints_dir.rstrip("/")
+
+                # Ensure checkpoint path starts with checkpoints directory
+                if not checkpoint_path_normalized.startswith(checkpoints_dir_normalized + "/"):
+                    return None
+            else:
+                # For local paths, use posixpath.normpath
+                checkpoint_path_normalized = posixpath.normpath(checkpoint_path).rstrip("/")
+                checkpoints_dir_normalized = posixpath.normpath(checkpoints_dir).rstrip("/")
+
+                # Check if checkpoint path is strictly within checkpoints directory
+                if not checkpoint_path_normalized.startswith(checkpoints_dir_normalized + "/"):
+                    return None
 
             if storage.exists(checkpoint_path_normalized):
                 return checkpoint_path_normalized

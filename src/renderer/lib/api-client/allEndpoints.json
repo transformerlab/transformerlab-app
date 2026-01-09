@@ -202,10 +202,6 @@
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/list?type={type}&status={status}"
     },
-    "resumeFromCheckpoint": {
-      "method": "POST",
-      "path": "experiment/{experimentId}/jobs/{jobId}/resume_from_checkpoint"
-    },
     "getSweepResults": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/sweep_results"
@@ -307,6 +303,10 @@
     "get": {
       "method": "GET",
       "path": "compute_provider/{providerId}"
+    },
+    "resumeFromCheckpoint": {
+      "method": "POST",
+      "path": "compute_provider/jobs/{jobId}/resume_from_checkpoint?experimentId={experimentId}"
     },
     "update": {
       "method": "PATCH",
