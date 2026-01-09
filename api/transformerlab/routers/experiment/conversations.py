@@ -27,7 +27,8 @@ async def get_conversations(experimentId: str):
     # now get a list of all the files in the conversations directory
     conversations_files = []
     try:
-        async for entry in storage.ls(conversation_dir, detail=False):
+        entries = await storage.ls(conversation_dir, detail=False)
+        for entry in entries:
             filename = entry.rstrip("/").split("/")[-1]
             if filename.endswith(".json"):
                 conversations_files.append(filename)

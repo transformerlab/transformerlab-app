@@ -317,7 +317,9 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
 
     if is_local:
         # Use aiofiles for local files to get truly async file I/O
-        return aiofiles.open(path, mode=mode, **kwargs)
+        # Ensure path is a string (not Path object) for aiofiles compatibility
+        path_str = str(path) if not isinstance(path, str) else path
+        return aiofiles.open(path_str, mode=mode, **kwargs)
     else:
         # Use sync filesystem open method, but wrap it in async context manager
         # so it can be used with 'async with'
