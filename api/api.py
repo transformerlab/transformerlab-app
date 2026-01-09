@@ -105,9 +105,6 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # used internally to set constants that are shared between separate processes. They are not meant to be
 # to be overriden by the user.
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
-# The temporary image directory for transformerlab (default; per-request overrides computed in routes)
-temp_image_dir = storage.join(get_workspace_dir(), "temp", "images")
-os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
 
 @asynccontextmanager
@@ -115,19 +112,26 @@ async def lifespan(app: FastAPI):
     """Docs on lifespan events: https://fastapi.tiangolo.com/advanced/events/"""
     # Do the following at API Startup:
     print_launch_message()
+    # Initialize directories early
+    from transformerlab.shared import dirs as shared_dirs
+
+    await shared_dirs.initialize_dirs()
+
+    # Set the temporary image directory for transformerlab (computed async)
+    temp_image_dir = storage.join(await get_workspace_dir(), "temp", "images")
+    os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
     # Validate cloud credentials early - fail fast if missing
     validate_cloud_credentials()
-    galleries.update_gallery_cache()
+    await galleries.update_gallery_cache()
     spawn_fastchat_controller_subprocess()
     await db.init()  # This now runs Alembic migrations internally
-    # create_db_and_tables() is deprecated - migrations are handled in db.init()
     print("✅ SEED DATA")
     # Initialize experiments
-    seed_default_experiments()
+    await seed_default_experiments()
     # Seed default admin user
     await seed_default_admin_user()
     # Cancel any running jobs
-    cancel_in_progress_jobs()
+    await cancel_in_progress_jobs()
 
     # Create buckets for all existing teams if TFL_API_STORAGE_URI is enabled
     if os.getenv("TFL_API_STORAGE_URI"):
@@ -365,7 +369,7 @@ async def server_worker_start(
     # then we check to see if we are an experiment
     elif experiment_id is not None:
         try:
-            experiment = experiment_get(experiment_id)
+            experiment = await experiment_get(experiment_id)
             experiment_config = (
                 experiment["config"]
                 if isinstance(experiment["config"], dict)
@@ -397,7 +401,7 @@ async def server_worker_start(
     model_architecture = model_architecture
 
     plugin_name = inference_engine
-    plugin_location = lab_dirs.plugin_dir_by_name(plugin_name)
+    plugin_location = await lab_dirs.plugin_dir_by_name(plugin_name)
 
     model = model_name
     if model_filename is not None and model_filename != "":
@@ -405,7 +409,7 @@ async def server_worker_start(
 
     if adaptor != "":
         # Resolve per-request workspace if multitenant
-        workspace_dir = get_workspace_dir()
+        workspace_dir = await get_workspace_dir()
         adaptor = f"{workspace_dir}/adaptors/{secure_filename(model)}/{adaptor}"
 
     params = [
@@ -422,14 +426,14 @@ async def server_worker_start(
         json.dumps(inference_params),
     ]
 
-    job_id = job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
+    job_id = await job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
 
     print("Loading plugin loader instead of default worker")
 
     from lab.dirs import get_global_log_path
 
-    with storage.open(get_global_log_path(), "a") as global_log:
-        global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
+    async with await storage.open(await get_global_log_path(), "a") as global_log:
+        await global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
     # Pass organization_id as environment variable to subprocess
     from transformerlab.shared.request_context import get_current_org_id
@@ -450,8 +454,8 @@ async def server_worker_start(
     if exitcode == 99:
         from lab.dirs import get_global_log_path
 
-        with storage.open(get_global_log_path(), "a") as global_log:
-            global_log.write(
+        async with await storage.open(await get_global_log_path(), "a") as global_log:
+            await global_log.write(
                 "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.\n"
             )
         return {
@@ -461,20 +465,20 @@ async def server_worker_start(
     if exitcode is not None and exitcode != 0:
         from lab.dirs import get_global_log_path
 
-        with storage.open(get_global_log_path(), "a") as global_log:
-            global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
-        job = job_get(job_id)
+        async with await storage.open(await get_global_log_path(), "a") as global_log:
+            await global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
+        job = await job_get(job_id)
         error_msg = None
         if job and job.get("job_data"):
             error_msg = job["job_data"].get("error_msg")
         if not error_msg:
             error_msg = f"Exit code {exitcode}"
-            job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
+            await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "error", "message": error_msg}
     from lab.dirs import get_global_log_path
 
-    with storage.open(get_global_log_path(), "a") as global_log:
-        global_log.write(f"Model loaded successfully: {model_name}\n")
+    async with await storage.open(await get_global_log_path(), "a") as global_log:
+        await global_log.write(f"Model loaded successfully: {model_name}\n")
     return {"status": "success", "job_id": job_id}
 
 
@@ -633,7 +637,9 @@ def run():
     )
 
     if args.https:
-        cert_path, key_path = ensure_persistent_self_signed_cert()
+        import asyncio
+
+        cert_path, key_path = asyncio.run(ensure_persistent_self_signed_cert())
         uvicorn.run(
             "api:app", host=args.host, port=args.port, log_level="warning", ssl_certfile=cert_path, ssl_keyfile=key_path
         )

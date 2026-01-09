@@ -47,7 +47,7 @@ def is_valid_url(url: str) -> bool:
 async def document_view(experimentId: str, document_name: str, folder: str = None):
     try:
         exp_obj = Experiment(experimentId)
-        experiment_dir = exp_obj.get_dir()
+        experiment_dir = await exp_obj.get_dir()
 
         document_name = secure_filename(document_name)
         folder = secure_filename(folder)
@@ -69,17 +69,17 @@ async def document_list(experimentId: str, folder: str = None):
     documents = []
     # List the files that are in the experiment/<experiment_name>/documents directory:
     exp_obj = Experiment(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    experiment_dir = await exp_obj.get_dir()
     documents_dir = storage.join(experiment_dir, "documents")
     folder = secure_filename(folder)
     if folder and folder != "":
-        if storage.exists(storage.join(documents_dir, folder)):
+        if await storage.exists(storage.join(documents_dir, folder)):
             documents_dir = storage.join(documents_dir, folder)
         else:
             return {"status": "error", "message": f'Folder "{folder}" not found'}
-    if storage.exists(documents_dir):
+    if await storage.exists(documents_dir):
         try:
-            entries = storage.ls(documents_dir, detail=True)
+            entries = await storage.ls(documents_dir, detail=True)
         except Exception:
             entries = []
         for entry in entries:
@@ -93,7 +93,7 @@ async def document_list(experimentId: str, folder: str = None):
             else:
                 full_path = entry
                 name = os.path.basename(full_path.rstrip("/"))
-                is_dir = storage.isdir(full_path)
+                is_dir = await storage.isdir(full_path)
                 size = 0 if is_dir else 0
                 mtime = None
             if is_dir:
@@ -117,20 +117,20 @@ async def document_new(experimentId: str, dataset_id: str):
 @router.get("/delete", summary="Delete a document.")
 async def delete_document(experimentId: str, document_name: str, folder: str = None):
     exp_obj = Experiment(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    experiment_dir = await exp_obj.get_dir()
 
     document_name = secure_filename(document_name)
     path = storage.join(experiment_dir, "documents", document_name)
-    if folder and folder != "" and not storage.isdir(path):
+    if folder and folder != "" and not await storage.isdir(path):
         folder = secure_filename(folder)
         path = storage.join(experiment_dir, "documents", folder, document_name)
     else:
         path = storage.join(experiment_dir, "documents", document_name)
     # first check if it is a directory:
-    if storage.isdir(path):
-        storage.rm_tree(path)
-    elif storage.exists(path):
-        storage.rm(path)
+    if await storage.isdir(path):
+        await storage.rm_tree(path)
+    elif await storage.exists(path):
+        await storage.rm(path)
     return {"status": "success"}
 
 
@@ -167,27 +167,28 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
         #     raise HTTPException(status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
 
         exp_obj = Experiment(experimentId)
-        experiment_dir = exp_obj.get_dir()
+        experiment_dir = await exp_obj.get_dir()
         documents_dir = storage.join(experiment_dir, "documents")
         if folder and folder != "":
-            if storage.exists(storage.join(documents_dir, folder)):
-                documents_dir = storage.join(documents_dir, folder)
+            folder_path = storage.join(documents_dir, folder)
+            if await storage.exists(folder_path):
+                documents_dir = folder_path
             else:
-                print(f"Creating directory as it doesn't exist: {storage.join(documents_dir, folder)}")
-                storage.makedirs(storage.join(documents_dir, folder), exist_ok=True)
-                documents_dir = storage.join(documents_dir, folder)
+                print(f"Creating directory as it doesn't exist: {folder_path}")
+                await storage.makedirs(folder_path, exist_ok=True)
+                documents_dir = folder_path
 
         markitdown_dir = storage.join(documents_dir, ".tlab_markitdown")
-        if not storage.exists(markitdown_dir):
-            storage.makedirs(markitdown_dir, exist_ok=True)
+        if not await storage.exists(markitdown_dir):
+            await storage.makedirs(markitdown_dir, exist_ok=True)
 
         if not restricted_file_type:
             # Save the file to the dataset directory
             try:
                 content = await file.read()
-                if not storage.exists(documents_dir):
+                if not await storage.exists(documents_dir):
                     print("Creating directory")
-                    storage.makedirs(documents_dir, exist_ok=True)
+                    await storage.makedirs(documents_dir, exist_ok=True)
 
                 newfilename = storage.join(documents_dir, str(file_name))
                 async with aiofiles.open(newfilename, "wb") as out_file:
@@ -252,11 +253,11 @@ async def create_folder(experimentId: str, name: str):
     # Secure folder name
     name = secure_filename(name)
     exp_obj = Experiment(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    experiment_dir = await exp_obj.get_dir()
     path = storage.join(experiment_dir, "documents", name)
     print(f"Creating folder {path}")
-    if not storage.exists(path):
-        storage.makedirs(path, exist_ok=True)
+    if not await storage.exists(path):
+        await storage.makedirs(path, exist_ok=True)
     return {"status": "success"}
 
 
@@ -265,18 +266,19 @@ async def document_upload_links(experimentId: str, folder: str = None, data: dic
     urls = data.get("urls")
     folder = secure_filename(folder)
     exp_obj = Experiment(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    experiment_dir = await exp_obj.get_dir()
     documents_dir = storage.join(experiment_dir, "documents")
     if folder and folder != "":
-        if storage.exists(storage.join(documents_dir, folder)):
-            documents_dir = storage.join(documents_dir, folder)
+        folder_path = storage.join(documents_dir, folder)
+        if await storage.exists(folder_path):
+            documents_dir = folder_path
         else:
             return {"status": "error", "message": f'Folder "{folder}" not found'}
 
     markitdown_dir = storage.join(documents_dir, ".tlab_markitdown")
 
-    if not storage.exists(markitdown_dir):
-        storage.makedirs(markitdown_dir, exist_ok=True)
+    if not await storage.exists(markitdown_dir):
+        await storage.makedirs(markitdown_dir, exist_ok=True)
 
     # Find the next available number for link_X.md files
     existing_numbers = set()
@@ -331,7 +333,7 @@ async def document_download_zip(experimentId: str, data: dict = Body(...)):
         raise HTTPException(status_code=400, detail="Invalid or unauthorized URL")
 
     exp_obj = Experiment(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    experiment_dir = await exp_obj.get_dir()
     documents_dir = storage.join(experiment_dir, "documents")
 
     try:

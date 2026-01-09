@@ -263,6 +263,14 @@ export default function NewInteractiveTaskModal({
                           onClick={() => handleTemplateSelect(template)}
                         >
                           <CardContent>
+                            {template?.icon && (
+                              <img
+                                src={template.icon}
+                                alt={`${template.name} icon`}
+                                width={32}
+                                height={32}
+                              />
+                            )}
                             <Typography level="title-md">
                               {template.name}
                             </Typography>

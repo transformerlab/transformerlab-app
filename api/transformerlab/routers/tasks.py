@@ -22,13 +22,13 @@ class DeleteTeamTaskFromGalleryRequest(BaseModel):
 
 @router.get("/list", summary="Returns all the tasks")
 async def tasks_get_all():
-    tasks = tasks_service.tasks_get_all()
+    tasks = await tasks_service.tasks_get_all()
     return tasks
 
 
 @router.get("/{task_id}/get", summary="Gets all the data for a single task")
 async def tasks_get_by_id(task_id: str):
-    task = tasks_service.tasks_get_by_id(task_id)
+    task = await tasks_service.tasks_get_by_id(task_id)
     if task is None:
         return {"message": "NOT FOUND"}
     return task
@@ -36,7 +36,7 @@ async def tasks_get_by_id(task_id: str):
 
 @router.get("/list_by_type", summary="Returns all the tasks of a certain type, e.g TRAIN")
 async def tasks_get_by_type(type: str):
-    tasks = tasks_service.tasks_get_by_type(type)
+    tasks = await tasks_service.tasks_get_by_type(type)
     return tasks
 
 
@@ -44,7 +44,7 @@ async def tasks_get_by_type(type: str):
     "/list_by_type_in_experiment", summary="Returns all the tasks of a certain type in a certain experiment, e.g TRAIN"
 )
 async def tasks_get_by_type_in_experiment(type: str, experiment_id: str):
-    tasks = tasks_service.tasks_get_by_type_in_experiment(type, experiment_id)
+    tasks = await tasks_service.tasks_get_by_type_in_experiment(type, experiment_id)
     return tasks
 
 
@@ -57,7 +57,7 @@ async def tasks_get_by_subtype_in_experiment(
     subtype: str,
     remote_task: Optional[bool] = None,
 ):
-    tasks = tasks_service.tasks_get_by_experiment(experiment_id)
+    tasks = await tasks_service.tasks_get_by_experiment(experiment_id)
     filtered = []
     for t in tasks:
         cfg = t.get("config", {})
@@ -79,7 +79,7 @@ async def update_task(task_id: str, new_task: dict = Body()):
     # Perform secure_filename before updating the task
     if "name" in new_task:
         new_task["name"] = secure_filename(new_task["name"])
-    success = tasks_service.update_task(task_id, new_task)
+    success = await tasks_service.update_task(task_id, new_task)
     if success:
         return {"message": "OK"}
     else:
@@ -88,7 +88,7 @@ async def update_task(task_id: str, new_task: dict = Body()):
 
 @router.get("/{task_id}/delete", summary="Deletes a task")
 async def delete_task(task_id: str):
-    success = tasks_service.delete_task(task_id)
+    success = await tasks_service.delete_task(task_id)
     if success:
         return {"message": "OK"}
     else:
@@ -106,7 +106,7 @@ async def add_task(new_task: dict = Body()):
     except Exception:
         remote_task_flag = False
 
-    tasks_service.add_task(
+    await tasks_service.add_task(
         new_task["name"],
         new_task["type"],
         new_task["inputs"],
@@ -137,7 +137,7 @@ async def add_task(new_task: dict = Body()):
 
         # Repeat for dataset
         dataset_downloaded = False
-        local_datasets = Dataset.list_all()
+        local_datasets = await Dataset.list_all()
         for dataset in local_datasets:
             if dataset["dataset_id"] == datasets:
                 dataset_downloaded = True
@@ -164,13 +164,18 @@ async def add_task(new_task: dict = Body()):
 
 @router.get("/delete_all", summary="Wipe the task table")
 async def tasks_delete_all():
-    tasks_service.tasks_delete_all()
+    await tasks_service.tasks_delete_all()
     return {"message": "OK"}
 
 
 @router.get("/{task_id}/queue", summary="Queue a task to run")
-async def queue_task(task_id: str, input_override: str = "{}", output_override: str = "{}"):
-    task_to_queue = tasks_service.tasks_get_by_id(task_id)
+async def queue_task(
+    task_id: str,
+    input_override: str = "{}",
+    output_override: str = "{}",
+    user_and_team=Depends(get_user_and_team),
+):
+    task_to_queue = await tasks_service.tasks_get_by_id(task_id)
     if task_to_queue is None:
         return {"message": "TASK NOT FOUND"}
 
@@ -264,8 +269,14 @@ async def queue_task(task_id: str, input_override: str = "{}", output_override: 
         for key in output_override.keys():
             job_data["config"][key] = output_override[key]
         job_data["plugin"] = task_to_queue["plugin"]
-    job_id = job_create(
-        type=("EXPORT" if job_type == "EXPORT" else job_type),
+
+    # Store user_id in job_data for user-specific configs when job runs
+    user = user_and_team.get("user") if user_and_team else None
+    if user:
+        job_data["user_id"] = str(user.id)
+
+    job_id = await job_create(
+        type=job_type,
         status=job_status,
         experiment_id=task_to_queue["experiment_id"],
         job_data=json.dumps(job_data),
@@ -276,7 +287,7 @@ async def queue_task(task_id: str, input_override: str = "{}", output_override: 
 @router.get("/gallery", summary="List all tasks from the tasks gallery")
 async def tasks_gallery():
     """Get the tasks gallery from the JSON file"""
-    gallery = galleries.get_tasks_gallery()
+    gallery = await galleries.get_tasks_gallery()
     return {"status": "success", "data": gallery}
 
 
@@ -316,7 +327,7 @@ async def import_task_from_gallery(
     Creates a new task using the gallery entry's config and GitHub info.
     Uses the team's GitHub PAT if available.
     """
-    gallery = galleries.get_tasks_gallery()
+    gallery = await galleries.get_tasks_gallery()
 
     # Find the gallery entry by index or ID
     try:
@@ -398,7 +409,7 @@ async def import_task_from_gallery(
     # Perform secure_filename before adding the task
     new_task["name"] = secure_filename(new_task["name"])
 
-    tasks_service.add_task(
+    await tasks_service.add_task(
         new_task["name"],
         new_task["type"],
         new_task["inputs"],
@@ -415,7 +426,7 @@ async def import_task_from_gallery(
 @router.get("/gallery/team", summary="List team-specific tasks from the team gallery")
 async def team_tasks_gallery():
     """Get the team-specific tasks gallery stored in workspace_dir"""
-    gallery = galleries.get_team_tasks_gallery()
+    gallery = await galleries.get_team_tasks_gallery()
     return {"status": "success", "data": gallery}
 
 
@@ -427,7 +438,7 @@ async def import_task_from_team_gallery(
     """
     Import a task from the team-specific tasks gallery (workspace_dir/team_specific_tasks.json).
     """
-    gallery = galleries.get_team_tasks_gallery()
+    gallery = await galleries.get_team_tasks_gallery()
 
     # Find the gallery entry by index or ID
     try:
@@ -506,7 +517,7 @@ async def import_task_from_team_gallery(
     # Perform secure_filename before adding the task
     new_task["name"] = secure_filename(new_task["name"])
 
-    tasks_service.add_task(
+    await tasks_service.add_task(
         new_task["name"],
         new_task["type"],
         new_task["inputs"],
@@ -528,7 +539,7 @@ async def export_task_to_team_gallery(
     """
     Export a task template into the team-specific gallery stored in workspace_dir.
     """
-    task = tasks_service.tasks_get_by_id(request.task_id)
+    task = await tasks_service.tasks_get_by_id(request.task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -548,7 +559,7 @@ async def export_task_to_team_gallery(
         "github_repo_dir": config.get("github_directory") or config.get("github_repo_dir"),
     }
 
-    galleries.add_team_task_to_gallery(gallery_entry)
+    await galleries.add_team_task_to_gallery(gallery_entry)
 
     return {
         "status": "success",
@@ -595,7 +606,7 @@ async def add_team_task_to_gallery(
         "github_repo_dir": request.github_repo_dir,
     }
 
-    galleries.add_team_task_to_gallery(gallery_entry)
+    await galleries.add_team_task_to_gallery(gallery_entry)
 
     return {
         "status": "success",
@@ -612,7 +623,7 @@ async def delete_team_task_from_gallery(
     """
     Delete a task from the team-specific gallery stored in workspace_dir.
     """
-    success = galleries.delete_team_task_from_gallery(request.task_id)
+    success = await galleries.delete_team_task_from_gallery(request.task_id)
     if success:
         return {
             "status": "success",

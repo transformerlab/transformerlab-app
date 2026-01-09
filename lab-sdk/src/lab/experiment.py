@@ -21,45 +21,66 @@ class Experiment(BaseLabResource):
     _cache_rebuild_lock = threading.Lock()
     _cache_rebuild_thread = None
 
-    def __init__(self, experiment_id, create_new=False):
+    def __init__(self, experiment_id):
         # For consistency and simplicity, let's edit experiment name to match
         # the directory (which requires experiment_id)
         self.id = secure_filename(str(experiment_id))
 
-        # Auto-initialize if create_new=True and experiment doesn't exist
-        if create_new and (not storage.exists(self.get_dir()) or not storage.exists(self._get_json_file())):
-            self._initialize()
+    @classmethod
+    async def create_or_get(cls, experiment_id, create_new=False):
+        """
+        Factory method to create or get an experiment.
+        If create_new=True, will initialize a new experiment if it doesn't exist.
 
-    def get_dir(self):
+        Args:
+            experiment_id: The experiment identifier
+            create_new: If True, create the experiment if it doesn't exist
+
+        Returns:
+            Experiment instance
+        """
+        exp = cls(experiment_id)
+
+        if create_new:
+            exp_dir = await exp.get_dir()
+            json_file = await exp._get_json_file()
+            # Auto-initialize if experiment doesn't exist
+            if not await storage.exists(exp_dir) or not await storage.exists(json_file):
+                await exp._initialize()
+
+        return exp
+
+    async def get_dir(self):
         """Abstract method on BaseLabResource"""
         experiment_id_safe = secure_filename(str(self.id))
-        return storage.join(get_experiments_dir(), experiment_id_safe)
+        experiments_dir = await get_experiments_dir()
+        return storage.join(experiments_dir, experiment_id_safe)
 
     def _default_json(self):
         return {"name": self.id, "id": self.id, "config": {}}
 
-    def _initialize(self):
-        super()._initialize()
+    async def _initialize(self):
+        await super()._initialize()
 
         # Create a empty jobs index and write
-        jobs_json_path = self._jobs_json_file()
+        jobs_json_path = await self._jobs_json_file()
         empty_jobs_data = {"index": self.DEFAULT_JOBS_INDEX, "cached_jobs": {}}
-        with storage.open(jobs_json_path, "w") as f:
-            json.dump(empty_jobs_data, f, indent=4)
+        async with await storage.open(jobs_json_path, "w") as f:
+            await f.write(json.dumps(empty_jobs_data, indent=4))
 
-    def update_config_field(self, key, value):
+    async def update_config_field(self, key, value):
         """Update a single key in config."""
-        current_config = self._get_json_data_field("config", {})
+        current_config = await self._get_json_data_field("config", {})
         if isinstance(current_config, str):
             try:
                 current_config = json.loads(current_config)
             except json.JSONDecodeError:
                 current_config = {}
         current_config[key] = value
-        self._update_json_data_field("config", current_config)
+        await self._update_json_data_field("config", current_config)
 
     @classmethod
-    def create_with_config(cls, name: str, config: dict) -> "Experiment":
+    async def create_with_config(cls, name: str, config: dict) -> "Experiment":
         """Create an experiment with config."""
         if isinstance(config, str):
             try:
@@ -68,38 +89,39 @@ class Experiment(BaseLabResource):
                 raise TypeError("config must be a dict or valid JSON string")
         elif not isinstance(config, dict):
             raise TypeError("config must be a dict")
-        exp = cls.create(name)
-        exp._update_json_data_field("config", config)
+        exp = await cls.create(name)
+        await exp._update_json_data_field("config", config)
         return exp
 
-    def update_config(self, config: dict):
+    async def update_config(self, config: dict):
         """Update entire config."""
-        current_config = self._get_json_data_field("config", {})
+        current_config = await self._get_json_data_field("config", {})
         if isinstance(current_config, str):
             try:
                 current_config = json.loads(current_config)
             except json.JSONDecodeError:
                 current_config = {}
         current_config.update(config)
-        self._update_json_data_field("config", current_config)
+        await self._update_json_data_field("config", current_config)
 
     @classmethod
-    def get_all(cls):
+    async def get_all(cls):
         """Get all experiments as list of dicts."""
         experiments = []
-        exp_root = get_experiments_dir()
-        if storage.exists(exp_root):
+        exp_root = await get_experiments_dir()
+        if await storage.exists(exp_root):
             try:
-                entries = storage.ls(exp_root, detail=False)
+                entries = await storage.ls(exp_root, detail=False)
             except Exception:
                 entries = []
             for exp_path in entries:
                 try:
-                    if storage.isdir(exp_path):
+                    if await storage.isdir(exp_path):
                         index_file = storage.join(exp_path, "index.json")
-                        if storage.exists(index_file):
-                            with storage.open(index_file, "r", uncached=True) as f:
-                                data = json.load(f)
+                        if await storage.exists(index_file):
+                            async with await storage.open(index_file, "r", uncached=True) as f:
+                                content = await f.read()
+                                data = json.loads(content)
 
                             name = data.get("name")
                             exp_id = data.get("id")
@@ -113,8 +135,9 @@ class Experiment(BaseLabResource):
                             if not name and exp_id:
                                 data["name"] = exp_id
                                 try:
-                                    with storage.open(index_file, "w") as wf:
-                                        json.dump(data, wf, indent=4)
+                                    async with await storage.open(index_file, "w") as wf:
+                                        content = json.dumps(data, indent=4)
+                                        await wf.write(content)
                                     name = exp_id
                                 except Exception:
                                     # If we couldn't persist, skip to avoid inconsistent state
@@ -124,8 +147,9 @@ class Experiment(BaseLabResource):
                             if not exp_id and name:
                                 data["id"] = name
                                 try:
-                                    with storage.open(index_file, "w") as wf:
-                                        json.dump(data, wf, indent=4)
+                                    async with await storage.open(index_file, "w") as wf:
+                                        content = json.dumps(data, indent=4)
+                                        await wf.write(content)
                                     exp_id = name
                                 except Exception as e:
                                     print(
@@ -139,7 +163,7 @@ class Experiment(BaseLabResource):
                     pass
         return experiments
 
-    def create_job(self):
+    async def create_job(self):
         """
         Creates a new job with a blank template and returns a Job object.
         """
@@ -148,14 +172,14 @@ class Experiment(BaseLabResource):
         # Scan the jobs directory for subdirectories with numberic names
         # Find the largest number and increment to get the new job ID
         largest_numeric_subdir = 0
-        jobs_dir = get_jobs_dir()
+        jobs_dir = await get_jobs_dir()
         try:
-            entries = storage.ls(jobs_dir, detail=False)
+            entries = await storage.ls(jobs_dir, detail=False)
         except Exception:
             entries = []
         for full_path in entries:
             entry = full_path.rstrip("/").split("/")[-1]
-            if entry.isdigit() and storage.isdir(full_path):
+            if entry.isdigit() and await storage.isdir(full_path):
                 job_id = int(entry)
                 if job_id > largest_numeric_subdir:
                     largest_numeric_subdir = job_id
@@ -163,12 +187,12 @@ class Experiment(BaseLabResource):
         new_job_id = largest_numeric_subdir + 1
 
         # Create job with next available job_id and associate the new job with this experiment
-        new_job = Job.create(new_job_id)
-        new_job.set_experiment(self.id)
+        new_job = await Job.create(new_job_id)
+        await new_job.set_experiment(self.id)
 
         return new_job
 
-    def get_jobs(self, type: str = "", status: str = ""):
+    async def get_jobs(self, type: str = "", status: str = ""):
         """
         Get a list of jobs stored in this experiment.
         Uses cached data from jobs.json for completed jobs, only reads individual files for RUNNING jobs.
@@ -179,12 +203,12 @@ class Experiment(BaseLabResource):
         # First get jobs of the passed type
         job_list = []
         if type:
-            job_list = self._get_jobs_of_type(type)
+            job_list = await self._get_jobs_of_type(type)
         else:
-            job_list = self._get_all_jobs()
+            job_list = await self._get_all_jobs()
 
         # Get cached job data from jobs.json
-        cached_jobs = self._get_cached_jobs_data()
+        cached_jobs = await self._get_cached_jobs_data()
 
         # Iterate through the job list to return Job objects for valid jobs.
         # Also filter for status if that parameter was passed.
@@ -204,20 +228,22 @@ class Experiment(BaseLabResource):
                     ]:
                         old_status = job_json.get("status", "")
                         del cached_jobs[job_id]
-                        job = Job.get(job_id)
-                        job_json = job.get_json_data(uncached=True)
+                        job = await Job.get(job_id)
+                        job_json = await job.get_json_data(uncached=True)
                         # Trigger rebuild cache if old status and new status are different
                         if old_status != job_json.get("status", ""):
-                            self._trigger_cache_rebuild(get_workspace_dir())
+                            workspace = await get_workspace_dir()
+                            self._trigger_cache_rebuild(workspace)
                         cached_jobs[job_id] = job_json
 
                 else:
                     # Job not in cache
-                    job = Job.get(job_id)
-                    job_json = job.get_json_data(uncached=True)
+                    job = await Job.get(job_id)
+                    job_json = await job.get_json_data(uncached=True)
                     # Check if job is COMPLETE, STOPPED or FAILED, then update cache
                     if job_json.get("status", "") in ["COMPLETE", "STOPPED", "FAILED"]:
-                        self._trigger_cache_rebuild(get_workspace_dir())
+                        workspace = await get_workspace_dir()
+                        self._trigger_cache_rebuild(workspace)
             except Exception as e:
                 print("ERROR getting job", job_id, e)
                 continue
@@ -241,7 +267,7 @@ class Experiment(BaseLabResource):
     # Index for tracking which jobs belong to this Experiment
     ###############################
 
-    def _read_jobs_json_file(self, jobs_json_path, max_retries=5):
+    async def _read_jobs_json_file(self, jobs_json_path, max_retries=5):
         """
         Read jobs.json file with retry logic for Etag mismatch errors.
         This handles race conditions where the file is being rebuilt while being read.
@@ -254,11 +280,14 @@ class Experiment(BaseLabResource):
         Returns:
             dict: The parsed JSON data from jobs.json
         """
+        import asyncio
+
         for attempt in range(max_retries):
             try:
                 # Use uncached=True to avoid Etag caching issues
-                with storage.open(jobs_json_path, "r", uncached=True) as f:
-                    jobs_data = json.load(f)
+                async with await storage.open(jobs_json_path, "r", uncached=True) as f:
+                    content = await f.read()
+                    jobs_data = json.loads(content)
                     return jobs_data
             except FileNotFoundError:
                 # File doesn't exist, let caller handle it
@@ -276,13 +305,14 @@ class Experiment(BaseLabResource):
                     if attempt < max_retries - 1:
                         # Wait a short time before retrying (exponential backoff)
                         # Start with 0.5s and increase to give cache rebuild time
-                        time.sleep(0.5 * (2**attempt))
+                        await asyncio.sleep(0.5 * (2**attempt))
                         continue
                     else:
                         # Last attempt failed, try one more time
                         try:
-                            with storage.open(jobs_json_path, "r", uncached=True) as f:
-                                jobs_data = json.load(f)
+                            async with await storage.open(jobs_json_path, "r", uncached=True) as f:
+                                content = await f.read()
+                                jobs_data = json.loads(content)
                                 return jobs_data
                         except Exception:
                             raise e
@@ -290,16 +320,17 @@ class Experiment(BaseLabResource):
                     # Different exception, re-raise it
                     raise
 
-    def _jobs_json_file(self, workspace_dir=None, experiment_id=None):
+    async def _jobs_json_file(self, workspace_dir=None, experiment_id=None):
         """
         Path to jobs.json index file for this experiment.
         """
         if workspace_dir and experiment_id:
             return storage.join(workspace_dir, "experiments", experiment_id, "jobs.json")
 
-        return storage.join(self.get_dir(), "jobs.json")
+        exp_dir = await self.get_dir()
+        return storage.join(exp_dir, "jobs.json")
 
-    def rebuild_jobs_index(self, workspace_dir=None):
+    async def rebuild_jobs_index(self, workspace_dir=None):
         results = {}
         cached_jobs = {}
 
@@ -307,23 +338,23 @@ class Experiment(BaseLabResource):
         fs_override = None
         if workspace_dir:
             # Use uncached filesystem to avoid stale directory listings and file reads
-            fs_override = storage._get_uncached_filesystem(workspace_dir)
+            fs_override = await storage._get_uncached_filesystem(workspace_dir)
         else:
             # For local workspace, also use uncached to ensure fresh data
-            jobs_dir = get_jobs_dir()
-            fs_override = storage._get_uncached_filesystem(jobs_dir)
+            jobs_dir = await get_jobs_dir()
+            fs_override = await storage._get_uncached_filesystem(jobs_dir)
 
         try:
             # Use provided jobs_dir or get current one
             if workspace_dir:
                 jobs_directory = storage.join(workspace_dir, "jobs")
             else:
-                jobs_directory = get_jobs_dir()
+                jobs_directory = await get_jobs_dir()
 
             # Iterate through jobs directories and check for index.json
             # Sort entries numerically since job IDs are numeric strings (descending order)
             try:
-                job_entries_full = storage.ls(jobs_directory, detail=False, fs=fs_override)
+                job_entries_full = await storage.ls(jobs_directory, detail=False, fs=fs_override)
             except Exception as e:
                 print(f"Error getting job entries full: {e}")
                 job_entries_full = []
@@ -342,13 +373,16 @@ class Experiment(BaseLabResource):
             sorted_entries = sorted(job_entries, key=lambda x: int(x), reverse=True)
             for entry in sorted_entries:
                 entry_path = storage.join(jobs_directory, entry)
-                if not storage.isdir(entry_path, fs=fs_override):
+                if not await storage.isdir(entry_path, fs=fs_override):
                     continue
                 # Prefer the latest snapshot if available; fall back to index.json
                 index_file = storage.join(entry_path, "index.json")
                 try:
-                    with storage.open(index_file, "r", encoding="utf-8", fs=fs_override, uncached=True) as lf:
-                        content = lf.read().strip()
+                    async with await storage.open(
+                        index_file, "r", encoding="utf-8", fs=fs_override, uncached=True
+                    ) as lf:
+                        content = await lf.read()
+                        content = content.strip()
                         if not content:
                             # Skip empty files
                             continue
@@ -377,12 +411,13 @@ class Experiment(BaseLabResource):
             jobs_data = {"index": results, "cached_jobs": cached_jobs}
             if results:
                 try:
-                    with storage.open(
-                        self._jobs_json_file(workspace_dir=workspace_dir, experiment_id=self.id),
+                    jobs_json_path = await self._jobs_json_file(workspace_dir=workspace_dir, experiment_id=self.id)
+                    async with await storage.open(
+                        jobs_json_path,
                         "w",
                         fs=fs_override,
                     ) as out:
-                        json.dump(jobs_data, out, indent=4)
+                        await out.write(json.dumps(jobs_data, indent=4))
                 except Exception as e:
                     print(f"Error writing jobs index: {e}")
                     pass
@@ -390,14 +425,14 @@ class Experiment(BaseLabResource):
             print(f"Error rebuilding jobs index: {e}")
             pass
 
-    def _get_cached_jobs_data(self):
+    async def _get_cached_jobs_data(self):
         """
         Get cached job data from jobs.json file.
         If the file doesn't exist, create it with default structure.
         """
-        jobs_json_path = self._jobs_json_file()
+        jobs_json_path = await self._jobs_json_file()
         try:
-            jobs_data = self._read_jobs_json_file(jobs_json_path)
+            jobs_data = await self._read_jobs_json_file(jobs_json_path)
             # Handle both old format (just index) and new format (with cached_jobs)
             if "cached_jobs" in jobs_data:
                 return jobs_data["cached_jobs"]
@@ -406,10 +441,10 @@ class Experiment(BaseLabResource):
                 return {}
         except FileNotFoundError:
             # Rebuild jobs index to discover and create jobs.json
-            self.rebuild_jobs_index()
+            await self.rebuild_jobs_index()
             # Try to read the newly created file
             try:
-                jobs_data = self._read_jobs_json_file(jobs_json_path)
+                jobs_data = await self._read_jobs_json_file(jobs_json_path)
                 if "cached_jobs" in jobs_data:
                     return jobs_data["cached_jobs"]
                 else:
@@ -419,14 +454,14 @@ class Experiment(BaseLabResource):
         except Exception:
             return {}
 
-    def _get_all_jobs(self):
+    async def _get_all_jobs(self):
         """
         Amalgamates all jobs in the index file.
         If the file doesn't exist, create it with default structure.
         """
-        jobs_json_path = self._jobs_json_file()
+        jobs_json_path = await self._jobs_json_file()
         try:
-            jobs_data = self._read_jobs_json_file(jobs_json_path)
+            jobs_data = await self._read_jobs_json_file(jobs_json_path)
             # Handle both old format (just index) and new format (with index key)
             if "index" in jobs_data:
                 jobs = jobs_data["index"]
@@ -439,10 +474,10 @@ class Experiment(BaseLabResource):
             return results
         except FileNotFoundError:
             # Rebuild jobs index to discover and create jobs.json
-            self.rebuild_jobs_index()
+            await self.rebuild_jobs_index()
             # Try to read the newly created file
             try:
-                jobs_data = self._read_jobs_json_file(jobs_json_path)
+                jobs_data = await self._read_jobs_json_file(jobs_json_path)
                 if "index" in jobs_data:
                     jobs = jobs_data["index"]
                 else:
@@ -457,14 +492,16 @@ class Experiment(BaseLabResource):
         except Exception:
             return []
 
-    def _get_jobs_of_type(self, type="TRAIN"):
+    async def _get_jobs_of_type(self, type="TRAIN"):
         """ "
         Returns all jobs of a specific type in this experiment's index file.
         If the file doesn't exist, create it with default structure.
         """
-        jobs_json_path = self._jobs_json_file()
+        import asyncio
+
+        jobs_json_path = await self._jobs_json_file()
         try:
-            jobs_data = self._read_jobs_json_file(jobs_json_path)
+            jobs_data = await self._read_jobs_json_file(jobs_json_path)
             # Handle both old format (just index) and new format (with index key)
             if "index" in jobs_data:
                 jobs = jobs_data["index"]
@@ -474,10 +511,10 @@ class Experiment(BaseLabResource):
             return result
         except FileNotFoundError:
             # Rebuild jobs index to discover and create jobs.json
-            self.rebuild_jobs_index()
+            await self.rebuild_jobs_index()
             # Try to read the newly created file
             try:
-                jobs_data = self._read_jobs_json_file(jobs_json_path)
+                jobs_data = await self._read_jobs_json_file(jobs_json_path)
                 if "index" in jobs_data:
                     jobs = jobs_data["index"]
                 else:
@@ -496,9 +533,9 @@ class Experiment(BaseLabResource):
 
             if is_etag_error:
                 # Wait a bit longer for cache rebuild to complete, then retry
-                time.sleep(0.5)
+                await asyncio.sleep(0.5)
                 try:
-                    jobs_data = self._read_jobs_json_file(jobs_json_path)
+                    jobs_data = await self._read_jobs_json_file(jobs_json_path)
                     if "index" in jobs_data:
                         jobs = jobs_data["index"]
                     else:
@@ -512,9 +549,10 @@ class Experiment(BaseLabResource):
                 print("Failed getting jobs:", e)
                 return []
 
-    def _add_job(self, job_id, type):
+    async def _add_job(self, job_id, type):
         try:
-            jobs_data = self._read_jobs_json_file(self._jobs_json_file())
+            jobs_json_path = await self._jobs_json_file()
+            jobs_data = await self._read_jobs_json_file(jobs_json_path)
         except Exception:
             jobs_data = {"index": {}, "cached_jobs": {}}
 
@@ -531,11 +569,13 @@ class Experiment(BaseLabResource):
             jobs[type] = [job_id]
 
         # Update the file with new structure
-        with storage.open(self._jobs_json_file(), "w") as f:
-            json.dump(jobs_data, f, indent=4)
+        jobs_json_path = await self._jobs_json_file()
+        async with await storage.open(jobs_json_path, "w") as f:
+            await f.write(json.dumps(jobs_data, indent=4))
 
         # Trigger background cache rebuild
-        self._trigger_cache_rebuild(get_workspace_dir())
+        workspace = await get_workspace_dir()
+        self._trigger_cache_rebuild(workspace)
 
     @classmethod
     def _start_background_cache_rebuild(cls):
@@ -548,6 +588,8 @@ class Experiment(BaseLabResource):
     @classmethod
     def _background_cache_rebuild_worker(cls):
         """Background worker that rebuilds caches for pending experiments."""
+        import asyncio
+
         print("STARTING CACHE REBUILD WORKER")
         while True:
             try:
@@ -560,7 +602,8 @@ class Experiment(BaseLabResource):
                 for experiment_id, workspace_dir in pending_experiments:
                     try:
                         exp = cls(experiment_id)
-                        exp.rebuild_jobs_index(workspace_dir=workspace_dir)
+                        # Run async method in sync context using asyncio.run
+                        asyncio.run(exp.rebuild_jobs_index(workspace_dir=workspace_dir))
                     except Exception as e:
                         print(
                             f"Error rebuilding cache for experiment {experiment_id} in workspace {workspace_dir}: {e}"
@@ -574,9 +617,11 @@ class Experiment(BaseLabResource):
 
     def _trigger_cache_rebuild(self, workspace_dir, sync=False):
         """Trigger a cache rebuild for this experiment."""
+        import asyncio
+
         if sync:
-            # Run synchronously (useful for tests)
-            self.rebuild_jobs_index(workspace_dir=workspace_dir)
+            # Run synchronously (useful for tests) - run async method in sync context
+            asyncio.run(self.rebuild_jobs_index(workspace_dir=workspace_dir))
         else:
             # Start background thread if not running
             self._start_background_cache_rebuild()
@@ -586,23 +631,24 @@ class Experiment(BaseLabResource):
                 self._cache_rebuild_pending.add((self.id, workspace_dir))
 
     # TODO: For experiments, delete the same way as jobs
-    def delete(self):
+    async def delete(self):
         """Delete the experiment and all associated jobs."""
         # Delete all associated jobs
-        self.delete_all_jobs()
+        await self.delete_all_jobs()
         # Delete the experiment directory
-        exp_dir = self.get_dir()
-        if storage.exists(exp_dir):
-            storage.rm_tree(exp_dir)
+        exp_dir = await self.get_dir()
+        if await storage.exists(exp_dir):
+            await storage.rm_tree(exp_dir)
 
-    def delete_all_jobs(self):
+    async def delete_all_jobs(self):
         """Delete all jobs associated with this experiment."""
-        all_jobs = self._get_all_jobs()
+        all_jobs = await self._get_all_jobs()
         for job_id in all_jobs:
             try:
-                job = Job.get(job_id)
-                job.delete()
+                job = await Job.get(job_id)
+                await job.delete()
             except Exception:
                 pass  # Job might not exist
 
-        self._trigger_cache_rebuild(get_workspace_dir())
+        workspace = await get_workspace_dir()
+        self._trigger_cache_rebuild(workspace)

@@ -47,6 +47,8 @@ export default function TransformerLabSettings() {
     React.useState(false);
   const [showExperimentalPlugins, setShowExperimentalPlugins] =
     React.useState(false);
+  const [hfTokenTeamWide, setHfTokenTeamWide] = React.useState(true);
+  const [wandbTokenTeamWide, setWandbTokenTeamWide] = React.useState(true);
   const { addNotification } = useNotification();
 
   React.useEffect(() => {
@@ -129,7 +131,7 @@ export default function TransformerLabSettings() {
     error: wandbLoginStatusError,
     isLoading: wandbLoginStatusIsLoading,
     mutate: wandbLoginMutate,
-  } = useSWR(chatAPI.Endpoints.Models.testWandbLogin(), fetcher);
+  } = useSWR(chatAPI.Endpoints.Models.wandbLogin(), fetcher);
 
   if (showProvidersPage) {
     return (
@@ -181,7 +183,7 @@ export default function TransformerLabSettings() {
             <Typography level="title-lg" marginBottom={2}>
               Huggingface Credentials:
             </Typography>
-            {canLogInToHuggingFace?.message === 'OK' ? (
+            {canLogInToHuggingFace?.message?.startsWith('OK') ? (
               <div>
                 <div style={{ position: 'relative', width: '100%' }}>
                   <Alert color="success" style={{ width: '100%', margin: 0 }}>
@@ -215,22 +217,78 @@ export default function TransformerLabSettings() {
                       name="Huggingface"
                       token={hftoken}
                       onSave={async (token) => {
-                        await chatAPI.authenticatedFetch(
-                          chatAPI.Endpoints.Models.HuggingFaceLogout(),
-                        );
-                        await chatAPI.authenticatedFetch(
-                          getAPIFullPath('config', ['set'], {
-                            key: 'HuggingfaceUserAccessToken',
-                            value: token,
-                          }),
-                        );
-                        // Now manually log in to Huggingface
-                        await chatAPI.authenticatedFetch(
-                          chatAPI.Endpoints.Models.HuggingFaceLogin(),
-                        );
-                        hftokenmutate(token);
-                        canLogInToHuggingFaceMutate();
-                        setShowHuggingfaceEditTokenModal(false);
+                        try {
+                          if (!token || token.trim() === '') {
+                            addNotification({
+                              type: 'danger',
+                              message: 'Please enter a token',
+                            });
+                            return;
+                          }
+
+                          // Logout first
+                          await chatAPI.authenticatedFetch(
+                            chatAPI.Endpoints.Models.HuggingFaceLogout(),
+                          );
+
+                          // Save the config
+                          const saveResponse = await chatAPI.authenticatedFetch(
+                            getAPIFullPath('config', ['set'], {
+                              key: 'HuggingfaceUserAccessToken',
+                              value: token,
+                              team_wide: hfTokenTeamWide,
+                            }),
+                          );
+
+                          if (!saveResponse.ok) {
+                            const errorData = await saveResponse
+                              .json()
+                              .catch(() => ({}));
+                            addNotification({
+                              type: 'danger',
+                              message:
+                                errorData.message || 'Failed to save token',
+                            });
+                            return;
+                          }
+
+                          // Check login status
+                          const loginResponse =
+                            await chatAPI.authenticatedFetch(
+                              chatAPI.Endpoints.Models.HuggingFaceLogin(),
+                            );
+                          const loginData = await loginResponse.json();
+
+                          // Refetch the config and login status
+                          // Use undefined to force revalidation
+                          await hftokenmutate(undefined, { revalidate: true });
+                          await canLogInToHuggingFaceMutate();
+
+                          if (loginData.message?.startsWith('OK')) {
+                            addNotification({
+                              type: 'success',
+                              message: `Token saved successfully (${hfTokenTeamWide ? 'team-wide' : 'user-specific'})`,
+                            });
+                          } else {
+                            addNotification({
+                              type: 'warning',
+                              message:
+                                loginData.message ||
+                                'Token saved but login check failed',
+                            });
+                          }
+
+                          setShowHuggingfaceEditTokenModal(false);
+                        } catch (error) {
+                          console.error(
+                            'Error saving HuggingFace token:',
+                            error,
+                          );
+                          addNotification({
+                            type: 'danger',
+                            message: `Failed to save token: ${(error as Error).message}`,
+                          });
+                        }
                       }}
                     />
                   )}
@@ -263,22 +321,84 @@ export default function TransformerLabSettings() {
                       }
                     />
                   )}
+                  <FormControl
+                    orientation="horizontal"
+                    sx={{ mt: 1, gap: 1, alignItems: 'center' }}
+                  >
+                    <FormLabel sx={{ mr: 1 }}>
+                      {hfTokenTeamWide
+                        ? 'Team-wide (all members can use)'
+                        : 'User-specific (only you)'}
+                    </FormLabel>
+                    <Switch
+                      checked={hfTokenTeamWide}
+                      onChange={(e) => setHfTokenTeamWide(e.target.checked)}
+                    />
+                  </FormControl>
                   <Button
                     onClick={async () => {
-                      const token =
-                        document.getElementsByName('hftoken')[0].value;
-                      await chatAPI.authenticatedFetch(
-                        getAPIFullPath('config', ['set'], {
-                          key: 'HuggingfaceUserAccessToken',
-                          value: token,
-                        }),
-                      );
-                      // Now manually log in to Huggingface
-                      await chatAPI.authenticatedFetch(
-                        chatAPI.Endpoints.Models.HuggingFaceLogin(),
-                      );
-                      hftokenmutate(token);
-                      canLogInToHuggingFaceMutate();
+                      try {
+                        const token =
+                          document.getElementsByName('hftoken')[0].value;
+                        if (!token || token.trim() === '') {
+                          addNotification({
+                            type: 'danger',
+                            message: 'Please enter a token',
+                          });
+                          return;
+                        }
+
+                        // Save the config
+                        const saveResponse = await chatAPI.authenticatedFetch(
+                          getAPIFullPath('config', ['set'], {
+                            key: 'HuggingfaceUserAccessToken',
+                            value: token,
+                            team_wide: hfTokenTeamWide,
+                          }),
+                        );
+
+                        if (!saveResponse.ok) {
+                          const errorData = await saveResponse
+                            .json()
+                            .catch(() => ({}));
+                          addNotification({
+                            type: 'danger',
+                            message:
+                              errorData.message || 'Failed to save token',
+                          });
+                          return;
+                        }
+
+                        // Check login status
+                        const loginResponse = await chatAPI.authenticatedFetch(
+                          chatAPI.Endpoints.Models.HuggingFaceLogin(),
+                        );
+                        const loginData = await loginResponse.json();
+
+                        // Refetch the config and login status
+                        await hftokenmutate();
+                        await canLogInToHuggingFaceMutate();
+
+                        if (loginData.message?.startsWith('OK')) {
+                          addNotification({
+                            type: 'success',
+                            message: `Token saved successfully (${hfTokenTeamWide ? 'team-wide' : 'user-specific'})`,
+                          });
+                        } else {
+                          addNotification({
+                            type: 'warning',
+                            message:
+                              loginData.message ||
+                              'Token saved but login check failed',
+                          });
+                        }
+                      } catch (error) {
+                        console.error('Error saving HuggingFace token:', error);
+                        addNotification({
+                          type: 'danger',
+                          message: `Failed to save token: ${(error as Error).message}`,
+                        });
+                      }
                     }}
                     sx={{ marginTop: 1, width: '100px', alignSelf: 'flex-end' }}
                   >
@@ -301,7 +421,7 @@ export default function TransformerLabSettings() {
                 </FormControl>
               </>
             )}
-            {wandbLoginStatus?.message === 'OK' ? (
+            {wandbLoginStatus?.message?.startsWith('OK') ? (
               <div>
                 <div style={{ position: 'relative', width: '100%' }}>
                   <Alert color="success" style={{ width: '100%', margin: 0 }}>
@@ -334,17 +454,72 @@ export default function TransformerLabSettings() {
                       name="Weights &amp; Biases"
                       token={wandbToken || ''}
                       onSave={async (token) => {
-                        await chatAPI.authenticatedFetch(
-                          getAPIFullPath('config', ['set'], {
-                            key: 'WANDB_API_KEY',
-                            value: token,
-                          }),
-                        );
-                        await chatAPI.authenticatedFetch(
-                          chatAPI.Endpoints.Models.wandbLogin(),
-                        );
-                        wandbLoginMutate();
-                        setShowWandbEditTokenModal(false);
+                        try {
+                          if (!token || token.trim() === '') {
+                            addNotification({
+                              type: 'danger',
+                              message: 'Please enter a token',
+                            });
+                            return;
+                          }
+
+                          // Save the config
+                          const saveResponse = await chatAPI.authenticatedFetch(
+                            getAPIFullPath('config', ['set'], {
+                              key: 'WANDB_API_KEY',
+                              value: token,
+                              team_wide: wandbTokenTeamWide,
+                            }),
+                          );
+
+                          if (!saveResponse.ok) {
+                            const errorData = await saveResponse
+                              .json()
+                              .catch(() => ({}));
+                            addNotification({
+                              type: 'danger',
+                              message:
+                                errorData.message || 'Failed to save token',
+                            });
+                            return;
+                          }
+
+                          // Check login status
+                          const loginResponse =
+                            await chatAPI.authenticatedFetch(
+                              chatAPI.Endpoints.Models.wandbLogin(),
+                            );
+                          const loginData = await loginResponse.json();
+
+                          // Refetch the config and login status
+                          // Use undefined to force revalidation
+                          await wandbTokenMutate(undefined, {
+                            revalidate: true,
+                          });
+                          await wandbLoginMutate();
+
+                          if (loginData.message?.startsWith('OK')) {
+                            addNotification({
+                              type: 'success',
+                              message: `Token saved successfully (${wandbTokenTeamWide ? 'team-wide' : 'user-specific'})`,
+                            });
+                          } else {
+                            addNotification({
+                              type: 'warning',
+                              message:
+                                loginData.message ||
+                                'Token saved but login check failed',
+                            });
+                          }
+
+                          setShowWandbEditTokenModal(false);
+                        } catch (error) {
+                          console.error('Error saving WANDB token:', error);
+                          addNotification({
+                            type: 'danger',
+                            message: `Failed to save token: ${(error as Error).message}`,
+                          });
+                        }
                       }}
                     />
                   )}
@@ -354,6 +529,20 @@ export default function TransformerLabSettings() {
               <FormControl sx={{ maxWidth: '500px', mt: 2 }}>
                 <FormLabel>Weights &amp; Biases API Key</FormLabel>
                 <Input name="wandbToken" type="password" />
+                <FormControl
+                  orientation="horizontal"
+                  sx={{ mt: 1, gap: 1, alignItems: 'center' }}
+                >
+                  <FormLabel sx={{ mr: 1 }}>
+                    {wandbTokenTeamWide
+                      ? 'Team-wide (all members can use)'
+                      : 'User-specific (only you)'}
+                  </FormLabel>
+                  <Switch
+                    checked={wandbTokenTeamWide}
+                    onChange={(e) => setWandbTokenTeamWide(e.target.checked)}
+                  />
+                </FormControl>
                 <Button
                   onClick={async () => {
                     const token =
@@ -362,6 +551,7 @@ export default function TransformerLabSettings() {
                       getAPIFullPath('config', ['set'], {
                         key: 'WANDB_API_KEY',
                         value: token,
+                        team_wide: wandbTokenTeamWide,
                       }),
                     );
                     await chatAPI.authenticatedFetch(

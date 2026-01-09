@@ -1,6 +1,7 @@
 import os
 import random
 import torch
+import asyncio
 
 from datasets import Dataset
 from sentence_transformers import (
@@ -144,7 +145,7 @@ def train_embedding_model():
     final_model_name = f"{template_name}_{job_id}"
 
     # Define output directory
-    workspace_dir = get_workspace_dir()
+    workspace_dir = asyncio.run(get_workspace_dir())
     output_dir = storage.join(workspace_dir, "models", final_model_name)
     storage.makedirs(output_dir, exist_ok=True)
 
