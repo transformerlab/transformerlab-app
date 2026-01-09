@@ -78,14 +78,14 @@ function AppContent({
     fetchHealthz();
   }, []);
 
-  const isS3Mode = mode !== 'local';
+  const isLocalMode = mode === 'local';
 
-  // Close logs drawer when switching to s3 mode
+  // Close logs drawer when switching to non-local mode
   useEffect(() => {
-    if (isS3Mode && logsDrawerOpen) {
+    if (!isLocalMode && logsDrawerOpen) {
       setLogsDrawerOpen(false);
     }
-  }, [isS3Mode, logsDrawerOpen, setLogsDrawerOpen]);
+  }, [isLocalMode, logsDrawerOpen, setLogsDrawerOpen]);
 
   // Show LoginPage when:
   // 1. Multi-user mode is enabled AND user is not authenticated
@@ -115,12 +115,12 @@ function AppContent({
         width: '100dvw',
         overflow: 'hidden',
         gridTemplateColumns: '180px 1fr',
-        gridTemplateRows: isS3Mode
+        gridTemplateRows: !isLocalMode
           ? '48px 5fr'
           : logsDrawerOpen
             ? `48px 5fr ${logsDrawerHeight}px`
             : '48px 5fr 18px',
-        gridTemplateAreas: isS3Mode
+        gridTemplateAreas: !isLocalMode
           ? `
           "sidebar header"
           "sidebar main"
@@ -157,7 +157,7 @@ function AppContent({
       >
         <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
       </Box>
-      {!isS3Mode && (
+      {isLocalMode && (
         <Box
           sx={{
             gridArea: 'footer',

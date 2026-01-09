@@ -412,7 +412,7 @@ export default function Header({ connection, setConnection }) {
     // Don't override connectionLost=false here because the direct check above handles that
   }, [connection, isError]);
 
-  const isS3Mode = mode === 's3';
+  const isLocalMode = mode === 'local';
   // Show connection lost modal when we have a connection but it's lost
   const showConnectionLostModal = connection !== '' && connectionLost;
 
@@ -444,7 +444,7 @@ export default function Header({ connection, setConnection }) {
           } as any
         }
       />
-      {!isS3Mode && (
+      {isLocalMode && (
         <div
           id="currently-playing"
           style={{
@@ -473,7 +473,7 @@ export default function Header({ connection, setConnection }) {
           } as any
         }
       />
-      {isS3Mode ? (
+      {!isLocalMode ? (
         <Box sx={{ mr: 2 }} />
       ) : (
         <StatsBar connection={connection} setConnection={setConnection} />
