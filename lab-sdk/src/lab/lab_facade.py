@@ -247,14 +247,26 @@ class Lab:
             checkpoint_path = storage.join(checkpoints_dir, checkpoint_name)
 
             # Security check: ensure the checkpoint path is within the checkpoints directory
-            # Normalize paths using posixpath for cross-platform compatibility (works for both local and remote storage)
-            checkpoint_path_normalized = posixpath.normpath(checkpoint_path).rstrip("/")
-            checkpoints_dir_normalized = posixpath.normpath(checkpoints_dir).rstrip("/")
+            # Handle remote storage URIs (s3://, gs://, etc.) differently from local paths
+            is_remote = checkpoint_path.startswith(("s3://", "gs://", "gcs://", "abfs://"))
 
-            # Check if checkpoint path is strictly within checkpoints directory (not the directory itself)
-            # For remote storage (s3://, etc.), ensure we're checking within the same bucket/path
-            if not checkpoint_path_normalized.startswith(checkpoints_dir_normalized + "/"):
-                return None
+            if is_remote:
+                # For remote storage, normalize only the path portion after the protocol
+                # posixpath.normpath breaks S3 URI format, so we need to handle it manually
+                checkpoint_path_normalized = checkpoint_path.rstrip("/")
+                checkpoints_dir_normalized = checkpoints_dir.rstrip("/")
+
+                # Ensure checkpoint path starts with checkpoints directory
+                if not checkpoint_path_normalized.startswith(checkpoints_dir_normalized + "/"):
+                    return None
+            else:
+                # For local paths, use posixpath.normpath
+                checkpoint_path_normalized = posixpath.normpath(checkpoint_path).rstrip("/")
+                checkpoints_dir_normalized = posixpath.normpath(checkpoints_dir).rstrip("/")
+
+                # Check if checkpoint path is strictly within checkpoints directory
+                if not checkpoint_path_normalized.startswith(checkpoints_dir_normalized + "/"):
+                    return None
 
             if await storage.exists(checkpoint_path_normalized):
                 return checkpoint_path_normalized
@@ -557,7 +569,7 @@ class Lab:
             else:
                 await storage.copy_file(src, dest)
 
-            # Initialize model service for metadata and provenance creation
+            # Initialize model service for metadata creation
             model_service = ModelService(base_name)
 
             # Create Model metadata so it appears in Model Zoo
@@ -592,46 +604,7 @@ class Lab:
                 )
                 await self._job.log_info(f"Model saved to Model Zoo as '{base_name}'")  # type: ignore[union-attr]
             except Exception as e:
-                await self._job.log_info(f"Warning: Model saved but metadata creation failed: {str(e)}")  # type: ignore[union-attr]
-                # Try to detect architecture for provenance even if metadata creation failed
-                if architecture is None:
-                    try:
-                        architecture = await model_service.detect_architecture(dest)
-                    except Exception:
-                        pass
-
-            # Create provenance data
-            try:
-                # Create MD5 checksums for all model files
-                md5_objects = await model_service.create_md5_checksums(dest)
-
-                # Prepare provenance metadata from job data
-                job_data = await self._job.get_job_data()
-
-                provenance_metadata = {
-                    "job_id": job_id,
-                    "model_name": parent_model or job_data.get("model_name"),
-                    "model_architecture": architecture,
-                    "input_model": parent_model,
-                    "dataset": job_data.get("dataset"),
-                    "adaptor_name": job_data.get("adaptor_name", None),
-                    "parameters": job_data.get("_config", {}),
-                    "start_time": job_data.get("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())),
-                    "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                    "md5_checksums": md5_objects,
-                }
-
-                # Create the _tlab_provenance.json file
-                provenance_file = await model_service.create_provenance_file(
-                    model_path=dest,
-                    model_name=base_name,
-                    model_architecture=architecture,
-                    md5_objects=md5_objects,
-                    provenance_data=provenance_metadata,
-                )
-                await self._job.log_info(f"Provenance file created at: {provenance_file}")  # type: ignore[union-attr]
-            except Exception as e:
-                await self._job.log_info(f"Warning: Model saved but provenance creation failed: {str(e)}")  # type: ignore[union-attr]
+                self.log(f"Warning: Model saved but metadata creation failed: {str(e)}")
 
             # Track in job_data
             try:
@@ -949,7 +922,7 @@ class Lab:
                          detect from config.json for directory-based models.
             pipeline_tag: Optional pipeline tag. If not provided and parent_model is given,
                          will attempt to fetch from parent model on HuggingFace.
-            parent_model: Optional parent model name/ID for provenance tracking.
+            parent_model: Optional parent model name/ID.
 
         Returns:
             The destination path on disk.
