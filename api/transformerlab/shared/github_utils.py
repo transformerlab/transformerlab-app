@@ -265,7 +265,9 @@ async def fetch_task_json_from_github_helper(
     return task_json
 
 
-async def fetch_task_json_from_github(repo_url: str, directory: Optional[str] = None, ref: Optional[str] = None) -> dict:
+async def fetch_task_json_from_github(
+    repo_url: str, directory: Optional[str] = None, ref: Optional[str] = None
+) -> dict:
     """
     Fetch task.json from a GitHub repository, raising HTTPException on errors.
 
