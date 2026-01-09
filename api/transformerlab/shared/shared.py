@@ -221,7 +221,7 @@ async def read_process_output(process, job_id, log_handle=None):
     # Close the log handle if one was passed (from async_run_python_daemon_and_update_status)
     if log_handle:
         try:
-            log_handle.close()
+            await log_handle.__aexit__(None, None, None)
         except Exception:
             pass
 
@@ -276,10 +276,12 @@ async def async_run_python_daemon_and_update_status(
 
     # Open a file to write the output to:
     # Use context manager to ensure proper cleanup, but we need to keep it open
-    # so we'll use a different approach - store the handle and close it later
+    # so we'll use a different approach - manually enter the context manager
     log = None
+    log_cm = None
     try:
-        log = await storage.open(await get_global_log_path(), "a")
+        log_cm = await storage.open(await get_global_log_path(), "a")
+        log = await log_cm.__aenter__()
 
         # Check if plugin has a venv directory
         if plugin_location:
@@ -344,9 +346,10 @@ async def async_run_python_daemon_and_update_status(
                 # Schedule the read_process_output coroutine in the current event
                 # so we can keep watching this process, but return back to the caller
                 # so that the REST call can complete
-                # Pass the log handle to read_process_output so it can close it
-                # Set log to None so the finally block doesn't close it
-                log_handle_to_pass = log
+                # Pass the log context manager to read_process_output so it can close it
+                # Set log_cm to None so the finally block doesn't close it
+                log_handle_to_pass = log_cm
+                log_cm = None
                 log = None
                 asyncio.create_task(read_process_output(process, job_id, log_handle_to_pass))
 
@@ -367,9 +370,9 @@ async def async_run_python_daemon_and_update_status(
             line = await process.stdout.readline()
     finally:
         # Ensure log file is closed even if there's an error
-        if log:
+        if log_cm:
             try:
-                await log.close()
+                await log_cm.__aexit__(None, None, None)
             except Exception:
                 pass
 
