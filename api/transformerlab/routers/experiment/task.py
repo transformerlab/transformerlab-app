@@ -539,7 +539,7 @@ async def task_gallery():
 @router.get("/gallery/interactive", summary="List all interactive task templates")
 async def interactive_gallery():
     """Get the interactive tasks gallery (vscode, jupyter, vllm, ssh templates)"""
-    gallery = galleries.get_interactive_gallery()
+    gallery = await galleries.get_interactive_gallery()
     return {"status": "success", "data": gallery}
 
 
