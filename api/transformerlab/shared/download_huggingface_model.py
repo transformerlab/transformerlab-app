@@ -732,7 +732,7 @@ def main():
         try:
             from transformerlab.plugin_sdk.transformerlab.plugin import get_db_config_value
 
-            hf_token = get_db_config_value("HuggingfaceUserAccessToken", team_id=org_id, user_id=user_id)
+            hf_token = asyncio.run(get_db_config_value("HuggingfaceUserAccessToken", team_id=org_id, user_id=user_id))
             if hf_token:
                 os.environ["HF_TOKEN"] = hf_token
                 print(f"Set HF_TOKEN from {'user' if user_id else 'team'} config")
