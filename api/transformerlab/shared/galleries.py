@@ -64,12 +64,12 @@ async def get_tasks_gallery():
     return await get_gallery_file(TASKS_GALLERY_FILE)
 
 
-def get_interactive_gallery():
+async def get_interactive_gallery():
     """
     Get the interactive tasks gallery.
     This contains templates for interactive task types (vscode, jupyter, vllm, ssh).
     """
-    return get_gallery_file(INTERACTIVE_GALLERY_FILE)
+    return await get_gallery_file(INTERACTIVE_GALLERY_FILE)
 
 
 async def get_team_tasks_gallery():

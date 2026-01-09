@@ -965,7 +965,7 @@ async def get_checkpoints(job_id: str, request: Request):
             config = {}
     model_name = config.get("model_name", "")
     adaptor_name = config.get("adaptor_name", "adaptor")
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     default_adaptor_dir = storage.join(workspace_dir, "adaptors", secure_filename(model_name), adaptor_name)
 
     # Get job directory

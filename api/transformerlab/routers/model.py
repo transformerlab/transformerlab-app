@@ -560,7 +560,7 @@ async def download_huggingface_model(
             workspace_dir = storage.join(HOME_DIR, "orgs", organization_id, "workspace")
         else:
             # Use default workspace path
-            workspace_dir = get_workspace_dir()
+            workspace_dir = await get_workspace_dir()
 
         args += ["--workspace_dir", workspace_dir]
     except Exception as e:
@@ -941,7 +941,7 @@ async def model_gets_pefts(
 
 @router.get("/model/delete_peft")
 async def model_delete_peft(model_id: str, peft: str):
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     secure_model_id = secure_filename(model_id)
     adaptors_dir = storage.join(workspace_dir, "adaptors", secure_model_id)
     # Check if the peft exists
@@ -1074,7 +1074,7 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None, expe
     try:
         from lab.dirs import get_workspace_dir
 
-        workspace_dir = get_workspace_dir()
+        workspace_dir = await get_workspace_dir()
         args += ["--workspace_dir", workspace_dir]
     except Exception:
         pass

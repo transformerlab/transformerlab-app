@@ -299,7 +299,7 @@ async def run_evaluation_script(
         # Try to get org_id from workspace path
         from lab.dirs import get_workspace_dir
 
-        workspace_dir = get_workspace_dir()
+        workspace_dir = await get_workspace_dir()
         if "/orgs/" in workspace_dir:
             team_id = workspace_dir.split("/orgs/")[-1].split("/")[0]
 

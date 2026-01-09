@@ -863,7 +863,7 @@ async def _launch_sweep_jobs(
                         env_vars["AWS_PROFILE"] = aws_profile
 
                 if request.github_repo_url:
-                    workspace_dir = get_workspace_dir()
+                    workspace_dir = await get_workspace_dir()
                     github_pat = read_github_pat_from_workspace(workspace_dir)
                     github_setup = generate_github_clone_setup(
                         repo_url=request.github_repo_url,
@@ -1852,7 +1852,7 @@ async def resume_from_checkpoint(
     # Add GitHub clone setup if enabled
     github_repo_url = job_data.get("github_repo_url")
     if github_repo_url:
-        workspace_dir = get_workspace_dir()
+        workspace_dir = await get_workspace_dir()
         github_pat = read_github_pat_from_workspace(workspace_dir)
         github_setup = generate_github_clone_setup(
             repo_url=github_repo_url,
