@@ -4,7 +4,7 @@
   "description": "Generate images using a text-to-image model from a set of user-provided prompts.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],

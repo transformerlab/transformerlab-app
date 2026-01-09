@@ -4,7 +4,7 @@
   "description": "Generates and uploads a dataset to Huggingface with the specified configurations.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
   "git": "",
   "url": "",
