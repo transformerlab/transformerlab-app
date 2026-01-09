@@ -184,9 +184,9 @@ class Lab:
         This is a sync wrapper around the async implementation.
         Use a_get_checkpoint_to_resume() if you're already in an async context.
         """
-        return _run_async(self.a_get_checkpoint_to_resume())
+        return _run_async(self.async_get_checkpoint_to_resume())
 
-    async def a_get_checkpoint_to_resume(self) -> Optional[str]:
+    async def async_get_checkpoint_to_resume(self) -> Optional[str]:
         """
         Get the checkpoint path to resume training from.
 
@@ -226,9 +226,9 @@ class Lab:
         This is a sync wrapper around the async implementation.
         Use a_get_parent_job_checkpoint_path() if you're already in an async context.
         """
-        return _run_async(self.a_get_parent_job_checkpoint_path(parent_job_id, checkpoint_name))
+        return _run_async(self.async_get_parent_job_checkpoint_path(parent_job_id, checkpoint_name))
 
-    async def a_get_parent_job_checkpoint_path(self, parent_job_id: str, checkpoint_name: str) -> Optional[str]:
+    async def async_get_parent_job_checkpoint_path(self, parent_job_id: str, checkpoint_name: str) -> Optional[str]:
         """
         Get the full path to a checkpoint from a parent job.
 
@@ -313,9 +313,9 @@ class Lab:
         This is a sync wrapper around the async implementation.
         Use a_save_artifact() if you're already in an async context.
         """
-        return _run_async(self.a_save_artifact(source_path, name, type, config))
+        return _run_async(self.async_save_artifact(source_path, name, type, config))
 
-    async def a_save_artifact(
+    async def async_save_artifact(
         self,
         source_path: Union[str, Any],
         name: Optional[str] = None,
@@ -704,9 +704,9 @@ class Lab:
         This is a sync wrapper around the async implementation.
         Use a_save_dataset() if you're already in an async context.
         """
-        return _run_async(self.a_save_dataset(df, dataset_id, additional_metadata, suffix, is_image))
+        return _run_async(self.async_save_dataset(df, dataset_id, additional_metadata, suffix, is_image))
 
-    async def a_save_dataset(
+    async def async_save_dataset(
         self,
         df,
         dataset_id: str,
@@ -819,11 +819,11 @@ class Lab:
         Save a checkpoint file or directory into this job's checkpoints folder (sync version).
 
         This is a sync wrapper around the async implementation.
-        Use a_save_checkpoint() if you're already in an async context.
+        Use async_save_checkpoint() if you're already in an async context.
         """
-        return _run_async(self.a_save_checkpoint(source_path, name))
+        return _run_async(self.async_save_checkpoint(source_path, name))
 
-    async def a_save_checkpoint(self, source_path: str, name: Optional[str] = None) -> str:
+    async def async_save_checkpoint(self, source_path: str, name: Optional[str] = None) -> str:
         """
         Save a checkpoint file or directory into this job's checkpoints folder.
         Returns the destination path on disk.
@@ -895,11 +895,11 @@ class Lab:
         Save a model file or directory to the workspace models directory (sync version).
 
         This is a sync wrapper around the async implementation.
-        Use a_save_model() if you're already in an async context.
+        Use async_save_model() if you're already in an async context.
         """
-        return _run_async(self.a_save_model(source_path, name, architecture, pipeline_tag, parent_model))
+        return _run_async(self.async_save_model(source_path, name, architecture, pipeline_tag, parent_model))
 
-    async def a_save_model(
+    async def async_save_model(
         self,
         source_path: str,
         name: Optional[str] = None,
@@ -1069,11 +1069,11 @@ class Lab:
         Get the checkpoints directory path for the current job (sync version).
 
         This is a sync wrapper around the async implementation.
-        Use a_get_checkpoints_dir() if you're already in an async context.
+        Use async_get_checkpoints_dir() if you're already in an async context.
         """
-        return _run_async(self.a_get_checkpoints_dir())
+        return _run_async(self.async_get_checkpoints_dir())
 
-    async def a_get_checkpoints_dir(self) -> str:
+    async def async_get_checkpoints_dir(self) -> str:
         """
         Get the checkpoints directory path for the current job.
         """
@@ -1087,9 +1087,9 @@ class Lab:
         This is a sync wrapper around the async implementation.
         Use a_get_artifacts_dir() if you're already in an async context.
         """
-        return _run_async(self.a_get_artifacts_dir())
+        return _run_async(self.async_get_artifacts_dir())
 
-    async def a_get_artifacts_dir(self) -> str:
+    async def async_get_artifacts_dir(self) -> str:
         """
         Get the artifacts directory path for the current job.
         """
@@ -1101,11 +1101,11 @@ class Lab:
         Get list of checkpoint file paths for the current job (sync version).
 
         This is a sync wrapper around the async implementation.
-        Use a_get_checkpoint_paths() if you're already in an async context.
+        Use async_get_checkpoint_paths() if you're already in an async context.
         """
-        return _run_async(self.a_get_checkpoint_paths())
+        return _run_async(self.async_get_checkpoint_paths())
 
-    async def a_get_checkpoint_paths(self) -> list[str]:
+    async def async_get_checkpoint_paths(self) -> list[str]:
         """
         Get list of checkpoint file paths for the current job.
         """
@@ -1119,9 +1119,9 @@ class Lab:
         This is a sync wrapper around the async implementation.
         Use a_get_artifact_paths() if you're already in an async context.
         """
-        return _run_async(self.a_get_artifact_paths())
+        return _run_async(self.async_get_artifact_paths())
 
-    async def a_get_artifact_paths(self) -> list[str]:
+    async def async_get_artifact_paths(self) -> list[str]:
         """
         Get list of artifact file paths for the current job.
         """
@@ -1181,12 +1181,12 @@ class Lab:
         Get the job data dictionary (sync version).
 
         This is a sync wrapper around the async Job.get_job_data() method.
-        Use a_get_job_data() if you're already in an async context.
+        Use async_get_job_data() if you're already in an async context.
         """
         self._ensure_initialized()
         return _run_async(self._job.get_job_data())  # type: ignore[union-attr]
 
-    async def a_get_job_data(self) -> Dict[str, Any]:
+    async def async_get_job_data(self) -> Dict[str, Any]:
         """
         Get the job data dictionary (async version).
         """
