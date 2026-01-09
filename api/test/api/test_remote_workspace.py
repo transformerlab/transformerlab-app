@@ -123,9 +123,6 @@ def test_s3_artifacts_lose_metadata_due_to_os_stat_bug():
         return f"s3://workspace-test/jobs/{job_id}/artifacts"
 
     # Mock the async functions from job_service
-    async def mock_get_artifacts_from_sdk(job_id, storage):
-        return None  # Return None to trigger fallback to directory listing
-
     async def mock_get_artifacts_from_directory(artifacts_dir, storage):
         # Return mock artifacts based on the S3 paths
         artifacts = []
@@ -136,7 +133,6 @@ def test_s3_artifacts_lose_metadata_due_to_os_stat_bug():
 
     with (
         patch("transformerlab.routers.experiment.jobs.job_service", mock_job_service),
-        patch("transformerlab.routers.experiment.jobs.get_artifacts_from_sdk", mock_get_artifacts_from_sdk),
         patch("transformerlab.routers.experiment.jobs.get_artifacts_from_directory", mock_get_artifacts_from_directory),
         patch("transformerlab.routers.experiment.jobs.Job", return_value=mock_job),
         patch("transformerlab.routers.experiment.jobs.storage", mock_storage),
