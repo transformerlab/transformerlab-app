@@ -121,3 +121,19 @@ JobJsonModal {
 
 .job-list-item {
 }
+
+
+Screen {
+    background: $surface;  /* Uses the 'surface' color from your theme */
+}
+
+#left-panel {
+    width: 30%;
+    border-right: solid $primary; /* Uses the 'primary' (purple) color */
+    background: $background;
+}
+
+#job-list-container {
+    height: 100%;
+    border: solid $accent; /* Uses the 'accent' (cyan) color for borders */
+}
