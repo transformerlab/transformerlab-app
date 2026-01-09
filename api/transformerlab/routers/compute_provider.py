@@ -720,7 +720,7 @@ async def _create_sweep_parent_job(
 
     provider_display_name = request.provider_name or provider.name
 
-    parent_job_id = job_service.job_create(
+    parent_job_id = await job_service.job_create(
         type="SWEEP",
         status="RUNNING",
         experiment_id=request.experiment_id,
@@ -748,7 +748,7 @@ async def _create_sweep_parent_job(
 
     for key, value in parent_job_data.items():
         if value is not None:
-            job_service.job_update_job_data_insert_key_value(parent_job_id, key, value, request.experiment_id)
+            await job_service.job_update_job_data_insert_key_value(parent_job_id, key, value, request.experiment_id)
 
     return parent_job_id
 
@@ -824,7 +824,7 @@ async def _launch_sweep_jobs(
                 formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-{run_suffix}-job-{parent_job_id}"
 
                 # Create child job
-                child_job_id = job_service.job_create(
+                child_job_id = await job_service.job_create(
                     type="REMOTE",
                     status="QUEUED",
                     experiment_id=request.experiment_id,
@@ -907,7 +907,7 @@ async def _launch_sweep_jobs(
 
                 for key, value in child_job_data.items():
                     if value is not None:
-                        job_service.job_update_job_data_insert_key_value(
+                        await job_service.job_update_job_data_insert_key_value(
                             child_job_id, key, value, request.experiment_id
                         )
 
@@ -940,7 +940,7 @@ async def _launch_sweep_jobs(
                     launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
 
                     if isinstance(launch_result, dict):
-                        job_service.job_update_job_data_insert_key_value(
+                        await job_service.job_update_job_data_insert_key_value(
                             child_job_id,
                             "provider_launch_result",
                             launch_result,
@@ -948,7 +948,7 @@ async def _launch_sweep_jobs(
                         )
                         request_id = launch_result.get("request_id")
                         if request_id:
-                            job_service.job_update_job_data_insert_key_value(
+                            await job_service.job_update_job_data_insert_key_value(
                                 child_job_id,
                                 "orchestrator_request_id",
                                 request_id,
@@ -971,10 +971,10 @@ async def _launch_sweep_jobs(
                     child_job_ids.append(str(child_job_id))
 
             # Update parent job with child job IDs and running count
-            job_service.job_update_job_data_insert_key_value(
+            await job_service.job_update_job_data_insert_key_value(
                 parent_job_id, "sweep_job_ids", child_job_ids, request.experiment_id
             )
-            job_service.job_update_job_data_insert_key_value(
+            await job_service.job_update_job_data_insert_key_value(
                 parent_job_id, "sweep_running", len(child_job_ids), request.experiment_id
             )
 
@@ -1455,7 +1455,7 @@ async def _update_sweep_job_status(job_id: str, experiment_id: str):
     Helper function to update a single sweep job's status by checking child jobs.
     Returns the updated job data.
     """
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if not job:
         return None
 
@@ -1476,7 +1476,7 @@ async def _update_sweep_job_status(job_id: str, experiment_id: str):
     queued_count = 0
 
     for child_job_id in sweep_job_ids:
-        child_job = job_service.job_get(child_job_id)
+        child_job = await job_service.job_get(child_job_id)
         if not child_job:
             continue
 
@@ -1491,26 +1491,26 @@ async def _update_sweep_job_status(job_id: str, experiment_id: str):
             queued_count += 1
 
     # Update parent job with current counts
-    job_service.job_update_job_data_insert_key_value(job_id, "sweep_completed", completed_count, experiment_id)
-    job_service.job_update_job_data_insert_key_value(job_id, "sweep_running", running_count, experiment_id)
-    job_service.job_update_job_data_insert_key_value(job_id, "sweep_failed", failed_count, experiment_id)
-    job_service.job_update_job_data_insert_key_value(job_id, "sweep_queued", queued_count, experiment_id)
+    await job_service.job_update_job_data_insert_key_value(job_id, "sweep_completed", completed_count, experiment_id)
+    await job_service.job_update_job_data_insert_key_value(job_id, "sweep_running", running_count, experiment_id)
+    await job_service.job_update_job_data_insert_key_value(job_id, "sweep_failed", failed_count, experiment_id)
+    await job_service.job_update_job_data_insert_key_value(job_id, "sweep_queued", queued_count, experiment_id)
 
     # Calculate progress percentage
     progress = int((completed_count / sweep_total * 100)) if sweep_total > 0 else 0
-    job_service.job_update_sweep_progress(job_id, progress, experiment_id)
+    await job_service.job_update_sweep_progress(job_id, progress, experiment_id)
 
     # Check if all jobs are done
     all_complete = completed_count + failed_count == sweep_total
     if all_complete and job.get("status") == "RUNNING":
         # Mark parent as complete if all children are done
-        job_service.job_update_job_data_insert_key_value(
+        await job_service.job_update_job_data_insert_key_value(
             job_id, "end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), experiment_id
         )
         await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
 
     # Get the updated job data after status updates
-    return job_service.job_get(job_id)
+    return await job_service.job_get(job_id)
 
 
 @router.get("/jobs/sweep-status")
@@ -1562,7 +1562,7 @@ async def check_sweep_status(
     Check status of a specific sweep job by polling all child jobs and updating parent job status.
     Returns current sweep status with counts and the updated job data.
     """
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -1609,7 +1609,7 @@ async def get_sweep_results(
     """
 
     # Get the parent sweep job
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -1633,7 +1633,7 @@ async def get_sweep_results(
     best_job_id = None
 
     for child_job_id in sweep_job_ids:
-        child_job = job_service.job_get(child_job_id)
+        child_job = await job_service.job_get(child_job_id)
         if not child_job:
             continue
 
@@ -1700,7 +1700,7 @@ async def get_sweep_results(
     }
 
     # Store results in parent job
-    job_service.job_update_job_data_insert_key_value(job_id, "sweep_results", aggregated_results, experiment_id)
+    await job_service.job_update_job_data_insert_key_value(job_id, "sweep_results", aggregated_results, experiment_id)
 
     return {
         "status": "success",
@@ -1727,7 +1727,7 @@ async def resume_from_checkpoint(
     import time
 
     # Get the original job
-    original_job = job_service.job_get(job_id)
+    original_job = await job_service.job_get(job_id)
     if not original_job or str(original_job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -1755,7 +1755,7 @@ async def resume_from_checkpoint(
     # Verify checkpoint exists using workspace-aware path resolution
     checkpoints_dir = get_job_checkpoints_dir(job_id)
     checkpoint_path = storage.join(checkpoints_dir, request.checkpoint)
-    if not storage.exists(checkpoint_path):
+    if not await storage.exists(checkpoint_path):
         raise HTTPException(status_code=404, detail=f"Checkpoint '{request.checkpoint}' not found")
 
     # Get provider
@@ -1766,11 +1766,11 @@ async def resume_from_checkpoint(
 
     # Create new REMOTE job
     initial_status = "INTERACTIVE" if job_data.get("subtype") == "interactive" else "LAUNCHING"
-    new_job_id = job_service.job_create(type="REMOTE", status=initial_status, experiment_id=experimentId, job_data={})
+    new_job_id = await job_service.job_create(type="REMOTE", status=initial_status, experiment_id=experimentId, job_data={})
 
     # Set parent_job_id and resumed_from_checkpoint in job_data
-    job_service.job_update_job_data_insert_key_value(new_job_id, "parent_job_id", job_id, experimentId)
-    job_service.job_update_job_data_insert_key_value(
+    await job_service.job_update_job_data_insert_key_value(new_job_id, "parent_job_id", job_id, experimentId)
+    await job_service.job_update_job_data_insert_key_value(
         new_job_id, "resumed_from_checkpoint", request.checkpoint, experimentId
     )
 
@@ -1801,7 +1801,7 @@ async def resume_from_checkpoint(
     for field in config_fields:
         value = job_data.get(field)
         if value is not None:
-            job_service.job_update_job_data_insert_key_value(new_job_id, field, value, experimentId)
+            await job_service.job_update_job_data_insert_key_value(new_job_id, field, value, experimentId)
 
     # Relaunch via provider - replicate launch logic from compute_provider.py
     try:
@@ -1892,7 +1892,7 @@ async def resume_from_checkpoint(
 
     for key, value in launch_job_data.items():
         if value is not None:
-            job_service.job_update_job_data_insert_key_value(new_job_id, key, value, experimentId)
+            await job_service.job_update_job_data_insert_key_value(new_job_id, key, value, experimentId)
 
     # Build ClusterConfig
     disk_size = None
