@@ -44,7 +44,7 @@ async def check_recipe_dependencies(id: str):
     # Get local models and datasets
     local_models = await model_helper.list_installed_models()
     local_model_names = set(model["model_id"] for model in local_models)
-    local_datasets = Dataset.list_all()
+    local_datasets = await Dataset.list_all()
     local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
 
     # Get installed plugins using the same logic as /plugins/gallery
@@ -95,7 +95,7 @@ async def _install_recipe_dependencies_job(job_id, id):
             await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
             return
 
-        local_datasets = Dataset.list_all()
+        local_datasets = await Dataset.list_all()
         local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
         total = len(non_model_deps)
         progress = 0
