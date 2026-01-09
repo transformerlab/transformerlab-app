@@ -407,7 +407,7 @@ async def server_worker_start(
 
     if adaptor != "":
         # Resolve per-request workspace if multitenant
-        workspace_dir = get_workspace_dir()
+        workspace_dir = await get_workspace_dir()
         adaptor = f"{workspace_dir}/adaptors/{secure_filename(model)}/{adaptor}"
 
     params = [
