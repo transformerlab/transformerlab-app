@@ -553,7 +553,7 @@ async def job_update_status(
     # Track quota for REMOTE jobs when they transition to terminal states
     if status in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
         try:
-            job_dict = job.get_json_data() if job else {}
+            job_dict = await job.get_json_data() if job else {}
             if job_dict.get("type") == "REMOTE":
                 # If session is provided, await quota tracking in the same transaction
                 # Otherwise, run it as a background task
