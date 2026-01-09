@@ -22,6 +22,7 @@ import json
 import shutil
 import pandas as pd
 from pathlib import Path
+import asyncio
 
 from transformerlab.sdk.v1.generate import tlab_gen
 from lab.dirs import get_workspace_dir
@@ -70,14 +71,14 @@ def run_generation():
     # Prompt selector based on generation_type
     DEFAULT_PROMPTS = {
         "summary": "Summarize this document in 3-5 sentences, focusing on the main topic and key concepts.",
-        "qa_generation": """               
+        "qa_generation": """
             Create {num_pairs} question-answer pairs from this text for LLM training.
 
             Rules:
             1. Questions must be about important facts in the text
             2. Answers must be directly supported by the text
             3. Return JSON format only:
-            
+
             [
             {{
                 "question": "Question 1?",
@@ -88,7 +89,7 @@ def run_generation():
                 "answer": "Answer 2."
             }}
             ]
-            
+
             Text:
             {text}
         """,
@@ -98,35 +99,35 @@ def run_generation():
             - Relevance (0-2): relevance to content
             - Clarity (0-2): clear language
             - Usefulness (0-3): value for model learning
-            
+
             YOU MUST RETURN A VALID JSON OBJECT OR ARRAY WITH THIS EXACT SCHEMA:
             {{
             "question": "Exact question text",
             "answer": "Exact answer text",
             "rating": 8
             }}
-            
+
             OR FOR MULTIPLE PAIRS:
             [
             {{"question": "Q1", "answer": "A1", "rating": 8}},
             {{"question": "Q2", "answer": "A2", "rating": 9}}
             ]
-            
+
             *** YOUR RESPONSE MUST BE VALID JSON AND NOTHING ELSE - NO EXPLANATION, NO MARKDOWN ***
-            
+
             QA pairs to rate:
-            {pairs}        
+            {pairs}
         """,
         "cot_generation": """
             Create {num_examples} complex reasoning examples from this text that demonstrate chain-of-thought thinking.
-            
+
             Each example should have:
             1. A challenging question that requires step-by-step reasoning
             2. Detailed reasoning steps that break down the problem
             3. A concise final answer
-            
+
             Return JSON format only:
-            
+
             [
             {{
                 "question": "Complex question about the text?",
@@ -139,17 +140,17 @@ def run_generation():
                 "answer": "Final answer drawn from the reasoning."
             }}
             ]
-            
+
             Text:
             {text}
         """,
         "cot_enhancement": """
             You are an expert reasoning assistant. Your task is to enhance the given conversations by adding chain-of-thought reasoning.
-            
+
             For each conversation, add detailed step-by-step reasoning to the assistant's responses while preserving the original answer.
-            
+
             {include_simple_steps} = Whether to add reasoning to simple responses too. If false, only add reasoning to complex responses.
-            
+
             Return the enhanced conversations as a JSON array matching this format:
             [
             [
@@ -163,9 +164,9 @@ def run_generation():
                 {{"role": "assistant", "content": "Let me work through this:\n\n1. I'll start by...\n2. Next...\n\nIn conclusion, [original answer]"}}
             ]
             ]
-            
+
             Original conversations:
-            {conversations}  
+            {conversations}
             """,
     }
     prompt_lookup = {"qa": "qa_generation", "cot": "cot_generation", "summary": "summary"}
