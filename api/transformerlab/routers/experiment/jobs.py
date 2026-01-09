@@ -21,7 +21,7 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import transformerlab.services.job_service as job_service
-from transformerlab.services.job_service import get_artifacts_from_directory, get_artifacts_from_sdk, job_update_status
+from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
 from transformerlab.services.provider_service import get_team_provider, get_provider_instance
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
@@ -1086,25 +1086,15 @@ async def get_artifacts(job_id: str, request: Request):
     if not job:
         return {"artifacts": []}
 
-    # Try SDK method first
-    artifacts = get_artifacts_from_sdk(job_id, storage)
+    # Use get_job_artifacts_dir to get the artifacts directory directly
+    try:
+        from lab.dirs import get_job_artifacts_dir
 
-    # Fallback to directory listing if SDK method fails
-    if artifacts is None:
-        job_data = job["job_data"]
-        artifacts_dir = job_data.get("artifacts_dir")
-
-        # Use SDK's default artifacts directory if not specified
-        if not artifacts_dir:
-            try:
-                from lab.dirs import get_job_artifacts_dir
-
-                artifacts_dir = get_job_artifacts_dir(job_id)
-            except Exception as e:
-                print(f"Error getting artifacts directory for job {job_id}: {e}")
-                return {"artifacts": []}
-
+        artifacts_dir = get_job_artifacts_dir(job_id)
         artifacts = get_artifacts_from_directory(artifacts_dir, storage)
+    except Exception as e:
+        print(f"Error getting artifacts for job {job_id}: {e}")
+        artifacts = []
 
     # Sort by filename in descending order for consistent ordering
     artifacts.sort(key=lambda x: x["filename"], reverse=True)
