@@ -65,6 +65,7 @@ type NewTaskModalProps = {
     disk_space?: string;
     accelerators?: string;
     num_nodes?: number;
+    minutes_requested?: number;
     setup?: string;
     env_vars?: Record<string, string>;
     provider_id?: string;
@@ -189,6 +190,7 @@ export default function NewTaskModal({
   const [diskSpace, setDiskSpace] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
+  const [minutesRequested, setMinutesRequested] = React.useState('60');
   const [setup, setSetup] = React.useState('');
   const [envVars, setEnvVars] = React.useState<
     Array<{ key: string; value: string }>
@@ -231,6 +233,7 @@ export default function NewTaskModal({
       setDiskSpace('');
       setAccelerators('');
       setNumNodes('');
+      setMinutesRequested('');
       setSetup('');
       setEnvVars([{ key: '', value: '' }]);
       setParameters([{ key: '', value: '', valueType: 'string' }]);
@@ -354,6 +357,7 @@ export default function NewTaskModal({
             cpus: 2,
             memory: 4,
           },
+          minutes_requested: 60,
           run: 'echo hello',
         };
 
@@ -434,7 +438,27 @@ export default function NewTaskModal({
           if (data.disk_space) setDiskSpace(String(data.disk_space));
           if (data.accelerators) setAccelerators(data.accelerators);
           if (data.num_nodes) setNumNodes(String(data.num_nodes));
+          if (data.minutes_requested)
+            setMinutesRequested(String(data.minutes_requested));
           if (data.setup) setSetup(data.setup);
+          // Process env_parameters into env_vars if present
+          if (data.env_parameters && Array.isArray(data.env_parameters)) {
+            // Initialize env_vars if not present
+            if (!data.env_vars || typeof data.env_vars !== 'object') {
+              data.env_vars = {};
+            }
+
+            // Process each env_parameter
+            data.env_parameters.forEach((param: any) => {
+              if (param && typeof param === 'object' && param.env_var) {
+                // If value is provided, use it; otherwise use blank string
+                const value =
+                  param.value !== undefined ? String(param.value) : '';
+                data.env_vars[param.env_var] = value;
+              }
+            });
+          }
+
           if (data.env_vars && typeof data.env_vars === 'object') {
             const envVarsArray = Object.entries(data.env_vars).map(
               ([key, value]) => ({
@@ -678,6 +702,9 @@ export default function NewTaskModal({
       disk_space: diskSpace || undefined,
       accelerators: accelerators || undefined,
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
+      minutes_requested: minutesRequested
+        ? parseInt(minutesRequested, 10)
+        : undefined,
       setup: setupValue || undefined,
       env_vars: Object.keys(envVarsObj).length > 0 ? envVarsObj : undefined,
       parameters:
@@ -706,6 +733,7 @@ export default function NewTaskModal({
     setDiskSpace('');
     setAccelerators('');
     setNumNodes('');
+    setMinutesRequested('');
     setSetup('');
     setEnvVars([{ key: '', value: '' }]);
     setParameters([{ key: '', value: '', valueType: 'string' }]);
@@ -954,6 +982,12 @@ export default function NewTaskModal({
       yamlData.envs = envs;
     }
 
+    // Minutes requested (task-level field)
+    if (minutesRequested) {
+      yamlData.minutes_requested =
+        parseInt(minutesRequested, 10) || minutesRequested;
+    }
+
     // Setup and run
     const setupValue = setupEditorRef?.current?.getValue?.() || setup;
     if (setupValue) yamlData.setup = setupValue;
@@ -1166,6 +1200,10 @@ export default function NewTaskModal({
           taskData.num_nodes = resources.num_nodes;
         }
       }
+      // Minutes requested (task-level field)
+      if (taskYaml.minutes_requested !== undefined) {
+        taskData.minutes_requested = taskYaml.minutes_requested;
+      }
 
       // Environment variables
       if (taskYaml.envs) {
@@ -1180,11 +1218,19 @@ export default function NewTaskModal({
         taskData.command = String(taskYaml.run);
       }
 
-      // GitHub
-      if (taskYaml.git_repo) {
+      // GitHub - support multiple naming conventions
+      if (taskYaml.github_repo_url) {
+        taskData.github_repo_url = String(taskYaml.github_repo_url);
+      } else if (taskYaml.git_repo) {
         taskData.github_repo_url = String(taskYaml.git_repo);
       }
-      if (taskYaml.git_repo_directory) {
+      if (taskYaml.github_repo_dir) {
+        taskData.github_directory = String(taskYaml.github_repo_dir);
+      } else if (taskYaml.github_repo_directory) {
+        taskData.github_directory = String(taskYaml.github_repo_directory);
+      } else if (taskYaml.github_directory) {
+        taskData.github_directory = String(taskYaml.github_directory);
+      } else if (taskYaml.git_repo_directory) {
         taskData.github_directory = String(taskYaml.git_repo_directory);
       }
 
@@ -1218,6 +1264,8 @@ export default function NewTaskModal({
       if (taskData.disk_space) setDiskSpace(String(taskData.disk_space));
       if (taskData.accelerators) setAccelerators(taskData.accelerators);
       if (taskData.num_nodes) setNumNodes(String(taskData.num_nodes));
+      if (taskData.minutes_requested)
+        setMinutesRequested(String(taskData.minutes_requested));
       if (taskData.github_repo_url) setGithubRepoUrl(taskData.github_repo_url);
       if (taskData.github_directory)
         setGithubDirectory(taskData.github_directory);
@@ -1546,6 +1594,20 @@ export default function NewTaskModal({
                 </FormControl>
 
                 <FormControl>
+                  <FormLabel>Minutes Requested (for quota tracking)</FormLabel>
+                  <Input
+                    type="number"
+                    value={minutesRequested}
+                    onChange={(e) => setMinutesRequested(e.target.value)}
+                    placeholder="e.g. 60"
+                  />
+                  <FormHelperText>
+                    Estimated minutes this task will run. Used for quota
+                    tracking.
+                  </FormHelperText>
+                </FormControl>
+
+                <FormControl>
                   <FormLabel>Setup Command</FormLabel>
                   <div
                     data-form-type="other"
@@ -1572,6 +1634,34 @@ export default function NewTaskModal({
                     e.g. <code>pip install -r requirements.txt</code>
                   </FormHelperText>
                 </FormControl>
+
+                <FormControl>
+                  <FormLabel>GitHub Repository URL (Optional)</FormLabel>
+                  <Input
+                    value={githubRepoUrl}
+                    onChange={(e) => setGithubRepoUrl(e.target.value)}
+                    placeholder="https://github.com/owner/repo.git"
+                  />
+                  <FormHelperText>
+                    GitHub repository URL to clone before running the task
+                  </FormHelperText>
+                </FormControl>
+
+                {githubRepoUrl && (
+                  <FormControl>
+                    <FormLabel>
+                      GitHub Repository Directory (Optional)
+                    </FormLabel>
+                    <Input
+                      value={githubDirectory}
+                      onChange={(e) => setGithubDirectory(e.target.value)}
+                      placeholder="path/to/directory"
+                    />
+                    <FormHelperText>
+                      Optional subdirectory path within the repository
+                    </FormHelperText>
+                  </FormControl>
+                )}
 
                 <FormControl required>
                   <FormLabel>Command</FormLabel>
@@ -1990,6 +2080,11 @@ export default function NewTaskModal({
       return true;
     }
     if (currentPhase === 'task-config') {
+      // In YAML mode, check if YAML content is not empty
+      if (isYamlMode) {
+        return yamlContent.trim().length > 0;
+      }
+      // In GUI mode, check if title is filled
       return title.trim().length > 0;
     }
     if (currentPhase === 'provider-env') {

@@ -11,23 +11,44 @@ import {
   ModalClose,
   ModalDialog,
   Stack,
-  Radio,
-  RadioGroup,
   FormHelperText,
   Typography,
   Select,
   Option,
+  Alert,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 import { useRef } from 'react';
 import { SafeJSONParse } from '../../Shared/SafeJSONParse';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 const { parseTmTheme } = require('monaco-themes');
 
 type ProviderOption = {
   id: string;
   name: string;
+};
+
+type ConfigField = {
+  field_name: string;
+  env_var: string;
+  field_type: 'str' | 'integer';
+  required?: boolean;
+  placeholder?: string;
+  help_text?: string;
+  password?: boolean;
+};
+
+type InteractiveTemplate = {
+  id: string;
+  interactive_type: string;
+  name: string;
+  description: string;
+  env_parameters?: ConfigField[];
 };
 
 function setTheme(editor: any, monaco: any) {
@@ -54,20 +75,56 @@ export default function EditInteractiveTaskModal({
   providers,
   isProvidersLoading = false,
 }: EditInteractiveTaskModalProps) {
+  const { experimentInfo } = useExperimentInfo();
   const [title, setTitle] = React.useState('');
   const [cpus, setCpus] = React.useState('');
   const [memory, setMemory] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [interactiveType, setInteractiveType] = React.useState<
-    'vscode' | 'jupyter'
+    'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama'
   >('vscode');
   const [setup, setSetup] = React.useState('');
   const [command, setCommand] = React.useState('');
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
   const [isSaving, setIsSaving] = React.useState(false);
+  const [configFieldValues, setConfigFieldValues] = React.useState<
+    Record<string, string>
+  >({});
+  const [templateConfigFields, setTemplateConfigFields] = React.useState<
+    ConfigField[]
+  >([]);
 
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
+
+  // Fetch interactive gallery to get env_parameters for the interactive type
+  const { data: galleryData, isLoading: galleryIsLoading } = useSWR(
+    experimentInfo?.id && open && interactiveType
+      ? chatAPI.Endpoints.Task.InteractiveGallery(experimentInfo.id)
+      : null,
+    fetcher,
+  );
+
+  const gallery = React.useMemo(() => {
+    if (galleryData?.status === 'success' && Array.isArray(galleryData.data)) {
+      return galleryData.data as InteractiveTemplate[];
+    }
+    return [];
+  }, [galleryData]);
+
+  // Update templateConfigFields when gallery loads or interactiveType changes
+  React.useEffect(() => {
+    if (gallery.length > 0 && interactiveType) {
+      const template = gallery.find(
+        (t) => t.interactive_type === interactiveType,
+      );
+      if (template?.env_parameters) {
+        setTemplateConfigFields(template.env_parameters);
+      } else {
+        setTemplateConfigFields([]);
+      }
+    }
+  }, [gallery, interactiveType]);
 
   React.useEffect(() => {
     if (!task) return;
@@ -106,11 +163,31 @@ export default function EditInteractiveTaskModal({
     setAccelerators(
       isTemplate ? taskAny.accelerators || '' : cfg.accelerators || '',
     );
-    setInteractiveType(
-      (taskAny.interactive_type || cfg.interactive_type || 'vscode') as
-        | 'vscode'
-        | 'jupyter',
-    );
+    const loadedInteractiveType = (taskAny.interactive_type ||
+      cfg.interactive_type ||
+      'vscode') as 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama';
+    setInteractiveType(loadedInteractiveType);
+
+    // Load environment variables
+    const envVars = isTemplate ? taskAny.env_vars : cfg.env_vars;
+    let parsedEnvVars: Record<string, string> = {};
+
+    if (envVars && typeof envVars === 'object') {
+      parsedEnvVars = envVars as Record<string, string>;
+    } else if (typeof envVars === 'string') {
+      try {
+        parsedEnvVars = JSON.parse(envVars) as Record<string, string>;
+      } catch {
+        // ignore parse errors
+      }
+    }
+
+    // Load config field values from env_vars
+    const initialConfigFieldValues: Record<string, string> = {};
+    // We'll populate this once the gallery loads and we have env_parameters
+    // For now, store all env vars
+    setConfigFieldValues(parsedEnvVars);
+
     setSetup(
       isTemplate
         ? taskAny.setup != null
@@ -135,6 +212,46 @@ export default function EditInteractiveTaskModal({
       }
     }
   }, [task, providers]);
+
+  // Update configFieldValues when templateConfigFields changes (gallery loaded)
+  React.useEffect(() => {
+    if (templateConfigFields.length > 0 && task) {
+      const cfg = SafeJSONParse(task.config, {});
+      const taskAny = task as any;
+      const isTemplate =
+        !task.config ||
+        (typeof cfg === 'object' && Object.keys(cfg).length === 0) ||
+        (!cfg.command && !cfg.setup && (task as any).command);
+      const envVars = isTemplate ? taskAny.env_vars : cfg.env_vars;
+      let parsedEnvVars: Record<string, string> = {};
+
+      if (envVars && typeof envVars === 'object') {
+        parsedEnvVars = envVars as Record<string, string>;
+      } else if (typeof envVars === 'string') {
+        try {
+          parsedEnvVars = JSON.parse(envVars) as Record<string, string>;
+        } catch {
+          // ignore parse errors
+        }
+      }
+
+      // Initialize config field values from env_vars, with defaults for integer fields
+      const updatedValues: Record<string, string> = {};
+      templateConfigFields.forEach((field) => {
+        if (parsedEnvVars[field.env_var] !== undefined) {
+          updatedValues[field.env_var] = parsedEnvVars[field.env_var];
+        } else if (
+          field.field_type === 'integer' &&
+          field.env_var === 'TP_SIZE'
+        ) {
+          updatedValues[field.env_var] = '1';
+        } else {
+          updatedValues[field.env_var] = '';
+        }
+      });
+      setConfigFieldValues(updatedValues);
+    }
+  }, [templateConfigFields, task]);
 
   React.useEffect(() => {
     if (!providers.length) {
@@ -231,6 +348,13 @@ export default function EditInteractiveTaskModal({
     }
   }, [task, command, open]);
 
+  const handleConfigFieldChange = (envVar: string, value: string) => {
+    setConfigFieldValues((prev) => ({
+      ...prev,
+      [envVar]: value,
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!task) return;
@@ -256,6 +380,19 @@ export default function EditInteractiveTaskModal({
         provider_id: selectedProviderId,
       };
 
+      // Use env_parameters to build env_vars
+      const envVars: Record<string, string> = {};
+      templateConfigFields.forEach((field) => {
+        const value = configFieldValues[field.env_var];
+        if (value && value.trim()) {
+          envVars[field.env_var] = value.trim();
+        }
+      });
+
+      if (Object.keys(envVars).length > 0) {
+        body.env_vars = envVars;
+      }
+
       // Preserve provider_name if we can infer it
       const provider = providers.find((p) => p.id === selectedProviderId);
       if (provider) {
@@ -273,7 +410,38 @@ export default function EditInteractiveTaskModal({
     }
   };
 
-  const canSubmit = title.trim().length > 0 && !!selectedProviderId;
+  const canSubmit = React.useMemo(() => {
+    if (!title.trim() || !selectedProviderId) {
+      return false;
+    }
+
+    // Validate required config fields
+    const requiredFields = templateConfigFields.filter((f) => f.required);
+    for (const field of requiredFields) {
+      if (!configFieldValues[field.env_var]?.trim()) {
+        return false;
+      }
+    }
+
+    return true;
+  }, [title, selectedProviderId, templateConfigFields, configFieldValues]);
+
+  const getInteractiveTypeLabel = (type: string) => {
+    switch (type) {
+      case 'vscode':
+        return 'VS Code';
+      case 'jupyter':
+        return 'Jupyter';
+      case 'vllm':
+        return 'vLLM';
+      case 'ollama':
+        return 'Ollama';
+      case 'ssh':
+        return 'SSH';
+      default:
+        return type;
+    }
+  };
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -332,7 +500,7 @@ export default function EditInteractiveTaskModal({
               <FormControl>
                 <FormLabel>Interactive Type</FormLabel>
                 <Input
-                  value={interactiveType === 'vscode' ? 'VS Code' : 'Jupyter'}
+                  value={getInteractiveTypeLabel(interactiveType)}
                   disabled
                   readOnly
                 />
@@ -340,6 +508,50 @@ export default function EditInteractiveTaskModal({
                   Interactive type is fixed for this template.
                 </FormHelperText>
               </FormControl>
+
+              {interactiveType === 'ssh' && (
+                <Alert color="warning" variant="soft">
+                  <Typography
+                    level="body-sm"
+                    fontWeight="bold"
+                    sx={{ mb: 0.5 }}
+                  >
+                    Security Warning
+                  </Typography>
+                  <Typography level="body-xs">
+                    This will create a public TCP tunnel. Be careful when
+                    sharing the SSH command with anyone, as it provides direct
+                    access to your remote machine.
+                  </Typography>
+                </Alert>
+              )}
+
+              {!galleryIsLoading && templateConfigFields.length > 0 && (
+                <>
+                  {templateConfigFields.map((field) => (
+                    <FormControl key={field.env_var} required={field.required}>
+                      <FormLabel>{field.field_name}</FormLabel>
+                      <Input
+                        type={
+                          field.password
+                            ? 'password'
+                            : field.field_type === 'integer'
+                              ? 'number'
+                              : 'text'
+                        }
+                        value={configFieldValues[field.env_var] || ''}
+                        onChange={(e) =>
+                          handleConfigFieldChange(field.env_var, e.target.value)
+                        }
+                        placeholder={field.placeholder}
+                      />
+                      {field.help_text && (
+                        <FormHelperText>{field.help_text}</FormHelperText>
+                      )}
+                    </FormControl>
+                  ))}
+                </>
+              )}
 
               <Stack
                 direction="row"

@@ -12,20 +12,50 @@ import os
 import sys
 import argparse
 import traceback
+import asyncio
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--plugin_dir", type=str, required=True)
 args, unknown = parser.parse_known_args()
 
+
+def set_config_env_vars(env_var: str, target_env_var: str = None, user_id: str = None, team_id: str = None):
+    try:
+        from transformerlab.plugin import get_db_config_value
+
+        value = asyncio.run(get_db_config_value(env_var, user_id=user_id, team_id=team_id))
+        if value:
+            os.environ[target_env_var] = value
+            print(f"Set {target_env_var} from {'user' if user_id else 'team'} config: {value}")
+    except Exception as e:
+        print(f"Warning: Could not set {target_env_var} from {'user' if user_id else 'team'} config: {e}")
+
+
 # Set organization context from environment variable if provided
 # This allows plugins to have the correct org context without leaking to the API
 org_id = os.environ.get("_TFL_ORG_ID")
+user_id = os.environ.get("_TFL_USER_ID")  # Optional user_id for user-specific configs
+
 if org_id:
     try:
         from lab.dirs import set_organization_id
 
         set_organization_id(org_id)
+
+        try:
+            # Set HuggingFace token
+            set_config_env_vars("HuggingfaceUserAccessToken", "HF_TOKEN", user_id=user_id, team_id=org_id)
+            # Set WANDB API key
+            set_config_env_vars("WANDB_API_KEY", "WANDB_API_KEY", user_id=user_id, team_id=org_id)
+            # Set AI provider keys
+            set_config_env_vars("OPENAI_API_KEY", "OPENAI_API_KEY", user_id=user_id, team_id=org_id)
+            set_config_env_vars("ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY", user_id=user_id, team_id=org_id)
+            set_config_env_vars("CUSTOM_MODEL_API_KEY", "CUSTOM_MODEL_API_KEY", user_id=user_id, team_id=org_id)
+            # Azure OpenAI details (JSON string)
+            set_config_env_vars("AZURE_OPENAI_DETAILS", "AZURE_OPENAI_DETAILS", user_id=user_id, team_id=org_id)
+        except Exception as e:
+            print(f"Warning: Could not set team/user-specific config env vars: {e}")
     except Exception as e:
         print(f"Warning: Could not set organization context: {e}")
 

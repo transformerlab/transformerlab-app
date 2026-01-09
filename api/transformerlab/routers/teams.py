@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from os import getenv
 from PIL import Image
 import io
+import logging
 
 from lab import Experiment
 from lab.dirs import set_organization_id, get_workspace_dir
@@ -108,12 +109,12 @@ async def create_team(
         set_organization_id(team.id)
 
         # Create the default experiment
-        Experiment("alpha", create_new=True)
+        await Experiment.create_or_get("alpha", create_new=True)
 
         # Save logo if provided
         if logo:
             try:
-                workspace_dir = get_workspace_dir()
+                workspace_dir = await get_workspace_dir()
                 logo_path = storage.join(workspace_dir, "logo.png")
 
                 # Validate content type
@@ -173,7 +174,7 @@ async def create_team(
                     image = image.convert("RGB")
 
                 # Save as PNG
-                with storage.open(logo_path, "wb") as f:
+                async with await storage.open(logo_path, "wb") as f:
                     image.save(f, format="PNG")
             except HTTPException:
                 # Re-raise HTTPExceptions (validation errors)
@@ -382,8 +383,9 @@ async def invite_member(
                 raise HTTPException(status_code=400, detail=str(e))
             except (ConnectionError, RuntimeError) as e:
                 # Log warning but don't fail the invitation
+                logging.warning("Failed to send invitation email", exc_info=e)
                 email_sent = False
-                email_error = str(e)
+                email_error = "Failed to send invitation email"
 
             return {
                 "message": "Invitation renewed and resent",
@@ -413,9 +415,10 @@ async def invite_member(
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=str(e))
             except (ConnectionError, RuntimeError) as e:
+                logging.warning("Failed to send invitation email", exc_info=e)
                 # Log warning but don't fail the invitation
                 email_sent = False
-                email_error = str(e)
+                email_error = "Failed to send invitation email"
 
             return {
                 "message": "Invitation already exists and was resent",
@@ -461,8 +464,9 @@ async def invite_member(
         raise HTTPException(status_code=400, detail=str(e))
     except (ConnectionError, RuntimeError) as e:
         # Log warning but don't fail the invitation
+        logging.warning("Failed to send invitation email", exc_info=e)
         email_sent = False
-        email_error = str(e)
+        email_error = "Failed to send invitation email"
 
     return {
         "message": "Invitation created successfully",
@@ -825,21 +829,22 @@ async def get_github_pat(
     if team_id != user_and_team["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
-    pat_path = storage.join(get_workspace_dir(), "github_pat.txt")
+    workspace_dir = await get_workspace_dir()
+    pat_path = storage.join(workspace_dir, "github_pat.txt")
 
-    try:
-        with storage.open(pat_path, "r") as f:
-            raw_pat = f.read().rstrip("\n")
-    except FileNotFoundError:
-        return {"status": "success", "pat_exists": False}
-    except Exception:
-        return {"status": "error", "message": "Failed to read GitHub PAT"}
+    if await storage.exists(pat_path):
+        try:
+            async with await storage.open(pat_path, "r") as f:
+                pat = (await f.read()).strip()
+                if pat:
+                    # Return masked version for security (only show last 4 chars)
+                    masked_pat = mask_key(pat)
+                    return {"status": "success", "pat_exists": True, "masked_pat": masked_pat}
+        except Exception as e:
+            print(f"Error reading GitHub PAT: {e}")
+            return {"status": "error", "message": "Failed to read GitHub PAT"}
 
-    return {
-        "status": "success",
-        "pat_exists": True,
-        "masked_pat": mask_key(raw_pat),
-    }
+    return {"status": "error", "message": "GitHub PAT not found"}
 
 
 @router.put("/teams/{team_id}/github_pat")
@@ -857,20 +862,20 @@ async def set_github_pat(
     if team_id != owner_info["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     pat_path = storage.join(workspace_dir, "github_pat.txt")
 
     try:
         pat = pat_data.pat
         if pat and pat.strip():
             # Store the PAT
-            with storage.open(pat_path, "w") as f:
-                f.write(pat.strip())
+            async with await storage.open(pat_path, "w") as f:
+                await f.write(pat.strip())
             return {"status": "success", "message": "GitHub PAT saved successfully"}
         else:
             # Remove the PAT if empty string is provided
-            if storage.exists(pat_path):
-                storage.rm(pat_path)
+            if await storage.exists(pat_path):
+                await storage.rm(pat_path)
             return {"status": "success", "message": "GitHub PAT removed successfully"}
     except Exception as e:
         print(f"Error saving GitHub PAT: {e}")
@@ -890,10 +895,10 @@ async def get_team_logo(
     if team_id != user_and_team["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     logo_path = storage.join(workspace_dir, "logo.png")
 
-    if not storage.exists(logo_path):
+    if not await storage.exists(logo_path):
         raise HTTPException(status_code=404, detail="Team logo not found")
 
     try:
@@ -902,8 +907,8 @@ async def get_team_logo(
             return FileResponse(logo_path, media_type="image/png")
         else:
             # For remote storage, read and return as bytes
-            with storage.open(logo_path, "rb") as f:
-                return Response(content=f.read(), media_type="image/png")
+            async with await storage.open(logo_path, "rb") as f:
+                return Response(content=await f.read(), media_type="image/png")
     except Exception as e:
         print(f"Error reading team logo: {e}")
         raise HTTPException(status_code=500, detail="Failed to read team logo")
@@ -923,7 +928,7 @@ async def set_team_logo(
     if team_id != owner_info["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     logo_path = storage.join(workspace_dir, "logo.png")
 
     try:
@@ -983,7 +988,7 @@ async def set_team_logo(
             image = image.convert("RGB")
 
         # Save as PNG
-        with storage.open(logo_path, "wb") as f:
+        async with await storage.open(logo_path, "wb") as f:
             image.save(f, format="PNG")
 
         return {"status": "success", "message": "Team logo saved successfully"}
@@ -1004,12 +1009,12 @@ async def delete_team_logo(
     if team_id != owner_info["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     logo_path = storage.join(workspace_dir, "logo.png")
 
     try:
-        if storage.exists(logo_path):
-            storage.rm(logo_path)
+        if await storage.exists(logo_path):
+            await storage.rm(logo_path)
         return {"status": "success", "message": "Team logo deleted successfully"}
     except Exception as e:
         print(f"Error deleting team logo: {e}")

@@ -87,8 +87,8 @@ export default function Welcome() {
   );
 
   const hasProviders = providers.length > 0;
-  const isS3Mode = mode === 's3';
-  const shouldShowTasksText = hasProviders || isS3Mode;
+  const isLocalMode = mode === 'local';
+  const shouldShowTasksText = !isLocalMode;
 
   // Fetch healthz to get the mode
   useEffect(() => {

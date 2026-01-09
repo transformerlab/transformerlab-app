@@ -1,6 +1,7 @@
 import traceback
 import pandas as pd
 from typing import List
+import asyncio
 
 from deepeval.models import DeepEvalBaseEmbeddingModel
 from deepeval.synthesizer import Synthesizer
@@ -47,7 +48,7 @@ class CustomEmbeddingModel(DeepEvalBaseEmbeddingModel):
 def get_docs_list(docs: str, experiment_name: str) -> List[str]:
     """Get list of document paths from comma-separated string of doc names"""
     docs_list = docs.split(",")
-    workspace_dir = get_workspace_dir()
+    workspace_dir = asyncio.run(get_workspace_dir())
     documents_dir = storage.join(workspace_dir, "experiments", experiment_name, "documents")
 
     result_docs = []

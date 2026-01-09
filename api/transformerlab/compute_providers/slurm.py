@@ -1,5 +1,6 @@
 """SLURM provider implementation."""
 
+import asyncio
 import requests
 import os
 from typing import Dict, Any, Optional, Union, List
@@ -109,6 +110,7 @@ class SLURMProvider(ComputeProvider):
             return output
         except Exception as e:
             print(f"Error executing command: {e}")
+            raise e
         finally:
             ssh.close()
 
@@ -130,8 +132,8 @@ class SLURMProvider(ComputeProvider):
         local_path = os.path.expanduser(local_path)
 
         # Determine existence and directory-ness using storage first, then os.*
-        if storage.exists(local_path):
-            is_dir = storage.isdir(local_path)
+        if asyncio.run(storage.exists(local_path)):
+            is_dir = asyncio.run(storage.isdir(local_path))
         else:
             raise FileNotFoundError(f"Local path for file_mounts does not exist: {local_path}")
 
@@ -183,7 +185,7 @@ class SLURMProvider(ComputeProvider):
 
             if is_dir:
                 # Recursively upload directory contents
-                walker = storage.walk(local_path)
+                walker = asyncio.run(storage.walk(local_path))
                 for root, _dirs, files in walker:
                     rel = os.path.relpath(root, local_path)
                     if rel == ".":
@@ -192,7 +194,7 @@ class SLURMProvider(ComputeProvider):
                         remote_root = f"{remote_path.rstrip('/')}/{rel}"
                     _mkdir_p(remote_root)
                     for fname in files:
-                        local_f = storage.join(root, fname)
+                        local_f = asyncio.run(storage.join(root, fname))
                         remote_f = f"{remote_root.rstrip('/')}/{fname}"
                         _upload_file(local_f, remote_f)
             else:
@@ -784,20 +786,46 @@ class SLURMProvider(ComputeProvider):
         tail_lines: Optional[int] = None,
         follow: bool = False,
     ) -> Union[str, Any]:
-        """Get job logs using sacct or squeue."""
+        """Get job logs by finding and reading SLURM log files."""
         if self.mode == "ssh":
-            # Use sacct to get job logs
-            command = f"sacct -j {job_id} -o JobID,State,ExitCode,Start,End --noheader"
-            if tail_lines:
-                # For output logs, we'd need to find the log file
-                # This is simplified
-                command = f"tail -n {tail_lines} /path/to/logs/slurm-{job_id}.out"
-            output = self._ssh_execute(command)
-            return output
+            # Find SLURM log files using find command
+            # Look for slurm-{job_id}.out files in common locations
+            find_commands = [
+                f"find /home/{self.ssh_user} -name 'slurm-{job_id}.out' -type f 2>/dev/null",
+                f"find /tmp -name 'slurm-{job_id}.out' -type f 2>/dev/null",
+                f"find . -name 'slurm-{job_id}.out' -type f 2>/dev/null",
+                f"find /var/log/slurm -name 'slurm-{job_id}.out' -type f 2>/dev/null",
+            ]
+
+            log_file_path = None
+            for find_cmd in find_commands:
+                try:
+                    output = self._ssh_execute(find_cmd)
+                    if output.strip():
+                        # Take the first match
+                        log_file_path = output.strip().split("\n")[0]
+                        break
+                except Exception:
+                    continue
+
+            if log_file_path:
+                # Read the log file
+                if tail_lines:
+                    cat_command = f"tail -n {tail_lines} {log_file_path}"
+                else:
+                    cat_command = f"cat {log_file_path}"
+
+                try:
+                    log_content = self._ssh_execute(cat_command)
+                    return log_content
+                except Exception as e:
+                    return f"Error reading log file {log_file_path}: {e}"
+            else:
+                # Fallback: try to get job info and check common locations
+                return f"No log file found for job {job_id}. The job may still be running or logs may be in a different location."
         else:
-            # REST API
-            result = self._rest_request("GET", f"/slurm/v0.0.39/job/{job_id}")
-            return result.get("logs", str(result))
+            # REST API - this would need to be implemented based on SLURM REST API capabilities
+            return f"Log retrieval via REST API not implemented for job {job_id}"
 
     def cancel_job(self, cluster_name: str, job_id: Union[str, int]) -> Dict[str, Any]:
         """Cancel a job using scancel."""
@@ -811,13 +839,19 @@ class SLURMProvider(ComputeProvider):
             return result
 
     def list_jobs(self, cluster_name: str) -> List[JobInfo]:
-        """List jobs using squeue."""
+        """List jobs using squeue for active jobs and log files for completed jobs."""
+        jobs = []
+        seen_job_ids = set()
+
         if self.mode == "ssh":
-            # Use squeue to list jobs
-            command = f'squeue -u {self.ssh_user} -o "%i %j %T %S %e" --noheader'
-            output = self._ssh_execute(command)
-            jobs = []
-            for line in output.strip().split("\n"):
+            # Step 1: Get active jobs from squeue
+            print(f"[SLURM] Checking active jobs with squeue for user: {self.ssh_user}")
+            squeue_command = f'squeue -u {self.ssh_user} -o "%i %j %T" --noheader'
+            squeue_output = self._ssh_execute(squeue_command)
+
+            # Parse active jobs from squeue
+            active_job_count = 0
+            for line in squeue_output.strip().split("\n"):
                 if not line.strip():
                     continue
                 parts = line.split()
@@ -825,6 +859,7 @@ class SLURMProvider(ComputeProvider):
                     job_id = parts[0]
                     job_name = parts[1]
                     state_str = parts[2].upper()
+
                     try:
                         state = JobState[state_str]
                     except KeyError:
@@ -838,11 +873,40 @@ class SLURMProvider(ComputeProvider):
                             cluster_name=cluster_name,
                         )
                     )
-            return jobs
+                    seen_job_ids.add(job_id)
+                    active_job_count += 1
+
+            # Step 2: Find completed jobs by scanning log files
+            find_command = f"find /home/{self.ssh_user} -maxdepth 1 -name 'slurm-*.out' -type f -mtime -1 2>/dev/null"
+            find_output = self._ssh_execute(find_command)
+
+            completed_job_count = 0
+            for line in find_output.strip().split("\n"):
+                if not line.strip():
+                    continue
+
+                # Extract job ID from filename: slurm-{job_id}.out
+                filename = line.split("/")[-1]
+                if filename.startswith("slurm-") and filename.endswith(".out"):
+                    try:
+                        job_id = filename[6:-4]  # Remove 'slurm-' and '.out'
+                        if job_id.isdigit() and job_id not in seen_job_ids:
+                            jobs.append(
+                                JobInfo(
+                                    job_id=job_id,
+                                    job_name=job_id,
+                                    state=JobState.COMPLETED,
+                                    cluster_name=cluster_name,
+                                )
+                            )
+                            seen_job_ids.add(job_id)
+                            completed_job_count += 1
+                    except (ValueError, IndexError):
+                        continue
+
         else:
-            # REST API
+            # REST API mode
             result = self._rest_request("GET", "/slurm/v0.0.39/jobs")
-            jobs = []
             for job_data in result.get("jobs", []):
                 state_str = job_data.get("job_state", "UNKNOWN").upper()
                 try:
@@ -863,7 +927,8 @@ class SLURMProvider(ComputeProvider):
                         provider_data=job_data,
                     )
                 )
-            return jobs
+
+        return jobs
 
     def check(self) -> bool:
         """Check if the SLURM provider is active and accessible."""

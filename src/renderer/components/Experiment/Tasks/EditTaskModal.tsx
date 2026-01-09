@@ -68,6 +68,7 @@ export default function EditTaskModal({
   const [diskSpace, setDiskSpace] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
+  const [minutesRequested, setMinutesRequested] = React.useState('60');
   const [setup, setSetup] = React.useState('');
   const [envVars, setEnvVars] = React.useState<
     Array<{ key: string; value: string }>
@@ -160,6 +161,15 @@ export default function EditTaskModal({
         : cfg.num_nodes != null
           ? String(cfg.num_nodes)
           : '',
+    );
+    setMinutesRequested(
+      isTemplate
+        ? taskAny.minutes_requested != null
+          ? String(taskAny.minutes_requested)
+          : '60'
+        : cfg.minutes_requested != null
+          ? String(cfg.minutes_requested)
+          : '60',
     );
     setSetup(
       isTemplate
@@ -425,6 +435,12 @@ export default function EditTaskModal({
       yamlData.envs = envs;
     }
 
+    // Minutes requested (task-level field)
+    if (minutesRequested) {
+      yamlData.minutes_requested =
+        parseInt(minutesRequested, 10) || minutesRequested;
+    }
+
     // Setup and run
     const setupValue = setupEditorRef?.current?.getValue?.() || setup;
     if (setupValue) yamlData.setup = setupValue;
@@ -609,6 +625,10 @@ export default function EditTaskModal({
           taskData.num_nodes = resources.num_nodes;
         }
       }
+      // Minutes requested (task-level field)
+      if (taskYaml.minutes_requested !== undefined) {
+        taskData.minutes_requested = taskYaml.minutes_requested;
+      }
 
       // Environment variables
       if (taskYaml.envs) {
@@ -623,11 +643,19 @@ export default function EditTaskModal({
         taskData.command = String(taskYaml.run);
       }
 
-      // GitHub
-      if (taskYaml.git_repo) {
+      // GitHub - support multiple naming conventions
+      if (taskYaml.github_repo_url) {
+        taskData.github_repo_url = String(taskYaml.github_repo_url);
+      } else if (taskYaml.git_repo) {
         taskData.github_repo_url = String(taskYaml.git_repo);
       }
-      if (taskYaml.git_repo_directory) {
+      if (taskYaml.github_repo_dir) {
+        taskData.github_directory = String(taskYaml.github_repo_dir);
+      } else if (taskYaml.github_repo_directory) {
+        taskData.github_directory = String(taskYaml.github_repo_directory);
+      } else if (taskYaml.github_directory) {
+        taskData.github_directory = String(taskYaml.github_directory);
+      } else if (taskYaml.git_repo_directory) {
         taskData.github_directory = String(taskYaml.git_repo_directory);
       }
 
@@ -666,6 +694,8 @@ export default function EditTaskModal({
         setAccelerators(taskData.accelerators);
       if (taskData.num_nodes !== undefined)
         setNumNodes(String(taskData.num_nodes));
+      if (taskData.minutes_requested !== undefined)
+        setMinutesRequested(String(taskData.minutes_requested));
       if (taskData.github_repo_url !== undefined)
         setGithubRepoUrl(taskData.github_repo_url);
       if (taskData.github_directory !== undefined)
@@ -714,6 +744,8 @@ export default function EditTaskModal({
         );
         if (provider) {
           setSelectedProviderId(provider.id);
+          // Store provider_id in parsed data so it can be used directly in form submission
+          taskData.provider_id = provider.id;
         }
       }
 
@@ -779,17 +811,27 @@ export default function EditTaskModal({
     const parsedData = parsedYamlDataRef.current;
     const useParsedData = justParsedYaml && !!parsedData;
 
+    // Use parsed data for setup and command if available, otherwise use editor/state
     const setupValue =
-      setupEditorRef?.current?.getValue?.() ?? (setup || undefined);
+      useParsedData && parsedData.setup !== undefined
+        ? parsedData.setup
+        : (setupEditorRef?.current?.getValue?.() ?? (setup || undefined));
     const commandValue =
-      commandEditorRef?.current?.getValue?.() ?? (command || undefined);
+      useParsedData && parsedData.command !== undefined
+        ? parsedData.command
+        : (commandEditorRef?.current?.getValue?.() ?? (command || undefined));
 
     if (!task) return;
     if (!commandValue) {
       addNotification({ type: 'warning', message: 'Command is required' });
       return;
     }
-    if (!selectedProviderId) {
+    // Check provider_id from parsed data if available, otherwise use state
+    const effectiveProviderId =
+      useParsedData && parsedData.provider_id !== undefined
+        ? parsedData.provider_id
+        : selectedProviderId;
+    if (!effectiveProviderId) {
       addNotification({
         type: 'warning',
         message: 'Select a provider before saving.',
@@ -803,43 +845,67 @@ export default function EditTaskModal({
       parsedYamlDataRef.current = null;
     }
 
-    // Convert env_vars array to object, filtering out empty entries
+    // Use parsed env_vars if available, otherwise convert from state array
     const envVarsObj: Record<string, string> = {};
-    envVars.forEach(({ key, value }) => {
-      if (key.trim() && value.trim()) {
-        envVarsObj[key.trim()] = value.trim();
-      }
-    });
-
-    // Convert parameters array to object, parsing JSON values
-    const parametersObj: Record<string, any> = {};
-    parameters.forEach(({ key, value, valueType }) => {
-      if (key.trim() && value.trim()) {
-        try {
-          if (valueType === 'json') {
-            // Parse JSON value
-            parametersObj[key.trim()] = JSON.parse(value);
-          } else {
-            // Try to parse as number or boolean, otherwise keep as string
-            const trimmedValue = value.trim();
-            if (trimmedValue === 'true') {
-              parametersObj[key.trim()] = true;
-            } else if (trimmedValue === 'false') {
-              parametersObj[key.trim()] = false;
-            } else if (trimmedValue === 'null') {
-              parametersObj[key.trim()] = null;
-            } else if (!isNaN(Number(trimmedValue)) && trimmedValue !== '') {
-              parametersObj[key.trim()] = Number(trimmedValue);
-            } else {
-              parametersObj[key.trim()] = trimmedValue;
-            }
-          }
-        } catch (e) {
-          // If JSON parsing fails, treat as string
-          parametersObj[key.trim()] = value.trim();
+    if (
+      useParsedData &&
+      parsedData.env_vars &&
+      typeof parsedData.env_vars === 'object'
+    ) {
+      Object.entries(parsedData.env_vars).forEach(([key, value]) => {
+        if (key.trim() && value) {
+          envVarsObj[key.trim()] = String(value).trim();
         }
-      }
-    });
+      });
+    } else {
+      envVars.forEach(({ key, value }) => {
+        if (key.trim() && value.trim()) {
+          envVarsObj[key.trim()] = value.trim();
+        }
+      });
+    }
+
+    // Use parsed parameters if available, otherwise convert from state array
+    const parametersObj: Record<string, any> = {};
+    if (
+      useParsedData &&
+      parsedData.parameters &&
+      typeof parsedData.parameters === 'object'
+    ) {
+      Object.entries(parsedData.parameters).forEach(([key, value]) => {
+        if (key.trim()) {
+          parametersObj[key.trim()] = value;
+        }
+      });
+    } else {
+      parameters.forEach(({ key, value, valueType }) => {
+        if (key.trim() && value.trim()) {
+          try {
+            if (valueType === 'json') {
+              // Parse JSON value
+              parametersObj[key.trim()] = JSON.parse(value);
+            } else {
+              // Try to parse as number or boolean, otherwise keep as string
+              const trimmedValue = value.trim();
+              if (trimmedValue === 'true') {
+                parametersObj[key.trim()] = true;
+              } else if (trimmedValue === 'false') {
+                parametersObj[key.trim()] = false;
+              } else if (trimmedValue === 'null') {
+                parametersObj[key.trim()] = null;
+              } else if (!isNaN(Number(trimmedValue)) && trimmedValue !== '') {
+                parametersObj[key.trim()] = Number(trimmedValue);
+              } else {
+                parametersObj[key.trim()] = trimmedValue;
+              }
+            }
+          } catch (e) {
+            // If JSON parsing fails, treat as string
+            parametersObj[key.trim()] = value.trim();
+          }
+        }
+      });
+    }
 
     // For templates, all fields are stored directly (not nested in config)
     // Check if it's a template (no config or config is empty/doesn't have nested structure)
@@ -865,7 +931,10 @@ export default function EditTaskModal({
         useParsedData && parsedData.cluster_name !== undefined
           ? parsedData.cluster_name
           : clusterName,
-      command: commandValue,
+      command:
+        useParsedData && parsedData.command !== undefined
+          ? parsedData.command
+          : commandValue,
       cpus:
         useParsedData && parsedData.cpus !== undefined
           ? parsedData.cpus
@@ -888,25 +957,47 @@ export default function EditTaskModal({
           : numNodes
             ? parseInt(numNodes, 10)
             : undefined,
+      minutes_requested:
+        useParsedData && parsedData.minutes_requested !== undefined
+          ? parsedData.minutes_requested
+          : minutesRequested
+            ? parseInt(minutesRequested, 10)
+            : undefined,
       setup: setupValue || undefined,
       env_vars: Object.keys(envVarsObj).length > 0 ? envVarsObj : undefined,
       parameters:
         Object.keys(parametersObj).length > 0 ? parametersObj : undefined,
-      provider_id: selectedProviderId,
-      // GitHub fields - preserve from existing template or use current values
-      github_repo_url: isTemplate
-        ? taskAny.github_repo_url || githubRepoUrl || undefined
-        : existingConfig.github_repo_url || githubRepoUrl || undefined,
-      github_directory: isTemplate
-        ? taskAny.github_directory || githubDirectory || undefined
-        : existingConfig.github_directory || githubDirectory || undefined,
-      // Sweep configuration
-      run_sweeps:
-        enableSweeps &&
-        sweepParams.some((sp) => sp.paramName.trim() && sp.values.trim())
+      provider_id:
+        useParsedData && parsedData.provider_id !== undefined
+          ? parsedData.provider_id
+          : selectedProviderId,
+      // GitHub fields - use parsed data if available, otherwise preserve from existing template or use current values
+      github_repo_url:
+        useParsedData && parsedData.github_repo_url !== undefined
+          ? parsedData.github_repo_url
+          : isTemplate
+            ? taskAny.github_repo_url || githubRepoUrl || undefined
+            : existingConfig.github_repo_url || githubRepoUrl || undefined,
+      github_directory:
+        useParsedData && parsedData.github_directory !== undefined
+          ? parsedData.github_directory
+          : isTemplate
+            ? taskAny.github_directory || githubDirectory || undefined
+            : existingConfig.github_directory || githubDirectory || undefined,
+      // Sweep configuration - use parsed data if available, otherwise use state
+      run_sweeps: (() => {
+        if (useParsedData && parsedData.run_sweeps !== undefined) {
+          return parsedData.run_sweeps ? true : undefined;
+        }
+        return enableSweeps &&
+          sweepParams.some((sp) => sp.paramName.trim() && sp.values.trim())
           ? true
-          : undefined,
+          : undefined;
+      })(),
       sweep_config: (() => {
+        if (useParsedData && parsedData.sweep_config !== undefined) {
+          return parsedData.sweep_config;
+        }
         if (!enableSweeps) return undefined;
         const sweepConfig: Record<string, string[]> = {};
         sweepParams.forEach((sp) => {
@@ -921,20 +1012,29 @@ export default function EditTaskModal({
         });
         return Object.keys(sweepConfig).length > 0 ? sweepConfig : undefined;
       })(),
-      sweep_metric:
-        enableSweeps &&
-        sweepParams.some((sp) => sp.paramName.trim() && sp.values.trim())
+      sweep_metric: (() => {
+        if (useParsedData && parsedData.sweep_metric !== undefined) {
+          return parsedData.sweep_metric;
+        }
+        return enableSweeps &&
+          sweepParams.some((sp) => sp.paramName.trim() && sp.values.trim())
           ? sweepMetric || 'eval/loss'
-          : undefined,
-      lower_is_better:
-        enableSweeps &&
-        sweepParams.some((sp) => sp.paramName.trim() && sp.values.trim())
+          : undefined;
+      })(),
+      lower_is_better: (() => {
+        if (useParsedData && parsedData.lower_is_better !== undefined) {
+          return parsedData.lower_is_better;
+        }
+        return enableSweeps &&
+          sweepParams.some((sp) => sp.paramName.trim() && sp.values.trim())
           ? lowerIsBetter
-          : undefined,
+          : undefined;
+      })(),
     };
 
+    // Use the provider_id from updateBody (which may come from parsed data) to find provider name
     const providerMeta = providers.find(
-      (provider) => provider.id === selectedProviderId,
+      (provider) => provider.id === updateBody.provider_id,
     );
     if (providerMeta) {
       updateBody.provider_name = providerMeta.name;
@@ -1194,6 +1294,20 @@ export default function EditTaskModal({
                 </FormControl>
 
                 <FormControl sx={{ mt: 2 }}>
+                  <FormLabel>Minutes Requested (for quota tracking)</FormLabel>
+                  <Input
+                    type="number"
+                    value={minutesRequested}
+                    onChange={(e) => setMinutesRequested(e.target.value)}
+                    placeholder="e.g. 60"
+                  />
+                  <FormHelperText>
+                    Estimated minutes this task will run. Used for quota
+                    tracking.
+                  </FormHelperText>
+                </FormControl>
+
+                <FormControl sx={{ mt: 2 }}>
                   <FormLabel>Setup Command</FormLabel>
                   {/* <Textarea
                 minRows={2}
@@ -1411,49 +1525,30 @@ export default function EditTaskModal({
                   </FormHelperText>
                 </FormControl>
 
-                {githubEnabled && (
+                <FormControl sx={{ mt: 2 }}>
+                  <FormLabel>GitHub Repository URL (Optional)</FormLabel>
+                  <Input
+                    value={githubRepoUrl}
+                    onChange={(e) => setGithubRepoUrl(e.target.value)}
+                    placeholder="https://github.com/owner/repo.git"
+                  />
+                  <FormHelperText>
+                    GitHub repository URL to clone before running the task
+                  </FormHelperText>
+                </FormControl>
+
+                {githubRepoUrl && (
                   <FormControl sx={{ mt: 2 }}>
-                    <FormLabel>GitHub Repository (Read-Only)</FormLabel>
-                    <Stack spacing={2} sx={{ mt: 1 }}>
-                      <FormControl>
-                        <FormLabel>GitHub Repository URL</FormLabel>
-                        <Input
-                          value={githubRepoUrl}
-                          disabled
-                          readOnly
-                          placeholder="https://github.com/owner/repo.git"
-                          sx={{
-                            bgcolor: 'background.level1',
-                            cursor: 'not-allowed',
-                          }}
-                        />
-                        <FormHelperText>
-                          GitHub repository URL (read-only - source of truth)
-                        </FormHelperText>
-                      </FormControl>
-                      {githubDirectory && (
-                        <FormControl>
-                          <FormLabel>Directory Path</FormLabel>
-                          <Input
-                            value={githubDirectory}
-                            disabled
-                            readOnly
-                            placeholder="path/to/directory"
-                            sx={{
-                              bgcolor: 'background.level1',
-                              cursor: 'not-allowed',
-                            }}
-                          />
-                          <FormHelperText>
-                            Directory path (read-only - source of truth)
-                          </FormHelperText>
-                        </FormControl>
-                      )}
-                    </Stack>
-                    <FormHelperText sx={{ mt: 1 }}>
-                      GitHub repository settings are read-only. To change the
-                      repository, create a new task. You can edit the parsed
-                      configuration values above.
+                    <FormLabel>
+                      GitHub Repository Directory (Optional)
+                    </FormLabel>
+                    <Input
+                      value={githubDirectory}
+                      onChange={(e) => setGithubDirectory(e.target.value)}
+                      placeholder="path/to/directory"
+                    />
+                    <FormHelperText>
+                      Optional subdirectory path within the repository
                     </FormHelperText>
                   </FormControl>
                 )}

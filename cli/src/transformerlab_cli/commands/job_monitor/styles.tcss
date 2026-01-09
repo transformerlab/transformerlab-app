@@ -55,16 +55,22 @@ JobDetails {
 /* The bottom artifacts panel */
 #job-artifacts-container {
   height: 1fr;
-  border-top: solid $primary-muted;
   background: $surface-lighten-1;
-  padding: 1;
   display: none;
   /* Hidden until job selected */
+  border: none;
+  padding: 1;
 }
 
 #job-artifacts-container.visible {
   display: block;
 }
+
+#job-artifacts {
+  height: 1fr;
+  overflow: auto;
+}
+
 
 #loading {
   width: 100%;
@@ -114,4 +120,20 @@ JobJsonModal {
 
 
 .job-list-item {
+}
+
+
+Screen {
+    background: $surface;  /* Uses the 'surface' color from your theme */
+}
+
+#left-panel {
+    width: 30%;
+    border-right: solid $primary; /* Uses the 'primary' (purple) color */
+    background: $background;
+}
+
+#job-list-container {
+    height: 100%;
+    border: solid $accent; /* Uses the 'accent' (cyan) color for borders */
 }

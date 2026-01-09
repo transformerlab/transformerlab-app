@@ -143,8 +143,8 @@
       "path": "config/get/{key}"
     },
     "set": {
-      "method": "PUT",
-      "path": "config/set?k={key}&v={value}"
+      "method": "GET",
+      "path": "config/set?k={key}&v={value}&team_wide={team_wide}"
     }
   },
   "models": {
@@ -202,13 +202,13 @@
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/list?type={type}&status={status}"
     },
-    "resumeFromCheckpoint": {
-      "method": "POST",
-      "path": "experiment/{experimentId}/jobs/{jobId}/resume_from_checkpoint"
-    },
     "getSweepResults": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/sweep_results"
+    },
+    "downloadAllArtifacts": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/artifacts/download_all"
     }
   },
   "datasets": {
@@ -303,6 +303,10 @@
     "get": {
       "method": "GET",
       "path": "compute_provider/{providerId}"
+    },
+    "resumeFromCheckpoint": {
+      "method": "POST",
+      "path": "compute_provider/jobs/{jobId}/resume_from_checkpoint?experimentId={experimentId}"
     },
     "update": {
       "method": "PATCH",

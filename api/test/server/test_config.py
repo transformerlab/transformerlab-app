@@ -22,7 +22,7 @@ def test_set(live_server):
 
     response = requests.get(f"{live_server}/config/set", params={"k": "message", "v": "Hello, World!"}, headers=headers)
     assert response.status_code == 200
-    assert response.json() == {"key": "message", "value": "Hello, World!"}
+    assert response.json() == {"key": "message", "value": "Hello, World!", "team_wide": True}
 
 
 @pytest.mark.live_server

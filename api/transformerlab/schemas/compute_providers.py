@@ -129,6 +129,10 @@ class ProviderTemplateLaunchRequest(BaseModel):
         default=True,
         description="Whether lower values of sweep_metric are better. If False, higher values are better.",
     )
+    minutes_requested: Optional[int] = Field(
+        default=None,
+        description="Number of minutes requested for this task. Required for quota tracking.",
+    )
 
 
 class ProviderTemplateFileUploadResponse(BaseModel):
@@ -137,3 +141,9 @@ class ProviderTemplateFileUploadResponse(BaseModel):
     status: str
     stored_path: str
     message: Optional[str] = None
+
+
+class ResumeFromCheckpointRequest(BaseModel):
+    """Request body for resuming a REMOTE job from a checkpoint."""
+
+    checkpoint: str = Field(..., description="Checkpoint filename to resume from")

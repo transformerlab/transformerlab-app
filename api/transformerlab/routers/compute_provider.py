@@ -25,6 +25,7 @@ from transformerlab.schemas.compute_providers import (
     mask_sensitive_config,
     ProviderTemplateLaunchRequest,
     ProviderTemplateFileUploadResponse,
+    ResumeFromCheckpointRequest,
 )
 from transformerlab.shared.models.models import ProviderType, TeamComputeProvider
 from transformerlab.compute_providers.base import ComputeProvider
@@ -37,6 +38,7 @@ from transformerlab.compute_providers.models import (
     JobState,
 )
 from transformerlab.services import job_service
+from transformerlab.services import quota_service
 from lab import storage
 from lab.dirs import get_workspace_dir
 from transformerlab.shared.github_utils import (
@@ -92,18 +94,18 @@ async def upload_task_file_for_provider(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        workspace_dir = get_workspace_dir()
+        workspace_dir = await get_workspace_dir()
         if not workspace_dir:
             raise RuntimeError("Workspace directory is not configured")
 
         # uploads/task/{task_id}/
         uploads_root = storage.join(workspace_dir, "uploads", "task")
-        storage.makedirs(uploads_root, exist_ok=True)
+        await storage.makedirs(uploads_root, exist_ok=True)
 
         import uuid
 
         task_dir = storage.join(uploads_root, str(task_id))
-        storage.makedirs(task_dir, exist_ok=True)
+        await storage.makedirs(task_dir, exist_ok=True)
 
         # Use original filename with a random suffix to avoid collisions
         original_name = file.filename or "uploaded_file"
@@ -116,8 +118,8 @@ async def upload_task_file_for_provider(
         # Persist file contents
         await file.seek(0)
         content = await file.read()
-        with storage.open(stored_path, "wb") as f:
-            f.write(content)
+        async with await storage.open(stored_path, "wb") as f:
+            await f.write(content)
 
         return ProviderTemplateFileUploadResponse(
             status="success",
@@ -254,7 +256,7 @@ async def get_usage_report(
 
     # Get all experiments in the current workspace
     try:
-        experiments_data = Experiment.get_all()
+        experiments_data = await Experiment.get_all()
         experiments = [exp.get("id") for exp in experiments_data if exp.get("id")]
     except Exception as e:
         print(f"Error getting experiments: {e}")
@@ -265,7 +267,7 @@ async def get_usage_report(
 
     for experiment_id in experiments:
         try:
-            jobs = job_service.jobs_get_all(experiment_id=experiment_id, type="REMOTE")
+            jobs = await job_service.jobs_get_all(experiment_id=experiment_id, type="REMOTE")
             for job in jobs:
                 job_data = job.get("job_data", {}) or {}
 
@@ -718,7 +720,7 @@ async def _create_sweep_parent_job(
 
     provider_display_name = request.provider_name or provider.name
 
-    parent_job_id = job_service.job_create(
+    parent_job_id = await job_service.job_create(
         type="SWEEP",
         status="RUNNING",
         experiment_id=request.experiment_id,
@@ -746,7 +748,7 @@ async def _create_sweep_parent_job(
 
     for key, value in parent_job_data.items():
         if value is not None:
-            job_service.job_update_job_data_insert_key_value(parent_job_id, key, value, request.experiment_id)
+            await job_service.job_update_job_data_insert_key_value(parent_job_id, key, value, request.experiment_id)
 
     return parent_job_id
 
@@ -822,7 +824,7 @@ async def _launch_sweep_jobs(
                 formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-{run_suffix}-job-{parent_job_id}"
 
                 # Create child job
-                child_job_id = job_service.job_create(
+                child_job_id = await job_service.job_create(
                     type="REMOTE",
                     status="QUEUED",
                     experiment_id=request.experiment_id,
@@ -836,7 +838,7 @@ async def _launch_sweep_jobs(
                 # Get TFL_STORAGE_URI
                 tfl_storage_uri = None
                 try:
-                    storage_root = storage.root_uri()
+                    storage_root = await storage.root_uri()
                     if storage_root and any(
                         storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")
                     ):
@@ -861,7 +863,7 @@ async def _launch_sweep_jobs(
                         env_vars["AWS_PROFILE"] = aws_profile
 
                 if request.github_repo_url:
-                    workspace_dir = get_workspace_dir()
+                    workspace_dir = await get_workspace_dir()
                     github_pat = read_github_pat_from_workspace(workspace_dir)
                     github_setup = generate_github_clone_setup(
                         repo_url=request.github_repo_url,
@@ -905,7 +907,7 @@ async def _launch_sweep_jobs(
 
                 for key, value in child_job_data.items():
                     if value is not None:
-                        job_service.job_update_job_data_insert_key_value(
+                        await job_service.job_update_job_data_insert_key_value(
                             child_job_id, key, value, request.experiment_id
                         )
 
@@ -938,7 +940,7 @@ async def _launch_sweep_jobs(
                     launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
 
                     if isinstance(launch_result, dict):
-                        job_service.job_update_job_data_insert_key_value(
+                        await job_service.job_update_job_data_insert_key_value(
                             child_job_id,
                             "provider_launch_result",
                             launch_result,
@@ -946,7 +948,7 @@ async def _launch_sweep_jobs(
                         )
                         request_id = launch_result.get("request_id")
                         if request_id:
-                            job_service.job_update_job_data_insert_key_value(
+                            await job_service.job_update_job_data_insert_key_value(
                                 child_job_id,
                                 "orchestrator_request_id",
                                 request_id,
@@ -969,10 +971,10 @@ async def _launch_sweep_jobs(
                     child_job_ids.append(str(child_job_id))
 
             # Update parent job with child job IDs and running count
-            job_service.job_update_job_data_insert_key_value(
+            await job_service.job_update_job_data_insert_key_value(
                 parent_job_id, "sweep_job_ids", child_job_ids, request.experiment_id
             )
-            job_service.job_update_job_data_insert_key_value(
+            await job_service.job_update_job_data_insert_key_value(
                 parent_job_id, "sweep_running", len(child_job_ids), request.experiment_id
             )
 
@@ -1054,12 +1056,41 @@ async def launch_template_on_provider(
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
+    # Quota checking and hold creation (only for REMOTE jobs)
+    if request.minutes_requested is not None and request.minutes_requested > 0:
+        user_id_str = str(user.id)
+        has_quota, available, message = await quota_service.check_quota_available(
+            session, user_id_str, team_id, request.minutes_requested
+        )
+        if not has_quota:
+            raise HTTPException(status_code=403, detail=message)
+
     provider_instance = get_provider_instance(provider)
 
     # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING
     initial_status = "INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING"
 
-    job_id = job_service.job_create(type="REMOTE", status=initial_status, experiment_id=request.experiment_id)
+    job_id = await job_service.job_create(
+        type="REMOTE",
+        status=initial_status,
+        experiment_id=request.experiment_id,
+    )
+
+    # Create quota hold if minutes_requested is provided
+    quota_hold = None
+    if request.minutes_requested is not None and request.minutes_requested > 0:
+        user_id_str = str(user.id)
+        # For task_id, use task_name as identifier (task might not have a persistent ID yet)
+        # We'll use a format that allows us to look it up later: f"{experiment_id}:{task_name}"
+        task_identifier = request.task_name or f"job-{job_id}"
+        quota_hold = await quota_service.create_quota_hold(
+            session=session,
+            user_id=user_id_str,
+            team_id=team_id,
+            task_id=task_identifier,
+            minutes_requested=request.minutes_requested,
+            job_id=str(job_id),
+        )
 
     base_name = request.cluster_name or request.task_name or provider.name
     formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{job_id}"
@@ -1092,8 +1123,8 @@ async def launch_template_on_provider(
 
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
-        workspace_dir = get_workspace_dir()
-        github_pat = read_github_pat_from_workspace(workspace_dir)
+        workspace_dir = await get_workspace_dir()
+        github_pat = await read_github_pat_from_workspace(workspace_dir)
         github_setup = generate_github_clone_setup(
             repo_url=request.github_repo_url,
             directory=request.github_directory,
@@ -1114,7 +1145,7 @@ async def launch_template_on_provider(
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
     try:
-        storage_root = storage.root_uri()
+        storage_root = await storage.root_uri()
         # Check if it's a remote URI (not a local path)
         if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
             tfl_storage_uri = storage_root
@@ -1147,12 +1178,13 @@ async def launch_template_on_provider(
         "provider_type": provider.type,
         "provider_name": provider_display_name,
         "user_info": user_info or None,
+        "team_id": team_id,  # Store team_id for quota tracking
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
 
     for key, value in job_data.items():
         if value is not None:
-            job_service.job_update_job_data_insert_key_value(job_id, key, value, request.experiment_id)
+            await job_service.job_update_job_data_insert_key_value(job_id, key, value, request.experiment_id)
 
     disk_size = None
     if request.disk_space:
@@ -1181,6 +1213,10 @@ async def launch_template_on_provider(
         launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
     except Exception as exc:
         print(f"Failed to launch cluster: {exc}")
+        # Release quota hold if launch failed
+        if quota_hold:
+            await quota_service.release_quota_hold(session, hold_id=quota_hold.id)
+            await session.commit()
         await job_service.job_update_status(
             job_id,
             "FAILED",
@@ -1189,9 +1225,13 @@ async def launch_template_on_provider(
         )
         raise HTTPException(status_code=500, detail="Failed to launch cluster") from exc
 
+    # Commit quota hold creation after successful launch
+    if quota_hold:
+        await session.commit()
+
     request_id = None
     if isinstance(launch_result, dict):
-        job_service.job_update_job_data_insert_key_value(
+        await job_service.job_update_job_data_insert_key_value(
             job_id,
             "provider_launch_result",
             launch_result,
@@ -1199,7 +1239,7 @@ async def launch_template_on_provider(
         )
         request_id = launch_result.get("request_id")
         if request_id:
-            job_service.job_update_job_data_insert_key_value(
+            await job_service.job_update_job_data_insert_key_value(
                 job_id,
                 "orchestrator_request_id",
                 request_id,
@@ -1228,17 +1268,39 @@ async def check_provider_job_status(
     team_id = user_and_team["team_id"]
 
     # Get the job
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # Only check REMOTE jobs in LAUNCHING state
-    if job.get("type") != "REMOTE" or job.get("status") != "LAUNCHING":
+    # Only process REMOTE jobs
+    if job.get("type") != "REMOTE":
         return {
             "status": "success",
             "job_id": job_id,
             "current_status": job.get("status"),
-            "message": "Job is not a REMOTE job in LAUNCHING state",
+            "message": "Job is not a REMOTE job",
+        }
+
+    # If job is already in a terminal state, ensure quota is recorded
+    job_status = job.get("status", "")
+    if job_status in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
+        # Ensure quota is recorded for this completed job
+        # Pass team_id from user_and_team context
+        await quota_service.ensure_quota_recorded_for_completed_job(session, job_id, team_id=team_id)
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "current_status": job_status,
+            "message": f"Job is already in {job_status} state",
+        }
+
+    # Only check provider status for jobs in LAUNCHING state
+    if job_status != "LAUNCHING":
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "current_status": job_status,
+            "message": f"Job is in {job_status} state, not checking provider status",
         }
 
     job_data = job.get("job_data", {}) or {}
@@ -1291,10 +1353,13 @@ async def check_provider_job_status(
     if jobs_finished:
         try:
             # Set end_time when marking job as complete
-            job_service.job_update_job_data_insert_key_value(
-                job_id, "end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), experiment_id
-            )
-            await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
+            end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+            await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
+            # Pass session to job_update_status so quota tracking uses the same session
+            await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id, session=session)
+            # Commit the session to ensure quota tracking is persisted
+            await session.commit()
+
             return {
                 "status": "success",
                 "job_id": job_id,
@@ -1319,12 +1384,78 @@ async def check_provider_job_status(
         }
 
 
+@router.get("/jobs/ensure-quota-recorded")
+async def ensure_quota_recorded_for_completed_jobs(
+    experiment_id: Optional[str] = Query(None, description="Optional experiment ID to check jobs in"),
+    job_id: Optional[str] = Query(None, description="Optional specific job ID to check"),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Check for completed REMOTE jobs without quota records and record quota usage for them.
+    Can be called periodically to ensure all completed jobs have quota tracked.
+
+    If job_id is provided, checks only that job.
+    If experiment_id is provided, checks all REMOTE jobs in that experiment.
+    Otherwise, returns instructions.
+    """
+    team_id = user_and_team["team_id"]
+
+    if job_id:
+        # Check specific job
+        # Pass team_id from user_and_team context
+        quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(session, job_id, team_id=team_id)
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "quota_recorded": quota_recorded,
+            "message": "Quota recorded"
+            if quota_recorded
+            else "No quota recording needed (already recorded or invalid)",
+        }
+
+    if not experiment_id:
+        return {
+            "status": "error",
+            "message": "Either job_id or experiment_id must be provided",
+        }
+
+    # Get all REMOTE jobs for the experiment
+    jobs = await job_service.jobs_get_all(type="REMOTE", experiment_id=experiment_id)
+
+    jobs_processed = 0
+    jobs_recorded = 0
+
+    for job in jobs:
+        job_status = job.get("status", "")
+        if job_status in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
+            jobs_processed += 1
+            job_id_str = str(job.get("id", ""))
+            if job_id_str:
+                # Pass team_id from user_and_team context
+                quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(
+                    session, job_id_str, team_id=team_id
+                )
+                if quota_recorded:
+                    jobs_recorded += 1
+
+    await session.commit()
+
+    return {
+        "status": "success",
+        "experiment_id": experiment_id,
+        "jobs_processed": jobs_processed,
+        "jobs_with_quota_recorded": jobs_recorded,
+        "message": f"Processed {jobs_processed} completed REMOTE jobs, recorded quota for {jobs_recorded}",
+    }
+
+
 async def _update_sweep_job_status(job_id: str, experiment_id: str):
     """
     Helper function to update a single sweep job's status by checking child jobs.
     Returns the updated job data.
     """
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if not job:
         return None
 
@@ -1345,7 +1476,7 @@ async def _update_sweep_job_status(job_id: str, experiment_id: str):
     queued_count = 0
 
     for child_job_id in sweep_job_ids:
-        child_job = job_service.job_get(child_job_id)
+        child_job = await job_service.job_get(child_job_id)
         if not child_job:
             continue
 
@@ -1360,26 +1491,26 @@ async def _update_sweep_job_status(job_id: str, experiment_id: str):
             queued_count += 1
 
     # Update parent job with current counts
-    job_service.job_update_job_data_insert_key_value(job_id, "sweep_completed", completed_count, experiment_id)
-    job_service.job_update_job_data_insert_key_value(job_id, "sweep_running", running_count, experiment_id)
-    job_service.job_update_job_data_insert_key_value(job_id, "sweep_failed", failed_count, experiment_id)
-    job_service.job_update_job_data_insert_key_value(job_id, "sweep_queued", queued_count, experiment_id)
+    await job_service.job_update_job_data_insert_key_value(job_id, "sweep_completed", completed_count, experiment_id)
+    await job_service.job_update_job_data_insert_key_value(job_id, "sweep_running", running_count, experiment_id)
+    await job_service.job_update_job_data_insert_key_value(job_id, "sweep_failed", failed_count, experiment_id)
+    await job_service.job_update_job_data_insert_key_value(job_id, "sweep_queued", queued_count, experiment_id)
 
     # Calculate progress percentage
     progress = int((completed_count / sweep_total * 100)) if sweep_total > 0 else 0
-    job_service.job_update_sweep_progress(job_id, progress, experiment_id)
+    await job_service.job_update_sweep_progress(job_id, progress, experiment_id)
 
     # Check if all jobs are done
     all_complete = completed_count + failed_count == sweep_total
     if all_complete and job.get("status") == "RUNNING":
         # Mark parent as complete if all children are done
-        job_service.job_update_job_data_insert_key_value(
+        await job_service.job_update_job_data_insert_key_value(
             job_id, "end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), experiment_id
         )
         await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
 
     # Get the updated job data after status updates
-    return job_service.job_get(job_id)
+    return await job_service.job_get(job_id)
 
 
 @router.get("/jobs/sweep-status")
@@ -1393,7 +1524,7 @@ async def check_sweep_status_all(
     Only updates status for running/launching jobs.
     """
     # Get all SWEEP jobs for this experiment
-    all_sweep_jobs = job_service.jobs_get_all(experiment_id=experiment_id, type="SWEEP", status="")
+    all_sweep_jobs = await job_service.jobs_get_all(experiment_id=experiment_id, type="SWEEP", status="")
 
     # Update status for each running/launching sweep job
     updated_jobs = []
@@ -1431,7 +1562,7 @@ async def check_sweep_status(
     Check status of a specific sweep job by polling all child jobs and updating parent job status.
     Returns current sweep status with counts and the updated job data.
     """
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -1478,7 +1609,7 @@ async def get_sweep_results(
     """
 
     # Get the parent sweep job
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -1502,7 +1633,7 @@ async def get_sweep_results(
     best_job_id = None
 
     for child_job_id in sweep_job_ids:
-        child_job = job_service.job_get(child_job_id)
+        child_job = await job_service.job_get(child_job_id)
         if not child_job:
             continue
 
@@ -1569,12 +1700,238 @@ async def get_sweep_results(
     }
 
     # Store results in parent job
-    job_service.job_update_job_data_insert_key_value(job_id, "sweep_results", aggregated_results, experiment_id)
+    await job_service.job_update_job_data_insert_key_value(job_id, "sweep_results", aggregated_results, experiment_id)
 
     return {
         "status": "success",
         "data": aggregated_results,
     }
+
+
+@router.post("/jobs/{job_id}/resume_from_checkpoint")
+async def resume_from_checkpoint(
+    job_id: str,
+    experimentId: str = Query(..., description="Experiment ID"),
+    request: ResumeFromCheckpointRequest = ...,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Resume a REMOTE job from a checkpoint by creating a new job with the same configuration
+    and setting parent_job_id and resumed_from_checkpoint in job_data.
+    """
+    import json
+    from transformerlab.services import job_service
+    from lab.dirs import get_job_checkpoints_dir
+    from lab import storage
+    import time
+
+    # Get the original job
+    original_job = await job_service.job_get(job_id)
+    if not original_job or str(original_job.get("experiment_id")) != str(experimentId):
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Validate it's a REMOTE job
+    if original_job.get("type") != "REMOTE":
+        raise HTTPException(status_code=400, detail="Resume from checkpoint is only supported for REMOTE jobs")
+
+    # Get job_data
+    job_data = original_job.get("job_data") or {}
+    if not isinstance(job_data, dict):
+        try:
+            job_data = json.loads(job_data)
+        except json.JSONDecodeError:
+            job_data = {}
+
+    # Validate required fields for REMOTE job relaunch
+    provider_id = job_data.get("provider_id")
+    command = job_data.get("command")
+    if not provider_id or not command:
+        raise HTTPException(
+            status_code=400,
+            detail="Original job is missing required fields (provider_id or command) for resume",
+        )
+
+    # Verify checkpoint exists using workspace-aware path resolution
+    checkpoints_dir = await get_job_checkpoints_dir(job_id)
+    checkpoint_path = storage.join(checkpoints_dir, request.checkpoint)
+    if not await storage.exists(checkpoint_path):
+        raise HTTPException(status_code=404, detail=f"Checkpoint '{request.checkpoint}' not found")
+
+    # Get provider
+    team_id = user_and_team["team_id"]
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    # Create new REMOTE job
+    initial_status = "INTERACTIVE" if job_data.get("subtype") == "interactive" else "LAUNCHING"
+    new_job_id = await job_service.job_create(
+        type="REMOTE", status=initial_status, experiment_id=experimentId, job_data={}
+    )
+
+    # Set parent_job_id and resumed_from_checkpoint in job_data
+    await job_service.job_update_job_data_insert_key_value(new_job_id, "parent_job_id", job_id, experimentId)
+    await job_service.job_update_job_data_insert_key_value(
+        new_job_id, "resumed_from_checkpoint", request.checkpoint, experimentId
+    )
+
+    # Copy all original job launch configuration
+    config_fields = [
+        "command",
+        "task_name",
+        "subtype",
+        "interactive_type",
+        "cpus",
+        "memory",
+        "disk_space",
+        "accelerators",
+        "num_nodes",
+        "setup",
+        "env_vars",
+        "file_mounts",
+        "parameters",
+        "provider_id",
+        "provider_type",
+        "provider_name",
+        "github_repo_url",
+        "github_directory",
+        "user_info",
+        "team_id",
+    ]
+
+    for field in config_fields:
+        value = job_data.get(field)
+        if value is not None:
+            await job_service.job_update_job_data_insert_key_value(new_job_id, field, value, experimentId)
+
+    # Relaunch via provider - replicate launch logic from compute_provider.py
+    try:
+        provider_instance = get_provider_instance(provider)
+    except Exception as exc:
+        await job_service.job_update_status(new_job_id, "FAILED", experimentId, error_msg=str(exc))
+        raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
+
+    # Build cluster name
+    base_name = job_data.get("task_name") or provider.name
+    formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{new_job_id}"
+
+    # Get user info
+    user = user_and_team.get("user")
+    user_info = {}
+    if user:
+        if getattr(user, "first_name", None) or getattr(user, "last_name", None):
+            user_info["name"] = " ".join(
+                part for part in [getattr(user, "first_name", ""), getattr(user, "last_name", "")] if part
+            ).strip()
+        if getattr(user, "email", None):
+            user_info["email"] = getattr(user, "email")
+
+    provider_display_name = job_data.get("provider_name") or provider.name
+
+    # Prepare environment variables
+    env_vars = (job_data.get("env_vars") or {}).copy()
+    env_vars["_TFL_JOB_ID"] = str(new_job_id)
+    env_vars["_TFL_EXPERIMENT_ID"] = experimentId
+
+    # Get TFL_STORAGE_URI from storage context
+    tfl_storage_uri = None
+    try:
+        storage_root = storage.root_uri()
+        if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
+            tfl_storage_uri = storage_root
+    except Exception:
+        pass
+
+    if tfl_storage_uri:
+        env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
+        env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
+
+    # Build setup script
+    setup_commands = []
+    # Add GitHub clone setup if enabled
+    github_repo_url = job_data.get("github_repo_url")
+    if github_repo_url:
+        workspace_dir = await get_workspace_dir()
+        github_pat = read_github_pat_from_workspace(workspace_dir)
+        github_setup = generate_github_clone_setup(
+            repo_url=github_repo_url,
+            directory=job_data.get("github_directory"),
+            github_pat=github_pat,
+        )
+        setup_commands.append(github_setup)
+
+    # Add user-provided setup if any
+    original_setup = job_data.get("setup")
+    if original_setup:
+        setup_commands.append(original_setup)
+
+    final_setup = ";".join(setup_commands) if setup_commands else None
+
+    # Update job_data with launch configuration
+    launch_job_data = {
+        "task_name": job_data.get("task_name"),
+        "command": command,
+        "cluster_name": formatted_cluster_name,
+        "subtype": job_data.get("subtype"),
+        "interactive_type": job_data.get("interactive_type"),
+        "cpus": job_data.get("cpus"),
+        "memory": job_data.get("memory"),
+        "disk_space": job_data.get("disk_space"),
+        "accelerators": job_data.get("accelerators"),
+        "num_nodes": job_data.get("num_nodes"),
+        "setup": final_setup,
+        "env_vars": env_vars if env_vars else None,
+        "file_mounts": job_data.get("file_mounts") or None,
+        "parameters": job_data.get("parameters") or None,
+        "provider_id": provider.id,
+        "provider_type": provider.type,
+        "provider_name": provider_display_name,
+        "user_info": user_info or None,
+        "team_id": team_id,
+        "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+    }
+
+    for key, value in launch_job_data.items():
+        if value is not None:
+            await job_service.job_update_job_data_insert_key_value(new_job_id, key, value, experimentId)
+
+    # Build ClusterConfig
+    disk_size = None
+    if job_data.get("disk_space"):
+        try:
+            disk_size = int(job_data.get("disk_space"))
+        except (TypeError, ValueError):
+            disk_size = None
+
+    cluster_config = ClusterConfig(
+        cluster_name=formatted_cluster_name,
+        provider_name=provider_display_name,
+        provider_id=provider.id,
+        command=command,
+        setup=final_setup,
+        env_vars=env_vars,
+        cpus=job_data.get("cpus"),
+        memory=job_data.get("memory"),
+        accelerators=job_data.get("accelerators"),
+        num_nodes=job_data.get("num_nodes"),
+        disk_size=disk_size,
+        file_mounts=job_data.get("file_mounts") or {},
+        provider_config={"requested_disk_space": job_data.get("disk_space")},
+    )
+
+    # Launch cluster
+    try:
+        provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
+        return {
+            "job_id": new_job_id,
+            "message": "Job relaunched from checkpoint",
+            "cluster_name": formatted_cluster_name,
+        }
+    except Exception as exc:
+        print(f"Failed to launch cluster: {exc}")
+        await job_service.job_update_status(new_job_id, "FAILED", experimentId, error_msg=str(exc))
+        raise HTTPException(status_code=500, detail=f"Failed to relaunch job: {exc}") from exc
 
 
 @router.post("/{provider_id}/clusters/{cluster_name}/stop")

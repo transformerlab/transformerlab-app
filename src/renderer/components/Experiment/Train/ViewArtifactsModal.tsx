@@ -49,6 +49,7 @@ export default function ViewArtifactsModal({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   let noArtifacts = false;
 
@@ -82,6 +83,7 @@ export default function ViewArtifactsModal({
       'json',
       'txt',
       'log',
+      // Images
       'png',
       'jpg',
       'jpeg',
@@ -89,9 +91,16 @@ export default function ViewArtifactsModal({
       'bmp',
       'webp',
       'svg',
+      // Video
       'mp4',
       'webm',
+      'mov',
+      // Audio
+      'mp3',
+      'wav',
       'ogg',
+      'm4a',
+      'flac',
     ];
     return previewableExtensions.includes(ext);
   };
@@ -148,7 +157,7 @@ export default function ViewArtifactsModal({
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         setPreviewData({ type: 'image', url: blobUrl });
-      } else if (['mp4', 'webm', 'ogg'].includes(ext)) {
+      } else if (['mp4', 'webm', 'mov'].includes(ext)) {
         // Video preview - fetch as blob and create object URL
         const videoUrl = getAPIFullPath('jobs', ['getArtifact'], {
           experimentId: experimentInfo?.id,
@@ -162,6 +171,20 @@ export default function ViewArtifactsModal({
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         setPreviewData({ type: 'video', url: blobUrl });
+      } else if (['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(ext)) {
+        // Audio preview - fetch as blob and create object URL
+        const audioUrl = getAPIFullPath('jobs', ['getArtifact'], {
+          experimentId: experimentInfo?.id,
+          jobId: jobId.toString(),
+          filename: artifact.filename,
+        });
+        const response = await fetchWithAuth(`${audioUrl}?task=view`);
+        if (!response.ok) {
+          throw new Error('Failed to load audio');
+        }
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        setPreviewData({ type: 'audio', url: blobUrl });
       }
     } catch (error) {
       setPreviewError('Failed to load artifact preview');
@@ -200,6 +223,41 @@ export default function ViewArtifactsModal({
     } catch (error) {
       console.error('Download failed:', error);
       // Optionally show an error notification to the user
+    }
+  };
+
+  const handleDownloadAllArtifacts = async () => {
+    try {
+      setIsDownloading(true);
+      const downloadUrl = getAPIFullPath('jobs', ['downloadAllArtifacts'], {
+        experimentId: experimentInfo?.id,
+        jobId: jobId.toString(),
+      });
+
+      // Fetch with authentication and trigger download
+      const response = await fetchWithAuth(`${downloadUrl}`);
+      if (!response.ok) {
+        throw new Error('Failed to download artifacts');
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Create a temporary link and click it to trigger download
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `artifacts_job_${jobId}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up the blob URL after a short delay
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+    } catch (error) {
+      console.error('Download failed:', error);
+      // Optionally show an error notification to the user
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -331,6 +389,29 @@ export default function ViewArtifactsModal({
             </video>
           </Box>
         );
+      case 'audio':
+        return (
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              maxHeight: 'calc(80vh - 200px)',
+              overflow: 'auto',
+              p: 2,
+            }}
+          >
+            <audio
+              controls
+              style={{
+                width: '100%',
+              }}
+            >
+              <source src={previewData.url} />
+              Your browser does not support the audio element.
+            </audio>
+          </Box>
+        );
       default:
         return null;
     }
@@ -349,9 +430,27 @@ export default function ViewArtifactsModal({
         }}
       >
         <ModalClose />
-        <Typography id="artifacts-modal-title" level="h2">
-          Artifacts for Job {jobId}
-        </Typography>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          sx={{ mb: 2, mr: 4 }}
+        >
+          <Typography id="artifacts-modal-title" level="h2">
+            Artifacts for Job {jobId}
+          </Typography>
+          {!noArtifacts && !artifactsLoading && (
+            <Button
+              startDecorator={!isDownloading && <Download size={16} />}
+              loading={isDownloading}
+              onClick={handleDownloadAllArtifacts}
+              variant="soft"
+              color="primary"
+            >
+              Download All
+            </Button>
+          )}
+        </Stack>
 
         {noArtifacts ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>

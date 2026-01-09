@@ -64,6 +64,8 @@ Endpoints.Task = {
     `${API_URL()}experiment/${experimentId}/task/${id}/delete`,
   Gallery: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/task/gallery`,
+  InteractiveGallery: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/interactive`,
   ImportFromGallery: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/task/gallery/import`,
   TeamGallery: (experimentId: string) =>
@@ -107,6 +109,15 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/${providerId}/task/${taskId}/file-upload`, // Deprecated: use UploadTemplateFile
   Check: (providerId: string) =>
     `${API_URL()}compute_provider/${providerId}/check`,
+  EnsureQuotaRecorded: (experimentId?: string, jobId?: string) => {
+    if (jobId) {
+      return `${API_URL()}compute_provider/jobs/ensure-quota-recorded?job_id=${jobId}`;
+    }
+    if (experimentId) {
+      return `${API_URL()}compute_provider/jobs/ensure-quota-recorded?experiment_id=${experimentId}`;
+    }
+    return `${API_URL()}compute_provider/jobs/ensure-quota-recorded`;
+  },
 };
 
 Endpoints.Workflows = {
@@ -264,6 +275,8 @@ Endpoints.Plugins = {
   List: () => `${API_URL()}plugins/list`,
   RunPluginInstallScript: (pluginId: string) =>
     `${API_URL()}plugins/${pluginId}/run_installer_script`,
+  SuggestLoader: (modelArchitecture: string) =>
+    `${API_URL()}plugins/suggest_loader?model_architecture=${encodeURIComponent(modelArchitecture)}`,
 };
 
 // Following is no longer needed as it is replaced with useAPI
@@ -500,12 +513,12 @@ Endpoints.Experiment = {
     tailLines: number = 400,
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/provider_logs?tail_lines=${tailLines}`,
-  GetVSCodeTunnelInfo: (
+  GetTunnelInfo: (
     experimentId: string,
     jobId: string,
     tailLines: number = 400,
   ) =>
-    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/vscode_tunnel_info?tail_lines=${tailLines}`,
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/tunnel_info?tail_lines=${tailLines}`,
   GetAdditionalDetails: (
     experimentId: string,
     jobId: string,
@@ -567,4 +580,14 @@ Endpoints.Jobs = {
 
 Endpoints.Global = {
   PromptLog: () => `${API_URL()}prompt_log`,
+};
+
+Endpoints.Quota = {
+  GetMyStatus: () => `${API_URL()}quota/me`,
+  GetMyUsage: () => `${API_URL()}quota/me/usage`,
+  GetTeamQuota: (teamId: string) => `${API_URL()}quota/team/${teamId}`,
+  UpdateTeamQuota: (teamId: string) => `${API_URL()}quota/team/${teamId}`,
+  GetTeamUsers: (teamId: string) => `${API_URL()}quota/team/${teamId}/users`,
+  UpdateUserOverride: (userId: string, teamId: string) =>
+    `${API_URL()}quota/user/${userId}/team/${teamId}`,
 };

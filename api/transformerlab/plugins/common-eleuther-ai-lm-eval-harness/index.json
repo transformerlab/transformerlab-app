@@ -5,17 +5,11 @@
   "plugin-format": "python",
   "type": "evaluator",
   "evalsType": "model",
-  "version": "0.1.15",
+  "version": "0.1.17",
   "git": "https://github.com/EleutherAI/lm-evaluation-harness",
   "url": "https://github.com/EleutherAI/lm-evaluation-harness",
-  "supported_hardware_architectures": [
-    "cuda",
-    "amd"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["cuda", "amd"],
+  "files": ["main.py", "setup.sh"],
   "_dataset": false,
   "setup-script": "setup.sh",
   "parameters": {
@@ -300,9 +294,7 @@
     },
     "limit": {
       "title": "Number of samples (Enter a floating point between 0 and 1. Set as 1 to get all samples)",
-      "type": [
-        "number"
-      ],
+      "type": ["number"],
       "minimum": 0.0,
       "default": 1.0,
       "maximum": 1.0,
