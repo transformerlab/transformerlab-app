@@ -223,8 +223,8 @@ class EvalsTLabPlugin(TLabPlugin):
 
         output_path, plot_data_path = asyncio.run(_save_results())
 
-        self.job.update_job_data_field("additional_output_path", output_path)
-        self.job.update_job_data_field("plot_data_path", plot_data_path)
+        asyncio.run(self.job.update_job_data_field("additional_output_path", output_path))
+        asyncio.run(self.job.update_job_data_field("plot_data_path", plot_data_path))
 
         # Add evaluation data to existing provenance file
         self.add_evaluation_to_provenance_file(metrics_df)

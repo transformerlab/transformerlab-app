@@ -194,8 +194,8 @@ class TrainerTLabPlugin(TLabPlugin):
         except Exception as e:
             error_msg = f"Error loading configuration: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)
-            self.job.update_job_data_field("completion_status", "failed")
-            self.job.update_job_data_field("completion_details", "Error loading configuration")
+            asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
+            asyncio.run(self.job.update_job_data_field("completion_details", "Error loading configuration"))
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
