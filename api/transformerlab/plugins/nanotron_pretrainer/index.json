@@ -5,7 +5,7 @@
   "plugin-format": "python",
   "type": "trainer",
   "train_type": "pretraining",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "git": "https://github.com/huggingface/nanotron",
   "url": "https://github.com/huggingface/nanotron",
   "files": ["main.py", "setup.sh", "config.py"],
