@@ -17,10 +17,7 @@ import { authenticatedFetch } from 'renderer/lib/api-client/functions';
 import { PencilIcon, TypeOutline } from 'lucide-react';
 import { Box, Button, Typography } from '@mui/joy';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
-import {
-  setTheme,
-  getMonacoEditorOptions,
-} from 'renderer/lib/monacoConfig';
+import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 
 export default function ExperimentNotes({}) {
   const editorRef = useRef(null);

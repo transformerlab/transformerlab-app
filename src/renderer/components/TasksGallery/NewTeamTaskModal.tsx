@@ -11,10 +11,7 @@ import { FormHelperText, ModalClose, ModalDialog, Textarea } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import { useRef } from 'react';
 import { useNotification } from '../Shared/NotificationSystem';
-import {
-  setTheme,
-  getMonacoEditorOptions,
-} from 'renderer/lib/monacoConfig';
+import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 
 type NewTeamTaskModalProps = {
   open: boolean;

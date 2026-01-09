@@ -39,10 +39,7 @@ import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
 import { useNotification } from '../Shared/NotificationSystem';
-import {
-  setTheme,
-  getMonacoEditorOptions,
-} from 'renderer/lib/monacoConfig';
+import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 
 function ListPluginFiles({
   files,

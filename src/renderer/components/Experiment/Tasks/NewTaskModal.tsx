@@ -34,10 +34,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import {
-  setTheme,
-  getMonacoEditorOptions,
-} from 'renderer/lib/monacoConfig';
+import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 
 type ProviderOption = {
   id: string;

@@ -26,10 +26,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import { SafeJSONParse } from 'renderer/components/Shared/SafeJSONParse';
 import { useRef } from 'react';
-import {
-  setTheme,
-  getMonacoEditorOptions,
-} from 'renderer/lib/monacoConfig';
+import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 
 type ProviderOption = {
   id: string;

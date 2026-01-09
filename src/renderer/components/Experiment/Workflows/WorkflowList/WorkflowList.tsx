@@ -41,10 +41,7 @@ import NewNodeModal from './NewNodeModal';
 import WorkflowCanvas from './WorkflowCanvas';
 import { useNotification } from '../../../Shared/NotificationSystem';
 import { fetchWithAuth } from 'renderer/lib/authContext';
-import {
-  setTheme,
-  getMonacoEditorOptions,
-} from 'renderer/lib/monacoConfig';
+import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 
 function ShowCode({
   code,
