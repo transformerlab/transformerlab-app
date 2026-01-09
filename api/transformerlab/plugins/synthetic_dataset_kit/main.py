@@ -58,7 +58,7 @@ def run_generation():
     prompt_template = tlab_gen.params.get("prompt_template", "")
     api_base = tlab_gen.params.get("vllm_api_base", "http://localhost:8338/v1")
     port = str(api_base.rsplit(":", 1)[-1].rstrip("/v1"))
-    workspace = get_workspace_dir()
+    workspace = asyncio.run(get_workspace_dir())
     experiment = tlab_gen.params.experiment_name
     documents_dir = storage.join(workspace, "experiments", experiment, "documents")
     doc_filenames = [d.strip() for d in docs_str.split(",") if d.strip()]

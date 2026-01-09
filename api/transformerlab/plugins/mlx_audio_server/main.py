@@ -150,7 +150,7 @@ class MLXAudioWorker(BaseModelWorker):
             model = params.get("model", None)
             format = params.get("format", "txt")
             output_path_name = secure_filename(params.get("output_path", "transcriptions"))
-            transcriptions_dir = storage.join(get_workspace_dir(), output_path_name)
+            transcriptions_dir = storage.join(await get_workspace_dir(), output_path_name)
             storage.makedirs(name=transcriptions_dir, exist_ok=True)
 
             # Generate a UUID for this file name:
