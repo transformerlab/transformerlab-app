@@ -1766,7 +1766,9 @@ async def resume_from_checkpoint(
 
     # Create new REMOTE job
     initial_status = "INTERACTIVE" if job_data.get("subtype") == "interactive" else "LAUNCHING"
-    new_job_id = await job_service.job_create(type="REMOTE", status=initial_status, experiment_id=experimentId, job_data={})
+    new_job_id = await job_service.job_create(
+        type="REMOTE", status=initial_status, experiment_id=experimentId, job_data={}
+    )
 
     # Set parent_job_id and resumed_from_checkpoint in job_data
     await job_service.job_update_job_data_insert_key_value(new_job_id, "parent_job_id", job_id, experimentId)
