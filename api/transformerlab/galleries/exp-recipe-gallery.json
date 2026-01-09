@@ -469,7 +469,7 @@
               "out": ["node_eval"]
             },
             {
-              "id": "node_eval",
+              "id": "node_eval", 
               "type": "EVAL",
               "task": "evaluate_touch_rugby",
               "name": "Evaluation Task",
@@ -477,7 +477,7 @@
             },
             {
               "id": "node_generate",
-              "type": "GENERATE",
+              "type": "GENERATE", 
               "task": "generate_touch_rugby_examples",
               "name": "Generation Task",
               "out": []
@@ -747,3 +747,4 @@
     "cardImage": "https://images.unsplash.com/photo-1573497620053-ea5300f94f21?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
   }
 ]
+

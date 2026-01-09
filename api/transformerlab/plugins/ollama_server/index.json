@@ -4,7 +4,7 @@
   "description": "Connects to your instance of ollama to run GGUF models that can host models across GPU and/or CPU.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.1.12",
+  "version": "0.1.11",
   "supports": [
     "chat",
     "completion",

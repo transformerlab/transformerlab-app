@@ -35,7 +35,6 @@
     "test": "jest",
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
-    "format:api": "prettier --write \"api/**/*.json\"",
     "api:install": "cd api && ./install.sh",
     "api:start": "cd api && ./run.sh"
   },
@@ -181,7 +180,7 @@
     "jest-environment-jsdom": "^29.5.0",
     "mini-css-extract-plugin": "^2.9.2",
     "orval": "^7.6.0",
-    "prettier": "^3.7.4",
+    "prettier": "^3.5.3",
     "react-refresh": "^0.14.0",
     "react-test-renderer": "^18.2.0",
     "rimraf": "^5.0.1",

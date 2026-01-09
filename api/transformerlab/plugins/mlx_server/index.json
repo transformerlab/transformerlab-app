@@ -4,7 +4,7 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.1.48",
+  "version": "0.1.47",
   "supports": [
     "chat",
     "completion",

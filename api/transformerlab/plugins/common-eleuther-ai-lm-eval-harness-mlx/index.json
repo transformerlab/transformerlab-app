@@ -5,7 +5,7 @@
   "plugin-format": "python",
   "type": "evaluator",
   "evalsType": "model",
-  "version": "0.1.14",
+  "version": "0.1.13",
   "git": "https://github.com/chimezie/lm-evaluation-harness-mlx",
   "url": "https://github.com/chimezie/lm-evaluation-harness-mlx",
   "supported_hardware_architectures": ["mlx"],

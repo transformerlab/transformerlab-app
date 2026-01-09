@@ -4,7 +4,7 @@
   "description": "Generates QA pairs, chain-of-thought, or summaries using Meta's synthetic-data-kit and vLLM-based or proxy-backed models.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.8",
+  "version": "0.1.7",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],

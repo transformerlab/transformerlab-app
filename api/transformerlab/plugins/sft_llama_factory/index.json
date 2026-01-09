@@ -4,7 +4,7 @@
   "description": "An implementation of Supervised Finetuning using Llama Factory.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.18",
+  "version": "0.0.17",
   "model_architectures": [
     "GemmaForCausalLM",
     "LlamaForCausalLM",
