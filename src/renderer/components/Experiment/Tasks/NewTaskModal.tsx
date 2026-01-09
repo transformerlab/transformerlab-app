@@ -24,7 +24,6 @@ import {
   Switch,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
-import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 import {
   Trash2Icon,
   PlusIcon,
@@ -35,15 +34,10 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-
-const { parseTmTheme } = require('monaco-themes');
-
-function setTheme(editor: any, monaco: any) {
-  const themeData = parseTmTheme(fairyflossTheme);
-
-  monaco.editor.defineTheme('my-theme', themeData);
-  monaco.editor.setTheme('my-theme');
-}
+import {
+  setTheme,
+  getMonacoEditorOptions,
+} from 'renderer/lib/monacoConfig';
 
 type ProviderOption = {
   id: string;
@@ -1476,14 +1470,9 @@ export default function NewTaskModal({
                         }
                       }}
                       theme="my-theme"
-                      options={{
-                        minimap: { enabled: false },
-                        fontSize: 14,
-                        lineNumbers: 'on',
-                        scrollBeyondLastLine: false,
-                        automaticLayout: true,
+                      options={getMonacoEditorOptions({
                         readOnly: isLoadingTaskJson, // Disable editing while loading
-                      }}
+                      })}
                     />
                   </div>
                 )}

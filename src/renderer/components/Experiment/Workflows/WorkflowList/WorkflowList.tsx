@@ -40,16 +40,11 @@ import NewWorkflowModal from './NewWorkflowModal';
 import NewNodeModal from './NewNodeModal';
 import WorkflowCanvas from './WorkflowCanvas';
 import { useNotification } from '../../../Shared/NotificationSystem';
-import fairyflossTheme from '../../../Shared/fairyfloss.tmTheme.js';
 import { fetchWithAuth } from 'renderer/lib/authContext';
-
-const { parseTmTheme } = require('monaco-themes');
-
-function setTheme(editor: any, monaco: any) {
-  const themeData = parseTmTheme(fairyflossTheme);
-  monaco.editor.defineTheme('my-theme', themeData);
-  monaco.editor.setTheme('my-theme');
-}
+import {
+  setTheme,
+  getMonacoEditorOptions,
+} from 'renderer/lib/monacoConfig';
 
 function ShowCode({
   code,
@@ -177,14 +172,11 @@ function ShowCode({
               theme="my-theme"
               height="100%"
               width="100%"
-              options={{
-                minimap: {
-                  enabled: false,
-                },
+              options={getMonacoEditorOptions({
                 fontSize: 14,
                 cursorStyle: 'block',
                 wordWrap: 'on',
-              }}
+              })}
               onMount={handleEditorDidMount}
             />
           </Box>
