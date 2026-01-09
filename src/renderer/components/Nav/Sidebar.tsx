@@ -196,15 +196,15 @@ function ExperimentMenuItems({
         {showInteractTab && (
           <SubNavItem
             title="Interact"
-            path={isLocalMode ? '/experiment/interactive' : '/experiment/chat'}
+            path={isLocalMode ? '/experiment/chat' : '/experiment/interactive'}
             icon={
               isLocalMode ? (
-                <CodeIcon strokeWidth={1} />
-              ) : (
                 <MessageCircleIcon strokeWidth={9} />
+              ) : (
+                <CodeIcon strokeWidth={1} />
               )
             }
-            disabled={isLocalMode ? !experimentReady : disableInteract}
+            disabled={isLocalMode ? disableInteract : !experimentReady}
           />
         )}
         {showDiffusionTab && (
