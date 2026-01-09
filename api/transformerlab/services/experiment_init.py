@@ -362,7 +362,8 @@ def seed_default_experiments():
 
 
 def cancel_in_progress_jobs():
-    """On startup, mark any RUNNING jobs as CANCELLED in the filesystem job store across all organizations."""
+    """On startup, mark any RUNNING jobs as CANCELLED in the filesystem job store across all organizations.
+    REMOTE jobs are excluded from this cancellation as they run on external compute providers."""
     # Get HOME_DIR
     try:
         home_dir = HOME_DIR
@@ -392,8 +393,14 @@ def cancel_in_progress_jobs():
                                         job_id = entry_path.rstrip("/").split("/")[-1]
                                         job = Job.get(job_id)
                                         if job.get_status() == "RUNNING":
-                                            job.update_status("CANCELLED")
-                                            print(f"Cancelled running job: {job_id} (org: {org_id})")
+                                            # Skip REMOTE jobs - they should not be cancelled on startup
+                                            job_data = job.get_json_data(uncached=True)
+                                            job_type = job_data.get("type", "")
+                                            if job_type == "REMOTE":
+                                                print(f"Skipping REMOTE job: {job_id} (org: {org_id})")
+                                            else:
+                                                job.update_status("CANCELLED")
+                                                print(f"Cancelled running job: {job_id} (org: {org_id})")
                                     except Exception:
                                         # If we can't access the job, continue to the next one
                                         pass
