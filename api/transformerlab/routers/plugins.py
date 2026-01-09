@@ -24,6 +24,11 @@ router = APIRouter(prefix="/plugins", tags=["plugins"])
 async def plugin_gallery():
     """Get list of plugins that we can access"""
 
+    # In remote mode (TFL_API_STORAGE_URI is set), plugins are not available
+    # Return empty list to match sidebar behavior where plugins menu is hidden
+    if os.getenv("TFL_API_STORAGE_URI"):
+        return []
+
     local_workspace_gallery_directory = dirs.PLUGIN_PRELOADED_GALLERY
     # today the remote gallery is a local file, we will move it remote later
     remote_gallery_file = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab/galleries/plugin-gallery.json")
@@ -428,6 +433,11 @@ async def run_installer_script(plugin_id: str):
 @router.get("/list", summary="List the plugins that are currently installed.")
 async def list_plugins() -> list[object]:
     """Get list of plugins that are currently installed"""
+
+    # In remote mode (TFL_API_STORAGE_URI is set), plugins are not available
+    # Return empty list to match sidebar behavior where plugins menu is hidden
+    if os.getenv("TFL_API_STORAGE_URI"):
+        return []
 
     from lab.dirs import get_plugin_dir
 
