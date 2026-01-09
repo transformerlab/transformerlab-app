@@ -4,7 +4,7 @@
   "description": "An implementation of several Preference Optimization methods using Llama Factory.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "model_architectures": [
     "LlamaForCausalLM",
     "MistralForCausalLM",

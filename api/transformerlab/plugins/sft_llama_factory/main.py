@@ -14,6 +14,7 @@ import time
 import json
 import yaml
 import re
+import asyncio
 
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import get_python_executable
@@ -35,7 +36,7 @@ print("Plugin dir:", plugin_dir)
 @tlab_trainer.job_wrapper()
 def run_train():
     # Directory for storing temporary working files
-    workspace_dir = get_workspace_dir()
+    workspace_dir = asyncio.run(get_workspace_dir())
     data_directory = storage.join(workspace_dir, "temp", "llama_factory", "data")
     if not storage.exists(data_directory):
         storage.makedirs(data_directory)
@@ -219,7 +220,7 @@ def fuse_model():
     """Fuse the adapter with the base model"""
     print("Now fusing the adaptor with the model.")
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = asyncio.run(get_workspace_dir())
     data_directory = storage.join(workspace_dir, "temp", "llama_factory", "data")
     model_name = tlab_trainer.params.model_name
     adaptor_name = tlab_trainer.params.adaptor_name

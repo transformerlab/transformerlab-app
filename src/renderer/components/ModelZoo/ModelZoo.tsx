@@ -30,19 +30,19 @@ export default function ModelZoo({ tab = 'store' }) {
     fetchHealthz();
   }, []);
 
-  const isS3Mode = mode === 's3';
+  const isLocalMode = mode === 'local';
 
-  // If we are in S3 Mode, even if the default tab is 'groups' or 'generated', we should
+  // If we are not in local mode, even if the default tab is 'groups' or 'generated', we should
   // show the 'local' tab instead, since 'groups' and 'generated' don't work in this mode
   const filteredTab =
-    isS3Mode && (tab === 'groups' || tab === 'generated') ? 'local' : tab;
+    !isLocalMode && (tab === 'groups' || tab === 'generated') ? 'local' : tab;
 
-  // Redirect to local tab if in s3 mode and trying to access generated or groups
+  // Redirect to local tab if not in local mode and trying to access generated or groups
   useEffect(() => {
-    if (isS3Mode && (tab === 'generated' || tab === 'groups')) {
+    if (!isLocalMode && (tab === 'generated' || tab === 'groups')) {
       navigate('/zoo/local', { replace: true });
     }
-  }, [isS3Mode, tab, navigate]);
+  }, [isLocalMode, tab, navigate]);
 
   return (
     <Sheet
@@ -70,8 +70,8 @@ export default function ModelZoo({ tab = 'store' }) {
       >
         <TabList>
           <Tab value="local">Local Models</Tab>
-          {!isS3Mode && <Tab value="generated">Generated</Tab>}
-          {!isS3Mode && (
+          {isLocalMode && <Tab value="generated">Generated</Tab>}
+          {isLocalMode && (
             <Tab value="groups">
               <StoreIcon color="grey" />
               &nbsp; Model Registry
@@ -84,7 +84,7 @@ export default function ModelZoo({ tab = 'store' }) {
         >
           <LocalModels pickAModelMode={false} experimentInfo={experimentInfo} />
         </TabPanel>
-        {!isS3Mode && (
+        {isLocalMode && (
           <TabPanel
             value="generated"
             sx={{ p: 0, py: 1, height: '100%', overflow: 'hidden' }}
@@ -96,7 +96,7 @@ export default function ModelZoo({ tab = 'store' }) {
             />
           </TabPanel>
         )}
-        {!isS3Mode && (
+        {isLocalMode && (
           <TabPanel
             value="groups"
             sx={{

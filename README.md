@@ -258,6 +258,16 @@ Our Alembic setup lives under `api/alembic`. Use the API Conda/uv environment be
 
   To roll back the most recent migration while iterating, run `alembic downgrade -1`.
 
+### Running API Tests Locally
+
+To run API tests locally:
+
+```bash
+conda activate ~/.transformerlab/envs/transformerlab
+cd api
+pytest --cov=transformerlab --cov-branch --cov-report=xml -k 'not test_teams'
+```
+
 <!-- LICENSE -->
 
 ## License

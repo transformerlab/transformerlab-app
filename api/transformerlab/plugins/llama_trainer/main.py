@@ -1,6 +1,7 @@
 import time
 import os
 from random import randrange
+import asyncio
 
 import torch
 import shutil
@@ -338,7 +339,8 @@ def train_model():
                 model_id = model_id.split("/")[-1]
             adaptor_name = tlab_trainer.params.get("adaptor_name", "default")
             fused_model_name = f"{model_id}_{adaptor_name}"
-            fused_model_location = storage.join(get_workspace_dir(), "models", fused_model_name)
+            workspace_dir = asyncio.run(get_workspace_dir())
+            fused_model_location = storage.join(workspace_dir, "models", fused_model_name)
             peft_model = PeftModel.from_pretrained(model, tlab_trainer.params.adaptor_output_dir)
             merged_model = peft_model.merge_and_unload()
             merged_model.save_pretrained(fused_model_location)
