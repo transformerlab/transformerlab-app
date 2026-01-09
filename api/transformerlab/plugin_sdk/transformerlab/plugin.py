@@ -105,7 +105,7 @@ def get_dataset_path(dataset_id: str):
     return asyncio.run(_get())
 
 
-def get_db_config_value(key: str, team_id: Optional[str] = None, user_id: Optional[str] = None):
+async def get_db_config_value(key: str, team_id: Optional[str] = None, user_id: Optional[str] = None):
     """
     Returns the value of a config key from the database with priority:
     user-specific -> team-wide -> global config.
@@ -125,7 +125,7 @@ def get_db_config_value(key: str, team_id: Optional[str] = None, user_id: Option
     # Extract team_id from workspace_dir if not provided
     if team_id is None:
         try:
-            workspace_dir = get_workspace_dir()
+            workspace_dir = await get_workspace_dir()
             if workspace_dir and "/orgs/" in workspace_dir:
                 # Extract team_id from path like ~/.transformerlab/orgs/<team_id>/workspace
                 parts = workspace_dir.split("/orgs/")
