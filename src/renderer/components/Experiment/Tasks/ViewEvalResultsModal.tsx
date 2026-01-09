@@ -12,25 +12,27 @@ import {
   FormControl,
   FormLabel,
   Stack,
+  CircularProgress,
 } from '@mui/joy';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
-function formatColumnNames(name) {
+function formatColumnNames(name: string): string {
   return name
     .replace(/([A-Z])/g, ' $1') // Convert Camel Case to spaced
-    .replace(/^./, (str) => str.toUpperCase()) // Capitalize first letter
+    .replace(/^./, (str: string) => str.toUpperCase()) // Capitalize first letter
     .replace(/_/g, ' '); // Replace underscores with spaces
 }
 
-function heatedColor(value) {
+function heatedColor(value: number): string {
   const h = value * 240;
   return `hsla(${h}, 100%, 50%, 0.3)`;
 }
 
-function formatScore(score) {
+function formatScore(score: any): any {
   // if score is a number, return it as is
   if (!isNaN(score)) {
     return score;
@@ -56,84 +58,72 @@ const ViewEvalResultsModal = ({
   jobId: number | string;
 }) => {
   const { experimentInfo } = useExperimentInfo();
-  const [report, setReport] = useState<{ header: string[]; body: any[] }>({
-    header: [],
-    body: [],
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selectedFileIndex, setSelectedFileIndex] = useState(0);
-  const [evalResultsFiles, setEvalResultsFiles] = useState<string[]>([]);
 
   // Fetch job data to get list of eval results files
+  const {
+    data: jobData,
+    isError: jobError,
+    isLoading: isLoadingJob,
+  } = useSWR(
+    open && jobId && experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.Get(experimentInfo.id, String(jobId))
+      : null,
+    fetcher,
+  );
+
+  // Extract eval results files from job data
+  const evalResultsFiles =
+    jobData?.job_data?.eval_results &&
+    Array.isArray(jobData.job_data.eval_results)
+      ? jobData.job_data.eval_results
+      : [];
+
+  // Reset selected file index when modal opens or files change
   useEffect(() => {
-    if (open && jobId && experimentInfo?.id) {
-      fetcher(chatAPI.Endpoints.Jobs.Get(experimentInfo.id, String(jobId)))
-        .then((job) => {
-          const jobData = job?.job_data || {};
-          const evalResults = jobData.eval_results || [];
-          if (Array.isArray(evalResults) && evalResults.length > 0) {
-            setEvalResultsFiles(evalResults);
-            // Reset to first file when modal opens
-            setSelectedFileIndex(0);
-          } else {
-            setEvalResultsFiles([]);
-            setError('No evaluation results found');
-          }
-        })
-        .catch((err) => {
-          console.error('Error fetching job data:', err);
-          setEvalResultsFiles([]);
-        });
+    if (open && evalResultsFiles.length > 0) {
+      setSelectedFileIndex(0);
     }
-  }, [open, jobId, experimentInfo?.id]);
+  }, [open, evalResultsFiles.length]);
 
   // Fetch the selected eval results file
-  useEffect(() => {
-    if (
-      open &&
+  const {
+    data: reportData,
+    isError: reportError,
+    isLoading: isLoadingReport,
+  } = useSWR(
+    open &&
       jobId &&
       experimentInfo?.id &&
       evalResultsFiles.length > 0 &&
       selectedFileIndex >= 0 &&
       selectedFileIndex < evalResultsFiles.length
-    ) {
-      setIsLoading(true);
-      setError(null);
-      fetcher(
-        chatAPI.Endpoints.Experiment.GetEvalResults(
+      ? chatAPI.Endpoints.Experiment.GetEvalResults(
           experimentInfo.id,
           String(jobId),
           'view',
           selectedFileIndex,
-        ),
-      )
-        .then((data) => {
-          try {
-            if (data?.header && data?.body) {
-              setReport(data);
-            } else {
-              setError('Invalid data format');
-            }
-          } catch (e) {
-            setError('Error parsing evaluation results');
-          }
-        })
-        .catch((err) => {
-          setError('Failed to load evaluation results');
-          console.error('Error loading eval results:', err);
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    }
-  }, [
-    open,
-    jobId,
-    experimentInfo?.id,
-    selectedFileIndex,
-    evalResultsFiles.length,
-  ]);
+        )
+      : null,
+    fetcher,
+  );
+
+  // Process report data
+  const report =
+    reportData?.header && reportData?.body
+      ? { header: reportData.header, body: reportData.body }
+      : { header: [], body: [] };
+
+  // Determine loading and error states
+  const isLoading = isLoadingJob || isLoadingReport;
+  const error =
+    jobError || reportError
+      ? 'Failed to load evaluation results'
+      : evalResultsFiles.length === 0 && !isLoadingJob
+        ? 'No evaluation results found'
+        : reportData && (!reportData.header || !reportData.body)
+          ? 'Invalid data format'
+          : null;
 
   const handleDownload = async () => {
     if (!experimentInfo?.id || !jobId) return;
@@ -172,7 +162,7 @@ const ViewEvalResultsModal = ({
 
   // Find the score column index
   const scoreColumnIndex = report.header.findIndex(
-    (col) => col.toLowerCase() === 'score',
+    (col: string) => col.toLowerCase() === 'score',
   );
 
   return (
@@ -205,7 +195,7 @@ const ViewEvalResultsModal = ({
                   }
                 }}
               >
-                {evalResultsFiles.map((filePath, index) => (
+                {evalResultsFiles.map((filePath: string, index: number) => (
                   <Option key={index} value={index}>
                     {getFileName(filePath, index)}
                   </Option>
@@ -215,8 +205,20 @@ const ViewEvalResultsModal = ({
           )}
         </Stack>
         {isLoading ? (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Typography>Loading evaluation results...</Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              py: 8,
+              gap: 2,
+            }}
+          >
+            <CircularProgress size="lg" />
+            <Typography level="body-lg">
+              Loading evaluation results...
+            </Typography>
           </Box>
         ) : error ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>
@@ -228,15 +230,15 @@ const ViewEvalResultsModal = ({
               <thead>
                 <tr>
                   {report?.header &&
-                    report?.header.map((col) => (
+                    report?.header.map((col: string) => (
                       <th key={col}>{formatColumnNames(col)}</th>
                     ))}
                 </tr>
               </thead>
               <tbody>
-                {report?.body?.map((row, i) => (
+                {report?.body?.map((row: any[], i: number) => (
                   <tr key={i}>
-                    {row.map((col, j) => (
+                    {row.map((col: any, j: number) => (
                       <td key={j}>
                         {scoreColumnIndex !== -1 && j === scoreColumnIndex ? (
                           <div

@@ -13,6 +13,7 @@ from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import get_python_executable
 from lab.dirs import get_workspace_dir
 from lab import storage
+import asyncio
 
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_RLAIF", manual_logging=True)
@@ -37,7 +38,7 @@ def train_mlx_rlaif():
     datasets = tlab_trainer.load_dataset(["train"])
 
     # Directory for storing temporary working files
-    workspace_dir = get_workspace_dir()
+    workspace_dir = asyncio.run(get_workspace_dir())
     data_directory = storage.join(workspace_dir, "plugins", "mlx_rlaif_trainer", "data")
     if not storage.exists(data_directory):
         storage.makedirs(data_directory)

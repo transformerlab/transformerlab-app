@@ -41,7 +41,6 @@ from fastchat.protocol.openai_api_protocol import (
     ErrorResponse,
     ModelCard,
     ModelList,
-    ModelPermission,
     UsageInfo,
 )
 from pydantic import BaseModel as PydanticBaseModel
@@ -239,41 +238,47 @@ async def check_model(request, bypass_adaptor=False) -> Optional[JSONResponse]:
     return ret
 
 
-def log_prompt(prompt):
+async def log_prompt(prompt):
     """Log the prompt to the global prompt.log file"""
     MAX_LOG_SIZE_BEFORE_ROTATE = 1000000  # 1MB in bytes
     from lab.dirs import get_logs_dir
 
-    logs_dir = get_logs_dir()
-    prompt_log_path = storage.join(logs_dir, "prompt.log")
-    if storage.exists(prompt_log_path):
-        # Get file size - for remote storage, we may need to read the file to check size
-        try:
-            with storage.open(prompt_log_path, "r") as f:
-                lines = f.readlines()
-            file_size = sum(len(line.encode("utf-8")) for line in lines)
-            if file_size > MAX_LOG_SIZE_BEFORE_ROTATE:
-                with storage.open(prompt_log_path, "w") as f:
-                    f.writelines(lines[-1000:])
-                with storage.open(storage.join(logs_dir, f"prompt_{time.strftime('%Y%m%d%H%M%S')}.log"), "w") as f:
-                    f.writelines(lines[:-1000])
-        except Exception:
-            # If we can't read the file, just continue with appending
-            pass
+    # Run async operations
+    async def _log():
+        logs_dir = await get_logs_dir()
+        prompt_log_path = storage.join(logs_dir, "prompt.log")
+        if await storage.exists(prompt_log_path):
+            # Get file size - for remote storage, we may need to read the file to check size
+            try:
+                async with await storage.open(prompt_log_path, "r") as f:
+                    lines = (await f.read()).splitlines(keepends=True)
+                file_size = sum(len(line.encode("utf-8")) for line in lines)
+                if file_size > MAX_LOG_SIZE_BEFORE_ROTATE:
+                    async with await storage.open(prompt_log_path, "w") as f:
+                        await f.write("".join(lines[-1000:]))
+                    async with await storage.open(
+                        storage.join(logs_dir, f"prompt_{time.strftime('%Y%m%d%H%M%S')}.log"), "w"
+                    ) as f:
+                        await f.write("".join(lines[:-1000]))
+            except Exception:
+                # If we can't read the file, just continue with appending
+                pass
 
-    with storage.open(prompt_log_path, "a") as f:
-        log_entry = {}
-        log_entry["date"] = time.strftime("%Y-%m-%d %H:%M:%S")
-        log_entry["log"] = prompt
-        log_entry = json.dumps(log_entry)
-        f.write(f"{log_entry}\n")
+        async with await storage.open(prompt_log_path, "a") as f:
+            log_entry = {}
+            log_entry["date"] = time.strftime("%Y-%m-%d %H:%M:%S")
+            log_entry["log"] = prompt
+            log_entry = json.dumps(log_entry)
+            await f.write(f"{log_entry}\n")
+
+    await _log()
 
 
 @router.get("/prompt_log", tags=["chat"])
 async def get_prompt_log():
     from lab.dirs import get_logs_dir
 
-    prompt_log_path = storage.join(get_logs_dir(), "prompt.log")
+    prompt_log_path = storage.join(await get_logs_dir(), "prompt.log")
     # FileResponse needs a local file path, so use the path string directly
     # For remote storage, this would need special handling
     return FileResponse(prompt_log_path)
@@ -520,7 +525,7 @@ async def show_available_models():
             # TODO: return real model permission details
             model_cards = []
             for m in models:
-                model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
+                model_cards.append(ModelCard(id=m, root=m, permission=[]))
             return ModelList(data=model_cards)
 
         # If no models, refresh and try again
@@ -532,7 +537,7 @@ async def show_available_models():
     # TODO: return real model permission details
     model_cards = []
     for m in models:
-        model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
+        model_cards.append(ModelCard(id=m, root=m, permission=[]))
     return ModelList(data=model_cards)
 
 
@@ -546,11 +551,11 @@ async def create_audio_tts(request: AudioGenerationRequest):
             request.model = error_check_ret["model_name"]
 
     # TODO: Change this
-    exp_obj = Experiment.get(request.experiment_id)
-    experiment_dir = exp_obj.get_dir()
+    exp_obj = await Experiment.get(request.experiment_id)
+    experiment_dir = await exp_obj.get_dir()
 
     audio_dir = storage.join(experiment_dir, "audio")
-    storage.makedirs(audio_dir, exist_ok=True)
+    await storage.makedirs(audio_dir, exist_ok=True)
 
     gen_params = {
         "audio_dir": audio_dir,
@@ -580,10 +585,10 @@ async def create_audio_tts(request: AudioGenerationRequest):
 
 @router.post("/v1/audio/upload_reference", tags=["audio"])
 async def upload_audio_reference(experimentId: str, audio: UploadFile = File(...)):
-    exp_obj = Experiment(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    exp_obj = await Experiment.create_or_get(experimentId)
+    experiment_dir = await exp_obj.get_dir()
     uploaded_audio_dir = storage.join(experiment_dir, "uploaded_audio")
-    storage.makedirs(uploaded_audio_dir, exist_ok=True)
+    await storage.makedirs(uploaded_audio_dir, exist_ok=True)
 
     file_prefix = str(uuid.uuid4())
     _, ext = os.path.splitext(audio.filename)
@@ -591,8 +596,8 @@ async def upload_audio_reference(experimentId: str, audio: UploadFile = File(...
 
     # Save the uploaded file
     content = await audio.read()
-    with storage.open(file_path, "wb") as f:
-        f.write(content)
+    async with await storage.open(file_path, "wb") as f:
+        await f.write(content)
 
     return JSONResponse({"audioPath": file_path})
 
@@ -606,10 +611,10 @@ async def create_text_stt(request: AudioTranscriptionsRequest):
         elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
             request.model = error_check_ret["model_name"]
 
-    exp_obj = Experiment.get(request.experiment_id)
-    experiment_dir = exp_obj.get_dir()
+    exp_obj = await Experiment.get(request.experiment_id)
+    experiment_dir = await exp_obj.get_dir()
     transcription_dir = storage.join(experiment_dir, "transcriptions")
-    storage.makedirs(transcription_dir, exist_ok=True)
+    await storage.makedirs(transcription_dir, exist_ok=True)
 
     gen_params = {
         "model": request.model,
@@ -659,7 +664,7 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
     error_check_ret = await check_length(request, gen_params["prompt"], gen_params["max_new_tokens"])
     if error_check_ret is not None:
         return error_check_ret
-    log_prompt(gen_params)
+    await log_prompt(gen_params)
     if request.stream:
         generator = chat_completion_stream_generator(request.model, gen_params, request.n)
         return StreamingResponse(generator, media_type="text/event-stream")
@@ -813,7 +818,7 @@ async def create_completion(request: ModifiedCompletionRequest):
                 logprobs=request.logprobs,
             )
 
-            log_prompt(gen_params)
+            await log_prompt(gen_params)
 
             for i in range(request.n):
                 content = asyncio.create_task(generate_completion(gen_params))
@@ -986,7 +991,7 @@ async def generate_completion_stream_generator(request: ModifiedCompletionReques
                 logprobs=request.logprobs,
             )
             gen_params["type"] = "completion"
-            log_prompt(gen_params)
+            await log_prompt(gen_params)
 
             async for content in generate_completion_stream(gen_params):
                 if content["error_code"] != 0:

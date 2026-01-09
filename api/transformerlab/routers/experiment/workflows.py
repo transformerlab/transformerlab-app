@@ -432,7 +432,7 @@ async def workflow_runs_get_by_id(workflow_run_id: str, experimentId: str):
             job_ids = workflow_run.get("job_ids", [])
 
         for job_id in job_ids:
-            job = job_service.job_get(job_id)
+            job = await job_service.job_get(job_id)
             if not job:
                 continue
 
@@ -490,7 +490,7 @@ async def cancel_workflow_run(workflow_run_id: str, experimentId: str):
     cancelled_jobs = []
 
     for job_id in current_job_ids:
-        job_service.job_stop(job_id, experimentId)  # This sets stop=True in job_data
+        await job_service.job_stop(job_id, experimentId)  # This sets stop=True in job_data
         cancelled_jobs.append(job_id)
 
     # The workflow execution engine will automatically detect the stopped jobs
@@ -558,7 +558,7 @@ async def check_current_jobs_status(workflow_run_id, current_job_ids):
         return None
 
     for job_id in current_job_ids:
-        current_job = job_service.job_get(job_id)
+        current_job = await job_service.job_get(job_id)
         if not current_job:
             await workflow_run_update_status(workflow_run_id, "FAILED")
             return f"Could not find job with ID {job_id}"
@@ -686,12 +686,12 @@ async def find_previous_node_and_job(current_node, workflow_run, workflow_config
             ran_jobs = json.loads(ran_jobs_str)
             if previous_node["id"] in ran_nodes:
                 previous_job_ID = ran_jobs[ran_nodes.index(previous_node["id"])]
-                previous_job = job_service.job_get(previous_job_ID)
+                previous_job = await job_service.job_get(previous_job_ID)
 
     return previous_job
 
 
-def extract_previous_job_outputs(previous_job):
+async def extract_previous_job_outputs(previous_job):
     """Extracts relevant output information from a completed job."""
     outputs = {}
     if previous_job is None or "job_data" not in previous_job or not previous_job["job_data"]:
@@ -704,7 +704,7 @@ def extract_previous_job_outputs(previous_job):
     try:
         from lab.dirs import get_models_dir
 
-        fuse_pretext = get_models_dir() + "/"
+        fuse_pretext = (await get_models_dir()) + "/"
     except Exception:
         fuse_pretext = ""
 
@@ -829,7 +829,7 @@ async def queue_job_for_node(node: dict, workflow_run: dict, workflow_config: di
     previous_job = await find_previous_node_and_job(node, workflow_run, workflow_config)
 
     # Extract outputs from the previous job
-    previous_outputs = extract_previous_job_outputs(previous_job)
+    previous_outputs = await extract_previous_job_outputs(previous_job)
 
     # Prepare inputs and outputs for the new job
     inputs_json, outputs_json = prepare_next_task_io(task_def, previous_outputs)
