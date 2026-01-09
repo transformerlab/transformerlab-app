@@ -1,3 +1,4 @@
+import asyncio
 import os
 import json
 import sqlite3
@@ -16,11 +17,26 @@ from lab.dataset import Dataset as dataset_service
 # useful constants
 # Use shared constant as sole source of truth
 DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
-WORKSPACE_DIR = get_workspace_dir()
+
+# Initialize WORKSPACE_DIR synchronously
+# This is called during plugin initialization, not during API runtime
+try:
+    WORKSPACE_DIR = asyncio.run(get_workspace_dir())
+except RuntimeError:
+    # If there's already an event loop running (shouldn't happen in plugin context)
+    # fall back to using the existing loop
+    try:
+        loop = asyncio.get_event_loop()
+        WORKSPACE_DIR = loop.run_until_complete(get_workspace_dir())
+    except Exception as e:
+        print(f"Plugin Harness Error: Could not get WORKSPACE_DIR: {e}")
+        WORKSPACE_DIR = None
+
 if WORKSPACE_DIR is None:
     print("Plugin Harness Error: WORKSPACE_DIR not available. Quitting.")
     exit(1)
-TEMP_DIR = storage.join(get_workspace_dir(), "temp")
+
+TEMP_DIR = storage.join(WORKSPACE_DIR, "temp")
 
 # Maintain a singleton database connection
 db = None
@@ -66,26 +82,30 @@ def get_dataset_path(dataset_id: str):
     Returns the ID or filesystem path to pass to load_dataset() for a given ID,
     using the dataset service instead of the deprecated DB table.
     """
-    try:
-        ds = dataset_service.get(dataset_id)
-        metadata = ds.get_metadata()
-    except FileNotFoundError:
-        raise Exception(f"No dataset named {dataset_id} installed.")
 
-    location = (metadata or {}).get("location", "huggingface")
-    if location == "local":
-        # Use service path resolution to ensure correctness
+    async def _get():
         try:
-            return ds.get_dir()
-        except Exception:
-            # Fallback to previous behavior if needed
-            return storage.join(get_workspace_dir(), "datasets", dataset_id)
+            ds = await dataset_service.get(dataset_id)
+            metadata = await ds.get_metadata()
+        except FileNotFoundError:
+            raise Exception(f"No dataset named {dataset_id} installed.")
 
-    # Otherwise assume it is a HuggingFace dataset id
-    return dataset_id
+        location = (metadata or {}).get("location", "huggingface")
+        if location == "local":
+            # Use service path resolution to ensure correctness
+            try:
+                return await ds.get_dir()
+            except Exception:
+                # Fallback to previous behavior if needed
+                return storage.join(await get_workspace_dir(), "datasets", dataset_id)
+
+        # Otherwise assume it is a HuggingFace dataset id
+        return dataset_id
+
+    return asyncio.run(_get())
 
 
-def get_db_config_value(key: str, team_id: Optional[str] = None, user_id: Optional[str] = None):
+async def get_db_config_value(key: str, team_id: Optional[str] = None, user_id: Optional[str] = None):
     """
     Returns the value of a config key from the database with priority:
     user-specific -> team-wide -> global config.
@@ -105,7 +125,7 @@ def get_db_config_value(key: str, team_id: Optional[str] = None, user_id: Option
     # Extract team_id from workspace_dir if not provided
     if team_id is None:
         try:
-            workspace_dir = get_workspace_dir()
+            workspace_dir = await get_workspace_dir()
             if workspace_dir and "/orgs/" in workspace_dir:
                 # Extract team_id from path like ~/.transformerlab/orgs/<team_id>/workspace
                 parts = workspace_dir.split("/orgs/")
@@ -180,24 +200,31 @@ def test_wandb_login(project_name: str = "TFL_Training"):
 
 
 def experiment_get(id):
-    try:
-        exp_obj = Experiment.get(id)
-        return exp_obj.get_json_data()
-    except Exception:
-        return None
+    async def _get():
+        try:
+            exp_obj = await Experiment.get(id)
+            return await exp_obj.get_json_data()
+        except Exception:
+            return None
+
+    return asyncio.run(_get())
 
 
 def get_experiment_config(name: str):
     """
     Returns the experiment config from the experiment name.
     """
-    try:
-        exp_obj = Experiment.get(name)
-        json_data = exp_obj.get_json_data()
-        if json_data:
-            return json_data["config"], name
-    except Exception:
-        return None, name
+
+    async def _get():
+        try:
+            exp_obj = await Experiment.get(name)
+            json_data = await exp_obj.get_json_data()
+            if json_data:
+                return json_data["config"], name
+        except Exception:
+            return None, name
+
+    return asyncio.run(_get())
 
 
 def get_python_executable(plugin_dir):
@@ -257,11 +284,14 @@ def generate_model_json(
     model_description["json_data"].update(json_data)
 
     # Output the json to the file
-    if not output_directory:
-        output_directory = storage.join(get_workspace_dir(), "models", model_id)
-    with storage.open(storage.join(output_directory, "index.json"), "w") as outfile:
-        json.dump(model_description, outfile)
+    async def _write():
+        nonlocal output_directory
+        if not output_directory:
+            output_directory = storage.join(await get_workspace_dir(), "models", model_id)
+        async with await storage.open(storage.join(output_directory, "index.json"), "w") as outfile:
+            await outfile.write(json.dumps(model_description))
 
+    asyncio.run(_write())
     return model_description
 
 
@@ -278,40 +308,43 @@ def prepare_dataset_files(
     if chat_template:
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 
-    for split_name in datasets:
-        dataset_split = datasets[split_name]
-        print(f"Processing {split_name} dataset with {len(dataset_split)} examples.")
+    async def _process_datasets():
+        for split_name in datasets:
+            dataset_split = datasets[split_name]
+            print(f"Processing {split_name} dataset with {len(dataset_split)} examples.")
 
-        output_file = storage.join(data_directory, f"{split_name}.jsonl")
-        with storage.open(output_file, "w") as f:
-            for i in range(len(dataset_split)):
-                example = dataset_split[i]
-                try:
-                    rendered_text = format_template(
-                        example=example,
-                        formatting_template=formatting_template,
-                        chat_template=chat_template,
-                        tokenizer=tokenizer,
-                        chat_column=chat_column,
-                    )
-                    rendered_text = rendered_text.replace("\n", "\\n").replace("\r", "\\r")
-                    f.write(json.dumps({"text": rendered_text}) + "\n")
-                except Exception:
-                    print(f"Warning: Failed to process example {i} in '{split_name}'. Skipping.")
-                    continue  # Skip problematic examples
+            output_file = storage.join(data_directory, f"{split_name}.jsonl")
+            async with await storage.open(output_file, "w") as f:
+                for i in range(len(dataset_split)):
+                    example = dataset_split[i]
+                    try:
+                        rendered_text = format_template(
+                            example=example,
+                            formatting_template=formatting_template,
+                            chat_template=chat_template,
+                            tokenizer=tokenizer,
+                            chat_column=chat_column,
+                        )
+                        rendered_text = rendered_text.replace("\n", "\\n").replace("\r", "\\r")
+                        await f.write(json.dumps({"text": rendered_text}) + "\n")
+                    except Exception:
+                        print(f"Warning: Failed to process example {i} in '{split_name}'. Skipping.")
+                        continue  # Skip problematic examples
 
-        # Print one example from the written jsonl file
-        try:
-            with storage.open(output_file, "r") as f:
-                first_line = f.readline()
-                if first_line:
-                    parsed = json.loads(first_line)
-                    print(f"Example from {split_name} split:")
-                    print(parsed.get("text", first_line))
-                else:
-                    print(f"Example from {split_name} split: file is empty.")
-        except Exception as e:
-            print(f"Error reading example from {output_file}: {e}")
+            # Print one example from the written jsonl file
+            try:
+                async with await storage.open(output_file, "r") as f:
+                    first_line = await f.readline()
+                    if first_line:
+                        parsed = json.loads(first_line)
+                        print(f"Example from {split_name} split:")
+                        print(parsed.get("text", first_line))
+                    else:
+                        print(f"Example from {split_name} split: file is empty.")
+            except Exception as e:
+                print(f"Error reading example from {output_file}: {e}")
+
+    asyncio.run(_process_datasets())
 
 
 def format_template(

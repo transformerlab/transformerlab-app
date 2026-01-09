@@ -51,7 +51,7 @@ def _parse_gallery_added_date(value) -> date:
         return date(2024, 2, 1)
 
 
-def get_model_dir(model_id: str):
+async def get_model_dir(model_id: str):
     """
     Helper function gets the directory for a model ID
     model_id may be in Hugging Face format
@@ -59,10 +59,11 @@ def get_model_dir(model_id: str):
     model_id_without_author = model_id.split("/")[-1]
     from lab.dirs import get_models_dir
 
-    return storage.join(get_models_dir(), model_id_without_author)
+    models_dir = await get_models_dir()
+    return storage.join(models_dir, model_id_without_author)
 
 
-def get_current_org_id() -> str | None:
+async def get_current_org_id() -> str | None:
     """
     Resolve the current organization id from workspace path when multitenant is enabled.
     Returns None if multitenancy is disabled or org id cannot be determined.
@@ -70,7 +71,7 @@ def get_current_org_id() -> str | None:
     try:
         from lab.dirs import get_workspace_dir
 
-        ws = get_workspace_dir()
+        ws = await get_workspace_dir()
         if "/orgs/" in ws:
             return ws.split("/orgs/")[-1].split("/")[0]
     except Exception:
@@ -78,12 +79,12 @@ def get_current_org_id() -> str | None:
     return None
 
 
-def get_model_details_from_gallery(model_id: str):
+async def get_model_details_from_gallery(model_id: str):
     """
     Given a model ID this returns the associated data from the model gallery file.
     Returns None if no such value found.
     """
-    gallery = galleries.get_models_gallery()
+    gallery = await galleries.get_models_gallery()
 
     result = None
 
@@ -97,7 +98,7 @@ def get_model_details_from_gallery(model_id: str):
 
 @router.get("/model/gallery")
 async def model_gallery_list_all():
-    gallery = galleries.get_models_gallery()
+    gallery = await galleries.get_models_gallery()
 
     # Get a list of local models to determine what has been downloaded already
     local_models = await model_helper.list_installed_models()
@@ -129,7 +130,7 @@ async def model_gallery_list_all():
 
 @router.get("/model/model_groups_list", summary="Returns the grouped model gallery from model-group-gallery.json.")
 async def model_groups_list_all():
-    gallery = galleries.get_model_groups_gallery()
+    gallery = await galleries.get_model_groups_gallery()
 
     # Get list of locally installed models
     local_models = await model_helper.list_installed_models()
@@ -212,7 +213,7 @@ async def model_gallery(model_id: str):
     # convert "~~~"" in string to "/":
     model_id = model_id.replace("~~~", "/")
 
-    return get_model_details_from_gallery(model_id)
+    return await get_model_details_from_gallery(model_id)
 
 
 # Should this be a POST request?
@@ -225,7 +226,7 @@ async def upload_model_to_huggingface(
     """
     Given a model ID, upload it to Hugging Face.
     """
-    model_directory = get_model_dir(model_id)
+    model_directory = await get_model_dir(model_id)
     api = HfApi()
     try:
         # Using HF API to check user info and use it for the model creation
@@ -297,14 +298,14 @@ async def model_details_from_filesystem(model_id: str):
 
     # TODO: Refactor this code with models/list function
     # see if the model exists locally
-    model_path = get_model_dir(model_id)
-    if storage.isdir(model_path):
+    model_path = await get_model_dir(model_id)
+    if await storage.isdir(model_path):
         # Look for model information using SDK methods
         try:
             from lab.model import Model as ModelService
 
             model_service = ModelService(model_id)
-            filedata = model_service.get_metadata()
+            filedata = await model_service.get_metadata()
 
             # Some models are a single file (possibly of many in a directory, e.g. GGUF)
             # For models that have model_filename set we should link directly to that specific file
@@ -523,7 +524,7 @@ async def download_huggingface_model(
     - message: error message if status is "error"
     """
     if job_id is None:
-        job_id = job_service.job_create(
+        job_id = await job_service.job_create(
             type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id, job_data="{}"
         )
     else:
@@ -559,7 +560,7 @@ async def download_huggingface_model(
             workspace_dir = storage.join(HOME_DIR, "orgs", organization_id, "workspace")
         else:
             # Use default workspace path
-            workspace_dir = get_workspace_dir()
+            workspace_dir = await get_workspace_dir()
 
         args += ["--workspace_dir", workspace_dir]
     except Exception as e:
@@ -590,7 +591,7 @@ async def download_huggingface_model(
         if exitcode == 77:
             # This means we got a GatedRepoError
             # The user needs to agree to terms on HuggingFace to download
-            job = job_service.job_get(job_id)
+            job = await job_service.job_get(job_id)
             error_msg = None
             if job and job.get("job_data"):
                 error_msg = job["job_data"].get("error_msg")
@@ -598,7 +599,7 @@ async def download_huggingface_model(
             return {"status": "unauthorized", "message": error_msg}
 
         elif exitcode != 0:
-            job = job_service.job_get(job_id)
+            job = await job_service.job_get(job_id)
             error_msg = None
             if job and job.get("job_data"):
                 error_msg = job["job_data"].get("error_msg")
@@ -624,12 +625,12 @@ async def download_huggingface_model(
     if hugging_face_filename is None:
         # only save to local filesystem if we are downloading the whole repo
         try:
-            model_service = ModelService.create(hugging_face_id)
-            model_service.set_metadata(model_id=hugging_face_id, name=name, json_data=model_details)
+            model_service = await ModelService.create(hugging_face_id)
+            await model_service.set_metadata(model_id=hugging_face_id, name=name, json_data=model_details)
         except FileExistsError:
             # Model already exists, update it
-            model_service = ModelService.get(hugging_face_id)
-            model_service.set_metadata(model_id=hugging_face_id, name=name, json_data=model_details)
+            model_service = await ModelService.get(hugging_face_id)
+            await model_service.set_metadata(model_id=hugging_face_id, name=name, json_data=model_details)
 
     return {"status": "success", "message": "success", "model": model_details, "job_id": job_id}
 
@@ -708,7 +709,7 @@ on the model's Huggingface page."
     if is_sd:
         model_details["allow_patterns"] = sd_patterns
 
-    org_id = get_current_org_id()
+    org_id = await get_current_org_id()
     print("🔵 CURRENT ORG ID: ", org_id)
     return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id, user_id=None)
 
@@ -754,7 +755,7 @@ async def download_gguf_file_from_repo(model: str, filename: str, job_id: int | 
     except Exception:
         pass  # Use existing size if we can't get specific file size
 
-    org_id = get_current_org_id()
+    org_id = await get_current_org_id()
     return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id, user_id=None)
 
 
@@ -768,7 +769,7 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
 
     # Get model details from the gallery
     # If None then return an error
-    gallery_entry = get_model_details_from_gallery(gallery_id)
+    gallery_entry = await get_model_details_from_gallery(gallery_id)
     if gallery_entry is None:
         return {"status": "error", "message": "Model not found in gallery"}
 
@@ -779,8 +780,8 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
     if "pipeline_tag" not in gallery_entry:
         # First try to get from filesystem
         try:
-            model_service = ModelService.get(huggingface_id)
-            model_data = model_service.get_metadata()
+            model_service = await ModelService.get(huggingface_id)
+            model_data = await model_service.get_metadata()
             if model_data and model_data.get("json_data") and "pipeline_tag" in model_data["json_data"]:
                 gallery_entry["pipeline_tag"] = model_data["json_data"]["pipeline_tag"]
             else:
@@ -804,8 +805,7 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
                 print(f"Error fetching pipeline tag for {huggingface_id}: {type(e).__name__}: {e}")
                 gallery_entry["pipeline_tag"] = "text-generation"
 
-    org_id = get_current_org_id()
-    print("🔵 CURRENT ORG ID: ", org_id)
+    org_id = await get_current_org_id()
 
     return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id, org_id)
 
@@ -836,7 +836,7 @@ async def model_provenance(model_id: str):
 async def model_count_downloaded():
     # Currently used to determine if user has any downloaded models
     # Use filesystem instead of database
-    models = ModelService.list_all()
+    models = await ModelService.list_all()
     count = len(models)
     return {"status": "success", "data": count}
 
@@ -845,8 +845,8 @@ async def model_count_downloaded():
 async def model_local_create(id: str, name: str, json_data={}):
     # Use filesystem instead of database
     try:
-        model_service = ModelService.create(id)
-        model_service.set_metadata(model_id=id, name=name, json_data=json_data)
+        model_service = await ModelService.create(id)
+        await model_service.set_metadata(model_id=id, name=name, json_data=json_data)
         return {"message": "model created"}
     except FileExistsError:
         return {"status": "error", "message": f"Model {id} already exists"}
@@ -859,11 +859,11 @@ async def model_local_create(id: str, name: str, json_data={}):
 async def model_local_delete(model_id: str, delete_from_cache: bool = False):
     # Try to delete from filesystem first using SDK
     try:
-        model_service = ModelService.get(model_id)
+        model_service = await ModelService.get(model_id)
         # Delete the entire directory
-        model_dir = model_service.get_dir()
-        if storage.exists(model_dir):
-            storage.rm_tree(model_dir)
+        model_dir = await model_service.get_dir()
+        if await storage.exists(model_dir):
+            await storage.rm_tree(model_dir)
             print(f"Deleted filesystem model: {model_id}")
     except FileNotFoundError:
         # Model not found in filesystem, continue with other deletion methods
@@ -874,7 +874,7 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
     # Also try the legacy method for backward compatibility
     from lab.dirs import get_models_dir
 
-    root_models_dir = get_models_dir()
+    root_models_dir = await get_models_dir()
 
     # Sanitize and validate model_dir
     unsafe_model_dir = model_id.rsplit("/", 1)[-1]
@@ -883,16 +883,16 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
     candidate_index_file = storage.join(root_models_dir, model_dir, "index.json")
 
     # For fsspec, validate paths are within root_models_dir by checking they start with it
-    if not storage.exists(candidate_index_file):
+    if not await storage.exists(candidate_index_file):
         pass  # File doesn't exist, skip legacy deletion
     elif not candidate_index_file.startswith(root_models_dir):
         print("ERROR: Invalid index file path")
-    elif storage.isfile(candidate_index_file):
+    elif await storage.isfile(candidate_index_file):
         model_path = storage.join(root_models_dir, model_dir)
         if not model_path.startswith(root_models_dir):
             print("ERROR: Invalid directory structure")
         print(f"Deleteing {model_path}")
-        storage.rm_tree(model_path)
+        await storage.rm_tree(model_path)
 
     else:
         if delete_from_cache:
@@ -917,21 +917,21 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
 async def model_gets_pefts(
     model_id: Annotated[str, Body()],
 ):
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     model_id = secure_filename(model_id)
     adaptors_dir = storage.join(workspace_dir, "adaptors", model_id)
 
-    if not storage.exists(adaptors_dir):
+    if not await storage.exists(adaptors_dir):
         return []
 
     # Use storage.ls to list directory contents
     try:
-        all_items = storage.ls(adaptors_dir, detail=False)
+        all_items = await storage.ls(adaptors_dir, detail=False)
         adaptors = []
         for item_path in all_items:
             # Extract just the name from full path (works for both local and remote)
             name = item_path.split("/")[-1].split("\\")[-1]  # Handle both / and \ separators
-            if not name.startswith(".") and storage.isdir(item_path):
+            if not name.startswith(".") and await storage.isdir(item_path):
                 adaptors.append(name)
     except Exception:
         # Fallback to empty list if listing fails
@@ -941,17 +941,17 @@ async def model_gets_pefts(
 
 @router.get("/model/delete_peft")
 async def model_delete_peft(model_id: str, peft: str):
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     secure_model_id = secure_filename(model_id)
     adaptors_dir = storage.join(workspace_dir, "adaptors", secure_model_id)
     # Check if the peft exists
-    if storage.exists(adaptors_dir):
+    if await storage.exists(adaptors_dir):
         peft_path = storage.join(adaptors_dir, peft)
     else:
         # Assume the adapter is stored in the older naming convention format
         peft_path = storage.join(workspace_dir, "adaptors", model_id, peft)
 
-    storage.rm_tree(peft_path)
+    await storage.rm_tree(peft_path)
 
     return {"message": "success"}
 
@@ -1044,7 +1044,7 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None, expe
     print(f"Model Details: {model_details}")
     # Create or update job
     if job_id is None:
-        job_id = job_service.job_create(
+        job_id = await job_service.job_create(
             type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id, job_data="{}"
         )
     else:
@@ -1074,7 +1074,7 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None, expe
     try:
         from lab.dirs import get_workspace_dir
 
-        workspace_dir = get_workspace_dir()
+        workspace_dir = await get_workspace_dir()
         args += ["--workspace_dir", workspace_dir]
     except Exception:
         pass
@@ -1110,8 +1110,8 @@ async def get_local_hfconfig(model_id: str):
 
 async def get_model_from_db(model_id: str):
     # Get model from filesystem
-    model_service = ModelService.get(model_id)
-    return model_service.get_metadata()
+    model_service = await ModelService.get(model_id)
+    return await model_service.get_metadata()
 
 
 @router.get("/model/list_local_uninstalled")
@@ -1197,7 +1197,7 @@ async def model_import_local_path(model_path: str):
     """
 
     # Restrict to workspace directory only
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     # Normalize both workspace and input paths
     abs_workspace_dir = os.path.abspath(os.path.normpath(workspace_dir))
     abs_model_path = os.path.abspath(os.path.normpath(model_path))
@@ -1279,8 +1279,8 @@ async def get_pipeline_tag(model_name: str):
     """
     # First try to get from filesystem
     try:
-        model_service = ModelService.get(model_name)
-        model_data = model_service.get_metadata()
+        model_service = await ModelService.get(model_name)
+        model_data = await model_service.get_metadata()
         if model_data and model_data.get("json_data") and "pipeline_tag" in model_data["json_data"]:
             pipeline_tag = model_data["json_data"]["pipeline_tag"]
             return {"status": "success", "data": pipeline_tag, "model_id": model_name}

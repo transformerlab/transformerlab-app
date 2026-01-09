@@ -61,7 +61,7 @@ async def plugin_gallery():
     # Now get a list of the plugins that are already installed:
     from lab.dirs import get_plugin_dir
 
-    local_workspace_gallery_directory = get_plugin_dir()
+    local_workspace_gallery_directory = await get_plugin_dir()
     installed_plugins = []
     if os.path.exists(local_workspace_gallery_directory):
         for lp in os.listdir(local_workspace_gallery_directory):
@@ -80,6 +80,84 @@ async def plugin_gallery():
     return gallery
 
 
+@router.get("/suggest_loader", summary="Suggest a compatible loader plugin for a model architecture.")
+async def suggest_loader_plugin(model_architecture: str):
+    """
+    Suggest a compatible loader plugin based on model architecture and platform.
+    Returns the best matching loader plugin that:
+    1. Supports the model architecture
+    2. Is compatible with the current platform/hardware
+    3. Is not already installed
+    """
+    # Import here to avoid circular dependency
+    import transformerlab.routers.serverinfo as serverinfo_module
+
+    device_type = serverinfo_module.system_info.get("device_type", "cpu")
+
+    # Map device_type to supported_hardware_architectures
+    # device_type: nvidia -> cuda, apple_silicon -> mlx, amd -> amd, cpu -> cpu
+    hardware_arch_map = {
+        "nvidia": "cuda",
+        "apple_silicon": "mlx",
+        "amd": "amd",
+        "cpu": "cpu",
+    }
+    required_hardware = hardware_arch_map.get(device_type, "cpu")
+
+    # Get all plugins from gallery
+    gallery = await plugin_gallery()
+
+    # Filter for loader plugins that:
+    # 1. Are of type "loader"
+    # 2. Are not installed
+    # 3. Support the model architecture
+    # 4. Support the current hardware architecture
+    compatible_plugins = []
+
+    for plugin in gallery:
+        # Must be a loader plugin
+        if plugin.get("type") != "loader":
+            continue
+
+        # Must not be installed
+        if plugin.get("installed", False):
+            continue
+
+        # Must support the model architecture
+        model_architectures = plugin.get("model_architectures", [])
+        if not isinstance(model_architectures, list):
+            continue
+
+        architecture_match = False
+        for arch in model_architectures:
+            if arch and arch.lower() == model_architecture.lower():
+                architecture_match = True
+                break
+
+        if not architecture_match:
+            continue
+
+        # Must support the current hardware architecture
+        supported_hardware = plugin.get("supported_hardware_architectures", [])
+        if not isinstance(supported_hardware, list):
+            continue
+
+        hardware_match = required_hardware in supported_hardware
+
+        if hardware_match:
+            compatible_plugins.append(plugin)
+
+    # If no compatible plugins found, return None
+    if not compatible_plugins:
+        return None
+
+    # Sort alphabetically by name and return the first one
+    compatible_plugins.sort(key=lambda p: p.get("name", ""))
+
+    # Return the first match
+    return compatible_plugins[0]
+
+
 async def copy_plugin_files_to_workspace(plugin_id: str):
     plugin_id = secure_filename(plugin_id)
 
@@ -87,14 +165,14 @@ async def copy_plugin_files_to_workspace(plugin_id: str):
     # create the directory if it doesn't exist
     from lab.dirs import get_plugin_dir
 
-    new_directory = os.path.join(get_plugin_dir(), plugin_id)
+    new_directory = os.path.join(await get_plugin_dir(), plugin_id)
     if not os.path.exists(plugin_path):
         print(f"Plugin {plugin_path} not found in gallery.")
         return
     if not os.path.exists(new_directory):
         os.makedirs(new_directory)
     # Now copy it to the workspace:
-    copy_tree(plugin_path, lab_dirs.plugin_dir_by_name(plugin_id))
+    copy_tree(plugin_path, await lab_dirs.plugin_dir_by_name(plugin_id))
 
 
 async def delete_plugin_files_from_workspace(plugin_id: str):
@@ -102,7 +180,7 @@ async def delete_plugin_files_from_workspace(plugin_id: str):
 
     from lab.dirs import get_plugin_dir
 
-    plugin_path = os.path.join(get_plugin_dir(), plugin_id)
+    plugin_path = os.path.join(await get_plugin_dir(), plugin_id)
     # return if the directory doesn't exist
     if not os.path.exists(plugin_path):
         print(f"Plugin {plugin_path} not found in workspace.")
@@ -115,7 +193,7 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
     plugin_id = secure_filename(plugin_id)
     from lab.dirs import get_plugin_dir
 
-    new_directory = os.path.join(get_plugin_dir(), plugin_id)
+    new_directory = os.path.join(await get_plugin_dir(), plugin_id)
     venv_path = os.path.join(new_directory, "venv")
     plugin_path = os.path.join(dirs.PLUGIN_PRELOADED_GALLERY, plugin_id)
 
@@ -200,7 +278,7 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
 
 @router.get(path="/delete_plugin")
 async def delete_plugin(plugin_name: str):
-    final_path = lab_dirs.plugin_dir_by_name(plugin_name)
+    final_path = await lab_dirs.plugin_dir_by_name(plugin_name)
     remove_tree(final_path)
     return {"message": f"Plugin {plugin_name} deleted successfully."}
 
@@ -222,12 +300,12 @@ async def install_plugin(plugin_id: str):
 
     await copy_plugin_files_to_workspace(plugin_id)
 
-    new_directory = os.path.join(lab_dirs.get_plugin_dir(), plugin_id)
+    new_directory = os.path.join(await lab_dirs.get_plugin_dir(), plugin_id)
     venv_path = os.path.join(new_directory, "venv")
 
     from lab.dirs import get_global_log_path
 
-    global_log_file_name = get_global_log_path()
+    global_log_file_name = await get_global_log_path()
     async with aiofiles.open(global_log_file_name, "a") as log_file:
         # Create virtual environment using uv
         print("Creating virtual environment for plugin...")
@@ -341,7 +419,7 @@ async def install_plugin(plugin_id: str):
 async def run_installer_script(plugin_id: str):
     from lab.dirs import get_global_log_path
 
-    global_log_file_name = get_global_log_path()
+    global_log_file_name = await get_global_log_path()
     async with aiofiles.open(global_log_file_name, "a") as log_file:
         return await run_installer_for_plugin(plugin_id, log_file)
     return {"status": "error", "message": f"Failed to open log file: {global_log_file_name}"}
@@ -353,7 +431,7 @@ async def list_plugins() -> list[object]:
 
     from lab.dirs import get_plugin_dir
 
-    local_workspace_gallery_directory = get_plugin_dir()
+    local_workspace_gallery_directory = await get_plugin_dir()
 
     # now get the local workspace gallery
     workspace_gallery = []

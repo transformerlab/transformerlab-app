@@ -2,6 +2,7 @@ import os
 import time
 import re
 import subprocess
+import asyncio
 
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import get_python_executable
@@ -133,7 +134,7 @@ def train_model():
     adam_beta1 = float(tlab_trainer.params.adam_beta1)
     adam_beta2 = float(tlab_trainer.params.adam_beta2)
     adam_epsilon = float(tlab_trainer.params.adam_epsilon)
-    workspace_dir = get_workspace_dir()
+    workspace_dir = asyncio.run(get_workspace_dir())
     # Use storage for workspace paths if relative; allow absolute passthrough
     output_dir = (
         tlab_trainer.params.output_dir

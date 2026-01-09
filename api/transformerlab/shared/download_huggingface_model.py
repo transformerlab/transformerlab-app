@@ -1,3 +1,4 @@
+import asyncio
 import json
 import sqlite3
 import time
@@ -200,12 +201,12 @@ def get_downloaded_files_from_cache(repo_id, file_metadata):
 def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files_downloaded=None, files_total=None):
     """Update progress in the database"""
     try:
-        job = Job.get(job_id)
+        job = asyncio.run(Job.get(job_id))
 
         downloaded_mb = downloaded_bytes / 1024 / 1024
         total_mb = total_bytes / 1024 / 1024
         progress_pct = (downloaded_bytes / total_bytes * 100) if total_bytes > 0 else 0
-        job.update_progress(progress_pct)
+        asyncio.run(job.update_progress(progress_pct))
 
         # Set more data in job_data
         job_data = {
@@ -224,7 +225,7 @@ def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files
             job_data["files_downloaded"] = files_downloaded
             job_data["files_total"] = files_total
 
-        job.set_job_data(job_data)
+        asyncio.run(job.set_job_data(job_data))
 
         if files_downloaded is not None and files_total is not None:
             print(
@@ -352,7 +353,7 @@ if mode == "adaptor":
     if not os.path.commonpath([target_dir, WORKSPACE_DIR]) == os.path.abspath(WORKSPACE_DIR):
         raise ValueError("Invalid path after sanitization. Potential security risk.")
     print(f"DOWNLOADING TO: {target_dir}")
-    storage.makedirs(target_dir, exist_ok=True)
+    asyncio.run(storage.makedirs(target_dir, exist_ok=True))
 
     print(f"Downloading adaptor {peft} with job_id {job_id}")
 
@@ -397,12 +398,12 @@ def cancel_check(job_id, org_id):
         if org_id:
             set_organization_id(org_id)
         try:
-            job = Job.get(job_id)
+            job = asyncio.run(Job.get(job_id))
 
-            if job.get_status() == "cancelled":
+            if asyncio.run(job.get_status()) == "cancelled":
                 return True
 
-            job_data = job.get_job_data()
+            job_data = asyncio.run(job.get_job_data())
             if job_data.get("stop") is True:
                 return True
 
@@ -502,9 +503,9 @@ def download_blocking(model_is_downloaded, org_id):
         print(job_data)
 
         # Initialize job data using SDK (context is now set in this thread)
-        job = Job.get(job_id)
-        job.update_progress(0)
-        job.set_job_data(job_data)
+        job = asyncio.run(Job.get(job_id))
+        asyncio.run(job.update_progress(0))
+        asyncio.run(job.set_job_data(job_data))
 
         # Check if model is gated before starting download
         if mode == "adaptor":
@@ -529,9 +530,9 @@ def download_blocking(model_is_downloaded, org_id):
                 file_metadata, actual_total_size = get_repo_file_metadata(peft)
 
                 # Update job_data with files_total
-                job_data = job.get_job_data() or {}
+                job_data = asyncio.run(job.get_job_data()) or {}
                 job_data["files_total"] = len(file_metadata)
-                job.set_job_data(job_data)
+                asyncio.run(job.set_job_data(job_data))
 
                 # Start progress monitoring thread
                 # Pass org_id so thread can set context
@@ -571,7 +572,7 @@ def download_blocking(model_is_downloaded, org_id):
                 print("downloading model to workspace/models using filename mode")
                 # Use the model ID (repo name) as the directory name, not the filename
                 location = storage.join(WORKSPACE_DIR, "models", secure_filename(model))
-                storage.makedirs(location, exist_ok=True)
+                asyncio.run(storage.makedirs(location, exist_ok=True))
                 # Get metadata for single file
                 try:
                     fs = HfFileSystem()
@@ -583,9 +584,9 @@ def download_blocking(model_is_downloaded, org_id):
                     file_size = total_size_of_model_in_mb * 1024 * 1024
 
                 # Update job_data with files_total (1 file for single file downloads)
-                job_data = job.get_job_data() or {}
+                job_data = asyncio.run(job.get_job_data()) or {}
                 job_data["files_total"] = 1
-                job.set_job_data(job_data)
+                asyncio.run(job.set_job_data(job_data))
 
                 # Start progress monitoring thread
                 # Pass org_id so thread can set context
@@ -605,28 +606,30 @@ def download_blocking(model_is_downloaded, org_id):
                 try:
                     from lab.model import Model as ModelService
 
-                    model_service = ModelService.create(model)
-                    model_service.set_metadata(
-                        model_id=model,
-                        name=model,
-                        json_data={
-                            "uniqueId": f"gguf/{model}",
-                            "name": model,
-                            "description": "A GGUF model downloaded from the HuggingFace Hub",
-                            "source": "huggingface",
-                            "source_id_or_path": model,
-                            "huggingface_repo": model,
-                            "model_filename": model_filename
-                            if model_filename
-                            else "",  # Use specific filename for GGUF
-                            "architecture": "GGUF",
-                            "private": False,
-                            "gated": False,
-                            "model_type": "",
-                            "library_name": "",
-                            "formats": ["GGUF"],
-                            "logo": "https://user-images.githubusercontent.com/1991296/230134379-7181e485-c521-4d23-a0d6-f7b3b61ba524.png",
-                        },
+                    model_service = asyncio.run(ModelService.create(model))
+                    asyncio.run(
+                        model_service.set_metadata(
+                            model_id=model,
+                            name=model,
+                            json_data={
+                                "uniqueId": f"gguf/{model}",
+                                "name": model,
+                                "description": "A GGUF model downloaded from the HuggingFace Hub",
+                                "source": "huggingface",
+                                "source_id_or_path": model,
+                                "huggingface_repo": model,
+                                "model_filename": model_filename
+                                if model_filename
+                                else "",  # Use specific filename for GGUF
+                                "architecture": "GGUF",
+                                "private": False,
+                                "gated": False,
+                                "model_type": "",
+                                "library_name": "",
+                                "formats": ["GGUF"],
+                                "logo": "https://user-images.githubusercontent.com/1991296/230134379-7181e485-c521-4d23-a0d6-f7b3b61ba524.png",
+                            },
+                        )
                     )
                     print(f"Created GGUF model metadata for {model}")
                 except Exception as e:
@@ -637,9 +640,9 @@ def download_blocking(model_is_downloaded, org_id):
                     file_metadata, actual_total_size = get_repo_file_metadata(model, allow_patterns)
 
                     # Update job_data with files_total
-                    job_data = job.get_job_data() or {}
+                    job_data = asyncio.run(job.get_job_data()) or {}
                     job_data["files_total"] = len(file_metadata)
-                    job.set_job_data(job_data)
+                    asyncio.run(job.set_job_data(job_data))
 
                     # Start progress monitoring thread
                     # Pass org_id so thread can set context
@@ -679,25 +682,27 @@ def download_blocking(model_is_downloaded, org_id):
                 # Use SDK to create model metadata
                 from lab.model import Model as ModelService
 
-                model_service = ModelService.create(model)
-                model_service.set_metadata(
-                    model_id=model,
-                    name=model,
-                    json_data={
-                        "uniqueId": model,
-                        "name": model,
-                        "description": f"Model downloaded from HuggingFace Hub: {model}",
-                        "source": "huggingface",
-                        "source_id_or_path": model,
-                        "huggingface_repo": model,
-                        "model_filename": "",  # Empty for regular HuggingFace models
-                        "architecture": "Unknown",  # Will be updated by the system later
-                        "private": False,
-                        "gated": False,
-                        "model_type": "",
-                        "library_name": "",
-                        "formats": [],
-                    },
+                model_service = asyncio.run(ModelService.create(model))
+                asyncio.run(
+                    model_service.set_metadata(
+                        model_id=model,
+                        name=model,
+                        json_data={
+                            "uniqueId": model,
+                            "name": model,
+                            "description": f"Model downloaded from HuggingFace Hub: {model}",
+                            "source": "huggingface",
+                            "source_id_or_path": model,
+                            "huggingface_repo": model,
+                            "model_filename": "",  # Empty for regular HuggingFace models
+                            "architecture": "Unknown",  # Will be updated by the system later
+                            "private": False,
+                            "gated": False,
+                            "model_type": "",
+                            "library_name": "",
+                            "formats": [],
+                        },
+                    )
                 )
                 print(f"Created model metadata for {model}")
             except Exception as e:
@@ -727,7 +732,7 @@ def main():
         try:
             from transformerlab.plugin_sdk.transformerlab.plugin import get_db_config_value
 
-            hf_token = get_db_config_value("HuggingfaceUserAccessToken", team_id=org_id, user_id=user_id)
+            hf_token = asyncio.run(get_db_config_value("HuggingfaceUserAccessToken", team_id=org_id, user_id=user_id))
             if hf_token:
                 os.environ["HF_TOKEN"] = hf_token
                 print(f"Set HF_TOKEN from {'user' if user_id else 'team'} config")
@@ -740,7 +745,7 @@ def main():
 
         from lab.dirs import get_workspace_dir
 
-        workspace_dir = get_workspace_dir()
+        workspace_dir = asyncio.run(get_workspace_dir())
         print(f"Workspace dir: {workspace_dir}")
 
         # Simple approach: just run the download with built-in progress tracking
@@ -762,9 +767,9 @@ def main():
             # for the same reason! Better catch and at least print a message.
             try:
                 # Context is already set in main(), so we can get job here
-                job = Job.get(job_id)
-                job.update_status(status)
-                job.update_job_data_field("error_msg", str(error_msg))
+                job = asyncio.run(Job.get(job_id))
+                asyncio.run(job.update_status(status))
+                asyncio.run(job.update_job_data_field("error_msg", str(error_msg)))
             except sqlite3.OperationalError:
                 # NOTE: If we fail to write to the database the app won't get
                 # the right error message. So set a different

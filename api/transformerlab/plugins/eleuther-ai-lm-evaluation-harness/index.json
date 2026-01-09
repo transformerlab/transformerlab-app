@@ -4,7 +4,7 @@
   "description": "A harness for evaluating language models.",
   "plugin-format": "python",
   "type": "evaluator",
-  "version": "0.2.17",
+  "version": "0.2.18",
   "git": "https://github.com/EleutherAI/lm-evaluation-harness",
   "url": "https://github.com/EleutherAI/lm-evaluation-harness",
   "supported_hardware_architectures": ["cuda", "amd"],

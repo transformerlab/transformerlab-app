@@ -37,15 +37,15 @@ async def query(
     """Query the RAG engine"""
 
     exp_obj = Experiment(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    experiment_dir = await exp_obj.get_dir()
     documents_dir = storage.join(experiment_dir, "documents")
     documents_dir = storage.join(documents_dir, rag_folder)
     # Basic traversal protection for posix paths
     if not documents_dir.startswith(experiment_dir.rstrip("/") + "/") and documents_dir != experiment_dir:
         return "Error: Invalid RAG folder path"
-    if not storage.exists(documents_dir):
+    if not await storage.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory"
-    experiment_details = experiment_get(id=experimentId)
+    experiment_details = await experiment_get(id=experimentId)
     experiment_config = (
         experiment_details["config"]
         if isinstance(experiment_details["config"], dict)
@@ -80,7 +80,8 @@ async def query(
     # Check if it exists in workspace/plugins:
     from lab.dirs import get_plugin_dir
 
-    plugin_path = os.path.join(get_plugin_dir(), plugin)
+    plugin_dir = await get_plugin_dir()
+    plugin_path = os.path.join(plugin_dir, plugin)
     if not os.path.exists(plugin_path):
         return f"Plugin {plugin} does not exist on the filesystem -- you must install or reinstall this plugin."
 
@@ -160,13 +161,13 @@ async def reindex(
     """Reindex the RAG engine"""
 
     exp_obj = Experiment(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    experiment_dir = await exp_obj.get_dir()
     documents_dir = storage.join(experiment_dir, "documents")
     documents_dir = storage.join(documents_dir, secure_filename(rag_folder))
-    if not storage.exists(documents_dir):
+    if not await storage.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory."
 
-    experiment_details = experiment_get(id=experimentId)
+    experiment_details = await experiment_get(id=experimentId)
     experiment_config = (
         experiment_details["config"]
         if isinstance(experiment_details["config"], dict)
@@ -192,7 +193,8 @@ async def reindex(
     # Check if it exists in workspace/plugins:
     from lab.dirs import get_plugin_dir
 
-    plugin_path = os.path.join(get_plugin_dir(), plugin)
+    plugin_dir = await get_plugin_dir()
+    plugin_path = os.path.join(plugin_dir, plugin)
     if not os.path.exists(plugin_path):
         return f"Plugin {plugin} does not exist on the filesystem -- you must install or reinstall this plugin."
 
@@ -264,7 +266,7 @@ async def embed_text(request: EmbedRequest):
     """Embed text using the embedding model using sentence transformers"""
     from sentence_transformers import SentenceTransformer
 
-    experiment_details = experiment_get(id=request.experiment_id)
+    experiment_details = await experiment_get(id=request.experiment_id)
     experiment_config = (
         experiment_details["config"]
         if isinstance(experiment_details["config"], dict)

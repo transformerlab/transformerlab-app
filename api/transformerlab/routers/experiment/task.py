@@ -81,13 +81,13 @@ def process_env_parameters_to_env_vars(config: dict) -> dict:
 
 @router.get("/list", summary="Returns all the tasks")
 async def task_get_all():
-    tasks = task_service.task_get_all()
+    tasks = await task_service.task_get_all()
     return tasks
 
 
 @router.get("/{task_id}/get", summary="Gets all the data for a single task")
 async def task_get_by_id(task_id: str):
-    task = task_service.task_get_by_id(task_id)
+    task = await task_service.task_get_by_id(task_id)
     if task is None:
         return {"message": "NOT FOUND"}
     return task
@@ -95,7 +95,7 @@ async def task_get_by_id(task_id: str):
 
 @router.get("/list_by_type", summary="Returns all the tasks of a certain type, e.g TRAIN")
 async def task_get_by_type(type: str):
-    tasks = task_service.task_get_by_type(type)
+    tasks = await task_service.task_get_by_type(type)
     return tasks
 
 
@@ -104,7 +104,7 @@ async def task_get_by_type(type: str):
     summary="Returns all the tasks of a certain type in a certain experiment, e.g TRAIN",
 )
 async def task_get_by_type_in_experiment(experimentId: str, type: str):
-    tasks = task_service.task_get_by_type_in_experiment(type, experimentId)
+    tasks = await task_service.task_get_by_type_in_experiment(type, experimentId)
     return tasks
 
 
@@ -117,7 +117,7 @@ async def task_get_by_subtype_in_experiment(
     subtype: str,
     type: Optional[str] = Query(None, description="Optional task type filter (e.g., REMOTE)"),
 ):
-    tasks = task_service.task_get_by_subtype_in_experiment(experimentId, subtype, type)
+    tasks = await task_service.task_get_by_subtype_in_experiment(experimentId, subtype, type)
     return tasks
 
 
@@ -126,7 +126,7 @@ async def update_task(task_id: str, new_task: dict = Body()):
     # Perform secure_filename before updating the task
     if "name" in new_task:
         new_task["name"] = secure_filename(new_task["name"])
-    success = task_service.update_task(task_id, new_task)
+    success = await task_service.update_task(task_id, new_task)
     if success:
         return {"message": "OK"}
     else:
@@ -135,7 +135,7 @@ async def update_task(task_id: str, new_task: dict = Body()):
 
 @router.get("/{task_id}/delete", summary="Deletes a task")
 async def delete_task(task_id: str):
-    success = task_service.delete_task(task_id)
+    success = await task_service.delete_task(task_id)
     if success:
         return {"message": "OK"}
     else:
@@ -294,16 +294,16 @@ async def _store_zip_file(zip_file: UploadFile, task_id: str) -> str:
     Store a zip file locally for a task.
     Returns the stored path that should be mapped to ~/src in file_mounts.
     """
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     if not workspace_dir:
         raise HTTPException(status_code=500, detail="Workspace directory is not configured")
 
     # Create uploads/task/{task_id} directory
     uploads_root = storage.join(workspace_dir, "uploads", "task")
-    storage.makedirs(uploads_root, exist_ok=True)
+    await storage.makedirs(uploads_root, exist_ok=True)
 
     task_dir = storage.join(uploads_root, str(task_id))
-    storage.makedirs(task_dir, exist_ok=True)
+    await storage.makedirs(task_dir, exist_ok=True)
 
     # Generate a safe filename for the zip file
     import uuid
@@ -330,8 +330,8 @@ async def _store_zip_file(zip_file: UploadFile, task_id: str) -> str:
             zip_ref.testzip()
 
         # Store the zip file
-        with storage.open(stored_path, "wb") as f:
-            f.write(zip_content)
+        async with await storage.open(stored_path, "wb") as f:
+            await f.write(zip_content)
 
         # Clean up temp file
         os.remove(temp_zip_path)
@@ -441,14 +441,14 @@ async def add_task(
                     new_task["name"] = secure_filename(new_task["name"])
 
                 # All fields are stored directly in the JSON (not nested in inputs/outputs/config)
-                task_id = task_service.add_task(new_task)
+                task_id = await task_service.add_task(new_task)
 
                 # Handle zip file if provided (for JSON requests, zip_file would come from multipart)
                 if zip_file and zip_file.filename:
                     try:
                         zip_path = await _store_zip_file(zip_file, task_id)
                         # Update task with file_mounts - map ~/src to the stored zip file
-                        task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
+                        await task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
                     except Exception as e:
                         # Log error but don't fail task creation
                         print(f"Warning: Failed to process zip file: {e}")
@@ -470,14 +470,14 @@ async def add_task(
                 # Handle provider matching
                 await _resolve_provider(task_data, user_and_team, session)
 
-                task_id = task_service.add_task(task_data)
+                task_id = await task_service.add_task(task_data)
 
                 # Handle zip file if provided
                 if zip_file and zip_file.filename:
                     try:
                         zip_path = await _store_zip_file(zip_file, task_id)
                         # Update task with file_mounts - map ~/src to the stored zip file
-                        task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
+                        await task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
                     except Exception as e:
                         # Log error but don't fail task creation
                         print(f"Warning: Failed to process zip file: {e}")
@@ -503,14 +503,14 @@ async def add_task(
             if "name" in task_data:
                 task_data["name"] = secure_filename(task_data["name"])
 
-            task_id = task_service.add_task(task_data)
+            task_id = await task_service.add_task(task_data)
 
             # Handle zip file if provided
             if zip_file and zip_file.filename:
                 try:
                     zip_path = await _store_zip_file(zip_file, task_id)
                     # Update task with file_mounts - map ~/src to the stored zip file
-                    task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
+                    await task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
                 except Exception as e:
                     # Log error but don't fail task creation
                     print(f"Warning: Failed to process zip file: {e}")
@@ -525,21 +525,21 @@ async def add_task(
 
 @router.get("/delete_all", summary="Wipe all tasks")
 async def task_delete_all():
-    task_service.task_delete_all()
+    await task_service.task_delete_all()
     return {"message": "OK"}
 
 
 @router.get("/gallery", summary="List all tasks from the tasks gallery")
 async def task_gallery():
     """Get the tasks gallery from the JSON file (same as tasks gallery)"""
-    gallery = galleries.get_tasks_gallery()
+    gallery = await galleries.get_tasks_gallery()
     return {"status": "success", "data": gallery}
 
 
 @router.get("/gallery/interactive", summary="List all interactive task templates")
 async def interactive_gallery():
     """Get the interactive tasks gallery (vscode, jupyter, vllm, ssh templates)"""
-    gallery = galleries.get_interactive_gallery()
+    gallery = await galleries.get_interactive_gallery()
     return {"status": "success", "data": gallery}
 
 
@@ -554,7 +554,7 @@ async def import_task_from_gallery(
     Creates a new task using the gallery entry's config and GitHub info.
     Uses the team's GitHub PAT if available.
     """
-    gallery = galleries.get_tasks_gallery()
+    gallery = await galleries.get_tasks_gallery()
 
     # Find the gallery entry by index or ID
     try:
@@ -633,7 +633,7 @@ async def import_task_from_gallery(
     # Perform secure_filename before adding the task
     new_task["name"] = secure_filename(new_task["name"])
 
-    task_service.add_task(new_task)
+    await task_service.add_task(new_task)
 
     return {"status": "success", "message": f"Task '{task_name}' imported successfully"}
 
@@ -641,7 +641,7 @@ async def import_task_from_gallery(
 @router.get("/gallery/team", summary="List team-specific tasks from the team gallery")
 async def team_task_gallery():
     """Get the team-specific tasks gallery stored in workspace_dir (same as tasks gallery)"""
-    gallery = galleries.get_team_tasks_gallery()
+    gallery = await galleries.get_team_tasks_gallery()
     return {"status": "success", "data": gallery}
 
 
@@ -654,7 +654,7 @@ async def import_task_from_team_gallery(
     """
     Import a task from the team-specific tasks gallery (workspace_dir/team_specific_tasks.json).
     """
-    gallery = galleries.get_team_tasks_gallery()
+    gallery = await galleries.get_team_tasks_gallery()
 
     # Find the gallery entry by index or ID
     try:
@@ -730,7 +730,7 @@ async def import_task_from_team_gallery(
     # Perform secure_filename before adding the task
     new_task["name"] = secure_filename(new_task["name"])
 
-    task_service.add_task(new_task)
+    await task_service.add_task(new_task)
 
     return {"status": "success", "message": f"Task '{task_name}' imported successfully"}
 
@@ -744,7 +744,7 @@ async def export_task_to_team_gallery(
     Export a task into the team-specific gallery stored in workspace_dir.
     Tasks store all fields directly (not nested in config).
     """
-    task = task_service.task_get_by_id(request.task_id)
+    task = await task_service.task_get_by_id(request.task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -788,7 +788,7 @@ async def export_task_to_team_gallery(
         "github_repo_dir": task.get("github_directory"),
     }
 
-    galleries.add_team_task_to_gallery(gallery_entry)
+    await galleries.add_team_task_to_gallery(gallery_entry)
 
     return {
         "status": "success",
@@ -805,7 +805,7 @@ async def delete_team_task_from_gallery(
     """
     Delete a task from the team-specific gallery stored in workspace_dir.
     """
-    success = galleries.delete_team_task_from_gallery(request.task_id)
+    success = await galleries.delete_team_task_from_gallery(request.task_id)
     if success:
         return {
             "status": "success",
@@ -843,10 +843,10 @@ async def fetch_task_json_endpoint(
     blob_pattern = r"^https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)/task\.json$"
     blob_match = re.match(blob_pattern, url)
     if blob_match:
-        owner, repo, branch, path = blob_match.groups()
+        owner, repo, branch_or_commit, path = blob_match.groups()
         repo_url = f"https://github.com/{owner}/{repo}.git"
         directory = path.rstrip("/")
-        task_json = await fetch_task_json_from_github(repo_url, directory)
+        task_json = await fetch_task_json_from_github(repo_url, directory, ref=branch_or_commit)
         return {
             "status": "success",
             "data": task_json,
@@ -859,10 +859,10 @@ async def fetch_task_json_endpoint(
     raw_pattern = r"^https://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.+)/task\.json$"
     raw_match = re.match(raw_pattern, url)
     if raw_match:
-        owner, repo, branch, path = raw_match.groups()
+        owner, repo, branch_or_commit, path = raw_match.groups()
         repo_url = f"https://github.com/{owner}/{repo}.git"
         directory = path.rstrip("/")
-        task_json = await fetch_task_json_from_github(repo_url, directory)
+        task_json = await fetch_task_json_from_github(repo_url, directory, ref=branch_or_commit)
         return {
             "status": "success",
             "data": task_json,

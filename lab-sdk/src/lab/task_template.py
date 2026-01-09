@@ -10,10 +10,11 @@ logger = logging.getLogger(__name__)
 
 
 class TaskTemplate(BaseLabResource):
-    def get_dir(self):
+    async def get_dir(self):
         """Abstract method on BaseLabResource"""
         task_id_safe = secure_filename(str(self.id))
-        return storage.join(get_task_dir(), task_id_safe)
+        task_dir = await get_task_dir()
+        return storage.join(task_dir, task_id_safe)
 
     def _default_json(self):
         # Default metadata - all fields stored directly (not nested in inputs/outputs/config)
@@ -27,9 +28,9 @@ class TaskTemplate(BaseLabResource):
             "updated_at": datetime.utcnow().isoformat(),
         }
 
-    def set_metadata(self, **kwargs):
+    async def set_metadata(self, **kwargs):
         """Set task metadata - all fields stored directly in JSON"""
-        data = self.get_json_data()
+        data = await self.get_json_data()
 
         # Update any provided fields
         for key, value in kwargs.items():
@@ -38,29 +39,29 @@ class TaskTemplate(BaseLabResource):
 
         # Always update the updated_at timestamp
         data["updated_at"] = datetime.utcnow().isoformat()
-        self._set_json_data(data)
+        await self._set_json_data(data)
 
-    def get_metadata(self):
+    async def get_metadata(self):
         """Get task metadata"""
-        data = self.get_json_data()
+        data = await self.get_json_data()
 
         # Fix experiment_id if it's a digit - convert to experiment name
         if data.get("experiment_id") and str(data["experiment_id"]).isdigit():
-            experiment_name = self._get_experiment_name_by_id(data["experiment_id"])
+            experiment_name = await self._get_experiment_name_by_id(data["experiment_id"])
             if experiment_name:
                 data["experiment_id"] = experiment_name
                 # Save the corrected data back to the file
-                self._set_json_data(data)
+                await self._set_json_data(data)
 
         return data
 
-    def _get_experiment_name_by_id(self, experiment_id):
+    async def _get_experiment_name_by_id(self, experiment_id):
         """Get experiment name by ID, return None if not found"""
         try:
             from .experiment import Experiment
 
             # Get all experiments and search for one with matching db_experiment_id
-            all_experiments = Experiment.get_all()
+            all_experiments = await Experiment.get_all()
             for exp_data in all_experiments:
                 if exp_data.get("db_experiment_id") == int(experiment_id):
                     return exp_data.get("name", experiment_id)
@@ -71,58 +72,73 @@ class TaskTemplate(BaseLabResource):
             return experiment_id
 
     @staticmethod
-    def list_all():
+    async def list_all():
         """List all tasks in the filesystem"""
         results = []
-        task_dir = get_task_dir()
-        if not storage.isdir(task_dir):
+        task_dir = await get_task_dir()
+        if not await storage.isdir(task_dir):
             logger.debug(f"Task directory does not exist: {task_dir}")
             return results
         try:
-            entries = storage.ls(task_dir, detail=False)
+            entries = await storage.ls(task_dir, detail=False)
         except Exception as e:
             logger.error(f"Exception listing task directory: {e}")
             entries = []
         for full in entries:
-            if not storage.isdir(full):
+            if not await storage.isdir(full):
                 continue
             # Attempt to read index.json (or latest snapshot)
             try:
                 entry = full.rstrip("/").split("/")[-1]
                 task = TaskTemplate(entry)
 
-                results.append(task.get_metadata())
+                results.append(await task.get_metadata())
             except Exception:
                 logger.error(f"Exception getting metadata for task: {entry}")
                 continue
+
         # Sort by created_at descending to match database behavior
-        results.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        def sort_key(x):
+            created_at = x.get("created_at")
+            if created_at is None:
+                # Put items without created_at at the end (will sort last when reverse=True)
+                return ""
+            # Handle datetime objects
+            if isinstance(created_at, datetime):
+                return created_at.timestamp()
+            # Handle numeric timestamps
+            if isinstance(created_at, (int, float)):
+                return created_at
+            # Handle string dates (ISO format strings sort correctly)
+            return str(created_at)
+
+        results.sort(key=sort_key, reverse=True)
         return results
 
     @staticmethod
-    def list_by_type(task_type: str):
+    async def list_by_type(task_type: str):
         """List all tasks of a specific type"""
-        all_tasks = TaskTemplate.list_all()
+        all_tasks = await TaskTemplate.list_all()
         return [task for task in all_tasks if task.get("type") == task_type]
 
     @staticmethod
-    def list_by_experiment(experiment_id: int):
+    async def list_by_experiment(experiment_id: int):
         """List all tasks for a specific experiment"""
-        all_tasks = TaskTemplate.list_all()
+        all_tasks = await TaskTemplate.list_all()
         return [task for task in all_tasks if task.get("experiment_id") == experiment_id]
 
     @staticmethod
-    def list_by_type_in_experiment(task_type: str, experiment_id: int):
+    async def list_by_type_in_experiment(task_type: str, experiment_id: int):
         """List all tasks of a specific type in a specific experiment"""
-        all_tasks = TaskTemplate.list_all()
+        all_tasks = await TaskTemplate.list_all()
         return [
             task for task in all_tasks if task.get("type") == task_type and task.get("experiment_id") == experiment_id
         ]
 
     @staticmethod
-    def list_by_subtype_in_experiment(experiment_id: int, subtype: str, task_type: str = None):
+    async def list_by_subtype_in_experiment(experiment_id: int, subtype: str, task_type: str = None):
         """List all tasks for a specific experiment filtered by subtype and optionally by type"""
-        all_tasks = TaskTemplate.list_all()
+        all_tasks = await TaskTemplate.list_all()
         return [
             task
             for task in all_tasks
@@ -132,24 +148,24 @@ class TaskTemplate(BaseLabResource):
         ]
 
     @staticmethod
-    def get_by_id(task_id: str):
+    async def get_by_id(task_id: str):
         """Get a specific task by ID"""
         try:
-            task = TaskTemplate.get(task_id)
-            return task.get_metadata()
+            task = await TaskTemplate.get(task_id)
+            return await task.get_metadata()
         except FileNotFoundError:
             return None
 
     @staticmethod
-    def delete_all():
+    async def delete_all():
         """Delete all tasks"""
-        task_dir = get_task_dir()
-        if not storage.isdir(task_dir):
+        task_dir = await get_task_dir()
+        if not await storage.isdir(task_dir):
             return
         try:
-            entries = storage.ls(task_dir, detail=False)
+            entries = await storage.ls(task_dir, detail=False)
         except Exception:
             entries = []
         for full in entries:
-            if storage.isdir(full):
-                storage.rm_tree(full)
+            if await storage.isdir(full):
+                await storage.rm_tree(full)
