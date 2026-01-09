@@ -1202,6 +1202,11 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
         ".ogg": "video/ogg",
         ".avi": "video/x-msvideo",
         ".mov": "video/quicktime",
+        # Audio
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+        ".m4a": "audio/mp4",
+        ".flac": "audio/flac",
         # JSON
         ".json": "application/json",
         # Text

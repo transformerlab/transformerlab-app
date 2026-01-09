@@ -83,6 +83,7 @@ export default function ViewArtifactsModal({
       'json',
       'txt',
       'log',
+      // Images
       'png',
       'jpg',
       'jpeg',
@@ -90,9 +91,16 @@ export default function ViewArtifactsModal({
       'bmp',
       'webp',
       'svg',
+      // Video
       'mp4',
       'webm',
+      'mov',
+      // Audio
+      'mp3',
+      'wav',
       'ogg',
+      'm4a',
+      'flac',
     ];
     return previewableExtensions.includes(ext);
   };
@@ -149,7 +157,7 @@ export default function ViewArtifactsModal({
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         setPreviewData({ type: 'image', url: blobUrl });
-      } else if (['mp4', 'webm', 'ogg'].includes(ext)) {
+      } else if (['mp4', 'webm', 'mov'].includes(ext)) {
         // Video preview - fetch as blob and create object URL
         const videoUrl = getAPIFullPath('jobs', ['getArtifact'], {
           experimentId: experimentInfo?.id,
@@ -163,6 +171,20 @@ export default function ViewArtifactsModal({
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         setPreviewData({ type: 'video', url: blobUrl });
+      } else if (['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(ext)) {
+        // Audio preview - fetch as blob and create object URL
+        const audioUrl = getAPIFullPath('jobs', ['getArtifact'], {
+          experimentId: experimentInfo?.id,
+          jobId: jobId.toString(),
+          filename: artifact.filename,
+        });
+        const response = await fetchWithAuth(`${audioUrl}?task=view`);
+        if (!response.ok) {
+          throw new Error('Failed to load audio');
+        }
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        setPreviewData({ type: 'audio', url: blobUrl });
       }
     } catch (error) {
       setPreviewError('Failed to load artifact preview');
@@ -365,6 +387,29 @@ export default function ViewArtifactsModal({
               <source src={previewData.url} />
               Your browser does not support the video tag.
             </video>
+          </Box>
+        );
+      case 'audio':
+        return (
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              maxHeight: 'calc(80vh - 200px)',
+              overflow: 'auto',
+              p: 2,
+            }}
+          >
+            <audio
+              controls
+              style={{
+                width: '100%',
+              }}
+            >
+              <source src={previewData.url} />
+              Your browser does not support the audio element.
+            </audio>
           </Box>
         );
       default:
