@@ -356,7 +356,7 @@ async def get_tunnel_info_for_job(
     and uses the appropriate parser. Supports: 'vscode', 'jupyter', 'vllm', 'ssh'
     """
 
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if not job or str(job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -1147,7 +1147,7 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
         filename: The artifact filename
         task: Either "view" or "download" (default: "view")
     """
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
 
