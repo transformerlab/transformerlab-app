@@ -1560,16 +1560,15 @@ export default function EditTaskModal({
 
                 {githubRepoUrl && (
                   <FormControl sx={{ mt: 2 }}>
-                    <FormLabel>
-                      GitHub Branch (Optional)
-                    </FormLabel>
+                    <FormLabel>GitHub Branch (Optional)</FormLabel>
                     <Input
                       value={githubBranch}
                       onChange={(e) => setGithubBranch(e.target.value)}
                       placeholder="main"
                     />
                     <FormHelperText>
-                      Optional branch, tag, or commit SHA. Defaults to default branch if not specified.
+                      Optional branch, tag, or commit SHA. Defaults to default
+                      branch if not specified.
                     </FormHelperText>
                   </FormControl>
                 )}

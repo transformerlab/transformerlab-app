@@ -80,7 +80,7 @@ def generate_github_clone_setup(
         else:
             # Fall back to trying main, master, or HEAD
             pull_command = "git pull origin main || git pull origin master || git pull origin HEAD"
-        
+
         setup_script = (
             f"TEMP_CLONE_DIR={clone_dir}; "
             f"CURRENT_DIR=$HOME; "
