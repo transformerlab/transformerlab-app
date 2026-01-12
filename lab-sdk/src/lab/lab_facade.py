@@ -150,7 +150,7 @@ class Lab:
             Dict[str, Any]: Configuration dictionary. Returns empty dict if no config found.
         """
         self._ensure_initialized()
-        job_data = self._job.get_job_data()
+        job_data = _run_async(self._job.get_job_data())
 
         # Try to get parameters from job_data
         if isinstance(job_data, dict):
@@ -162,10 +162,13 @@ class Lab:
 
     def get_secret(self, secret_name: str) -> Optional[str]:
         """
-        Get a team secret by name.
+        Get a team secret by name (sync version).
 
         This method reads team secrets from the workspace/team_secrets.json file.
         Secrets are stored per-team and can be configured in Team Settings.
+
+        This is a sync wrapper around the async implementation.
+        Use async_get_secret() if you're already in an async context.
 
         Args:
             secret_name: Name of the secret to retrieve
@@ -182,19 +185,44 @@ class Lab:
                 # do cool stuff with the API key
                 pass
         """
+        return _run_async(self.async_get_secret(secret_name))
+
+    async def async_get_secret(self, secret_name: str) -> Optional[str]:
+        """
+        Get a team secret by name (async version).
+
+        This method reads team secrets from the workspace/team_secrets.json file.
+        Secrets are stored per-team and can be configured in Team Settings.
+
+        Args:
+            secret_name: Name of the secret to retrieve
+
+        Returns:
+            The secret value as a string, or None if the secret doesn't exist or can't be loaded.
+
+        Example:
+            from lab import lab
+
+            lab.init(experiment_id="alpha")
+            api_key = await lab.async_get_secret("API_KEY")
+            if api_key:
+                # do cool stuff with the API key
+                pass
+        """
         import json
         from . import storage
         from .dirs import get_workspace_dir
 
         try:
-            workspace_dir = get_workspace_dir()
+            workspace_dir = await get_workspace_dir()
             secrets_path = storage.join(workspace_dir, "team_secrets.json")
 
-            if not storage.exists(secrets_path):
+            if not await storage.exists(secrets_path):
                 return None
 
-            with storage.open(secrets_path, "r") as f:
-                secrets = json.load(f)
+            async with await storage.open(secrets_path, "r") as f:
+                content = await f.read()
+                secrets = json.loads(content)
                 return secrets.get(secret_name)
         except Exception as e:
             print(f"Warning: Failed to load team secret: {e}")
