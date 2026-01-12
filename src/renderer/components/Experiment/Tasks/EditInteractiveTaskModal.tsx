@@ -18,15 +18,13 @@ import {
   Alert,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
-import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 import { useRef } from 'react';
 import { SafeJSONParse } from '../../Shared/SafeJSONParse';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
-
-const { parseTmTheme } = require('monaco-themes');
+import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 
 type ProviderOption = {
   id: string;
@@ -51,12 +49,7 @@ type InteractiveTemplate = {
   env_parameters?: ConfigField[];
 };
 
-function setTheme(editor: any, monaco: any) {
-  const themeData = parseTmTheme(fairyflossTheme);
-
-  monaco.editor.defineTheme('my-theme', themeData);
-  monaco.editor.setTheme('my-theme');
-}
+// setTheme is now imported from shared config
 
 type EditInteractiveTaskModalProps = {
   open: boolean;
@@ -593,14 +586,11 @@ export default function EditInteractiveTaskModal({
                   theme="my-theme"
                   defaultValue={setup}
                   height="6rem"
-                  options={{
-                    minimap: {
-                      enabled: false,
-                    },
+                  options={getMonacoEditorOptions({
                     fontSize: 18,
                     cursorStyle: 'block',
                     wordWrap: 'on',
-                  }}
+                  })}
                   onMount={handleSetupEditorDidMount}
                 />
                 <FormHelperText>
@@ -615,14 +605,11 @@ export default function EditInteractiveTaskModal({
                   theme="my-theme"
                   defaultValue={command}
                   height="8rem"
-                  options={{
-                    minimap: {
-                      enabled: false,
-                    },
+                  options={getMonacoEditorOptions({
                     fontSize: 18,
                     cursorStyle: 'block',
                     wordWrap: 'on',
-                  }}
+                  })}
                   onMount={handleCommandEditorDidMount}
                 />
                 <FormHelperText>
