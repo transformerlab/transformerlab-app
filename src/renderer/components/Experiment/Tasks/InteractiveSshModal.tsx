@@ -228,7 +228,6 @@ export default function InteractiveSshModal({
               provider logs to ensure ngrok started correctly.
             </Typography>
           </Box>
-
         </Box>
       </ModalDialog>
     </Modal>

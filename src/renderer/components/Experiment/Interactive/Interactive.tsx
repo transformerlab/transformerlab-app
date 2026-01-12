@@ -821,6 +821,16 @@ export default function Interactive() {
                             interactiveType === 'ssh') && (
                             <>
                               <Button
+                                variant="plain"
+                                size="sm"
+                                startDecorator={<LogsIcon size={16} />}
+                                onClick={() =>
+                                  setViewOutputFromJob(parseInt(job.id))
+                                }
+                              >
+                                Output
+                              </Button>
+                              <Button
                                 variant="soft"
                                 color="primary"
                                 size="sm"
@@ -829,17 +839,6 @@ export default function Interactive() {
                                 }
                               >
                                 Interactive Setup
-                              </Button>
-                              <Button
-                                variant="soft"
-                                color="neutral"
-                                size="sm"
-                                startDecorator={<LogsIcon size={16} />}
-                                onClick={() =>
-                                  setViewOutputFromJob(parseInt(job.id))
-                                }
-                              >
-                                Output
                               </Button>
                             </>
                           )}
