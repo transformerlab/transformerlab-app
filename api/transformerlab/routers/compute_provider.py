@@ -752,7 +752,7 @@ async def _launch_sweep_jobs(
             provider_display_name = request.provider_name or provider.name
 
             # Load team secrets for template replacement
-            team_secrets = load_team_secrets()
+            team_secrets = await load_team_secrets()
 
             # Generate all parameter combinations
             param_names = list(sweep_config.keys())
@@ -1077,7 +1077,7 @@ async def launch_template_on_provider(
     provider_display_name = request.provider_name or provider.name
 
     # Load team secrets for template replacement
-    team_secrets = load_team_secrets()
+    team_secrets = await load_team_secrets()
 
     # Prepare environment variables - start with a copy of requested env_vars
     env_vars = request.env_vars.copy() if request.env_vars else {}

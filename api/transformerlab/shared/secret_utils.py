@@ -7,20 +7,20 @@ from lab import storage
 from lab.dirs import get_workspace_dir
 
 
-def load_team_secrets() -> Dict[str, str]:
+async def load_team_secrets() -> Dict[str, str]:
     """
     Load team secrets from workspace/team_secrets.json.
 
     Returns:
         Dictionary of secret names to secret values. Returns empty dict if file doesn't exist or on error.
     """
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     secrets_path = storage.join(workspace_dir, "team_secrets.json")
 
     try:
-        if storage.exists(secrets_path):
-            with storage.open(secrets_path, "r") as f:
-                return json.load(f)
+        if await storage.exists(secrets_path):
+            async with await storage.open(secrets_path, "r") as f:
+                return json.loads(await f.read())
     except Exception as e:
         print(f"Warning: Failed to load team secrets: {e}")
 
