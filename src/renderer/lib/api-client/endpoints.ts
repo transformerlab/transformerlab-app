@@ -591,3 +591,8 @@ Endpoints.Quota = {
   UpdateUserOverride: (userId: string, teamId: string) =>
     `${API_URL()}quota/user/${userId}/team/${teamId}`,
 };
+
+Endpoints.Teams = {
+  GetSecrets: (teamId: string) => `${API_URL()}teams/${teamId}/secrets`,
+  SetSecrets: (teamId: string) => `${API_URL()}teams/${teamId}/secrets`,
+};
