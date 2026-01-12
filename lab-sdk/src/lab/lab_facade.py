@@ -30,7 +30,7 @@ def _run_async(coro):
         # Use the async version (a_* methods) instead
         raise RuntimeError(
             "Cannot use sync method when already in async context. "
-            "Use the async version instead (e.g., await lab.a_save_artifact() instead of lab.save_artifact())."
+            "Use the async version instead (e.g., await lab.async_save_artifact() instead of lab.save_artifact())."
         )
     except RuntimeError as e:
         # Check if this is our custom error or a "no running loop" error
@@ -279,7 +279,7 @@ class Lab:
             return None
 
         # Build the checkpoint path from parent job's checkpoints directory
-        checkpoint_path = await self.a_get_parent_job_checkpoint_path(parent_job_id, checkpoint_name)
+        checkpoint_path = await self.async_get_parent_job_checkpoint_path(parent_job_id, checkpoint_name)
 
         # Verify the checkpoint exists
         if checkpoint_path and await storage.exists(checkpoint_path):
@@ -292,7 +292,7 @@ class Lab:
         Get the full path to a checkpoint from a parent job (sync version).
 
         This is a sync wrapper around the async implementation.
-        Use a_get_parent_job_checkpoint_path() if you're already in an async context.
+        Use async_get_parent_job_checkpoint_path() if you're already in an async context.
         """
         return _run_async(self.async_get_parent_job_checkpoint_path(parent_job_id, checkpoint_name))
 
@@ -379,7 +379,7 @@ class Lab:
         Save an artifact file or directory into this job's artifacts folder (sync version).
 
         This is a sync wrapper around the async implementation.
-        Use a_save_artifact() if you're already in an async context.
+        Use aasync_save_artifact() if you're already in an async context.
         """
         return _run_async(self.async_save_artifact(source_path, name, type, config))
 
@@ -456,7 +456,7 @@ class Lab:
                     is_image = config["is_image"]
 
             # Use the existing save_dataset method
-            output_path = await self.a_save_dataset(
+            output_path = await self.async_save_dataset(
                 df=df,
                 dataset_id=dataset_id,
                 additional_metadata=additional_metadata if additional_metadata else None,
@@ -1005,7 +1005,7 @@ class Lab:
             config["parent_model"] = parent_model
 
         # Use save_artifact with type="model"
-        return await self.a_save_artifact(
+        return await self.async_save_artifact(
             source_path=source_path,
             name=name,
             type="model",
@@ -1153,7 +1153,7 @@ class Lab:
         Get the artifacts directory path for the current job (sync version).
 
         This is a sync wrapper around the async implementation.
-        Use a_get_artifacts_dir() if you're already in an async context.
+        Use async_get_artifacts_dir() if you're already in an async context.
         """
         return _run_async(self.async_get_artifacts_dir())
 
@@ -1185,7 +1185,7 @@ class Lab:
         Get list of artifact file paths for the current job (sync version).
 
         This is a sync wrapper around the async implementation.
-        Use a_get_artifact_paths() if you're already in an async context.
+        Use async_get_artifact_paths() if you're already in an async context.
         """
         return _run_async(self.async_get_artifact_paths())
 
