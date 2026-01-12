@@ -1041,15 +1041,15 @@ async def get_team_secrets(
     if team_id != user_and_team["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     secrets_path = storage.join(workspace_dir, "team_secrets.json")
 
     try:
-        if not storage.exists(secrets_path):
+        if not await storage.exists(secrets_path):
             return {"status": "success", "secrets": {}}
 
-        with storage.open(secrets_path, "r") as f:
-            secrets = json.load(f)
+        async with await storage.open(secrets_path, "r") as f:
+            secrets = json.loads(await f.read())
 
         # Check if user is team owner and requested values
         is_owner = user_and_team.get("role") == TeamRole.OWNER.value
@@ -1087,7 +1087,7 @@ async def set_team_secrets(
     if team_id != owner_info["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     secrets_path = storage.join(workspace_dir, "team_secrets.json")
 
     try:
@@ -1104,11 +1104,11 @@ async def set_team_secrets(
                 )
 
         # Ensure workspace directory exists
-        storage.makedirs(workspace_dir, exist_ok=True)
+        await storage.makedirs(workspace_dir, exist_ok=True)
 
         # Write secrets to file
-        with storage.open(secrets_path, "w") as f:
-            json.dump(secrets_data.secrets, f, indent=2)
+        async with await storage.open(secrets_path, "w") as f:
+            await f.write(json.dumps(secrets_data.secrets, indent=2))
 
         return {
             "status": "success",
