@@ -171,6 +171,7 @@ export default function NewTaskModal({
   // GitHub fields (extracted from task.json if present)
   const [githubRepoUrl, setGithubRepoUrl] = useState('');
   const [githubDirectory, setGithubDirectory] = useState('');
+  const [githubBranch, setGithubBranch] = useState('');
 
   // Task fields
   const [title, setTitle] = React.useState('');
@@ -416,6 +417,11 @@ export default function NewTaskModal({
           if (data.github_directory || data.git_repo_directory) {
             setGithubDirectory(
               data.github_directory || data.git_repo_directory,
+            );
+          }
+          if (data.github_branch || data.git_repo_branch || data.git_branch) {
+            setGithubBranch(
+              data.github_branch || data.git_repo_branch || data.git_branch,
             );
           }
 
@@ -703,6 +709,7 @@ export default function NewTaskModal({
       provider_id: selectedProviderId,
       github_repo_url: githubRepoUrl || undefined,
       github_directory: githubDirectory || undefined,
+      github_branch: githubBranch || undefined,
       run_sweeps: enableSweeps && sweepConfig ? true : undefined,
       sweep_config: sweepConfig,
       sweep_metric:
@@ -991,6 +998,9 @@ export default function NewTaskModal({
       if (githubDirectory) {
         yamlData.git_repo_directory = githubDirectory;
       }
+      if (githubBranch) {
+        yamlData.git_repo_branch = githubBranch;
+      }
     }
 
     // Parameters
@@ -1224,6 +1234,13 @@ export default function NewTaskModal({
       } else if (taskYaml.git_repo_directory) {
         taskData.github_directory = String(taskYaml.git_repo_directory);
       }
+      if (taskYaml.github_branch) {
+        taskData.github_branch = String(taskYaml.github_branch);
+      } else if (taskYaml.git_repo_branch) {
+        taskData.github_branch = String(taskYaml.git_repo_branch);
+      } else if (taskYaml.git_branch) {
+        taskData.github_branch = String(taskYaml.git_branch);
+      }
 
       // Parameters
       if (taskYaml.parameters) {
@@ -1260,6 +1277,7 @@ export default function NewTaskModal({
       if (taskData.github_repo_url) setGithubRepoUrl(taskData.github_repo_url);
       if (taskData.github_directory)
         setGithubDirectory(taskData.github_directory);
+      if (taskData.github_branch) setGithubBranch(taskData.github_branch);
 
       // Environment variables
       if (taskData.env_vars && typeof taskData.env_vars === 'object') {
@@ -1645,6 +1663,22 @@ export default function NewTaskModal({
                     />
                     <FormHelperText>
                       Optional subdirectory path within the repository
+                    </FormHelperText>
+                  </FormControl>
+                )}
+
+                {githubRepoUrl && (
+                  <FormControl>
+                    <FormLabel>
+                      GitHub Branch (Optional)
+                    </FormLabel>
+                    <Input
+                      value={githubBranch}
+                      onChange={(e) => setGithubBranch(e.target.value)}
+                      placeholder="main"
+                    />
+                    <FormHelperText>
+                      Optional branch, tag, or commit SHA. Defaults to default branch if not specified.
                     </FormHelperText>
                   </FormControl>
                 )}
