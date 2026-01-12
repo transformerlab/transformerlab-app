@@ -135,7 +135,80 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     };
   }, [pendingJobsStorageKey]);
 
+  // Listen for custom event to open job output modal from interactive modals
+  useEffect(() => {
+    const handleOpenJobOutput = (e: Event) => {
+      console.log('[Tasks] Event listener triggered:', e);
+      console.log('[Tasks] Event type:', e.type);
+      const customEvent = e as CustomEvent<{ jobId: number }>;
+      console.log('[Tasks] CustomEvent detail:', customEvent.detail);
+      const jobId = customEvent.detail?.jobId;
+      console.log('[Tasks] Event detail jobId:', jobId);
+      if (jobId && jobId !== -1) {
+        console.log('[Tasks] Closing interactive modal via event');
+        // Close the interactive modal first
+        setInteractiveJobForModal(-1);
+        // Wait for the modal to close (MUI modals have transition animations)
+        // Use a longer delay to ensure the interactive modal fully closes
+        // before opening the output modal to avoid z-index/stacking issues
+        setTimeout(() => {
+          console.log(
+            '[Tasks] Opening output modal via event for jobId:',
+            jobId,
+          );
+          setViewOutputFromJob(jobId);
+        }, 300); // 300ms should be enough for modal close animation
+      } else {
+        console.log('[Tasks] Invalid jobId in event, not opening modal');
+      }
+    };
+
+    console.log('[Tasks] Setting up event listener for tflab-open-job-output');
+    const eventName = 'tflab-open-job-output';
+    window.addEventListener(eventName, handleOpenJobOutput);
+    console.log('[Tasks] Event listener added for:', eventName);
+    console.log(
+      '[Tasks] Event listener handler function:',
+      handleOpenJobOutput,
+    );
+
+    return () => {
+      console.log('[Tasks] Cleaning up event listener');
+      window.removeEventListener(eventName, handleOpenJobOutput);
+    };
+  }, []);
+
   const isInteractivePage = subtype === 'interactive';
+
+  // Define the callback outside the IIFE to ensure it's always available
+  const handleOpenOutputFromInteractive = useCallback(
+    (outputJobId: number) => {
+      console.log(
+        '[Tasks] handleOpenOutputFromInteractive called with jobId:',
+        outputJobId,
+      );
+      console.log(
+        '[Tasks] Current interactiveJobForModal:',
+        interactiveJobForModal,
+      );
+      // Close the interactive modal first
+      console.log('[Tasks] Closing interactive modal');
+      setInteractiveJobForModal(-1);
+      // Wait for modal close animation, then open output modal
+      setTimeout(() => {
+        console.log('[Tasks] Opening output modal for jobId:', outputJobId);
+        console.log('[Tasks] Setting viewOutputFromJob to:', outputJobId);
+        setViewOutputFromJob(outputJobId);
+      }, 300);
+    },
+    [interactiveJobForModal],
+  );
+
+  console.log(
+    '[Tasks] handleOpenOutputFromInteractive DEFINED at component level:',
+    typeof handleOpenOutputFromInteractive,
+    handleOpenOutputFromInteractive,
+  );
 
   const handleOpen = () => {
     if (isInteractivePage) {
@@ -1086,12 +1159,28 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             ? JSON.parse(job?.job_data || '{}')?.interactive_type
             : null) ||
           'vscode';
+        console.log(
+          '[Tasks] Rendering interactive modal, type:',
+          interactiveType,
+          'jobId:',
+          interactiveJobForModal,
+        );
+        console.log(
+          '[Tasks] Inside IIFE - handleOpenOutputFromInteractive function available:',
+          typeof handleOpenOutputFromInteractive,
+          handleOpenOutputFromInteractive,
+        );
+        console.log(
+          '[Tasks] IIFE scope check - can access handleOpenOutputFromInteractive?',
+          typeof handleOpenOutputFromInteractive !== 'undefined',
+        );
 
         if (interactiveType === 'jupyter') {
           return (
             <InteractiveJupyterModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
@@ -1101,15 +1190,21 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             <InteractiveVllmModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
 
         if (interactiveType === 'ssh') {
+          console.log(
+            '[Tasks] Rendering InteractiveSshModal with onOpenOutput:',
+            handleOpenOutputFromInteractive,
+          );
           return (
             <InteractiveSshModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
@@ -1119,6 +1214,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             <InteractiveOllamaModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
@@ -1127,6 +1223,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           <InteractiveVSCodeModal
             jobId={interactiveJobForModal}
             setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+            onOpenOutput={handleOpenOutputFromInteractive}
           />
         );
       })()}

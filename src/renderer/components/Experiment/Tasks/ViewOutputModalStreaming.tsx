@@ -110,7 +110,10 @@ export default function ViewOutputModalStreaming({
   const { experimentInfo } = useExperimentInfo();
   const [activeTab, setActiveTab] = useState<'output' | 'provider'>('output');
 
+  console.log('[ViewOutputModalStreaming] Render - jobId:', jobId, 'experimentInfo:', experimentInfo?.id);
+
   useEffect(() => {
+    console.log('[ViewOutputModalStreaming] jobId changed to:', jobId);
     setActiveTab('output');
   }, [jobId]);
 
@@ -138,8 +141,11 @@ export default function ViewOutputModalStreaming({
     providerLogsError && (providerLogsError as any).status === 404;
 
   if (jobId === -1 || !experimentInfo) {
+    console.log('[ViewOutputModalStreaming] Not rendering - jobId:', jobId, 'experimentInfo:', !!experimentInfo);
     return null;
   }
+
+  console.log('[ViewOutputModalStreaming] Rendering modal - open:', jobId !== -1);
 
   const providerLogText =
     typeof providerLogsData?.logs === 'string' ? providerLogsData.logs : '';
