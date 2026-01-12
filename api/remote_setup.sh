@@ -405,7 +405,7 @@ main() {
 
     echo ""
     echo "=========================================="
-    success "Setup completed successfully!"
+    success "Transformer Lab setup completed successfully!"
     echo "=========================================="
     echo ""
     echo "  Activate the virtual environment:"
