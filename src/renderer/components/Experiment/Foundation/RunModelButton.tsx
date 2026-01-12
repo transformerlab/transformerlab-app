@@ -26,7 +26,8 @@ import {
 import InferenceEngineModal from './InferenceEngineModal';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
-import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { useAPI, fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import React from 'react';
 
 import { Link } from 'react-router-dom';
@@ -244,6 +245,13 @@ export default function RunModelButton({
   const pipelineTag = pipelineTagData?.data || null;
 
   const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
+
+  // Fetch suggested compatible loader plugin from API (platform-aware)
+  const { data: suggestedLoaderPlugin, isLoading: suggestedPluginLoading } =
+    useSWR(
+      archTag ? chatAPI.Endpoints.Plugins.SuggestLoader(archTag) : null,
+      fetcher,
+    );
 
   const supportedEngines = React.useMemo(() => {
     if (!data || pipelineTagLoading) return [];
@@ -654,12 +662,30 @@ export default function RunModelButton({
           <Alert startDecorator={<TriangleAlertIcon />} color="warning">
             <Typography level="body-sm">
               None of the installed Engines currently support this model
-              architecture. You can try a different engine in{' '}
-              <Link to="/plugins">
-                <Plug2Icon size="15px" />
-                Plugins
-              </Link>{' '}
-              , or you can try running it with an unsupported Engine by clicking{' '}
+              architecture.
+              {suggestedLoaderPlugin ? (
+                <>
+                  {' '}
+                  <b>{suggestedLoaderPlugin.name}</b> is compatible with this
+                  model architecture. Install it in{' '}
+                  <Link to="/plugins">
+                    <Plug2Icon size="15px" />
+                    Plugins
+                  </Link>
+                  .
+                </>
+              ) : (
+                <>
+                  {' '}
+                  You can try a different engine in{' '}
+                  <Link to="/plugins">
+                    <Plug2Icon size="15px" />
+                    Plugins
+                  </Link>
+                  .
+                </>
+              )}{' '}
+              Or you can try running it with an unsupported Engine by clicking{' '}
               <b>using Engine</b> below and check{' '}
               <b>Show unsupported engines</b>.
             </Typography>
@@ -677,9 +703,21 @@ export default function RunModelButton({
               <Plug2Icon size="15px" />
               Plugins
             </Link>{' '}
-            and install an Inference Engine. <b>FastChat Server</b> is a good
-            default for systems with a GPU. <b>Apple MLX Server</b> is the best
-            default for MacOS with Apple Silicon.
+            and install an Inference Engine.
+            {suggestedLoaderPlugin ? (
+              <>
+                {' '}
+                <b>{suggestedLoaderPlugin.name}</b> is compatible with this
+                model architecture.
+              </>
+            ) : (
+              <>
+                {' '}
+                <b>FastChat Server</b> is a good default for systems with a GPU.{' '}
+                <b>Apple MLX Server</b> is the best default for MacOS with Apple
+                Silicon.
+              </>
+            )}
           </Typography>
         </Alert>
       )}

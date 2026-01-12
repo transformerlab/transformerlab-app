@@ -105,6 +105,9 @@ elif command -v rocminfo &> /dev/null; then
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/rocm/lib:/opt/rocm/lib64
 fi
 
+# Temporary: Turn off python buffering or debug output made by print() may not show up in logs
+export PYTHONUNBUFFERED=1
+
 echo "▶️ Starting the API server:"
 if [ "$RELOAD" = true ]; then
     echo "🔁 Reload the server on file changes"

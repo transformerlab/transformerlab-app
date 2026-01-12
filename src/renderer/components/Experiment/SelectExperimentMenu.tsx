@@ -144,8 +144,8 @@ export default function SelectExperimentMenu({ models }) {
   );
 
   const hasProviders = providers.length > 0;
-  const isS3Mode = mode === 's3';
-  const shouldShowSimpleDialog = hasProviders || isS3Mode;
+  const isLocalMode = mode === 'local';
+  const shouldShowSimpleDialog = !isLocalMode;
 
   // Fetch healthz to get the mode
   useEffect(() => {
@@ -272,7 +272,7 @@ export default function SelectExperimentMenu({ models }) {
                   sx={{
                     backgroundColor: 'transparent !important',
                     fontSize: '20px',
-                    color: 'var(--joy-palette-neutral-plainDisabledColor)',
+                    color: 'var(--joy-palette-neutralDisabledColor)',
                     paddingLeft: 1,
                     paddingRight: 0,
                     minHeight: '22px',
@@ -390,43 +390,47 @@ export default function SelectExperimentMenu({ models }) {
             >
               {isLoading && <MenuItem>Loading...</MenuItem>}
               {data &&
-                data.map((experiment: any) => {
-                  return (
-                    <MenuItem
-                      selected={experimentInfo?.name === experiment.name}
-                      variant={
-                        experimentInfo?.name === experiment.name
-                          ? 'soft'
-                          : undefined
-                      }
-                      onClick={createHandleClose(experiment.name)}
-                      key={experiment.id}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        textOverflow: 'ellipsis',
-                        overflow: 'hidden',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      <span
-                        style={{
-                          overflow: 'hidden',
+                data
+                  .filter(
+                    (experiment: any) => experiment?.id && experiment?.name,
+                  ) // skip bad rows
+                  .map((experiment: any) => {
+                    return (
+                      <MenuItem
+                        selected={experimentInfo?.id === experiment.id}
+                        variant={
+                          experimentInfo?.id === experiment.id
+                            ? 'soft'
+                            : undefined
+                        }
+                        onClick={createHandleClose(experiment.id)}
+                        key={experiment.id}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
                           textOverflow: 'ellipsis',
+                          overflow: 'hidden',
                           whiteSpace: 'nowrap',
-                          flex: 1,
-                          minWidth: 0,
                         }}
-                        title={experiment.name}
                       >
-                        {experiment.name}
-                      </span>
-                      {experimentInfo?.name === experiment.name && (
-                        <CheckIcon style={{ marginLeft: 'auto' }} />
-                      )}
-                    </MenuItem>
-                  );
-                })}
+                        <span
+                          style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                          title={experiment.name}
+                        >
+                          {experiment.name}
+                        </span>
+                        {experimentInfo?.id === experiment.id && (
+                          <CheckIcon style={{ marginLeft: 'auto' }} />
+                        )}
+                      </MenuItem>
+                    );
+                  })}
             </Box>
             <Divider />
             <MenuItem onClick={() => setModalOpen(true)} disabled={isLoading}>

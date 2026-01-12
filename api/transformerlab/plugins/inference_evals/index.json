@@ -5,7 +5,7 @@
   "plugin-format": "python",
   "type": "evaluator",
   "evalsType": "model",
-  "version": "0.1.9",
+  "version": "0.1.11",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],

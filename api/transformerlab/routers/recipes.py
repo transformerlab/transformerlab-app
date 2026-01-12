@@ -15,14 +15,14 @@ router = APIRouter(prefix="/recipes", tags=["recipes"])
 @router.get("/list")
 async def list_recipes():
     """List all recipes for a given experiment name."""
-    recipes_gallery = galleries.get_exp_recipe_gallery()
+    recipes_gallery = await galleries.get_exp_recipe_gallery()
     return recipes_gallery
 
 
 @router.get("/{id}")
 async def get_recipe_by_id(id: str):
     """Fetch a recipe by its ID from the experiment recipe gallery."""
-    recipes_gallery = galleries.get_exp_recipe_gallery()
+    recipes_gallery = await galleries.get_exp_recipe_gallery()
     for recipe in recipes_gallery:
         if recipe.get("id") == id:
             return recipe
@@ -33,7 +33,7 @@ async def get_recipe_by_id(id: str):
 async def check_recipe_dependencies(id: str):
     """Check if the dependencies for a recipe are installed for a given environment."""
     # Get the recipe
-    recipes_gallery = galleries.get_exp_recipe_gallery()
+    recipes_gallery = await galleries.get_exp_recipe_gallery()
     recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
     if not recipe:
         return {"error": f"Recipe with id {id} not found."}
@@ -44,7 +44,7 @@ async def check_recipe_dependencies(id: str):
     # Get local models and datasets
     local_models = await model_helper.list_installed_models()
     local_model_names = set(model["model_id"] for model in local_models)
-    local_datasets = Dataset.list_all()
+    local_datasets = await Dataset.list_all()
     local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
 
     # Get installed plugins using the same logic as /plugins/gallery
@@ -77,10 +77,10 @@ async def _install_recipe_dependencies_job(job_id, id):
     from transformerlab.routers import plugins as plugins_router
 
     try:
-        job = job_service.job_get(job_id)
-        experiment_id = job["experiment_id"]
+        job = await job_service.job_get(job_id)
+        experiment_id = job.get("experiment_id") if job else None
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
-        recipes_gallery = galleries.get_exp_recipe_gallery()
+        recipes_gallery = await galleries.get_exp_recipe_gallery()
         recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
         if not recipe:
             await job_update_status(
@@ -95,7 +95,7 @@ async def _install_recipe_dependencies_job(job_id, id):
             await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
             return
 
-        local_datasets = Dataset.list_all()
+        local_datasets = await Dataset.list_all()
         local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
         total = len(non_model_deps)
         progress = 0
@@ -126,8 +126,8 @@ async def _install_recipe_dependencies_job(job_id, id):
                 result["status"] = str(e)
             results.append(result)
             progress += 1
-            job_service.job_update_progress(job_id, int(progress * 100 / total), experiment_id)
-            job_service.job_update_job_data_insert_key_value(job_id, "results", results, experiment_id)
+            await job_service.job_update_progress(job_id, int(progress * 100 / total), experiment_id)
+            await job_service.job_update_job_data_insert_key_value(job_id, "results", results, experiment_id)
         await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
     except Exception as e:
         await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=str(e))
@@ -140,7 +140,7 @@ async def install_recipe_model_dependencies(id: str):
     import asyncio
 
     # Get the recipe
-    recipes_gallery = galleries.get_exp_recipe_gallery()
+    recipes_gallery = await galleries.get_exp_recipe_gallery()
     recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
     if not recipe:
         return {"error": f"Recipe with id {id} not found."}
@@ -155,7 +155,7 @@ async def install_recipe_model_dependencies(id: str):
             dep_name = dep.get("name")
             if dep_name not in local_model_names:
                 # Create a DOWNLOAD_MODEL job for this model
-                job_id = job_service.job_create(
+                job_id = await job_service.job_create(
                     type="DOWNLOAD_MODEL",
                     status="QUEUED",
                     job_data=json.dumps({"model_id": dep_name}),
@@ -194,7 +194,7 @@ async def install_recipe_dependencies(id: str, background_tasks: BackgroundTasks
         return model_result
 
     # Install other dependencies as a background job
-    job_id = job_service.job_create(
+    job_id = await job_service.job_create(
         type="INSTALL_RECIPE_DEPS",
         status="QUEUED",
         job_data=json.dumps({"recipe_id": id, "results": [], "progress": 0}),
@@ -232,7 +232,7 @@ async def install_recipe_dependencies(id: str, background_tasks: BackgroundTasks
 @router.get("/jobs/{job_id}/status")
 async def get_install_job_status(job_id: int):
     """Get the status and progress of a dependency installation job."""
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if not job:
         return {"error": f"Job {job_id} not found."}
     return {
@@ -250,14 +250,14 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
     from transformerlab.routers.experiment import experiment as experiment_router
 
     # Check if experiment already exists
-    existing = experiment_service.experiment_get(experiment_name)
+    existing = await experiment_service.experiment_get(experiment_name)
     if existing:
         return {"status": "error", "message": f"Experiment '{experiment_name}' already exists.", "data": {}}
     # Create experiment with blank config
-    experiment_id = experiment_service.experiment_create(name=experiment_name, config={})
+    experiment_id = await experiment_service.experiment_create(name=experiment_name, config={})
 
     # Get the recipe
-    recipes_gallery = galleries.get_exp_recipe_gallery()
+    recipes_gallery = await galleries.get_exp_recipe_gallery()
     recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
     if not recipe:
         return {"status": "error", "message": f"Recipe with id {id} not found.", "data": {}}

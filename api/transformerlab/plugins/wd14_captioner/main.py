@@ -3,6 +3,7 @@ import sys
 import shutil
 import subprocess
 from pathlib import Path
+import asyncio
 
 import pandas as pd
 from tqdm import tqdm
@@ -16,7 +17,7 @@ from lab import storage
 @tlab_gen.job_wrapper()
 def run_generation():
     # ----- Constants -----
-    workspace = get_workspace_dir()
+    workspace = asyncio.run(get_workspace_dir())
 
     REPO_ROOT = storage.join(workspace, "plugins", "wd14_captioner", "sd-caption-wd14", "sd-scripts")
     SCRIPT_PATH = storage.join(

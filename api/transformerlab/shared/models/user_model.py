@@ -9,19 +9,13 @@ from fastapi import Depends
 from os import getenv
 
 from transformerlab.db.constants import DATABASE_URL
-from transformerlab.shared.models.models import Base, Team, User, OAuthAccount
+from transformerlab.shared.models.models import Team, User, OAuthAccount
 from transformerlab.shared.remote_workspace import create_bucket_for_team
 
 
 # 3. Setup the Async Engine and Session
 engine = create_async_engine(DATABASE_URL)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-
-# 4. Utility to create tables (run this on app startup)
-async def create_db_and_tables():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
 
 
 # 5. Database session dependency
