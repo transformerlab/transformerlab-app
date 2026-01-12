@@ -17,16 +17,7 @@ import { authenticatedFetch } from 'renderer/lib/api-client/functions';
 import { PencilIcon, TypeOutline } from 'lucide-react';
 import { Box, Button, Typography } from '@mui/joy';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
-import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
-
-const { parseTmTheme } = require('monaco-themes');
-
-function setTheme(editor: any, monaco: any) {
-  const themeData = parseTmTheme(fairyflossTheme);
-
-  monaco.editor.defineTheme('my-theme', themeData);
-  monaco.editor.setTheme('my-theme');
-}
+import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 
 export default function ExperimentNotes({}) {
   const editorRef = useRef(null);
@@ -169,14 +160,11 @@ export default function ExperimentNotes({}) {
               defaultLanguage="markdown"
               theme="my-theme"
               height="100%"
-              options={{
-                minimap: {
-                  enabled: false,
-                },
+              options={getMonacoEditorOptions({
                 fontSize: 18,
                 cursorStyle: 'block',
                 wordWrap: 'on',
-              }}
+              })}
               onMount={handleEditorDidMount}
             />
           </Sheet>
