@@ -7,37 +7,11 @@ from typing import Optional, Type
 import fsspec
 import aiofiles
 
-# Workaround for s3fs async session cleanup issue
-# Even with asynchronous=False, s3fs may create async sessions that get cleaned up
-# via weakref callbacks in the wrong event loop context, causing RuntimeError.
-# We patch s3fs to suppress this specific error during cleanup.
-try:
-    import s3fs
+import logging
 
-    # Monkey-patch s3fs.core.close_session to catch and suppress the error
-    # The error occurs when async sessions are cleaned up via weakref callbacks
-    # in a different event loop context than where they were created.
-    if hasattr(s3fs, "core"):
-        _original_close_session = getattr(s3fs.core, "close_session", None)
-        if _original_close_session:
-
-            def _patched_close_session(s3, loop):
-                """Patched close_session that suppresses event loop errors."""
-                try:
-                    return _original_close_session(s3, loop)
-                except RuntimeError as e:
-                    error_msg = str(e)
-                    if "Non-thread-safe operation" in error_msg or "event loop" in error_msg.lower():
-                        # Suppress this error - it's a known issue with s3fs cleanup
-                        # when async sessions are cleaned up in wrong event loop context.
-                        # This happens even with asynchronous=False due to s3fs internal behavior.
-                        return
-                    raise
-
-            s3fs.core.close_session = _patched_close_session
-except (ImportError, AttributeError):
-    # s3fs not available or structure changed, skip patching
-    pass
+# Suppress the specific task exception log if it's polluting your logs
+logging.getLogger("aiobotocore").setLevel(logging.CRITICAL)
+logging.getLogger("s3fs").setLevel(logging.CRITICAL)
 
 
 class AsyncFileWrapper:
