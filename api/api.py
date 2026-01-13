@@ -201,10 +201,11 @@ if os.getenv("SENTRY_DSN"):
     # Import only if SENTRY_DSN is set.
     # This way we can avoid making sentry_sdk a mandatory dependency.
     import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
 
     sentry_sdk.init(
         dsn=os.environ["SENTRY_DSN"],
-        # integrations=[FastApiIntegration()],
+        integrations=[FastApiIntegration()],
     )
 
 app = fastapi.FastAPI(
