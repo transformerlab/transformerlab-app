@@ -171,16 +171,6 @@ export default function LoginChip({}: Props) {
         <Menu>
           <MenuItem
             onClick={() => {
-              navigate('/user');
-            }}
-          >
-            <ListItemDecorator>
-              <UserCog2Icon size={16} />
-            </ListItemDecorator>
-            User Settings
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
               navigate('/team');
             }}
           >

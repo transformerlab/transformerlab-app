@@ -23,8 +23,15 @@ import {
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
-import { EyeIcon, EyeOffIcon, RotateCcwIcon, DownloadIcon } from 'lucide-react';
+import {
+  EyeIcon,
+  EyeOffIcon,
+  RotateCcwIcon,
+  DownloadIcon,
+  UserCog2Icon,
+} from 'lucide-react';
 import { useNotification } from '../Shared/NotificationSystem';
+import { useNavigate } from 'react-router-dom';
 
 import AIProvidersSettings from './AIProvidersSettings';
 import EditTokenModal from './EditTokenModal';
@@ -37,6 +44,7 @@ import {
 } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function TransformerLabSettings() {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = React.useState(false);
   const [doNotTrack, setDoNotTrack] = React.useState(false);
   const [showHuggingfaceEditTokenModal, setShowHuggingfaceEditTokenModal] =
@@ -48,6 +56,13 @@ export default function TransformerLabSettings() {
   const [hfTokenTeamWide, setHfTokenTeamWide] = React.useState(true);
   const [wandbTokenTeamWide, setWandbTokenTeamWide] = React.useState(true);
   const { addNotification } = useNotification();
+
+  const isMultiUser =
+    (typeof window !== 'undefined' &&
+      (window as any).platform?.multiuser === true) ||
+    (typeof process !== 'undefined' &&
+      process.env &&
+      process.env.MULTIUSER === 'true');
 
   React.useEffect(() => {
     const fetchDoNotTrack = async () => {
@@ -560,6 +575,16 @@ export default function TransformerLabSettings() {
             <Typography level="title-lg" marginBottom={2}>
               Application:
             </Typography>
+            {isMultiUser && (
+              <Button
+                variant="soft"
+                startDecorator={<UserCog2Icon size={16} />}
+                onClick={() => navigate('/user')}
+                sx={{ mb: 2 }}
+              >
+                User Settings
+              </Button>
+            )}
             <Button
               variant="soft"
               onClick={() => {

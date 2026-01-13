@@ -176,6 +176,23 @@ export default function UserSettings(): JSX.Element {
   const { data: userInfo, mutate: userInfoMutate } = useAPI('users', ['me']);
   const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
 
+  const isMultiUser = 
+    (typeof window !== 'undefined' && (window as any).platform?.multiuser === true) ||
+    (typeof process !== 'undefined' && process.env && process.env.MULTIUSER === 'true');
+
+  if (!isMultiUser) {
+    return (
+      <Sheet sx={{ overflowY: 'auto', p: 2 }}>
+        <Typography level="h2" mb={2}>
+          User Settings
+        </Typography>
+        <Typography level="body-md" color="neutral">
+          User Settings are only available in multi-user mode.
+        </Typography>
+      </Sheet>
+    );
+  }
+
   return (
     <Sheet sx={{ overflowY: 'auto', p: 2 }}>
       <Typography level="h2" mb={2}>
