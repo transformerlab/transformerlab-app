@@ -576,7 +576,11 @@ export default function TransformerLabSettings() {
             <Typography level="title-lg" marginBottom={2}>
               Application:
             </Typography>
-            <Stack direction="column" spacing={1} sx={{ maxWidth: 'fit-content' }}>
+            <Stack
+              direction="column"
+              spacing={1}
+              sx={{ maxWidth: 'fit-content' }}
+            >
               {isMultiUser && (
                 <Button
                   variant="soft"

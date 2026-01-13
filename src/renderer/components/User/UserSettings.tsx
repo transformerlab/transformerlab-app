@@ -176,9 +176,12 @@ export default function UserSettings(): JSX.Element {
   const { data: userInfo, mutate: userInfoMutate } = useAPI('users', ['me']);
   const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
 
-  const isMultiUser = 
-    (typeof window !== 'undefined' && (window as any).platform?.multiuser === true) ||
-    (typeof process !== 'undefined' && process.env && process.env.MULTIUSER === 'true');
+  const isMultiUser =
+    (typeof window !== 'undefined' &&
+      (window as any).platform?.multiuser === true) ||
+    (typeof process !== 'undefined' &&
+      process.env &&
+      process.env.MULTIUSER === 'true');
 
   if (!isMultiUser) {
     return (
