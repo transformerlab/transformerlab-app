@@ -22,6 +22,9 @@ TASKS_GALLERY_FILE = "task-gallery.json"
 INTERACTIVE_GALLERY_FILE = "interactive-gallery.json"
 # Team-specific tasks gallery stored in workspace dir (per team)
 TEAM_TASKS_GALLERY_FILE = "team_specific_tasks.json"
+# Announcements gallery
+ANNOUNCEMENTS_GALLERY_FILE = "announcements-gallery.json"
+
 GALLERY_FILES = [
     MODEL_GALLERY_FILE,
     DATA_GALLERY_FILE,
@@ -70,6 +73,15 @@ async def get_interactive_gallery():
     This contains templates for interactive task types (vscode, jupyter, vllm, ssh).
     """
     return await get_gallery_file(INTERACTIVE_GALLERY_FILE)
+
+
+async def get_announcements_gallery():
+    """
+    Get the announcements gallery.
+    This contains announcements to display to users.
+    """
+    await update_gallery_cache_file(ANNOUNCEMENTS_GALLERY_FILE)
+    return await get_gallery_file(ANNOUNCEMENTS_GALLERY_FILE)
 
 
 async def get_team_tasks_gallery():
