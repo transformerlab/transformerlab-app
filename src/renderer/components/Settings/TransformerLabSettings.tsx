@@ -11,6 +11,7 @@ import {
   Input,
   Select,
   Option,
+  Stack,
   Table,
   Typography,
   Alert,
@@ -575,29 +576,30 @@ export default function TransformerLabSettings() {
             <Typography level="title-lg" marginBottom={2}>
               Application:
             </Typography>
-            {isMultiUser && (
+            <Stack direction="column" spacing={1} sx={{ maxWidth: 'fit-content' }}>
+              {isMultiUser && (
+                <Button
+                  variant="soft"
+                  startDecorator={<UserCog2Icon size={16} />}
+                  onClick={() => navigate('/user')}
+                >
+                  User Settings
+                </Button>
+              )}
               <Button
                 variant="soft"
-                startDecorator={<UserCog2Icon size={16} />}
-                onClick={() => navigate('/user')}
-                sx={{ mb: 2 }}
-              >
-                User Settings
-              </Button>
-            )}
-            <Button
-              variant="soft"
-              onClick={() => {
-                // find and delete all items in local storage that begin with oneTimePopup:
-                for (const key in localStorage) {
-                  if (key.startsWith('oneTimePopup')) {
-                    localStorage.removeItem(key);
+                onClick={() => {
+                  // find and delete all items in local storage that begin with oneTimePopup:
+                  for (const key in localStorage) {
+                    if (key.startsWith('oneTimePopup')) {
+                      localStorage.removeItem(key);
+                    }
                   }
-                }
-              }}
-            >
-              Reset all Tutorial Popup Screens
-            </Button>
+                }}
+              >
+                Reset all Tutorial Popup Screens
+              </Button>
+            </Stack>
             <Divider sx={{ mt: 2, mb: 2 }} />
             <FormControl sx={{ mt: 2 }}>
               <FormLabel>Do Not Share Any Data</FormLabel>
