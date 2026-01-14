@@ -254,8 +254,8 @@ download_transformer_lab() {
 
 
   # Now do the same thing for the web app which is in a different repo called https://github.com/transformerlab/transformerlab-app
-  # Step 1: First get the latest release version:
-  TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/transformerlab_web.tar.gz"
+  # Use the same version that was determined for the main download
+  TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/${LATEST_RELEASE_VERSION}/download/transformerlab_web.tar.gz"
   echo "APP Download Location: $TLAB_APP_URL"
 
   # Delete and recreate the target static files directory
