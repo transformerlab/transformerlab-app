@@ -276,7 +276,9 @@ export default function TasksGallery() {
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const navigate = useNavigate();
-  const [importingIndex, setImportingIndex] = useState<string | number | null>(null);
+  const [importingIndex, setImportingIndex] = useState<string | number | null>(
+    null,
+  );
   const [newTeamTaskModalOpen, setNewTeamTaskModalOpen] = useState(false);
   const [isSubmittingTeamTask, setIsSubmittingTeamTask] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
@@ -631,15 +633,19 @@ export default function TasksGallery() {
                   const originalIndex = gallery.findIndex(
                     (galleryTask) =>
                       galleryTask === task ||
-                      (galleryTask?.id && task?.id && galleryTask.id === task.id) ||
+                      (galleryTask?.id &&
+                        task?.id &&
+                        galleryTask.id === task.id) ||
                       (galleryTask?.title &&
                         task?.title &&
                         galleryTask.title === task.title &&
                         galleryTask.github_repo_url === task.github_repo_url),
                   );
-                  galleryIdentifier = originalIndex >= 0 ? originalIndex : filteredIndex;
+                  galleryIdentifier =
+                    originalIndex >= 0 ? originalIndex : filteredIndex;
                 }
-                const taskId = task?.id || task?.title || galleryIdentifier.toString();
+                const taskId =
+                  task?.id || task?.title || galleryIdentifier.toString();
                 return (
                   <Grid xs={12} sm={12} md={6} lg={4} xl={3} key={taskId}>
                     <TaskCard
