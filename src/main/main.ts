@@ -539,7 +539,9 @@ autoUpdater.on('update-available', (info) => {
 
   if (versionComparison > 0) {
     // Version is newer than v0.27.8, don't download
-    console.log(`🔄 main.js: Update ${availableVersion} is newer than ${targetVersion}, skipping...`);
+    console.log(
+      `🔄 main.js: Update ${availableVersion} is newer than ${targetVersion}, skipping...`,
+    );
     sendStatusToWindow('Update not available.');
     return;
   }

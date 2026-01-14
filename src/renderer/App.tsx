@@ -134,8 +134,17 @@ function AppContent({
           }}
         >
           <Typography level="body-sm" sx={{ textAlign: 'center' }}>
-            The desktop app for Transformer Lab is now deprecated and won't receive any new updates. We recommend installing the browser version using
-            the instructions <a href="https://lab.cloud/docs/install/" target="_blank" rel="noopener noreferrer">here</a>.
+            The desktop app for Transformer Lab is now deprecated and won't
+            receive any new updates. We recommend installing the browser version
+            using the instructions{' '}
+            <a
+              href="https://lab.cloud/docs/install/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              here
+            </a>
+            .
           </Typography>
         </Box>
       )}
