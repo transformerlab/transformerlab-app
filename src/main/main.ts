@@ -519,7 +519,7 @@ autoUpdater.on('update-available', (info) => {
   console.log('🔄 main.js: Update available...');
 
   // Only allow v0.27.8 or earlier versions
-  const targetVersion = '0.27.6';
+  const targetVersion = '0.27.8';
   const availableVersion = info.version;
 
   // Compare versions - only proceed if available version is v0.27.8 or earlier
