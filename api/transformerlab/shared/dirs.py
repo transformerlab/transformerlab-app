@@ -28,7 +28,7 @@ storage.makedirs(STATIC_FILES_DIR, exist_ok=True)
 if not storage.exists(storage.join(STATIC_FILES_DIR, "index.html")):
     with storage.open(storage.join(STATIC_FILES_DIR, "index.html"), "w") as f:
         f.write(
-            "<html><body><p>Transformer Lab Cloud App Files Missing. Run <pre>curl https://raw.githubusercontent.com/transformerlab/transformerlab-app/main/api/install.sh | bash</pre> to install.</p></body></html>"
+            "<html><body><p>Transformer Lab Cloud App Files Missing. Run <pre>curl https://lab.cloud/install.sh | bash</pre> to install.</p></body></html>"
         )
 
 # TFL_SOURCE_CODE_DIR

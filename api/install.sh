@@ -582,7 +582,7 @@ else
   CURRENT_VERSION=""
 
   for arg in "$@"; do
-    # Check if this looks like a version (v0.27.6 or 0.27.6)
+    # Check if this looks like a version (v0.27.8 or 0.27.6)
     if [[ "$arg" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+ ]]; then
       CURRENT_VERSION="$arg"
       # Execute the previous command with version if it was download_transformer_lab
@@ -628,7 +628,7 @@ else
         fi
         # Print allowed arguments
         echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies, install_providers] or leave blank to perform a full installation."
-        echo "You can specify a version after download_transformer_lab, e.g., download_transformer_lab v0.27.6"
+        echo "You can specify a version after download_transformer_lab, e.g., download_transformer_lab v0.27.8"
         abort "❌ Unknown argument: $arg"
         ;;
     esac
