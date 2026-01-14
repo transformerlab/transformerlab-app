@@ -5,7 +5,7 @@ import Box from '@mui/joy/Box';
 
 // import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext'; // REMOVE: No longer needed here
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
-import { IconButton } from '@mui/joy';
+import { IconButton, Typography } from '@mui/joy';
 import Sidebar from './components/Nav/Sidebar';
 import MainAppPanel from './components/MainAppPanel';
 import Header from './components/Header';
@@ -94,6 +94,8 @@ function AppContent({
     return null;
   }
 
+  const isElectronApp = (window as any).platform?.appmode !== 'cloud';
+
   return (
     <Box
       component="main"
@@ -105,16 +107,38 @@ function AppContent({
         overflow: 'hidden',
         gridTemplateColumns: '180px 1fr',
         gridTemplateRows: logsDrawerOpen
-          ? `48px 5fr ${logsDrawerHeight}px`
-          : '48px 5fr 18px',
+          ? `48px ${isElectronApp ? 'auto' : '0px'} 5fr ${logsDrawerHeight}px`
+          : `48px ${isElectronApp ? 'auto' : '0px'} 5fr 18px`,
         gridTemplateAreas: `
           "sidebar header"
+          "sidebar banner"
           "sidebar main"
           "sidebar footer"
         `,
       })}
     >
       <Header connection={connection} setConnection={setConnection} />
+      {isElectronApp && (
+        <Box
+          sx={{
+            gridArea: 'banner',
+            backgroundColor: 'var(--joy-palette-warning-100)',
+            color: 'var(--joy-palette-warning-800)',
+            px: 2,
+            py: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '14px',
+            borderBottom: '1px solid var(--joy-palette-warning-300)',
+          }}
+        >
+          <Typography level="body-sm" sx={{ textAlign: 'center' }}>
+            The desktop app for Transformer Lab is now deprecated and won't receive any new updates. We recommend installing the browser version using
+            the instructions <a href="https://lab.cloud/docs/install/" target="_blank" rel="noopener noreferrer">here</a>.
+          </Typography>
+        </Box>
+      )}
       <Sidebar
         logsDrawerOpen={logsDrawerOpen}
         setLogsDrawerOpen={setLogsDrawerOpen as any}

@@ -221,20 +221,8 @@ function InstallStepper({ setServer }) {
       );
       setVersion(ver);
 
-      let json = {};
-
-      try {
-        const rel = await fetch(
-          'https://api.github.com/repos/transformerlab/transformerlab-app/releases/latest',
-        );
-        json = await rel.json();
-      } catch {
-        json.tag_name =
-          'Unable to Connect to Github -- Skipping API version check';
-        // just skip this step if we can't connect
-        setActiveStep(Steps.indexOf('CHECK_VERSION') + 1);
-      }
-      const tag = json.tag_name;
+      // Hardcode release version to v0.27.8
+      const tag = 'v0.27.8';
 
       setRelease(tag);
 
@@ -465,19 +453,10 @@ function InstallStepper({ setServer }) {
           'server:checkLocalVersion',
         );
 
-        let json = {};
-        try {
-          const rel = await fetch(
-            'https://api.github.com/repos/transformerlab/transformerlab-app/releases/latest',
-          );
-          json = await rel.json();
-        } catch {
-          json.tag_name = 'Unable to Connect to Github Please Skip';
-        }
-        const tag = json.tag_name;
+        // Hardcode release version to v0.27.8
+        const releaseValue = 'v0.27.8';
 
-        setRelease(tag);
-        const releaseValue = tag;
+        setRelease(releaseValue);
 
         console.log('version: ', ver);
         console.log('release: ', releaseValue);
