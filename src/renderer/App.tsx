@@ -134,7 +134,7 @@ function AppContent({
           }}
         >
           <Typography level="body-sm" sx={{ textAlign: 'center' }}>
-            The desktop app for Transformer Lab is now deprecated and won't
+            ⚠️ The desktop app for Transformer Lab is now deprecated and won&apos;t
             receive any new updates. We recommend installing the browser version
             using the instructions{' '}
             <a
