@@ -1,4 +1,11 @@
-import { Chip, IconButton, LinearProgress, Stack, Typography, Tooltip } from '@mui/joy';
+import {
+  Chip,
+  IconButton,
+  LinearProgress,
+  Stack,
+  Typography,
+  Tooltip,
+} from '@mui/joy';
 import { StopCircleIcon, Info } from 'lucide-react';
 import Skeleton from '@mui/joy/Skeleton';
 import dayjs from 'dayjs';
@@ -33,7 +40,10 @@ interface JobProps {
   showLaunchResultInfo?: boolean;
 }
 
-export default function JobProgress({ job, showLaunchResultInfo = false }: JobProps) {
+export default function JobProgress({
+  job,
+  showLaunchResultInfo = false,
+}: JobProps) {
   const { experimentInfo } = useExperimentInfo();
   const { fetchWithAuth } = useAuth();
 
@@ -99,9 +109,7 @@ export default function JobProgress({ job, showLaunchResultInfo = false }: JobPr
   })();
 
   // Format provider launch result for display
-  const formatProviderLaunchResult = (
-    launchResult: any,
-  ): string => {
+  const formatProviderLaunchResult = (launchResult: any): string => {
     if (!launchResult) return '';
     if (typeof launchResult === 'string') return launchResult;
     if (typeof launchResult === 'object') {
@@ -129,7 +137,9 @@ export default function JobProgress({ job, showLaunchResultInfo = false }: JobPr
           }
         }
       });
-      return parts.length > 0 ? parts.join('\n') : JSON.stringify(launchResult, null, 2);
+      return parts.length > 0
+        ? parts.join('\n')
+        : JSON.stringify(launchResult, null, 2);
     }
     return String(launchResult);
   };
