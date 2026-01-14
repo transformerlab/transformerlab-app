@@ -882,7 +882,7 @@ async def get_checkpoints(job_id: str, request: Request):
 
         # Get checkpoints using the SDK method
         sdk_job = Job(job_id)
-        checkpoint_paths = sdk_job.get_checkpoint_paths()
+        checkpoint_paths = await sdk_job.get_checkpoint_paths()
 
         if checkpoint_paths and len(checkpoint_paths) > 0:
             checkpoints = []
