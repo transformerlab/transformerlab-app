@@ -302,7 +302,7 @@ export async function installLocalServer() {
 
   // Hardcode version to v0.27.8 (matching LocalConnectionModal)
   const targetVersion = 'v0.27.8';
-  const download_cmd = `curl https://lab.cloud/install.sh | bash -s -- download_transformer_lab ${targetVersion}`;
+  const download_cmd = `curl https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/hotfix/electron-app-dep/api/install.sh | bash -s -- download_transformer_lab ${targetVersion}`;
   const installScriptCommand = isPlatformWindows()
     ? `wsl ` + download_cmd
     : download_cmd;
