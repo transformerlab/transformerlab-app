@@ -1160,7 +1160,7 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
 
         # Get artifacts using the SDK method
         sdk_job = Job(job_id)
-        artifact_paths = sdk_job.get_artifact_paths()
+        artifact_paths = await sdk_job.get_artifact_paths()
 
         if artifact_paths:
             # Look for the file in the artifact paths
