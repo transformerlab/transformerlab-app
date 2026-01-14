@@ -222,7 +222,7 @@ function InstallStepper({ setServer }) {
       setVersion(ver);
 
       // Hardcode release version to v0.27.8
-      const tag = 'v0.27.8';
+      const tag = 'v0.27.6';
 
       setRelease(tag);
 
@@ -454,7 +454,7 @@ function InstallStepper({ setServer }) {
         );
 
         // Hardcode release version to v0.27.8
-        const releaseValue = 'v0.27.8';
+        const releaseValue = 'v0.27.6';
 
         setRelease(releaseValue);
 

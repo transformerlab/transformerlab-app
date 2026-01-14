@@ -170,12 +170,25 @@ download_transformer_lab() {
     ohai "✅ curl is installed."
   fi
 
-  # Figure out the path to the lastest release of Transformer Lab
-  LATEST_RELEASE_VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/transformerlab/transformerlab-app/releases/latest)
-  LATEST_RELEASE_VERSION=$(basename "$LATEST_RELEASE_VERSION")
+  # Check if a specific version was provided as first argument
+  if [ -n "$1" ] && [[ "$1" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+    # Version provided as argument
+    LATEST_RELEASE_VERSION="$1"
+    # Ensure it starts with 'v'
+    if [[ ! "$LATEST_RELEASE_VERSION" =~ ^v ]]; then
+      LATEST_RELEASE_VERSION="v${LATEST_RELEASE_VERSION}"
+    fi
+    ohai "Using specified version: $LATEST_RELEASE_VERSION"
+  else
+    # Figure out the path to the latest release of Transformer Lab
+    LATEST_RELEASE_VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/transformerlab/transformerlab-app/releases/latest)
+    LATEST_RELEASE_VERSION=$(basename "$LATEST_RELEASE_VERSION")
+    ohai "Using latest release from GitHub: $LATEST_RELEASE_VERSION"
+  fi
+
   LATEST_RELEASE_VERSION_WITHOUT_V=$(echo "$LATEST_RELEASE_VERSION" | sed 's/v//g')
 
-  echo "Latest Release of Transformer Lab on Github: $LATEST_RELEASE_VERSION"
+  echo "Release Version: $LATEST_RELEASE_VERSION"
   TLAB_URL="https://github.com/transformerlab/transformerlab-app/archive/refs/tags/${LATEST_RELEASE_VERSION}.tar.gz"
   echo "Download Location: $TLAB_URL"
 
@@ -564,10 +577,27 @@ if [[ "$#" -eq 0 ]]; then
   install_dependencies
   print_success_message
 else
+  # Track the current command and version
+  CURRENT_COMMAND=""
+  CURRENT_VERSION=""
+
   for arg in "$@"; do
+    # Check if this looks like a version (v0.27.6 or 0.27.6)
+    if [[ "$arg" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+      CURRENT_VERSION="$arg"
+      # Execute the previous command with version if it was download_transformer_lab
+      if [ "$CURRENT_COMMAND" = "download_transformer_lab" ]; then
+        download_transformer_lab "$CURRENT_VERSION"
+        CURRENT_COMMAND=""
+        CURRENT_VERSION=""
+      fi
+      continue
+    fi
+
     case $arg in
       download_transformer_lab)
-        download_transformer_lab
+        CURRENT_COMMAND="download_transformer_lab"
+        # Don't execute yet, wait to see if next arg is a version
         ;;
       install_conda)
         install_conda
@@ -591,10 +621,21 @@ else
         list_environments
         ;;
       *)
+        # If we have a pending download_transformer_lab command, execute it now
+        if [ "$CURRENT_COMMAND" = "download_transformer_lab" ]; then
+          download_transformer_lab
+          CURRENT_COMMAND=""
+        fi
         # Print allowed arguments
         echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies, install_providers] or leave blank to perform a full installation."
+        echo "You can specify a version after download_transformer_lab, e.g., download_transformer_lab v0.27.6"
         abort "❌ Unknown argument: $arg"
         ;;
     esac
   done
+
+  # Handle case where download_transformer_lab was the last argument without a version
+  if [ "$CURRENT_COMMAND" = "download_transformer_lab" ]; then
+    download_transformer_lab
+  fi
 fi

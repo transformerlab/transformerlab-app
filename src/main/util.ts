@@ -300,7 +300,9 @@ export async function installLocalServer() {
     return;
   }
 
-  const download_cmd = `curl https://lab.cloud/install.sh | bash -s -- download_transformer_lab`;
+  // Hardcode version to v0.27.6 (matching LocalConnectionModal)
+  const targetVersion = 'v0.27.6';
+  const download_cmd = `curl https://lab.cloud/install.sh | bash -s -- download_transformer_lab ${targetVersion}`;
   const installScriptCommand = isPlatformWindows()
     ? `wsl ` + download_cmd
     : download_cmd;

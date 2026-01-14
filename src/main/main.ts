@@ -517,11 +517,11 @@ autoUpdater.on('checking-for-update', () => {
 });
 autoUpdater.on('update-available', (info) => {
   console.log('🔄 main.js: Update available...');
-  
+
   // Only allow v0.27.8 or earlier versions
-  const targetVersion = '0.27.8';
+  const targetVersion = '0.27.6';
   const availableVersion = info.version;
-  
+
   // Compare versions - only proceed if available version is v0.27.8 or earlier
   const compareVersions = (v1: string, v2: string): number => {
     const parts1 = v1.split('.').map(Number);
@@ -534,16 +534,16 @@ autoUpdater.on('update-available', (info) => {
     }
     return 0;
   };
-  
+
   const versionComparison = compareVersions(availableVersion, targetVersion);
-  
+
   if (versionComparison > 0) {
     // Version is newer than v0.27.8, don't download
     console.log(`🔄 main.js: Update ${availableVersion} is newer than ${targetVersion}, skipping...`);
     sendStatusToWindow('Update not available.');
     return;
   }
-  
+
   sendStatusToWindow('Update available.');
 
   dialog
