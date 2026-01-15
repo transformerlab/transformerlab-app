@@ -606,16 +606,13 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
     #     await _trigger_workflows_on_job_completion(job_id)
 
 
-def job_update_status_sync(
-    job_id: str, org_id: str, status: str, experiment_id: Optional[str] = None, error_msg: Optional[str] = None
-):
+def job_update_status_sync(job_id: str, org_id: str, status: str, error_msg: Optional[str] = None):
     """
     Synchronous version of job status update.
 
     Args:
         job_id: The ID of the job to update
         status: The new status to set
-        experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
         error_msg: Optional error message to add to job data
     """
     # Update the job status using SDK Job class
@@ -626,9 +623,6 @@ def job_update_status_sync(
 
         try:
             job = asyncio.run(Job.get(str(job_id)))
-            exp_id = asyncio.run(job.get_experiment_id())
-            if experiment_id is not None and exp_id != experiment_id:
-                return
             asyncio.run(job.update_status(status))
             if error_msg:
                 asyncio.run(job.set_error_message(error_msg))
