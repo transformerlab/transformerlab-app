@@ -65,7 +65,7 @@ async def _write_queued_jobs_to_file(queued_jobs: List[Dict[str, str]]):
         # Ensure directory exists
         queue_dir = storage.join(*queue_file.split("/")[:-1]) if "/" in queue_file else "."
         await storage.makedirs(queue_dir, exist_ok=True)
-        
+
         async with await storage.open(queue_file, "w") as f:
             await f.write(json.dumps(queued_jobs, indent=2))
     except Exception as e:
@@ -83,12 +83,12 @@ async def _add_job_to_queue(job_id: str, org_id: Optional[str] = None):
         if org_id is None:
             print(f"Warning: Could not determine org_id for job {job_id}, skipping queue add")
             return
-        
+
         queued_jobs = await _get_queued_jobs_from_file()
         # Check if already in queue
         if any(j["job_id"] == job_id for j in queued_jobs):
             return
-        
+
         queued_jobs.append({"job_id": str(job_id), "org_id": org_id})
         await _write_queued_jobs_to_file(queued_jobs)
     except Exception as e:
@@ -114,14 +114,14 @@ async def _sync_queue_file():
     try:
         queued_jobs = await _get_queued_jobs_from_file()
         valid_queued_jobs = []
-        
+
         for job_entry in queued_jobs:
             job_id = job_entry.get("job_id")
             org_id = job_entry.get("org_id")
-            
+
             if not job_id or not org_id:
                 continue
-            
+
             # Check if job actually exists and is still QUEUED
             try:
                 lab_dirs.set_organization_id(org_id)
@@ -134,7 +134,7 @@ async def _sync_queue_file():
                 pass
             finally:
                 lab_dirs.set_organization_id(None)
-        
+
         # Only write if there are changes
         if len(valid_queued_jobs) != len(queued_jobs):
             await _write_queued_jobs_to_file(valid_queued_jobs)
@@ -169,6 +169,7 @@ async def job_create(type, status, experiment_id, job_data="{}"):
         # Get org_id from current context
         try:
             from lab.dirs import get_workspace_dir
+
             workspace_dir = await get_workspace_dir()
             if "/orgs/" in workspace_dir:
                 org_id = workspace_dir.split("/orgs/")[-1].split("/")[0]
@@ -301,27 +302,27 @@ async def jobs_get_next_queued_job_across_all_orgs() -> Tuple[Optional[dict], Op
     """
     # Read queued jobs from queue file
     queued_jobs_from_file = await _get_queued_jobs_from_file()
-    
+
     if not queued_jobs_from_file:
         return (None, None)
-    
+
     # Convert to list of (job_id, job_data, org_id) tuples, filtering out invalid entries
     valid_queued_jobs = []
-    
+
     for job_entry in queued_jobs_from_file:
         job_id_str = job_entry.get("job_id")
         org_id = job_entry.get("org_id")
-        
+
         if not job_id_str or not org_id:
             continue
-        
+
         try:
             # Set org context and verify job exists and is still QUEUED
             lab_dirs.set_organization_id(org_id)
             try:
                 job = await Job.get(job_id_str)
                 job_data = await job.get_json_data(uncached=True)
-                
+
                 # Verify job is still QUEUED (in case queue file is out of sync)
                 if job_data.get("status") == "QUEUED":
                     job_id = int(job_id_str) if job_id_str.isdigit() else 0
@@ -336,13 +337,13 @@ async def jobs_get_next_queued_job_across_all_orgs() -> Tuple[Optional[dict], Op
             print(f"Error processing queued job {job_id_str}: {e}")
         finally:
             lab_dirs.set_organization_id(None)
-    
+
     # Sort by job_id (oldest first) and return the first one
     if valid_queued_jobs:
         valid_queued_jobs.sort(key=lambda x: x[0])
         job_id, job_data, org_id = valid_queued_jobs[0]
         return (job_data, org_id)
-    
+
     return (None, None)
 
 
@@ -668,23 +669,24 @@ async def job_update_status(
         if experiment_id is not None and exp_id != experiment_id:
             return
         old_status = await job.get_status()
-        
+
         # Get org_id for queue management
         try:
             from lab.dirs import get_workspace_dir
+
             workspace_dir = await get_workspace_dir()
             if "/orgs/" in workspace_dir:
                 org_id = workspace_dir.split("/orgs/")[-1].split("/")[0]
         except Exception:
             org_id = await _find_org_id_for_job(job_id)
-        
+
         await job.update_status(status)
         if error_msg:
             await job.set_error_message(error_msg)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
         pass
-    
+
     # Update queue file based on status change
     try:
         if old_status == "QUEUED" and status != "QUEUED":
@@ -741,22 +743,23 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
         if experiment_id is not None and exp_id != experiment_id:
             return
         old_status = await job.get_status()
-        
+
         # Get org_id for queue management
         try:
             from lab.dirs import get_workspace_dir
+
             workspace_dir = await get_workspace_dir()
             if "/orgs/" in workspace_dir:
                 org_id = workspace_dir.split("/orgs/")[-1].split("/")[0]
         except Exception:
             org_id = await _find_org_id_for_job(job_id)
-        
+
         await job.set_type(type)
         await job.update_status(status)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
         pass
-    
+
     # Update queue file based on status change
     try:
         if old_status == "QUEUED" and status != "QUEUED":
