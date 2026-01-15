@@ -780,7 +780,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         try:
             from transformerlab.services.job_service import job_mark_as_complete_if_running
 
-            job_mark_as_complete_if_running(job_id, experiment_name, org_id)
+            job_mark_as_complete_if_running(job_id, org_id)
         except Exception:
             print(f"Failed to mark job ${job_id} as complete.")
             pass
