@@ -7,8 +7,7 @@ interactive SSH tasks launched via ngrok.
 
 import os
 import stat
-from pathlib import Path
-from typing import Optional, Tuple
+from typing import Tuple
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
@@ -47,24 +46,19 @@ async def generate_ssh_key_pair(team_id: str) -> Tuple[str, str]:
         return private_key_path, public_key_path
 
     # Generate RSA key pair
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-        backend=default_backend()
-    )
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
 
     # Serialize private key in OpenSSH format
     private_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.OpenSSH,
-        encryption_algorithm=serialization.NoEncryption()
+        encryption_algorithm=serialization.NoEncryption(),
     )
 
     # Get public key
     public_key = private_key.public_key()
     public_ssh = public_key.public_bytes(
-        encoding=serialization.Encoding.OpenSSH,
-        format=serialization.PublicFormat.OpenSSH
+        encoding=serialization.Encoding.OpenSSH, format=serialization.PublicFormat.OpenSSH
     )
 
     # Write private key

@@ -7,10 +7,7 @@ import {
   Alert,
   Card,
 } from '@mui/joy';
-import {
-  KeyIcon,
-  DownloadIcon,
-} from 'lucide-react';
+import { KeyIcon, DownloadIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -35,23 +32,25 @@ export default function SshKeySection({ teamId }: { teamId: string }) {
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Failed to download SSH key' }));
+        const errorData = await response
+          .json()
+          .catch(() => ({ detail: 'Failed to download SSH key' }));
         throw new Error(errorData.detail || 'Failed to download SSH key');
       }
 
       // Get the blob from the response
       const blob = await response.blob();
-      
+
       // Create a temporary URL for the blob
       const url = window.URL.createObjectURL(blob);
-      
+
       // Create a temporary anchor element and trigger download
       const a = document.createElement('a');
       a.href = url;
       a.download = `org_ssh_key_${teamId}`;
       document.body.appendChild(a);
       a.click();
-      
+
       // Cleanup
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
@@ -69,17 +68,20 @@ export default function SshKeySection({ teamId }: { teamId: string }) {
         SSH Access Key
       </Typography>
       <Typography level="body-sm" color="neutral" mb={2}>
-        Download your organization's SSH private key to access interactive SSH tasks
-        launched via ngrok. The key is automatically generated when you launch your
-        first SSH interactive task.
+        Download your organization's SSH private key to access interactive SSH
+        tasks launched via ngrok. The key is automatically generated when you
+        launch your first SSH interactive task.
       </Typography>
       <Alert color="primary" variant="soft" sx={{ mb: 2 }}>
         <Typography level="body-sm">
           <strong>Usage:</strong>
-          <br />• Download the key and save it securely (e.g., <code>~/.ssh/org_ssh_key</code>)
+          <br />• Download the key and save it securely (e.g.,{' '}
+          <code>~/.ssh/org_ssh_key</code>)
           <br />• Set permissions: <code>chmod 600 ~/.ssh/org_ssh_key</code>
-          <br />• Use it to SSH into your interactive tasks: <code>ssh -i ~/.ssh/org_ssh_key user@host</code>
-          <br />• The public key is automatically added to authorized_keys on launch
+          <br />• Use it to SSH into your interactive tasks:{' '}
+          <code>ssh -i ~/.ssh/org_ssh_key user@host</code>
+          <br />• The public key is automatically added to authorized_keys on
+          launch
         </Typography>
       </Alert>
 

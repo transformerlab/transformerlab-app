@@ -1122,7 +1122,7 @@ async def launch_template_on_provider(
             # Generate setup script to add public key to authorized_keys
             # Escape the public key for use in shell script - use single quotes to avoid shell expansion
             # Remove newlines from public key (should be single line anyway)
-            public_key_clean = public_key.strip().replace('\n', '').replace('\r', '')
+            public_key_clean = public_key.strip().replace("\n", "").replace("\r", "")
             # Escape single quotes in public key for use within single-quoted string
             public_key_escaped = public_key_clean.replace("'", "'\"'\"'")
             # Create SSH setup as a single line command (no trailing semicolon - will be added by join)
@@ -1140,7 +1140,7 @@ async def launch_template_on_provider(
     # Join setup commands, stripping trailing semicolons to avoid double semicolons
     if setup_commands:
         # Strip trailing semicolons and whitespace from each command, then join with semicolons
-        cleaned_commands = [cmd.rstrip(';').rstrip() for cmd in setup_commands if cmd.strip()]
+        cleaned_commands = [cmd.rstrip(";").rstrip() for cmd in setup_commands if cmd.strip()]
         final_setup = ";".join(cleaned_commands) if cleaned_commands else None
     else:
         final_setup = None
@@ -2303,7 +2303,7 @@ async def download_ssh_key(
 
         # Ensure key exists (will create if it doesn't)
         await get_or_create_org_ssh_key_pair(team_id)
-        
+
         # Get private key content
         private_key_content = await get_org_ssh_private_key(team_id)
 
@@ -2316,10 +2316,7 @@ async def download_ssh_key(
             },
         )
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to retrieve SSH key: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve SSH key: {str(e)}")
 
 
 @router.delete("/{provider_id}/clusters/{cluster_name}/jobs/{job_id}")
