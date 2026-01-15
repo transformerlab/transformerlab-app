@@ -6,7 +6,7 @@ import json
 import configparser
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, List, Optional, Union, Tuple
 from transformerlab.shared.models.user_model import get_async_session
@@ -1110,12 +1110,40 @@ async def launch_template_on_provider(
         )
         setup_commands.append(github_setup)
 
+    # Add SSH public key setup for SSH interactive tasks
+    if request.subtype == "interactive" and request.interactive_type == "ssh":
+        from transformerlab.services.ssh_key_service import get_or_create_org_ssh_key_pair, get_org_ssh_public_key
+
+        try:
+            # Get or create SSH key pair for this organization
+            await get_or_create_org_ssh_key_pair(team_id)
+            public_key = await get_org_ssh_public_key(team_id)
+
+            # Generate setup script to add public key to authorized_keys
+            # Escape the public key for use in shell script - use single quotes to avoid shell expansion
+            # Remove newlines from public key (should be single line anyway)
+            public_key_clean = public_key.strip().replace('\n', '').replace('\r', '')
+            # Escape single quotes in public key for use within single-quoted string
+            public_key_escaped = public_key_clean.replace("'", "'\"'\"'")
+            # Create SSH setup as a single line command (no trailing semicolon - will be added by join)
+            ssh_setup = f"mkdir -p ~/.ssh && chmod 700 ~/.ssh; if [ ! -f ~/.ssh/authorized_keys ]; then touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys; fi; if ! grep -qF '{public_key_escaped}' ~/.ssh/authorized_keys; then echo '{public_key_escaped}' >> ~/.ssh/authorized_keys; fi"
+            setup_commands.append(ssh_setup)
+        except Exception as e:
+            # Log error but don't fail the launch - SSH key setup is optional
+            print(f"Warning: Failed to set up SSH key for organization {team_id}: {e}")
+
     # Add user-provided setup if any (replace secrets in setup)
     if request.setup:
         setup_with_secrets = replace_secret_placeholders(request.setup, team_secrets) if team_secrets else request.setup
         setup_commands.append(setup_with_secrets)
 
-    final_setup = ";".join(setup_commands) if setup_commands else None
+    # Join setup commands, stripping trailing semicolons to avoid double semicolons
+    if setup_commands:
+        # Strip trailing semicolons and whitespace from each command, then join with semicolons
+        cleaned_commands = [cmd.rstrip(';').rstrip() for cmd in setup_commands if cmd.strip()]
+        final_setup = ";".join(cleaned_commands) if cleaned_commands else None
+    else:
+        final_setup = None
 
     # Add default environment variables
     env_vars["_TFL_JOB_ID"] = str(job_id)
@@ -2257,6 +2285,41 @@ async def get_job_logs(
     except Exception as e:
         print(f"Failed to get job logs: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to get job logs")
+
+
+@router.get("/ssh-key/download")
+async def download_ssh_key(
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Download the organization's SSH private key for accessing interactive SSH tasks.
+    The key is automatically generated on first SSH task launch if it doesn't exist.
+    Requires X-Team-Id header and team membership.
+    """
+    team_id = user_and_team["team_id"]
+
+    try:
+        from transformerlab.services.ssh_key_service import get_or_create_org_ssh_key_pair, get_org_ssh_private_key
+
+        # Ensure key exists (will create if it doesn't)
+        await get_or_create_org_ssh_key_pair(team_id)
+        
+        # Get private key content
+        private_key_content = await get_org_ssh_private_key(team_id)
+
+        # Return as downloadable file
+        return Response(
+            content=private_key_content,
+            media_type="application/x-pem-file",
+            headers={
+                "Content-Disposition": f'attachment; filename="org_ssh_key_{team_id}"',
+            },
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve SSH key: {str(e)}"
+        )
 
 
 @router.delete("/{provider_id}/clusters/{cluster_name}/jobs/{job_id}")

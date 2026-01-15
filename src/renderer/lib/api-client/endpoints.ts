@@ -118,6 +118,7 @@ Endpoints.ComputeProvider = {
     }
     return `${API_URL()}compute_provider/jobs/ensure-quota-recorded`;
   },
+  DownloadSshKey: () => `${API_URL()}compute_provider/ssh-key/download`,
 };
 
 Endpoints.Workflows = {

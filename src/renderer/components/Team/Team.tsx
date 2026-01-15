@@ -35,6 +35,7 @@ import InviteUserModal from './InviteUserModal';
 import ProviderDetailsModal from './ProviderDetailsModal';
 import QuotaSettingsSection from './QuotaSettingsSection';
 import TeamSecretsSection from './TeamSecretsSection';
+import SshKeySection from './SshKeySection';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 /*
@@ -1000,6 +1001,7 @@ export default function UserLoginTest(): JSX.Element {
           <>
             <QuotaSettingsSection teamId={authContext.team?.id || ''} />
             <TeamSecretsSection teamId={authContext.team?.id || ''} />
+            <SshKeySection teamId={authContext.team?.id || ''} />
           </>
         )}
       </Box>

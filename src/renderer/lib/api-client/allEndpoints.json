@@ -347,6 +347,10 @@
     "usage-report": {
       "method": "GET",
       "path": "compute_provider/usage-report"
+    },
+    "downloadSshKey": {
+      "method": "GET",
+      "path": "compute_provider/ssh-key/download"
     }
   },
   "auth": {
