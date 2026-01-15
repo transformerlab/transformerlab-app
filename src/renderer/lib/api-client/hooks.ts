@@ -48,7 +48,21 @@ export const fetcher = async (
 
 export function useModelStatus() {
   const api_url = API_URL();
-  const url: string | null = api_url ? api_url + 'server/worker_healthz' : null;
+
+  // Check the mode first - only call worker_healthz in local mode
+  // Use the healthz endpoint URL as the key
+  const healthzUrl: string | null = api_url ? api_url + 'healthz' : null;
+  const { data: healthzData } = useSWR(healthzUrl, fetcher, {
+    refreshInterval: 30000,
+  }); // Check mode every 30 seconds (less frequent than worker_healthz)
+
+  // Only make request if we have healthz data and mode is 'local'
+  // If healthzData is undefined (still loading) or null (error), don't make the request
+  const isLocalMode = healthzData?.mode === 'local';
+
+  // Only set URL if in local mode, otherwise SWR won't make the request
+  const url: string | null =
+    api_url && isLocalMode ? api_url + 'server/worker_healthz' : null;
 
   // Poll every 2 seconds
   const options = { refreshInterval: 2000 };
