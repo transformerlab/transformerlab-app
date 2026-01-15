@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useMemo, useEffect, useRef } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useEffect,
+  useRef,
+} from 'react';
 import { useSWRWithAuth as useSWR } from './authContext';
 import { API_URL } from './api-client/urls';
 import { fetcher } from './api-client/hooks';
@@ -39,10 +45,10 @@ export function ServerModeProvider({
 
   const mode = healthzData?.mode ? String(healthzData.mode).trim() : null;
   const isLocalMode = mode === 'local';
-  
+
   // Track previous error state to detect when API comes back online
   const prevErrorRef = useRef(isError);
-  
+
   // When error clears (API comes back online), force a refresh
   useEffect(() => {
     if (prevErrorRef.current && !isError && !isLoading) {
