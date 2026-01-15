@@ -23,7 +23,7 @@ INTERACTIVE_GALLERY_FILE = "interactive-gallery.json"
 # Team-specific tasks gallery stored in workspace dir (per team)
 TEAM_TASKS_GALLERY_FILE = "team_specific_tasks.json"
 # Announcements gallery
-ANNOUNCEMENTS_GALLERY_FILE = "announcements-gallery.json"
+ANNOUNCEMENTS_GALLERY_FILE = "announcement-gallery.json"
 
 GALLERY_FILES = [
     MODEL_GALLERY_FILE,
