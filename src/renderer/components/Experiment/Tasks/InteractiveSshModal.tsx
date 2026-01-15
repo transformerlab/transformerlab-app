@@ -17,6 +17,7 @@ import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { useAuth } from 'renderer/lib/authContext';
 
 type InteractiveSshModalProps = {
   jobId: number;
@@ -30,6 +31,7 @@ export default function InteractiveSshModal({
   onOpenOutput,
 }: InteractiveSshModalProps) {
   const { experimentInfo } = useExperimentInfo();
+  const { team } = useAuth();
 
   const url = React.useMemo(() => {
     if (jobId === -1 || !experimentInfo?.id) {
@@ -74,8 +76,25 @@ export default function InteractiveSshModal({
   const domain = data?.domain || null;
   const port = data?.port || null;
   const username = data?.username || null;
-  const sshCommand = data?.ssh_command || null;
+  const baseSshCommand = data?.ssh_command || null;
   const isReady = Boolean(data?.is_ready);
+
+  // Modify SSH command to include the org SSH key if team is available
+  const sshCommand = React.useMemo(() => {
+    if (!baseSshCommand || !team?.id) {
+      return baseSshCommand;
+    }
+    // Insert -i flag after ssh and before -p or username
+    // Pattern: ssh -p {port} {username}@{domain}
+    // Should become: ssh -i ~/org_ssh_key_{teamId} -p {port} {username}@{domain}
+    const sshKeyPath = `~/org_ssh_key_${team.id}`;
+    // Check if -i is already in the command
+    if (baseSshCommand.includes('-i')) {
+      return baseSshCommand;
+    }
+    // Insert -i flag after 'ssh'
+    return baseSshCommand.replace(/^ssh\s+/, `ssh -i ${sshKeyPath} `);
+  }, [baseSshCommand, team?.id]);
 
   return (
     <Modal open={jobId !== -1} onClose={handleClose}>
@@ -94,7 +113,8 @@ export default function InteractiveSshModal({
           </Typography>
           <Typography level="body-sm" color="neutral">
             Access your remote machine via SSH through the ngrok tunnel. Use the
-            SSH command below to connect.
+            SSH command below to connect. You'll need to download your
+            organization's SSH key from Team Settings first.
           </Typography>
         </Stack>
         <Divider />
@@ -216,9 +236,12 @@ export default function InteractiveSshModal({
                     fontSize: '0.75rem',
                   }}
                 >
-                  {`1. Copy the SSH command above
-2. Open your terminal
-3. Paste and run the command`}
+                  {`1. Download your organization's SSH key from Team Settings
+2. Save the key file (e.g., ~/org_ssh_key_${team?.id || 'YOUR_TEAM_ID'})
+3. Set permissions: chmod 600 ~/org_ssh_key_${team?.id || 'YOUR_TEAM_ID'}
+4. Copy the SSH command above
+5. Open your terminal
+6. Paste and run the command`}
                 </Typography>
               </Box>
             )}
