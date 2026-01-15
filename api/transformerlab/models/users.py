@@ -176,7 +176,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 email=account_email, password=random_password, is_verified=True
             )  # OAuth emails are pre-verified
             user = await self.create(user_create, request=request)
-            
+
             # Link OAuth account to the newly created user
             oauth_account_dict = {
                 "oauth_name": oauth_name,
