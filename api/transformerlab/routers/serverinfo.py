@@ -18,6 +18,7 @@ import torch
 from lab.dirs import get_global_log_path
 from lab import HOME_DIR
 from lab import storage
+from transformerlab.shared import galleries
 
 
 try:
@@ -440,6 +441,16 @@ async def watch_log():
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
         )
+
+
+@router.get("/announcements")
+async def get_announcements():
+    """
+    Get announcements from the announcements gallery.
+    Returns a list of announcements that can be displayed to users.
+    """
+    announcements = await galleries.get_announcements_gallery()
+    return {"status": "success", "data": announcements}
 
 
 @router.get("/download_logs")
