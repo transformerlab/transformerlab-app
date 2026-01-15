@@ -371,7 +371,6 @@ class Experiment(BaseLabResource):
                     continue
                 job_entries.append(entry)
 
-
             sorted_entries = sorted(job_entries, key=lambda x: int(x), reverse=True)
             for entry in sorted_entries:
                 entry_path = storage.join(jobs_directory, entry)
@@ -379,7 +378,7 @@ class Experiment(BaseLabResource):
                     continue
                 # Prefer the latest snapshot if available; fall back to index.json
                 index_file = storage.join(entry_path, "index.json")
-                
+
                 # Retry logic for ETag errors (files being modified concurrently)
                 max_retries = 5
                 data = None
@@ -402,10 +401,12 @@ class Experiment(BaseLabResource):
                         # Check if this is the Etag mismatch error
                         error_str = str(e)
                         has_errno_16 = (
-                            (hasattr(e, "errno") and e.errno == 16) or "Errno 16" in error_str or "[Errno 16]" in error_str
+                            (hasattr(e, "errno") and e.errno == 16)
+                            or "Errno 16" in error_str
+                            or "[Errno 16]" in error_str
                         )
                         is_etag_error = "Etag" in error_str and "no longer exists" in error_str and has_errno_16
-                        
+
                         if is_etag_error and attempt < max_retries - 1:
                             # Wait a short time before retrying (exponential backoff)
                             await asyncio.sleep(0.5 * (2**attempt))
@@ -414,7 +415,7 @@ class Experiment(BaseLabResource):
                             # Not an ETag error, or last attempt failed
                             print(f"Error loading index.json for job {entry_path}: {e}")
                             break
-                
+
                 if data is None:
                     continue
                 if data.get("experiment_id", "") != self.id:
