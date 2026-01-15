@@ -17,6 +17,7 @@ import TinyMLXLogo from './Shared/TinyMLXLogo';
 import TinyNVIDIALogo from './Shared/TinyNVIDIALogo';
 import TinyAMDLogo from './Shared/TinyAMDLogo';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { useServerMode } from 'renderer/lib/ServerModeContext';
 import ConnectionLostModal from './Shared/ConnectionLostModal';
 
 function StatsBar({ connection, setConnection }) {
@@ -336,25 +337,9 @@ function StatsBar({ connection, setConnection }) {
 
 export default function Header({ connection, setConnection }) {
   const { experimentInfo } = useExperimentInfo();
-  const [mode, setMode] = useState<string>('local');
+  const { mode } = useServerMode();
   const { isError, server } = useServerStats();
   const [connectionLost, setConnectionLost] = useState(false);
-
-  // Fetch healthz to get the mode
-  useEffect(() => {
-    const fetchHealthz = async () => {
-      try {
-        const data = await apiHealthz();
-        if (data?.mode) {
-          setMode(data.mode);
-        }
-      } catch (error) {
-        console.error('Failed to fetch healthz data:', error);
-      }
-    };
-
-    fetchHealthz();
-  }, []);
 
   // Check connection health when we have a connection URL set
   useEffect(() => {
