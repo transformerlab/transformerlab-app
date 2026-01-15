@@ -607,7 +607,7 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
 
 
 def job_update_status_sync(
-    job_id: str, status: str, experiment_id: Optional[str] = None, error_msg: Optional[str] = None
+    job_id: str, org_id: str, status: str, experiment_id: Optional[str] = None, error_msg: Optional[str] = None
 ):
     """
     Synchronous version of job status update.
@@ -620,9 +620,6 @@ def job_update_status_sync(
     """
     # Update the job status using SDK Job class
     try:
-        # Find which org this job belongs to (in case we're called from a callback without org context)
-        org_id = asyncio.run(_find_org_id_for_job(str(job_id)))
-
         # Set org context before accessing the job
         if org_id:
             lab_dirs.set_organization_id(org_id)
@@ -647,10 +644,6 @@ def job_update_status_sync(
         except Exception:
             pass
         pass
-
-    # # Trigger workflows if job status is COMPLETE
-    # if status == "COMPLETE":
-    #     _trigger_workflows_on_job_completion_sync(job_id)
 
 
 def job_update_sync(job_id: str, status: str, experiment_id: Optional[str] = None):

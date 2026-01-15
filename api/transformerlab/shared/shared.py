@@ -786,7 +786,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             pass
 
     def on_job_complete():
-        job_update_status_sync(job_id, "COMPLETE", experiment_name)
+        job_update_status_sync(job_id, org_id, "COMPLETE", experiment_name)
 
     if job_type == "LoRA":
         template_config = job_config["config"]  # Get the config for this job type
