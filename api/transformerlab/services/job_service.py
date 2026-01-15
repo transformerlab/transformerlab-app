@@ -764,12 +764,9 @@ async def _trigger_workflows_async(job_id: str, job_type: str, experiment_id: st
         print(f"Error in async workflow triggering for job {job_id}: {e}")
 
 
-def job_mark_as_complete_if_running(job_id: int, experiment_id: int) -> None:
+def job_mark_as_complete_if_running(job_id: int, experiment_id: int, org_id: str) -> None:
     """Service wrapper: mark job as complete if running and then trigger workflows."""
     try:
-        # Find which org this job belongs to
-        org_id = asyncio.run(_find_org_id_for_job(str(job_id)))
-
         # Set org context before accessing the job
         if org_id:
             lab_dirs.set_organization_id(org_id)
@@ -783,7 +780,6 @@ def job_mark_as_complete_if_running(job_id: int, experiment_id: int) -> None:
             status = asyncio.run(job.get_status())
             if status == "RUNNING":
                 asyncio.run(job.update_status("COMPLETE"))
-                # _trigger_workflows_on_job_completion_sync(job_id)
         finally:
             # Clear org context
             if org_id:
