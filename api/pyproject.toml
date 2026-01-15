@@ -36,7 +36,7 @@ dependencies = [
   "transformerlab==0.0.66",
   "transformerlab-inference==0.2.52",
   "transformers==4.57.1",
-  "wandb==0.19.10",
+  "wandb==0.23.1",
   "werkzeug==3.1.3",
   "controlnet_aux==0.0.10",
   "google-cloud-storage==2.18.2",
