@@ -155,7 +155,7 @@ const JobsList: React.FC<JobsListProps> = ({
               </td>
               <td>{formatJobConfig(job)}</td>
               <td>
-                <JobProgress job={job} />
+                <JobProgress job={job} showLaunchResultInfo />
               </td>
               <td style={{ width: 'fit-content' }}>
                 <ButtonGroup
