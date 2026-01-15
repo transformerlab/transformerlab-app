@@ -105,43 +105,6 @@ async def _remove_job_from_queue(job_id: str):
         print(f"Error removing job {job_id} from queue: {e}")
 
 
-async def _sync_queue_file():
-    """
-    Sync the queue file with actual job statuses.
-    This is a safety mechanism to handle cases where the queue file gets out of sync.
-    Should be called periodically or when queue seems inconsistent.
-    """
-    try:
-        queued_jobs = await _get_queued_jobs_from_file()
-        valid_queued_jobs = []
-
-        for job_entry in queued_jobs:
-            job_id = job_entry.get("job_id")
-            org_id = job_entry.get("org_id")
-
-            if not job_id or not org_id:
-                continue
-
-            # Check if job actually exists and is still QUEUED
-            try:
-                lab_dirs.set_organization_id(org_id)
-                job = await Job.get(job_id)
-                job_data = await job.get_json_data(uncached=True)
-                if job_data.get("status") == "QUEUED":
-                    valid_queued_jobs.append(job_entry)
-            except Exception:
-                # Job doesn't exist or is no longer QUEUED, skip it
-                pass
-            finally:
-                lab_dirs.set_organization_id(None)
-
-        # Only write if there are changes
-        if len(valid_queued_jobs) != len(queued_jobs):
-            await _write_queued_jobs_to_file(valid_queued_jobs)
-    except Exception as e:
-        print(f"Error syncing queue file: {e}")
-
-
 async def job_create(type, status, experiment_id, job_data="{}"):
     # check if type is allowed
     if type not in ALLOWED_JOB_TYPES:
