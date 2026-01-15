@@ -1,3 +1,4 @@
+import asyncio
 import threading
 import time
 from werkzeug.utils import secure_filename
@@ -370,6 +371,7 @@ class Experiment(BaseLabResource):
                     continue
                 job_entries.append(entry)
 
+
             sorted_entries = sorted(job_entries, key=lambda x: int(x), reverse=True)
             for entry in sorted_entries:
                 entry_path = storage.join(jobs_directory, entry)
@@ -377,21 +379,43 @@ class Experiment(BaseLabResource):
                     continue
                 # Prefer the latest snapshot if available; fall back to index.json
                 index_file = storage.join(entry_path, "index.json")
-                try:
-                    async with await storage.open(
-                        index_file, "r", encoding="utf-8", fs=fs_override, uncached=True
-                    ) as lf:
-                        content = await lf.read()
-                        content = content.strip()
-                        if not content:
-                            # Skip empty files
+                
+                # Retry logic for ETag errors (files being modified concurrently)
+                max_retries = 5
+                data = None
+                for attempt in range(max_retries):
+                    try:
+                        async with await storage.open(
+                            index_file, "r", encoding="utf-8", fs=fs_override, uncached=True
+                        ) as lf:
+                            content = await lf.read()
+                            content = content.strip()
+                            if not content:
+                                # Skip empty files
+                                break
+                            data = json.loads(content)
+                            break  # Success, exit retry loop
+                    except json.JSONDecodeError as e:
+                        print(f"Error parsing JSON for job {entry_path}: {e}")
+                        break  # Don't retry JSON decode errors
+                    except Exception as e:
+                        # Check if this is the Etag mismatch error
+                        error_str = str(e)
+                        has_errno_16 = (
+                            (hasattr(e, "errno") and e.errno == 16) or "Errno 16" in error_str or "[Errno 16]" in error_str
+                        )
+                        is_etag_error = "Etag" in error_str and "no longer exists" in error_str and has_errno_16
+                        
+                        if is_etag_error and attempt < max_retries - 1:
+                            # Wait a short time before retrying (exponential backoff)
+                            await asyncio.sleep(0.5 * (2**attempt))
                             continue
-                        data = json.loads(content)
-                except json.JSONDecodeError as e:
-                    print(f"Error parsing JSON for job {entry_path}: {e}")
-                    continue
-                except Exception as e:
-                    print(f"Error loading index.json for job {entry_path}: {e}")
+                        else:
+                            # Not an ETag error, or last attempt failed
+                            print(f"Error loading index.json for job {entry_path}: {e}")
+                            break
+                
+                if data is None:
                     continue
                 if data.get("experiment_id", "") != self.id:
                     continue
