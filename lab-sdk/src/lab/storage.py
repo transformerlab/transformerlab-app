@@ -7,6 +7,12 @@ from typing import Optional, Type
 import fsspec
 import aiofiles
 
+import logging
+
+# Suppress the specific task exception log if it's polluting your logs
+logging.getLogger("aiobotocore").setLevel(logging.CRITICAL)
+logging.getLogger("s3fs").setLevel(logging.CRITICAL)
+
 
 class AsyncFileWrapper:
     """
@@ -160,8 +166,16 @@ def _get_fs_for_uri(uri: str):
     # Build storage options as kwargs (not as nested dict)
     # This ensures they're passed correctly to the filesystem, not to AioSession
     fs_kwargs = {"asynchronous": False}  # Explicitly force sync mode
-    if protocol == "s3" and _AWS_PROFILE:
-        fs_kwargs["profile"] = _AWS_PROFILE
+    if protocol == "s3":
+        # For S3, explicitly prevent async session creation by ensuring we use boto3 (sync)
+        # instead of aiobotocore (async). This avoids RuntimeError when async sessions
+        # are cleaned up in wrong event loop via weakref callbacks.
+        if _AWS_PROFILE:
+            fs_kwargs["profile"] = _AWS_PROFILE
+        # Ensure we're using sync boto3, not async aiobotocore
+        # The asynchronous=False should be enough, but we also ensure no async clients are created
+        fs_kwargs["default_fill_cache"] = False
+        fs_kwargs["use_listings_cache"] = False
     elif protocol in ("gcs", "gs") and _GCP_PROJECT:
         fs_kwargs["project"] = _GCP_PROJECT
 
@@ -423,14 +437,14 @@ async def _get_uncached_filesystem(path: str, fs=None):
         storage_options = _get_storage_options()
 
         # Create a new filesystem instance with caching disabled
-        fs_uncached = fsspec.filesystem(
-            protocol,
-            asynchronous=False,  # Explicitly force sync mode
-            skip_instance_cache=True,
-            default_fill_cache=False,
-            use_listings_cache=False,
-            **storage_options,
-        )
+        fs_kwargs = {
+            "asynchronous": False,  # Explicitly force sync mode
+            "skip_instance_cache": True,
+            "default_fill_cache": False,
+            "use_listings_cache": False,
+        }
+        fs_kwargs.update(storage_options)
+        fs_uncached = fsspec.filesystem(protocol, **fs_kwargs)
         return fs_uncached
     else:
         # For local filesystems, check if we're using a remote workspace
@@ -439,14 +453,14 @@ async def _get_uncached_filesystem(path: str, fs=None):
             # Path is relative but we're using remote storage
             protocol = tfl_uri.split("://")[0]
             storage_options = _get_storage_options()
-            fs_uncached = fsspec.filesystem(
-                protocol,
-                asynchronous=False,  # Explicitly force sync mode
-                skip_instance_cache=True,
-                default_fill_cache=False,
-                use_listings_cache=False,
-                **storage_options,
-            )
+            fs_kwargs = {
+                "asynchronous": False,  # Explicitly force sync mode
+                "skip_instance_cache": True,
+                "default_fill_cache": False,
+                "use_listings_cache": False,
+            }
+            fs_kwargs.update(storage_options)
+            fs_uncached = fsspec.filesystem(protocol, **fs_kwargs)
             return fs_uncached
         else:
             # For local filesystems, just use the default
