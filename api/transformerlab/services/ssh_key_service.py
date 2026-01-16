@@ -119,7 +119,7 @@ async def get_or_create_org_ssh_key_pair(team_id: str) -> Tuple[str, str]:
         Tuple of (private_key_path, public_key_path)
     """
     status = await load_status(team_id)
-    
+
     # If no status or no key_id, create a new key
     if not status or not status.get("key_id"):
         key_id = str(uuid.uuid4())
@@ -127,18 +127,18 @@ async def get_or_create_org_ssh_key_pair(team_id: str) -> Tuple[str, str]:
             "key_id": key_id,
             "name": None,
             "created_at": datetime.utcnow().isoformat(),
-            "created_by_user_id": "system"  # Legacy key creation
+            "created_by_user_id": "system",  # Legacy key creation
         }
         await save_status(team_id, status)
     else:
         key_id = status["key_id"]
-    
+
     private_key_path, public_key_path = await get_org_ssh_key_paths(team_id, key_id)
-    
+
     # Generate keys if they don't exist
     if not (await storage.exists(private_key_path) and await storage.exists(public_key_path)):
         await generate_ssh_key_pair(team_id, key_id)
-    
+
     return private_key_path, public_key_path
 
 
@@ -150,7 +150,7 @@ async def get_org_ssh_public_key(team_id: str) -> str:
         Public key as a string (OpenSSH format)
     """
     _, public_key_path = await get_or_create_org_ssh_key_pair(team_id)
-    
+
     async with await storage.open(public_key_path, "r") as f:
         public_key_content = await f.read()
 
@@ -202,21 +202,21 @@ async def create_ssh_key(team_id: str, name: Optional[str], created_by_user_id: 
             await storage.remove(private_key_path)
         if await storage.exists(public_key_path):
             await storage.remove(public_key_path)
-    
+
     # Create new key
     key_id = str(uuid.uuid4())
     status = {
         "key_id": key_id,
         "name": name,
         "created_at": datetime.utcnow().isoformat(),
-        "created_by_user_id": created_by_user_id
+        "created_by_user_id": created_by_user_id,
     }
-    
+
     await save_status(team_id, status)
-    
+
     # Generate the actual key pair
     await generate_ssh_key_pair(team_id, key_id)
-    
+
     return {
         "id": key_id,
         "name": name,
@@ -233,16 +233,16 @@ async def update_ssh_key(team_id: str, name: Optional[str] = None) -> Dict[str, 
         Updated key information
     """
     status = await load_status(team_id)
-    
+
     if not status or not status.get("key_id"):
         raise ValueError("No SSH key found for this team")
-    
+
     # Update name if provided
     if name is not None:
         status["name"] = name
-    
+
     await save_status(team_id, status)
-    
+
     return {
         "id": status["key_id"],
         "name": status.get("name"),
@@ -256,19 +256,19 @@ async def delete_ssh_key(team_id: str) -> None:
     Delete the SSH key and its files.
     """
     status = await load_status(team_id)
-    
+
     if not status or not status.get("key_id"):
         raise ValueError("No SSH key found for this team")
-    
+
     key_id = status["key_id"]
-    
+
     # Delete key files
     private_key_path, public_key_path = await get_org_ssh_key_paths(team_id, key_id)
     if await storage.exists(private_key_path):
         await storage.remove(private_key_path)
     if await storage.exists(public_key_path):
         await storage.remove(public_key_path)
-    
+
     # Delete status file
     status_path = await get_status_file_path(team_id)
     if await storage.exists(status_path):

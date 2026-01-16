@@ -6,7 +6,7 @@ import json
 import configparser
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
-from fastapi.responses import StreamingResponse, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, List, Optional, Union, Tuple
 from transformerlab.shared.models.user_model import get_async_session

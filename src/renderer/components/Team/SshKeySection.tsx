@@ -52,9 +52,7 @@ export default function SshKeySection({ teamId }: { teamId: string }) {
     setError(null);
 
     try {
-      const response = await fetchWithAuth(
-        chatAPI.Endpoints.SshKeys.Get(),
-      );
+      const response = await fetchWithAuth(chatAPI.Endpoints.SshKeys.Get());
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -112,9 +110,7 @@ export default function SshKeySection({ teamId }: { teamId: string }) {
       // Create a temporary anchor element and trigger download
       const a = document.createElement('a');
       a.href = url;
-      const filename = key
-        ? `org_ssh_key_${key.id}`
-        : `org_ssh_key_${teamId}`;
+      const filename = key ? `org_ssh_key_${key.id}` : `org_ssh_key_${teamId}`;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
@@ -140,18 +136,15 @@ export default function SshKeySection({ teamId }: { teamId: string }) {
     setError(null);
 
     try {
-      const response = await fetchWithAuth(
-        chatAPI.Endpoints.SshKeys.Create(),
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: newKeyName || null,
-          }),
+      const response = await fetchWithAuth(chatAPI.Endpoints.SshKeys.Create(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify({
+          name: newKeyName || null,
+        }),
+      });
 
       if (!response.ok) {
         const errorData = await response
@@ -178,18 +171,15 @@ export default function SshKeySection({ teamId }: { teamId: string }) {
     setError(null);
 
     try {
-      const response = await fetchWithAuth(
-        chatAPI.Endpoints.SshKeys.Update(),
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: newKeyName || null,
-          }),
+      const response = await fetchWithAuth(chatAPI.Endpoints.SshKeys.Update(), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify({
+          name: newKeyName || null,
+        }),
+      });
 
       if (!response.ok) {
         const errorData = await response
@@ -211,7 +201,11 @@ export default function SshKeySection({ teamId }: { teamId: string }) {
 
   const handleDeleteKey = async () => {
     if (!teamId || !key) return;
-    if (!confirm('Are you sure you want to delete this SSH key? This action cannot be undone.')) {
+    if (
+      !confirm(
+        'Are you sure you want to delete this SSH key? This action cannot be undone.',
+      )
+    ) {
       return;
     }
 
@@ -219,12 +213,9 @@ export default function SshKeySection({ teamId }: { teamId: string }) {
     setError(null);
 
     try {
-      const response = await fetchWithAuth(
-        chatAPI.Endpoints.SshKeys.Delete(),
-        {
-          method: 'DELETE',
-        },
-      );
+      const response = await fetchWithAuth(chatAPI.Endpoints.SshKeys.Delete(), {
+        method: 'DELETE',
+      });
 
       if (!response.ok) {
         const errorData = await response
@@ -244,7 +235,12 @@ export default function SshKeySection({ teamId }: { teamId: string }) {
 
   return (
     <Box sx={{ mt: 4 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={2}
+      >
         <Typography level="title-lg" startDecorator={<KeyIcon />}>
           SSH Access Key
         </Typography>
@@ -284,7 +280,8 @@ export default function SshKeySection({ teamId }: { teamId: string }) {
       </Stack>
       <Typography level="body-sm" color="neutral" mb={2}>
         Your organization has one SSH key for accessing interactive SSH tasks.
-        The key is automatically added to authorized_keys when launching SSH tasks.
+        The key is automatically added to authorized_keys when launching SSH
+        tasks.
       </Typography>
       <Alert color="primary" variant="soft" sx={{ mb: 2 }}>
         <Typography level="body-sm">
@@ -310,7 +307,11 @@ export default function SshKeySection({ teamId }: { teamId: string }) {
       ) : key ? (
         <Card variant="outlined" sx={{ p: 2 }}>
           <Stack spacing={2}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+            >
               <Box>
                 <Typography level="title-sm">
                   {key.name || `Key ${key.id.slice(0, 8)}`}
@@ -378,8 +379,8 @@ export default function SshKeySection({ teamId }: { teamId: string }) {
               {key && (
                 <Alert color="warning" variant="soft">
                   <Typography level="body-sm">
-                    Creating a new key will replace the existing key. The old key
-                    will be deleted and cannot be recovered.
+                    Creating a new key will replace the existing key. The old
+                    key will be deleted and cannot be recovered.
                   </Typography>
                 </Alert>
               )}
