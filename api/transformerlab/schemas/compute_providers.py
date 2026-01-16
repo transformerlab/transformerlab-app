@@ -120,6 +120,7 @@ class ProviderTemplateLaunchRequest(BaseModel):
     provider_name: Optional[str] = None
     github_repo_url: Optional[str] = None
     github_directory: Optional[str] = None
+    github_branch: Optional[str] = None
     # Sweep configuration
     run_sweeps: Optional[bool] = Field(
         default=False,

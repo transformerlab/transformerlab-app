@@ -352,20 +352,25 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     // Logic to auto-select team if none selected
     const teams = teamsData?.teams;
     if (teams && teams.length > 0) {
-      if (!getCurrentTeam()) {
-        updateCurrentTeam(teams[0]);
-        setTeamState(teams[0]);
-      }
-
-      // Keep the cached team in sync if its name changed (e.g., rename)
       const current = getCurrentTeam();
+
+      // Validate that the current team belongs to the current user
       if (current) {
         const updated = teams.find((t: Team) => t.id === current.id);
-        if (updated && updated.name !== current.name) {
+        if (!updated) {
+          // Current team doesn't belong to this user - clear it and select first team
+          updateCurrentTeam(teams[0]);
+          setTeamState(teams[0]);
+        } else if (updated.name !== current.name) {
+          // Team name changed (e.g., rename) - update it
           const next = { id: updated.id, name: updated.name };
           updateCurrentTeam(next);
           setTeamState(next);
         }
+      } else {
+        // No team selected - select the first team
+        updateCurrentTeam(teams[0]);
+        setTeamState(teams[0]);
       }
     } else if (teams && teams.length === 0) {
       // No teams available

@@ -17,6 +17,10 @@ import {
   IconButton,
   FormControl,
   FormLabel,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanel,
 } from '@mui/joy';
 import {
   NetworkIcon,
@@ -35,6 +39,7 @@ import InviteUserModal from './InviteUserModal';
 import ProviderDetailsModal from './ProviderDetailsModal';
 import QuotaSettingsSection from './QuotaSettingsSection';
 import TeamSecretsSection from './TeamSecretsSection';
+import SshKeySection from './SshKeySection';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 /*
@@ -77,6 +82,7 @@ export default function UserLoginTest(): JSX.Element {
   const [openSetLogoModal, setOpenSetLogoModal] = useState<boolean>(false);
   const [uploadingLogo, setUploadingLogo] = useState<boolean>(false);
   const [teamLogos, setTeamLogos] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState<number>(0);
 
   // Get teams list (unchanged)
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
@@ -929,78 +935,138 @@ export default function UserLoginTest(): JSX.Element {
             Add Provider {!iAmOwner ? '(Only owners can add providers)' : ''}
           </Button>
         </Box>
-        <Box sx={{ mt: 4 }}>
-          <Typography level="title-lg" mb={1} startDecorator={<GithubIcon />}>
-            GitHub Integration
-          </Typography>
-          <Stack spacing={2} maxWidth={500}>
-            <Alert color="neutral" variant="soft">
-              Set a GitHub Personal Access Token (PAT) to enable cloning private
-              repositories in tasks. The PAT is stored securely in your team's
-              workspace and shared across all team members.
-            </Alert>
-            {loadingPAT ? (
-              <CircularProgress size="sm" />
-            ) : (
-              <>
-                {githubPATExists && (
-                  <Alert color="success" variant="soft">
-                    GitHub PAT is configured. Last 4 characters:{' '}
-                    {githubPATMasked}
+        {iAmOwner && (
+          <Box sx={{ mt: 4 }}>
+            <Tabs
+              aria-label="Team settings tabs"
+              value={activeTab}
+              onChange={(event, value) => setActiveTab(value as number)}
+              sx={{
+                mt: 2,
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <TabList>
+                <Tab>GitHub PAT</Tab>
+                <Tab>Team Secrets</Tab>
+                <Tab>Quota Settings</Tab>
+                <Tab>Organization SSH Key</Tab>
+              </TabList>
+
+              {/* GitHub PAT Tab */}
+              <TabPanel
+                value={0}
+                sx={{
+                  p: 2,
+                  overflowY: 'auto',
+                }}
+              >
+                <Typography
+                  level="title-lg"
+                  mb={2}
+                  startDecorator={<GithubIcon />}
+                >
+                  GitHub Integration
+                </Typography>
+                <Stack spacing={2} maxWidth={500}>
+                  <Alert color="neutral" variant="soft">
+                    Set a GitHub Personal Access Token (PAT) to enable cloning
+                    private repositories in tasks. The PAT is stored securely in
+                    your team's workspace and shared across all team members.
                   </Alert>
-                )}
-                <FormControl>
-                  <Input
-                    type="password"
-                    placeholder={
-                      githubPATExists
-                        ? 'Enter new PAT to update'
-                        : 'Enter GitHub Personal Access Token'
-                    }
-                    value={githubPAT}
-                    onChange={(e) => setGithubPAT(e.target.value)}
-                    disabled={!iAmOwner || savingPAT}
-                    sx={{ fontFamily: 'monospace' }}
-                  />
-                  <Typography level="body-sm" sx={{ mt: 0.5 }}>
-                    {iAmOwner
-                      ? 'Only team owners can set or update the GitHub PAT.'
-                      : 'Only team owners can manage the GitHub PAT.'}
-                  </Typography>
-                </FormControl>
-                <Stack direction="row" spacing={2}>
-                  <Button
-                    variant="solid"
-                    onClick={handleSaveGitHubPAT}
-                    disabled={!iAmOwner || savingPAT || loadingPAT}
-                    loading={savingPAT}
-                  >
-                    {githubPATExists ? 'Update PAT' : 'Save PAT'}
-                  </Button>
-                  {githubPATExists && (
-                    <Button
-                      variant="outlined"
-                      color="danger"
-                      onClick={async () => {
-                        setGithubPAT('');
-                        await handleSaveGitHubPAT();
-                      }}
-                      disabled={!iAmOwner || savingPAT || loadingPAT}
-                    >
-                      Remove PAT
-                    </Button>
+                  {loadingPAT ? (
+                    <CircularProgress size="sm" />
+                  ) : (
+                    <>
+                      {githubPATExists && (
+                        <Alert color="success" variant="soft">
+                          GitHub PAT is configured. Last 4 characters:{' '}
+                          {githubPATMasked}
+                        </Alert>
+                      )}
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder={
+                            githubPATExists
+                              ? 'Enter new PAT to update'
+                              : 'Enter GitHub Personal Access Token'
+                          }
+                          value={githubPAT}
+                          onChange={(e) => setGithubPAT(e.target.value)}
+                          disabled={!iAmOwner || savingPAT}
+                          sx={{ fontFamily: 'monospace' }}
+                        />
+                        <Typography level="body-sm" sx={{ mt: 0.5 }}>
+                          {iAmOwner
+                            ? 'Only team owners can set or update the GitHub PAT.'
+                            : 'Only team owners can manage the GitHub PAT.'}
+                        </Typography>
+                      </FormControl>
+                      <Stack direction="row" spacing={2}>
+                        <Button
+                          variant="solid"
+                          onClick={handleSaveGitHubPAT}
+                          disabled={!iAmOwner || savingPAT || loadingPAT}
+                          loading={savingPAT}
+                        >
+                          {githubPATExists ? 'Update PAT' : 'Save PAT'}
+                        </Button>
+                        {githubPATExists && (
+                          <Button
+                            variant="outlined"
+                            color="danger"
+                            onClick={async () => {
+                              setGithubPAT('');
+                              await handleSaveGitHubPAT();
+                            }}
+                            disabled={!iAmOwner || savingPAT || loadingPAT}
+                          >
+                            Remove PAT
+                          </Button>
+                        )}
+                      </Stack>
+                    </>
                   )}
                 </Stack>
-              </>
-            )}
-          </Stack>
-        </Box>
+              </TabPanel>
 
-        {iAmOwner && (
-          <>
-            <QuotaSettingsSection teamId={authContext.team?.id || ''} />
-            <TeamSecretsSection teamId={authContext.team?.id || ''} />
-          </>
+              {/* Team Secrets Tab */}
+              <TabPanel
+                value={1}
+                sx={{
+                  p: 2,
+                  overflowY: 'auto',
+                }}
+              >
+                <TeamSecretsSection teamId={authContext.team?.id || ''} />
+              </TabPanel>
+
+              {/* Quota Settings Tab */}
+              <TabPanel
+                value={2}
+                sx={{
+                  p: 2,
+                  overflowY: 'auto',
+                }}
+              >
+                <QuotaSettingsSection teamId={authContext.team?.id || ''} />
+              </TabPanel>
+
+              {/* SSH Key Tab */}
+              <TabPanel
+                value={3}
+                sx={{
+                  p: 2,
+                  overflowY: 'auto',
+                }}
+              >
+                <SshKeySection teamId={authContext.team?.id || ''} />
+              </TabPanel>
+            </Tabs>
+          </Box>
         )}
       </Box>
       <RenameTeamModal
