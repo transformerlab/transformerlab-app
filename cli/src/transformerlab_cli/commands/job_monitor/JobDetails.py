@@ -1,8 +1,12 @@
 import json
+import os
 from textual.app import ComposeResult
 from textual.widgets import Button, TextArea, ProgressBar, Static
 from textual.containers import Vertical, VerticalScroll, Horizontal
 from textual.screen import ModalScreen
+from textual import work
+from transformerlab_cli.util import api
+from transformerlab_cli.util.config import check_configs
 
 
 def log_to_file(message: str) -> None:
@@ -113,4 +117,67 @@ class JobDetails(Vertical):
             if self.current_job:
                 self.app.push_screen(JobJsonModal(self.current_job))
         elif event.button.id == "btn-download":
-            self.notify("Download artifacts not implemented yet", severity="warning")
+            if self.current_job:
+                job_id = str(self.current_job.get("id", ""))
+                if job_id:
+                    self.download_artifacts(job_id)
+                else:
+                    self.notify("Invalid job ID", severity="error")
+            else:
+                self.notify("No job selected", severity="warning")
+
+    @work(thread=True, exclusive=True)
+    def download_artifacts(self, job_id: str) -> None:
+        """Download all artifacts for a job in a background thread."""
+        try:
+            # Check configs first
+            try:
+                check_configs()
+            except Exception as e:
+                self.notify(f"Configuration error: {str(e)}", severity="error")
+                return
+
+            # Determine output directory (current working directory)
+            output_dir = os.getcwd()
+            filename = f"artifacts_{job_id}.zip"
+            output_path = os.path.join(output_dir, filename)
+
+            # Make the API request
+            try:
+                response = api.get(f"/jobs/{job_id}/artifacts/download_all", timeout=300.0)
+            except Exception as e:
+                self.notify(f"Failed to connect to server: {str(e)}", severity="error")
+                return
+
+            if response.status_code == 200:
+                # Get filename from Content-Disposition header if available
+                content_disposition = response.headers.get("Content-Disposition", "")
+                if "filename=" in content_disposition:
+                    filename_part = content_disposition.split("filename=")[1].strip('"')
+                    if filename_part:
+                        filename = filename_part
+                        output_path = os.path.join(output_dir, filename)
+
+                # Write the file
+                try:
+                    with open(output_path, "wb") as f:
+                        f.write(response.content)
+                    self.notify(
+                        f"Successfully downloaded artifacts to: {output_path}",
+                        severity="success",
+                        timeout=5.0,
+                    )
+                except Exception as e:
+                    self.notify(f"Failed to write file: {str(e)}", severity="error")
+            elif response.status_code == 404:
+                self.notify(f"No artifacts found for job {job_id}", severity="warning")
+            else:
+                error_msg = f"Failed to download artifacts (status: {response.status_code})"
+                try:
+                    if response.text:
+                        error_msg += f": {response.text[:100]}"
+                except Exception:
+                    pass
+                self.notify(error_msg, severity="error")
+        except Exception as e:
+            self.notify(f"Download failed: {str(e)}", severity="error")

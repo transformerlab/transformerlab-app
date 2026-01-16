@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import time
@@ -174,8 +175,11 @@ class TrainerTLabPlugin(TLabPlugin):
             import json
 
             # Load configuration from file
-            with storage.open(self.params.input_file, "r", encoding="utf-8") as json_file:
-                input_config = json.load(json_file)
+            async def _load_config():
+                async with await storage.open(self.params.input_file, "r", encoding="utf-8") as json_file:
+                    return json.loads(await json_file.read())
+
+            input_config = asyncio.run(_load_config())
 
             if "config" in input_config:
                 self.params._config = input_config["config"]
@@ -190,8 +194,8 @@ class TrainerTLabPlugin(TLabPlugin):
         except Exception as e:
             error_msg = f"Error loading configuration: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)
-            self.job.update_job_data_field("completion_status", "failed")
-            self.job.update_job_data_field("completion_details", "Error loading configuration")
+            asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
+            asyncio.run(self.job.update_job_data_field("completion_details", "Error loading configuration"))
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
@@ -224,7 +228,7 @@ class TrainerTLabPlugin(TLabPlugin):
             print("Writing tensorboard logs to:", output_dir)
 
         # Ensure directory exists
-        storage.makedirs(self.params.tensorboard_output_dir, exist_ok=True)
+        asyncio.run(storage.makedirs(self.params.tensorboard_output_dir, exist_ok=True))
 
         self.writer = SummaryWriter(self.params.tensorboard_output_dir)
 
@@ -268,91 +272,6 @@ class TrainerTLabPlugin(TLabPlugin):
 
         self.report_to = report_to
 
-    # def _get_system_metrics(self):
-    #     """Collect system metrics for logging (CPU, RAM, VRAM, etc.), using select macmon metrics on macOS if available."""
-    #     import psutil
-    #     import torch
-    #     import sys
-
-    #     metrics = {}
-    #     if sys.platform == "darwin":
-    #         try:
-    #             from macmon import MacMon
-    #             import json as _json
-
-    #             macmon = MacMon()
-    #             data = macmon.get_metrics()
-    #             if isinstance(data, str):
-    #                 mac_metrics = _json.loads(data)
-    #             else:
-    #                 mac_metrics = data
-    #             mm = mac_metrics
-    #             if "cpu_power" in mm:
-    #                 metrics["system/cpu_power"] = mm["cpu_power"]
-    #             if "gpu_power" in mm:
-    #                 metrics["system/gpu_power"] = mm["gpu_power"]
-    #             if "ram_power" in mm:
-    #                 metrics["system/ram_power"] = mm["ram_power"]
-    #             if "all_power" in mm:
-    #                 metrics["system/all_power"] = mm["all_power"]
-    #             if "sys_power" in mm:
-    #                 metrics["system/sys_power"] = mm["sys_power"]
-    #             if "gpu_usage" in mm and isinstance(mm["gpu_usage"], list) and len(mm["gpu_usage"]) == 2:
-    #                 metrics["system/gpu_usage_id"] = mm["gpu_usage"][0]
-    #                 metrics["system/gpu_usage_percent"] = mm["gpu_usage"][1]
-    #             if "ecpu_usage" in mm and isinstance(mm["ecpu_usage"], list) and len(mm["ecpu_usage"]) == 2:
-    #                 metrics["system/ecpu_usage_id"] = mm["ecpu_usage"][0]
-    #                 metrics["system/ecpu_usage_percent"] = mm["ecpu_usage"][1]
-    #             if "pcpu_usage" in mm and isinstance(mm["pcpu_usage"], list) and len(mm["pcpu_usage"]) == 2:
-    #                 metrics["system/pcpu_usage_id"] = mm["pcpu_usage"][0]
-    #                 metrics["system/pcpu_usage_percent"] = mm["pcpu_usage"][1]
-    #             if "temp" in mm and isinstance(mm["temp"], dict):
-    #                 if "cpu_temp_avg" in mm["temp"]:
-    #                     metrics["system/cpu_temp_avg"] = mm["temp"]["cpu_temp_avg"]
-    #                 if "gpu_temp_avg" in mm["temp"]:
-    #                     metrics["system/gpu_temp_avg"] = mm["temp"]["gpu_temp_avg"]
-    #             if "memory" in mm and isinstance(mm["memory"], dict):
-    #                 if "ram_total" in mm["memory"]:
-    #                     metrics["system/ram_total"] = mm["memory"]["ram_total"]
-    #                 if "ram_usage" in mm["memory"]:
-    #                     metrics["system/ram_usage"] = mm["memory"]["ram_usage"]
-    #                 if "swap_total" in mm["memory"]:
-    #                     metrics["system/swap_total"] = mm["memory"]["swap_total"]
-    #                 if "swap_usage" in mm["memory"]:
-    #                     metrics["system/swap_usage"] = mm["memory"]["swap_usage"]
-    #         except Exception:
-    #             # Fallback to psutil/torch if macmon fails
-    #             metrics["system/cpu_percent"] = psutil.cpu_percent()
-    #             metrics["system/ram_used_mb"] = psutil.virtual_memory().used / (1024 * 1024)
-    #             metrics["system/ram_total_mb"] = psutil.virtual_memory().total / (1024 * 1024)
-    #             metrics["system/ram_percent"] = psutil.virtual_memory().percent
-    #     else:
-    #         # CPU and RAM
-    #         metrics["system/cpu_percent"] = psutil.cpu_percent()
-    #         metrics["system/ram_used_mb"] = psutil.virtual_memory().used / (1024 * 1024)
-    #         metrics["system/ram_total_mb"] = psutil.virtual_memory().total / (1024 * 1024)
-    #         metrics["system/ram_percent"] = psutil.virtual_memory().percent
-
-    #     # Device-specific metrics
-    #     if torch.cuda.is_available():
-    #         try:
-    #             import pynvml
-
-    #             pynvml.nvmlInit()
-    #             # Get metrics for the main GPU
-    #             handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-    #             meminfo = pynvml.nvmlDeviceGetMemoryInfo(handle)
-    #             metrics["system/vram_used_mb"] = meminfo.used / (1024 * 1024)
-    #             metrics["system/vram_total_mb"] = meminfo.total / (1024 * 1024)
-    #             metrics["system/vram_free_mb"] = meminfo.free / (1024 * 1024)
-    #             util = pynvml.nvmlDeviceGetUtilizationRates(handle)
-    #             metrics["system/gpu_utilization"] = util.gpu
-    #         except Exception:
-    #             metrics["system/vram_used_mb"] = -1
-    #             metrics["system/vram_total_mb"] = -1
-    #             metrics["system/gpu_utilization"] = -1
-    #     return metrics
-
     def log_metric(self, metric_name: str, metric_value: float, step: int = None, logging_platforms: bool = True):
         """Log a metric to all reporting targets"""
         if logging_platforms:
@@ -378,13 +297,17 @@ class TrainerTLabPlugin(TLabPlugin):
         try:
             # Ensure output_dir exists
             output_dir = self.params.get("output_dir", "")
-            if output_dir and storage.exists(output_dir):
-                # Save metrics to a JSON file
-                metrics_path = storage.join(output_dir, "metrics.json")
-                with storage.open(metrics_path, "w", encoding="utf-8") as f:
-                    json.dump(self._metrics, f, indent=2)
-            else:
-                print(f"Output directory not found or not specified: {output_dir}")
+
+            async def _save_metrics():
+                if output_dir and await storage.exists(output_dir):
+                    # Save metrics to a JSON file
+                    metrics_path = storage.join(output_dir, "metrics.json")
+                    async with await storage.open(metrics_path, "w", encoding="utf-8") as f:
+                        await f.write(json.dumps(self._metrics, indent=2))
+                else:
+                    print(f"Output directory not found or not specified: {output_dir}")
+
+            asyncio.run(_save_metrics())
         except Exception as e:
             print(f"Error saving metrics to file: {str(e)}")
 
@@ -431,12 +354,15 @@ class TrainerTLabPlugin(TLabPlugin):
         # The actual filename will be set by the export process, so we don't set it here
         # For now, if it's GGUF and the file exists, use the filename
         if "GGUF" in model_architecture.upper() or model_architecture.upper() == "GGUF":
-            if storage.exists(fused_model_location):
-                if storage.isfile(fused_model_location):
-                    # File-based model - use the filename
-                    model_filename = posixpath.basename(fused_model_location)
-                # If it's a directory for GGUF, keep "." (directory-based)
-                # This shouldn't normally happen for GGUF, but handle it gracefully
+
+            async def _check_gguf():
+                if await storage.exists(fused_model_location):
+                    if await storage.isfile(fused_model_location):
+                        # File-based model - use the filename
+                        return posixpath.basename(fused_model_location)
+                return "."
+
+            model_filename = asyncio.run(_check_gguf())
             # If GGUF file doesn't exist yet, the export process will set the filename
 
         if generate_json:
@@ -461,35 +387,38 @@ class TrainerTLabPlugin(TLabPlugin):
         print(f"Provenance file created at: {provenance_file}")
 
     def create_md5_checksum_model_files(self, fused_model_location):
-        def compute_md5(file_path):
+        async def compute_md5(file_path):
             md5 = hashlib.md5()
-            with storage.open(file_path, "rb") as f:
+            async with await storage.open(file_path, "rb") as f:
                 while True:
-                    chunk = f.read(8192)
+                    chunk = await f.read(8192)
                     if not chunk:
                         break
                     md5.update(chunk)
             return md5.hexdigest()
 
-        md5_objects = []
+        async def _create_checksums():
+            md5_objects = []
 
-        if not storage.isdir(fused_model_location):
-            print("Fused model location is not a directory, skipping md5 within provenance")
+            if not await storage.isdir(fused_model_location):
+                print("Fused model location is not a directory, skipping md5 within provenance")
+                return md5_objects
+
+            # Walk directory using storage
+            stack = [fused_model_location]
+            while stack:
+                current_dir = stack.pop()
+                for entry in await storage.ls(current_dir):
+                    if await storage.isdir(entry):
+                        stack.append(entry)
+                    else:
+                        file_path = entry
+                        md5_hash = await compute_md5(file_path)
+                        md5_objects.append({"file_path": file_path, "md5_hash": md5_hash})
+
             return md5_objects
 
-        # Walk directory using storage
-        stack = [fused_model_location]
-        while stack:
-            current_dir = stack.pop()
-            for entry in storage.ls(current_dir):
-                if storage.isdir(entry):
-                    stack.append(entry)
-                else:
-                    file_path = entry
-                    md5_hash = compute_md5(file_path)
-                    md5_objects.append({"file_path": file_path, "md5_hash": md5_hash})
-
-        return md5_objects
+        return asyncio.run(_create_checksums())
 
     def create_provenance_file(self, model_location, model_name, model_architecture, md5_objects):
         """Create a _tlab_provenance.json file containing model provenance data"""
@@ -512,11 +441,13 @@ class TrainerTLabPlugin(TLabPlugin):
         }
 
         # Write provenance to file
-        provenance_path = storage.join(model_location, "_tlab_provenance.json")
-        with storage.open(provenance_path, "w", encoding="utf-8") as f:
-            json.dump(provenance_data, f, indent=2)
+        async def _write_provenance():
+            provenance_path = storage.join(model_location, "_tlab_provenance.json")
+            async with await storage.open(provenance_path, "w", encoding="utf-8") as f:
+                await f.write(json.dumps(provenance_data, indent=2))
+            return provenance_path
 
-        return provenance_path
+        return asyncio.run(_write_provenance())
 
 
 # Create an instance of the TrainerTLabPlugin class

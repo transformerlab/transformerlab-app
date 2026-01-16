@@ -275,6 +275,8 @@ Endpoints.Plugins = {
   List: () => `${API_URL()}plugins/list`,
   RunPluginInstallScript: (pluginId: string) =>
     `${API_URL()}plugins/${pluginId}/run_installer_script`,
+  SuggestLoader: (modelArchitecture: string) =>
+    `${API_URL()}plugins/suggest_loader?model_architecture=${encodeURIComponent(modelArchitecture)}`,
 };
 
 // Following is no longer needed as it is replaced with useAPI
@@ -588,4 +590,9 @@ Endpoints.Quota = {
   GetTeamUsers: (teamId: string) => `${API_URL()}quota/team/${teamId}/users`,
   UpdateUserOverride: (userId: string, teamId: string) =>
     `${API_URL()}quota/user/${userId}/team/${teamId}`,
+};
+
+Endpoints.Teams = {
+  GetSecrets: (teamId: string) => `${API_URL()}teams/${teamId}/secrets`,
+  SetSecrets: (teamId: string) => `${API_URL()}teams/${teamId}/secrets`,
 };

@@ -13,7 +13,13 @@ import {
 } from '@mui/joy';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { PlusIcon, TerminalIcon, PlayIcon, Trash2Icon } from 'lucide-react';
+import {
+  PlusIcon,
+  TerminalIcon,
+  PlayIcon,
+  Trash2Icon,
+  LogsIcon,
+} from 'lucide-react';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -346,8 +352,8 @@ export default function Interactive() {
       }
 
       // Create template with flat structure
-      // Use config_fields from the gallery-defined structure
-      const envVars: Record<string, string> = data.config_fields || {};
+      // Use env_parameters from the gallery-defined structure
+      const envVars: Record<string, string> = data.env_parameters || {};
 
       const templatePayload: any = {
         name: data.title,
@@ -813,16 +819,28 @@ export default function Interactive() {
                             interactiveType === 'vllm' ||
                             interactiveType === 'ollama' ||
                             interactiveType === 'ssh') && (
-                            <Button
-                              variant="soft"
-                              color="primary"
-                              size="sm"
-                              onClick={() =>
-                                handleViewInteractive(parseInt(job.id))
-                              }
-                            >
-                              Interactive Setup
-                            </Button>
+                            <>
+                              <Button
+                                variant="plain"
+                                size="sm"
+                                startDecorator={<LogsIcon size={16} />}
+                                onClick={() =>
+                                  setViewOutputFromJob(parseInt(job.id))
+                                }
+                              >
+                                Output
+                              </Button>
+                              <Button
+                                variant="soft"
+                                color="primary"
+                                size="sm"
+                                onClick={() =>
+                                  handleViewInteractive(parseInt(job.id))
+                                }
+                              >
+                                Interactive Setup
+                              </Button>
+                            </>
                           )}
                         <IconButton
                           variant="plain"

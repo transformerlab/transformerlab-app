@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import json
 import os
@@ -27,7 +28,7 @@ ALLOWED_JOB_TYPES = [
 SUPPORTED_WORKFLOW_TRIGGERS = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE", "DOWNLOAD_MODEL"]
 
 
-def job_create(type, status, experiment_id, job_data="{}"):
+async def job_create(type, status, experiment_id, job_data="{}"):
     # check if type is allowed
     if type not in ALLOWED_JOB_TYPES:
         raise ValueError(f"Job type {type} is not allowed")
@@ -43,42 +44,43 @@ def job_create(type, status, experiment_id, job_data="{}"):
     exp = Experiment(experiment_id)
 
     # Create job through experiment
-    job = exp.create_job()
-    job.set_type(type)
-    job.update_status(status)
-    job.set_job_data(job_data)
+    job = await exp.create_job()
+    await job.set_experiment(experiment_id)  # Set the experiment_id on the job
+    await job.set_type(type)
+    await job.update_status(status)
+    await job.set_job_data(job_data)
 
     return job.id
 
 
-def jobs_get_all(experiment_id, type="", status=""):
+async def jobs_get_all(experiment_id, type="", status=""):
     exp_obj = Experiment(experiment_id)
-    return exp_obj.get_jobs(type, status)
+    return await exp_obj.get_jobs(type, status)
 
 
-def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
-    return jobs_get_all(experiment_id, job_type)
+async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
+    return await jobs_get_all(experiment_id, job_type)
 
 
-def jobs_get_by_experiment(experiment_id):
+async def jobs_get_by_experiment(experiment_id):
     """Get all jobs for a specific experiment"""
-    return jobs_get_all(experiment_id)
+    return await jobs_get_all(experiment_id)
 
 
-def job_get(job_id):
+async def job_get(job_id):
     try:
-        job = Job.get(job_id)
-        return job.get_json_data(uncached=True)
+        job = await Job.get(job_id)
+        return await job.get_json_data(uncached=True)
     except Exception as e:
         print("Error getting job data", e)
         return None
 
 
-def job_count_running():
-    return Job.count_running_jobs()
+async def job_count_running():
+    return await Job.count_running_jobs()
 
 
-def _find_org_id_for_job(job_id: str) -> Optional[str]:
+async def _find_org_id_for_job(job_id: str) -> Optional[str]:
     """
     Find which organization a job belongs to by searching all org directories.
     Returns the org_id if found, None otherwise.
@@ -92,25 +94,25 @@ def _find_org_id_for_job(job_id: str) -> Optional[str]:
     # Check if context is set correctly already
     from lab.dirs import get_workspace_dir
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     if "/orgs/" in workspace_dir:
         return workspace_dir.split("/orgs/")[-1].split("/")[0]
 
     # Check all org directories
     orgs_dir = storage.join(home_dir, "orgs")
-    if storage.exists(orgs_dir) and storage.isdir(orgs_dir):
+    if await storage.exists(orgs_dir) and await storage.isdir(orgs_dir):
         try:
-            org_entries = storage.ls(orgs_dir, detail=False)
+            org_entries = await storage.ls(orgs_dir, detail=False)
             for org_path in org_entries:
-                if storage.isdir(org_path):
+                if await storage.isdir(org_path):
                     org_id = org_path.rstrip("/").split("/")[-1]
 
                     # Set org context and check if job exists
                     lab_dirs.set_organization_id(org_id)
                     try:
-                        jobs_dir = lab_dirs.get_jobs_dir()
+                        jobs_dir = await lab_dirs.get_jobs_dir()
                         job_path = storage.join(jobs_dir, job_id)
-                        if storage.exists(job_path) and storage.isdir(job_path):
+                        if await storage.exists(job_path) and await storage.isdir(job_path):
                             # Job found in this org
                             lab_dirs.set_organization_id(None)
                             return org_id
@@ -124,7 +126,7 @@ def _find_org_id_for_job(job_id: str) -> Optional[str]:
     return None
 
 
-def job_count_running_across_all_orgs() -> int:
+async def job_count_running_across_all_orgs() -> int:
     """
     Count running jobs across all organizations.
     Returns the total count of jobs with status "RUNNING" across all orgs.
@@ -139,15 +141,15 @@ def job_count_running_across_all_orgs() -> int:
 
     # Check all org directories
     orgs_dir = storage.join(home_dir, "orgs")
-    if storage.exists(orgs_dir) and storage.isdir(orgs_dir):
+    if await storage.exists(orgs_dir) and await storage.isdir(orgs_dir):
         try:
-            org_entries = storage.ls(orgs_dir, detail=False)
+            org_entries = await storage.ls(orgs_dir, detail=False)
             for org_path in org_entries:
-                if storage.isdir(org_path):
+                if await storage.isdir(org_path):
                     org_id = org_path.rstrip("/").split("/")[-1]
                     lab_dirs.set_organization_id(org_id)
                     try:
-                        count += Job.count_running_jobs()
+                        count += await Job.count_running_jobs()
                     except Exception:
                         continue
         except Exception:
@@ -159,11 +161,11 @@ def job_count_running_across_all_orgs() -> int:
     return count
 
 
-def jobs_get_next_queued_job():
-    return Job.get_next_queued_job()
+async def jobs_get_next_queued_job():
+    return await Job.get_next_queued_job()
 
 
-def jobs_get_next_queued_job_across_all_orgs() -> Tuple[Optional[dict], Optional[str]]:
+async def jobs_get_next_queued_job_across_all_orgs() -> Tuple[Optional[dict], Optional[str]]:
     """
     Get the next queued job across all organizations.
     Returns a tuple of (job_data_dict, organization_id) or (None, None) if no queued jobs found.
@@ -184,11 +186,11 @@ def jobs_get_next_queued_job_across_all_orgs() -> Tuple[Optional[dict], Optional
     orgs_dir = storage.join(home_dir, "orgs")
 
     # Check all org directories
-    if storage.exists(orgs_dir) and storage.isdir(orgs_dir):
+    if await storage.exists(orgs_dir) and await storage.isdir(orgs_dir):
         try:
-            org_entries = storage.ls(orgs_dir, detail=False)
+            org_entries = await storage.ls(orgs_dir, detail=False)
             for org_path in org_entries:
-                if storage.isdir(org_path):
+                if await storage.isdir(org_path):
                     org_id = org_path.rstrip("/").split("/")[-1]
 
                     # Set org context to get jobs for this org
@@ -196,16 +198,16 @@ def jobs_get_next_queued_job_across_all_orgs() -> Tuple[Optional[dict], Optional
 
                     try:
                         # Get jobs directory for this org
-                        jobs_dir = lab_dirs.get_jobs_dir()
-                        if storage.exists(jobs_dir) and storage.isdir(jobs_dir):
-                            entries = storage.ls(jobs_dir, detail=False)
+                        jobs_dir = await lab_dirs.get_jobs_dir()
+                        if await storage.exists(jobs_dir) and await storage.isdir(jobs_dir):
+                            entries = await storage.ls(jobs_dir, detail=False)
                             for job_path in entries:
-                                if storage.isdir(job_path):
+                                if await storage.isdir(job_path):
                                     job_id_str = job_path.rstrip("/").split("/")[-1]
                                     try:
                                         job_id = int(job_id_str) if job_id_str.isdigit() else 0
-                                        job = Job.get(job_id_str)
-                                        job_data = job.get_json_data(uncached=True)
+                                        job = await Job.get(job_id_str)
+                                        job_data = await job.get_json_data(uncached=True)
                                         if job_data.get("status") == "QUEUED":
                                             queued_jobs.append((job_id, job_data, org_id))
                                     except Exception:
@@ -227,75 +229,81 @@ def jobs_get_next_queued_job_across_all_orgs() -> Tuple[Optional[dict], Optional
     return (None, None)
 
 
-def job_delete_all(experiment_id):
+async def job_delete_all(experiment_id):
     if experiment_id is not None:
         experiment = Experiment(experiment_id)
-        experiment.delete_all_jobs()
+        await experiment.delete_all_jobs()
 
 
-def job_delete(job_id, experiment_id):
+async def job_delete(job_id, experiment_id):
     try:
-        job = Job.get(job_id)
-        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+        job = await Job.get(job_id)
+        exp_id = await job.get_experiment_id()
+        if experiment_id is not None and exp_id != experiment_id:
             return
-        job.delete()
+        await job.delete()
     except Exception as e:
         print(f"Error deleting job {job_id}: {e}")
 
 
-def job_update_job_data_insert_key_value(job_id, key, value, experiment_id):
+async def job_update_job_data_insert_key_value(job_id, key, value, experiment_id):
     try:
-        job = Job.get(job_id)
-        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+        job = await Job.get(job_id)
+        exp_id = await job.get_experiment_id()
+        if experiment_id is not None and exp_id != experiment_id:
             return
-        job.update_job_data_field(key, value)
+        await job.update_job_data_field(key, value)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
 
 
-def job_stop(job_id, experiment_id):
+async def job_stop(job_id, experiment_id):
     print("Stopping job: " + str(job_id))
-    job_update_job_data_insert_key_value(job_id, "stop", True, experiment_id)
+    await job_update_job_data_insert_key_value(job_id, "stop", True, experiment_id)
 
 
-def job_update_progress(job_id, progress, experiment_id):
+async def job_update_progress(job_id, progress, experiment_id):
     """
     Update the percent complete for this job.
 
     progress: int representing percent complete
     """
     try:
-        job = Job.get(job_id)
-        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+        job = await Job.get(job_id)
+        exp_id = await job.get_experiment_id()
+        if experiment_id is not None and exp_id != experiment_id:
             return
-        job.update_progress(progress)
+        await job.update_progress(progress)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
 
 
-def job_update_sweep_progress(job_id, value, experiment_id):
+async def job_update_sweep_progress(job_id, value, experiment_id):
     """
     Update the 'sweep_progress' key in the job_data JSON column for a given job.
     """
     try:
-        job = Job.get(job_id)
-        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+        job = await Job.get(job_id)
+        exp_id = await job.get_experiment_id()
+        if experiment_id is not None and exp_id != experiment_id:
             return
-        job.update_sweep_progress(value)
+        await job.update_sweep_progress(value)
     except Exception as e:
         print(f"Error updating sweep job {job_id}: {e}")
 
 
-def jobs_get_sweep_children(parent_job_id, experiment_id=None):
+async def jobs_get_sweep_children(parent_job_id, experiment_id=None):
     """
     Get all child jobs that belong to a sweep parent job.
     """
     try:
-        parent_job = Job.get(parent_job_id)
-        if experiment_id is not None and parent_job.get_experiment_id() != experiment_id:
-            return []
+        parent_job = await Job.get(parent_job_id)
+        if experiment_id is not None:
+            exp_id = await parent_job.get_experiment_id()
+            if exp_id != experiment_id:
+                return []
 
-        job_data = parent_job.get_job_data()
+        job_data = await parent_job.get_job_data()
         if not isinstance(job_data, dict):
             return []
 
@@ -307,9 +315,9 @@ def jobs_get_sweep_children(parent_job_id, experiment_id=None):
         child_jobs = []
         for child_job_id in sweep_job_ids:
             try:
-                child_job = Job.get(child_job_id)
+                child_job = await Job.get(child_job_id)
                 # Get full job data (including type, status, etc.)
-                job_json = child_job.get_json_data()
+                job_json = await child_job.get_json_data()
                 child_jobs.append(job_json)
             except Exception:
                 # Skip if job doesn't exist
@@ -321,17 +329,19 @@ def jobs_get_sweep_children(parent_job_id, experiment_id=None):
         return []
 
 
-def job_get_sweep_parent(child_job_id, experiment_id=None):
+async def job_get_sweep_parent(child_job_id, experiment_id=None):
     """
     Get the parent sweep job for a child job.
     Returns None if the job is not a sweep child.
     """
     try:
-        child_job = Job.get(child_job_id)
-        if experiment_id is not None and child_job.get_experiment_id() != experiment_id:
-            return None
+        child_job = await Job.get(child_job_id)
+        if experiment_id is not None:
+            exp_id = await child_job.get_experiment_id()
+            if exp_id != experiment_id:
+                return None
 
-        job_data = child_job.get_job_data()
+        job_data = await child_job.get_job_data()
         if not isinstance(job_data, dict):
             return None
 
@@ -339,8 +349,8 @@ def job_get_sweep_parent(child_job_id, experiment_id=None):
         if not parent_job_id:
             return None
 
-        parent_job = Job.get(parent_job_id)
-        return parent_job.get_json_data()
+        parent_job = await Job.get(parent_job_id)
+        return await parent_job.get_json_data()
     except Exception as e:
         print(f"Error getting sweep parent for job {child_job_id}: {e}")
         return None
@@ -482,7 +492,7 @@ async def _trigger_workflows_on_job_completion(job_id: str):
     """
     try:
         # Get the job details
-        job = job_get(job_id)
+        job = await job_get(job_id)
         if not job:
             return
 
@@ -532,12 +542,13 @@ async def job_update_status(
     """
     # Update the job status using SDK Job class
     try:
-        job = Job.get(job_id)
-        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+        job = await Job.get(job_id)
+        exp_id = await job.get_experiment_id()
+        if experiment_id is not None and exp_id != experiment_id:
             return
-        job.update_status(status)
+        await job.update_status(status)
         if error_msg:
-            job.set_error_message(error_msg)
+            await job.set_error_message(error_msg)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
 
@@ -546,7 +557,7 @@ async def job_update_status(
     # Track quota for REMOTE jobs when they transition to terminal states
     if status in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
         try:
-            job_dict = job.get_json_data() if job else {}
+            job_dict = await job.get_json_data() if job else {}
             if job_dict.get("type") == "REMOTE":
                 # If session is provided, await quota tracking in the same transaction
                 # Otherwise, run it as a background task
@@ -580,11 +591,12 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
     """
     # Update the job in the database using SDK Job class
     try:
-        job = Job.get(job_id)
-        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+        job = await Job.get(job_id)
+        exp_id = await job.get_experiment_id()
+        if experiment_id is not None and exp_id != experiment_id:
             return
-        job.set_type(type)
-        job.update_status(status)
+        await job.set_type(type)
+        await job.update_status(status)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
         pass
@@ -609,19 +621,20 @@ def job_update_status_sync(
     # Update the job status using SDK Job class
     try:
         # Find which org this job belongs to (in case we're called from a callback without org context)
-        org_id = _find_org_id_for_job(str(job_id))
+        org_id = asyncio.run(_find_org_id_for_job(str(job_id)))
 
         # Set org context before accessing the job
         if org_id:
             lab_dirs.set_organization_id(org_id)
 
         try:
-            job = Job.get(str(job_id))
-            if experiment_id is not None and job.get_experiment_id() != experiment_id:
+            job = asyncio.run(Job.get(str(job_id)))
+            exp_id = asyncio.run(job.get_experiment_id())
+            if experiment_id is not None and exp_id != experiment_id:
                 return
-            job.update_status(status)
+            asyncio.run(job.update_status(status))
             if error_msg:
-                job.set_error_message(error_msg)
+                asyncio.run(job.set_error_message(error_msg))
         finally:
             # Clear org context
             if org_id:
@@ -651,10 +664,11 @@ def job_update_sync(job_id: str, status: str, experiment_id: Optional[str] = Non
     """
     # Update the job in the database using SDK Job class
     try:
-        job = Job.get(job_id)
-        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+        job = asyncio.run(Job.get(job_id))
+        exp_id = asyncio.run(job.get_experiment_id())
+        if experiment_id is not None and exp_id != experiment_id:
             return
-        job.update_status(status)
+        asyncio.run(job.update_status(status))
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
         pass
@@ -675,11 +689,12 @@ def job_update_type_and_status_sync(job_id: str, job_type: str, status: str, exp
         experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
     """
     try:
-        job = Job.get(job_id)
-        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+        job = asyncio.run(Job.get(job_id))
+        exp_id = asyncio.run(job.get_experiment_id())
+        if experiment_id is not None and exp_id != experiment_id:
             return
-        job.set_type(job_type)
-        job.update_status(status)
+        asyncio.run(job.set_type(job_type))
+        asyncio.run(job.update_status(status))
 
         # Trigger workflows if job status is COMPLETE
         # if status == "COMPLETE":
@@ -698,10 +713,10 @@ def _trigger_workflows_on_job_completion_sync(job_id: str):
     """
     try:
         # 1. Get job details using SDK
-        job = Job.get(job_id)
-        job_type = job.get_type()
+        job = asyncio.run(Job.get(job_id))
+        job_type = asyncio.run(job.get_type())
         # Get experiment_id from job data to match the type expected by workflow functions
-        experiment_id = job.get_experiment_id()
+        experiment_id = asyncio.run(job.get_experiment_id())
 
         if not experiment_id:
             return
@@ -714,9 +729,6 @@ def _trigger_workflows_on_job_completion_sync(job_id: str):
         # 3. Get workflows with matching trigger using async database operations
         # Note: This is a limitation - we can't easily do async operations in a sync context
         # For now, we'll import the async function and call it
-
-        # This is not ideal but necessary for now
-        import asyncio
 
         try:
             loop = asyncio.get_event_loop()
@@ -756,19 +768,21 @@ def job_mark_as_complete_if_running(job_id: int, experiment_id: int) -> None:
     """Service wrapper: mark job as complete if running and then trigger workflows."""
     try:
         # Find which org this job belongs to
-        org_id = _find_org_id_for_job(str(job_id))
+        org_id = asyncio.run(_find_org_id_for_job(str(job_id)))
 
         # Set org context before accessing the job
         if org_id:
             lab_dirs.set_organization_id(org_id)
 
         try:
-            job = Job.get(str(job_id))
-            if experiment_id is not None and job.get_experiment_id() != experiment_id:
+            job = asyncio.run(Job.get(str(job_id)))
+            exp_id = asyncio.run(job.get_experiment_id())
+            if experiment_id is not None and exp_id != experiment_id:
                 return
             # Only update if currently running
-            if job.get_status() == "RUNNING":
-                job.update_status("COMPLETE")
+            status = asyncio.run(job.get_status())
+            if status == "RUNNING":
+                asyncio.run(job.update_status("COMPLETE"))
                 # _trigger_workflows_on_job_completion_sync(job_id)
         finally:
             # Clear org context
@@ -783,14 +797,14 @@ def job_mark_as_complete_if_running(job_id: int, experiment_id: int) -> None:
             pass
 
 
-def get_file_metadata(file_path: str, storage) -> Dict[str, any]:
+async def get_file_metadata(file_path: str, storage) -> Dict[str, any]:
     """
     Extract file metadata (size, modified time) from storage or filesystem.
     Returns dict with 'size' and 'mtime' keys, or empty values if unavailable.
     """
     try:
         # Try storage.ls with detail=True first (works for S3 and local)
-        file_info_list = storage.ls(file_path, detail=True)
+        file_info_list = await storage.ls(file_path, detail=True)
 
         # Handle dict response (some storage backends)
         if isinstance(file_info_list, dict):
@@ -805,7 +819,8 @@ def get_file_metadata(file_path: str, storage) -> Dict[str, any]:
         print(f"storage.ls failed for {file_path}: {e}")
 
     # Fallback to os.stat for local files only (won't work for S3)
-    if not file_path.startswith("s3://"):
+    # Ensure file_path is a string before checking startswith
+    if isinstance(file_path, str) and not file_path.startswith("s3://"):
         try:
             stat = os.stat(file_path)
             return {"size": stat.st_size, "mtime": stat.st_mtime}
@@ -815,14 +830,14 @@ def get_file_metadata(file_path: str, storage) -> Dict[str, any]:
     return {"size": None, "mtime": None}
 
 
-def format_artifact(file_path: str, storage) -> Optional[Dict[str, any]]:
+async def format_artifact(file_path: str, storage) -> Optional[Dict[str, any]]:
     """
     Format a single artifact file into the response structure.
     Returns None if the artifact can't be processed.
     """
     try:
         filename = file_path.split("/")[-1] if "/" in file_path else file_path
-        metadata = get_file_metadata(file_path, storage)
+        metadata = await get_file_metadata(file_path, storage)
 
         artifact = {"filename": filename, "full_path": file_path}
 
@@ -838,7 +853,7 @@ def format_artifact(file_path: str, storage) -> Optional[Dict[str, any]]:
         return None
 
 
-def get_artifacts_from_sdk(job_id: str, storage) -> Optional[List[Dict]]:
+async def get_artifacts_from_sdk(job_id: str, storage) -> Optional[List[Dict]]:
     """
     Get artifacts using the SDK method.
     Returns list of artifacts or None if SDK method fails.
@@ -854,7 +869,7 @@ def get_artifacts_from_sdk(job_id: str, storage) -> Optional[List[Dict]]:
 
         artifacts = []
         for artifact_path in artifact_paths:
-            artifact = format_artifact(artifact_path, storage)
+            artifact = await format_artifact(artifact_path, storage)
             if artifact:
                 artifacts.append(artifact)
 
@@ -864,23 +879,31 @@ def get_artifacts_from_sdk(job_id: str, storage) -> Optional[List[Dict]]:
         return None
 
 
-def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict]:
+async def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict]:
     """
     Get artifacts by listing files in the artifacts directory.
     Returns list of artifacts (empty if directory can't be read).
     """
-    if not artifacts_dir or not storage.exists(artifacts_dir):
+    if not artifacts_dir or not await storage.exists(artifacts_dir):
         return []
 
     artifacts = []
     try:
-        items = storage.ls(artifacts_dir, detail=False)
+        items = await storage.ls(artifacts_dir, detail=False)
 
         for item in items:
-            file_path = item if isinstance(item, str) else str(item)
+            # Handle both string paths and dict responses from storage.ls
+            if isinstance(item, dict):
+                # Extract path from dict (some storage backends return dicts even with detail=False)
+                file_path = item.get("name") or item.get("path") or str(item)
+                # Skip if it's a directory
+                if item.get("type") == "directory":
+                    continue
+            else:
+                file_path = str(item)
 
-            if storage.isfile(file_path):
-                artifact = format_artifact(file_path, storage)
+            if await storage.isfile(file_path):
+                artifact = await format_artifact(file_path, storage)
                 if artifact:
                     artifacts.append(artifact)
     except Exception as e:
@@ -889,18 +912,18 @@ def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict]:
     return artifacts
 
 
-def get_all_artifact_paths(job_id: str, storage) -> List[str]:
+async def get_all_artifact_paths(job_id: str, storage) -> List[str]:
     """
     Get all artifact file paths for a job.
     Uses get_artifacts_from_sdk and get_artifacts_from_directory to retrieve paths.
     """
     # 1. Try SDK method
-    sdk_artifacts = get_artifacts_from_sdk(job_id, storage)
+    sdk_artifacts = await get_artifacts_from_sdk(job_id, storage)
     if sdk_artifacts:
         return [a.get("full_path") for a in sdk_artifacts if a.get("full_path")]
 
     # 2. Fallback to artifacts directory
-    job = job_get(job_id)
+    job = await job_get(job_id)
     if job:
         job_data = job.get("job_data", {})
         artifacts_dir = job_data.get("artifacts_dir")
@@ -909,12 +932,12 @@ def get_all_artifact_paths(job_id: str, storage) -> List[str]:
             try:
                 from lab.dirs import get_job_artifacts_dir
 
-                artifacts_dir = get_job_artifacts_dir(job_id)
+                artifacts_dir = await get_job_artifacts_dir(job_id)
             except Exception:
                 pass
 
         if artifacts_dir:
-            dir_artifacts = get_artifacts_from_directory(artifacts_dir, storage)
+            dir_artifacts = await get_artifacts_from_directory(artifacts_dir, storage)
             if dir_artifacts:
                 return [a.get("full_path") for a in dir_artifacts if a.get("full_path")]
 

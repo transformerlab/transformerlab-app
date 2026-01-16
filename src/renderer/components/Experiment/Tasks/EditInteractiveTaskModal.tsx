@@ -18,15 +18,13 @@ import {
   Alert,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
-import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 import { useRef } from 'react';
 import { SafeJSONParse } from '../../Shared/SafeJSONParse';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
-
-const { parseTmTheme } = require('monaco-themes');
+import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 
 type ProviderOption = {
   id: string;
@@ -48,15 +46,10 @@ type InteractiveTemplate = {
   interactive_type: string;
   name: string;
   description: string;
-  config_fields?: ConfigField[];
+  env_parameters?: ConfigField[];
 };
 
-function setTheme(editor: any, monaco: any) {
-  const themeData = parseTmTheme(fairyflossTheme);
-
-  monaco.editor.defineTheme('my-theme', themeData);
-  monaco.editor.setTheme('my-theme');
-}
+// setTheme is now imported from shared config
 
 type EditInteractiveTaskModalProps = {
   open: boolean;
@@ -97,7 +90,7 @@ export default function EditInteractiveTaskModal({
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
 
-  // Fetch interactive gallery to get config_fields for the interactive type
+  // Fetch interactive gallery to get env_parameters for the interactive type
   const { data: galleryData, isLoading: galleryIsLoading } = useSWR(
     experimentInfo?.id && open && interactiveType
       ? chatAPI.Endpoints.Task.InteractiveGallery(experimentInfo.id)
@@ -118,8 +111,8 @@ export default function EditInteractiveTaskModal({
       const template = gallery.find(
         (t) => t.interactive_type === interactiveType,
       );
-      if (template?.config_fields) {
-        setTemplateConfigFields(template.config_fields);
+      if (template?.env_parameters) {
+        setTemplateConfigFields(template.env_parameters);
       } else {
         setTemplateConfigFields([]);
       }
@@ -184,7 +177,7 @@ export default function EditInteractiveTaskModal({
 
     // Load config field values from env_vars
     const initialConfigFieldValues: Record<string, string> = {};
-    // We'll populate this once the gallery loads and we have config_fields
+    // We'll populate this once the gallery loads and we have env_parameters
     // For now, store all env vars
     setConfigFieldValues(parsedEnvVars);
 
@@ -380,7 +373,7 @@ export default function EditInteractiveTaskModal({
         provider_id: selectedProviderId,
       };
 
-      // Use config_fields to build env_vars
+      // Use env_parameters to build env_vars
       const envVars: Record<string, string> = {};
       templateConfigFields.forEach((field) => {
         const value = configFieldValues[field.env_var];
@@ -593,14 +586,11 @@ export default function EditInteractiveTaskModal({
                   theme="my-theme"
                   defaultValue={setup}
                   height="6rem"
-                  options={{
-                    minimap: {
-                      enabled: false,
-                    },
+                  options={getMonacoEditorOptions({
                     fontSize: 18,
                     cursorStyle: 'block',
                     wordWrap: 'on',
-                  }}
+                  })}
                   onMount={handleSetupEditorDidMount}
                 />
                 <FormHelperText>
@@ -615,14 +605,11 @@ export default function EditInteractiveTaskModal({
                   theme="my-theme"
                   defaultValue={command}
                   height="8rem"
-                  options={{
-                    minimap: {
-                      enabled: false,
-                    },
+                  options={getMonacoEditorOptions({
                     fontSize: 18,
                     cursorStyle: 'block',
                     wordWrap: 'on',
-                  }}
+                  })}
                   onMount={handleCommandEditorDidMount}
                 />
                 <FormHelperText>

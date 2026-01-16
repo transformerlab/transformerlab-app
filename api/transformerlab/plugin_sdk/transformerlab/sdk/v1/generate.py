@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import time
@@ -63,7 +64,7 @@ class GenTLabPlugin(TLabPlugin):
         else:
             output_dir = self.get_output_file_path(dir_only=True)
 
-        storage.makedirs(output_dir, exist_ok=True)
+        asyncio.run(storage.makedirs(output_dir, exist_ok=True))
 
         if is_image:
             lines = True
@@ -98,11 +99,18 @@ class GenTLabPlugin(TLabPlugin):
                 metadata_file = storage.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_metadata.json")
             else:
                 metadata_file = storage.join(output_dir, f"{dataset_id}_metadata.json")
-            with storage.open(metadata_file, "w", encoding="utf-8") as f:
-                json.dump(metadata, f, indent=2)
 
-        with storage.open(output_file, "w", encoding="utf-8") as f:
-            df.to_json(f, orient="records", lines=lines)
+            async def _save_metadata():
+                async with await storage.open(metadata_file, "w", encoding="utf-8") as f:
+                    await f.write(json.dumps(metadata, indent=2))
+
+            asyncio.run(_save_metadata())
+
+        async def _save_data():
+            async with await storage.open(output_file, "w", encoding="utf-8") as f:
+                await f.write(df.to_json(orient="records", lines=lines))
+
+        asyncio.run(_save_data())
         print(f"Generated data saved to {output_file}")
 
         # Upload to Transformer Lab as a dataset
@@ -128,54 +136,61 @@ class GenTLabPlugin(TLabPlugin):
         Returns:
             bool: Whether upload was successful
         """
-        try:
-            # Determine dataset ID
-            if not dataset_id:
-                dataset_id = f"{self.params.run_name}_{self.params.job_id}"
 
-            # Create a new dataset using internal SDK (same logic as /data/new endpoint)
-            # Check if dataset already exists
+        async def _upload():
             try:
-                _ = dataset_service.get(dataset_id)
-                print(f"Dataset '{dataset_id}' already exists, skipping creation")
-            except FileNotFoundError:
-                # Dataset doesn't exist, create it
-                dataset_path = dirs.dataset_dir_by_id(dataset_id)
-                if not storage.exists(dataset_path):
-                    storage.makedirs(dataset_path, exist_ok=True)
+                # Determine dataset ID
+                if not dataset_id:
+                    dataset_id_local = f"{self.params.run_name}_{self.params.job_id}"
+                else:
+                    dataset_id_local = dataset_id
 
-                # Create filesystem metadata
+                # Create a new dataset using internal SDK (same logic as /data/new endpoint)
+                # Check if dataset already exists
                 try:
-                    ds = dataset_service.create(dataset_id)
-                    ds.set_metadata(
-                        location="local",
-                        description="",
-                        size=-1,
-                        json_data={"generated": True},
-                    )
-                except Exception as e:
-                    print(f"Failed to write dataset metadata to SDK store: {type(e).__name__}: {e}")
+                    _ = await dataset_service.get(dataset_id_local)
+                    print(f"Dataset '{dataset_id_local}' already exists, skipping creation")
+                except FileNotFoundError:
+                    # Dataset doesn't exist, create it
+                    dataset_path = await dirs.dataset_dir_by_id(dataset_id_local)
+                    if not await storage.exists(dataset_path):
+                        await storage.makedirs(dataset_path, exist_ok=True)
 
-            # Upload the file (same logic as /data/fileupload endpoint)
-            filename = os.path.basename(output_file_path)
-            target_path = storage.join(dirs.dataset_dir_by_id(dataset_id), filename)
+                    # Create filesystem metadata
+                    try:
+                        ds = await dataset_service.create(dataset_id_local)
+                        await ds.set_metadata(
+                            location="local",
+                            description="",
+                            size=-1,
+                            json_data={"generated": True},
+                        )
+                    except Exception as e:
+                        print(f"Failed to write dataset metadata to SDK store: {type(e).__name__}: {e}")
 
-            # Copy the file to the dataset directory
-            storage.makedirs(dirs.dataset_dir_by_id(dataset_id), exist_ok=True)
-            with storage.open(output_file_path, "rb") as src_file:
-                content = src_file.read()
-                with storage.open(target_path, "wb") as dst_file:
-                    dst_file.write(content)
+                # Upload the file (same logic as /data/fileupload endpoint)
+                filename = os.path.basename(output_file_path)
+                dataset_dir = await dirs.dataset_dir_by_id(dataset_id_local)
+                target_path = storage.join(dataset_dir, filename)
 
-            # Adding dataset so it can be previewed
-            self.add_job_data("additional_output_path", output_file_path)
+                # Copy the file to the dataset directory
+                await storage.makedirs(dataset_dir, exist_ok=True)
+                async with await storage.open(output_file_path, "rb") as src_file:
+                    content = await src_file.read()
+                    async with await storage.open(target_path, "wb") as dst_file:
+                        await dst_file.write(content)
 
-            print(f"Dataset '{dataset_id}' uploaded successfully to TransformerLab")
-            return True
+                # Adding dataset so it can be previewed
+                self.add_job_data("additional_output_path", output_file_path)
 
-        except Exception as e:
-            print(f"Error uploading to TransformerLab: {e}")
-            raise
+                print(f"Dataset '{dataset_id_local}' uploaded successfully to TransformerLab")
+                return True
+
+            except Exception as e:
+                print(f"Error uploading to TransformerLab: {e}")
+                raise
+
+        return asyncio.run(_upload())
 
     def get_output_file_path(self, suffix="", dataset_id=None, dir_only=False):
         """Get path for saving generated outputs
@@ -191,17 +206,21 @@ class GenTLabPlugin(TLabPlugin):
 
         from lab.dirs import get_workspace_dir
 
-        workspace_dir = get_workspace_dir()
+        async def _get_dir():
+            workspace_dir = await get_workspace_dir()
 
-        experiment_dir = storage.join(workspace_dir, "experiments", self.params.experiment_name)
-        dataset_dir = storage.join(experiment_dir, "datasets")
+            experiment_dir = storage.join(workspace_dir, "experiments", self.params.experiment_name)
+            dataset_dir = storage.join(experiment_dir, "datasets")
 
-        # Create a specific directory for this generation job
-        if dataset_id is None:
-            gen_dir = storage.join(dataset_dir, f"{self.params.run_name}_{self.params.job_id}")
-        else:
-            gen_dir = storage.join(dataset_dir, dataset_id)
-        storage.makedirs(gen_dir, exist_ok=True)
+            # Create a specific directory for this generation job
+            if dataset_id is None:
+                gen_dir = storage.join(dataset_dir, f"{self.params.run_name}_{self.params.job_id}")
+            else:
+                gen_dir = storage.join(dataset_dir, dataset_id)
+            await storage.makedirs(gen_dir, exist_ok=True)
+            return gen_dir
+
+        gen_dir = asyncio.run(_get_dir())
 
         if dir_only:
             return gen_dir
