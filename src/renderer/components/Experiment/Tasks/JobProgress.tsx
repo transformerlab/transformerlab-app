@@ -1,5 +1,12 @@
-import { Chip, IconButton, LinearProgress, Stack, Typography } from '@mui/joy';
-import { StopCircleIcon } from 'lucide-react';
+import {
+  Chip,
+  IconButton,
+  LinearProgress,
+  Stack,
+  Typography,
+  Tooltip,
+} from '@mui/joy';
+import { StopCircleIcon, Info } from 'lucide-react';
 import Skeleton from '@mui/joy/Skeleton';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -30,9 +37,13 @@ interface JobProps {
     job_data?: JobData;
     placeholder?: boolean;
   };
+  showLaunchResultInfo?: boolean;
 }
 
-export default function JobProgress({ job }: JobProps) {
+export default function JobProgress({
+  job,
+  showLaunchResultInfo = false,
+}: JobProps) {
   const { experimentInfo } = useExperimentInfo();
   const { fetchWithAuth } = useAuth();
 
@@ -97,6 +108,42 @@ export default function JobProgress({ job }: JobProps) {
     return 0;
   })();
 
+  // Format provider launch result for display
+  const formatProviderLaunchResult = (launchResult: any): string => {
+    if (!launchResult) return '';
+    if (typeof launchResult === 'string') return launchResult;
+    if (typeof launchResult === 'object') {
+      const parts: string[] = [];
+      if (launchResult.request_id) {
+        parts.push(`Request ID: ${launchResult.request_id}`);
+      }
+      if (launchResult.cluster_name) {
+        parts.push(`Cluster: ${launchResult.cluster_name}`);
+      }
+      if (launchResult.status) {
+        parts.push(`Status: ${launchResult.status}`);
+      }
+      if (launchResult.message) {
+        parts.push(launchResult.message);
+      }
+      // Include any other relevant fields
+      Object.keys(launchResult).forEach((key) => {
+        if (
+          !['request_id', 'cluster_name', 'status', 'message'].includes(key)
+        ) {
+          const value = launchResult[key];
+          if (value !== null && value !== undefined) {
+            parts.push(`${key}: ${String(value)}`);
+          }
+        }
+      });
+      return parts.length > 0
+        ? parts.join('\n')
+        : JSON.stringify(launchResult, null, 2);
+    }
+    return String(launchResult);
+  };
+
   /* eslint-disable no-nested-ternary */
   return (
     <Stack>
@@ -126,6 +173,39 @@ export default function JobProgress({ job }: JobProps) {
             >
               {job.status}
             </Chip>
+            {showLaunchResultInfo &&
+              job?.status === 'LAUNCHING' &&
+              job?.job_data?.provider_launch_result && (
+                <Tooltip
+                  title={
+                    <Typography
+                      level="body-xs"
+                      sx={{
+                        whiteSpace: 'pre-wrap',
+                        fontFamily: 'monospace',
+                        maxWidth: 400,
+                      }}
+                    >
+                      {formatProviderLaunchResult(
+                        job.job_data.provider_launch_result,
+                      )}
+                    </Typography>
+                  }
+                  arrow
+                  placement="top"
+                  variant="soft"
+                  sx={{ maxWidth: 400 }}
+                >
+                  <IconButton
+                    size="sm"
+                    variant="plain"
+                    color="neutral"
+                    sx={{ minHeight: 'unset', p: 0.5 }}
+                  >
+                    <Info size={16} color="var(--joy-palette-neutral-500)" />
+                  </IconButton>
+                </Tooltip>
+              )}
             <IconButton color="danger" onClick={handleStopJob}>
               <StopCircleIcon size="20px" />
             </IconButton>
