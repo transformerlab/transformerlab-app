@@ -826,6 +826,7 @@ async def _launch_sweep_jobs(
                         repo_url=request.github_repo_url,
                         directory=request.github_directory,
                         github_pat=github_pat,
+                        branch=request.github_branch,
                     )
                     setup_commands.append(github_setup)
 
@@ -1107,6 +1108,7 @@ async def launch_template_on_provider(
             repo_url=request.github_repo_url,
             directory=request.github_directory,
             github_pat=github_pat,
+            branch=request.github_branch,
         )
         setup_commands.append(github_setup)
 
@@ -1877,6 +1879,7 @@ async def resume_from_checkpoint(
             repo_url=github_repo_url,
             directory=job_data.get("github_directory"),
             github_pat=github_pat,
+            branch=job_data.get("github_branch"),
         )
         setup_commands.append(github_setup)
 
