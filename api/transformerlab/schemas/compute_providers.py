@@ -23,6 +23,14 @@ class ProviderConfigBase(BaseModel):
     ssh_key_path: Optional[str] = None
     ssh_port: int = 22
 
+    # Runpod-specific config
+    api_key: Optional[str] = None  # Runpod API key (sensitive)
+    api_base_url: Optional[str] = None  # Defaults to https://rest.runpod.io/v1
+    default_gpu_type: Optional[str] = None  # Default GPU type (e.g., "RTX 3090", "A100")
+    default_region: Optional[str] = None  # Default region
+    default_template_id: Optional[str] = None  # Default Docker template ID
+    default_network_volume_id: Optional[str] = None  # Default network volume ID
+
     # Additional provider-specific config
     extra_config: Dict[str, Any] = Field(default_factory=dict)
 
@@ -64,7 +72,7 @@ def mask_sensitive_config(config: Dict[str, Any], provider_type: str) -> Dict[st
 
     Args:
         config: Provider configuration dictionary
-        provider_type: Type of provider (slurm or skypilot)
+        provider_type: Type of provider (slurm, skypilot, or runpod)
 
     Returns:
         Configuration with sensitive fields masked
