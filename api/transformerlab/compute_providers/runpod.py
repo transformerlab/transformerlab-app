@@ -1,4 +1,4 @@
-"""RunPod provider implementation."""
+"""Runpod provider implementation."""
 
 import requests
 from typing import Dict, Any, Optional, Union, List
@@ -14,8 +14,8 @@ from .models import (
 )
 
 
-class RunPodProvider(ComputeProvider):
-    """Provider implementation for RunPod API."""
+class RunpodProvider(ComputeProvider):
+    """Provider implementation for Runpod API."""
 
     def __init__(
         self,
@@ -28,11 +28,11 @@ class RunPodProvider(ComputeProvider):
         extra_config: Optional[Dict[str, Any]] = None,
     ):
         """
-        Initialize RunPod provider.
+        Initialize Runpod provider.
 
         Args:
-            api_key: RunPod API key (required)
-            api_base_url: Base URL for RunPod API (defaults to https://rest.runpod.io/v1)
+            api_key: Runpod API key (required)
+            api_base_url: Base URL for Runpod API (defaults to https://rest.runpod.io/v1)
             default_gpu_type: Default GPU type (e.g., "RTX 3090", "A100")
             default_region: Default region
             default_template_id: Default Docker template ID
@@ -58,7 +58,7 @@ class RunPodProvider(ComputeProvider):
         timeout: int = 30,
     ) -> requests.Response:
         """
-        Make authenticated request to RunPod API.
+        Make authenticated request to Runpod API.
 
         Args:
             method: HTTP method (GET, POST, DELETE, etc.)
@@ -81,7 +81,7 @@ class RunPodProvider(ComputeProvider):
 
     def _find_pod_by_name(self, cluster_name: str) -> Optional[Dict[str, Any]]:
         """
-        Find a pod by cluster name. RunPod uses pod IDs, not names, so we need to
+        Find a pod by cluster name. Runpod uses pod IDs, not names, so we need to
         search through pods and match by name or use cached mapping.
 
         Args:
@@ -132,13 +132,13 @@ class RunPodProvider(ComputeProvider):
 
     def _map_gpu_type_to_runpod(self, accelerators: Optional[str]) -> Optional[str]:
         """
-        Map accelerator specification to RunPod GPU type ID.
+        Map accelerator specification to Runpod GPU type ID.
 
         Args:
             accelerators: Accelerator string (e.g., "A100:1", "RTX 3090:1")
 
         Returns:
-            RunPod GPU type ID or None
+            Runpod GPU type ID or None
         """
         if not accelerators:
             return self.default_gpu_type
@@ -147,7 +147,7 @@ class RunPodProvider(ComputeProvider):
         parts = accelerators.split(":")
         gpu_type = parts[0].strip()
 
-        # Common GPU type mappings (abbreviation -> full RunPod name)
+        # Common GPU type mappings (abbreviation -> full Runpod name)
         gpu_mappings = {
             "RTX3090": "NVIDIA GeForce RTX 3090",
             "RTX3080": "NVIDIA GeForce RTX 3080",
@@ -191,7 +191,7 @@ class RunPodProvider(ComputeProvider):
         if gpu_type.upper() in gpu_mappings:
             gpu_type = gpu_mappings[gpu_type.upper()]
 
-        # Try to get GPU types from RunPod API
+        # Try to get GPU types from Runpod API
         try:
             response = self._make_request("GET", "/gpu-types")
             gpu_types = response.json()
@@ -213,10 +213,10 @@ class RunPodProvider(ComputeProvider):
 
     def _map_runpod_status_to_cluster_state(self, runpod_status: str) -> ClusterState:
         """
-        Map RunPod pod status to ClusterState.
+        Map Runpod pod status to ClusterState.
 
         Args:
-            runpod_status: RunPod status string
+            runpod_status: Runpod status string
 
         Returns:
             ClusterState enum value
@@ -233,7 +233,7 @@ class RunPodProvider(ComputeProvider):
         return mapping.get(status_upper, ClusterState.UNKNOWN)
 
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
-        """Launch a pod using RunPod API."""
+        """Launch a pod using Runpod API."""
         # Determine compute type based on accelerators
         if config.accelerators:
             # GPU pod
@@ -314,7 +314,7 @@ class RunPodProvider(ComputeProvider):
                 config.provider_config.get("network_volume_id") or self.default_network_volume_id
             )
 
-        # Build dockerStartCmd - RunPod expects a single command string or array
+        # Build dockerStartCmd - Runpod expects a single command string or array
         # that will be executed by the container's entrypoint
         docker_cmds = []
 
@@ -423,7 +423,7 @@ class RunPodProvider(ComputeProvider):
                 status_message="Pod not found",
             )
 
-        # Map RunPod status to ClusterState
+        # Map Runpod status to ClusterState
         runpod_status = pod.get("status", "UNKNOWN")
         state = self._map_runpod_status_to_cluster_state(runpod_status)
 
@@ -437,7 +437,7 @@ class RunPodProvider(ComputeProvider):
             status_message=runpod_status,
             launched_at=str(launched_at) if launched_at else None,
             last_use=str(last_use) if last_use else None,
-            num_nodes=1,  # RunPod pods are single-node
+            num_nodes=1,  # Runpod pods are single-node
             resources_str=pod.get("gpuTypeId") or pod.get("gpuType", {}).get("name", ""),
             provider_data=pod,
         )
@@ -533,19 +533,19 @@ class RunPodProvider(ComputeProvider):
         """
         Submit a job to a pod.
 
-        Note: RunPod doesn't have a traditional job queue. We'll execute the command
+        Note: Runpod doesn't have a traditional job queue. We'll execute the command
         via the pod's exec endpoint or SSH if available.
         """
-        raise NotImplementedError("RunPod doesn't have a job submission endpoint")
+        raise NotImplementedError("Runpod doesn't have a job submission endpoint")
 
     def list_jobs(self, cluster_name: str) -> List[JobInfo]:
         """
         List jobs for a pod.
 
-        Note: RunPod doesn't have a job queue. We return empty list or could
+        Note: Runpod doesn't have a job queue. We return empty list or could
         track jobs via pod execution history.
         """
-        raise NotImplementedError("RunPod doesn't have a job queue system")
+        raise NotImplementedError("Runpod doesn't have a job queue system")
 
     def get_job_logs(
         self,
@@ -557,21 +557,21 @@ class RunPodProvider(ComputeProvider):
         """
         Get job logs.
 
-        Note: RunPod doesn't have a job logs endpoint. We might need to
-        SSH into the pod or use RunPod's logs feature if available.
+        Note: Runpod doesn't have a job logs endpoint. We might need to
+        SSH into the pod or use Runpod's logs feature if available.
         """
-        # RunPod doesn't have a direct job logs endpoint
-        # Would need to SSH into pod or use RunPod's pod logs endpoint
-        return "Logs not available via RunPod API. Use RunPod console."
+        # Runpod doesn't have a direct job logs endpoint
+        # Would need to SSH into pod or use Runpod's pod logs endpoint
+        return "Logs not available via Runpod API. Use Runpod console."
 
     def cancel_job(self, cluster_name: str, job_id: Union[str, int]) -> Dict[str, Any]:
         """
         Cancel a job.
 
-        Note: RunPod doesn't have a job cancellation endpoint. We might need to
+        Note: Runpod doesn't have a job cancellation endpoint. We might need to
         SSH into the pod and kill the process.
         """
-        raise NotImplementedError("RunPod doesn't have a job cancellation endpoint")
+        raise NotImplementedError("Runpod doesn't have a job cancellation endpoint")
 
     def get_clusters_detailed(self) -> List[Dict[str, Any]]:
         """Get detailed cluster information."""
@@ -597,10 +597,10 @@ class RunPodProvider(ComputeProvider):
             )
             is_pod_up = state_str.upper() in ["UP", "INIT"]
 
-            # Build node entry (RunPod pods are single-node)
+            # Build node entry (Runpod pods are single-node)
             node = {
                 "node_name": cluster_name,
-                "is_fixed": False,  # RunPod pods are elastic
+                "is_fixed": False,  # Runpod pods are elastic
                 "is_active": is_pod_up,
                 "state": state_str.upper(),
                 "reason": cluster_status.status_message or state_str,
@@ -617,7 +617,7 @@ class RunPodProvider(ComputeProvider):
             cluster_detail = {
                 "cluster_id": cluster_name,
                 "cluster_name": cluster_name,
-                "backend_type": "RunPod",
+                "backend_type": "Runpod",
                 "elastic_enabled": True,
                 "max_nodes": 1,
                 "head_node_ip": cluster_status.provider_data.get("runtime", {}).get("publicIp"),
@@ -629,7 +629,7 @@ class RunPodProvider(ComputeProvider):
         return detailed
 
     def check(self) -> bool:
-        """Check if the RunPod provider is active and accessible."""
+        """Check if the Runpod provider is active and accessible."""
         try:
             # Make a lightweight API call to verify API key is valid
 
@@ -639,12 +639,12 @@ class RunPodProvider(ComputeProvider):
         except requests.exceptions.HTTPError as e:
             # 401/403 means invalid API key
             if hasattr(e, "response") and e.response.status_code in [401, 403]:
-                print(f"RunPod provider check failed: {e.response.text}")
+                print(f"Runpod provider check failed: {e.response.text}")
                 return False
             # Other errors might be temporary
-            print(f"RunPod provider check failed: {e.response.text}")
+            print(f"Runpod provider check failed: {e.response.text}")
             return False
         except Exception as e:
-            print(f"RunPod provider check failed: {e}")
+            print(f"Runpod provider check failed: {e}")
             # Connection errors, timeouts, etc.
             return False

@@ -1335,11 +1335,11 @@ async def check_provider_job_status(
             "message": "Failed to instantiate provider",
         }
 
-    # RunPod doesn't have a job queue - check pod status instead
+    # Runpod doesn't have a job queue - check pod status instead
     if provider.type == ProviderType.RUNPOD.value:
         try:
             cluster_status = provider_instance.get_cluster_status(cluster_name)
-            # For RunPod, the pod itself is the "job"
+            # For Runpod, the pod itself is the "job"
             # Check if pod is in a terminal state
             terminal_pod_states = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
             pod_finished = cluster_status.state in terminal_pod_states
@@ -1378,7 +1378,7 @@ async def check_provider_job_status(
                     "message": f"Pod is still running (status: {cluster_status.state.value})",
                 }
         except Exception as exc:
-            print(f"Failed to check RunPod pod status: {exc}")
+            print(f"Failed to check Runpod pod status: {exc}")
             return {
                 "status": "error",
                 "job_id": job_id,
@@ -2191,7 +2191,7 @@ async def list_jobs(
 
         return jobs
     except NotImplementedError:
-        # Provider doesn't support listing jobs (e.g., RunPod)
+        # Provider doesn't support listing jobs (e.g., Runpod)
         return []
     except Exception as e:
         print(f"Failed to list jobs: {str(e)}")
@@ -2224,10 +2224,10 @@ async def get_job_info(
         try:
             jobs = provider_instance.list_jobs(cluster_name)
         except NotImplementedError:
-            # Provider doesn't support listing jobs (e.g., RunPod)
+            # Provider doesn't support listing jobs (e.g., Runpod)
             raise HTTPException(
                 status_code=400,
-                detail="This provider does not support job listing. RunPod uses pod-based execution, not a job queue.",
+                detail="This provider does not support job listing. Runpod uses pod-based execution, not a job queue.",
             )
 
         # Convert job_id to appropriate type for comparison
@@ -2283,7 +2283,7 @@ async def get_job_logs(
         try:
             logs = provider_instance.get_job_logs(cluster_name, job_id, tail_lines=tail_lines, follow=follow)
         except NotImplementedError:
-            # Provider doesn't support job logs (though RunPod returns a string message, not NotImplementedError)
+            # Provider doesn't support job logs (though Runpod returns a string message, not NotImplementedError)
             logs = "Logs not available for this provider type."
 
         if follow:
