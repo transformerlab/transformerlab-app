@@ -268,6 +268,8 @@ def _parse_yaml_to_task_data(yaml_content: str) -> dict:
         task_data["github_repo_url"] = str(task_yaml["git_repo"])
     if "git_repo_directory" in task_yaml:
         task_data["github_directory"] = str(task_yaml["git_repo_directory"])
+    if "git_repo_branch" in task_yaml:
+        task_data["github_branch"] = str(task_yaml["git_repo_branch"])
 
     # Parameters
     if "parameters" in task_yaml:
@@ -778,6 +780,8 @@ async def export_task_to_team_gallery(
         config["github_repo_url"] = task.get("github_repo_url")
     if task.get("github_directory"):
         config["github_directory"] = task.get("github_directory")
+    if task.get("github_branch"):
+        config["github_branch"] = task.get("github_branch")
 
     gallery_entry = {
         "id": task.get("id") or request.task_id,

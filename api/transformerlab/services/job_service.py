@@ -458,8 +458,7 @@ async def _record_quota_usage_internal(
         # Get user_id from email
         stmt = select(User).where(User.email == user_email)
         result = await session.execute(stmt)
-        # unique() is required because User has lazy="joined" relationships (oauth_accounts)
-        user = result.unique().scalar_one_or_none()
+        user = result.scalar_one_or_none()
         if not user:
             return
 
@@ -606,32 +605,23 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
     #     await _trigger_workflows_on_job_completion(job_id)
 
 
-def job_update_status_sync(
-    job_id: str, status: str, experiment_id: Optional[str] = None, error_msg: Optional[str] = None
-):
+def job_update_status_sync(job_id: str, org_id: str, status: str, error_msg: Optional[str] = None):
     """
     Synchronous version of job status update.
 
     Args:
         job_id: The ID of the job to update
         status: The new status to set
-        experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
         error_msg: Optional error message to add to job data
     """
     # Update the job status using SDK Job class
     try:
-        # Find which org this job belongs to (in case we're called from a callback without org context)
-        org_id = asyncio.run(_find_org_id_for_job(str(job_id)))
-
         # Set org context before accessing the job
         if org_id:
             lab_dirs.set_organization_id(org_id)
 
         try:
             job = asyncio.run(Job.get(str(job_id)))
-            exp_id = asyncio.run(job.get_experiment_id())
-            if experiment_id is not None and exp_id != experiment_id:
-                return
             asyncio.run(job.update_status(status))
             if error_msg:
                 asyncio.run(job.set_error_message(error_msg))
@@ -647,10 +637,6 @@ def job_update_status_sync(
         except Exception:
             pass
         pass
-
-    # # Trigger workflows if job status is COMPLETE
-    # if status == "COMPLETE":
-    #     _trigger_workflows_on_job_completion_sync(job_id)
 
 
 def job_update_sync(job_id: str, status: str, experiment_id: Optional[str] = None):
@@ -764,26 +750,20 @@ async def _trigger_workflows_async(job_id: str, job_type: str, experiment_id: st
         print(f"Error in async workflow triggering for job {job_id}: {e}")
 
 
-def job_mark_as_complete_if_running(job_id: int, experiment_id: int) -> None:
+def job_mark_as_complete_if_running(job_id: int, org_id: str) -> None:
     """Service wrapper: mark job as complete if running and then trigger workflows."""
     try:
-        # Find which org this job belongs to
-        org_id = asyncio.run(_find_org_id_for_job(str(job_id)))
-
         # Set org context before accessing the job
         if org_id:
             lab_dirs.set_organization_id(org_id)
 
         try:
             job = asyncio.run(Job.get(str(job_id)))
-            exp_id = asyncio.run(job.get_experiment_id())
-            if experiment_id is not None and exp_id != experiment_id:
-                return
+
             # Only update if currently running
             status = asyncio.run(job.get_status())
             if status == "RUNNING":
                 asyncio.run(job.update_status("COMPLETE"))
-                # _trigger_workflows_on_job_completion_sync(job_id)
         finally:
             # Clear org context
             if org_id:

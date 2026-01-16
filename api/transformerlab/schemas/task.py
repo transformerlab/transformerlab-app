@@ -28,6 +28,7 @@ class AddTeamTaskToGalleryRequest(BaseModel):
     accelerators: Optional[str] = None
     github_repo_url: Optional[str] = None
     github_repo_dir: Optional[str] = None
+    github_branch: Optional[str] = None
 
 
 class DeleteTeamTaskFromGalleryRequest(BaseModel):

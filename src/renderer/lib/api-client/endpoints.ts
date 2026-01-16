@@ -120,6 +120,14 @@ Endpoints.ComputeProvider = {
   },
 };
 
+Endpoints.SshKeys = {
+  Get: () => `${API_URL()}ssh-key/`,
+  Create: () => `${API_URL()}ssh-key/`,
+  Update: () => `${API_URL()}ssh-key/`,
+  Delete: () => `${API_URL()}ssh-key/`,
+  Download: () => `${API_URL()}ssh-key/download`,
+};
+
 Endpoints.Workflows = {
   ListInExperiment: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/list`,
