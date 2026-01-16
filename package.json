@@ -27,10 +27,10 @@
   ],
   "version": "0.27.6",
   "scripts": {
-    "build": "dotenv -e .env -- cross-env NODE_ENV=production tsx node_modules/webpack/bin/webpack.js --config ./.erb/configs/webpack.config.cloud.prod.ts",
+    "build": "dotenv -e .env -- cross-env NODE_ENV=production npx tsx node_modules/webpack/bin/webpack.js --config ./.erb/configs/webpack.config.cloud.prod.ts",
     "lint": "cross-env NODE_ENV=development eslint . --ext .js,.jsx,.ts,.tsx",
-    "start": "dotenv -e .env -- cross-env NODE_ENV=development tsx node_modules/webpack-dev-server/bin/webpack-dev-server.js --config ./.erb/configs/webpack.config.cloud.dev.ts",
-    "start:cloud": "dotenv -e .env -- cross-env NODE_ENV=development tsx node_modules/webpack-dev-server/bin/webpack-dev-server.js --config ./.erb/configs/webpack.config.cloud.dev.ts",
+    "start": "dotenv -e .env -- cross-env NODE_ENV=development npx tsx node_modules/webpack-dev-server/bin/webpack-dev-server.js --config ./.erb/configs/webpack.config.cloud.dev.ts",
+    "start:cloud": "dotenv -e .env -- cross-env NODE_ENV=development npx tsx node_modules/webpack-dev-server/bin/webpack-dev-server.js --config ./.erb/configs/webpack.config.cloud.dev.ts",
     "test": "jest",
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
