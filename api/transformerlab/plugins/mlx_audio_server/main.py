@@ -90,7 +90,7 @@ class MLXAudioWorker(BaseModelWorker):
             audio_dir = params.get("audio_dir")
 
             try:
-                storage.makedirs(path=audio_dir, exist_ok=True)
+                await storage.makedirs(path=audio_dir, exist_ok=True)
                 kwargs = {
                     "text": text,
                     "model_path": model,
@@ -108,7 +108,7 @@ class MLXAudioWorker(BaseModelWorker):
                 generate_audio(**kwargs)
 
                 audio_file_path = storage.join(audio_dir, f"{file_prefix}.{audio_format}")
-                if not storage.exists(audio_file_path):
+                if not await storage.exists(audio_file_path):
                     return {
                         "status": "error",
                         "message": "Audio file was not generated",
@@ -130,7 +130,7 @@ class MLXAudioWorker(BaseModelWorker):
                 }
 
                 metadata_file = storage.join(audio_dir, f"{file_prefix}.json")
-                with storage.open(metadata_file, "w") as f:
+                with await storage.open(metadata_file, "w") as f:
                     json.dump(metadata, f)
 
                 logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
@@ -162,7 +162,7 @@ class MLXAudioWorker(BaseModelWorker):
             file_prefix = str(uuid.uuid4())
 
             try:
-                storage.makedirs(path=transcriptions_dir, exist_ok=True)
+                await storage.makedirs(path=transcriptions_dir, exist_ok=True)
                 await asyncio.to_thread(
                     generate,
                     audio_path=audio_path,
@@ -173,7 +173,7 @@ class MLXAudioWorker(BaseModelWorker):
                 )
 
                 transcription_file_path = storage.join(transcriptions_dir, f"{file_prefix}.{format}")
-                if not storage.exists(transcription_file_path):
+                if not await storage.exists(transcription_file_path):
                     return {
                         "status": "error",
                         "message": "Transcription file was not generated",
