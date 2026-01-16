@@ -111,7 +111,7 @@ function TaskIcon({ category }: { category: string }) {
 
 function TaskCard({
   task,
-  index,
+  galleryIdentifier,
   onImport,
   isImporting,
   disableImport,
@@ -120,15 +120,15 @@ function TaskCard({
   onSelect,
 }: {
   task: any;
-  index: number;
-  onImport: (idx: number) => void;
+  galleryIdentifier: string | number;
+  onImport: (identifier: string | number) => void;
   isImporting: boolean;
   disableImport: boolean;
   showCheckbox?: boolean;
   isSelected?: boolean;
   onSelect?: (taskId: string, selected: boolean) => void;
 }) {
-  const taskId = task?.id || task?.title || index.toString();
+  const taskId = task?.id || task?.title || galleryIdentifier.toString();
   return (
     <Card variant="outlined" sx={{ height: '100%' }}>
       <CardContent
@@ -258,7 +258,7 @@ function TaskCard({
             variant="soft"
             color="success"
             endDecorator={<DownloadIcon size={16} />}
-            onClick={() => onImport(index)}
+            onClick={() => onImport(galleryIdentifier)}
             loading={isImporting}
             disabled={disableImport}
           >
@@ -276,7 +276,9 @@ export default function TasksGallery() {
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const navigate = useNavigate();
-  const [importingIndex, setImportingIndex] = useState<number | null>(null);
+  const [importingIndex, setImportingIndex] = useState<string | number | null>(
+    null,
+  );
   const [newTeamTaskModalOpen, setNewTeamTaskModalOpen] = useState(false);
   const [isSubmittingTeamTask, setIsSubmittingTeamTask] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
@@ -300,7 +302,7 @@ export default function TasksGallery() {
     fetcher,
   );
 
-  const handleImport = async (galleryIndex: number) => {
+  const handleImport = async (galleryIdentifier: string | number) => {
     if (!experimentInfo?.id) {
       addNotification({
         type: 'warning',
@@ -310,7 +312,8 @@ export default function TasksGallery() {
       return;
     }
 
-    setImportingIndex(galleryIndex);
+    // Use the identifier as the key for tracking import state
+    setImportingIndex(galleryIdentifier);
     try {
       const endpoint =
         activeTab === 'team'
@@ -322,7 +325,7 @@ export default function TasksGallery() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          gallery_id: galleryIndex.toString(),
+          gallery_id: galleryIdentifier.toString(),
           experiment_id: experimentInfo.id,
         }),
       });
@@ -617,15 +620,39 @@ export default function TasksGallery() {
         {!isActiveLoading && gallery.length > 0 && (
           <Grid container spacing={2} sx={{ flexGrow: 1 }}>
             {filterTasksGallery(gallery, searchText).map(
-              (task: any, index: number) => {
-                const taskId = task?.id || task?.title || index.toString();
+              (task: any, filteredIndex: number) => {
+                // Use task ID or title if available, otherwise find original index
+                // The backend supports both ID/title and numeric index
+                let galleryIdentifier: string | number;
+                if (task?.id) {
+                  galleryIdentifier = task.id;
+                } else if (task?.title) {
+                  galleryIdentifier = task.title;
+                } else {
+                  // Find original index by matching task properties
+                  const originalIndex = gallery.findIndex(
+                    (galleryTask) =>
+                      galleryTask === task ||
+                      (galleryTask?.id &&
+                        task?.id &&
+                        galleryTask.id === task.id) ||
+                      (galleryTask?.title &&
+                        task?.title &&
+                        galleryTask.title === task.title &&
+                        galleryTask.github_repo_url === task.github_repo_url),
+                  );
+                  galleryIdentifier =
+                    originalIndex >= 0 ? originalIndex : filteredIndex;
+                }
+                const taskId =
+                  task?.id || task?.title || galleryIdentifier.toString();
                 return (
-                  <Grid xs={12} sm={12} md={6} lg={4} xl={3} key={index}>
+                  <Grid xs={12} sm={12} md={6} lg={4} xl={3} key={taskId}>
                     <TaskCard
                       task={task}
-                      index={index}
+                      galleryIdentifier={galleryIdentifier}
                       onImport={handleImport}
-                      isImporting={importingIndex === index}
+                      isImporting={importingIndex === galleryIdentifier}
                       disableImport={
                         !experimentInfo?.id || importingIndex !== null
                       }

@@ -356,7 +356,7 @@ async def get_tunnel_info_for_job(
     and uses the appropriate parser. Supports: 'vscode', 'jupyter', 'vllm', 'ssh'
     """
 
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if not job or str(job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -882,7 +882,7 @@ async def get_checkpoints(job_id: str, request: Request):
 
         # Get checkpoints using the SDK method
         sdk_job = Job(job_id)
-        checkpoint_paths = sdk_job.get_checkpoint_paths()
+        checkpoint_paths = await sdk_job.get_checkpoint_paths()
 
         if checkpoint_paths and len(checkpoint_paths) > 0:
             checkpoints = []
@@ -1147,7 +1147,7 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
         filename: The artifact filename
         task: Either "view" or "download" (default: "view")
     """
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
 
@@ -1160,7 +1160,7 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
 
         # Get artifacts using the SDK method
         sdk_job = Job(job_id)
-        artifact_paths = sdk_job.get_artifact_paths()
+        artifact_paths = await sdk_job.get_artifact_paths()
 
         if artifact_paths:
             # Look for the file in the artifact paths

@@ -155,7 +155,7 @@ const JobsList: React.FC<JobsListProps> = ({
               </td>
               <td>{formatJobConfig(job)}</td>
               <td>
-                <JobProgress job={job} />
+                <JobProgress job={job} showLaunchResultInfo />
               </td>
               <td style={{ width: 'fit-content' }}>
                 <ButtonGroup
@@ -310,13 +310,33 @@ const JobsList: React.FC<JobsListProps> = ({
                       job?.job_data?.interactive_type === 'vllm' ||
                       job?.job_data?.interactive_type === 'ollama' ||
                       job?.job_data?.interactive_type === 'ssh') && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => onViewInteractive?.(job?.id)}
-                      >
-                        Interactive Setup
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewInteractive?.(job?.id)}
+                        >
+                          Interactive Setup
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewOutput?.(job?.id)}
+                          startDecorator={<LogsIcon />}
+                        >
+                          <Box
+                            sx={{
+                              display: {
+                                xs: 'none',
+                                sm: 'none',
+                                md: 'inline-flex',
+                              },
+                            }}
+                          >
+                            Output
+                          </Box>
+                        </Button>
+                      </>
                     )}
                   {job?.job_data?.checkpoints && (
                     <Button

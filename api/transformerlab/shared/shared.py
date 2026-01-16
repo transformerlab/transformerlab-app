@@ -780,12 +780,13 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         try:
             from transformerlab.services.job_service import job_mark_as_complete_if_running
 
-            job_mark_as_complete_if_running(job_id, experiment_name)
+            job_mark_as_complete_if_running(job_id, org_id)
         except Exception:
+            print(f"Failed to mark job ${job_id} as complete.")
             pass
 
     def on_job_complete():
-        job_update_status_sync(job_id, "COMPLETE", experiment_name)
+        job_update_status_sync(job_id, org_id, "COMPLETE")
 
     if job_type == "LoRA":
         template_config = job_config["config"]  # Get the config for this job type

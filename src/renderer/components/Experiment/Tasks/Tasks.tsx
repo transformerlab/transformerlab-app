@@ -135,7 +135,45 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     };
   }, [pendingJobsStorageKey]);
 
+  // Listen for custom event to open job output modal from interactive modals
+  useEffect(() => {
+    const handleOpenJobOutput = (e: Event) => {
+      const customEvent = e as CustomEvent<{ jobId: number }>;
+      const jobId = customEvent.detail?.jobId;
+      if (jobId && jobId !== -1) {
+        // Close the interactive modal first
+        setInteractiveJobForModal(-1);
+        // Wait for the modal to close (MUI modals have transition animations)
+        // Use a longer delay to ensure the interactive modal fully closes
+        // before opening the output modal to avoid z-index/stacking issues
+        setTimeout(() => {
+          setViewOutputFromJob(jobId);
+        }, 300); // 300ms should be enough for modal close animation
+      }
+    };
+
+    const eventName = 'tflab-open-job-output';
+    window.addEventListener(eventName, handleOpenJobOutput);
+
+    return () => {
+      window.removeEventListener(eventName, handleOpenJobOutput);
+    };
+  }, []);
+
   const isInteractivePage = subtype === 'interactive';
+
+  // Define the callback outside the IIFE to ensure it's always available
+  const handleOpenOutputFromInteractive = useCallback(
+    (outputJobId: number) => {
+      // Close the interactive modal first
+      setInteractiveJobForModal(-1);
+      // Wait for modal close animation, then open output modal
+      setTimeout(() => {
+        setViewOutputFromJob(outputJobId);
+      }, 300);
+    },
+    [interactiveJobForModal],
+  );
 
   const handleOpen = () => {
     if (isInteractivePage) {
@@ -1094,6 +1132,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             <InteractiveJupyterModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
@@ -1103,15 +1142,21 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             <InteractiveVllmModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
 
         if (interactiveType === 'ssh') {
+          console.log(
+            '[Tasks] Rendering InteractiveSshModal with onOpenOutput:',
+            handleOpenOutputFromInteractive,
+          );
           return (
             <InteractiveSshModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
@@ -1121,6 +1166,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             <InteractiveOllamaModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
@@ -1129,6 +1175,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           <InteractiveVSCodeModal
             jobId={interactiveJobForModal}
             setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+            onOpenOutput={handleOpenOutputFromInteractive}
           />
         );
       })()}
