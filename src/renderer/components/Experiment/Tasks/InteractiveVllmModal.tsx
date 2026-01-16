@@ -21,11 +21,13 @@ import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 type InteractiveVllmModalProps = {
   jobId: number;
   setJobId: (jobId: number) => void;
+  onOpenOutput?: (jobId: number) => void;
 };
 
 export default function InteractiveVllmModal({
   jobId,
   setJobId,
+  onOpenOutput,
 }: InteractiveVllmModalProps) {
   const { experimentInfo } = useExperimentInfo();
 
@@ -204,27 +206,6 @@ export default function InteractiveVllmModal({
               logs to ensure vLLM and ngrok started correctly.
             </Typography>
           </Box>
-
-          <Divider />
-
-          <Stack direction="row" spacing={1}>
-            <Button
-              size="sm"
-              variant="outlined"
-              startDecorator={<LogsIcon size={16} />}
-              onClick={() => {
-                // Reuse the existing output modal via the main Tasks page
-                window.dispatchEvent(
-                  new CustomEvent('tflab-open-job-output', {
-                    detail: { jobId },
-                  }),
-                );
-              }}
-            >
-              Open Output & Provider Logs
-            </Button>
-            <Box flex={1} />
-          </Stack>
         </Box>
       </ModalDialog>
     </Modal>

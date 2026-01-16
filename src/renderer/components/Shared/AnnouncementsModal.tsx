@@ -9,16 +9,14 @@ import {
 import React, { useState, useEffect } from 'react';
 import { API_URL } from 'renderer/lib/api-client/urls';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import announcementsData from './announcements.json';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Announcement {
   date: string;
   title: string;
   content: string;
-}
-
-interface AnnouncementsData {
-  announcements: Announcement[];
+  expires?: string | null;
 }
 
 // Parse date string as local date to avoid timezone issues
@@ -65,22 +63,19 @@ export default function AnnouncementsModal() {
 
     const checkForAnnouncements = async () => {
       try {
-        const data = announcementsData as AnnouncementsData;
-        if (!data.announcements || data.announcements.length === 0) {
+        // Fetch announcements from API
+        const response = await chatAPI.authenticatedFetch(
+          `${API_URL()}server/announcements`,
+        );
+        if (!response.ok) {
           setHasChecked(true);
           return;
         }
 
-        // Get the latest announcement only (even if there are many announcements,
-        // new users will only see the most recent one)
-        // Sort announcements by date descending to ensure we get the latest
-        const sortedAnnouncements = [...data.announcements].sort(
-          (a, b) =>
-            parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime(),
-        );
-        const latestAnnouncement = sortedAnnouncements[0];
+        const result = await response.json();
+        const announcements: Announcement[] = result.data || [];
 
-        if (!latestAnnouncement) {
+        if (!announcements || announcements.length === 0) {
           setHasChecked(true);
           return;
         }
@@ -91,6 +86,107 @@ export default function AnnouncementsModal() {
           lastViewedDate = await (window as any).storage.get(localStorageKey);
         } else {
           lastViewedDate = localStorage.getItem(localStorageKey);
+        }
+
+        const now = new Date();
+
+        // Sort all announcements by date descending to find the latest one
+        const sortedAllAnnouncements = [...announcements].sort(
+          (a, b) =>
+            parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime(),
+        );
+        const latestAnnouncementOverall = sortedAllAnnouncements[0];
+
+        // Special case: If no announcement has been viewed and the latest one is expired,
+        // don't show anything and mark it as viewed
+        if (!lastViewedDate && latestAnnouncementOverall) {
+          if (latestAnnouncementOverall.expires) {
+            const expiresDate = parseLocalDate(
+              latestAnnouncementOverall.expires,
+            );
+            if (expiresDate < now) {
+              // Latest announcement is expired and user hasn't viewed any - mark as viewed silently
+              if ((window as any).storage) {
+                await (window as any).storage.set(
+                  localStorageKey,
+                  latestAnnouncementOverall.date,
+                );
+              } else {
+                localStorage.setItem(
+                  localStorageKey,
+                  latestAnnouncementOverall.date,
+                );
+              }
+              setHasChecked(true);
+              return;
+            }
+          }
+        }
+
+        // Check for expired announcements that haven't been shown and mark them as viewed
+        let latestViewedDate = lastViewedDate;
+        for (const announcement of announcements) {
+          const announcementDate = parseLocalDate(announcement.date);
+          const isNewer =
+            !lastViewedDate ||
+            announcementDate > parseLocalDate(lastViewedDate);
+
+          // If announcement hasn't been shown and is expired, mark it as viewed silently
+          if (isNewer && announcement.expires) {
+            const expiresDate = parseLocalDate(announcement.expires);
+            if (expiresDate < now) {
+              // Announcement is expired and hasn't been shown - mark as viewed
+              if (
+                announcementDate >
+                (latestViewedDate
+                  ? parseLocalDate(latestViewedDate)
+                  : new Date(0))
+              ) {
+                latestViewedDate = announcement.date;
+              }
+            }
+          }
+        }
+
+        // Update localStorage if we marked any expired announcements as viewed
+        if (latestViewedDate !== lastViewedDate && latestViewedDate) {
+          if ((window as any).storage) {
+            await (window as any).storage.set(
+              localStorageKey,
+              latestViewedDate,
+            );
+          } else {
+            localStorage.setItem(localStorageKey, latestViewedDate);
+          }
+          lastViewedDate = latestViewedDate;
+        }
+
+        // Filter out expired announcements for display
+        const validAnnouncements = announcements.filter((announcement) => {
+          if (!announcement.expires) {
+            return true; // No expiration date, always valid
+          }
+          const expiresDate = parseLocalDate(announcement.expires);
+          return expiresDate >= now;
+        });
+
+        if (validAnnouncements.length === 0) {
+          setHasChecked(true);
+          return;
+        }
+
+        // Get the latest announcement only (even if there are many announcements,
+        // new users will only see the most recent one)
+        // Sort announcements by date descending to ensure we get the latest
+        const sortedAnnouncements = [...validAnnouncements].sort(
+          (a, b) =>
+            parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime(),
+        );
+        const latestAnnouncement = sortedAnnouncements[0];
+
+        if (!latestAnnouncement) {
+          setHasChecked(true);
+          return;
         }
 
         // Mark as checked whether we show the announcement or not
@@ -158,7 +254,9 @@ export default function AnnouncementsModal() {
           📢&nbsp;{currentAnnouncement.title}
         </DialogTitle>
         <DialogContent sx={{ pt: 2, overflowY: 'auto', overflowX: 'hidden' }}>
-          <Typography level="body-md">{currentAnnouncement.content}</Typography>
+          <Markdown remarkPlugins={[remarkGfm]}>
+            {currentAnnouncement.content}
+          </Markdown>
           {currentAnnouncement.date && (
             <Typography level="body-sm" sx={{ mt: 2, opacity: 0.7 }}>
               {parseLocalDate(currentAnnouncement.date).toLocaleDateString()}

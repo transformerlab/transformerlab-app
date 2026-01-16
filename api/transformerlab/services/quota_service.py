@@ -290,7 +290,7 @@ async def ensure_quota_recorded_for_completed_job(
     from sqlalchemy import select
 
     # Get the job
-    job = job_service.job_get(job_id)
+    job = await job_service.job_get(job_id)
     if not job:
         return False
 

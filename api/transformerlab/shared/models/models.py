@@ -87,6 +87,11 @@ class UserTeam(Base):
     team_id: Mapped[str] = mapped_column(String, primary_key=True)
     role: Mapped[str] = mapped_column(String, nullable=False, default=TeamRole.MEMBER.value)
 
+    __table_args__ = (
+        Index("ix_users_teams_user_id", "user_id"),
+        Index("ix_users_teams_team_id", "team_id"),
+    )
+
 
 class InvitationStatus(str, enum.Enum):
     """Enum for invitation status."""

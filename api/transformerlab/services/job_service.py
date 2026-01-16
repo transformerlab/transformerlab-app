@@ -819,7 +819,8 @@ async def get_file_metadata(file_path: str, storage) -> Dict[str, any]:
         print(f"storage.ls failed for {file_path}: {e}")
 
     # Fallback to os.stat for local files only (won't work for S3)
-    if not file_path.startswith("s3://"):
+    # Ensure file_path is a string before checking startswith
+    if isinstance(file_path, str) and not file_path.startswith("s3://"):
         try:
             stat = os.stat(file_path)
             return {"size": stat.st_size, "mtime": stat.st_mtime}
