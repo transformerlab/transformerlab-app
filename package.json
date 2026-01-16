@@ -28,7 +28,6 @@
   "version": "0.27.6",
   "scripts": {
     "build": "dotenv -e .env -- cross-env NODE_ENV=production TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.cloud.prod.ts",
-    "postinstall": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.cloud.dev.ts --mode development || true",
     "lint": "cross-env NODE_ENV=development eslint . --ext .js,.jsx,.ts,.tsx",
     "start": "dotenv -e .env -- cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack serve --config ./.erb/configs/webpack.config.cloud.dev.ts",
     "start:cloud": "dotenv -e .env -- cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack serve --config ./.erb/configs/webpack.config.cloud.dev.ts",
