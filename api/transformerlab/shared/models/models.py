@@ -1,6 +1,6 @@
-from typing import Optional, List
+from typing import Optional
 from sqlalchemy import String, JSON, DateTime, func, Integer, Index, UUID, Date, Float, UniqueConstraint
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID
 import uuid
 import enum
@@ -168,10 +168,6 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
 
     first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-
-    oauth_accounts: Mapped[List["OAuthAccount"]] = relationship(
-        "OAuthAccount", primaryjoin="User.id == foreign(OAuthAccount.user_id)", lazy="joined"
-    )
 
 
 class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
