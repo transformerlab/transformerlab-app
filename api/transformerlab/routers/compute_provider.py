@@ -2287,38 +2287,6 @@ async def get_job_logs(
         raise HTTPException(status_code=500, detail="Failed to get job logs")
 
 
-@router.get("/ssh-key/download")
-async def download_ssh_key(
-    user_and_team=Depends(get_user_and_team),
-):
-    """
-    Download the organization's SSH private key for accessing interactive SSH tasks.
-    The key is automatically generated on first SSH task launch if it doesn't exist.
-    Requires X-Team-Id header and team membership.
-    """
-    team_id = user_and_team["team_id"]
-
-    try:
-        from transformerlab.services.ssh_key_service import get_or_create_org_ssh_key_pair, get_org_ssh_private_key
-
-        # Ensure key exists (will create if it doesn't)
-        await get_or_create_org_ssh_key_pair(team_id)
-
-        # Get private key content
-        private_key_content = await get_org_ssh_private_key(team_id)
-
-        # Return as downloadable file
-        return Response(
-            content=private_key_content,
-            media_type="application/x-pem-file",
-            headers={
-                "Content-Disposition": f'attachment; filename="org_ssh_key_{team_id}"',
-            },
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve SSH key: {str(e)}")
-
-
 @router.delete("/{provider_id}/clusters/{cluster_name}/jobs/{job_id}")
 async def cancel_job(
     provider_id: str,
