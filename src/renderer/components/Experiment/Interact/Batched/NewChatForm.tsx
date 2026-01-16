@@ -164,7 +164,6 @@ function SingleLineOfChat({ index, chat, chats, setChats, setAsEditable }) {
               setIsEditing(false);
             }
           }}
-          endDecorator={}
         />
       ) : (
         <Typography sx={{ flex: 1 }}>{chat.content}</Typography>
