@@ -375,6 +375,13 @@ async def get_user_teams(user: User = Depends(current_active_user), session: Asy
             "user_id": str(user.id),
             "teams": [{"id": personal_team.id, "name": personal_team.name, "role": TeamRole.OWNER.value}],
         }
+    
+    # Prefer last used team if available
+if user.last_team_id:
+    for i, ut in enumerate(user_teams):
+        if ut.team_id == user.last_team_id:
+            user_teams.insert(0, user_teams.pop(i))
+            break
 
     # User has team associations, get the actual team objects
     team_ids = [ut.team_id for ut in user_teams]
