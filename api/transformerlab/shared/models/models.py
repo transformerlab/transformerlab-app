@@ -169,6 +169,8 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
 
     first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    last_team_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
 
 
 class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
