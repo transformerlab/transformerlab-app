@@ -682,6 +682,9 @@ async def accept_invitation(
     # Update invitation status
     invitation.status = InvitationStatus.ACCEPTED.value
 
+    # ✅ Set last used team
+    user.last_team_id = invitation.team_id
+
     await session.commit()
 
     # Get team info
