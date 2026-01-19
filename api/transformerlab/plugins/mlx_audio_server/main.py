@@ -130,7 +130,7 @@ class MLXAudioWorker(BaseModelWorker):
                 }
 
                 metadata_file = storage.join(audio_dir, f"{file_prefix}.json")
-                with await storage.open(metadata_file, "w") as f:
+                async with await storage.open(metadata_file, "w") as f:
                     json.dump(metadata, f)
 
                 logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
@@ -140,7 +140,7 @@ class MLXAudioWorker(BaseModelWorker):
                     "message": f"{file_prefix}.{audio_format}",
                 }
             except Exception:
-                logger.error("Error generating audio")
+                logger.exception("Error generating audio.")
                 return {
                     "status": "error",
                     "message": "Error generating audio",
