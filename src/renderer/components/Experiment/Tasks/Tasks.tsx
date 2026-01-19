@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import Sheet from '@mui/joy/Sheet';
 
-import { Button, LinearProgress, Stack, Typography } from '@mui/joy';
+import { Button, LinearProgress, Skeleton, Stack, Typography } from '@mui/joy';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -1040,57 +1040,49 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           overflow: 'auto',
         }}
       >
-        {templatesIsLoading ? (
-          <LinearProgress />
-        ) : (
-          <TaskTemplateList
-            tasksList={tasks}
-            onDeleteTask={handleDeleteTask}
-            onQueueTask={handleQueue}
-            onEditTask={handleEditTask}
-            onExportTask={handleExportToTeamGallery}
-          />
-        )}
+        <TaskTemplateList
+          tasksList={tasks}
+          onDeleteTask={handleDeleteTask}
+          onQueueTask={handleQueue}
+          onEditTask={handleEditTask}
+          onExportTask={handleExportToTeamGallery}
+          loading={templatesIsLoading}
+        />
       </Sheet>
       <Typography level="title-md">Runs</Typography>
       <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
-        {jobsIsLoading ? (
-          <LinearProgress />
-        ) : (
-          <JobsList
-            jobs={jobsWithPlaceholders as any}
-            onDeleteJob={handleDeleteJob}
-            onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
-            onViewTensorboard={(jobId) =>
-              setCurrentTensorboardForModal(parseInt(jobId))
-            }
-            onViewCheckpoints={(jobId) =>
-              setViewCheckpointsFromJob(parseInt(jobId))
-            }
-            onViewArtifacts={(jobId) =>
-              setViewArtifactsFromJob(parseInt(jobId))
-            }
-            onViewEvalImages={(jobId) =>
-              setViewEvalImagesFromJob(parseInt(jobId))
-            }
-            onViewEvalResults={(jobId) =>
-              setViewEvalResultsFromJob(parseInt(jobId))
-            }
-            onViewGeneratedDataset={(jobId, datasetId) => {
-              setPreviewDatasetModal({ open: true, datasetId });
-            }}
-            onViewSweepOutput={(jobId) => {
-              setViewOutputFromSweepJob(true);
-              setViewOutputFromJob(parseInt(jobId));
-            }}
-            onViewSweepResults={(jobId) => {
-              setViewSweepResultsFromJob(parseInt(jobId));
-            }}
-            onViewInteractive={(jobId) =>
-              setInteractiveJobForModal(parseInt(jobId))
-            }
-          />
-        )}
+        <JobsList
+          jobs={jobsWithPlaceholders as any}
+          onDeleteJob={handleDeleteJob}
+          onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
+          onViewTensorboard={(jobId) =>
+            setCurrentTensorboardForModal(parseInt(jobId))
+          }
+          onViewCheckpoints={(jobId) =>
+            setViewCheckpointsFromJob(parseInt(jobId))
+          }
+          onViewArtifacts={(jobId) => setViewArtifactsFromJob(parseInt(jobId))}
+          onViewEvalImages={(jobId) =>
+            setViewEvalImagesFromJob(parseInt(jobId))
+          }
+          onViewEvalResults={(jobId) =>
+            setViewEvalResultsFromJob(parseInt(jobId))
+          }
+          onViewGeneratedDataset={(jobId, datasetId) => {
+            setPreviewDatasetModal({ open: true, datasetId });
+          }}
+          onViewSweepOutput={(jobId) => {
+            setViewOutputFromSweepJob(true);
+            setViewOutputFromJob(parseInt(jobId));
+          }}
+          onViewSweepResults={(jobId) => {
+            setViewSweepResultsFromJob(parseInt(jobId));
+          }}
+          onViewInteractive={(jobId) =>
+            setInteractiveJobForModal(parseInt(jobId))
+          }
+          loading={jobsIsLoading}
+        />
       </Sheet>
       <ViewSweepResultsModal
         jobId={viewSweepResultsFromJob}

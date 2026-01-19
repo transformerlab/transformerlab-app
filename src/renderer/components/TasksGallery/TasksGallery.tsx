@@ -12,7 +12,7 @@ import {
   FormControl,
   Grid,
   Input,
-  LinearProgress,
+  Skeleton,
   Sheet,
   Box,
   Typography,
@@ -603,7 +603,47 @@ export default function TasksGallery() {
           paddingRight: 2,
         }}
       >
-        {isActiveLoading && <LinearProgress />}
+        {isActiveLoading && (
+          <Grid container spacing={2}>
+            {[...Array(12)].map((_, i) => (
+              <Grid xs={12} sm={12} md={6} lg={4} xl={3} key={i}>
+                <Card variant="outlined" sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Stack spacing={0}>
+                      <Skeleton variant="rectangular" width={32} height={32} />
+                      <Skeleton
+                        variant="text"
+                        level="title-lg"
+                        width="60%"
+                        sx={{ mt: 2 }}
+                      />
+                      <Skeleton
+                        variant="text"
+                        level="body-sm"
+                        width="100%"
+                        sx={{ mt: 1 }}
+                      />
+                      <Skeleton variant="text" level="body-sm" width="100%" />{' '}
+                      <Skeleton variant="text" level="body-sm" width="100%" />
+                      <Skeleton
+                        variant="text"
+                        level="body-sm"
+                        width="15%"
+                        sx={{ mt: 1 }}
+                      />
+                      <Skeleton
+                        variant="rectangular"
+                        width="100%"
+                        height={32}
+                        sx={{ mt: 2 }}
+                      />
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        )}
         {!isActiveLoading && gallery.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <Typography level="body-lg" color="neutral">
