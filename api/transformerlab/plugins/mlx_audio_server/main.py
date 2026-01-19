@@ -131,7 +131,7 @@ class MLXAudioWorker(BaseModelWorker):
 
                 metadata_file = storage.join(audio_dir, f"{file_prefix}.json")
                 async with await storage.open(metadata_file, "w") as f:
-                    json.dump(metadata, f)
+                    await f.write(json.dumps(metadata))
 
                 logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
 
