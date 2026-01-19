@@ -15,6 +15,7 @@ import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 
 type TaskRow = {
   id: string;
+  title?: string;
   name: string;
   description?: string;
   type?: string;
@@ -32,6 +33,13 @@ type TaskTemplateListProps = {
   onEditTask: (task: TaskRow) => void;
   onExportTask?: (taskId: string) => void;
 };
+
+function getTitle(task: TaskRow) {
+  if (task.title && task.title.trim() !== '') {
+    return task.title;
+  }
+  return task.name;
+}
 
 const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   tasksList,
@@ -148,7 +156,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
           <tr key={row.id}>
             <td>
               <Typography level="title-sm" sx={{ overflow: 'clip' }}>
-                {row.name}
+                {getTitle(row)}
               </Typography>
             </td>
             <td style={{ overflow: 'clip' }}>
