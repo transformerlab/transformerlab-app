@@ -9,6 +9,7 @@ import {
   MenuButton,
   Menu,
   MenuItem,
+  Skeleton,
 } from '@mui/joy';
 import { PlayIcon, Trash2Icon, MoreVerticalIcon } from 'lucide-react';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
@@ -32,6 +33,7 @@ type TaskTemplateListProps = {
   onQueueTask: (task: TaskRow) => void;
   onEditTask: (task: TaskRow) => void;
   onExportTask?: (taskId: string) => void;
+  loading: boolean;
 };
 
 function getTitle(task: TaskRow) {
@@ -47,6 +49,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   onQueueTask,
   onEditTask,
   onExportTask,
+  loading,
 }) => {
   const getResourcesInfo = (task: TaskRow) => {
     if (task.type !== 'REMOTE') {
@@ -139,6 +142,48 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
 
     return providerName || 'Not specified';
   };
+
+  if (loading) {
+    return (
+      <Table stickyHeader>
+        <thead>
+          <tr>
+            <th style={{ width: '150px' }}>Name</th>
+            <th>Command</th>
+            <th>Resources</th>
+            <th>Provider</th>
+            <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[1, 2, 3, 4].map((i) => (
+            <tr key={i}>
+              <td>
+                <Skeleton variant="text" level="title-sm" />
+              </td>
+              <td>
+                <Skeleton variant="text" level="body-sm" />
+              </td>
+              <td>
+                <Skeleton variant="text" level="body-sm" />
+              </td>
+              <td>
+                <Skeleton variant="text" level="body-sm" />
+              </td>
+              <td style={{ textAlign: 'right' }}>
+                <Skeleton
+                  variant="rectangular"
+                  width={200}
+                  height={32}
+                  sx={{ ml: 'auto' }}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    );
+  }
 
   return (
     <Table stickyHeader>
