@@ -1051,43 +1051,38 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       </Sheet>
       <Typography level="title-md">Runs</Typography>
       <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
-        {jobsIsLoading ? (
-          <LinearProgress />
-        ) : (
-          <JobsList
-            jobs={jobsWithPlaceholders as any}
-            onDeleteJob={handleDeleteJob}
-            onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
-            onViewTensorboard={(jobId) =>
-              setCurrentTensorboardForModal(parseInt(jobId))
-            }
-            onViewCheckpoints={(jobId) =>
-              setViewCheckpointsFromJob(parseInt(jobId))
-            }
-            onViewArtifacts={(jobId) =>
-              setViewArtifactsFromJob(parseInt(jobId))
-            }
-            onViewEvalImages={(jobId) =>
-              setViewEvalImagesFromJob(parseInt(jobId))
-            }
-            onViewEvalResults={(jobId) =>
-              setViewEvalResultsFromJob(parseInt(jobId))
-            }
-            onViewGeneratedDataset={(jobId, datasetId) => {
-              setPreviewDatasetModal({ open: true, datasetId });
-            }}
-            onViewSweepOutput={(jobId) => {
-              setViewOutputFromSweepJob(true);
-              setViewOutputFromJob(parseInt(jobId));
-            }}
-            onViewSweepResults={(jobId) => {
-              setViewSweepResultsFromJob(parseInt(jobId));
-            }}
-            onViewInteractive={(jobId) =>
-              setInteractiveJobForModal(parseInt(jobId))
-            }
-          />
-        )}
+        <JobsList
+          jobs={jobsWithPlaceholders as any}
+          onDeleteJob={handleDeleteJob}
+          onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
+          onViewTensorboard={(jobId) =>
+            setCurrentTensorboardForModal(parseInt(jobId))
+          }
+          onViewCheckpoints={(jobId) =>
+            setViewCheckpointsFromJob(parseInt(jobId))
+          }
+          onViewArtifacts={(jobId) => setViewArtifactsFromJob(parseInt(jobId))}
+          onViewEvalImages={(jobId) =>
+            setViewEvalImagesFromJob(parseInt(jobId))
+          }
+          onViewEvalResults={(jobId) =>
+            setViewEvalResultsFromJob(parseInt(jobId))
+          }
+          onViewGeneratedDataset={(jobId, datasetId) => {
+            setPreviewDatasetModal({ open: true, datasetId });
+          }}
+          onViewSweepOutput={(jobId) => {
+            setViewOutputFromSweepJob(true);
+            setViewOutputFromJob(parseInt(jobId));
+          }}
+          onViewSweepResults={(jobId) => {
+            setViewSweepResultsFromJob(parseInt(jobId));
+          }}
+          onViewInteractive={(jobId) =>
+            setInteractiveJobForModal(parseInt(jobId))
+          }
+          loading={jobsIsLoading}
+        />
       </Sheet>
       <ViewSweepResultsModal
         jobId={viewSweepResultsFromJob}
