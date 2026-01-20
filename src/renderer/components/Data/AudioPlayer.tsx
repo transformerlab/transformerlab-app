@@ -9,6 +9,7 @@ import {
 } from '@mui/joy';
 import { Play, Pause, Volume2 } from 'lucide-react';
 import WaveSurfer from 'wavesurfer.js';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 interface AudioPlayerProps {
   audioData: {
@@ -34,6 +35,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [error, setError] = React.useState<string | null>(null);
   const [duration, setDuration] = React.useState<number>(0);
   const [currentTime, setCurrentTime] = React.useState<number>(0);
+  const [audioBlobUrl, setAudioBlobUrl] = React.useState<string | null>(null);
   const waveformRef = React.useRef<HTMLDivElement>(null);
   const audioRef = React.useRef<HTMLAudioElement>(null);
   const nativeAudioRef = React.useRef<HTMLAudioElement>(null);
@@ -78,6 +80,58 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  // Fetch audio data with authentication and create blob URL
+  // This way we don't need to pass a URL that requires auth to audio element
+  React.useEffect(() => {
+    if (!audioData?.audio_data_url) {
+      return undefined;
+    }
+
+    let isCancelled = false;
+    setIsLoading(true);
+    setError(null);
+
+    const fetchAudio = async () => {
+      try {
+        const response = await fetchWithAuth(audioData.audio_data_url);
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch audio: ${response.status}`);
+        }
+
+        // Check for unmounting before making blob URL
+        if (isCancelled) return;
+
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        // Make sure this hasn't been unmounted before setting.
+        // Avoids possible memory leak.
+        if (isCancelled) {
+          URL.revokeObjectURL(blobUrl);
+          return;
+        }
+
+        setAudioBlobUrl(blobUrl);
+      } catch (err) {
+        if (!isCancelled) {
+          console.error('Error fetching audio:', err);
+          setError('Failed to load audio');
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchAudio();
+
+    return () => {
+      isCancelled = true;
+      if (audioBlobUrl) {
+        URL.revokeObjectURL(audioBlobUrl);
+      }
+    };
+  }, [audioData?.audio_data_url]);
+
   // Regular mode - WaveSurfer player effects
   React.useEffect(() => {
     // Skip if we're in compact mode or missing required refs/data
@@ -86,7 +140,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       !waveformRef.current ||
       !nativeAudioRef.current ||
       isDestroyedRef.current ||
-      !audioData?.audio_data_url
+      !audioBlobUrl
     ) {
       return undefined;
     }
@@ -144,11 +198,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setIsLoading(false);
       return undefined;
     }
-  }, [compact, audioData?.audio_data_url]);
+  }, [compact, audioBlobUrl]);
 
   React.useEffect(() => {
     isDestroyedRef.current = false;
-  }, [audioData?.audio_data_url]);
+  }, [audioBlobUrl]);
 
   // Compact mode render
   if (compact) {
@@ -156,7 +210,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       <Box sx={{ minWidth: '200px', maxWidth: '300px' }}>
         <audio
           ref={audioRef}
-          src={audioData.audio_data_url}
+          src={audioBlobUrl || undefined}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
           onPlay={handlePlay}
@@ -257,7 +311,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           {/* Native Audio Controls */}
           <audio
             ref={nativeAudioRef}
-            src={audioData.audio_data_url}
+            src={audioBlobUrl || undefined}
             controls
             style={{ width: '100%' }}
           >

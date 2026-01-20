@@ -1,6 +1,6 @@
-from typing import Optional, List
+from typing import Optional
 from sqlalchemy import String, JSON, DateTime, func, Integer, Index, UUID, Date, Float, UniqueConstraint
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID
 import uuid
 import enum
@@ -87,6 +87,11 @@ class UserTeam(Base):
     team_id: Mapped[str] = mapped_column(String, primary_key=True)
     role: Mapped[str] = mapped_column(String, nullable=False, default=TeamRole.MEMBER.value)
 
+    __table_args__ = (
+        Index("ix_users_teams_user_id", "user_id"),
+        Index("ix_users_teams_team_id", "team_id"),
+    )
+
 
 class InvitationStatus(str, enum.Enum):
     """Enum for invitation status."""
@@ -124,6 +129,7 @@ class ProviderType(str, enum.Enum):
 
     SLURM = "slurm"
     SKYPILOT = "skypilot"
+    RUNPOD = "runpod"
 
 
 class TeamComputeProvider(Base):
@@ -163,10 +169,6 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
 
     first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-
-    oauth_accounts: Mapped[List["OAuthAccount"]] = relationship(
-        "OAuthAccount", primaryjoin="User.id == foreign(OAuthAccount.user_id)", lazy="joined"
-    )
 
 
 class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):

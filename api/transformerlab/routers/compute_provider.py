@@ -2,6 +2,7 @@
 
 import os
 import time
+import json
 import configparser
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
@@ -27,11 +28,11 @@ from transformerlab.schemas.compute_providers import (
     ProviderTemplateFileUploadResponse,
     ResumeFromCheckpointRequest,
 )
-from transformerlab.shared.models.models import ProviderType, TeamComputeProvider
-from transformerlab.compute_providers.base import ComputeProvider
+from transformerlab.shared.models.models import ProviderType
 from transformerlab.compute_providers.models import (
     ClusterConfig,
     ClusterStatus,
+    ClusterState,
     ResourceInfo,
     JobConfig,
     JobInfo,
@@ -45,6 +46,7 @@ from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
     generate_github_clone_setup,
 )
+from transformerlab.shared.secret_utils import load_team_secrets, replace_secrets_in_dict, replace_secret_placeholders
 from typing import Any
 
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
@@ -57,17 +59,6 @@ def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
     normalized = "".join(ch if ch.isalnum() or ch in ("-", "_") else "-" for ch in base_name.strip())
     normalized = normalized.strip("-_")
     return normalized or "remote-template"
-
-
-def _get_provider_instances(providers: list[TeamComputeProvider]) -> Dict[str, ComputeProvider]:
-    """Instantiate providers safely."""
-    instances: Dict[str, ComputeProvider] = {}
-    for provider in providers:
-        try:
-            instances[provider.id] = get_provider_instance(provider)
-        except Exception as exc:
-            print(f"Failed to instantiate provider {provider.id}: {exc}")
-    return instances
 
 
 @router.post("/{provider_id}/task/{task_id}/file-upload", response_model=ProviderTemplateFileUploadResponse)
@@ -179,10 +170,10 @@ async def create_provider(
     user = owner_info["user"]
 
     # Validate provider type
-    if provider_data.type not in [ProviderType.SLURM, ProviderType.SKYPILOT]:
+    if provider_data.type not in [ProviderType.SLURM, ProviderType.SKYPILOT, ProviderType.RUNPOD]:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid provider type. Must be one of: {ProviderType.SLURM.value}, {ProviderType.SKYPILOT.value}",
+            detail=f"Invalid provider type. Must be one of: {ProviderType.SLURM.value}, {ProviderType.SKYPILOT.value}, {ProviderType.RUNPOD.value}",
         )
 
     # Check if provider name already exists for this team
@@ -232,7 +223,6 @@ async def get_usage_report(
     Aggregates usage data by user, provider, and resources.
     Only accessible to team owners.
     """
-    import json
     from datetime import datetime
     from lab import Experiment
 
@@ -562,46 +552,6 @@ async def check_provider(
 # ============================================================================
 
 
-@router.post("/{provider_id}/clusters/{cluster_name}/launch")
-async def launch_cluster(
-    provider_id: str,
-    cluster_name: str,
-    config: ClusterConfig,
-    user_and_team=Depends(get_user_and_team),
-    session: AsyncSession = Depends(get_async_session),
-):
-    """
-    Launch/provision a new cluster using the specified provider.
-    Requires X-Team-Id header and team membership.
-    """
-    team_id = user_and_team["team_id"]
-
-    provider = await get_team_provider(session, team_id, provider_id)
-    if not provider:
-        raise HTTPException(status_code=404, detail="Provider not found")
-
-    try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
-
-        if not config.cluster_name:
-            config.cluster_name = cluster_name
-        config.provider_name = provider.name
-        config.provider_id = provider.id
-
-        # Launch cluster
-        result = provider_instance.launch_cluster(cluster_name, config)
-
-        return {
-            "status": "success",
-            "message": f"Cluster '{cluster_name}' launch initiated",
-            "cluster_name": cluster_name,
-            "result": result,
-        }
-    except Exception:
-        raise HTTPException(status_code=500, detail="Failed to launch cluster")
-
-
 def _get_aws_credentials_from_file(profile_name: str = "transformerlab-s3") -> Tuple[Optional[str], Optional[str]]:
     """
     Read AWS credentials from ~/.aws/credentials file for the specified profile.
@@ -802,6 +752,9 @@ async def _launch_sweep_jobs(
 
             provider_display_name = request.provider_name or provider.name
 
+            # Load team secrets for template replacement
+            team_secrets = await load_team_secrets()
+
             # Generate all parameter combinations
             param_names = list(sweep_config.keys())
             param_values = [sweep_config[name] for name in param_names]
@@ -832,6 +785,11 @@ async def _launch_sweep_jobs(
 
                 # Prepare environment variables
                 env_vars = request.env_vars.copy() if request.env_vars else {}
+
+                # Replace {{secret.<name>}} patterns in env_vars
+                if env_vars and team_secrets:
+                    env_vars = replace_secrets_in_dict(env_vars, team_secrets)
+
                 env_vars["_TFL_JOB_ID"] = str(child_job_id)
                 env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
 
@@ -869,13 +827,28 @@ async def _launch_sweep_jobs(
                         repo_url=request.github_repo_url,
                         directory=request.github_directory,
                         github_pat=github_pat,
+                        branch=request.github_branch,
                     )
                     setup_commands.append(github_setup)
 
+                # Add user-provided setup if any (replace secrets in setup)
                 if request.setup:
-                    setup_commands.append(request.setup)
+                    setup_with_secrets = (
+                        replace_secret_placeholders(request.setup, team_secrets) if team_secrets else request.setup
+                    )
+                    setup_commands.append(setup_with_secrets)
 
                 final_setup = ";".join(setup_commands) if setup_commands else None
+
+                # Replace secrets in command
+                command_with_secrets = (
+                    replace_secret_placeholders(request.command, team_secrets) if team_secrets else request.command
+                )
+
+                # Replace secrets in parameters if present
+                parameters_with_secrets = merged_params
+                if merged_params and team_secrets:
+                    parameters_with_secrets = replace_secrets_in_dict(merged_params, team_secrets)
 
                 # Store child job data
                 child_job_data = {
@@ -886,7 +859,7 @@ async def _launch_sweep_jobs(
                     "task_name": f"{request.task_name or 'Task'} (Sweep {i + 1}/{total_configs})"
                     if request.task_name
                     else None,
-                    "command": request.command,
+                    "command": command_with_secrets,
                     "cluster_name": formatted_cluster_name,
                     "subtype": request.subtype,
                     "cpus": request.cpus,
@@ -897,7 +870,7 @@ async def _launch_sweep_jobs(
                     "setup": final_setup,
                     "env_vars": env_vars if env_vars else None,
                     "file_mounts": request.file_mounts or None,
-                    "parameters": merged_params or None,
+                    "parameters": parameters_with_secrets or None,
                     "provider_id": provider.id,
                     "provider_type": provider.type,
                     "provider_name": provider_display_name,
@@ -923,7 +896,7 @@ async def _launch_sweep_jobs(
                     cluster_name=formatted_cluster_name,
                     provider_name=provider_display_name,
                     provider_id=provider.id,
-                    command=request.command,
+                    command=command_with_secrets,
                     setup=final_setup,
                     env_vars=env_vars,
                     cpus=request.cpus,
@@ -1105,8 +1078,15 @@ async def launch_template_on_provider(
 
     provider_display_name = request.provider_name or provider.name
 
+    # Load team secrets for template replacement
+    team_secrets = await load_team_secrets()
+
     # Prepare environment variables - start with a copy of requested env_vars
     env_vars = request.env_vars.copy() if request.env_vars else {}
+
+    # Replace {{secret.<name>}} patterns in env_vars
+    if env_vars and team_secrets:
+        env_vars = replace_secrets_in_dict(env_vars, team_secrets)
 
     # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
     aws_profile = "transformerlab-s3"
@@ -1129,14 +1109,44 @@ async def launch_template_on_provider(
             repo_url=request.github_repo_url,
             directory=request.github_directory,
             github_pat=github_pat,
+            branch=request.github_branch,
         )
         setup_commands.append(github_setup)
 
-    # Add user-provided setup if any
-    if request.setup:
-        setup_commands.append(request.setup)
+    # Add SSH public key setup for SSH interactive tasks
+    if request.subtype == "interactive" and request.interactive_type == "ssh":
+        from transformerlab.services.ssh_key_service import get_or_create_org_ssh_key_pair, get_org_ssh_public_key
 
-    final_setup = ";".join(setup_commands) if setup_commands else None
+        try:
+            # Get or create SSH key pair for this organization
+            await get_or_create_org_ssh_key_pair(team_id)
+            public_key = await get_org_ssh_public_key(team_id)
+
+            # Generate setup script to add public key to authorized_keys
+            # Escape the public key for use in shell script - use single quotes to avoid shell expansion
+            # Remove newlines from public key (should be single line anyway)
+            public_key_clean = public_key.strip().replace("\n", "").replace("\r", "")
+            # Escape single quotes in public key for use within single-quoted string
+            public_key_escaped = public_key_clean.replace("'", "'\"'\"'")
+            # Create SSH setup as a single line command (no trailing semicolon - will be added by join)
+            ssh_setup = f"mkdir -p ~/.ssh && chmod 700 ~/.ssh; if [ ! -f ~/.ssh/authorized_keys ]; then touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys; fi; if ! grep -qF '{public_key_escaped}' ~/.ssh/authorized_keys; then echo '{public_key_escaped}' >> ~/.ssh/authorized_keys; fi"
+            setup_commands.append(ssh_setup)
+        except Exception as e:
+            # Log error but don't fail the launch - SSH key setup is optional
+            print(f"Warning: Failed to set up SSH key for organization {team_id}: {e}")
+
+    # Add user-provided setup if any (replace secrets in setup)
+    if request.setup:
+        setup_with_secrets = replace_secret_placeholders(request.setup, team_secrets) if team_secrets else request.setup
+        setup_commands.append(setup_with_secrets)
+
+    # Join setup commands, stripping trailing semicolons to avoid double semicolons
+    if setup_commands:
+        # Strip trailing semicolons and whitespace from each command, then join with semicolons
+        cleaned_commands = [cmd.rstrip(";").rstrip() for cmd in setup_commands if cmd.strip()]
+        final_setup = ";".join(cleaned_commands) if cleaned_commands else None
+    else:
+        final_setup = None
 
     # Add default environment variables
     env_vars["_TFL_JOB_ID"] = str(job_id)
@@ -1159,9 +1169,21 @@ async def launch_template_on_provider(
         # env_vars["AWS_ACCESS_KEY_ID"] = aws_access_key_id
         # env_vars["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
 
+    # Replace secrets in command
+    command_with_secrets = (
+        replace_secret_placeholders(request.command, team_secrets) if team_secrets else request.command
+    )
+
+    # Replace secrets in parameters if present
+    parameters_with_secrets = None
+    if request.parameters and team_secrets:
+        parameters_with_secrets = replace_secrets_in_dict(request.parameters, team_secrets)
+    else:
+        parameters_with_secrets = request.parameters
+
     job_data = {
         "task_name": request.task_name,
-        "command": request.command,
+        "command": command_with_secrets,
         "cluster_name": formatted_cluster_name,
         "subtype": request.subtype,
         "interactive_type": request.interactive_type,
@@ -1173,7 +1195,7 @@ async def launch_template_on_provider(
         "setup": final_setup,
         "env_vars": env_vars if env_vars else None,
         "file_mounts": request.file_mounts or None,
-        "parameters": request.parameters or None,
+        "parameters": parameters_with_secrets or None,
         "provider_id": provider.id,
         "provider_type": provider.type,
         "provider_name": provider_display_name,
@@ -1197,7 +1219,7 @@ async def launch_template_on_provider(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
         provider_id=provider.id,
-        command=request.command,
+        command=command_with_secrets,
         setup=final_setup,
         env_vars=env_vars,
         cpus=request.cpus,
@@ -1334,15 +1356,74 @@ async def check_provider_job_status(
             "message": "Failed to instantiate provider",
         }
 
-    # Check jobs on the cluster
+    # Runpod doesn't have a job queue - check pod status instead
+    if provider.type == ProviderType.RUNPOD.value:
+        try:
+            cluster_status = provider_instance.get_cluster_status(cluster_name)
+            # For Runpod, the pod itself is the "job"
+            # Check if pod is in a terminal state
+            terminal_pod_states = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
+            pod_finished = cluster_status.state in terminal_pod_states
+
+            if pod_finished:
+                # Pod has finished, mark job as complete
+                try:
+                    end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+                    job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
+                    await job_service.job_update_status(
+                        job_id, "COMPLETE", experiment_id=experiment_id, session=session
+                    )
+                    await session.commit()
+
+                    return {
+                        "status": "success",
+                        "job_id": job_id,
+                        "updated": True,
+                        "new_status": "COMPLETE",
+                        "message": f"Pod finished (status: {cluster_status.state.value})",
+                    }
+                except Exception as exc:
+                    print(f"Failed to update job status: {exc}")
+                    return {
+                        "status": "error",
+                        "job_id": job_id,
+                        "message": "Failed to update job status",
+                    }
+            else:
+                # Pod is still running
+                return {
+                    "status": "success",
+                    "job_id": job_id,
+                    "updated": False,
+                    "current_status": "LAUNCHING",
+                    "message": f"Pod is still running (status: {cluster_status.state.value})",
+                }
+        except Exception as exc:
+            print(f"Failed to check Runpod pod status: {exc}")
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": "Failed to check pod status",
+            }
+
+    # For other providers (SkyPilot, SLURM), check jobs on the cluster
     try:
         provider_jobs = provider_instance.list_jobs(cluster_name)
+    except NotImplementedError:
+        # Provider doesn't support list_jobs
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "updated": False,
+            "current_status": job_status,
+            "message": "Provider does not support job status checking",
+        }
     except Exception as exc:
         print(f"Failed to list jobs for cluster {cluster_name}: {exc}")
         return {
             "status": "error",
             "job_id": job_id,
-            "message": "Failed to list jobs for cluster {cluster_name}",
+            "message": f"Failed to list jobs for cluster {cluster_name}: {exc}",
         }
 
     terminal_states = {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
@@ -1858,6 +1939,7 @@ async def resume_from_checkpoint(
             repo_url=github_repo_url,
             directory=job_data.get("github_directory"),
             github_pat=github_pat,
+            branch=job_data.get("github_branch"),
         )
         setup_commands.append(github_setup)
 
@@ -2093,6 +2175,8 @@ async def submit_job(
             "cluster_name": cluster_name,
             "result": result,
         }
+    except NotImplementedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         print(f"Failed to submit job: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to submit job")
@@ -2128,6 +2212,9 @@ async def list_jobs(
             jobs = [job for job in jobs if job.state == state]
 
         return jobs
+    except NotImplementedError:
+        # Provider doesn't support listing jobs (e.g., Runpod)
+        return []
     except Exception as e:
         print(f"Failed to list jobs: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to list jobs")
@@ -2156,7 +2243,14 @@ async def get_job_info(
         provider_instance = get_provider_instance(provider)
 
         # List jobs and find the specific one
-        jobs = provider_instance.list_jobs(cluster_name)
+        try:
+            jobs = provider_instance.list_jobs(cluster_name)
+        except NotImplementedError:
+            # Provider doesn't support listing jobs (e.g., Runpod)
+            raise HTTPException(
+                status_code=400,
+                detail="This provider does not support job listing. Runpod uses pod-based execution, not a job queue.",
+            )
 
         # Convert job_id to appropriate type for comparison
         job_id_str = str(job_id)
@@ -2208,7 +2302,11 @@ async def get_job_logs(
         provider_instance = get_provider_instance(provider)
 
         # Get job logs
-        logs = provider_instance.get_job_logs(cluster_name, job_id, tail_lines=tail_lines, follow=follow)
+        try:
+            logs = provider_instance.get_job_logs(cluster_name, job_id, tail_lines=tail_lines, follow=follow)
+        except NotImplementedError:
+            # Provider doesn't support job logs (though Runpod returns a string message, not NotImplementedError)
+            logs = "Logs not available for this provider type."
 
         if follow:
             # Return streaming response
@@ -2300,6 +2398,8 @@ async def cancel_job(
             "cluster_name": cluster_name,
             "result": result,
         }
+    except NotImplementedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         print(f"Failed to cancel job: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to cancel job")

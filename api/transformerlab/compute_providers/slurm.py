@@ -100,8 +100,6 @@ class SLURMProvider(ComputeProvider):
             stdin, stdout, stderr = ssh.exec_command(command)
             output = stdout.read().decode("utf-8")
             error = stderr.read().decode("utf-8")
-            print(f"Output: {output}")
-            print(f"Error: {error}")
 
             if error and "Permission denied" not in error:
                 # Some commands output to stderr but are successful

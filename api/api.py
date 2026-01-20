@@ -64,6 +64,7 @@ from transformerlab.routers import (  # noqa: E402
     auth,
     api_keys,
     quota,
+    ssh_keys,
 )
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
 import torch  # noqa: E402
@@ -85,12 +86,6 @@ from transformerlab.shared import galleries  # noqa: E402
 from lab.dirs import get_workspace_dir  # noqa: E402
 from lab import dirs as lab_dirs  # noqa: E402
 from transformerlab.shared import dirs  # noqa: E402
-from transformerlab.db.filesystem_migrations import (  # noqa: E402
-    migrate_datasets_table_to_filesystem,  # noqa: E402
-    migrate_models_table_to_filesystem,  # noqa: E402
-    migrate_tasks_table_to_filesystem,  # noqa: E402
-    migrate_job_and_experiment_to_filesystem,  # noqa: E402
-)
 from transformerlab.shared.request_context import set_current_org_id  # noqa: E402
 from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
 from lab import storage  # noqa: E402
@@ -154,11 +149,6 @@ async def lifespan(app: FastAPI):
 
     if "--reload" in sys.argv:
         await install_all_plugins()
-    # run the migrations
-    asyncio.create_task(migrate_models_table_to_filesystem())
-    asyncio.create_task(migrate_datasets_table_to_filesystem())
-    asyncio.create_task(migrate_job_and_experiment_to_filesystem())
-    asyncio.create_task(migrate_tasks_table_to_filesystem())
 
     if not os.getenv("TFL_API_STORAGE_URI"):
         asyncio.create_task(run_over_and_over())
@@ -196,6 +186,17 @@ tags_metadata = [
         "description": "Actions for interacting with the Transformer Lab server.",
     },
 ]
+
+if os.getenv("SENTRY_DSN"):
+    # Import only if SENTRY_DSN is set.
+    # This way we can avoid making sentry_sdk a mandatory dependency.
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+
+    sentry_sdk.init(
+        dsn=os.environ["SENTRY_DSN"],
+        integrations=[FastApiIntegration()],
+    )
 
 app = fastapi.FastAPI(
     title="Transformerlab API",
@@ -284,6 +285,7 @@ app.include_router(compute_provider.router)
 app.include_router(auth.router)
 app.include_router(api_keys.router)
 app.include_router(quota.router)
+app.include_router(ssh_keys.router, dependencies=[Depends(get_user_and_team)])
 
 controller_process = None
 worker_process = None

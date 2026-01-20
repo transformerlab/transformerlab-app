@@ -9,7 +9,7 @@ import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 import CssMinimizerPlugin from 'css-minimizer-webpack-plugin';
 import { merge } from 'webpack-merge';
-import TerserPlugin from 'terser-webpack-plugin';
+import { EsbuildPlugin } from 'esbuild-loader';
 import baseConfig from './webpack.config.base';
 import webpackPaths from './webpack.paths';
 import checkNodeEnv from '../scripts/check-node-env';
@@ -96,7 +96,10 @@ const configuration: webpack.Configuration = {
 
   optimization: {
     minimize: true,
-    minimizer: [new TerserPlugin(), new CssMinimizerPlugin()],
+    minimizer: [
+      new EsbuildPlugin({ target: 'es2020' }),
+      new CssMinimizerPlugin(),
+    ],
   },
 
   plugins: [
@@ -116,6 +119,8 @@ const configuration: webpack.Configuration = {
       TL_API_URL: '',
       TL_FORCE_API_URL: 'false',
       EMAIL_AUTH_ENABLED: 'true',
+      SENTRY_DSN: '',
+      SENTRY_ENABLE_TRACING: 'false',
     }),
 
     new MiniCssExtractPlugin({
