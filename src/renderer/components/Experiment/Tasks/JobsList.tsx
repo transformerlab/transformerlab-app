@@ -29,6 +29,7 @@ interface JobsListProps {
   onViewEvalResults?: (jobId: string) => void;
   onViewGeneratedDataset?: (jobId: string, datasetId: string) => void;
   onViewInteractive?: (jobId: string) => void;
+  loading: boolean;
 }
 
 const JobsList: React.FC<JobsListProps> = ({
@@ -44,6 +45,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewEvalResults,
   onViewGeneratedDataset,
   onViewInteractive,
+  loading,
 }) => {
   const formatJobConfig = (job: any) => {
     const jobData = job?.job_data || {};
@@ -136,6 +138,44 @@ const JobsList: React.FC<JobsListProps> = ({
     return <b>{job.type || 'Unknown Job'}</b>;
   };
 
+  if (loading) {
+    return (
+      <Table style={{ tableLayout: 'auto' }} stickyHeader>
+        <thead>
+          <tr>
+            <th style={{ width: '60px' }}>ID</th>
+            <th>Details</th>
+            <th>Status</th>
+            <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <tr key={i}>
+              <td>
+                <Skeleton variant="text" level="title-sm" />
+              </td>
+              <td>
+                <Skeleton variant="text" level="body-sm" />
+              </td>
+              <td>
+                <Skeleton variant="text" level="body-sm" />
+              </td>
+              <td style={{ textAlign: 'right' }}>
+                <Skeleton
+                  variant="rectangular"
+                  width={200}
+                  height={32}
+                  sx={{ ml: 'auto' }}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    );
+  }
+
   return (
     <Table style={{ tableLayout: 'auto' }} stickyHeader>
       <thead>
@@ -155,7 +195,7 @@ const JobsList: React.FC<JobsListProps> = ({
               </td>
               <td>{formatJobConfig(job)}</td>
               <td>
-                <JobProgress job={job} />
+                <JobProgress job={job} showLaunchResultInfo />
               </td>
               <td style={{ width: 'fit-content' }}>
                 <ButtonGroup
@@ -310,13 +350,33 @@ const JobsList: React.FC<JobsListProps> = ({
                       job?.job_data?.interactive_type === 'vllm' ||
                       job?.job_data?.interactive_type === 'ollama' ||
                       job?.job_data?.interactive_type === 'ssh') && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => onViewInteractive?.(job?.id)}
-                      >
-                        Interactive Setup
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewInteractive?.(job?.id)}
+                        >
+                          Interactive Setup
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewOutput?.(job?.id)}
+                          startDecorator={<LogsIcon />}
+                        >
+                          <Box
+                            sx={{
+                              display: {
+                                xs: 'none',
+                                sm: 'none',
+                                md: 'inline-flex',
+                              },
+                            }}
+                          >
+                            Output
+                          </Box>
+                        </Button>
+                      </>
                     )}
                   {job?.job_data?.checkpoints && (
                     <Button

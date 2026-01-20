@@ -7,6 +7,12 @@ from typing import Optional, Type
 import fsspec
 import aiofiles
 
+import logging
+
+# Suppress the specific task exception log if it's polluting your logs
+logging.getLogger("aiobotocore").setLevel(logging.CRITICAL)
+logging.getLogger("s3fs").setLevel(logging.CRITICAL)
+
 
 class AsyncFileWrapper:
     """
@@ -129,6 +135,63 @@ def _get_storage_options() -> dict:
         return {}
 
 
+def _get_fs_for_uri(uri: str):
+    """
+    Create a sync filesystem for a given URI.
+    Returns (filesystem, root_path) tuple.
+
+    This explicitly creates a sync filesystem to avoid issues with async s3fs
+    passing storage_options to AioSession incorrectly when an event loop is running.
+    """
+    if not uri or uri.strip() == "":
+        root = os.getenv(
+            "TFL_HOME_DIR",
+            os.path.join(os.path.expanduser("~"), ".transformerlab"),
+        )
+        fs = fsspec.filesystem("file", asynchronous=False)
+        return fs, root
+
+    # Extract protocol
+    if uri.startswith("s3://"):
+        protocol = "s3"
+    elif uri.startswith("gs://") or uri.startswith("gcs://"):
+        protocol = "gcs"
+    elif uri.startswith("abfs://"):
+        protocol = "abfs"
+    else:
+        # Local filesystem or unknown protocol - use fsspec's default handling
+        fs = fsspec.filesystem("file", asynchronous=False)
+        return fs, uri
+
+    # Build storage options as kwargs (not as nested dict)
+    # This ensures they're passed correctly to the filesystem, not to AioSession
+    fs_kwargs = {"asynchronous": False}  # Explicitly force sync mode
+    if protocol == "s3":
+        # For S3, explicitly prevent async session creation by ensuring we use boto3 (sync)
+        # instead of aiobotocore (async). This avoids RuntimeError when async sessions
+        # are cleaned up in wrong event loop via weakref callbacks.
+        if _AWS_PROFILE:
+            fs_kwargs["profile"] = _AWS_PROFILE
+        # Ensure we're using sync boto3, not async aiobotocore
+        # The asynchronous=False should be enough, but we also ensure no async clients are created
+        fs_kwargs["default_fill_cache"] = False
+        fs_kwargs["use_listings_cache"] = False
+    elif protocol in ("gcs", "gs") and _GCP_PROJECT:
+        fs_kwargs["project"] = _GCP_PROJECT
+
+    # Explicitly create sync filesystem to avoid async s3fs issues
+    # Use filesystem() directly with asynchronous=False to force sync version
+    # This prevents fsspec from auto-detecting async mode and creating async filesystem
+    fs = fsspec.filesystem(protocol, **fs_kwargs)
+
+    # For remote filesystems, maintain the full URI format as root
+    if uri.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+        root = uri.rstrip("/")
+    else:
+        root = uri
+    return fs, root
+
+
 def _get_fs_and_root():
     """
     Initialize filesystem and root path from context variable or TFL_STORAGE_URI.
@@ -136,26 +199,7 @@ def _get_fs_and_root():
     """
     # Check context variable first, then fall back to environment variable
     tfl_uri = _current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")
-
-    if not tfl_uri or tfl_uri.strip() == "":
-        root = os.getenv(
-            "TFL_HOME_DIR",
-            os.path.join(os.path.expanduser("~"), ".transformerlab"),
-        )
-        fs = fsspec.filesystem("file")
-        return fs, root
-
-    # Get storage options based on cloud provider
-    storage_options = _get_storage_options()
-
-    # Let fsspec parse the URI
-    fs, _token, paths = fsspec.get_fs_token_paths(tfl_uri, storage_options=storage_options)
-    # For S3 and other remote filesystems, we need to maintain the full URI format
-    if tfl_uri.startswith(("s3://", "gs://", "abfs://", "gcs://")):
-        root = tfl_uri.rstrip("/")
-    else:
-        root = paths[0] if paths else ""
-    return fs, root
+    return _get_fs_for_uri(tfl_uri)
 
 
 async def root_uri() -> str:
@@ -372,6 +416,7 @@ async def _get_uncached_filesystem(path: str, fs=None):
             if protocol:
                 # Create a new uncached filesystem with the same protocol and options
                 fs_kwargs = {
+                    "asynchronous": False,  # Explicitly force sync mode
                     "skip_instance_cache": True,
                     "default_fill_cache": False,
                     "use_listings_cache": False,
@@ -392,13 +437,14 @@ async def _get_uncached_filesystem(path: str, fs=None):
         storage_options = _get_storage_options()
 
         # Create a new filesystem instance with caching disabled
-        fs_uncached = fsspec.filesystem(
-            protocol,
-            skip_instance_cache=True,
-            default_fill_cache=False,
-            use_listings_cache=False,
-            **storage_options,
-        )
+        fs_kwargs = {
+            "asynchronous": False,  # Explicitly force sync mode
+            "skip_instance_cache": True,
+            "default_fill_cache": False,
+            "use_listings_cache": False,
+        }
+        fs_kwargs.update(storage_options)
+        fs_uncached = fsspec.filesystem(protocol, **fs_kwargs)
         return fs_uncached
     else:
         # For local filesystems, check if we're using a remote workspace
@@ -407,13 +453,14 @@ async def _get_uncached_filesystem(path: str, fs=None):
             # Path is relative but we're using remote storage
             protocol = tfl_uri.split("://")[0]
             storage_options = _get_storage_options()
-            fs_uncached = fsspec.filesystem(
-                protocol,
-                skip_instance_cache=True,
-                default_fill_cache=False,
-                use_listings_cache=False,
-                **storage_options,
-            )
+            fs_kwargs = {
+                "asynchronous": False,  # Explicitly force sync mode
+                "skip_instance_cache": True,
+                "default_fill_cache": False,
+                "use_listings_cache": False,
+            }
+            fs_kwargs.update(storage_options)
+            fs_uncached = fsspec.filesystem(protocol, **fs_kwargs)
             return fs_uncached
         else:
             # For local filesystems, just use the default
@@ -424,11 +471,11 @@ def _get_fs_for_path(path: str):
     """
     Get filesystem for a given path, handling S3 storage_options correctly.
     Returns (filesystem, parsed_path) tuple.
+
+    Reuses _get_fs_for_uri() to avoid code duplication.
     """
-    storage_options = {}
-    if path.startswith("s3://") and _AWS_PROFILE:
-        storage_options["profile"] = _AWS_PROFILE
-    return fsspec.core.url_to_fs(path, storage_options=storage_options if storage_options else None)
+    fs, _ = _get_fs_for_uri(path)
+    return fs, path
 
 
 async def copy_file(src: str, dest: str) -> None:

@@ -34,14 +34,12 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import { Editor } from '@monaco-editor/react';
 import { useEffect, useRef, useState } from 'react';
 
-const parseTmTheme = require('monaco-themes').parseTmTheme;
-import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
-
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
 import { useNotification } from '../Shared/NotificationSystem';
+import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 
 function ListPluginFiles({
   files,
@@ -141,12 +139,7 @@ function NewFileNameModal({
   );
 }
 
-function setTheme(editor: any, monaco: any) {
-  const themeData = parseTmTheme(fairyflossTheme);
-
-  monaco.editor.defineTheme('my-theme', themeData);
-  monaco.editor.setTheme('my-theme');
-}
+// setTheme is now imported from shared config
 
 export default function PluginDetails() {
   const { experimentInfo } = useExperimentInfo();
@@ -322,14 +315,11 @@ export default function PluginDetails() {
           <Editor
             defaultLanguage="python"
             theme="my-theme"
-            options={{
-              minimap: {
-                enabled: false,
-              },
+            options={getMonacoEditorOptions({
               fontSize: 18,
               cursorStyle: 'block',
               wordWrap: 'on',
-            }}
+            })}
             onMount={handleEditorDidMount}
           />
         </div>

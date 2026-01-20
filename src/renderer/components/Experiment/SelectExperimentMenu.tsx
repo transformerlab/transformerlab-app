@@ -176,7 +176,8 @@ export default function SelectExperimentMenu({ models }) {
   const createNewExperiment = useCallback(
     async (name: string, fromRecipeId = null) => {
       // Prevent creation if experiments list is still loading or unavailable
-      if (isLoading || !data) {
+      // Allow creation if data is an empty array (no experiments yet)
+      if (isLoading || data === null || data === undefined) {
         alert('Please wait for experiments to load before creating a new one.');
         return;
       }
@@ -457,7 +458,8 @@ export default function SelectExperimentMenu({ models }) {
                 }}
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  if (isLoading || !data) {
+                  // Allow creation if data is an empty array (no experiments yet)
+                  if (isLoading || data === null || data === undefined) {
                     alert(
                       'Please wait for experiments to load before creating a new one.',
                     );
