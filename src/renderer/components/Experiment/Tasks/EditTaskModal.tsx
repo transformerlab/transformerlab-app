@@ -20,27 +20,18 @@ import {
   Typography,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
-import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 import { Trash2Icon, PlusIcon } from 'lucide-react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import { SafeJSONParse } from 'renderer/components/Shared/SafeJSONParse';
 import { useRef } from 'react';
-
-const { parseTmTheme } = require('monaco-themes');
+import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 
 type ProviderOption = {
   id: string;
   name: string;
 };
-
-function setTheme(editor: any, monaco: any) {
-  const themeData = parseTmTheme(fairyflossTheme);
-
-  monaco.editor.defineTheme('my-theme', themeData);
-  monaco.editor.setTheme('my-theme');
-}
 
 type EditTaskModalProps = {
   open: boolean;
@@ -81,6 +72,7 @@ export default function EditTaskModal({
   const [githubEnabled, setGithubEnabled] = React.useState(false);
   const [githubRepoUrl, setGithubRepoUrl] = React.useState('');
   const [githubDirectory, setGithubDirectory] = React.useState('');
+  const [githubBranch, setGithubBranch] = React.useState('');
   const [enableSweeps, setEnableSweeps] = React.useState(false);
   const [sweepParams, setSweepParams] = React.useState<
     Array<{ paramName: string; values: string }>
@@ -230,6 +222,9 @@ export default function EditTaskModal({
     setGithubEnabled(!!githubRepoUrlValue); // Infer from repo URL
     setGithubDirectory(
       isTemplate ? taskAny.github_directory || '' : cfg.github_directory || '',
+    );
+    setGithubBranch(
+      isTemplate ? taskAny.github_branch || '' : cfg.github_branch || '',
     );
 
     // Initialize sweep configuration
@@ -450,6 +445,7 @@ export default function EditTaskModal({
     // GitHub
     if (githubRepoUrl) yamlData.git_repo = githubRepoUrl;
     if (githubDirectory) yamlData.git_repo_directory = githubDirectory;
+    if (githubBranch) yamlData.git_repo_branch = githubBranch;
 
     // Parameters
     const parametersObj: Record<string, any> = {};
@@ -658,6 +654,13 @@ export default function EditTaskModal({
       } else if (taskYaml.git_repo_directory) {
         taskData.github_directory = String(taskYaml.git_repo_directory);
       }
+      if (taskYaml.github_branch) {
+        taskData.github_branch = String(taskYaml.github_branch);
+      } else if (taskYaml.git_repo_branch) {
+        taskData.github_branch = String(taskYaml.git_repo_branch);
+      } else if (taskYaml.git_branch) {
+        taskData.github_branch = String(taskYaml.git_branch);
+      }
 
       // Parameters
       if (taskYaml.parameters) {
@@ -700,6 +703,8 @@ export default function EditTaskModal({
         setGithubRepoUrl(taskData.github_repo_url);
       if (taskData.github_directory !== undefined)
         setGithubDirectory(taskData.github_directory);
+      if (taskData.github_branch !== undefined)
+        setGithubBranch(taskData.github_branch);
       setGithubEnabled(!!taskData.github_repo_url);
 
       // Environment variables
@@ -984,6 +989,12 @@ export default function EditTaskModal({
           : isTemplate
             ? taskAny.github_directory || githubDirectory || undefined
             : existingConfig.github_directory || githubDirectory || undefined,
+      github_branch:
+        useParsedData && parsedData.github_branch !== undefined
+          ? parsedData.github_branch
+          : isTemplate
+            ? taskAny.github_branch || githubBranch || undefined
+            : existingConfig.github_branch || githubBranch || undefined,
       // Sweep configuration - use parsed data if available, otherwise use state
       run_sweeps: (() => {
         if (useParsedData && parsedData.run_sweeps !== undefined) {
@@ -1174,13 +1185,7 @@ export default function EditTaskModal({
                       setTheme(editor, monaco);
                     }}
                     theme="my-theme"
-                    options={{
-                      minimap: { enabled: false },
-                      fontSize: 14,
-                      lineNumbers: 'on',
-                      scrollBeyondLastLine: false,
-                      automaticLayout: true,
-                    }}
+                    options={getMonacoEditorOptions()}
                   />
                 </div>
                 <FormHelperText>
@@ -1549,6 +1554,21 @@ export default function EditTaskModal({
                     />
                     <FormHelperText>
                       Optional subdirectory path within the repository
+                    </FormHelperText>
+                  </FormControl>
+                )}
+
+                {githubRepoUrl && (
+                  <FormControl sx={{ mt: 2 }}>
+                    <FormLabel>GitHub Branch (Optional)</FormLabel>
+                    <Input
+                      value={githubBranch}
+                      onChange={(e) => setGithubBranch(e.target.value)}
+                      placeholder="main"
+                    />
+                    <FormHelperText>
+                      Optional branch, tag, or commit SHA. Defaults to default
+                      branch if not specified.
                     </FormHelperText>
                   </FormControl>
                 )}

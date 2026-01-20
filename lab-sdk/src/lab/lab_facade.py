@@ -30,7 +30,7 @@ def _run_async(coro):
         # Use the async version (a_* methods) instead
         raise RuntimeError(
             "Cannot use sync method when already in async context. "
-            "Use the async version instead (e.g., await lab.a_save_artifact() instead of lab.save_artifact())."
+            "Use the async version instead (e.g., await lab.async_save_artifact() instead of lab.save_artifact())."
         )
     except RuntimeError as e:
         # Check if this is our custom error or a "no running loop" error
@@ -150,7 +150,7 @@ class Lab:
             Dict[str, Any]: Configuration dictionary. Returns empty dict if no config found.
         """
         self._ensure_initialized()
-        job_data = self._job.get_job_data()
+        job_data = _run_async(self._job.get_job_data())
 
         # Try to get parameters from job_data
         if isinstance(job_data, dict):
@@ -159,6 +159,74 @@ class Lab:
                 return job_data["parameters"]
 
         return {}
+
+    def get_secret(self, secret_name: str) -> Optional[str]:
+        """
+        Get a team secret by name (sync version).
+
+        This method reads team secrets from the workspace/team_secrets.json file.
+        Secrets are stored per-team and can be configured in Team Settings.
+
+        This is a sync wrapper around the async implementation.
+        Use async_get_secret() if you're already in an async context.
+
+        Args:
+            secret_name: Name of the secret to retrieve
+
+        Returns:
+            The secret value as a string, or None if the secret doesn't exist or can't be loaded.
+
+        Example:
+            from lab import lab
+
+            lab.init(experiment_id="alpha")
+            api_key = lab.get_secret("API_KEY")
+            if api_key:
+                # do cool stuff with the API key
+                pass
+        """
+        return _run_async(self.async_get_secret(secret_name))
+
+    async def async_get_secret(self, secret_name: str) -> Optional[str]:
+        """
+        Get a team secret by name (async version).
+
+        This method reads team secrets from the workspace/team_secrets.json file.
+        Secrets are stored per-team and can be configured in Team Settings.
+
+        Args:
+            secret_name: Name of the secret to retrieve
+
+        Returns:
+            The secret value as a string, or None if the secret doesn't exist or can't be loaded.
+
+        Example:
+            from lab import lab
+
+            lab.init(experiment_id="alpha")
+            api_key = await lab.async_get_secret("API_KEY")
+            if api_key:
+                # do cool stuff with the API key
+                pass
+        """
+        import json
+        from . import storage
+        from .dirs import get_workspace_dir
+
+        try:
+            workspace_dir = await get_workspace_dir()
+            secrets_path = storage.join(workspace_dir, "team_secrets.json")
+
+            if not await storage.exists(secrets_path):
+                return None
+
+            async with await storage.open(secrets_path, "r") as f:
+                content = await f.read()
+                secrets = json.loads(content)
+                return secrets.get(secret_name)
+        except Exception as e:
+            print(f"Warning: Failed to load team secret: {e}")
+            return None
 
     # ------------- convenience logging -------------
     def log(self, message: str) -> None:
@@ -211,7 +279,7 @@ class Lab:
             return None
 
         # Build the checkpoint path from parent job's checkpoints directory
-        checkpoint_path = await self.a_get_parent_job_checkpoint_path(parent_job_id, checkpoint_name)
+        checkpoint_path = await self.async_get_parent_job_checkpoint_path(parent_job_id, checkpoint_name)
 
         # Verify the checkpoint exists
         if checkpoint_path and await storage.exists(checkpoint_path):
@@ -224,7 +292,7 @@ class Lab:
         Get the full path to a checkpoint from a parent job (sync version).
 
         This is a sync wrapper around the async implementation.
-        Use a_get_parent_job_checkpoint_path() if you're already in an async context.
+        Use async_get_parent_job_checkpoint_path() if you're already in an async context.
         """
         return _run_async(self.async_get_parent_job_checkpoint_path(parent_job_id, checkpoint_name))
 
@@ -311,7 +379,7 @@ class Lab:
         Save an artifact file or directory into this job's artifacts folder (sync version).
 
         This is a sync wrapper around the async implementation.
-        Use a_save_artifact() if you're already in an async context.
+        Use aasync_save_artifact() if you're already in an async context.
         """
         return _run_async(self.async_save_artifact(source_path, name, type, config))
 
@@ -388,7 +456,7 @@ class Lab:
                     is_image = config["is_image"]
 
             # Use the existing save_dataset method
-            output_path = await self.a_save_dataset(
+            output_path = await self.async_save_dataset(
                 df=df,
                 dataset_id=dataset_id,
                 additional_metadata=additional_metadata if additional_metadata else None,
@@ -937,7 +1005,7 @@ class Lab:
             config["parent_model"] = parent_model
 
         # Use save_artifact with type="model"
-        return await self.a_save_artifact(
+        return await self.async_save_artifact(
             source_path=source_path,
             name=name,
             type="model",
@@ -1085,7 +1153,7 @@ class Lab:
         Get the artifacts directory path for the current job (sync version).
 
         This is a sync wrapper around the async implementation.
-        Use a_get_artifacts_dir() if you're already in an async context.
+        Use async_get_artifacts_dir() if you're already in an async context.
         """
         return _run_async(self.async_get_artifacts_dir())
 
@@ -1117,7 +1185,7 @@ class Lab:
         Get list of artifact file paths for the current job (sync version).
 
         This is a sync wrapper around the async implementation.
-        Use a_get_artifact_paths() if you're already in an async context.
+        Use async_get_artifact_paths() if you're already in an async context.
         """
         return _run_async(self.async_get_artifact_paths())
 

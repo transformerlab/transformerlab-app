@@ -9,17 +9,9 @@ import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
 import { FormHelperText, ModalClose, ModalDialog, Textarea } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
-import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
 import { useRef } from 'react';
 import { useNotification } from '../Shared/NotificationSystem';
-
-const { parseTmTheme } = require('monaco-themes');
-
-function setTheme(editor: any, monaco: any) {
-  const themeData = parseTmTheme(fairyflossTheme);
-  monaco.editor.defineTheme('my-theme', themeData);
-  monaco.editor.setTheme('my-theme');
-}
+import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 
 type NewTeamTaskModalProps = {
   open: boolean;
@@ -196,14 +188,11 @@ export default function NewTeamTaskModal({
                 defaultLanguage="shell"
                 theme="my-theme"
                 height="6rem"
-                options={{
-                  minimap: {
-                    enabled: false,
-                  },
+                options={getMonacoEditorOptions({
                   fontSize: 18,
                   cursorStyle: 'block',
                   wordWrap: 'on',
-                }}
+                })}
                 onMount={handleSetupEditorDidMount}
               />
               <FormHelperText>
@@ -218,14 +207,11 @@ export default function NewTeamTaskModal({
                 defaultLanguage="shell"
                 theme="my-theme"
                 height="8rem"
-                options={{
-                  minimap: {
-                    enabled: false,
-                  },
+                options={getMonacoEditorOptions({
                   fontSize: 18,
                   cursorStyle: 'block',
                   wordWrap: 'on',
-                }}
+                })}
                 onMount={handleCommandEditorDidMount}
               />
               <FormHelperText>

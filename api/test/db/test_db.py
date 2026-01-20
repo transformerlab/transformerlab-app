@@ -19,9 +19,6 @@ from transformerlab.services import experiment_service  # noqa: E402
 from transformerlab.services.job_service import (  # noqa: E402
     job_create,
     job_update_status as service_job_update_status,
-    job_update_status_sync as service_job_update_status_sync,
-    job_update_sync as service_job_update_sync,
-    job_mark_as_complete_if_running as service_job_mark_as_complete_if_running,
 )
 from transformerlab.db.workflows import (  # noqa: E402
     workflow_count_queued,
@@ -279,51 +276,3 @@ class TestWorkflows:
         # Check that no workflow was triggered due to malformed config
         workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
         assert len(workflow_runs) == 0
-
-    @pytest.mark.asyncio
-    async def test_sync_job_functions_trigger_workflows(self, test_experiment):
-        """Test that sync job functions also trigger workflows when jobs complete"""
-        # Create a workflow with TRAIN trigger
-        workflow_config = {
-            "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
-            "triggers": ["TRAIN"],
-        }
-        workflow_id = await workflow_create("test_sync_trigger", json.dumps(workflow_config), test_experiment)
-
-        # Test job_update_status_sync
-        job_id1 = job_create("TRAIN", "RUNNING", test_experiment, "{}")
-        service_job_update_status_sync(job_id1, "COMPLETE", test_experiment)
-
-        # Wait a moment for async trigger to complete
-        import asyncio
-
-        await asyncio.sleep(0.1)
-
-        # Check that workflow was triggered
-        workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
-        assert len(workflow_runs) > 0
-        # Check if our workflow was triggered (it might not be the first one)
-        triggered_workflow_ids = [run["workflow_id"] for run in workflow_runs]
-        assert workflow_id in triggered_workflow_ids
-
-        # Test job_update_sync
-        job_id2 = job_create("TRAIN", "RUNNING", test_experiment, "{}")
-        service_job_update_sync(job_id2, "COMPLETE", test_experiment)
-
-        # Wait a moment for async trigger to complete
-        await asyncio.sleep(0.1)
-
-        # Check that workflow was triggered again
-        workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
-        assert len(workflow_runs) >= 2
-
-        # Test job_mark_as_complete_if_running
-        job_id3 = job_create("TRAIN", "RUNNING", test_experiment, "{}")
-        service_job_mark_as_complete_if_running(job_id3, test_experiment)
-
-        # Wait a moment for async trigger to complete
-        await asyncio.sleep(0.1)
-
-        # Check that workflow was triggered again
-        workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
-        assert len(workflow_runs) >= 3

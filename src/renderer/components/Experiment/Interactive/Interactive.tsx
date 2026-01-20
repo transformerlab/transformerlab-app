@@ -13,7 +13,13 @@ import {
 } from '@mui/joy';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { PlusIcon, TerminalIcon, PlayIcon, Trash2Icon } from 'lucide-react';
+import {
+  PlusIcon,
+  TerminalIcon,
+  PlayIcon,
+  Trash2Icon,
+  LogsIcon,
+} from 'lucide-react';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -501,6 +507,7 @@ export default function Interactive() {
         provider_name: providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
         github_directory: cfg.github_directory || task.github_directory,
+        github_branch: cfg.github_branch || task.github_branch,
         run_sweeps: cfg.run_sweeps || task.run_sweeps || undefined,
         sweep_config: cfg.sweep_config || task.sweep_config || undefined,
         sweep_metric:
@@ -813,16 +820,28 @@ export default function Interactive() {
                             interactiveType === 'vllm' ||
                             interactiveType === 'ollama' ||
                             interactiveType === 'ssh') && (
-                            <Button
-                              variant="soft"
-                              color="primary"
-                              size="sm"
-                              onClick={() =>
-                                handleViewInteractive(parseInt(job.id))
-                              }
-                            >
-                              Interactive Setup
-                            </Button>
+                            <>
+                              <Button
+                                variant="plain"
+                                size="sm"
+                                startDecorator={<LogsIcon size={16} />}
+                                onClick={() =>
+                                  setViewOutputFromJob(parseInt(job.id))
+                                }
+                              >
+                                Output
+                              </Button>
+                              <Button
+                                variant="soft"
+                                color="primary"
+                                size="sm"
+                                onClick={() =>
+                                  handleViewInteractive(parseInt(job.id))
+                                }
+                              >
+                                Interactive Setup
+                              </Button>
+                            </>
                           )}
                         <IconButton
                           variant="plain"

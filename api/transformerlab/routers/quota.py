@@ -150,8 +150,7 @@ async def get_team_quota_usage_by_users(
         # Get user details
         user_stmt = select(User).where(User.id == user_id_str)
         user_result = await session.execute(user_stmt)
-        # unique() is required because User has lazy="joined" relationships (oauth_accounts)
-        user = user_result.unique().scalar_one_or_none()
+        user = user_result.scalar_one_or_none()
         if not user:
             continue
 

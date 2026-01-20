@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2025-11-27",
+    "title": "Welcome to Transformer Lab",
+    "content": "Welcome to Transformer Lab! We're excited to have you here.",
+    "expires": null
+  },
+  {
+    "date": "2025-12-22",
+    "title": "Deprecating Transformer Lab Desktop App",
+    "content": "The Transformer Lab desktop app is being deprecated. Starting with v0.28.0, new versions of the desktop app will no longer be published. Going forward, the supported method to run Transformer Lab will be to install via the command line and access through a browser. Full details are available at [https://lab.cloud/docs/install](https://lab.cloud/docs/install).",
+    "expires": null
+  }
+]

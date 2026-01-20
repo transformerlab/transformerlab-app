@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import Sheet from '@mui/joy/Sheet';
 
-import { Button, LinearProgress, Stack, Typography } from '@mui/joy';
+import { Button, LinearProgress, Skeleton, Stack, Typography } from '@mui/joy';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -135,7 +135,45 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     };
   }, [pendingJobsStorageKey]);
 
+  // Listen for custom event to open job output modal from interactive modals
+  useEffect(() => {
+    const handleOpenJobOutput = (e: Event) => {
+      const customEvent = e as CustomEvent<{ jobId: number }>;
+      const jobId = customEvent.detail?.jobId;
+      if (jobId && jobId !== -1) {
+        // Close the interactive modal first
+        setInteractiveJobForModal(-1);
+        // Wait for the modal to close (MUI modals have transition animations)
+        // Use a longer delay to ensure the interactive modal fully closes
+        // before opening the output modal to avoid z-index/stacking issues
+        setTimeout(() => {
+          setViewOutputFromJob(jobId);
+        }, 300); // 300ms should be enough for modal close animation
+      }
+    };
+
+    const eventName = 'tflab-open-job-output';
+    window.addEventListener(eventName, handleOpenJobOutput);
+
+    return () => {
+      window.removeEventListener(eventName, handleOpenJobOutput);
+    };
+  }, []);
+
   const isInteractivePage = subtype === 'interactive';
+
+  // Define the callback outside the IIFE to ensure it's always available
+  const handleOpenOutputFromInteractive = useCallback(
+    (outputJobId: number) => {
+      // Close the interactive modal first
+      setInteractiveJobForModal(-1);
+      // Wait for modal close animation, then open output modal
+      setTimeout(() => {
+        setViewOutputFromJob(outputJobId);
+      }, 300);
+    },
+    [interactiveJobForModal],
+  );
 
   const handleOpen = () => {
     if (isInteractivePage) {
@@ -533,6 +571,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         file_mounts: data.file_mounts || undefined,
         github_repo_url: data.github_repo_url || undefined,
         github_directory: data.github_directory || undefined,
+        github_branch: data.github_branch || undefined,
         run_sweeps: data.run_sweeps || undefined,
         sweep_config: data.sweep_config || undefined,
         sweep_metric:
@@ -805,6 +844,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         provider_name: providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
         github_directory: cfg.github_directory || task.github_directory,
+        github_branch: cfg.github_branch || task.github_branch,
         run_sweeps: cfg.run_sweeps || task.run_sweeps || undefined,
         sweep_config: cfg.sweep_config || task.sweep_config || undefined,
         sweep_metric:
@@ -1000,57 +1040,49 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           overflow: 'auto',
         }}
       >
-        {templatesIsLoading ? (
-          <LinearProgress />
-        ) : (
-          <TaskTemplateList
-            tasksList={tasks}
-            onDeleteTask={handleDeleteTask}
-            onQueueTask={handleQueue}
-            onEditTask={handleEditTask}
-            onExportTask={handleExportToTeamGallery}
-          />
-        )}
+        <TaskTemplateList
+          tasksList={tasks}
+          onDeleteTask={handleDeleteTask}
+          onQueueTask={handleQueue}
+          onEditTask={handleEditTask}
+          onExportTask={handleExportToTeamGallery}
+          loading={templatesIsLoading}
+        />
       </Sheet>
       <Typography level="title-md">Runs</Typography>
       <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
-        {jobsIsLoading ? (
-          <LinearProgress />
-        ) : (
-          <JobsList
-            jobs={jobsWithPlaceholders as any}
-            onDeleteJob={handleDeleteJob}
-            onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
-            onViewTensorboard={(jobId) =>
-              setCurrentTensorboardForModal(parseInt(jobId))
-            }
-            onViewCheckpoints={(jobId) =>
-              setViewCheckpointsFromJob(parseInt(jobId))
-            }
-            onViewArtifacts={(jobId) =>
-              setViewArtifactsFromJob(parseInt(jobId))
-            }
-            onViewEvalImages={(jobId) =>
-              setViewEvalImagesFromJob(parseInt(jobId))
-            }
-            onViewEvalResults={(jobId) =>
-              setViewEvalResultsFromJob(parseInt(jobId))
-            }
-            onViewGeneratedDataset={(jobId, datasetId) => {
-              setPreviewDatasetModal({ open: true, datasetId });
-            }}
-            onViewSweepOutput={(jobId) => {
-              setViewOutputFromSweepJob(true);
-              setViewOutputFromJob(parseInt(jobId));
-            }}
-            onViewSweepResults={(jobId) => {
-              setViewSweepResultsFromJob(parseInt(jobId));
-            }}
-            onViewInteractive={(jobId) =>
-              setInteractiveJobForModal(parseInt(jobId))
-            }
-          />
-        )}
+        <JobsList
+          jobs={jobsWithPlaceholders as any}
+          onDeleteJob={handleDeleteJob}
+          onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
+          onViewTensorboard={(jobId) =>
+            setCurrentTensorboardForModal(parseInt(jobId))
+          }
+          onViewCheckpoints={(jobId) =>
+            setViewCheckpointsFromJob(parseInt(jobId))
+          }
+          onViewArtifacts={(jobId) => setViewArtifactsFromJob(parseInt(jobId))}
+          onViewEvalImages={(jobId) =>
+            setViewEvalImagesFromJob(parseInt(jobId))
+          }
+          onViewEvalResults={(jobId) =>
+            setViewEvalResultsFromJob(parseInt(jobId))
+          }
+          onViewGeneratedDataset={(jobId, datasetId) => {
+            setPreviewDatasetModal({ open: true, datasetId });
+          }}
+          onViewSweepOutput={(jobId) => {
+            setViewOutputFromSweepJob(true);
+            setViewOutputFromJob(parseInt(jobId));
+          }}
+          onViewSweepResults={(jobId) => {
+            setViewSweepResultsFromJob(parseInt(jobId));
+          }}
+          onViewInteractive={(jobId) =>
+            setInteractiveJobForModal(parseInt(jobId))
+          }
+          loading={jobsIsLoading}
+        />
       </Sheet>
       <ViewSweepResultsModal
         jobId={viewSweepResultsFromJob}
@@ -1092,6 +1124,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             <InteractiveJupyterModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
@@ -1101,15 +1134,21 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             <InteractiveVllmModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
 
         if (interactiveType === 'ssh') {
+          console.log(
+            '[Tasks] Rendering InteractiveSshModal with onOpenOutput:',
+            handleOpenOutputFromInteractive,
+          );
           return (
             <InteractiveSshModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
@@ -1119,6 +1158,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             <InteractiveOllamaModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
@@ -1127,6 +1167,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           <InteractiveVSCodeModal
             jobId={interactiveJobForModal}
             setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+            onOpenOutput={handleOpenOutputFromInteractive}
           />
         );
       })()}
