@@ -147,7 +147,6 @@ class Model(BaseLabResource):
 
         md5_objects = []
 
-
         if not await storage.isdir(model_path):
             logger.warning(f"Model path '{model_path}' is not a directory, skipping MD5 checksum creation")
             return md5_objects
