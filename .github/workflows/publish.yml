@@ -3,7 +3,7 @@ name: Publish
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -27,7 +27,6 @@ jobs:
       - name: Install and build
         run: |
           npm install
-          npm run postinstall
           npm run build
 
       - name: Extract version from package.json
