@@ -1,6 +1,9 @@
+// Sentry initialization should be imported first!
+import './instrument';
 import { createRoot } from 'react-dom/client';
 import { StoreProvider } from 'easy-peasy';
 import { HashRouter } from 'react-router-dom';
+import * as Sentry from '@sentry/react';
 
 import store from './store';
 
@@ -11,11 +14,13 @@ const container = document.getElementById('root') as HTMLElement;
 const root = createRoot(container);
 
 root.render(
-  <StoreProvider store={store}>
-    <HashRouter>
-      <AnalyticsProvider>
-        <App />
-      </AnalyticsProvider>
-    </HashRouter>
-  </StoreProvider>,
+  <Sentry.ErrorBoundary fallback={<p>An error has occurred</p>}>
+    <StoreProvider store={store}>
+      <HashRouter>
+        <AnalyticsProvider>
+          <App />
+        </AnalyticsProvider>
+      </HashRouter>
+    </StoreProvider>
+  </Sentry.ErrorBoundary>,
 );
