@@ -41,7 +41,7 @@ jobs:
           cd release/cloud
           # tar -czvf transformerlab_web_${{ steps.package-version.outputs.version }}.tar.gz .
           tar -czvf transformerlab_web.tar.gz .
-          gh release upload ${{ github.ref_name }} transformerlab_web_${{ steps.package-version.outputs.version }}.tar.gz
+          # gh release upload ${{ github.ref_name }} transformerlab_web_${{ steps.package-version.outputs.version }}.tar.gz
           gh release upload --clobber ${{ github.ref_name }} transformerlab_web.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
