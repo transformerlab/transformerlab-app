@@ -1188,14 +1188,13 @@ async def launch_template_on_provider(
         merged_parameters = request.parameters.copy()
     if request.parameter_overrides:
         merged_parameters.update(request.parameter_overrides)
-    
+
     # Replace secrets in merged parameters
     parameters_with_secrets = None
     if merged_parameters and team_secrets:
         parameters_with_secrets = replace_secrets_in_dict(merged_parameters, team_secrets)
     else:
         parameters_with_secrets = merged_parameters if merged_parameters else None
-
 
     job_data = {
         "task_name": request.task_name,
