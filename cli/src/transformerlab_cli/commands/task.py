@@ -53,7 +53,9 @@ def info_task(task_id: str) -> None:
 def _check_if_zip_command_exists():
     """Check if the 'zip' command is available on the system."""
     if which("zip") is None:
-        console.print("[red]Error:[/red] The 'zip' command is not available on this system.")
+        console.print(
+            "[red]Error:[/red] The 'zip' command is not available on this system. Please install it to proceed."
+        )
         raise typer.Exit(1)
 
 
@@ -211,6 +213,7 @@ def queue_task(task_name: str, cpus: int | None = None, memory: int | None = Non
 
 @app.command("list")
 def command_task_list():
+    """List all tasks."""
     check_configs()
     list_tasks()
 
@@ -220,6 +223,7 @@ def command_task_add(
     task_yaml_path: str = typer.Argument(None, help="Path to the Task YAML file", metavar="<Task File>"),
     from_url: str = typer.Option(None, "--from-url", help="URL to fetch the Task YAML from"),
 ):
+    """Add a new task. Provide a file path directly, or use --from-url to fetch the YAML from a URL."""
     check_configs()
     add_task(task_yaml_path, from_url)
 
@@ -228,6 +232,7 @@ def command_task_add(
 def command_task_delete(
     task_id: str = typer.Argument(..., help="Task ID to delete"),
 ):
+    """Delete a task."""
     check_configs()
     delete_task(task_id)
 
@@ -236,6 +241,7 @@ def command_task_delete(
 def command_task_info(
     task_id: str = typer.Argument(..., help="Task ID to get info for"),
 ):
+    """Get task details."""
     check_configs()
     info_task(task_id)
 
