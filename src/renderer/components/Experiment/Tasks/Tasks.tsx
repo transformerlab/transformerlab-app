@@ -826,7 +826,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     setQueueModalOpen(true);
   };
 
-  const handleQueueSubmit = async (customizedParameters: Record<string, any>) => {
+  const handleQueueSubmit = async (
+    customizedParameters: Record<string, any>,
+  ) => {
     if (!experimentInfo?.id || !taskBeingQueued) return;
 
     // Close modal and start submission

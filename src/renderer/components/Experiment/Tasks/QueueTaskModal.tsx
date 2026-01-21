@@ -72,7 +72,10 @@ export default function QueueTaskModal({
             } else if (Array.isArray(value)) {
               valueType = 'json';
               stringValue = JSON.stringify(value, null, 2);
-            } else if (typeof value === 'boolean' || typeof value === 'number') {
+            } else if (
+              typeof value === 'boolean' ||
+              typeof value === 'number'
+            ) {
               valueType = 'string';
               stringValue = String(value);
             } else {
