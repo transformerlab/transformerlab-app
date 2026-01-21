@@ -17,6 +17,7 @@ REQUIRED_TASK_FIELDS = ["name", "type"]
 
 
 def list_tasks(output_format: str = "pretty") -> None:
+    """List all tasks."""
     with console.status("[bold green]Fetching tasks...[/bold green]", spinner="dots"):
         response = api.get("/tasks/list")
 
@@ -32,6 +33,7 @@ def list_tasks(output_format: str = "pretty") -> None:
 
 
 def delete_task(task_id: str) -> None:
+    """Delete a task by ID."""
     console.print(f"[yellow]Task delete '{task_id}' - not implemented[/yellow]")
 
 
@@ -46,6 +48,7 @@ def info_task(task_id: str) -> None:
 
 
 def _check_if_zip_command_exists():
+    """Check if the 'zip' command is available on the system."""
     if which("zip") is None:
         console.print("[red]Error:[/red] The 'zip' command is not available on this system.")
         raise typer.Exit(1)
@@ -100,6 +103,7 @@ def _validate_task_yaml(task_data: dict) -> dict:
 
 
 def add_task(task_yaml_path: str | None, from_url: str | None):
+    """Add a new task."""
     task_data = _load_task_yaml(task_yaml_path, from_url)
     task_data = _validate_task_yaml(task_data)
 
