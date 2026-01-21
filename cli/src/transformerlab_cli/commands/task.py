@@ -1,14 +1,16 @@
 from rich.console import Console
 import typer
+from transformerlab_cli.util.ui import render_table, render_object
+from transformerlab_cli.util.config import check_configs
+
+import transformerlab_cli.util.api as api
 import yaml
+from shutil import which
 import requests
 import httpx
-from shutil import which
 
-from transformerlab_cli.util.ui import render_table, render_object
-from transformerlab_cli.util.config import check_configs, get_current_experiment
+from transformerlab_cli.util.config import get_current_experiment
 from transformerlab_cli.util.auth import api_key
-import transformerlab_cli.util.api as api
 
 app = typer.Typer()
 console = Console()
@@ -38,6 +40,7 @@ def delete_task(task_id: str) -> None:
 
 
 def info_task(task_id: str) -> None:
+    """Get info for a task by ID."""
     with console.status(f"[bold green]Fetching info for task {task_id}...[/bold green]", spinner="dots"):
         response = api.get(f"/tasks/{task_id}/get")
 
