@@ -11,9 +11,6 @@ import {
   FormHelperText,
   ModalClose,
   ModalDialog,
-  Select,
-  Option,
-  IconButton,
   Stack,
   Typography,
   Divider,
@@ -177,20 +174,6 @@ export default function QueueTaskModal({
                           disabled
                           sx={{ flex: 1, opacity: 0.8 }}
                         />
-                        <Select
-                          value={param.valueType}
-                          onChange={(_, newValue) => {
-                            if (newValue) {
-                              const newParams = [...parameters];
-                              newParams[index].valueType = newValue;
-                              setParameters(newParams);
-                            }
-                          }}
-                          sx={{ minWidth: 100 }}
-                        >
-                          <Option value="string">String</Option>
-                          <Option value="json">JSON</Option>
-                        </Select>
                       </Stack>
                       {param.valueType === 'json' ? (
                         <Editor
