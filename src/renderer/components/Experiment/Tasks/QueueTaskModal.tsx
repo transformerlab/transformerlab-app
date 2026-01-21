@@ -155,12 +155,6 @@ export default function QueueTaskModal({
         <Divider />
         <DialogContent>
           <Stack spacing={2}>
-            <Typography level="body-sm">
-              Override parameter values for this specific run. Default values
-              from the task template will be used for any parameters not
-              specified here.
-            </Typography>
-
             {parameters.length === 0 ||
             (parameters.length === 1 &&
               !parameters[0].key &&
