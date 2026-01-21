@@ -826,9 +826,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     setQueueModalOpen(true);
   };
 
-  const handleQueueSubmit = async (
-    parameterOverrides: Record<string, any>,
-  ) => {
+  const handleQueueSubmit = async (parameterOverrides: Record<string, any>) => {
     if (!experimentInfo?.id || !taskBeingQueued) return;
 
     // Close modal and start submission
@@ -888,7 +886,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         setup: cfg.setup || task.setup,
         env_vars: cfg.env_vars || task.env_vars || {},
         parameters: cfg.parameters || task.parameters || undefined, // Keep original parameter definitions
-        parameter_overrides: Object.keys(parameterOverrides).length > 0 ? parameterOverrides : undefined, // Send user's custom values as overrides
+        parameter_overrides:
+          Object.keys(parameterOverrides).length > 0
+            ? parameterOverrides
+            : undefined, // Send user's custom values as overrides
         file_mounts: cfg.file_mounts || task.file_mounts,
         provider_name: providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
