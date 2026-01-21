@@ -164,34 +164,23 @@ export default function QueueTaskModal({
                 default configuration.
               </Typography>
             ) : (
-              <FormControl>
-                <FormLabel>Parameter Overrides</FormLabel>
-                <Stack spacing={1}>
-                  {parameters.map((param, index) => (
-                    <Stack key={index} spacing={1}>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Input
-                          placeholder="Parameter name"
-                          value={param.key}
-                          readOnly
-                          disabled
-                          sx={{ flex: 1, opacity: 0.8 }}
-                        />
-                        <Select
-                          value={param.valueType}
-                          onChange={(_, newValue) => {
-                            if (newValue) {
-                              const newParams = [...parameters];
-                              newParams[index].valueType = newValue;
-                              setParameters(newParams);
-                            }
-                          }}
-                          sx={{ minWidth: 100 }}
-                        >
-                          <Option value="string">String</Option>
-                          <Option value="json">JSON</Option>
-                        </Select>
-                      </Stack>
+              <Stack spacing={2}>
+                {parameters.map((param, index) => (
+                  <FormControl
+                    // added key and ensure form control fills row
+                    key={param.key || index}
+                    sx={{ width: '100%' }}
+                  >
+                    <Stack
+                      direction="row"
+                      spacing={2}
+                      alignItems="center"
+                      sx={{ width: '100%' }}
+                    >
+                      {/* center the label vertically and reserve healthy width for alignment */}
+                      <FormLabel sx={{ alignSelf: 'center', minWidth: 160 }}>
+                        {param.key}:
+                      </FormLabel>
                       {param.valueType === 'json' ? (
                         <Editor
                           height="120px"
@@ -221,18 +210,19 @@ export default function QueueTaskModal({
                             newParams[index].value = e.target.value;
                             setParameters(newParams);
                           }}
+                          sx={{ width: '100%' }}
                         />
                       )}
                     </Stack>
-                  ))}
-                </Stack>
-                <FormHelperText>
-                  Parameters can be accessed in your task script using{' '}
-                  <code>lab.get_config()</code>
-                </FormHelperText>
-              </FormControl>
+                  </FormControl>
+                ))}
+              </Stack>
             )}
           </Stack>
+          <Typography mt={2} level="body-sm" color="neutral">
+            Parameters can be accessed in your task script using{' '}
+            <code>lab.get_config()</code>
+          </Typography>
         </DialogContent>
         <DialogActions>
           <Button variant="plain" color="neutral" onClick={onClose}>
