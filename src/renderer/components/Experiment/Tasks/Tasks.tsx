@@ -886,10 +886,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         setup: cfg.setup || task.setup,
         env_vars: cfg.env_vars || task.env_vars || {},
         parameters: cfg.parameters || task.parameters || undefined, // Keep original parameter definitions
-        config:
-          Object.keys(config).length > 0
-            ? config
-            : undefined, // Send user's custom values as config
+        config: Object.keys(config).length > 0 ? config : undefined, // Send user's custom values as config
         file_mounts: cfg.file_mounts || task.file_mounts,
         provider_name: providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
