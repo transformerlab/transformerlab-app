@@ -23,7 +23,7 @@ type QueueTaskModalProps = {
   open: boolean;
   onClose: () => void;
   task: any;
-  onSubmit: (parameterOverrides: Record<string, any>) => void;
+  onSubmit: (config: Record<string, any>) => void;
   isSubmitting?: boolean;
 };
 
@@ -96,38 +96,38 @@ export default function QueueTaskModal({
   }, [open, task]);
 
   const handleSubmit = () => {
-    // Convert parameters array to object for overrides
+    // Convert parameters array to object for config
     // Only include values that are different from defaults or explicitly set
-    const parameterOverrides: Record<string, any> = {};
+    const config: Record<string, any> = {};
     parameters.forEach(({ key, value, valueType }) => {
       if (key.trim() && value.trim()) {
         try {
           if (valueType === 'json') {
             // Parse JSON value
-            parameterOverrides[key.trim()] = JSON.parse(value);
+            config[key.trim()] = JSON.parse(value);
           } else {
             // Try to parse as number or boolean, otherwise keep as string
             const trimmedValue = value.trim();
             if (trimmedValue === 'true') {
-              parameterOverrides[key.trim()] = true;
+              config[key.trim()] = true;
             } else if (trimmedValue === 'false') {
-              parameterOverrides[key.trim()] = false;
+              config[key.trim()] = false;
             } else if (trimmedValue === 'null') {
-              parameterOverrides[key.trim()] = null;
+              config[key.trim()] = null;
             } else if (!isNaN(Number(trimmedValue)) && trimmedValue !== '') {
-              parameterOverrides[key.trim()] = Number(trimmedValue);
+              config[key.trim()] = Number(trimmedValue);
             } else {
-              parameterOverrides[key.trim()] = trimmedValue;
+              config[key.trim()] = trimmedValue;
             }
           }
         } catch (e) {
           // If JSON parsing fails, treat as string
-          parameterOverrides[key.trim()] = value.trim();
+          config[key.trim()] = value.trim();
         }
       }
     });
 
-    onSubmit(parameterOverrides);
+    onSubmit(config);
   };
 
   const getTaskTitle = () => {

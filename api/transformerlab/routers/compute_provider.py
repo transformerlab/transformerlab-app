@@ -1000,12 +1000,12 @@ async def launch_template_on_provider(
         # This runs concurrently but still within the request context
         import asyncio
 
-        # Merge parameters (defaults) with parameter_overrides for sweep
+        # Merge parameters (defaults) with config for sweep
         base_params_for_sweep = {}
         if request.parameters:
             base_params_for_sweep = request.parameters.copy()
-        if request.parameter_overrides:
-            base_params_for_sweep.update(request.parameter_overrides)
+        if request.config:
+            base_params_for_sweep.update(request.config)
 
         asyncio.create_task(
             _launch_sweep_jobs(
@@ -1182,12 +1182,12 @@ async def launch_template_on_provider(
     )
 
     # Replace secrets in parameters if present
-    # Merge parameters (defaults) with parameter_overrides (user's custom values for this run)
+    # Merge parameters (defaults) with config (user's custom values for this run)
     merged_parameters = {}
     if request.parameters:
         merged_parameters = request.parameters.copy()
-    if request.parameter_overrides:
-        merged_parameters.update(request.parameter_overrides)
+    if request.config:
+        merged_parameters.update(request.config)
 
     # Replace secrets in merged parameters
     parameters_with_secrets = None
