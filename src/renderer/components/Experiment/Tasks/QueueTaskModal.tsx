@@ -19,7 +19,7 @@ import {
   Divider,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
-import { Trash2Icon, PlayIcon } from 'lucide-react';
+import { PlayIcon } from 'lucide-react';
 import { setTheme } from 'renderer/lib/monacoConfig';
 
 type QueueTaskModalProps = {
@@ -91,13 +91,9 @@ export default function QueueTaskModal({
           },
         );
 
-        setParameters(
-          parametersArray.length > 0
-            ? parametersArray
-            : [{ key: '', value: '', valueType: 'string' }],
-        );
+        setParameters(parametersArray);
       } else {
-        setParameters([{ key: '', value: '', valueType: 'string' }]);
+        setParameters([]);
       }
     }
   }, [open, task]);
@@ -181,28 +177,11 @@ export default function QueueTaskModal({
                     <Stack key={index} spacing={1}>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <Input
-                          placeholder="Parameter name (e.g., learning_rate)"
+                          placeholder="Parameter name"
                           value={param.key}
-                          onChange={(e) => {
-                            const newParams = [...parameters];
-                            newParams[index].key = e.target.value;
-
-                            // If user is typing in the last row and it's becoming non-empty,
-                            // automatically append a new blank row
-                            const isLast = index === newParams.length - 1;
-                            const hasContent =
-                              newParams[index].key.trim() ||
-                              newParams[index].value.trim();
-                            if (isLast && hasContent) {
-                              newParams.push({
-                                key: '',
-                                value: '',
-                                valueType: 'string',
-                              });
-                            }
-                            setParameters(newParams);
-                          }}
-                          sx={{ flex: 1 }}
+                          readOnly
+                          disabled
+                          sx={{ flex: 1, opacity: 0.8 }}
                         />
                         <Select
                           value={param.valueType}
@@ -218,23 +197,6 @@ export default function QueueTaskModal({
                           <Option value="string">String</Option>
                           <Option value="json">JSON</Option>
                         </Select>
-                        <IconButton
-                          color="danger"
-                          variant="plain"
-                          onClick={() => {
-                            if (parameters.length > 1) {
-                              setParameters(
-                                parameters.filter((_, i) => i !== index),
-                              );
-                            } else {
-                              setParameters([
-                                { key: '', value: '', valueType: 'string' },
-                              ]);
-                            }
-                          }}
-                        >
-                          <Trash2Icon size={16} />
-                        </IconButton>
                       </Stack>
                       {param.valueType === 'json' ? (
                         <Editor
@@ -263,19 +225,6 @@ export default function QueueTaskModal({
                           onChange={(e) => {
                             const newParams = [...parameters];
                             newParams[index].value = e.target.value;
-
-                            // Auto-add new row when typing in last row
-                            const isLast = index === newParams.length - 1;
-                            const hasContent =
-                              newParams[index].key.trim() ||
-                              newParams[index].value.trim();
-                            if (isLast && hasContent) {
-                              newParams.push({
-                                key: '',
-                                value: '',
-                                valueType: 'string',
-                              });
-                            }
                             setParameters(newParams);
                           }}
                         />
