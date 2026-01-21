@@ -827,7 +827,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   };
 
   const handleQueueSubmit = async (
-    customizedParameters: Record<string, any>,
+    parameterOverrides: Record<string, any>,
   ) => {
     if (!experimentInfo?.id || !taskBeingQueued) return;
 
@@ -872,7 +872,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
     try {
       // For templates, fields are stored directly, so use task directly or cfg
-      // Use customized parameters from the modal
+      // Keep original parameters (the definitions/defaults) and send overrides separately
       const payload = {
         experiment_id: experimentInfo.id,
         task_name: task.name,
@@ -887,7 +887,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         num_nodes: cfg.num_nodes || task.num_nodes,
         setup: cfg.setup || task.setup,
         env_vars: cfg.env_vars || task.env_vars || {},
-        parameters: customizedParameters, // Use the customized parameters from modal
+        parameters: cfg.parameters || task.parameters || undefined, // Keep original parameter definitions
+        parameter_overrides: Object.keys(parameterOverrides).length > 0 ? parameterOverrides : undefined, // Send user's custom values as overrides
         file_mounts: cfg.file_mounts || task.file_mounts,
         provider_name: providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,

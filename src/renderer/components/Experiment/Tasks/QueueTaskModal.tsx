@@ -26,7 +26,7 @@ type QueueTaskModalProps = {
   open: boolean;
   onClose: () => void;
   task: any;
-  onSubmit: (parameters: Record<string, any>) => void;
+  onSubmit: (parameterOverrides: Record<string, any>) => void;
   isSubmitting?: boolean;
 };
 
@@ -103,37 +103,38 @@ export default function QueueTaskModal({
   }, [open, task]);
 
   const handleSubmit = () => {
-    // Convert parameters array to object, parsing JSON values
-    const parametersObj: Record<string, any> = {};
+    // Convert parameters array to object for overrides
+    // Only include values that are different from defaults or explicitly set
+    const parameterOverrides: Record<string, any> = {};
     parameters.forEach(({ key, value, valueType }) => {
       if (key.trim() && value.trim()) {
         try {
           if (valueType === 'json') {
             // Parse JSON value
-            parametersObj[key.trim()] = JSON.parse(value);
+            parameterOverrides[key.trim()] = JSON.parse(value);
           } else {
             // Try to parse as number or boolean, otherwise keep as string
             const trimmedValue = value.trim();
             if (trimmedValue === 'true') {
-              parametersObj[key.trim()] = true;
+              parameterOverrides[key.trim()] = true;
             } else if (trimmedValue === 'false') {
-              parametersObj[key.trim()] = false;
+              parameterOverrides[key.trim()] = false;
             } else if (trimmedValue === 'null') {
-              parametersObj[key.trim()] = null;
+              parameterOverrides[key.trim()] = null;
             } else if (!isNaN(Number(trimmedValue)) && trimmedValue !== '') {
-              parametersObj[key.trim()] = Number(trimmedValue);
+              parameterOverrides[key.trim()] = Number(trimmedValue);
             } else {
-              parametersObj[key.trim()] = trimmedValue;
+              parameterOverrides[key.trim()] = trimmedValue;
             }
           }
         } catch (e) {
           // If JSON parsing fails, treat as string
-          parametersObj[key.trim()] = value.trim();
+          parameterOverrides[key.trim()] = value.trim();
         }
       }
     });
 
-    onSubmit(parametersObj);
+    onSubmit(parameterOverrides);
   };
 
   const getTaskTitle = () => {
@@ -159,8 +160,9 @@ export default function QueueTaskModal({
         <DialogContent>
           <Stack spacing={2}>
             <Typography level="body-sm">
-              Customize the parameter values for this task execution. These
-              values will override the defaults defined in the task template.
+              Override parameter values for this specific run. Default values
+              from the task template will be used for any parameters not
+              specified here.
             </Typography>
 
             {parameters.length === 0 ||
@@ -173,7 +175,7 @@ export default function QueueTaskModal({
               </Typography>
             ) : (
               <FormControl>
-                <FormLabel>Parameters</FormLabel>
+                <FormLabel>Parameter Overrides</FormLabel>
                 <Stack spacing={1}>
                   {parameters.map((param, index) => (
                     <Stack key={index} spacing={1}>
