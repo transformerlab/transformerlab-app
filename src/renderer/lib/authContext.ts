@@ -9,6 +9,10 @@ import React, {
 import { API_URL, fetcher } from './transformerlab-api-sdk';
 import useSWR from 'swr';
 import { getAPIFullPath, getPath } from './api-client/urls';
+import {
+  identifyUser,
+  resetUser,
+} from '../components/Shared/analytics/AnalyticsContext';
 // Added types
 export type Team = {
   id: string;
@@ -379,6 +383,15 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     }
   }, [teamsData, token, team]);
 
+  // Identify user in analytics when user data is available
+  useEffect(() => {
+    if (user?.id) {
+      identifyUser(user.id, {
+        email: user.email,
+      });
+    }
+  }, [user]);
+
   // Login handler
   const handleLogin = useCallback(
     async (username: string, password: string) => {
@@ -486,6 +499,7 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       /* ignore errors */
     }
     logoutUser();
+    resetUser();
     setToken(null);
     setTeamState(null);
     if (userMutate) userMutate(null, false);
