@@ -62,7 +62,7 @@ interface ParameterSchema {
   default?: any;
   min?: number;
   max?: number;
-  multipleOf?: number;
+  multiple_of?: number;
   options?: string[];
   enum?: string[];
   ui_widget?: UIWidgetType;
@@ -352,7 +352,7 @@ export default function QueueTaskModal({
       const min = schema?.min ?? 0;
       const max = schema?.max ?? 100;
       const step =
-        schema?.multipleOf ?? (type === 'int' || type === 'integer' ? 1 : 0.01);
+        schema?.multiple_of ?? (type === 'int' || type === 'integer' ? 1 : 0.01);
 
       return (
         <Stack direction="column" spacing={1} sx={{ flex: 1 }}>
@@ -463,7 +463,7 @@ export default function QueueTaskModal({
       const min = schema?.min;
       const max = schema?.max;
       const step =
-        schema?.multipleOf ??
+        schema?.multiple_of ??
         (type === 'int' || type === 'integer' ? 1 : 0.00001);
 
       return (
