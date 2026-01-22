@@ -157,7 +157,7 @@ class Experiment(BaseLabResource):
                                         content = json.dumps(data, indent=4)
                                         await wf.write(content)
                                     exp_id = name
-                                except Exception as e:
+                                except Exception:
                                     logger.warning(
                                         "Failed to write corrected index.json for experiment '%s' at %s (copied name -> id): {e}",
                                         name,
@@ -252,7 +252,7 @@ class Experiment(BaseLabResource):
                     if job_json.get("status", "") in ["COMPLETE", "STOPPED", "FAILED"]:
                         workspace = await get_workspace_dir()
                         self._trigger_cache_rebuild(workspace)
-            except Exception as e:
+            except Exception:
                 logger.warning("ERROR getting job %s", job_id, exc_info=True)
                 continue
 
@@ -363,7 +363,7 @@ class Experiment(BaseLabResource):
             # Sort entries numerically since job IDs are numeric strings (descending order)
             try:
                 job_entries_full = await storage.ls(jobs_directory, detail=False, fs=fs_override)
-            except Exception as e:
+            except Exception:
                 logger.warning("Error getting job entries when updating index", exc_info=True)
                 job_entries_full = []
             # Filter out macOS metadata files (._*), the directory itself, and non-numeric entries
@@ -401,7 +401,7 @@ class Experiment(BaseLabResource):
                                 break
                             data = json.loads(content)
                             break  # Success, exit retry loop
-                    except json.JSONDecodeError as e:
+                    except json.JSONDecodeError:
                         logger.warning("Jobs index: Error parsing JSON for job %s", entry_path, exc_info=True)
                         break  # Don't retry JSON decode errors
                     except Exception as e:
@@ -450,10 +450,10 @@ class Experiment(BaseLabResource):
                         fs=fs_override,
                     ) as out:
                         await out.write(json.dumps(jobs_data, indent=4))
-                except Exception as e:
+                except Exception:
                     logger.warning("Error writing jobs index", exc_info=True)
                     pass
-        except Exception as e:
+        except Exception:
             logger.warning("Error rebuilding jobs index", exc_info=True)
             pass
 
@@ -636,7 +636,7 @@ class Experiment(BaseLabResource):
                         exp = cls(experiment_id)
                         # Run async method in sync context using asyncio.run
                         asyncio.run(exp.rebuild_jobs_index(workspace_dir=workspace_dir))
-                    except Exception as e:
+                    except Exception:
                         logger.error(
                             "Error rebuilding cache for experiment %s in workspace %s:",
                             experiment_id,
@@ -646,7 +646,7 @@ class Experiment(BaseLabResource):
 
                 # Sleep for a short time before checking again
                 time.sleep(1)
-            except Exception as e:
+            except Exception:
                 logger.error("Error in background cache rebuild worker", exc_info=True)
                 time.sleep(5)  # Wait longer on error
 
