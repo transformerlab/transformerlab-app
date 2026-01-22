@@ -55,10 +55,7 @@ interface ParameterSchema {
   type?: ParameterType;
   default?: any;
   min?: number;
-  minimum?: number;
   max?: number;
-  maximum?: number;
-  step?: number;
   multipleOf?: number;
   options?: string[];
   enum?: string[];
@@ -194,10 +191,9 @@ export default function QueueTaskModal({
         type === 'number') &&
       (uiWidget === 'slider' || uiWidget === 'range')
     ) {
-      const min = schema?.min ?? schema?.minimum ?? 0;
-      const max = schema?.max ?? schema?.maximum ?? 100;
+      const min = schema?.min ?? 0;
+      const max = schema?.max ?? 100;
       const step =
-        schema?.step ??
         schema?.multipleOf ??
         (type === 'int' || type === 'integer' ? 1 : 0.01);
 
@@ -307,10 +303,9 @@ export default function QueueTaskModal({
       type === 'float' ||
       type === 'number'
     ) {
-      const min = schema?.min ?? schema?.minimum;
-      const max = schema?.max ?? schema?.maximum;
+      const min = schema?.min;
+      const max = schema?.max;
       const step =
-        schema?.step ??
         schema?.multipleOf ??
         (type === 'int' || type === 'integer' ? 1 : 0.00001);
 
