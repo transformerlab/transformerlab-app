@@ -199,7 +199,10 @@ export default function QueueTaskModal({
     const label = schema?.title || param.key;
 
     // Special handling for 'model' parameter - show model selector
-    if (param.key.toLowerCase() === 'model'|| param.key.toLowerCase() === 'model_name') {
+    if (
+      param.key.toLowerCase() === 'model' ||
+      param.key.toLowerCase() === 'model_name'
+    ) {
       return (
         <Select
           value={String(param.value)}
@@ -221,7 +224,10 @@ export default function QueueTaskModal({
     }
 
     // Special handling for 'dataset' parameter - show dataset selector
-    if (param.key.toLowerCase() === 'dataset' || param.key.toLowerCase() === 'dataset_name') {
+    if (
+      param.key.toLowerCase() === 'dataset' ||
+      param.key.toLowerCase() === 'dataset_name'
+    ) {
       return (
         <Select
           value={String(param.value)}
