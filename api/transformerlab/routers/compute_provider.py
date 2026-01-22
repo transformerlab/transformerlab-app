@@ -1000,12 +1000,19 @@ async def launch_template_on_provider(
         # This runs concurrently but still within the request context
         import asyncio
 
+        # Merge parameters (defaults) with config for sweep
+        base_params_for_sweep = {}
+        if request.parameters:
+            base_params_for_sweep = request.parameters.copy()
+        if request.config:
+            base_params_for_sweep.update(request.config)
+
         asyncio.create_task(
             _launch_sweep_jobs(
                 provider_id=provider_id,
                 request=request,
                 user_and_team=user_and_team,
-                base_parameters=request.parameters or {},
+                base_parameters=base_params_for_sweep,
                 sweep_config=request.sweep_config,
                 sweep_metric=request.sweep_metric or "eval/loss",
                 lower_is_better=request.lower_is_better if request.lower_is_better is not None else True,
@@ -1175,11 +1182,19 @@ async def launch_template_on_provider(
     )
 
     # Replace secrets in parameters if present
+    # Merge parameters (defaults) with config (user's custom values for this run)
+    merged_parameters = {}
+    if request.parameters:
+        merged_parameters = request.parameters.copy()
+    if request.config:
+        merged_parameters.update(request.config)
+
+    # Replace secrets in merged parameters
     parameters_with_secrets = None
-    if request.parameters and team_secrets:
-        parameters_with_secrets = replace_secrets_in_dict(request.parameters, team_secrets)
+    if merged_parameters and team_secrets:
+        parameters_with_secrets = replace_secrets_in_dict(merged_parameters, team_secrets)
     else:
-        parameters_with_secrets = request.parameters
+        parameters_with_secrets = merged_parameters if merged_parameters else None
 
     job_data = {
         "task_name": request.task_name,
