@@ -401,6 +401,8 @@ export default function NewTaskModal({
       return;
     }
     setIsLoadingTaskJson(true);
+    // The following is temporary -- we need to fix the underlying issue later after a cleanup
+    // eslint-disable-next-line promise/catch-or-return
     fetchTaskJsonFromUrl(taskJsonUrl, experimentId)
       .then((data) => {
         if (data) {
@@ -489,6 +491,7 @@ export default function NewTaskModal({
             type: 'success',
             message: 'Successfully loaded task.json from URL',
           });
+          return data;
         } else {
           setTaskMode('no-github');
           addNotification({
@@ -496,6 +499,7 @@ export default function NewTaskModal({
             message:
               'Could not find or parse task.json. You can still configure manually.',
           });
+          return null;
         }
       })
       .catch((error) => {
