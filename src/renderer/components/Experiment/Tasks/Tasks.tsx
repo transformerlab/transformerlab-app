@@ -13,6 +13,7 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import { analytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
@@ -602,6 +603,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       );
 
       if (response.ok) {
+        analytics.track('Task Queued', {
+          task_type: 'REMOTE',
+        });
         setModalOpen(false);
         await templatesMutate();
         addNotification({
