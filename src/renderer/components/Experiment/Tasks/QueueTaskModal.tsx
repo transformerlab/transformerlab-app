@@ -24,6 +24,9 @@ import {
 import { Editor } from '@monaco-editor/react';
 import { PlayIcon } from 'lucide-react';
 import { setTheme } from 'renderer/lib/monacoConfig';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 type QueueTaskModalProps = {
   open: boolean;
@@ -79,6 +82,19 @@ export default function QueueTaskModal({
   isSubmitting = false,
 }: QueueTaskModalProps) {
   const [parameters, setParameters] = React.useState<ProcessedParameter[]>([]);
+
+  // Fetch available models and datasets from the API
+  const { data: modelsData } = useSWR(
+    open ? chatAPI.Endpoints.Models.LocalList() : null,
+    fetcher,
+  );
+  const { data: datasetsData } = useSWR(
+    open ? chatAPI.Endpoints.Dataset.LocalList() : null,
+    fetcher,
+  );
+
+  const models = modelsData || [];
+  const datasets = datasetsData || [];
 
   // Helper function to parse parameter value and schema
   const parseParameter = (key: string, value: any): ProcessedParameter => {
@@ -181,6 +197,50 @@ export default function QueueTaskModal({
     const type = getParameterType(param);
     const uiWidget = schema?.ui_widget;
     const label = schema?.title || param.key;
+
+    // Special handling for 'model' parameter - show model selector
+    if (param.key.toLowerCase() === 'model'|| param.key.toLowerCase() === 'model_name') {
+      return (
+        <Select
+          value={String(param.value)}
+          onChange={(_, value) => {
+            const newParams = [...parameters];
+            newParams[index].value = value;
+            setParameters(newParams);
+          }}
+          placeholder="Select a model"
+          sx={{ flex: 1 }}
+        >
+          {models.map((model: any) => (
+            <Option key={model.model_id} value={model.model_id}>
+              {model.model_id}
+            </Option>
+          ))}
+        </Select>
+      );
+    }
+
+    // Special handling for 'dataset' parameter - show dataset selector
+    if (param.key.toLowerCase() === 'dataset' || param.key.toLowerCase() === 'dataset_name') {
+      return (
+        <Select
+          value={String(param.value)}
+          onChange={(_, value) => {
+            const newParams = [...parameters];
+            newParams[index].value = value;
+            setParameters(newParams);
+          }}
+          placeholder="Select a dataset"
+          sx={{ flex: 1 }}
+        >
+          {datasets.map((dataset: any) => (
+            <Option key={dataset.dataset_id} value={dataset.dataset_id}>
+              {dataset.dataset_id}
+            </Option>
+          ))}
+        </Select>
+      );
+    }
 
     // Handle different widget types
     // Integer with slider
