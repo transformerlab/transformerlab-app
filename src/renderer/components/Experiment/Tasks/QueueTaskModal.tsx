@@ -352,7 +352,8 @@ export default function QueueTaskModal({
       const min = schema?.min ?? 0;
       const max = schema?.max ?? 100;
       const step =
-        schema?.multiple_of ?? (type === 'int' || type === 'integer' ? 1 : 0.01);
+        schema?.multiple_of ??
+        (type === 'int' || type === 'integer' ? 1 : 0.01);
 
       return (
         <Stack direction="column" spacing={1} sx={{ flex: 1 }}>
