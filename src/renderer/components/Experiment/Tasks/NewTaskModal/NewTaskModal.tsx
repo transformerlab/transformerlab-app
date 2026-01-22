@@ -30,7 +30,6 @@ import {
 
 import { useEffect, useRef, useState } from 'react';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 import fetchTaskJsonFromUrl from './util';
 
@@ -73,13 +72,6 @@ type NewTaskModalProps = {
 type TaskMode = 'github-with-json' | 'github-manual' | 'no-github';
 
 type Phase = 'task-json-url' | 'task-config' | 'provider-env';
-
-// Helper function to check if URL is a GitHub URL
-function isGitHubUrl(url: string): boolean {
-  return (
-    url.includes('github.com') || url.includes('raw.githubusercontent.com')
-  );
-}
 
 export default function NewTaskModal({
   open,
@@ -2017,19 +2009,6 @@ export default function NewTaskModal({
     }
   };
 
-  const getPhaseTitle = () => {
-    switch (currentPhase) {
-      case 'task-json-url':
-        return 'Step 1: Task Configuration URL';
-      case 'task-config':
-        return 'Step 2: Task Configuration';
-      case 'provider-env':
-        return 'Step 3: Provider & Environment';
-      default:
-        return 'New Task';
-    }
-  };
-
   const canGoNext = () => {
     if (currentPhase === 'task-json-url') {
       // Always allow proceeding (URL is optional)
@@ -2055,7 +2034,7 @@ export default function NewTaskModal({
         sx={{ maxHeight: '90vh', width: '70vw', overflow: 'hidden' }}
       >
         <ModalClose />
-        <DialogTitle>{getPhaseTitle()}</DialogTitle>
+        <DialogTitle>New Task</DialogTitle>
         <form onSubmit={handleSubmit}>
           <DialogContent sx={{ maxHeight: '70vh', overflow: 'auto' }}>
             {renderPhaseContent()}

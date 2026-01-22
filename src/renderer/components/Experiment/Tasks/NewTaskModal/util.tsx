@@ -1,3 +1,11 @@
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+
+// Helper function to check if URL is a GitHub URL
+function isGitHubUrl(url: string): boolean {
+  return (
+    url.includes('github.com') || url.includes('raw.githubusercontent.com')
+  );
+}
 // Helper function to fetch task.json from any URL
 export default async function fetchTaskJsonFromUrl(
   taskJsonUrl: string,
