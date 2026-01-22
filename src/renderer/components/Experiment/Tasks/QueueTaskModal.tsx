@@ -62,7 +62,7 @@ interface ParameterSchema {
   default?: any;
   min?: number;
   max?: number;
-  multiple_of?: number;
+  step?: number;
   options?: string[];
   enum?: string[];
   ui_widget?: UIWidgetType;
@@ -88,6 +88,9 @@ export default function QueueTaskModal({
   const [customModelDataset, setCustomModelDataset] = React.useState<
     Set<number>
   >(new Set());
+  const [validationErrors, setValidationErrors] = React.useState<
+    Record<number, string>
+  >({});
 
   // Fetch available models and datasets from the API
   const { data: modelsData } = useSWR(
@@ -162,7 +165,52 @@ export default function QueueTaskModal({
     }
   }, [open, task]);
 
+  // Helper function to validate constraints
+  const validateParameter = (param: ProcessedParameter): string | null => {
+    const { schema, value } = param;
+    if (!schema) return null;
+
+    const numValue = Number(value);
+
+    // Check min constraint
+    if (schema.min !== undefined && !Number.isNaN(numValue)) {
+      if (numValue < schema.min) {
+        return `Minimum value is ${schema.min}`;
+      }
+    }
+
+    // Check max constraint
+    if (schema.max !== undefined && !Number.isNaN(numValue)) {
+      if (numValue > schema.max) {
+        return `Maximum value is ${schema.max}`;
+      }
+    }
+
+    // Note: step validation is handled by the native HTML input step attribute
+
+    return null;
+  };
+
+  // Helper function to check if all parameters are valid
+  const validateAllParameters = (): string | null => {
+    for (const param of parameters) {
+      if (!param.key.trim()) continue;
+      const error = validateParameter(param);
+      if (error) {
+        return `${param.key}: ${error}`;
+      }
+    }
+    return null;
+  };
+
   const handleSubmit = () => {
+    // Validate all parameters
+    const validationError = validateAllParameters();
+    if (validationError) {
+      alert(`Validation error: ${validationError}`);
+      return;
+    }
+
     // Convert parameters array to object for config
     const config: Record<string, any> = {};
     parameters.forEach(({ key, value }) => {
@@ -195,6 +243,24 @@ export default function QueueTaskModal({
     if (Array.isArray(val)) return 'string'; // Will be rendered as JSON editor
     if (typeof val === 'object' && val !== null) return 'string'; // Will be rendered as JSON editor
     return 'string';
+  };
+
+  // Helper function to render the appropriate input widget
+  const updateParameterAndValidate = (
+    newParams: ProcessedParameter[],
+    index: number,
+  ) => {
+    setParameters(newParams);
+
+    // Validate the updated parameter
+    const error = validateParameter(newParams[index]);
+    const newErrors = { ...validationErrors };
+    if (error) {
+      newErrors[index] = error;
+    } else {
+      delete newErrors[index];
+    }
+    setValidationErrors(newErrors);
   };
 
   // Helper function to render the appropriate input widget
@@ -352,7 +418,7 @@ export default function QueueTaskModal({
       const min = schema?.min ?? 0;
       const max = schema?.max ?? 100;
       const step =
-        schema?.multiple_of ??
+        schema?.step ??
         (type === 'int' || type === 'integer' ? 1 : 0.01);
 
       return (
@@ -363,7 +429,7 @@ export default function QueueTaskModal({
               onChange={(_, value) => {
                 const newParams = [...parameters];
                 newParams[index].value = value;
-                setParameters(newParams);
+                updateParameterAndValidate(newParams, index);
               }}
               min={min}
               max={max}
@@ -377,7 +443,7 @@ export default function QueueTaskModal({
                 const newParams = [...parameters];
                 const val = e.target.value;
                 newParams[index].value = val === '' ? min : Number(val);
-                setParameters(newParams);
+                updateParameterAndValidate(newParams, index);
               }}
               type="number"
               slotProps={{
@@ -388,8 +454,14 @@ export default function QueueTaskModal({
                 },
               }}
               sx={{ width: 100 }}
+              error={!!validationErrors[index]}
             />
           </Stack>
+          {validationErrors[index] && (
+            <FormHelperText sx={{ color: 'danger.400' }}>
+              {validationErrors[index]}
+            </FormHelperText>
+          )}
         </Stack>
       );
     }
@@ -464,28 +536,36 @@ export default function QueueTaskModal({
       const min = schema?.min;
       const max = schema?.max;
       const step =
-        schema?.multiple_of ??
+        schema?.step ??
         (type === 'int' || type === 'integer' ? 1 : 0.00001);
 
       return (
-        <Input
-          type="number"
-          value={param.value}
-          onChange={(e) => {
-            const newParams = [...parameters];
-            const val = e.target.value;
-            newParams[index].value = val === '' ? '' : Number(val);
-            setParameters(newParams);
-          }}
-          slotProps={{
-            input: {
-              min,
-              max,
-              step,
-            },
-          }}
-          sx={{ flex: 1 }}
-        />
+        <Stack direction="column" spacing={1} sx={{ flex: 1 }}>
+          <Input
+            type="number"
+            value={param.value}
+            onChange={(e) => {
+              const newParams = [...parameters];
+              const val = e.target.value;
+              newParams[index].value = val === '' ? '' : Number(val);
+              updateParameterAndValidate(newParams, index);
+            }}
+            slotProps={{
+              input: {
+                min,
+                max,
+                step,
+              },
+            }}
+            sx={{ flex: 1 }}
+            error={!!validationErrors[index]}
+          />
+          {validationErrors[index] && (
+            <FormHelperText sx={{ color: 'danger.400' }}>
+              {validationErrors[index]}
+            </FormHelperText>
+          )}
+        </Stack>
       );
     }
 
