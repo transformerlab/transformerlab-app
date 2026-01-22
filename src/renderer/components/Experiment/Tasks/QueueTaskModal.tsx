@@ -20,6 +20,7 @@ import {
   RadioGroup,
   Select,
   Option,
+  Checkbox,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import { PlayIcon } from 'lucide-react';
@@ -82,6 +83,7 @@ export default function QueueTaskModal({
   isSubmitting = false,
 }: QueueTaskModalProps) {
   const [parameters, setParameters] = React.useState<ProcessedParameter[]>([]);
+  const [customModelDataset, setCustomModelDataset] = React.useState<Set<number>>(new Set());
 
   // Fetch available models and datasets from the API
   const { data: modelsData } = useSWR(
@@ -198,53 +200,129 @@ export default function QueueTaskModal({
     const uiWidget = schema?.ui_widget;
     const label = schema?.title || param.key;
 
-    // Special handling for 'model' parameter - show model selector
     if (
       param.key.toLowerCase() === 'model' ||
       param.key.toLowerCase() === 'model_name'
     ) {
+      const isCustom = customModelDataset.has(index);
+      
       return (
-        <Select
-          value={String(param.value)}
-          onChange={(_, value) => {
-            const newParams = [...parameters];
-            newParams[index].value = value;
-            setParameters(newParams);
-          }}
-          placeholder="Select a model"
-          sx={{ flex: 1 }}
-        >
-          {models.map((model: any) => (
-            <Option key={model.model_id} value={model.model_id}>
-              {model.model_id}
-            </Option>
-          ))}
-        </Select>
+        <Stack direction="row" spacing={1} sx={{ flex: 1, alignItems: 'center' }}>
+          <Stack direction="column" spacing={1} sx={{ flex: 1 }}>
+            {isCustom ? (
+              <Input
+                placeholder="Enter Hugging Face model name"
+                value={String(param.value)}
+                onChange={(e) => {
+                  const newParams = [...parameters];
+                  newParams[index].value = e.target.value;
+                  setParameters(newParams);
+                }}
+                sx={{ flex: 1 }}
+              />
+            ) : (
+              <Select
+                value={String(param.value)}
+                onChange={(_, value) => {
+                  const newParams = [...parameters];
+                  newParams[index].value = value;
+                  setParameters(newParams);
+                }}
+                placeholder="Select a model"
+                sx={{ flex: 1 }}
+              >
+                {models.map((model: any) => (
+                  <Option key={model.model_id} value={model.model_id}>
+                    {model.model_id}
+                  </Option>
+                ))}
+              </Select>
+            )}
+          </Stack>
+          <Checkbox
+            checked={isCustom}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              if (e.target.checked) {
+                const newParams = [...parameters];
+                // Initialize with empty string if value is null/undefined
+                if (newParams[index].value === null || newParams[index].value === undefined) {
+                  newParams[index].value = '';
+                }
+                setParameters(newParams);
+                setCustomModelDataset(new Set([...customModelDataset, index]));
+              } else {
+                const newSet = new Set(customModelDataset);
+                newSet.delete(index);
+                setCustomModelDataset(newSet);
+              }
+            }}
+            title="Enter custom Hugging Face model name"
+            sx={{ mt: 0.5 }}
+          />
+        </Stack>
       );
     }
 
-    // Special handling for 'dataset' parameter - show dataset selector
     if (
       param.key.toLowerCase() === 'dataset' ||
       param.key.toLowerCase() === 'dataset_name'
     ) {
+      const isCustom = customModelDataset.has(index);
+      
       return (
-        <Select
-          value={String(param.value)}
-          onChange={(_, value) => {
-            const newParams = [...parameters];
-            newParams[index].value = value;
-            setParameters(newParams);
-          }}
-          placeholder="Select a dataset"
-          sx={{ flex: 1 }}
-        >
-          {datasets.map((dataset: any) => (
-            <Option key={dataset.dataset_id} value={dataset.dataset_id}>
-              {dataset.dataset_id}
-            </Option>
-          ))}
-        </Select>
+        <Stack direction="row" spacing={1} sx={{ flex: 1, alignItems: 'center' }}>
+          <Stack direction="column" spacing={1} sx={{ flex: 1 }}>
+            {isCustom ? (
+              <Input
+                placeholder="Enter Hugging Face dataset name"
+                value={String(param.value)}
+                onChange={(e) => {
+                  const newParams = [...parameters];
+                  newParams[index].value = e.target.value;
+                  setParameters(newParams);
+                }}
+                sx={{ flex: 1 }}
+              />
+            ) : (
+              <Select
+                value={String(param.value)}
+                onChange={(_, value) => {
+                  const newParams = [...parameters];
+                  newParams[index].value = value;
+                  setParameters(newParams);
+                }}
+                placeholder="Select a dataset"
+                sx={{ flex: 1 }}
+              >
+                {datasets.map((dataset: any) => (
+                  <Option key={dataset.dataset_id} value={dataset.dataset_id}>
+                    {dataset.dataset_id}
+                  </Option>
+                ))}
+              </Select>
+            )}
+          </Stack>
+          <Checkbox
+            checked={isCustom}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              if (e.target.checked) {
+                const newParams = [...parameters];
+                // Initialize with empty string if value is null/undefined
+                if (newParams[index].value === null || newParams[index].value === undefined) {
+                  newParams[index].value = '';
+                }
+                setParameters(newParams);
+                setCustomModelDataset(new Set([...customModelDataset, index]));
+              } else {
+                const newSet = new Set(customModelDataset);
+                newSet.delete(index);
+                setCustomModelDataset(newSet);
+              }
+            }}
+            title="Enter custom Hugging Face dataset name"
+            sx={{ mt: 0.5 }}
+          />
+        </Stack>
       );
     }
 
