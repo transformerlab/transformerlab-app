@@ -8,6 +8,9 @@ from .labresource import BaseLabResource
 from .job import Job
 import json
 from . import storage
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Experiment(BaseLabResource):
@@ -129,7 +132,9 @@ class Experiment(BaseLabResource):
 
                             # If both name and id are missing, skip this experiment
                             if not name and not exp_id:
-                                print(f"Experiment at {exp_path} missing required 'name' and 'id' fields; skipping")
+                                logger.warning(
+                                    "Experiment at %s missing required 'name' and 'id' fields; skipping", exp_path
+                                )
                                 continue
 
                             # If name missing but id present, copy id -> name and persist
@@ -153,8 +158,10 @@ class Experiment(BaseLabResource):
                                         await wf.write(content)
                                     exp_id = name
                                 except Exception as e:
-                                    print(
-                                        f"Failed to write corrected index.json for experiment '{name}' at {index_file} (copied name -> id): {e}"
+                                    logger.warning(
+                                        "Failed to write corrected index.json for experiment '%s' at %s (copied name -> id): {e}",
+                                        name,
+                                        index_file,
                                     )
                                     # If we couldn't persist, skip to avoid inconsistent state
                                     continue
@@ -246,7 +253,7 @@ class Experiment(BaseLabResource):
                         workspace = await get_workspace_dir()
                         self._trigger_cache_rebuild(workspace)
             except Exception as e:
-                print("ERROR getting job", job_id, e)
+                logger.warning("ERROR getting job %s", job_id, exc_info=True)
                 continue
 
             # Filter for status
@@ -357,7 +364,7 @@ class Experiment(BaseLabResource):
             try:
                 job_entries_full = await storage.ls(jobs_directory, detail=False, fs=fs_override)
             except Exception as e:
-                print(f"Error getting job entries full: {e}")
+                logger.warning("Error getting job entries when updating index", exc_info=True)
                 job_entries_full = []
             # Filter out macOS metadata files (._*), the directory itself, and non-numeric entries
             job_entries = []
@@ -395,7 +402,7 @@ class Experiment(BaseLabResource):
                             data = json.loads(content)
                             break  # Success, exit retry loop
                     except json.JSONDecodeError as e:
-                        print(f"Error parsing JSON for job {entry_path}: {e}")
+                        logger.warning("Jobs index: Error parsing JSON for job %s", entry_path, exc_info=True)
                         break  # Don't retry JSON decode errors
                     except Exception as e:
                         # Check if this is the Etag mismatch error
@@ -413,7 +420,7 @@ class Experiment(BaseLabResource):
                             continue
                         else:
                             # Not an ETag error, or last attempt failed
-                            print(f"Error loading index.json for job {entry_path}: {e}")
+                            logger.warning("Jobs index: Error loading index.json for job %s", entry_path, exc_info=True)
                             break
 
                 if data is None:
@@ -444,10 +451,10 @@ class Experiment(BaseLabResource):
                     ) as out:
                         await out.write(json.dumps(jobs_data, indent=4))
                 except Exception as e:
-                    print(f"Error writing jobs index: {e}")
+                    logger.warning("Error writing jobs index", exc_info=True)
                     pass
         except Exception as e:
-            print(f"Error rebuilding jobs index: {e}")
+            logger.warning("Error rebuilding jobs index", exc_info=True)
             pass
 
     async def _get_cached_jobs_data(self):
@@ -571,7 +578,7 @@ class Experiment(BaseLabResource):
                     # If retry also fails, return empty list instead of printing error
                     return []
             else:
-                print("Failed getting jobs:", e)
+                logger.error("Failed getting jobs", exc_info=True)
                 return []
 
     async def _add_job(self, job_id, type):
@@ -615,7 +622,7 @@ class Experiment(BaseLabResource):
         """Background worker that rebuilds caches for pending experiments."""
         import asyncio
 
-        print("STARTING CACHE REBUILD WORKER")
+        logger.info("STARTING CACHE REBUILD WORKER")
         while True:
             try:
                 # Get pending experiments with their workspace directories
@@ -630,14 +637,17 @@ class Experiment(BaseLabResource):
                         # Run async method in sync context using asyncio.run
                         asyncio.run(exp.rebuild_jobs_index(workspace_dir=workspace_dir))
                     except Exception as e:
-                        print(
-                            f"Error rebuilding cache for experiment {experiment_id} in workspace {workspace_dir}: {e}"
+                        logger.error(
+                            "Error rebuilding cache for experiment %s in workspace %s:",
+                            experiment_id,
+                            workspace_dir,
+                            exc_info=True,
                         )
 
                 # Sleep for a short time before checking again
                 time.sleep(1)
             except Exception as e:
-                print(f"Error in background cache rebuild worker: {e}")
+                logger.error("Error in background cache rebuild worker", exc_info=True)
                 time.sleep(5)  # Wait longer on error
 
     def _trigger_cache_rebuild(self, workspace_dir, sync=False):
