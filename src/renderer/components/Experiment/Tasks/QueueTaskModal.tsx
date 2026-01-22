@@ -83,7 +83,9 @@ export default function QueueTaskModal({
   isSubmitting = false,
 }: QueueTaskModalProps) {
   const [parameters, setParameters] = React.useState<ProcessedParameter[]>([]);
-  const [customModelDataset, setCustomModelDataset] = React.useState<Set<number>>(new Set());
+  const [customModelDataset, setCustomModelDataset] = React.useState<
+    Set<number>
+  >(new Set());
 
   // Fetch available models and datasets from the API
   const { data: modelsData } = useSWR(
@@ -205,9 +207,13 @@ export default function QueueTaskModal({
       param.key.toLowerCase() === 'model_name'
     ) {
       const isCustom = customModelDataset.has(index);
-      
+
       return (
-        <Stack direction="row" spacing={1} sx={{ flex: 1, alignItems: 'center' }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ flex: 1, alignItems: 'center' }}
+        >
           <Stack direction="column" spacing={1} sx={{ flex: 1 }}>
             {isCustom ? (
               <Input
@@ -245,7 +251,10 @@ export default function QueueTaskModal({
               if (e.target.checked) {
                 const newParams = [...parameters];
                 // Initialize with empty string if value is null/undefined
-                if (newParams[index].value === null || newParams[index].value === undefined) {
+                if (
+                  newParams[index].value === null ||
+                  newParams[index].value === undefined
+                ) {
                   newParams[index].value = '';
                 }
                 setParameters(newParams);
@@ -268,9 +277,13 @@ export default function QueueTaskModal({
       param.key.toLowerCase() === 'dataset_name'
     ) {
       const isCustom = customModelDataset.has(index);
-      
+
       return (
-        <Stack direction="row" spacing={1} sx={{ flex: 1, alignItems: 'center' }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ flex: 1, alignItems: 'center' }}
+        >
           <Stack direction="column" spacing={1} sx={{ flex: 1 }}>
             {isCustom ? (
               <Input
@@ -308,7 +321,10 @@ export default function QueueTaskModal({
               if (e.target.checked) {
                 const newParams = [...parameters];
                 // Initialize with empty string if value is null/undefined
-                if (newParams[index].value === null || newParams[index].value === undefined) {
+                if (
+                  newParams[index].value === null ||
+                  newParams[index].value === undefined
+                ) {
                   newParams[index].value = '';
                 }
                 setParameters(newParams);
