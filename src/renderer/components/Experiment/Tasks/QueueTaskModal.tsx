@@ -34,8 +34,22 @@ type QueueTaskModalProps = {
 };
 
 // Type definitions for parameter schemas
-type ParameterType = 'int' | 'integer' | 'float' | 'number' | 'bool' | 'boolean' | 'enum' | 'string';
-type UIWidgetType = 'slider' | 'range' | 'switch' | 'radio' | 'password' | 'select';
+type ParameterType =
+  | 'int'
+  | 'integer'
+  | 'float'
+  | 'number'
+  | 'bool'
+  | 'boolean'
+  | 'enum'
+  | 'string';
+type UIWidgetType =
+  | 'slider'
+  | 'range'
+  | 'switch'
+  | 'radio'
+  | 'password'
+  | 'select';
 
 interface ParameterSchema {
   type?: ParameterType;
@@ -70,13 +84,18 @@ export default function QueueTaskModal({
   const [parameters, setParameters] = React.useState<ProcessedParameter[]>([]);
 
   // Helper function to parse parameter value and schema
-  const parseParameter = (
-    key: string,
-    value: any,
-  ): ProcessedParameter => {
+  const parseParameter = (key: string, value: any): ProcessedParameter => {
     // Check if value is a schema object (has type, default, etc.) or shorthand
-    const isObject = typeof value === 'object' && value !== null && !Array.isArray(value);
-    const hasSchemaFields = isObject && ('type' in value || 'default' in value || 'min' in value || 'max' in value || 'options' in value || 'enum' in value);
+    const isObject =
+      typeof value === 'object' && value !== null && !Array.isArray(value);
+    const hasSchemaFields =
+      isObject &&
+      ('type' in value ||
+        'default' in value ||
+        'min' in value ||
+        'max' in value ||
+        'options' in value ||
+        'enum' in value);
 
     if (hasSchemaFields) {
       // Extended schema format
@@ -168,12 +187,20 @@ export default function QueueTaskModal({
 
     // Handle different widget types
     // Integer with slider
-    if ((type === 'int' || type === 'integer' || type === 'float' || type === 'number') && 
-        (uiWidget === 'slider' || uiWidget === 'range')) {
+    if (
+      (type === 'int' ||
+        type === 'integer' ||
+        type === 'float' ||
+        type === 'number') &&
+      (uiWidget === 'slider' || uiWidget === 'range')
+    ) {
       const min = schema?.min ?? schema?.minimum ?? 0;
       const max = schema?.max ?? schema?.maximum ?? 100;
-      const step = schema?.step ?? schema?.multipleOf ?? (type === 'int' || type === 'integer' ? 1 : 0.01);
-      
+      const step =
+        schema?.step ??
+        schema?.multipleOf ??
+        (type === 'int' || type === 'integer' ? 1 : 0.01);
+
       return (
         <Stack direction="column" spacing={1} sx={{ flex: 1 }}>
           <Stack direction="row" spacing={2} alignItems="center">
@@ -199,12 +226,12 @@ export default function QueueTaskModal({
                 setParameters(newParams);
               }}
               type="number"
-              slotProps={{ 
-                input: { 
-                  min, 
-                  max, 
-                  step 
-                } 
+              slotProps={{
+                input: {
+                  min,
+                  max,
+                  step,
+                },
               }}
               sx={{ width: 100 }}
             />
@@ -214,8 +241,10 @@ export default function QueueTaskModal({
     }
 
     // Boolean with switch
-    if ((type === 'bool' || type === 'boolean') && 
-        (uiWidget === 'switch' || !uiWidget)) {
+    if (
+      (type === 'bool' || type === 'boolean') &&
+      (uiWidget === 'switch' || !uiWidget)
+    ) {
       return (
         <Switch
           checked={Boolean(param.value)}
@@ -231,7 +260,7 @@ export default function QueueTaskModal({
     // Enum with radio or select
     if (type === 'enum' || schema?.options || schema?.enum) {
       const options = schema?.options || schema?.enum || [];
-      
+
       if (uiWidget === 'radio') {
         return (
           <RadioGroup
@@ -272,11 +301,19 @@ export default function QueueTaskModal({
     }
 
     // Integer or Float without slider
-    if (type === 'int' || type === 'integer' || type === 'float' || type === 'number') {
+    if (
+      type === 'int' ||
+      type === 'integer' ||
+      type === 'float' ||
+      type === 'number'
+    ) {
       const min = schema?.min ?? schema?.minimum;
       const max = schema?.max ?? schema?.maximum;
-      const step = schema?.step ?? schema?.multipleOf ?? (type === 'int' || type === 'integer' ? 1 : 0.00001);
-      
+      const step =
+        schema?.step ??
+        schema?.multipleOf ??
+        (type === 'int' || type === 'integer' ? 1 : 0.00001);
+
       return (
         <Input
           type="number"
@@ -287,12 +324,12 @@ export default function QueueTaskModal({
             newParams[index].value = val === '' ? '' : Number(val);
             setParameters(newParams);
           }}
-          slotProps={{ 
-            input: { 
-              min, 
-              max, 
-              step 
-            } 
+          slotProps={{
+            input: {
+              min,
+              max,
+              step,
+            },
           }}
           sx={{ flex: 1 }}
         />
@@ -316,8 +353,11 @@ export default function QueueTaskModal({
     }
 
     // Complex objects/arrays - render as JSON editor
-    if (!param.isShorthand && (Array.isArray(param.value) || 
-        (typeof param.value === 'object' && param.value !== null))) {
+    if (
+      !param.isShorthand &&
+      (Array.isArray(param.value) ||
+        (typeof param.value === 'object' && param.value !== null))
+    ) {
       return (
         <Editor
           height="120px"
@@ -388,7 +428,7 @@ export default function QueueTaskModal({
                 {parameters.map((param, index) => {
                   const schema = param.schema;
                   const label = schema?.title || param.key;
-                  
+
                   return (
                     <FormControl
                       key={param.key || index}
