@@ -206,7 +206,8 @@ if os.getenv("SENTRY_DSN"):
         profile_session_sample_rate=1.0,
         # Set profile_lifecycle to "trace" to automatically
         # run the profiler on when there is an active transaction
-        profile_lifecycle="trace"
+        profile_lifecycle="trace",
+    )
 
 app = fastapi.FastAPI(
     title="Transformerlab API",
