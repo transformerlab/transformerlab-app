@@ -53,7 +53,9 @@ type UIWidgetType =
   | 'switch'
   | 'radio'
   | 'password'
-  | 'select';
+  | 'select'
+  | 'lab_model_select'
+  | 'lab_dataset_select';
 
 interface ParameterSchema {
   type?: ParameterType;
@@ -202,10 +204,8 @@ export default function QueueTaskModal({
     const uiWidget = schema?.ui_widget;
     const label = schema?.title || param.key;
 
-    if (
-      param.key.toLowerCase() === 'model' ||
-      param.key.toLowerCase() === 'model_name'
-    ) {
+    // Special handling for 'lab_model_select' widget
+    if (uiWidget === 'lab_model_select') {
       const isCustom = customModelDataset.has(index);
 
       return (
@@ -272,10 +272,8 @@ export default function QueueTaskModal({
       );
     }
 
-    if (
-      param.key.toLowerCase() === 'dataset' ||
-      param.key.toLowerCase() === 'dataset_name'
-    ) {
+    // Special handling for 'lab_dataset_select' widget
+    if (uiWidget === 'lab_dataset_select') {
       const isCustom = customModelDataset.has(index);
 
       return (
