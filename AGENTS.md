@@ -3,7 +3,6 @@
 ## Build/Lint/Test Commands
 
 - **Frontend dev**: `npm start:cloud` (Node v22, not v23+)
-- **Frontend lint**: `npm run lint`
 - **Frontend test**: `npm test` (Jest); single test: `npm test -- --testPathPattern="<pattern>"`
 - **Frontend format**: `npm run format` (Prettier, single quotes)
 - **API install**: `cd api && ./install.sh` or `npm run api:install`
@@ -25,7 +24,6 @@
 - **DB Tables**: Use existing patterns and dont create any table with a foreign key.
 - **Alembic Migrations**: Use existing patterns and dont create any migration with a foreign key. Try to autogenerate the migration if possible.
 - **TypeScript**:
-  - **Linting**: ESLint with erb config, Prettier (single quotes)   
   - **Strict Typing**: Avoid `any`. Define interfaces for all props and API responses to ensure type safety.
   - **Functional Components**: Use React functional components with Hooks. Avoid class components.
   - **State Management**: The app uses `easy-peasy` (Redux wrapper). Use actions for state mutations; avoid prop drilling deep hierarchies.
@@ -55,5 +53,4 @@
   3. Expose via API endpoint.
   4. Update frontend client.
   5. Build UI.
-- **Verification**: Always verify by running the specific test or linter command provided in the "Build/Lint/Test Commands" section above.
 - **Read First**: Read relevant files _before_ planning changes to ensure consistency with existing patterns.
