@@ -8,7 +8,6 @@ import * as Sentry from '@sentry/react';
 import store from './store';
 
 import App from './App';
-import { AnalyticsProvider } from './components/Shared/analytics/AnalyticsContext';
 
 const container = document.getElementById('root') as HTMLElement;
 const root = createRoot(container);
@@ -17,9 +16,7 @@ root.render(
   <Sentry.ErrorBoundary fallback={<p>An error has occurred</p>}>
     <StoreProvider store={store}>
       <HashRouter>
-        <AnalyticsProvider>
-          <App />
-        </AnalyticsProvider>
+        <App />
       </HashRouter>
     </StoreProvider>
   </Sentry.ErrorBoundary>,
