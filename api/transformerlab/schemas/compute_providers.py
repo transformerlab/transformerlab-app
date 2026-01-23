@@ -117,6 +117,10 @@ class ProviderTemplateLaunchRequest(BaseModel):
         default=None,
         description="Task parameters (hyperparameters, config, etc.) that will be accessible via lab.get_config()",
     )
+    config: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Configuration values to override for this specific run. These will be merged with parameters defaults.",
+    )
     provider_name: Optional[str] = None
     github_repo_url: Optional[str] = None
     github_directory: Optional[str] = None
