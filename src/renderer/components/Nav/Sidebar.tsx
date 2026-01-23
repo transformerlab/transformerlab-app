@@ -51,16 +51,14 @@ import LoginChip from './UserWidget';
 interface ExperimentMenuItemsProps {
   experimentInfo: any;
   models: any;
-  mode: string;
 }
 
 function ExperimentMenuItems({
   experimentInfo,
   models,
-  mode,
 }: ExperimentMenuItemsProps) {
   const { team } = useAuth();
-  const isLocalMode = mode === 'local';
+  const isLocalMode = window?.platform?.multiuser !== true;
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
@@ -479,11 +477,7 @@ export default function Sidebar({
       }}
     >
       <SelectExperimentMenu models={models} />
-      <ExperimentMenuItems
-        experimentInfo={experimentInfo}
-        models={models}
-        mode={mode}
-      />
+      <ExperimentMenuItems experimentInfo={experimentInfo} models={models} />
       <GlobalMenuItems
         outdatedPluginsCount={outdatedPlugins?.length}
         mode={mode}

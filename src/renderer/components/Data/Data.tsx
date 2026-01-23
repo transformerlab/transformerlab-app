@@ -10,25 +10,7 @@ import LocalDatasets from './LocalDatasets';
 import GeneratedDatasets from './GeneratedDatasets';
 
 export default function Data() {
-  const [mode, setMode] = useState<string>('local');
-
-  // Fetch healthz to get the mode
-  useEffect(() => {
-    const fetchHealthz = async () => {
-      try {
-        const data = await apiHealthz();
-        if (data?.mode) {
-          setMode(data.mode);
-        }
-      } catch (error) {
-        // Silently fail - mode will default to 'local'
-      }
-    };
-
-    fetchHealthz();
-  }, []);
-
-  const isLocalMode = mode === 'local';
+  const isLocalMode = window?.platform?.multiuser !== true;
   return (
     <Sheet sx={{ display: 'flex', height: '100%' }}>
       <Tabs

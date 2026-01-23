@@ -122,7 +122,6 @@ function ExperimentSettingsMenu({
 
 export default function SelectExperimentMenu({ models }) {
   const [modalOpen, setModalOpen] = useState<boolean>(false);
-  const [mode, setMode] = useState<string>('local');
   const navigate = useNavigate();
   const { experimentInfo, setExperimentId } = useExperimentInfo();
   const { team } = useAuth();
@@ -144,24 +143,8 @@ export default function SelectExperimentMenu({ models }) {
   );
 
   const hasProviders = providers.length > 0;
-  const isLocalMode = mode === 'local';
+  const isLocalMode = window?.platform?.multiuser !== true;
   const shouldShowSimpleDialog = !isLocalMode;
-
-  // Fetch healthz to get the mode
-  useEffect(() => {
-    const fetchHealthz = async () => {
-      try {
-        const data = await apiHealthz();
-        if (data?.mode) {
-          setMode(data.mode);
-        }
-      } catch (error) {
-        console.error('Failed to fetch healthz data:', error);
-      }
-    };
-
-    fetchHealthz();
-  }, []);
 
   const DEV_MODE = experimentInfo?.name === 'dev';
 
