@@ -20,10 +20,14 @@ import {
   RadioGroup,
   Select,
   Option,
+  Checkbox,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import { PlayIcon } from 'lucide-react';
 import { setTheme } from 'renderer/lib/monacoConfig';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 type QueueTaskModalProps = {
   open: boolean;
@@ -49,14 +53,16 @@ type UIWidgetType =
   | 'switch'
   | 'radio'
   | 'password'
-  | 'select';
+  | 'select'
+  | 'lab_model_select'
+  | 'lab_dataset_select';
 
 interface ParameterSchema {
   type?: ParameterType;
   default?: any;
   min?: number;
   max?: number;
-  multipleOf?: number;
+  step?: number;
   options?: string[];
   enum?: string[];
   ui_widget?: UIWidgetType;
@@ -79,6 +85,25 @@ export default function QueueTaskModal({
   isSubmitting = false,
 }: QueueTaskModalProps) {
   const [parameters, setParameters] = React.useState<ProcessedParameter[]>([]);
+  const [customModelDataset, setCustomModelDataset] = React.useState<
+    Set<number>
+  >(new Set());
+  const [validationErrors, setValidationErrors] = React.useState<
+    Record<number, string>
+  >({});
+
+  // Fetch available models and datasets from the API
+  const { data: modelsData } = useSWR(
+    open ? chatAPI.Endpoints.Models.LocalList() : null,
+    fetcher,
+  );
+  const { data: datasetsData } = useSWR(
+    open ? chatAPI.Endpoints.Dataset.LocalList() : null,
+    fetcher,
+  );
+
+  const models = modelsData || [];
+  const datasets = datasetsData || [];
 
   // Helper function to parse parameter value and schema
   const parseParameter = (key: string, value: any): ProcessedParameter => {
@@ -140,7 +165,52 @@ export default function QueueTaskModal({
     }
   }, [open, task]);
 
+  // Helper function to validate constraints
+  const validateParameter = (param: ProcessedParameter): string | null => {
+    const { schema, value } = param;
+    if (!schema) return null;
+
+    const numValue = Number(value);
+
+    // Check min constraint
+    if (schema.min !== undefined && !Number.isNaN(numValue)) {
+      if (numValue < schema.min) {
+        return `Minimum value is ${schema.min}`;
+      }
+    }
+
+    // Check max constraint
+    if (schema.max !== undefined && !Number.isNaN(numValue)) {
+      if (numValue > schema.max) {
+        return `Maximum value is ${schema.max}`;
+      }
+    }
+
+    // Note: step validation is handled by the native HTML input step attribute
+
+    return null;
+  };
+
+  // Helper function to check if all parameters are valid
+  const validateAllParameters = (): string | null => {
+    for (const param of parameters) {
+      if (!param.key.trim()) continue;
+      const error = validateParameter(param);
+      if (error) {
+        return `${param.key}: ${error}`;
+      }
+    }
+    return null;
+  };
+
   const handleSubmit = () => {
+    // Validate all parameters
+    const validationError = validateAllParameters();
+    if (validationError) {
+      alert(`Validation error: ${validationError}`);
+      return;
+    }
+
     // Convert parameters array to object for config
     const config: Record<string, any> = {};
     parameters.forEach(({ key, value }) => {
@@ -176,11 +246,165 @@ export default function QueueTaskModal({
   };
 
   // Helper function to render the appropriate input widget
+  const updateParameterAndValidate = (
+    newParams: ProcessedParameter[],
+    index: number,
+  ) => {
+    setParameters(newParams);
+
+    // Validate the updated parameter
+    const error = validateParameter(newParams[index]);
+    const newErrors = { ...validationErrors };
+    if (error) {
+      newErrors[index] = error;
+    } else {
+      delete newErrors[index];
+    }
+    setValidationErrors(newErrors);
+  };
+
+  // Helper function to render the appropriate input widget
   const renderParameterInput = (param: ProcessedParameter, index: number) => {
     const schema = param.schema;
     const type = getParameterType(param);
     const uiWidget = schema?.ui_widget;
     const label = schema?.title || param.key;
+
+    // Special handling for 'lab_model_select' widget
+    if (uiWidget === 'lab_model_select') {
+      const isCustom = customModelDataset.has(index);
+
+      return (
+        <Stack direction="column" spacing={1} sx={{ flex: 1 }}>
+          {isCustom ? (
+            <Input
+              placeholder="Enter any model name"
+              value={String(param.value)}
+              onChange={(e) => {
+                const newParams = [...parameters];
+                newParams[index].value = e.target.value;
+                setParameters(newParams);
+              }}
+              sx={{ flex: 1 }}
+            />
+          ) : (
+            <Select
+              value={String(param.value)}
+              onChange={(_, value) => {
+                const newParams = [...parameters];
+                newParams[index].value = value;
+                setParameters(newParams);
+              }}
+              placeholder="Select a model"
+              sx={{ flex: 1 }}
+            >
+              {models.map((model: any) => (
+                <Option key={model.model_id} value={model.model_id}>
+                  {model.model_id}
+                </Option>
+              ))}
+            </Select>
+          )}
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Checkbox
+              checked={isCustom}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                if (e.target.checked) {
+                  const newParams = [...parameters];
+                  // Initialize with empty string if value is null/undefined
+                  if (
+                    newParams[index].value === null ||
+                    newParams[index].value === undefined
+                  ) {
+                    newParams[index].value = '';
+                  }
+                  setParameters(newParams);
+                  setCustomModelDataset(
+                    new Set([...customModelDataset, index]),
+                  );
+                } else {
+                  const newSet = new Set(customModelDataset);
+                  newSet.delete(index);
+                  setCustomModelDataset(newSet);
+                }
+              }}
+              size="sm"
+            />
+            <Typography level="body-xs" sx={{ color: 'neutral.500' }}>
+              Enter any string
+            </Typography>
+          </Stack>
+        </Stack>
+      );
+    }
+
+    // Special handling for 'lab_dataset_select' widget
+    if (uiWidget === 'lab_dataset_select') {
+      const isCustom = customModelDataset.has(index);
+
+      return (
+        <Stack direction="column" spacing={1} sx={{ flex: 1 }}>
+          {isCustom ? (
+            <Input
+              placeholder="Enter any dataset name"
+              value={String(param.value)}
+              onChange={(e) => {
+                const newParams = [...parameters];
+                newParams[index].value = e.target.value;
+                setParameters(newParams);
+              }}
+              sx={{ flex: 1 }}
+            />
+          ) : (
+            <Select
+              value={String(param.value)}
+              onChange={(_, value) => {
+                const newParams = [...parameters];
+                newParams[index].value = value;
+                setParameters(newParams);
+              }}
+              placeholder="Select a dataset"
+              sx={{ flex: 1 }}
+            >
+              {datasets.map((dataset: any) => (
+                <Option key={dataset.dataset_id} value={dataset.dataset_id}>
+                  {dataset.dataset_id}
+                </Option>
+              ))}
+            </Select>
+          )}
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Checkbox
+              checked={isCustom}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                if (e.target.checked) {
+                  const newParams = [...parameters];
+                  // Initialize with empty string if value is null/undefined
+                  if (
+                    newParams[index].value === null ||
+                    newParams[index].value === undefined
+                  ) {
+                    newParams[index].value = '';
+                  }
+                  setParameters(newParams);
+                  setCustomModelDataset(
+                    new Set([...customModelDataset, index]),
+                  );
+                } else {
+                  const newSet = new Set(customModelDataset);
+                  newSet.delete(index);
+                  setCustomModelDataset(newSet);
+                }
+              }}
+              size="sm"
+            />
+            <Typography level="body-xs" sx={{ color: 'neutral.500' }}>
+              Enter any string
+            </Typography>
+          </Stack>
+        </Stack>
+      );
+    }
 
     // Handle different widget types
     // Integer with slider
@@ -194,7 +418,7 @@ export default function QueueTaskModal({
       const min = schema?.min ?? 0;
       const max = schema?.max ?? 100;
       const step =
-        schema?.multipleOf ?? (type === 'int' || type === 'integer' ? 1 : 0.01);
+        schema?.step ?? (type === 'int' || type === 'integer' ? 1 : 0.01);
 
       return (
         <Stack direction="column" spacing={1} sx={{ flex: 1 }}>
@@ -204,7 +428,7 @@ export default function QueueTaskModal({
               onChange={(_, value) => {
                 const newParams = [...parameters];
                 newParams[index].value = value;
-                setParameters(newParams);
+                updateParameterAndValidate(newParams, index);
               }}
               min={min}
               max={max}
@@ -218,7 +442,7 @@ export default function QueueTaskModal({
                 const newParams = [...parameters];
                 const val = e.target.value;
                 newParams[index].value = val === '' ? min : Number(val);
-                setParameters(newParams);
+                updateParameterAndValidate(newParams, index);
               }}
               type="number"
               slotProps={{
@@ -229,8 +453,14 @@ export default function QueueTaskModal({
                 },
               }}
               sx={{ width: 100 }}
+              error={!!validationErrors[index]}
             />
           </Stack>
+          {validationErrors[index] && (
+            <FormHelperText sx={{ color: 'danger.400' }}>
+              {validationErrors[index]}
+            </FormHelperText>
+          )}
         </Stack>
       );
     }
@@ -305,28 +535,35 @@ export default function QueueTaskModal({
       const min = schema?.min;
       const max = schema?.max;
       const step =
-        schema?.multipleOf ??
-        (type === 'int' || type === 'integer' ? 1 : 0.00001);
+        schema?.step ?? (type === 'int' || type === 'integer' ? 1 : 0.00001);
 
       return (
-        <Input
-          type="number"
-          value={param.value}
-          onChange={(e) => {
-            const newParams = [...parameters];
-            const val = e.target.value;
-            newParams[index].value = val === '' ? '' : Number(val);
-            setParameters(newParams);
-          }}
-          slotProps={{
-            input: {
-              min,
-              max,
-              step,
-            },
-          }}
-          sx={{ flex: 1 }}
-        />
+        <Stack direction="column" spacing={1} sx={{ flex: 1 }}>
+          <Input
+            type="number"
+            value={param.value}
+            onChange={(e) => {
+              const newParams = [...parameters];
+              const val = e.target.value;
+              newParams[index].value = val === '' ? '' : Number(val);
+              updateParameterAndValidate(newParams, index);
+            }}
+            slotProps={{
+              input: {
+                min,
+                max,
+                step,
+              },
+            }}
+            sx={{ flex: 1 }}
+            error={!!validationErrors[index]}
+          />
+          {validationErrors[index] && (
+            <FormHelperText sx={{ color: 'danger.400' }}>
+              {validationErrors[index]}
+            </FormHelperText>
+          )}
+        </Stack>
       );
     }
 
