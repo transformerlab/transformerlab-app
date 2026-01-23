@@ -96,7 +96,7 @@ async def init():
     else:
         # PostgreSQL doesn't need aiosqlite connection or PRAGMA statements
         db = None
-        print(f"Using PostgreSQL database")
+        print("Using PostgreSQL database")
 
     # Run Alembic migrations to create/update tables
     # This replaces the previous create_all() call
