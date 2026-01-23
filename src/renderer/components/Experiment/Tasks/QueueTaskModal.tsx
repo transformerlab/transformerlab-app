@@ -25,9 +25,10 @@ import {
 import { Editor } from '@monaco-editor/react';
 import { PlayIcon } from 'lucide-react';
 import { setTheme } from 'renderer/lib/monacoConfig';
-import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
+import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { useAuth } from 'renderer/lib/authContext';
 
 type QueueTaskModalProps = {
   open: boolean;
@@ -84,6 +85,7 @@ export default function QueueTaskModal({
   onSubmit,
   isSubmitting = false,
 }: QueueTaskModalProps) {
+  const { team } = useAuth();
   const [parameters, setParameters] = React.useState<ProcessedParameter[]>([]);
   const [customModelDataset, setCustomModelDataset] = React.useState<
     Set<number>
@@ -91,6 +93,7 @@ export default function QueueTaskModal({
   const [validationErrors, setValidationErrors] = React.useState<
     Record<number, string>
   >({});
+  const [selectedProviderId, setSelectedProviderId] = React.useState('');
 
   // Fetch available models and datasets from the API
   const { data: modelsData } = useSWR(
@@ -101,6 +104,25 @@ export default function QueueTaskModal({
     open ? chatAPI.Endpoints.Dataset.LocalList() : null,
     fetcher,
   );
+
+  // Fetch available providers
+  const {
+    data: providerListData,
+    error: providerListError,
+    isLoading: providersIsLoading,
+  } = useAPI('compute_provider', ['list'], { teamId: team?.id ?? null });
+
+  const providers = React.useMemo(
+    () => (Array.isArray(providerListData) ? providerListData : []),
+    [providerListData],
+  );
+
+  React.useEffect(() => {
+    if (providerListError) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to fetch providers', providerListError);
+    }
+  }, [providerListError]);
 
   const models = modelsData || [];
   const datasets = datasetsData || [];
@@ -204,6 +226,12 @@ export default function QueueTaskModal({
   };
 
   const handleSubmit = () => {
+    // Validate provider selection
+    if (!selectedProviderId) {
+      alert('Please select a provider before submitting');
+      return;
+    }
+
     // Validate all parameters
     const validationError = validateAllParameters();
     if (validationError) {
@@ -218,6 +246,15 @@ export default function QueueTaskModal({
         config[key.trim()] = value;
       }
     });
+
+    // Add provider_id to the config
+    config.provider_id = selectedProviderId;
+
+    // Add provider_name if available
+    const provider = providers.find((p) => p.id === selectedProviderId);
+    if (provider) {
+      config.provider_name = provider.name;
+    }
 
     onSubmit(config);
   };
@@ -645,47 +682,87 @@ export default function QueueTaskModal({
         <DialogTitle>Queue Task: {getTaskTitle()}</DialogTitle>
         <Divider />
         <DialogContent>
-          <Stack spacing={2}>
-            {parameters.length === 0 ||
-            (parameters.length === 1 &&
-              !parameters[0].key &&
-              !parameters[0].value) ? (
-              <Typography level="body-sm" color="neutral">
-                This task has no parameters defined. Click Submit to queue with
-                default configuration.
-              </Typography>
-            ) : (
-              <Stack spacing={2}>
-                {parameters.map((param, index) => {
-                  const schema = param.schema;
-                  const label = schema?.title || param.key;
+          <Stack spacing={3}>
+            {/* Run Settings Section */}
+            <Stack spacing={2}>
+              <Typography level="title-sm">Run Settings</Typography>
+              <FormControl required>
+                <FormLabel>Provider</FormLabel>
+                <Select
+                  placeholder={
+                    providers.length
+                      ? 'Select a provider'
+                      : 'No providers configured'
+                  }
+                  value={selectedProviderId || null}
+                  onChange={(_, value) => setSelectedProviderId(value || '')}
+                  disabled={
+                    isSubmitting || providersIsLoading || providers.length === 0
+                  }
+                  slotProps={{
+                    listbox: { sx: { maxHeight: 240 } },
+                  }}
+                >
+                  {providers.map((provider: any) => (
+                    <Option key={provider.id} value={provider.id}>
+                      {provider.name}
+                    </Option>
+                  ))}
+                </Select>
+                <FormHelperText>
+                  Choose which provider should run this task.
+                </FormHelperText>
+              </FormControl>
+            </Stack>
 
-                  return (
-                    <FormControl
-                      key={param.key || index}
-                      sx={{ width: '100%' }}
-                    >
-                      <Stack
-                        direction="row"
-                        spacing={2}
-                        alignItems="center"
+            <Divider />
+
+            {/* Task Parameters Section */}
+            <Stack spacing={2}>
+              <Typography level="title-sm">Task Parameters</Typography>
+              {parameters.length === 0 ||
+              (parameters.length === 1 &&
+                !parameters[0].key &&
+                !parameters[0].value) ? (
+                <Typography level="body-sm" color="neutral">
+                  This task has no parameters defined. Click Submit to queue
+                  with default configuration.
+                </Typography>
+              ) : (
+                <Stack spacing={2}>
+                  {parameters.map((param, index) => {
+                    const schema = param.schema;
+                    const label = schema?.title || param.key;
+
+                    return (
+                      <FormControl
+                        key={param.key || index}
                         sx={{ width: '100%' }}
                       >
-                        <FormLabel sx={{ alignSelf: 'center', minWidth: 160 }}>
-                          {label}:
-                        </FormLabel>
-                        {renderParameterInput(param, index)}
-                      </Stack>
-                    </FormControl>
-                  );
-                })}
-              </Stack>
-            )}
+                        <Stack
+                          direction="row"
+                          spacing={2}
+                          alignItems="center"
+                          sx={{ width: '100%' }}
+                        >
+                          <FormLabel
+                            sx={{ alignSelf: 'center', minWidth: 160 }}
+                          >
+                            {label}:
+                          </FormLabel>
+                          {renderParameterInput(param, index)}
+                        </Stack>
+                      </FormControl>
+                    );
+                  })}
+                </Stack>
+              )}
+              <Typography level="body-sm" color="neutral">
+                Parameters can be accessed in your task script using{' '}
+                <code>lab.get_config()</code>
+              </Typography>
+            </Stack>
           </Stack>
-          <Typography mt={2} level="body-sm" color="neutral">
-            Parameters can be accessed in your task script using{' '}
-            <code>lab.get_config()</code>
-          </Typography>
         </DialogContent>
         <DialogActions>
           <Button variant="plain" color="neutral" onClick={onClose}>
@@ -696,6 +773,7 @@ export default function QueueTaskModal({
             color="success"
             onClick={handleSubmit}
             loading={isSubmitting}
+            disabled={!selectedProviderId}
           >
             Submit
           </Button>
