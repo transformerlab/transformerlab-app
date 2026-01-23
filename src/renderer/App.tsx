@@ -27,6 +27,7 @@ import * as chatAPI from './lib/transformerlab-api-sdk';
 import { apiHealthz } from './lib/transformerlab-api-sdk';
 import { AuthProvider, useAuth } from './lib/authContext';
 import LoginPage from './components/Login/LoginPage';
+import { AnalyticsProvider } from './components/Shared/analytics/AnalyticsContext';
 
 type AppContentProps = {
   connection: string;
@@ -270,17 +271,19 @@ export default function App() {
       <CssVarsProvider disableTransitionOnChange theme={theme}>
         <CssBaseline />
         <AuthProvider connection={connection}>
-          <ExperimentInfoProvider connection={connection}>
-            <AppContent
-              connection={connection}
-              logsDrawerOpen={logsDrawerOpen}
-              setLogsDrawerOpen={setLogsDrawerOpen}
-              logsDrawerHeight={logsDrawerHeight}
-              setLogsDrawerHeight={setLogsDrawerHeight}
-              themeSetter={themeSetter}
-              setConnection={setConnection}
-            />
-          </ExperimentInfoProvider>
+          <AnalyticsProvider>
+            <ExperimentInfoProvider connection={connection}>
+              <AppContent
+                connection={connection}
+                logsDrawerOpen={logsDrawerOpen}
+                setLogsDrawerOpen={setLogsDrawerOpen}
+                logsDrawerHeight={logsDrawerHeight}
+                setLogsDrawerHeight={setLogsDrawerHeight}
+                themeSetter={themeSetter}
+                setConnection={setConnection}
+              />
+            </ExperimentInfoProvider>
+          </AnalyticsProvider>
         </AuthProvider>
       </CssVarsProvider>
     </NotificationProvider>
