@@ -223,10 +223,21 @@ app = fastapi.FastAPI(
     openapi_tags=tags_metadata,
 )
 
+# CORS configuration
+# When using cookies, allow_credentials must be True and allow_origins cannot be ["*"]
+# Use CORS_ORIGINS env var to specify allowed origins (comma-separated), or default to "*" without credentials
+cors_origins_env = os.getenv("CORS_ORIGINS", "*")
+if cors_origins_env == "*":
+    cors_origins = ["*"]
+    cors_credentials = False
+else:
+    cors_origins = [origin.strip() for origin in cors_origins_env.split(",")]
+    cors_credentials = True
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=cors_origins,
+    allow_credentials=cors_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
