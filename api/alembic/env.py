@@ -35,7 +35,15 @@ def include_object(object, name, type_, reflected, compare_to):
 
 # Remove the sqlite+aiosqlite:// prefix and use sqlite:// for Alembic
 # Alembic needs a synchronous connection URL (uses sqlite3, not aiosqlite)
-sync_url = DATABASE_URL.replace("sqlite+aiosqlite:///", "sqlite:///")
+# For PostgreSQL, replace postgresql+asyncpg:// with postgresql://
+if DATABASE_URL.startswith("sqlite+aiosqlite:///"):
+    sync_url = DATABASE_URL.replace("sqlite+aiosqlite:///", "sqlite:///")
+elif DATABASE_URL.startswith("postgresql+asyncpg://"):
+    sync_url = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+else:
+    # Fallback: use as-is if format is unexpected
+    sync_url = DATABASE_URL
+
 config.set_main_option("sqlalchemy.url", sync_url)
 
 
