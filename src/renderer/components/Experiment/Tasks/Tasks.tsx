@@ -31,6 +31,7 @@ import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
+import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -977,15 +978,16 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }}
     >
       {!isInteractivePage && (
-        <NewTaskModal
-          open={modalOpen}
-          onClose={handleClose}
-          experimentId={experimentInfo?.id}
-          onSubmit={handleSubmit}
-          isSubmitting={isSubmitting}
-          providers={providers}
-          isProvidersLoading={providersIsLoading}
-        />
+        // <NewTaskModal
+        //   open={modalOpen}
+        //   onClose={handleClose}
+        //   experimentId={experimentInfo?.id}
+        //   onSubmit={handleSubmit}
+        //   isSubmitting={isSubmitting}
+        //   providers={providers}
+        //   isProvidersLoading={providersIsLoading}
+        // />
+        <NewTaskModal2 open={modalOpen} onClose={handleClose} />
       )}
       {isInteractivePage && (
         <NewInteractiveTaskModal
