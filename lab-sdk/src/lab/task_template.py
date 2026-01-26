@@ -1,9 +1,13 @@
 from datetime import datetime
 from werkzeug.utils import secure_filename
+import asyncio
 
 from .dirs import get_task_dir
 from .labresource import BaseLabResource
 from . import storage
+
+## Maximum number of requests we will send to s3 at a time
+S3_CONCURRENCY_LIMIT = 15
 
 
 class TaskTemplate(BaseLabResource):
@@ -70,44 +74,63 @@ class TaskTemplate(BaseLabResource):
 
     @staticmethod
     async def list_all():
-        """List all tasks in the filesystem"""
-        results = []
+        """List all tasks in the filesystem (optimized for S3)"""
         task_dir = await get_task_dir()
+
         if not await storage.isdir(task_dir):
             print(f"Task directory does not exist: {task_dir}")
-            return results
+            return []
+
         try:
             entries = await storage.ls(task_dir, detail=False)
         except Exception as e:
             print(f"Exception listing task directory: {e}")
-            entries = []
-        for full in entries:
-            if not await storage.isdir(full):
-                continue
-            # Attempt to read index.json (or latest snapshot)
-            try:
-                entry = full.rstrip("/").split("/")[-1]
-                task = TaskTemplate(entry)
+            return []
 
-                results.append(await task.get_metadata())
-            except Exception:
-                print(f"Exception getting metadata for task: {entry}")
-                continue
+        # Limit concurrency to 15 to avoid S3 throttling or connection pooling issues
+        sem = asyncio.Semaphore(S3_CONCURRENCY_LIMIT)
 
-        # Sort by created_at descending to match database behavior
+        async def process_entry(full_path):
+            async with sem:
+                try:
+                    # S3 isdir calls can be expensive
+                    # if this came back in entries we assume it exists, therefore
+                    # let's stop checking isdir
+                    # if not await storage.isdir(full_path):
+                    #     return None
+
+                    entry_name = full_path.rstrip("/").split("/")[-1]
+                    task = TaskTemplate(entry_name)
+
+                    # This likely triggers the actual S3 GetObject call
+                    return await task.get_metadata()
+                except Exception as e:
+                    print(f"Exception getting metadata for {full_path}: {e}")
+                    return None
+
+        # Create coroutines for all entries
+        coros = [process_entry(full) for full in entries]
+
+        # Run concurrently and wait for all to finish
+        combined_results = await asyncio.gather(*coros)
+
+        # Filter out None values from failed attempts or non-directories
+        results = [r for r in combined_results if r is not None]
+
+        # Sort by created_at descending
         def sort_key(x):
             created_at = x.get("created_at")
             if created_at is None:
-                # Put items without created_at at the end (will sort last when reverse=True)
-                return ""
-            # Handle datetime objects
+                return 0  # Use 0 for numeric comparison compatibility
             if isinstance(created_at, datetime):
                 return created_at.timestamp()
-            # Handle numeric timestamps
             if isinstance(created_at, (int, float)):
                 return created_at
-            # Handle string dates (ISO format strings sort correctly)
-            return str(created_at)
+            try:
+                # Fallback for ISO strings
+                return datetime.fromisoformat(str(created_at)).timestamp()
+            except ValueError:
+                return str(created_at)
 
         results.sort(key=sort_key, reverse=True)
         return results
