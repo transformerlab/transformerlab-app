@@ -82,7 +82,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
 
   return (
     <Modal open={open} onClose={() => onClose()}>
-      <ModalDialog sx={{ minWidth: '80%' }}>
+      <ModalDialog sx={{ minWidth: '80%', height: '80vh' }}>
         <ModalClose />
 
         {noCheckpoints ? (
