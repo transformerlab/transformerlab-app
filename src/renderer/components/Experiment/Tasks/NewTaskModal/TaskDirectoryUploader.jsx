@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { FolderOpenIcon } from 'lucide-react';
 import { Box, Typography, List, ListItem, Alert } from '@mui/joy';
@@ -6,18 +6,37 @@ import { Box, Typography, List, ListItem, Alert } from '@mui/joy';
 const TaskDirectoryUploader = ({ onUpload }) => {
   const [fileList, setFileList] = useState([]);
   const [error, setError] = useState(null);
+  const inputRef = useRef(null);
 
   /**
    * Helper: Recursively parse entries (for Drag-and-Drop)
    * This mimics the browser's native file system behavior
    */
   const getFilesFromEntry = async (entry, path = '') => {
+    console.log(
+      '[getFilesFromEntry] Processing entry:',
+      entry.name,
+      'isFile:',
+      entry.isFile,
+      'isDirectory:',
+      entry.isDirectory,
+      'path:',
+      path,
+    );
+
     if (entry.isFile) {
       return new Promise((resolve) => {
         entry.file((file) => {
+          const relativePath = path + file.name;
+          console.log(
+            '[getFilesFromEntry] File found:',
+            file.name,
+            'relativePath:',
+            relativePath,
+          );
           // Manually add the relative path property to the file object
           Object.defineProperty(file, 'webkitRelativePath', {
-            value: path + file.name,
+            value: relativePath,
             writable: true,
           });
           resolve([file]);
@@ -27,6 +46,12 @@ const TaskDirectoryUploader = ({ onUpload }) => {
       const dirReader = entry.createReader();
       return new Promise((resolve) => {
         dirReader.readEntries(async (entries) => {
+          console.log(
+            '[getFilesFromEntry] Directory entries:',
+            entries.length,
+            'in',
+            entry.name,
+          );
           const promises = entries.map((e) =>
             getFilesFromEntry(e, `${path}${entry.name}/`),
           );
@@ -40,37 +65,68 @@ const TaskDirectoryUploader = ({ onUpload }) => {
 
   const onDrop = useCallback(
     async (acceptedFiles, fileRejections, event) => {
+      console.log('[onDrop] Called with:', {
+        acceptedFilesCount: acceptedFiles.length,
+        fileRejectionsCount: fileRejections.length,
+        eventType: event?.type,
+        hasDataTransfer: !!event?.dataTransfer,
+      });
+
       setError(null);
       let allFiles = [];
 
       // DETECT SOURCE: Drag (DataTransfer) vs Click (Input)
-      const isDragEvent = event.dataTransfer && event.dataTransfer.items;
+      const isDragEvent = event?.dataTransfer && event.dataTransfer.items;
+      console.log('[onDrop] isDragEvent:', isDragEvent);
 
-      if (isDragEvent) {
-        // 1. Handle Drag & Drop (Complex Recursive Parsing)
-        const items = event.dataTransfer.items;
-        for (let i = 0; i < items.length; i++) {
-          const item = items[i];
-          const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
-          if (entry) {
-            const entryFiles = await getFilesFromEntry(entry);
-            allFiles = [...allFiles, ...entryFiles];
-          }
-        }
-      } else {
-        // 2. Handle Click (Standard Input)
-        // acceptedFiles already has flat list with webkitRelativePath populated by browser
-        allFiles = acceptedFiles;
-      }
+      // Use acceptedFiles directly - react-dropzone already extracts files from both
+      // drag events and click events, with webkitRelativePath populated
+      console.log('[onDrop] Using acceptedFiles:', acceptedFiles.length);
+      acceptedFiles.forEach((f, i) => {
+        console.log(
+          '[onDrop] File',
+          i,
+          ':',
+          f.name,
+          'webkitRelativePath:',
+          f.webkitRelativePath,
+        );
+      });
+      allFiles = acceptedFiles;
 
-      // 3. Validation: Check for task.yaml
-      const hasTaskYaml = allFiles.some((file) =>
-        file.webkitRelativePath.endsWith('task.yaml'),
-      );
+      console.log('[onDrop] Total allFiles:', allFiles.length);
+      allFiles.forEach((f, i) => {
+        console.log(
+          '[onDrop] allFiles[' + i + ']:',
+          f.name,
+          'path:',
+          f.webkitRelativePath,
+        );
+      });
 
-      if (!hasTaskYaml) {
+      // 3. Validation: Check for task.yaml or task.json
+      const hasTaskConfig = allFiles.some((file) => {
+        const path = file.webkitRelativePath || file.name;
+        const matches =
+          path.endsWith('task.yaml') ||
+          path.endsWith('task.json') ||
+          file.name === 'task.yaml' ||
+          file.name === 'task.json';
+        console.log(
+          '[onDrop] Checking file:',
+          file.name,
+          'path:',
+          path,
+          'matches:',
+          matches,
+        );
+        return matches;
+      });
+      console.log('[onDrop] hasTaskConfig:', hasTaskConfig);
+
+      if (!hasTaskConfig) {
         setError(
-          "❌ Invalid Task: The directory must contain a 'task.yaml' file.",
+          "❌ Invalid Task: The directory must contain a 'task.yaml' or 'task.json' file.",
         );
         setFileList([]);
         return;
@@ -85,26 +141,63 @@ const TaskDirectoryUploader = ({ onUpload }) => {
     [onUpload],
   );
 
-  // Configure Dropzone
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  // Custom function to get files from drag event with directory structure
+  const getFilesFromEvent = async (event) => {
+    const files = [];
+
+    if (event.dataTransfer) {
+      const items = event.dataTransfer.items;
+      console.log('[getFilesFromEvent] Processing', items.length, 'items');
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+        if (entry) {
+          const entryFiles = await getFilesFromEntry(entry);
+          files.push(...entryFiles);
+        }
+      }
+    } else if (event.target?.files) {
+      // Handle file input change event
+      files.push(...Array.from(event.target.files));
+    }
+
+    console.log('[getFilesFromEvent] Returning', files.length, 'files');
+    return files;
+  };
+
+  // Configure Dropzone - disable click since we handle it manually for directory selection
+  const { getRootProps, isDragActive } = useDropzone({
     onDrop,
-    // Disable click on the container so we can control the input manually
-    // (Optional, but often cleaner if you want a specific button to trigger the dialog)
-    noClick: false,
+    noClick: true,
     noKeyboard: true,
     multiple: true,
+    getFilesFromEvent,
   });
 
   const rootProps = getRootProps();
-  const inputProps = getInputProps();
+
+  const handleClick = () => {
+    if (inputRef.current) {
+      inputRef.current.click();
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      // Simulate the onDrop callback for click-selected files
+      onDrop(files, [], e);
+    }
+  };
 
   return (
     <Box sx={{ mx: 'auto' }}>
       <Box
-        onClick={rootProps.onClick}
+        onClick={handleClick}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
-            rootProps.onClick(e);
+            handleClick();
           }
         }}
         onDragOver={rootProps.onDragOver}
@@ -122,51 +215,64 @@ const TaskDirectoryUploader = ({ onUpload }) => {
           cursor: 'pointer',
           transition:
             'border-color 0.2s ease-in-out, background-color 0.2s ease-in-out',
-          bgcolor: isDragActive ? 'primary.50' : 'background.surface',
+          bgcolor: isDragActive ? 'danger.softHoverBg' : 'danger.softBg',
           '&:hover': {
             borderColor: 'primary.400',
           },
         }}
       >
         <input
-          type={inputProps.type}
-          accept={inputProps.accept}
-          multiple={inputProps.multiple}
-          onChange={inputProps.onChange}
-          onClick={inputProps.onClick}
-          autoComplete={inputProps.autoComplete}
-          tabIndex={inputProps.tabIndex}
-          style={inputProps.style}
+          ref={inputRef}
+          type="file"
+          multiple
+          onChange={handleInputChange}
+          style={{ display: 'none' }}
           webkitdirectory="true"
           directory=""
         />
 
-        <Box sx={{ mb: 1 }}>
+        <Box sx={{ mb: 1, pointerEvents: 'none' }}>
           <FolderOpenIcon size="60px" strokeWidth={1} />
         </Box>
-        <Typography level="title-lg" sx={{ mb: 1 }}>
+        <Typography level="title-lg" sx={{ mb: 1, pointerEvents: 'none' }}>
           Upload Task Directory
         </Typography>
 
         {isDragActive ? (
-          <Typography level="body-md" color="neutral">
+          <Typography
+            level="body-md"
+            color="neutral"
+            sx={{ pointerEvents: 'none' }}
+          >
             Drop the folder here...
           </Typography>
         ) : (
-          <Typography level="body-md" color="neutral">
+          <Typography
+            level="body-md"
+            color="neutral"
+            sx={{ pointerEvents: 'none' }}
+          >
             Drag and drop your task folder here, or{' '}
             <Typography
               component="span"
               color="primary"
-              sx={{ textDecoration: 'underline', fontWeight: 'bold' }}
+              sx={{
+                textDecoration: 'underline',
+                fontWeight: 'bold',
+                pointerEvents: 'none',
+              }}
             >
               click to browse
             </Typography>
           </Typography>
         )}
 
-        <Typography level="body-sm" color="neutral" sx={{ mt: 1 }}>
-          Must contain task.yaml
+        <Typography
+          level="body-sm"
+          color="neutral"
+          sx={{ mt: 1, pointerEvents: 'none' }}
+        >
+          Must contain task.yaml or task.json
         </Typography>
       </Box>
 
