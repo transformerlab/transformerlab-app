@@ -18,6 +18,7 @@ import {
   Stack,
 } from '@mui/joy';
 import { PlayIcon } from 'lucide-react';
+import TaskDirectoryUploader from './TaskDirectoryUploader';
 
 type NewTaskModal2Props = {
   open: boolean;
@@ -71,22 +72,7 @@ export default function NewTaskModal2({
             </FormControl>
 
             {selectedOption === 'upload' && (
-              <Box
-                sx={{
-                  border: '2px dashed',
-                  borderColor: 'neutral.400',
-                  borderRadius: 'md',
-                  p: 4,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minHeight: 150,
-                }}
-              >
-                <Typography level="body-md" color="neutral">
-                  Drag and Drop a Folder Here
-                </Typography>
-              </Box>
+              <TaskDirectoryUploader onUpload={undefined} />
             )}
           </Stack>
         </DialogContent>
