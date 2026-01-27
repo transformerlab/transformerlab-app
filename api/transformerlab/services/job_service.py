@@ -951,16 +951,7 @@ async def format_artifact(file_path: str, storage) -> Optional[Dict[str, any]]:
     """
     try:
         filename = file_path.split("/")[-1] if "/" in file_path else file_path
-        metadata = await get_file_metadata(file_path, storage)
-
         artifact = {"filename": filename, "full_path": file_path}
-
-        if metadata["mtime"] is not None:
-            artifact["date"] = datetime.fromtimestamp(metadata["mtime"]).isoformat()
-
-        if metadata["size"] is not None:
-            artifact["size"] = metadata["size"]
-
         return artifact
     except Exception as e:
         print(f"Error formatting artifact {file_path}: {e}")
@@ -998,7 +989,7 @@ async def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict
     Get artifacts by listing files in the artifacts directory.
     Returns list of artifacts (empty if directory can't be read).
     """
-    if not artifacts_dir or not await storage.exists(artifacts_dir):
+    if not artifacts_dir:  ## /*or not await storage.exists(artifacts_dir):
         return []
 
     artifacts = []
@@ -1016,10 +1007,9 @@ async def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict
             else:
                 file_path = str(item)
 
-            if await storage.isfile(file_path):
+            if item:
                 artifact = await format_artifact(file_path, storage)
-                if artifact:
-                    artifacts.append(artifact)
+                artifacts.append(artifact)
     except Exception as e:
         print(f"Error reading artifacts directory {artifacts_dir}: {e}")
 
