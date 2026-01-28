@@ -1,10 +1,9 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useState, useEffect } from 'react';
 import Sheet from '@mui/joy/Sheet';
 import { Tab, TabList, TabPanel, Tabs } from '@mui/joy';
 import { StoreIcon } from 'lucide-react';
 
-import { apiHealthz } from 'renderer/lib/transformerlab-api-sdk';
+import { useServerMode } from 'renderer/lib/ServerModeContext';
 import DataStore from './DataStore';
 import LocalDatasets from './LocalDatasets';
 import GeneratedDatasets from './GeneratedDatasets';

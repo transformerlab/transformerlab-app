@@ -421,9 +421,8 @@ export default function ViewArtifactsModal({
     <Modal open={open} onClose={onClose}>
       <ModalDialog
         sx={{
-          maxWidth: selectedArtifact ? 1200 : 800,
           width: '90vw',
-          maxHeight: '90vh',
+          height: '80vh',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',

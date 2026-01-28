@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import Sheet from '@mui/joy/Sheet';
 import { StoreIcon } from 'lucide-react';
 import { Tab, TabList, TabPanel, Tabs } from '@mui/joy';
@@ -7,7 +7,7 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNavigate } from 'react-router-dom';
 import LocalModels from './LocalModels';
 import ModelGroups from './ModelGroups';
-import { apiHealthz } from 'renderer/lib/transformerlab-api-sdk';
+import { useServerMode } from 'renderer/lib/ServerModeContext';
 
 export default function ModelZoo({ tab = 'store' }) {
   const navigate = useNavigate();

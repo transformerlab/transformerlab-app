@@ -17,6 +17,7 @@ import TinyMLXLogo from './Shared/TinyMLXLogo';
 import TinyNVIDIALogo from './Shared/TinyNVIDIALogo';
 import TinyAMDLogo from './Shared/TinyAMDLogo';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { useServerMode } from 'renderer/lib/ServerModeContext';
 import ConnectionLostModal from './Shared/ConnectionLostModal';
 
 function StatsBar({ connection, setConnection }) {

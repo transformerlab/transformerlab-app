@@ -25,6 +25,7 @@ import {
 } from './lib/ExperimentInfoContext';
 import * as chatAPI from './lib/transformerlab-api-sdk';
 import { AuthProvider, useAuth } from './lib/authContext';
+import { ServerModeProvider, useServerMode } from './lib/ServerModeContext';
 import LoginPage from './components/Login/LoginPage';
 import { AnalyticsProvider } from './components/Shared/analytics/AnalyticsContext';
 

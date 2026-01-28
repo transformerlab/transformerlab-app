@@ -37,11 +37,11 @@ import {
   useModelStatus,
   usePluginStatus,
   getAPIFullPath,
-  apiHealthz,
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
+import { useServerMode } from 'renderer/lib/ServerModeContext';
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 
 import SubNavItem from './SubNavItem';
@@ -414,6 +414,7 @@ export default function Sidebar({
   const navigate = useNavigate();
 
   const { team } = useAuth();
+  const { isLocalMode } = useServerMode();
 
   // Fetch compute_provider to determine if Tasks tab should be visible
   const { data: providerListData } = useAPI('compute_provider', ['list'], {
@@ -426,22 +427,6 @@ export default function Sidebar({
   );
 
   const hasProviders = providers.length > 0;
-
-  // Fetch healthz to get the mode
-  useEffect(() => {
-    const fetchHealthz = async () => {
-      try {
-        const data = await apiHealthz();
-        if (data?.mode) {
-          setMode(data.mode);
-        }
-      } catch (error) {
-        console.error('Failed to fetch healthz data:', error);
-      }
-    };
-
-    fetchHealthz();
-  }, []);
 
   return (
     <Sheet
