@@ -288,18 +288,16 @@ function ExperimentMenuItems({
 
 interface GlobalMenuItemsProps {
   outdatedPluginsCount: number | undefined;
-  mode: string;
   hasProviders: boolean;
   experimentInfo: any;
 }
 
 function GlobalMenuItems({
   outdatedPluginsCount,
-  mode,
   hasProviders,
   experimentInfo,
 }: GlobalMenuItemsProps) {
-  const isLocalMode = mode === 'local';
+  const isLocalMode = window?.platform?.multiuser !== true;
   return (
     <List
       sx={{
@@ -412,10 +410,8 @@ export default function Sidebar({
   const { experimentInfo } = useExperimentInfo();
   const { models } = useModelStatus();
   const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
-  const [mode, setMode] = useState<string>('local');
 
   const navigate = useNavigate();
-  const isDevExperiment = experimentInfo?.name === 'dev';
 
   const { team } = useAuth();
 
@@ -480,11 +476,10 @@ export default function Sidebar({
       <ExperimentMenuItems experimentInfo={experimentInfo} models={models} />
       <GlobalMenuItems
         outdatedPluginsCount={outdatedPlugins?.length}
-        mode={mode}
         hasProviders={hasProviders}
         experimentInfo={experimentInfo}
       />
-      {process.env.MULTIUSER === 'true' && <LoginChip />}
+      {window?.platform?.multiuser === true && <LoginChip />}
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
     </Sheet>
   );
