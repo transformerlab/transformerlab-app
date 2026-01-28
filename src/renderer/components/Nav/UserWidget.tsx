@@ -34,7 +34,6 @@ import { useNavigate } from 'react-router-dom';
 
 type Props = {};
 
-const WIDGET_WIDTH = 160;
 const WIDGET_HEIGHT = 44;
 
 export default function LoginChip({}: Props) {
@@ -98,7 +97,6 @@ export default function LoginChip({}: Props) {
         gap: 1,
         display: 'inline-flex',
         alignItems: 'center',
-        width: WIDGET_WIDTH,
         height: WIDGET_HEIGHT,
       }}
       aria-label={`Account: ${email}${teamName ? `, team ${teamName}` : ''}`}
