@@ -289,6 +289,12 @@ async def get_provider_job_logs(
     if provider_job_id is None:
         try:
             provider_jobs = provider_instance.list_jobs(cluster_name)
+        except NotImplementedError:
+            # Provider doesn't support listing jobs (e.g., Runpod)
+            # For Runpod, we can't determine a job_id, so we'll use the cluster_name as a fallback
+            # or return a message that logs aren't available via job_id
+            provider_job_id = cluster_name  # Use cluster_name as fallback identifier
+            provider_job_candidates = []
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"Failed to enumerate provider jobs: {exc}") from exc
 
@@ -399,6 +405,10 @@ async def get_tunnel_info_for_job(
     if provider_job_id is None:
         try:
             provider_jobs = provider_instance.list_jobs(cluster_name)
+        except NotImplementedError:
+            # Provider doesn't support listing jobs (e.g., Runpod)
+            # For Runpod, we can't determine a job_id, so we'll use the cluster_name as a fallback
+            provider_job_id = cluster_name  # Use cluster_name as fallback identifier
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"Failed to enumerate provider jobs: {exc}") from exc
 
@@ -1089,9 +1099,6 @@ async def get_artifacts(job_id: str, request: Request):
         return {"artifacts": []}
 
     """Get list of artifacts for a job"""
-    job = await job_service.job_get(job_id)
-    if job is None:
-        return {"artifacts": []}
 
     # Use get_job_artifacts_dir to get the artifacts directory directly
     try:

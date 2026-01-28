@@ -27,6 +27,7 @@ import * as chatAPI from './lib/transformerlab-api-sdk';
 import { AuthProvider, useAuth } from './lib/authContext';
 import { ServerModeProvider, useServerMode } from './lib/ServerModeContext';
 import LoginPage from './components/Login/LoginPage';
+import { AnalyticsProvider } from './components/Shared/analytics/AnalyticsContext';
 
 type AppContentProps = {
   connection: string;
@@ -251,7 +252,7 @@ export default function App() {
       <CssVarsProvider disableTransitionOnChange theme={theme}>
         <CssBaseline />
         <AuthProvider connection={connection}>
-          <ServerModeProvider>
+          <AnalyticsProvider>
             <ExperimentInfoProvider connection={connection}>
               <AppContent
                 connection={connection}
@@ -263,7 +264,7 @@ export default function App() {
                 setConnection={setConnection}
               />
             </ExperimentInfoProvider>
-          </ServerModeProvider>
+          </AnalyticsProvider>
         </AuthProvider>
       </CssVarsProvider>
     </NotificationProvider>

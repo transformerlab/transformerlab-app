@@ -32,6 +32,7 @@ from transformerlab.shared.models.models import ProviderType
 from transformerlab.compute_providers.models import (
     ClusterConfig,
     ClusterStatus,
+    ClusterState,
     ResourceInfo,
     JobConfig,
     JobInfo,
@@ -169,10 +170,10 @@ async def create_provider(
     user = owner_info["user"]
 
     # Validate provider type
-    if provider_data.type not in [ProviderType.SLURM, ProviderType.SKYPILOT]:
+    if provider_data.type not in [ProviderType.SLURM, ProviderType.SKYPILOT, ProviderType.RUNPOD]:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid provider type. Must be one of: {ProviderType.SLURM.value}, {ProviderType.SKYPILOT.value}",
+            detail=f"Invalid provider type. Must be one of: {ProviderType.SLURM.value}, {ProviderType.SKYPILOT.value}, {ProviderType.RUNPOD.value}",
         )
 
     # Check if provider name already exists for this team
@@ -999,12 +1000,19 @@ async def launch_template_on_provider(
         # This runs concurrently but still within the request context
         import asyncio
 
+        # Merge parameters (defaults) with config for sweep
+        base_params_for_sweep = {}
+        if request.parameters:
+            base_params_for_sweep = request.parameters.copy()
+        if request.config:
+            base_params_for_sweep.update(request.config)
+
         asyncio.create_task(
             _launch_sweep_jobs(
                 provider_id=provider_id,
                 request=request,
                 user_and_team=user_and_team,
-                base_parameters=request.parameters or {},
+                base_parameters=base_params_for_sweep,
                 sweep_config=request.sweep_config,
                 sweep_metric=request.sweep_metric or "eval/loss",
                 lower_is_better=request.lower_is_better if request.lower_is_better is not None else True,
@@ -1174,11 +1182,19 @@ async def launch_template_on_provider(
     )
 
     # Replace secrets in parameters if present
+    # Merge parameters (defaults) with config (user's custom values for this run)
+    merged_parameters = {}
+    if request.parameters:
+        merged_parameters = request.parameters.copy()
+    if request.config:
+        merged_parameters.update(request.config)
+
+    # Replace secrets in merged parameters
     parameters_with_secrets = None
-    if request.parameters and team_secrets:
-        parameters_with_secrets = replace_secrets_in_dict(request.parameters, team_secrets)
+    if merged_parameters and team_secrets:
+        parameters_with_secrets = replace_secrets_in_dict(merged_parameters, team_secrets)
     else:
-        parameters_with_secrets = request.parameters
+        parameters_with_secrets = merged_parameters if merged_parameters else None
 
     job_data = {
         "task_name": request.task_name,
@@ -1355,15 +1371,74 @@ async def check_provider_job_status(
             "message": "Failed to instantiate provider",
         }
 
-    # Check jobs on the cluster
+    # Runpod doesn't have a job queue - check pod status instead
+    if provider.type == ProviderType.RUNPOD.value:
+        try:
+            cluster_status = provider_instance.get_cluster_status(cluster_name)
+            # For Runpod, the pod itself is the "job"
+            # Check if pod is in a terminal state
+            terminal_pod_states = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
+            pod_finished = cluster_status.state in terminal_pod_states
+
+            if pod_finished:
+                # Pod has finished, mark job as complete
+                try:
+                    end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+                    job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
+                    await job_service.job_update_status(
+                        job_id, "COMPLETE", experiment_id=experiment_id, session=session
+                    )
+                    await session.commit()
+
+                    return {
+                        "status": "success",
+                        "job_id": job_id,
+                        "updated": True,
+                        "new_status": "COMPLETE",
+                        "message": f"Pod finished (status: {cluster_status.state.value})",
+                    }
+                except Exception as exc:
+                    print(f"Failed to update job status: {exc}")
+                    return {
+                        "status": "error",
+                        "job_id": job_id,
+                        "message": "Failed to update job status",
+                    }
+            else:
+                # Pod is still running
+                return {
+                    "status": "success",
+                    "job_id": job_id,
+                    "updated": False,
+                    "current_status": "LAUNCHING",
+                    "message": f"Pod is still running (status: {cluster_status.state.value})",
+                }
+        except Exception as exc:
+            print(f"Failed to check Runpod pod status: {exc}")
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": "Failed to check pod status",
+            }
+
+    # For other providers (SkyPilot, SLURM), check jobs on the cluster
     try:
         provider_jobs = provider_instance.list_jobs(cluster_name)
+    except NotImplementedError:
+        # Provider doesn't support list_jobs
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "updated": False,
+            "current_status": job_status,
+            "message": "Provider does not support job status checking",
+        }
     except Exception as exc:
         print(f"Failed to list jobs for cluster {cluster_name}: {exc}")
         return {
             "status": "error",
             "job_id": job_id,
-            "message": "Failed to list jobs for cluster {cluster_name}",
+            "message": f"Failed to list jobs for cluster {cluster_name}: {exc}",
         }
 
     terminal_states = {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
@@ -2115,6 +2190,8 @@ async def submit_job(
             "cluster_name": cluster_name,
             "result": result,
         }
+    except NotImplementedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         print(f"Failed to submit job: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to submit job")
@@ -2150,6 +2227,9 @@ async def list_jobs(
             jobs = [job for job in jobs if job.state == state]
 
         return jobs
+    except NotImplementedError:
+        # Provider doesn't support listing jobs (e.g., Runpod)
+        return []
     except Exception as e:
         print(f"Failed to list jobs: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to list jobs")
@@ -2178,7 +2258,14 @@ async def get_job_info(
         provider_instance = get_provider_instance(provider)
 
         # List jobs and find the specific one
-        jobs = provider_instance.list_jobs(cluster_name)
+        try:
+            jobs = provider_instance.list_jobs(cluster_name)
+        except NotImplementedError:
+            # Provider doesn't support listing jobs (e.g., Runpod)
+            raise HTTPException(
+                status_code=400,
+                detail="This provider does not support job listing. Runpod uses pod-based execution, not a job queue.",
+            )
 
         # Convert job_id to appropriate type for comparison
         job_id_str = str(job_id)
@@ -2230,7 +2317,11 @@ async def get_job_logs(
         provider_instance = get_provider_instance(provider)
 
         # Get job logs
-        logs = provider_instance.get_job_logs(cluster_name, job_id, tail_lines=tail_lines, follow=follow)
+        try:
+            logs = provider_instance.get_job_logs(cluster_name, job_id, tail_lines=tail_lines, follow=follow)
+        except NotImplementedError:
+            # Provider doesn't support job logs (though Runpod returns a string message, not NotImplementedError)
+            logs = "Logs not available for this provider type."
 
         if follow:
             # Return streaming response
@@ -2322,6 +2413,8 @@ async def cancel_job(
             "cluster_name": cluster_name,
             "result": result,
         }
+    except NotImplementedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         print(f"Failed to cancel job: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to cancel job")

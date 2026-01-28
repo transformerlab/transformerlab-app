@@ -1,6 +1,6 @@
 {
   "name": "transformerlab",
-  "version": "0.27.6",
+  "version": "0.28.2",
   "description": "A tool to play with and train LLMs",
   "license": "AGPL-3.0",
   "author": {

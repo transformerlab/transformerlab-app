@@ -9,12 +9,14 @@ import {
   MenuButton,
   Menu,
   MenuItem,
+  Skeleton,
 } from '@mui/joy';
 import { PlayIcon, Trash2Icon, MoreVerticalIcon } from 'lucide-react';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 
 type TaskRow = {
   id: string;
+  title?: string;
   name: string;
   description?: string;
   type?: string;
@@ -31,7 +33,15 @@ type TaskTemplateListProps = {
   onQueueTask: (task: TaskRow) => void;
   onEditTask: (task: TaskRow) => void;
   onExportTask?: (taskId: string) => void;
+  loading: boolean;
 };
+
+function getTitle(task: TaskRow) {
+  if (task.title && task.title.trim() !== '') {
+    return task.title;
+  }
+  return task.name;
+}
 
 const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   tasksList,
@@ -39,6 +49,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   onQueueTask,
   onEditTask,
   onExportTask,
+  loading,
 }) => {
   const getResourcesInfo = (task: TaskRow) => {
     if (task.type !== 'REMOTE') {
@@ -132,6 +143,48 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     return providerName || 'Not specified';
   };
 
+  if (loading) {
+    return (
+      <Table stickyHeader>
+        <thead>
+          <tr>
+            <th style={{ width: '150px' }}>Name</th>
+            <th>Command</th>
+            <th>Resources</th>
+            <th>Provider</th>
+            <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[1, 2, 3, 4].map((i) => (
+            <tr key={i}>
+              <td>
+                <Skeleton variant="text" level="title-sm" />
+              </td>
+              <td>
+                <Skeleton variant="text" level="body-sm" />
+              </td>
+              <td>
+                <Skeleton variant="text" level="body-sm" />
+              </td>
+              <td>
+                <Skeleton variant="text" level="body-sm" />
+              </td>
+              <td style={{ textAlign: 'right' }}>
+                <Skeleton
+                  variant="rectangular"
+                  width={200}
+                  height={32}
+                  sx={{ ml: 'auto' }}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    );
+  }
+
   return (
     <Table stickyHeader>
       <thead>
@@ -148,7 +201,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
           <tr key={row.id}>
             <td>
               <Typography level="title-sm" sx={{ overflow: 'clip' }}>
-                {row.name}
+                {getTitle(row)}
               </Typography>
             </td>
             <td style={{ overflow: 'clip' }}>

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import Sheet from '@mui/joy/Sheet';
 
-import { Button, LinearProgress, Stack, Typography } from '@mui/joy';
+import { Button, LinearProgress, Skeleton, Stack, Typography } from '@mui/joy';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -13,9 +13,10 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import { analytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
-import NewTaskModal from './NewTaskModal';
+import NewTaskModal from './NewTaskModal/NewTaskModal';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveVSCodeModal from './InteractiveVSCodeModal';
 import InteractiveJupyterModal from './InteractiveJupyterModal';
@@ -24,6 +25,7 @@ import InteractiveSshModal from './InteractiveSshModal';
 import InteractiveOllamaModal from './InteractiveOllamaModal';
 import EditTaskModal from './EditTaskModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
+import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
 import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
@@ -41,6 +43,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskBeingEdited, setTaskBeingEdited] = useState<any | null>(null);
+  const [queueModalOpen, setQueueModalOpen] = useState(false);
+  const [taskBeingQueued, setTaskBeingQueued] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [currentTensorboardForModal, setCurrentTensorboardForModal] =
@@ -599,6 +603,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       );
 
       if (response.ok) {
+        analytics.track('Task Queued', {
+          task_type: 'REMOTE',
+        });
         setModalOpen(false);
         await templatesMutate();
         addNotification({
@@ -810,10 +817,52 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       return;
     }
 
-    if (!cfg.command) {
+    if (!cfg.command && !task.command) {
       addNotification({
         type: 'warning',
         message: 'Task is missing a command to run.',
+      });
+      return;
+    }
+
+    // Open the queue modal to allow parameter customization
+    setTaskBeingQueued(task);
+    setQueueModalOpen(true);
+  };
+
+  const handleQueueSubmit = async (config: Record<string, any>) => {
+    if (!experimentInfo?.id || !taskBeingQueued) return;
+
+    // Close modal and start submission
+    setQueueModalOpen(false);
+    setIsSubmitting(true);
+
+    const task = taskBeingQueued;
+
+    // For templates, all fields are stored directly (not nested in config)
+    // For backward compatibility, check if it's an old task format with nested config
+    const cfg =
+      task.config !== undefined
+        ? typeof task.config === 'string'
+          ? JSON.parse(task.config)
+          : task.config
+        : task; // If no config field, assume it's a template with flat structure
+
+    const providerId =
+      cfg.provider_id ||
+      task.provider_id ||
+      (providers.length ? providers[0]?.id : null);
+
+    const providerMeta = providers.find(
+      (provider) => provider.id === providerId,
+    );
+
+    if (!providerMeta) {
+      setIsSubmitting(false);
+      addNotification({
+        type: 'danger',
+        message:
+          'Selected provider is unavailable. Please create or update providers in team settings.',
       });
       return;
     }
@@ -825,6 +874,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
     try {
       // For templates, fields are stored directly, so use task directly or cfg
+      // Keep original parameters (the definitions/defaults) and send overrides separately
       const payload = {
         experiment_id: experimentInfo.id,
         task_name: task.name,
@@ -839,7 +889,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         num_nodes: cfg.num_nodes || task.num_nodes,
         setup: cfg.setup || task.setup,
         env_vars: cfg.env_vars || task.env_vars || {},
-        parameters: cfg.parameters || task.parameters || undefined,
+        parameters: cfg.parameters || task.parameters || undefined, // Keep original parameter definitions
+        config: Object.keys(config).length > 0 ? config : undefined, // Send user's custom values as config
         file_mounts: cfg.file_mounts || task.file_mounts,
         provider_name: providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
@@ -909,6 +960,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         type: 'danger',
         message: 'Failed to queue provider-backed task.',
       });
+    } finally {
+      setIsSubmitting(false);
+      setTaskBeingQueued(null);
     }
   };
 
@@ -1015,6 +1069,18 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           }}
         />
       )}
+      {taskBeingQueued && (
+        <QueueTaskModal
+          open={queueModalOpen}
+          onClose={() => {
+            setQueueModalOpen(false);
+            setTaskBeingQueued(null);
+          }}
+          task={taskBeingQueued}
+          onSubmit={handleQueueSubmit}
+          isSubmitting={isSubmitting}
+        />
+      )}
       <Stack
         direction="row"
         justifyContent="space-between"
@@ -1040,57 +1106,49 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           overflow: 'auto',
         }}
       >
-        {templatesIsLoading ? (
-          <LinearProgress />
-        ) : (
-          <TaskTemplateList
-            tasksList={tasks}
-            onDeleteTask={handleDeleteTask}
-            onQueueTask={handleQueue}
-            onEditTask={handleEditTask}
-            onExportTask={handleExportToTeamGallery}
-          />
-        )}
+        <TaskTemplateList
+          tasksList={tasks}
+          onDeleteTask={handleDeleteTask}
+          onQueueTask={handleQueue}
+          onEditTask={handleEditTask}
+          onExportTask={handleExportToTeamGallery}
+          loading={templatesIsLoading}
+        />
       </Sheet>
       <Typography level="title-md">Runs</Typography>
       <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
-        {jobsIsLoading ? (
-          <LinearProgress />
-        ) : (
-          <JobsList
-            jobs={jobsWithPlaceholders as any}
-            onDeleteJob={handleDeleteJob}
-            onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
-            onViewTensorboard={(jobId) =>
-              setCurrentTensorboardForModal(parseInt(jobId))
-            }
-            onViewCheckpoints={(jobId) =>
-              setViewCheckpointsFromJob(parseInt(jobId))
-            }
-            onViewArtifacts={(jobId) =>
-              setViewArtifactsFromJob(parseInt(jobId))
-            }
-            onViewEvalImages={(jobId) =>
-              setViewEvalImagesFromJob(parseInt(jobId))
-            }
-            onViewEvalResults={(jobId) =>
-              setViewEvalResultsFromJob(parseInt(jobId))
-            }
-            onViewGeneratedDataset={(jobId, datasetId) => {
-              setPreviewDatasetModal({ open: true, datasetId });
-            }}
-            onViewSweepOutput={(jobId) => {
-              setViewOutputFromSweepJob(true);
-              setViewOutputFromJob(parseInt(jobId));
-            }}
-            onViewSweepResults={(jobId) => {
-              setViewSweepResultsFromJob(parseInt(jobId));
-            }}
-            onViewInteractive={(jobId) =>
-              setInteractiveJobForModal(parseInt(jobId))
-            }
-          />
-        )}
+        <JobsList
+          jobs={jobsWithPlaceholders as any}
+          onDeleteJob={handleDeleteJob}
+          onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
+          onViewTensorboard={(jobId) =>
+            setCurrentTensorboardForModal(parseInt(jobId))
+          }
+          onViewCheckpoints={(jobId) =>
+            setViewCheckpointsFromJob(parseInt(jobId))
+          }
+          onViewArtifacts={(jobId) => setViewArtifactsFromJob(parseInt(jobId))}
+          onViewEvalImages={(jobId) =>
+            setViewEvalImagesFromJob(parseInt(jobId))
+          }
+          onViewEvalResults={(jobId) =>
+            setViewEvalResultsFromJob(parseInt(jobId))
+          }
+          onViewGeneratedDataset={(jobId, datasetId) => {
+            setPreviewDatasetModal({ open: true, datasetId });
+          }}
+          onViewSweepOutput={(jobId) => {
+            setViewOutputFromSweepJob(true);
+            setViewOutputFromJob(parseInt(jobId));
+          }}
+          onViewSweepResults={(jobId) => {
+            setViewSweepResultsFromJob(parseInt(jobId));
+          }}
+          onViewInteractive={(jobId) =>
+            setInteractiveJobForModal(parseInt(jobId))
+          }
+          loading={jobsIsLoading}
+        />
       </Sheet>
       <ViewSweepResultsModal
         jobId={viewSweepResultsFromJob}

@@ -41,6 +41,10 @@ const DEFAULT_CONFIGS = {
   "ssh_key_path": "<Path to private key for SSH if present>",
   "ssh_port": 22
 }`,
+  runpod: `{
+  "api_key": "<Your Runpod API key>",
+  "api_base_url": "https://rest.runpod.io/v1"
+}`,
 };
 
 export default function ProviderDetailsModal({
@@ -179,6 +183,7 @@ export default function ProviderDetailsModal({
             >
               <Option value="skypilot">Skypilot</Option>
               <Option value="slurm">SLURM</Option>
+              <Option value="runpod">Runpod</Option>
             </Select>
             {providerId && (
               <Typography
