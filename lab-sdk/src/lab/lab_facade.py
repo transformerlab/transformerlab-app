@@ -455,13 +455,14 @@ class Lab:
                 if "is_image" in config:
                     is_image = config["is_image"]
 
-            # Use the existing save_dataset method
+            # Use the existing save_dataset method with job_id parameter
             output_path = await self.async_save_dataset(
                 df=df,
                 dataset_id=dataset_id,
                 additional_metadata=additional_metadata if additional_metadata else None,
                 suffix=suffix,
                 is_image=is_image,
+                job_id=job_id,
             )
 
             # Track dataset_id in job_data
@@ -610,14 +611,14 @@ class Lab:
                 pipeline_tag = model_config.get("pipeline_tag") or pipeline_tag
                 parent_model = model_config.get("parent_model") or parent_model
 
-            # Determine base name with job_id prefix for uniqueness
+            # Determine base name
             if isinstance(name, str) and name.strip() != "":
-                base_name = f"{job_id}_{name}"
+                base_name = name.strip()
             else:
-                base_name = f"{job_id}_{posixpath.basename(src)}"
+                base_name = posixpath.basename(src)
 
-            # Save to main workspace models directory for Model Zoo visibility
-            models_dir = await dirs.get_models_dir()
+            # Save to job-specific models directory
+            models_dir = await dirs.get_job_models_dir(job_id)
             dest = storage.join(models_dir, base_name)
 
             # Create parent directories
@@ -670,7 +671,7 @@ class Lab:
                     model_filename=model_filename,
                     json_data=json_data,
                 )
-                await self._job.log_info(f"Model saved to Model Zoo as '{base_name}'")  # type: ignore[union-attr]
+                await self._job.log_info(f"Model saved to '{dest}'")  # type: ignore[union-attr]
             except Exception as e:
                 self.log(f"Warning: Model saved but metadata creation failed: {str(e)}")
 
@@ -765,6 +766,7 @@ class Lab:
         additional_metadata: Optional[Dict[str, Any]] = None,
         suffix: Optional[str] = None,
         is_image: bool = False,
+        job_id: Optional[str] = None,
     ) -> str:
         """
         Save a dataset under the workspace datasets directory (sync version).
@@ -772,7 +774,7 @@ class Lab:
         This is a sync wrapper around the async implementation.
         Use a_save_dataset() if you're already in an async context.
         """
-        return _run_async(self.async_save_dataset(df, dataset_id, additional_metadata, suffix, is_image))
+        return _run_async(self.async_save_dataset(df, dataset_id, additional_metadata, suffix, is_image, job_id))
 
     async def async_save_dataset(
         self,
@@ -781,6 +783,7 @@ class Lab:
         additional_metadata: Optional[Dict[str, Any]] = None,
         suffix: Optional[str] = None,
         is_image: bool = False,
+        job_id: Optional[str] = None,
     ) -> str:
         """
         Save a dataset under the workspace datasets directory and mark it as generated.
@@ -791,6 +794,7 @@ class Lab:
             additional_metadata: Optional dict to merge into dataset json_data.
             suffix: Optional suffix to append to the output filename stem.
             is_image: If True, save JSON Lines (for image metadata-style rows).
+            job_id: Optional job ID. If provided, saves to job-specific directory instead of global registry.
 
         Returns:
             The path to the saved dataset file on disk.
@@ -808,10 +812,16 @@ class Lab:
 
         # Prepare dataset directory
         dataset_id_safe = dataset_id.strip()
-        dataset_dir = await dirs.dataset_dir_by_id(dataset_id_safe)
-        # If exists, then raise an error
-        if await storage.exists(dataset_dir):
-            raise FileExistsError(f"Dataset with ID {dataset_id_safe} already exists")
+        
+        # Use job-specific directory if job_id is provided, otherwise use global registry
+        if job_id:
+            dataset_dir = await dirs.get_job_datasets_dir(job_id)
+        else:
+            dataset_dir = await dirs.dataset_dir_by_id(dataset_id_safe)
+            # If exists, then raise an error (only for global registry)
+            if await storage.exists(dataset_dir):
+                raise FileExistsError(f"Dataset with ID {dataset_id_safe} already exists")
+        
         await storage.makedirs(dataset_dir, exist_ok=True)
 
         # Determine output filename
@@ -841,12 +851,12 @@ class Lab:
         except Exception as e:
             raise RuntimeError(f"Failed to save dataset to {output_path}: {str(e)}")
 
-        # Create or update filesystem metadata so it appears under generated datasets
+        # Create or update filesystem metadata using Dataset object (works for both global and job-specific)
         try:
             try:
-                ds = await Dataset.get(dataset_id_safe)
+                ds = await Dataset.get(dataset_id_safe, job_id=job_id)
             except FileNotFoundError:
-                ds = await Dataset.create(dataset_id_safe)
+                ds = await Dataset.create(dataset_id_safe, job_id=job_id)
 
             # Base json_data with generated flag for UI filtering
             json_data: Dict[str, Any] = {
@@ -854,6 +864,8 @@ class Lab:
                 "sample_count": len(df) if hasattr(df, "__len__") else -1,
                 "files": [output_filename],
             }
+            if job_id:
+                json_data["job_id"] = job_id
             if additional_metadata and isinstance(additional_metadata, dict):
                 json_data.update(additional_metadata)
 

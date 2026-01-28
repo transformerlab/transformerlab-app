@@ -269,6 +269,28 @@ async def get_job_eval_results_dir(job_id: str | int) -> str:
     return path
 
 
+async def get_job_models_dir(job_id: str | int) -> str:
+    """
+    Return the models directory for a specific job, creating it if needed.
+    Example: ~/.transformerlab/workspace/jobs/<job_id>/models
+    """
+    job_dir = await get_job_dir(job_id)
+    path = storage.join(job_dir, "models")
+    await storage.makedirs(path, exist_ok=True)
+    return path
+
+
+async def get_job_datasets_dir(job_id: str | int) -> str:
+    """
+    Return the datasets directory for a specific job, creating it if needed.
+    Example: ~/.transformerlab/workspace/jobs/<job_id>/datasets
+    """
+    job_dir = await get_job_dir(job_id)
+    path = storage.join(job_dir, "datasets")
+    await storage.makedirs(path, exist_ok=True)
+    return path
+
+
 # Evals output file:
 # TODO: These should probably be in the plugin subclasses
 
