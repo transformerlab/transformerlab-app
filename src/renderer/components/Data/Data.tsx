@@ -3,13 +3,12 @@ import Sheet from '@mui/joy/Sheet';
 import { Tab, TabList, TabPanel, Tabs } from '@mui/joy';
 import { StoreIcon } from 'lucide-react';
 
-import { useServerMode } from 'renderer/lib/ServerModeContext';
 import DataStore from './DataStore';
 import LocalDatasets from './LocalDatasets';
 import GeneratedDatasets from './GeneratedDatasets';
 
 export default function Data() {
-  const { isLocalMode } = useServerMode();
+  const isLocalMode = window?.platform?.multiuser !== true;
   return (
     <Sheet sx={{ display: 'flex', height: '100%' }}>
       <Tabs

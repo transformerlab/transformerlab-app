@@ -25,7 +25,6 @@ import {
 } from './lib/ExperimentInfoContext';
 import * as chatAPI from './lib/transformerlab-api-sdk';
 import { AuthProvider, useAuth } from './lib/authContext';
-import { ServerModeProvider, useServerMode } from './lib/ServerModeContext';
 import LoginPage from './components/Login/LoginPage';
 import { AnalyticsProvider } from './components/Shared/analytics/AnalyticsContext';
 
@@ -60,14 +59,8 @@ function AppContent({
   );
 
   const authContext = useAuth();
-  const { isLocalMode } = useServerMode();
 
-  // Close logs drawer when switching to non-local mode
-  useEffect(() => {
-    if (!isLocalMode && logsDrawerOpen) {
-      setLogsDrawerOpen(false);
-    }
-  }, [isLocalMode, logsDrawerOpen, setLogsDrawerOpen]);
+  const isLocalMode = window?.platform?.multiuser !== true;
 
   // Show LoginPage when:
   // 1. Multi-user mode is enabled AND user is not authenticated

@@ -7,12 +7,12 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNavigate } from 'react-router-dom';
 import LocalModels from './LocalModels';
 import ModelGroups from './ModelGroups';
-import { useServerMode } from 'renderer/lib/ServerModeContext';
 
 export default function ModelZoo({ tab = 'store' }) {
   const navigate = useNavigate();
   const { experimentInfo } = useExperimentInfo();
-  const { isLocalMode } = useServerMode();
+
+  const isLocalMode = window?.platform?.multiuser !== true;
 
   // If we are not in local mode, even if the default tab is 'groups' or 'generated', we should
   // show the 'local' tab instead, since 'groups' and 'generated' don't work in this mode

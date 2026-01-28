@@ -41,7 +41,6 @@ import {
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
-import { useServerMode } from 'renderer/lib/ServerModeContext';
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 
 import SubNavItem from './SubNavItem';
@@ -51,15 +50,14 @@ import LoginChip from './UserWidget';
 interface ExperimentMenuItemsProps {
   experimentInfo: any;
   models: any;
-  isLocalMode: boolean;
 }
 
 function ExperimentMenuItems({
   experimentInfo,
   models,
-  isLocalMode,
 }: ExperimentMenuItemsProps) {
   const { team } = useAuth();
+  const isLocalMode = window?.platform?.multiuser !== true;
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
@@ -289,17 +287,16 @@ function ExperimentMenuItems({
 
 interface GlobalMenuItemsProps {
   outdatedPluginsCount: number | undefined;
-  isLocalMode: boolean;
   hasProviders: boolean;
   experimentInfo: any;
 }
 
 function GlobalMenuItems({
   outdatedPluginsCount,
-  isLocalMode,
   hasProviders,
   experimentInfo,
 }: GlobalMenuItemsProps) {
+  const isLocalMode = window?.platform?.multiuser !== true;
   return (
     <List
       sx={{
@@ -414,10 +411,8 @@ export default function Sidebar({
   const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
 
   const navigate = useNavigate();
-  const isDevExperiment = experimentInfo?.name === 'dev';
 
   const { team } = useAuth();
-  const { isLocalMode } = useServerMode();
 
   // Fetch compute_provider to determine if Tasks tab should be visible
   const { data: providerListData } = useAPI('compute_provider', ['list'], {
@@ -461,18 +456,13 @@ export default function Sidebar({
       }}
     >
       <SelectExperimentMenu models={models} />
-      <ExperimentMenuItems
-        experimentInfo={experimentInfo}
-        models={models}
-        isLocalMode={isLocalMode}
-      />
+      <ExperimentMenuItems experimentInfo={experimentInfo} models={models} />
       <GlobalMenuItems
         outdatedPluginsCount={outdatedPlugins?.length}
-        isLocalMode={isLocalMode}
         hasProviders={hasProviders}
         experimentInfo={experimentInfo}
       />
-      {process.env.MULTIUSER === 'true' && <LoginChip />}
+      {window?.platform?.multiuser === true && <LoginChip />}
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
     </Sheet>
   );

@@ -8,7 +8,6 @@ import {
 import { API_URL, getAPIFullPath } from './urls';
 import { Endpoints } from './endpoints';
 import { authenticatedFetch } from './functions';
-import { useServerMode } from '../ServerModeContext';
 
 export const fetcher = async (
   input: RequestInfo | URL,
@@ -49,7 +48,7 @@ export const fetcher = async (
 
 export function useModelStatus() {
   const api_url = API_URL();
-  const { isLocalMode } = useServerMode();
+  const isLocalMode = window?.platform?.multiuser !== true;
 
   // Only set URL if in local mode, otherwise SWR won't make the request
   const url: string | null =

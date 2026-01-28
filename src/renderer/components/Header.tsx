@@ -17,7 +17,6 @@ import TinyMLXLogo from './Shared/TinyMLXLogo';
 import TinyNVIDIALogo from './Shared/TinyNVIDIALogo';
 import TinyAMDLogo from './Shared/TinyAMDLogo';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-import { useServerMode } from 'renderer/lib/ServerModeContext';
 import ConnectionLostModal from './Shared/ConnectionLostModal';
 
 function StatsBar({ connection, setConnection }) {
@@ -337,7 +336,6 @@ function StatsBar({ connection, setConnection }) {
 
 export default function Header({ connection, setConnection }) {
   const { experimentInfo } = useExperimentInfo();
-  const { mode } = useServerMode();
   const { isError, server } = useServerStats();
   const [connectionLost, setConnectionLost] = useState(false);
 
@@ -397,7 +395,7 @@ export default function Header({ connection, setConnection }) {
     // Don't override connectionLost=false here because the direct check above handles that
   }, [connection, isError]);
 
-  const isLocalMode = mode === 'local';
+  const isLocalMode = window?.platform?.multiuser !== true;
   // Show connection lost modal when we have a connection but it's lost
   const showConnectionLostModal = connection !== '' && connectionLost;
 
