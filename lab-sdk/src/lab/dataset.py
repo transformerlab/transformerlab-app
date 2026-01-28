@@ -10,14 +10,14 @@ class Dataset(BaseLabResource):
     def __init__(self, id: str, job_id: Optional[str] = None):
         """
         Initialize a Dataset resource.
-        
+
         Args:
             id: The dataset identifier
             job_id: Optional job ID. If provided, the dataset is scoped to the job's directory
         """
         super().__init__(id)
         self.job_id = job_id
-    
+
     @classmethod
     async def create(cls, id: str, job_id: Optional[str] = None):
         """Create a new dataset, optionally scoped to a job."""
@@ -35,10 +35,11 @@ class Dataset(BaseLabResource):
         json_file = await newobj._get_json_file()
         if not await storage.exists(json_file):
             import json
+
             async with await storage.open(json_file, "w", encoding="utf-8") as f:
                 await f.write(json.dumps(newobj._default_json()))
         return newobj
-    
+
     async def get_dir(self):
         """Abstract method on BaseLabResource"""
         dataset_id_safe = secure_filename(str(self.id))

@@ -812,7 +812,7 @@ class Lab:
 
         # Prepare dataset directory
         dataset_id_safe = dataset_id.strip()
-        
+
         # Use job-specific directory if job_id is provided, otherwise use global registry
         if job_id:
             dataset_dir = await dirs.get_job_datasets_dir(job_id)
@@ -821,7 +821,7 @@ class Lab:
             # If exists, then raise an error (only for global registry)
             if await storage.exists(dataset_dir):
                 raise FileExistsError(f"Dataset with ID {dataset_id_safe} already exists")
-        
+
         await storage.makedirs(dataset_dir, exist_ok=True)
 
         # Determine output filename
