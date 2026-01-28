@@ -376,7 +376,7 @@
     },
     "login": {
       "method": "POST",
-      "path": "auth/jwt/login"
+      "path": "auth/cookie/login"
     },
     "register": {
       "method": "POST",
@@ -384,7 +384,7 @@
     },
     "logout": {
       "method": "POST",
-      "path": "auth/logout"
+      "path": "auth/cookie/logout"
     },
     "forgotPassword": {
       "method": "POST",
@@ -418,7 +418,7 @@
     },
     "refresh": {
       "method": "POST",
-      "path": "auth/refresh"
+      "path": "auth/cookie/refresh"
     }
   },
   "invitations": {
