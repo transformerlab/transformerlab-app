@@ -1099,9 +1099,6 @@ async def get_artifacts(job_id: str, request: Request):
         return {"artifacts": []}
 
     """Get list of artifacts for a job"""
-    job = await job_service.job_get(job_id)
-    if job is None:
-        return {"artifacts": []}
 
     # Use get_job_artifacts_dir to get the artifacts directory directly
     try:

@@ -228,7 +228,7 @@ export default function QueueTaskModal({
   const handleSubmit = () => {
     // Validate provider selection
     if (!selectedProviderId) {
-      alert('Please select a provider before submitting');
+      alert('Please select a compute provider before submitting');
       return;
     }
 
@@ -691,8 +691,8 @@ export default function QueueTaskModal({
                 <Select
                   placeholder={
                     providers.length
-                      ? 'Select a provider'
-                      : 'No providers configured'
+                      ? 'Select a compute provider'
+                      : 'No compute providers configured'
                   }
                   value={selectedProviderId || null}
                   onChange={(_, value) => setSelectedProviderId(value || '')}
@@ -710,7 +710,7 @@ export default function QueueTaskModal({
                   ))}
                 </Select>
                 <FormHelperText>
-                  Choose which provider should run this task.
+                  Choose which compute provider should run this task.
                 </FormHelperText>
               </FormControl>
             </Stack>
