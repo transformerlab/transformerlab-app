@@ -41,7 +41,6 @@ import {
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
-import { useServerMode } from 'renderer/lib/ServerModeContext';
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 
 import SubNavItem from './SubNavItem';
@@ -414,7 +413,6 @@ export default function Sidebar({
   const navigate = useNavigate();
 
   const { team } = useAuth();
-  const { isLocalMode } = useServerMode();
 
   // Fetch compute_provider to determine if Tasks tab should be visible
   const { data: providerListData } = useAPI('compute_provider', ['list'], {

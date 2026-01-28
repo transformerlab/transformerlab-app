@@ -36,7 +36,6 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import RecipesModal from './Recipes';
 import { getAPIFullPath, fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-import { useServerMode } from 'renderer/lib/ServerModeContext';
 
 function ExperimentSettingsMenu({
   experimentInfo,
@@ -122,7 +121,6 @@ export default function SelectExperimentMenu({ models }) {
   const navigate = useNavigate();
   const { experimentInfo, setExperimentId } = useExperimentInfo();
   const { team } = useAuth();
-  const { isLocalMode } = useServerMode();
 
   // This gets all the available experiments
   const { data, error, isLoading, mutate } = useSWR(

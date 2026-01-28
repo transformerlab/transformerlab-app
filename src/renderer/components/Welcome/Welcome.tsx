@@ -34,7 +34,6 @@ import HexLogo from '../Shared/HexLogo';
 import RecipesModal from '../Experiment/Recipes';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
-import { useServerMode } from 'renderer/lib/ServerModeContext';
 
 function recommendedModel(cpu, os, device) {
   if (!cpu || !os || !device) return '';
@@ -72,7 +71,6 @@ export default function Welcome() {
   const { server, isLoading, isError } = chatAPI.useServerStats();
   const { setExperimentId } = useExperimentInfo();
   const { team } = useAuth();
-  const { isLocalMode } = useServerMode();
 
   const navigate = useNavigate();
 

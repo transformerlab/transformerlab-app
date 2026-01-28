@@ -7,7 +7,6 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNavigate } from 'react-router-dom';
 import LocalModels from './LocalModels';
 import ModelGroups from './ModelGroups';
-import { useServerMode } from 'renderer/lib/ServerModeContext';
 
 export default function ModelZoo({ tab = 'store' }) {
   const navigate = useNavigate();
