@@ -37,11 +37,11 @@ import {
   useModelStatus,
   usePluginStatus,
   getAPIFullPath,
-  apiHealthz,
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
+import { useServerMode } from 'renderer/lib/ServerModeContext';
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 
 import SubNavItem from './SubNavItem';
@@ -51,16 +51,15 @@ import LoginChip from './UserWidget';
 interface ExperimentMenuItemsProps {
   experimentInfo: any;
   models: any;
-  mode: string;
+  isLocalMode: boolean;
 }
 
 function ExperimentMenuItems({
   experimentInfo,
   models,
-  mode,
+  isLocalMode,
 }: ExperimentMenuItemsProps) {
   const { team } = useAuth();
-  const isLocalMode = mode === 'local';
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
@@ -290,18 +289,17 @@ function ExperimentMenuItems({
 
 interface GlobalMenuItemsProps {
   outdatedPluginsCount: number | undefined;
-  mode: string;
+  isLocalMode: boolean;
   hasProviders: boolean;
   experimentInfo: any;
 }
 
 function GlobalMenuItems({
   outdatedPluginsCount,
-  mode,
+  isLocalMode,
   hasProviders,
   experimentInfo,
 }: GlobalMenuItemsProps) {
-  const isLocalMode = mode === 'local';
   return (
     <List
       sx={{
@@ -414,12 +412,12 @@ export default function Sidebar({
   const { experimentInfo } = useExperimentInfo();
   const { models } = useModelStatus();
   const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
-  const [mode, setMode] = useState<string>('local');
 
   const navigate = useNavigate();
   const isDevExperiment = experimentInfo?.name === 'dev';
 
   const { team } = useAuth();
+  const { isLocalMode } = useServerMode();
 
   // Fetch compute_provider to determine if Tasks tab should be visible
   const { data: providerListData } = useAPI('compute_provider', ['list'], {
@@ -432,22 +430,6 @@ export default function Sidebar({
   );
 
   const hasProviders = providers.length > 0;
-
-  // Fetch healthz to get the mode
-  useEffect(() => {
-    const fetchHealthz = async () => {
-      try {
-        const data = await apiHealthz();
-        if (data?.mode) {
-          setMode(data.mode);
-        }
-      } catch (error) {
-        console.error('Failed to fetch healthz data:', error);
-      }
-    };
-
-    fetchHealthz();
-  }, []);
 
   return (
     <Sheet
@@ -482,11 +464,11 @@ export default function Sidebar({
       <ExperimentMenuItems
         experimentInfo={experimentInfo}
         models={models}
-        mode={mode}
+        isLocalMode={isLocalMode}
       />
       <GlobalMenuItems
         outdatedPluginsCount={outdatedPlugins?.length}
-        mode={mode}
+        isLocalMode={isLocalMode}
         hasProviders={hasProviders}
         experimentInfo={experimentInfo}
       />
