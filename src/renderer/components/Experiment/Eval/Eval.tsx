@@ -2,7 +2,7 @@
 
 import Sheet from '@mui/joy/Sheet';
 
-import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import EvalJobsTable from './EvalJobsTable.tsx';
 import EvalTasksTable from './EvalTasksTable';
 

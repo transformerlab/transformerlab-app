@@ -38,8 +38,7 @@ import EditInteractiveTaskModal from '../Tasks/EditInteractiveTaskModal';
 import ViewOutputModalStreaming from '../Tasks/ViewOutputModalStreaming';
 import JobProgress from '../Tasks/JobProgress';
 import { jobChipColor } from 'renderer/lib/utils';
-
-const duration = require('dayjs/plugin/duration');
+import duration from 'dayjs/plugin/duration';
 
 dayjs.extend(duration);
 dayjs.extend(relativeTime);

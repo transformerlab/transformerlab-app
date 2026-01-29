@@ -21,21 +21,19 @@ import {
 import { useState, useEffect } from 'react';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import duration from 'dayjs/plugin/duration';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewCSVModal from './ViewCSVModal';
 import DatasetTable from 'renderer/components/Data/DatasetTable';
-
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import { jobChipColor } from 'renderer/lib/utils';
 import JobProgress from '../Train/JobProgress';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-dayjs.extend(relativeTime);
-var duration = require('dayjs/plugin/duration');
-dayjs.extend(duration);
 
-import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+dayjs.extend(relativeTime);
+dayjs.extend(duration);
 
 function RenderScore({ score }) {
   if (score === undefined) {

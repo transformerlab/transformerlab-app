@@ -10,11 +10,13 @@
       name="viewport"
       content="minimum-scale=1, initial-scale=1, width=device-width"
     />
-    <link data-rh="true" rel="icon" href="/hex.svg" />
+    <link rel="icon" href="/src/renderer/img/hex.svg" />
     <title>Transformer Lab</title>
   </head>
 
   <body>
     <div id="root"></div>
+    <script type="module" src="/src/main/preload-cloud.ts"></script>
+    <script type="module" src="/src/renderer/index.tsx"></script>
   </body>
 </html>

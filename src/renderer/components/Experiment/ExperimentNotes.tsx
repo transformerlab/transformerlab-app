@@ -16,7 +16,7 @@ import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { authenticatedFetch } from 'renderer/lib/api-client/functions';
 import { PencilIcon, TypeOutline } from 'lucide-react';
 import { Box, Button, Typography } from '@mui/joy';
-import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 
 export default function ExperimentNotes({}) {

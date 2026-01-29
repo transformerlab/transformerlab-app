@@ -29,15 +29,14 @@ import ViewPlotModal from './ViewPlotModal';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import duration from 'dayjs/plugin/duration';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import { jobChipColor } from 'renderer/lib/utils';
 import JobProgress from '../Train/JobProgress';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 dayjs.extend(relativeTime);
-var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
-
-var utc = require('dayjs/plugin/utc');
-var timezone = require('dayjs/plugin/timezone'); // dependent on utc plugin
 dayjs.extend(utc);
 dayjs.extend(timezone);
 

@@ -2,7 +2,9 @@
 
 ## Build/Lint/Test Commands
 
-- **Frontend dev**: `npm start:cloud` (Node v22, not v23+)
+- **Frontend dev**: `npm run dev` or `npm start` (Vite dev server, Node v22+)
+- **Frontend build**: `npm run build` (Vite production build to `release/cloud/`)
+- **Frontend preview**: `npm run preview` (preview production build)
 - **Frontend test**: `npm test` (Jest); single test: `npm test -- --testPathPattern="<pattern>"`
 - **Frontend format**: `npm run format` (Prettier, single quotes)
 - **API install**: `cd api && ./install.sh` or `npm run api:install`

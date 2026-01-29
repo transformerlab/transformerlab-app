@@ -1,8 +1,19 @@
 module.exports = {
-  extends: 'erb',
-  plugins: ['@typescript-eslint'],
+  extends: [
+    'eslint:recommended',
+    'plugin:react/recommended',
+    'plugin:react-hooks/recommended',
+    'plugin:@typescript-eslint/recommended',
+    'plugin:prettier/recommended',
+  ],
+  plugins: ['@typescript-eslint', 'react', 'react-hooks'],
+  parser: '@typescript-eslint/parser',
+  env: {
+    browser: true,
+    es2020: true,
+    node: true,
+  },
   rules: {
-    // A temporary hack related to IDE not resolving correct package.json
     'import/no-extraneous-dependencies': 'off',
     'react/react-in-jsx-scope': 'off',
     'react/jsx-filename-extension': 'off',
@@ -16,8 +27,6 @@ module.exports = {
     'no-plusplus': 'off',
     'react/prop-types': 'off',
     'no-restricted-exports': 'off',
-
-    // TODO: Fix prop types!
     'react/function-component-definition': 'off',
   },
   parserOptions: {
@@ -28,12 +37,11 @@ module.exports = {
     createDefaultProgram: true,
   },
   settings: {
+    react: {
+      version: 'detect',
+    },
     'import/resolver': {
-      // See https://github.com/benmosher/eslint-plugin-import/issues/1396#issuecomment-575727774 for line below
       node: {},
-      webpack: {
-        config: require.resolve('./.erb/configs/webpack.config.eslint.ts'),
-      },
       typescript: {},
     },
     'import/parsers': {
