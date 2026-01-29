@@ -13,26 +13,112 @@ import {
   FormControl,
   FormLabel,
   Input,
-  Box,
-  Typography,
   Stack,
 } from '@mui/joy';
 import { PlayIcon } from 'lucide-react';
+import JSZip from 'jszip';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import TaskDirectoryUploader from './TaskDirectoryUploader';
 
 type NewTaskModal2Props = {
   open: boolean;
   onClose: () => void;
+  experimentId: string;
+  onTaskCreated: (taskId: string) => void;
   title?: string;
 };
+
+const defaultTitle = 'Add New Task';
 
 export default function NewTaskModal2({
   open,
   onClose,
-  title = 'Add New Task',
+  experimentId,
+  onTaskCreated,
+  title = defaultTitle,
 }: NewTaskModal2Props) {
   const [selectedOption, setSelectedOption] = React.useState<string>('git');
   const [gitUrl, setGitUrl] = React.useState<string>('');
+  const [gitRepoDirectory, setGitRepoDirectory] = React.useState<string>('');
+  const [directoryFiles, setDirectoryFiles] = React.useState<File[]>([]);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    setSubmitError(null);
+    if (selectedOption === 'git') {
+      const url = gitUrl.trim();
+      if (!url) {
+        setSubmitError('Git repository URL is required.');
+        return;
+      }
+      setSubmitting(true);
+      try {
+        const response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.FromDirectory(experimentId),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              git_url: url,
+              git_repo_directory: gitRepoDirectory.trim() || undefined,
+            }),
+          },
+        );
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          setSubmitError(err.detail || `Request failed: ${response.status}`);
+          return;
+        }
+        const data = await response.json();
+        onTaskCreated(data.id);
+        onClose();
+      } catch (e) {
+        setSubmitError(e instanceof Error ? e.message : 'Request failed');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    if (directoryFiles.length === 0) {
+      setSubmitError('Select a directory that contains task.yaml.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const zip = new JSZip();
+      const addFile = async (file: File) => {
+        const path = file.webkitRelativePath || file.name;
+        const blob = await file.arrayBuffer();
+        zip.file(path, blob);
+      };
+      await Promise.all(directoryFiles.map(addFile));
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const formData = new FormData();
+      formData.append('directory_zip', blob, 'directory.zip');
+
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Task.FromDirectory(experimentId),
+        {
+          method: 'POST',
+          body: formData,
+        },
+      );
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        setSubmitError(err.detail || `Request failed: ${response.status}`);
+        return;
+      }
+      const data = await response.json();
+      onTaskCreated(data.id);
+      onClose();
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -59,12 +145,18 @@ export default function NewTaskModal2({
                 <Stack spacing={1}>
                   <Radio value="git" label="Remote Git Repository" />
                   {selectedOption === 'git' && (
-                    <Input
-                      placeholder="https://github.com/username/repository.git"
-                      value={gitUrl}
-                      onChange={(e) => setGitUrl(e.target.value)}
-                      sx={{ ml: 3 }}
-                    />
+                    <Stack spacing={1} sx={{ ml: 3 }}>
+                      <Input
+                        placeholder="https://github.com/username/repository.git"
+                        value={gitUrl}
+                        onChange={(e) => setGitUrl(e.target.value)}
+                      />
+                      <Input
+                        placeholder="Optional: subdirectory (e.g. tasks/my-task)"
+                        value={gitRepoDirectory}
+                        onChange={(e) => setGitRepoDirectory(e.target.value)}
+                      />
+                    </Stack>
                   )}
                 </Stack>
                 <Radio value="upload" label="Upload from your Computer" />
@@ -72,12 +164,30 @@ export default function NewTaskModal2({
             </FormControl>
 
             {selectedOption === 'upload' && (
-              <TaskDirectoryUploader onUpload={undefined} />
+              <TaskDirectoryUploader
+                onUpload={(files: File[]) => setDirectoryFiles(files)}
+              />
+            )}
+
+            {submitError && (
+              <div
+                style={{
+                  color: 'var(--joy-palette-danger-500)',
+                  fontSize: 14,
+                }}
+              >
+                {submitError}
+              </div>
             )}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button startDecorator={<PlayIcon />} color="success">
+          <Button
+            startDecorator={<PlayIcon />}
+            color="success"
+            onClick={handleSubmit}
+            loading={submitting}
+          >
             Submit
           </Button>
           <Button variant="plain" color="danger" onClick={onClose}>
@@ -88,3 +198,5 @@ export default function NewTaskModal2({
     </Modal>
   );
 }
+
+NewTaskModal2.defaultProps = { title: defaultTitle };

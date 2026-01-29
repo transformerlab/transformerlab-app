@@ -104,29 +104,17 @@ const TaskDirectoryUploader = ({ onUpload }) => {
         );
       });
 
-      // 3. Validation: Check for task.yaml or task.json
-      const hasTaskConfig = allFiles.some((file) => {
+      // 3. Validation: Check for task.yaml only
+      const hasTaskYaml = allFiles.some((file) => {
         const path = file.webkitRelativePath || file.name;
         const matches =
-          path.endsWith('task.yaml') ||
-          path.endsWith('task.json') ||
-          file.name === 'task.yaml' ||
-          file.name === 'task.json';
-        console.log(
-          '[onDrop] Checking file:',
-          file.name,
-          'path:',
-          path,
-          'matches:',
-          matches,
-        );
+          path.endsWith('task.yaml') || file.name === 'task.yaml';
         return matches;
       });
-      console.log('[onDrop] hasTaskConfig:', hasTaskConfig);
 
-      if (!hasTaskConfig) {
+      if (!hasTaskYaml) {
         setError(
-          "❌ Invalid Task: The directory must contain a 'task.yaml' or 'task.json' file.",
+          "❌ Invalid Task: The directory must contain a 'task.yaml' file.",
         );
         setFileList([]);
         return;
@@ -272,7 +260,7 @@ const TaskDirectoryUploader = ({ onUpload }) => {
           color="neutral"
           sx={{ mt: 1, pointerEvents: 'none' }}
         >
-          Must contain task.yaml or task.json
+          Must contain task.yaml
         </Typography>
       </Box>
 

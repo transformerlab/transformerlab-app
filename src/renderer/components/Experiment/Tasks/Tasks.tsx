@@ -23,7 +23,6 @@ import InteractiveJupyterModal from './InteractiveJupyterModal';
 import InteractiveVllmModal from './InteractiveVllmModal';
 import InteractiveSshModal from './InteractiveSshModal';
 import InteractiveOllamaModal from './InteractiveOllamaModal';
-import EditTaskModal from './EditTaskModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -33,6 +32,7 @@ import ViewEvalResultsModal from './ViewEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
+import TaskYamlEditorModal from './TaskYamlEditorModal';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -61,6 +61,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     open: boolean;
     datasetId: string | null;
   }>({ open: false, datasetId: null });
+  const [yamlEditorTaskId, setYamlEditorTaskId] = useState<string | null>(null);
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const { fetchWithAuth, team } = useAuth();
@@ -968,8 +969,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   };
 
   const handleEditTask = (task: any) => {
-    setTaskBeingEdited(task);
-    setEditModalOpen(true);
+    if (isInteractivePage && (task as any)?.interactive_type) {
+      setTaskBeingEdited(task);
+      setEditModalOpen(true);
+    } else {
+      setYamlEditorTaskId(task?.id ?? null);
+    }
   };
 
   return (
@@ -991,7 +996,24 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         //   providers={providers}
         //   isProvidersLoading={providersIsLoading}
         // />
-        <NewTaskModal2 open={modalOpen} onClose={handleClose} />
+        <NewTaskModal2
+          open={modalOpen}
+          onClose={handleClose}
+          experimentId={experimentInfo?.id ?? ''}
+          onTaskCreated={(taskId) => {
+            setYamlEditorTaskId(taskId);
+            handleClose();
+          }}
+        />
+      )}
+      {experimentInfo?.id && yamlEditorTaskId && (
+        <TaskYamlEditorModal
+          open={Boolean(yamlEditorTaskId)}
+          onClose={() => setYamlEditorTaskId(null)}
+          experimentId={experimentInfo.id}
+          taskId={yamlEditorTaskId}
+          onSaved={() => templatesMutate()}
+        />
       )}
       {isInteractivePage && (
         <NewInteractiveTaskModal
@@ -1005,7 +1027,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       )}
       {taskBeingEdited &&
       (taskBeingEdited as any).interactive_type &&
-      isInteractivePage ? (
+      isInteractivePage && (
         <EditInteractiveTaskModal
           open={editModalOpen}
           onClose={handleEditClose}
@@ -1057,17 +1079,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
                 message: 'Failed to update interactive task. Please try again.',
               });
             }
-          }}
-        />
-      ) : (
-        <EditTaskModal
-          open={editModalOpen}
-          onClose={handleEditClose}
-          task={taskBeingEdited}
-          providers={providers}
-          isProvidersLoading={providersIsLoading}
-          onSaved={async () => {
-            await templatesMutate();
           }}
         />
       )}
