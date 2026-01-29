@@ -336,25 +336,8 @@ function StatsBar({ connection, setConnection }) {
 
 export default function Header({ connection, setConnection }) {
   const { experimentInfo } = useExperimentInfo();
-  const [mode, setMode] = useState<string>('local');
   const { isError, server } = useServerStats();
   const [connectionLost, setConnectionLost] = useState(false);
-
-  // Fetch healthz to get the mode
-  useEffect(() => {
-    const fetchHealthz = async () => {
-      try {
-        const data = await apiHealthz();
-        if (data?.mode) {
-          setMode(data.mode);
-        }
-      } catch (error) {
-        console.error('Failed to fetch healthz data:', error);
-      }
-    };
-
-    fetchHealthz();
-  }, []);
 
   // Check connection health when we have a connection URL set
   useEffect(() => {
@@ -412,7 +395,7 @@ export default function Header({ connection, setConnection }) {
     // Don't override connectionLost=false here because the direct check above handles that
   }, [connection, isError]);
 
-  const isLocalMode = mode === 'local';
+  const isLocalMode = window?.platform?.multiuser !== true;
   // Show connection lost modal when we have a connection but it's lost
   const showConnectionLostModal = connection !== '' && connectionLost;
 

@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import Sheet from '@mui/joy/Sheet';
 import { StoreIcon } from 'lucide-react';
 import { Tab, TabList, TabPanel, Tabs } from '@mui/joy';
@@ -7,30 +7,12 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNavigate } from 'react-router-dom';
 import LocalModels from './LocalModels';
 import ModelGroups from './ModelGroups';
-import { apiHealthz } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function ModelZoo({ tab = 'store' }) {
   const navigate = useNavigate();
   const { experimentInfo } = useExperimentInfo();
-  const [mode, setMode] = useState<string>('local');
 
-  // Fetch healthz to get the mode
-  useEffect(() => {
-    const fetchHealthz = async () => {
-      try {
-        const data = await apiHealthz();
-        if (data?.mode) {
-          setMode(data.mode);
-        }
-      } catch (error) {
-        console.error('Failed to fetch healthz data:', error);
-      }
-    };
-
-    fetchHealthz();
-  }, []);
-
-  const isLocalMode = mode === 'local';
+  const isLocalMode = window?.platform?.multiuser !== true;
 
   // If we are not in local mode, even if the default tab is 'groups' or 'generated', we should
   // show the 'local' tab instead, since 'groups' and 'generated' don't work in this mode
