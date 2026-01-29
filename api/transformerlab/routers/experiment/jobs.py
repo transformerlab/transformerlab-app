@@ -1359,3 +1359,149 @@ async def sweep_results(job_id: str):
     except Exception as e:
         print(f"Error loading sweep results for job {job_id}: {e}")
         return {"status": "error", "message": "An internal error has occurred!"}
+
+
+@router.get("/{job_id}/datasets")
+async def get_job_datasets(job_id: str, request: Request):
+    """Get list of datasets in the job's datasets directory"""
+    
+    if not job_id or job_id in ("", "-1"):
+        return {"datasets": []}
+    
+    try:
+        from lab.dirs import get_job_datasets_dir
+        
+        datasets_dir = await get_job_datasets_dir(job_id)
+        
+        if not await storage.exists(datasets_dir):
+            return {"datasets": []}
+        
+        datasets = []
+        entries = await storage.ls(datasets_dir, detail=True)
+        
+        for entry in entries:
+            if await storage.isdir(entry['name']):
+                dataset_name = entry['name'].split('/')[-1]
+                dataset_size = entry.get('size', 0)
+                
+                datasets.append({
+                    "name": dataset_name,
+                    "size": dataset_size,
+                    "date": entry.get('mtime', None)
+                })
+        
+        datasets.sort(key=lambda x: x["name"])
+        return {"datasets": datasets}
+        
+    except Exception as e:
+        print(f"Error getting datasets for job {job_id}: {e}")
+        return {"datasets": []}
+
+
+@router.get("/{job_id}/models")
+async def get_job_models(job_id: str, request: Request):
+    """Get list of models in the job's models directory"""
+    
+    if not job_id or job_id in ("", "-1"):
+        return {"models": []}
+    
+    try:
+        from lab.dirs import get_job_models_dir
+        
+        models_dir = await get_job_models_dir(job_id)
+        
+        if not await storage.exists(models_dir):
+            return {"models": []}
+        
+        models = []
+        entries = await storage.ls(models_dir, detail=True)
+        
+        for entry in entries:
+            if await storage.isdir(entry['name']):
+                model_name = entry['name'].split('/')[-1]
+                model_size = entry.get('size', 0)
+                
+                models.append({
+                    "name": model_name,
+                    "size": model_size,
+                    "date": entry.get('mtime', None)
+                })
+        
+        models.sort(key=lambda x: x["name"])
+        return {"models": models}
+        
+    except Exception as e:
+        print(f"Error getting models for job {job_id}: {e}")
+        return {"models": []}
+
+
+@router.post("/{job_id}/datasets/{dataset_name}/save_to_registry")
+async def save_dataset_to_registry(job_id: str, dataset_name: str):
+    """Copy a dataset from job's datasets directory to the global datasets registry"""
+    
+    try:
+        from lab.dirs import get_job_datasets_dir, get_datasets_dir
+        import shutil
+        
+        # Secure the dataset name
+        dataset_name_secure = secure_filename(dataset_name)
+        
+        # Get source path (job's datasets directory)
+        job_datasets_dir = await get_job_datasets_dir(job_id)
+        source_path = storage.join(job_datasets_dir, dataset_name_secure)
+        
+        if not await storage.exists(source_path):
+            return Response("Dataset not found in job directory", status_code=404)
+        
+        # Get destination path (global datasets registry)
+        datasets_registry_dir = await get_datasets_dir()
+        dest_path = storage.join(datasets_registry_dir, dataset_name_secure)
+        
+        # Check if dataset already exists in registry
+        if await storage.exists(dest_path):
+            return Response("Dataset already exists in registry", status_code=409)
+        
+        # Copy the dataset directory to the registry
+        await storage.copy(source_path, dest_path, recursive=True)
+        
+        return {"status": "success", "message": f"Dataset {dataset_name_secure} saved to registry"}
+        
+    except Exception as e:
+        print(f"Error saving dataset to registry for job {job_id}: {e}")
+        return Response(f"Failed to save dataset: {str(e)}", status_code=500)
+
+
+@router.post("/{job_id}/models/{model_name}/save_to_registry")
+async def save_model_to_registry(job_id: str, model_name: str):
+    """Copy a model from job's models directory to the global models registry"""
+    
+    try:
+        from lab.dirs import get_job_models_dir, get_models_dir
+        import shutil
+        
+        # Secure the model name
+        model_name_secure = secure_filename(model_name)
+        
+        # Get source path (job's models directory)
+        job_models_dir = await get_job_models_dir(job_id)
+        source_path = storage.join(job_models_dir, model_name_secure)
+        
+        if not await storage.exists(source_path):
+            return Response("Model not found in job directory", status_code=404)
+        
+        # Get destination path (global models registry)
+        models_registry_dir = await get_models_dir()
+        dest_path = storage.join(models_registry_dir, model_name_secure)
+        
+        # Check if model already exists in registry
+        if await storage.exists(dest_path):
+            return Response("Model already exists in registry", status_code=409)
+        
+        # Copy the model directory to the registry
+        await storage.copy(source_path, dest_path, recursive=True)
+        
+        return {"status": "success", "message": f"Model {model_name_secure} saved to registry"}
+        
+    except Exception as e:
+        print(f"Error saving model to registry for job {job_id}: {e}")
+        return Response(f"Failed to save model: {str(e)}", status_code=500)
