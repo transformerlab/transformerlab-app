@@ -129,10 +129,6 @@ const configuration: webpack.Configuration = {
             );
             const packageName = match ? match[1] : 'external';
 
-            // If it's react-icons, don't give it a unique chunk name.
-            // This allows Webpack to keep it in a shared chunk and shake it better.
-            // if (packageName.includes('react-icons')) return 'vendor-icons';
-
             return `npm.${packageName.replace('@', '')}`;
           },
         },
