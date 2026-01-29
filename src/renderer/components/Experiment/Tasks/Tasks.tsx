@@ -13,9 +13,10 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import { analytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
-import NewTaskModal from './NewTaskModal';
+import NewTaskModal from './NewTaskModal/NewTaskModal';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveVSCodeModal from './InteractiveVSCodeModal';
 import InteractiveJupyterModal from './InteractiveJupyterModal';
@@ -283,13 +284,32 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   useEffect(() => {
     if (!jobs || !Array.isArray(jobs)) return;
 
-    const jobsToCheck = jobs.filter(
-      (job: any) =>
-        job.type === 'REMOTE' &&
-        (job.status === 'LAUNCHING' ||
-          (job.status === 'COMPLETE' && job.job_data?.provider_id)) && // Also check recently completed jobs to ensure quota is recorded
-        job.job_data?.provider_id, // Only check jobs with provider_id
-    );
+    const now = dayjs();
+    const RECENT_COMPLETION_WINDOW_MINUTES = 5; // Only check jobs completed within last 5 minutes
+
+    const jobsToCheck = jobs.filter((job: any) => {
+      // Must be REMOTE type with provider_id
+      if (job.type !== 'REMOTE' || !job.job_data?.provider_id) {
+        return false;
+      }
+
+      // Always check LAUNCHING jobs
+      if (job.status === 'LAUNCHING') {
+        return true;
+      }
+
+      // Only check COMPLETE jobs that finished recently (to ensure quota is recorded)
+      if (job.status === 'COMPLETE' && job.job_data?.end_time) {
+        const endTime = dayjs(job.job_data.end_time);
+        const minutesSinceCompletion = now.diff(endTime, 'minute', true);
+        return (
+          minutesSinceCompletion >= 0 &&
+          minutesSinceCompletion <= RECENT_COMPLETION_WINDOW_MINUTES
+        );
+      }
+
+      return false;
+    });
 
     if (jobsToCheck.length === 0) return;
 
@@ -602,6 +622,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       );
 
       if (response.ok) {
+        analytics.track('Task Queued', {
+          task_type: 'REMOTE',
+        });
         setModalOpen(false);
         await templatesMutate();
         addNotification({

@@ -37,7 +37,6 @@ import {
   useModelStatus,
   usePluginStatus,
   getAPIFullPath,
-  apiHealthz,
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -51,16 +50,14 @@ import LoginChip from './UserWidget';
 interface ExperimentMenuItemsProps {
   experimentInfo: any;
   models: any;
-  mode: string;
 }
 
 function ExperimentMenuItems({
   experimentInfo,
   models,
-  mode,
 }: ExperimentMenuItemsProps) {
   const { team } = useAuth();
-  const isLocalMode = mode === 'local';
+  const isLocalMode = window?.platform?.multiuser !== true;
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
@@ -290,18 +287,16 @@ function ExperimentMenuItems({
 
 interface GlobalMenuItemsProps {
   outdatedPluginsCount: number | undefined;
-  mode: string;
   hasProviders: boolean;
   experimentInfo: any;
 }
 
 function GlobalMenuItems({
   outdatedPluginsCount,
-  mode,
   hasProviders,
   experimentInfo,
 }: GlobalMenuItemsProps) {
-  const isLocalMode = mode === 'local';
+  const isLocalMode = window?.platform?.multiuser !== true;
   return (
     <List
       sx={{
@@ -414,10 +409,8 @@ export default function Sidebar({
   const { experimentInfo } = useExperimentInfo();
   const { models } = useModelStatus();
   const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
-  const [mode, setMode] = useState<string>('local');
 
   const navigate = useNavigate();
-  const isDevExperiment = experimentInfo?.name === 'dev';
 
   const { team } = useAuth();
 
@@ -432,22 +425,6 @@ export default function Sidebar({
   );
 
   const hasProviders = providers.length > 0;
-
-  // Fetch healthz to get the mode
-  useEffect(() => {
-    const fetchHealthz = async () => {
-      try {
-        const data = await apiHealthz();
-        if (data?.mode) {
-          setMode(data.mode);
-        }
-      } catch (error) {
-        console.error('Failed to fetch healthz data:', error);
-      }
-    };
-
-    fetchHealthz();
-  }, []);
 
   return (
     <Sheet
@@ -479,18 +456,13 @@ export default function Sidebar({
       }}
     >
       <SelectExperimentMenu models={models} />
-      <ExperimentMenuItems
-        experimentInfo={experimentInfo}
-        models={models}
-        mode={mode}
-      />
+      <ExperimentMenuItems experimentInfo={experimentInfo} models={models} />
       <GlobalMenuItems
         outdatedPluginsCount={outdatedPlugins?.length}
-        mode={mode}
         hasProviders={hasProviders}
         experimentInfo={experimentInfo}
       />
-      {process.env.MULTIUSER === 'true' && <LoginChip />}
+      {window?.platform?.multiuser === true && <LoginChip />}
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
     </Sheet>
   );
