@@ -132,9 +132,9 @@ async def from_directory(
     yaml_path = storage.join(task_dir, "task.yaml")
     async with await storage.open(yaml_path, "w", encoding="utf-8") as f:
         await f.write(task_yaml_content)
-    # So the runner sees uploaded files: mount task dir at ~/src (same idea as legacy zip → file_mounts)
-    if task_root_for_zip:
-        await task_service.update_task(task_id, {"file_mounts": {"~/src": task_dir}})
+    # # So the runner sees uploaded files: mount task dir at ~/src (same idea as legacy zip → file_mounts)
+    # if task_root_for_zip:
+    #     await task_service.update_task(task_id, {"file_mounts": {"~/src": task_dir}})
 
     return {"id": task_id}
 
