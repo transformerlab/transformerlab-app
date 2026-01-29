@@ -311,9 +311,7 @@ async def fetch_task_json_from_github(
     return task_json
 
 
-async def fetch_task_yaml_from_github(
-    repo_url: str, directory: Optional[str] = None, ref: Optional[str] = None
-) -> str:
+async def fetch_task_yaml_from_github(repo_url: str, directory: Optional[str] = None, ref: Optional[str] = None) -> str:
     """
     Fetch task.yaml from a GitHub repository as raw string.
 

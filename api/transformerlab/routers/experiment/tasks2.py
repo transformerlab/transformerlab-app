@@ -42,6 +42,7 @@ async def from_directory_options():
     """CORS preflight for POST /from_directory."""
     return {}
 
+
 @router.post("/from_directory", summary="Create a task from a directory (git URL or zip)")
 async def from_directory(
     experimentId: str,

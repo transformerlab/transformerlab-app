@@ -107,8 +107,7 @@ const TaskDirectoryUploader = ({ onUpload }) => {
       // 3. Validation: Check for task.yaml only
       const hasTaskYaml = allFiles.some((file) => {
         const path = file.webkitRelativePath || file.name;
-        const matches =
-          path.endsWith('task.yaml') || file.name === 'task.yaml';
+        const matches = path.endsWith('task.yaml') || file.name === 'task.yaml';
         return matches;
       });
 

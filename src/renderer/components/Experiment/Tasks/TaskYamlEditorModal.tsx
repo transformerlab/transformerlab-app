@@ -104,7 +104,9 @@ export default function TaskYamlEditorModal({
           {loading ? (
             <div style={{ padding: 16 }}>Loading...</div>
           ) : error ? (
-            <div style={{ padding: 16, color: 'var(--joy-palette-danger-500)' }}>
+            <div
+              style={{ padding: 16, color: 'var(--joy-palette-danger-500)' }}
+            >
               {error}
             </div>
           ) : (
@@ -124,7 +126,12 @@ export default function TaskYamlEditorModal({
           <Button color="neutral" variant="plain" onClick={onClose}>
             Cancel
           </Button>
-          <Button color="success" onClick={handleSave} loading={saving} disabled={loading}>
+          <Button
+            color="success"
+            onClick={handleSave}
+            loading={saving}
+            disabled={loading}
+          >
             Save
           </Button>
         </DialogActions>
