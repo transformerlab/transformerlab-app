@@ -411,29 +411,26 @@ async def watch_log():
     # Check if the path is an S3 or other remote filesystem path
     is_remote_path = global_log_path.startswith(("s3://", "gs://", "abfs://", "gcs://"))
 
+    if is_remote_path:
+        # Return an empty streaming response since
+        # we should not watch a streaming file on remote filesystems
+        return StreamingResponse(
+            iter(["data: []\n\n"]),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+        )
+
     if not await storage.exists(global_log_path):
         # Create the file using appropriate method
-        if is_remote_path:
-            async with await storage.open(global_log_path, "w") as f:
-                await f.write("")
-        else:
-            async with await storage.open(global_log_path, "w") as f:
-                await f.write("")
+        async with await storage.open(global_log_path, "w") as f:
+            await f.write("")
     try:
-        if is_remote_path:
-            # Use S3 polling watcher for remote filesystems
-            return StreamingResponse(
-                watch_s3_file(global_log_path),
-                media_type="text/event-stream",
-                headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
-            )
-        else:
-            # Use local file watcher for local filesystems
-            return StreamingResponse(
-                watch_file(global_log_path),
-                media_type="text/event-stream",
-                headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
-            )
+        # Use local file watcher for local filesystems
+        return StreamingResponse(
+            watch_file(global_log_path),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+        )
     except Exception as e:
         print(f"Error streaming log: {e}")
         return StreamingResponse(
