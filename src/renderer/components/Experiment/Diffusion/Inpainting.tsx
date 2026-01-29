@@ -32,7 +32,7 @@ import {
   Info,
 } from 'lucide-react';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
-import { RxMaskOff, RxMaskOn } from 'react-icons/rx';
+import { RxMaskOff, RxMaskOn } from 'renderer/components/Icons';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
 import JobProgress from '../Train/JobProgress';
 import ReactCanvasPaint from '../../Shared/ReactCanvasPaint/ReactCanvasPaint';

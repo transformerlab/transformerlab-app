@@ -16,7 +16,7 @@ import {
 } from '@mui/joy';
 import { PlusCircleIcon } from 'lucide-react';
 import Dropzone from 'react-dropzone';
-import { IoCloudUploadOutline } from 'react-icons/io5';
+import { IoCloudUploadOutline } from 'renderer/components/Icons';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
 import { fetcher, authenticatedFetch } from '../../lib/transformerlab-api-sdk';

@@ -6,6 +6,7 @@ import webpack from 'webpack';
 import TsconfigPathsPlugins from 'tsconfig-paths-webpack-plugin';
 import webpackPaths from './webpack.paths';
 import { dependencies as externals } from '../../release/app/package.json';
+// import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 
 const configuration: webpack.Configuration = {
   externals: [...Object.keys(externals || {})],
@@ -53,6 +54,7 @@ const configuration: webpack.Configuration = {
       TL_FORCE_API_URL: 'false',
       EMAIL_AUTH_ENABLED: 'true',
     }),
+    // new BundleAnalyzerPlugin(), // uncomment to enable bundle analysis
   ],
 };
 

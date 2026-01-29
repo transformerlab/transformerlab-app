@@ -15,7 +15,7 @@ import {
   StopCircleIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import { RiImageAiLine } from 'react-icons/ri';
+import { RiImageAiLine } from 'renderer/components/Icons';
 import { useEffect, useState } from 'react';
 
 import {

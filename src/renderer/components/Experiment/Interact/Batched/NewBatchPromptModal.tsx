@@ -36,7 +36,7 @@ import Dropzone from 'react-dropzone';
 import NewChatForm from './NewChatForm';
 
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
-import { IoCloudUploadOutline } from 'react-icons/io5';
+import { IoCloudUploadOutline } from 'renderer/components/Icons';
 import { Form } from 'react-router-dom';
 import { fetchWithAuth } from 'renderer/lib/authContext';
 

@@ -22,7 +22,7 @@ import {
   StretchHorizontalIcon,
 } from 'lucide-react';
 
-import { RiImageAiLine } from 'react-icons/ri';
+import { RiImageAiLine } from 'renderer/components/Icons';
 
 import {
   ButtonGroup,
