@@ -301,7 +301,7 @@ class OAuthBackend(AuthenticationBackend):
         # Redirecting to home page (/) is simpler and works regardless of URL configuration
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
         frontend_url_normalized = frontend_url.rstrip("/")
-        
+
         callback_url = (
             f"{frontend_url_normalized}/?access_token={access_token}&refresh_token={refresh_token}&token_type=bearer"
         )
