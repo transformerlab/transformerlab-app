@@ -22,7 +22,7 @@ from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 
 from dotenv import load_dotenv
 
@@ -570,6 +570,14 @@ async def healthz():
         "message": "OK",
         "mode": mode,
     }
+
+
+@app.get("/auth/callback")
+async def frontend_auth_callback():
+    """
+    Pass auth/callback to frontend
+    """
+    return FileResponse(os.path.join(dirs.STATIC_FILES_DIR, "index.html"))
 
 
 # Add an endpoint that serves the static files in the ~/.transformerlab/webapp directory:
