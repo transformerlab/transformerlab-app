@@ -37,7 +37,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
-import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNotification } from '../Shared/NotificationSystem';
 import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 

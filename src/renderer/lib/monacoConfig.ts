@@ -1,6 +1,5 @@
 import fairyflossTheme from '../components/Shared/fairyfloss.tmTheme.js';
-
-const { parseTmTheme } = require('monaco-themes');
+import { parseTmTheme } from 'monaco-themes';
 
 /**
  * Sets up the Monaco Editor theme

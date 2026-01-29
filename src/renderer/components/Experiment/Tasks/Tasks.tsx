@@ -32,8 +32,7 @@ import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
-
-const duration = require('dayjs/plugin/duration');
+import duration from 'dayjs/plugin/duration';
 
 dayjs.extend(duration);
 dayjs.extend(relativeTime);

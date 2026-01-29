@@ -55,8 +55,8 @@ import ViewOutputModal from './ViewOutputModal';
 import ViewEvalImagesModal from './ViewEvalImagesModal';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import ViewCheckpointsModal from './ViewCheckpointsModal';
+import duration from 'dayjs/plugin/duration';
 dayjs.extend(relativeTime);
-var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
 
 function formatTemplateConfig(config): ReactElement {

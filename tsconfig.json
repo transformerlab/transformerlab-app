@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "module": "ESNext",         // ⬅️ CRITICAL: Was "commonjs"
-    "moduleResolution": "node", // ⬅️ REQUIRED for ESNext
-    "target": "es2021",
-    "lib": ["dom", "es2021"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2020",
+    "lib": ["dom", "dom.iterable", "ES2020"],
     "jsx": "react-jsx",
     "strict": true,
     "sourceMap": true,
@@ -12,16 +12,23 @@
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "allowJs": true,
-    "outDir": ".erb/dll"
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "types": ["vite/client"],
+    "paths": {
+      "renderer/*": ["renderer/*"],
+      "main/*": ["main/*"]
+    }
   },
-  "exclude": ["test", "resources/build", "resources/app/dist",
-              ".erb/dll", "node_modules",
-              "release/app/dist", "release/build",
-              "*.css.d.ts",
-              "*.sass.d.ts",
-              "*.scss.d.ts",
-              "cli/dist",
-              "api/*",
-              "release/*"
-              ]
+  "include": ["src"],
+  "exclude": [
+    "node_modules",
+    "release",
+    "api",
+    "cli/dist",
+    "*.css.d.ts",
+    "*.sass.d.ts",
+    "*.scss.d.ts"
+  ]
 }
