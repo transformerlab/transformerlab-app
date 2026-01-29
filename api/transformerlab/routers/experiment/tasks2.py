@@ -58,7 +58,8 @@ async def from_directory(
 
     The directory must contain task.yaml only (no task.json). The task is created (index.json)
     and we write task.yaml into the task directory so the editor can show/edit it. For zip
-    uploads we also copy the rest of the directory into the task dir.
+    uploads we copy the whole directory (task.yaml + any other files) into the task dir and set
+    file_mounts so the runner gets that dir at ~/src (same idea as legacy "uploaded zip").
     """
     content_type = (request.headers.get("content-type") or "").lower()
     task_yaml_content = None
@@ -131,6 +132,9 @@ async def from_directory(
     yaml_path = storage.join(task_dir, "task.yaml")
     async with await storage.open(yaml_path, "w", encoding="utf-8") as f:
         await f.write(task_yaml_content)
+    # So the runner sees uploaded files: mount task dir at ~/src (same idea as legacy zip → file_mounts)
+    if task_root_for_zip:
+        await task_service.update_task(task_id, {"file_mounts": {"~/src": task_dir}})
 
     return {"id": task_id}
 
