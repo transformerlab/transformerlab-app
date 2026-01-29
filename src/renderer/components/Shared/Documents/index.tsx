@@ -52,7 +52,11 @@ import {
 import { formatBytes } from 'renderer/lib/utils';
 
 import Dropzone from 'react-dropzone';
-import { FaRegFileAlt, FaRegFilePdf, LuFileJson } from 'renderer/components/Icons';
+import {
+  FaRegFileAlt,
+  FaRegFilePdf,
+  LuFileJson,
+} from 'renderer/components/Icons';
 import TinyButton from 'renderer/components/Shared/TinyButton';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
