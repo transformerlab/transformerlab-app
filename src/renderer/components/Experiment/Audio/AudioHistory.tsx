@@ -94,6 +94,10 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
                       metadata={{
                         path: item.filename,
                         duration: undefined, // Duration not available in history data
+                        downloadFilename: item.filename.includes('.')
+                          ? item.filename
+                          : `${item.filename}.${item.audio_format}`,
+                        audioFormat: item.audio_format,
                       }}
                     />
                   </Box>

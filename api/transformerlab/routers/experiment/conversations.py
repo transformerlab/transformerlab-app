@@ -1,4 +1,5 @@
 import json
+import os
 from typing import Annotated
 
 from fastapi import APIRouter, Body
@@ -148,9 +149,18 @@ async def download_audio(experimentId: str, filename: str, audioFolder: str = "a
     if not await storage.exists(file_path):
         return {"message": f"Audio file {filename} does not exist in experiment {experimentId}"}
 
-    # FileResponse needs a local file path, so use the path string directly
-    # For remote storage, this would need special handling
-    return FileResponse(path=file_path, filename=filename, media_type="audio/mpeg")
+    # Set media type from file extension so browsers and clients get correct Content-Type
+    _, ext = os.path.splitext(filename.lower())
+    audio_media_types = {
+        ".wav": "audio/wav",
+        ".mp3": "audio/mpeg",
+        ".m4a": "audio/mp4",
+        ".flac": "audio/flac",
+        ".ogg": "audio/ogg",
+    }
+    media_type = audio_media_types.get(ext, "application/octet-stream")
+
+    return FileResponse(path=file_path, filename=filename, media_type=media_type)
 
 
 # NOTE: For this endpoint, you must pass the metadata id (the .json file name), not the specific audio file name.

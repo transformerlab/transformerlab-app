@@ -6,8 +6,9 @@ import {
   CardContent,
   Stack,
   IconButton,
+  Button,
 } from '@mui/joy';
-import { Play, Pause, Volume2 } from 'lucide-react';
+import { Play, Pause, Volume2, Download } from 'lucide-react';
 import WaveSurfer from 'wavesurfer.js';
 import { fetchWithAuth } from 'renderer/lib/authContext';
 
@@ -18,6 +19,10 @@ interface AudioPlayerProps {
   metadata?: {
     path?: string;
     duration?: number;
+    /** Filename to use when downloading (e.g. with correct extension). Falls back to path + audioFormat if not set. */
+    downloadFilename?: string;
+    /** Audio format (e.g. "wav") used to build download filename when path has no extension. */
+    audioFormat?: string;
   };
   transcription?: string;
   compact?: boolean;
@@ -308,23 +313,64 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             }}
           />
 
-          {/* Native Audio Controls */}
+          {/* Native Audio Controls (download hidden; we provide a link with correct filename below) */}
           <audio
             ref={nativeAudioRef}
             src={audioBlobUrl || undefined}
             controls
+            controlsList="nodownload"
             style={{ width: '100%' }}
           >
             <track kind="captions" />
           </audio>
 
-          {/* Metadata */}
+          {/* Metadata and Download */}
           <Stack spacing={1}>
-            {metadata?.path && (
-              <Box sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-                <strong>File:</strong> {metadata.path}
-              </Box>
-            )}
+            {metadata?.path &&
+              (() => {
+                let downloadName = metadata.downloadFilename;
+                if (downloadName == null) {
+                  downloadName = metadata.path.includes('.')
+                    ? metadata.path
+                    : `${metadata.path}.${metadata.audioFormat || 'wav'}`;
+                }
+                const canDownload = Boolean(audioBlobUrl && downloadName);
+                return (
+                  <Box
+                    sx={{
+                      fontSize: '0.75rem',
+                      color: 'text.secondary',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <strong>File:</strong>{' '}
+                    {canDownload ? (
+                      <Button
+                        type="button"
+                        variant="soft"
+                        size="sm"
+                        sx={{ fontSize: '0.75rem', '--Button-gap': '0.25rem' }}
+                        startDecorator={<Download size={12} />}
+                        onClick={() => {
+                          const a = document.createElement('a');
+                          a.href = audioBlobUrl!;
+                          a.download = downloadName;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                        }}
+                      >
+                        {metadata.path}
+                      </Button>
+                    ) : (
+                      metadata.path
+                    )}
+                  </Box>
+                );
+              })()}
             {metadata?.duration && (
               <Box sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
                 <strong>Duration:</strong> {metadata.duration}s
