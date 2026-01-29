@@ -302,7 +302,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       if (job.status === 'COMPLETE' && job.job_data?.end_time) {
         const endTime = dayjs(job.job_data.end_time);
         const minutesSinceCompletion = now.diff(endTime, 'minute', true);
-        return minutesSinceCompletion >= 0 && minutesSinceCompletion <= RECENT_COMPLETION_WINDOW_MINUTES;
+        return (
+          minutesSinceCompletion >= 0 &&
+          minutesSinceCompletion <= RECENT_COMPLETION_WINDOW_MINUTES
+        );
       }
 
       return false;
