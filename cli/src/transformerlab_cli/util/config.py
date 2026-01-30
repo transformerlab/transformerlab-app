@@ -157,11 +157,11 @@ def check_configs(output_format: str = "pretty") -> None:
         # that goes before other output
         return
 
-    # Now print really nicely the name of the user, server and team
+    # Now print really nicely the name of the user, server, team and current experiment
     user_email = config.get("user_email", "N/A")
     team_name = config.get("team_id", "N/A")
     server = config.get("server", "N/A")
-    experiment = "Not Implemented"
+    experiment = config.get("current_experiment", "N/A")
 
     # THEME: Use "header" for table headers
     table = Table(show_header=True, header_style="header", box=None, title_justify="left")
