@@ -5,7 +5,6 @@ ENV_NAME="transformerlab"
 TLAB_DIR="$HOME/.transformerlab"
 TLAB_CODE_DIR="${TLAB_DIR}/src"
 TLAB_STATIC_WEB_DIR="${TLAB_DIR}/webapp"
-TLAB_STATIC_WEB_MULTI_DIR="${TLAB_DIR}/webapp_multi"
 
 OLD_MINICONDA_ROOT=${TLAB_DIR}/miniconda3 # old place -- used to detect if an old install exists
 MINIFORGE_ROOT=${TLAB_DIR}/miniforge3
@@ -241,39 +240,33 @@ download_transformer_lab() {
   fi
 
 
-  # Download both web app builds from the latest release (default → webapp, multiuser → webapp_multi).
-  TLAB_APP_BASE_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download"
+  # Download the web app static files from the latest release
+  # The web app is built and published as transformerlab_web.tar.gz in the same repo
+  TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/transformerlab_web.tar.gz"
+  echo "Web app download location: $TLAB_APP_URL"
 
-  # Default web build → webapp
+  # Delete and recreate the target static files directory
   echo "Creating clean directory at ${TLAB_STATIC_WEB_DIR}"
   rm -rf "${TLAB_STATIC_WEB_DIR:?}" 2>/dev/null || true
   mkdir -p "${TLAB_STATIC_WEB_DIR}"
-  if curl -L --fail "${TLAB_APP_BASE_URL}/transformerlab_web.tar.gz" -o /tmp/transformerlab_web.tar.gz; then
+
+  # Download and extract, handling possible failure
+  if curl -L --fail "${TLAB_APP_URL}" -o /tmp/transformerlab_web.tar.gz; then
+    # Extraction succeeded, proceed with unpacking
     tar -xzf /tmp/transformerlab_web.tar.gz -C "${TLAB_STATIC_WEB_DIR}"
-    rm /tmp/transformerlab_web.tar.gz
+
+    # Clean up any nested directories if they exist
     if [ -d "${TLAB_STATIC_WEB_DIR}/transformerlab_web" ]; then
       mv "${TLAB_STATIC_WEB_DIR}/transformerlab_web/"* "${TLAB_STATIC_WEB_DIR}/" 2>/dev/null || true
       rmdir "${TLAB_STATIC_WEB_DIR}/transformerlab_web" 2>/dev/null || true
     fi
-    echo "Web app (default) installed."
-  else
-    echo "Warning: Could not download transformerlab_web.tar.gz. Continuing without web app installation."
-  fi
 
-  # Multiuser web build → webapp_multi
-  rm -rf "${TLAB_STATIC_WEB_MULTI_DIR:?}" 2>/dev/null || true
-  mkdir -p "${TLAB_STATIC_WEB_MULTI_DIR}"
-  if curl -L --fail "${TLAB_APP_BASE_URL}/transformerlab_web_multiuser.tar.gz" -o /tmp/transformerlab_web_multiuser.tar.gz; then
-    tar -xzf /tmp/transformerlab_web_multiuser.tar.gz -C "${TLAB_STATIC_WEB_MULTI_DIR}"
-    rm /tmp/transformerlab_web_multiuser.tar.gz
-    if [ -d "${TLAB_STATIC_WEB_MULTI_DIR}/transformerlab_web" ]; then
-      mv "${TLAB_STATIC_WEB_MULTI_DIR}/transformerlab_web/"* "${TLAB_STATIC_WEB_MULTI_DIR}/" 2>/dev/null || true
-      rmdir "${TLAB_STATIC_WEB_MULTI_DIR}/transformerlab_web" 2>/dev/null || true
-    fi
-    echo "Web app (multiuser) installed."
+    # Remove the temporary file
+    rm /tmp/transformerlab_web.tar.gz
+
+    echo "Web app successfully installed."
   else
-    echo "Warning: Could not download transformerlab_web_multiuser.tar.gz (may not exist on this release). Skipping webapp_multi."
-    rmdir "${TLAB_STATIC_WEB_MULTI_DIR}" 2>/dev/null || true
+    echo "Warning: Could not download web app from ${TLAB_APP_URL}. Continuing without web app installation."
   fi
 
   echo "🌕 Step 1: COMPLETE"
@@ -509,6 +502,22 @@ multiuser_setup() {
 
   echo "Installing Sentry SDK..."
   uv pip install sentry-sdk
+
+  # Replace webapp with multiuser web build (login, teams, etc.)
+  ohai "Downloading multiuser web build and replacing webapp..."
+  TLAB_MULTI_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/transformerlab_web_multiuser.tar.gz"
+  if curl -L --fail "${TLAB_MULTI_URL}" -o /tmp/transformerlab_web_multiuser.tar.gz; then
+    rm -rf "${TLAB_STATIC_WEB_DIR:?}"/* 2>/dev/null || true
+    tar -xzf /tmp/transformerlab_web_multiuser.tar.gz -C "${TLAB_STATIC_WEB_DIR}"
+    rm /tmp/transformerlab_web_multiuser.tar.gz
+    if [ -d "${TLAB_STATIC_WEB_DIR}/transformerlab_web" ]; then
+      mv "${TLAB_STATIC_WEB_DIR}/transformerlab_web/"* "${TLAB_STATIC_WEB_DIR}/" 2>/dev/null || true
+      rmdir "${TLAB_STATIC_WEB_DIR}/transformerlab_web" 2>/dev/null || true
+    fi
+    echo "Web app replaced with multiuser build."
+  else
+    echo "Warning: Could not download multiuser web build from ${TLAB_MULTI_URL}. Webapp unchanged."
+  fi
 
   echo "🌕 Step 5: COMPLETE"
 }
