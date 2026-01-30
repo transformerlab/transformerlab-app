@@ -17,11 +17,11 @@ console = Console()
 REQUIRED_TASK_FIELDS = ["name", "type"]
 
 
-def list_tasks(output_format: str = "pretty") -> None:
-    """List all tasks."""
+def list_tasks(output_format: str = "pretty", experiment_id: str = "alpha") -> None:
+    """List all REMOTE tasks."""
 
     with console.status("[bold green]Fetching tasks...[/bold green]", spinner="dots"):
-        response = api.get("/tasks/list")
+        response = api.get(f"/experiment/{experiment_id}/task/list_by_type_in_experiment?type=REMOTE")
 
     if response.status_code == 200:
         tasks = response.json()
