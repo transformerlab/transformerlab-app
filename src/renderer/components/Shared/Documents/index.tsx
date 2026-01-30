@@ -176,7 +176,9 @@ function File({
             size="sm"
             style={{ fontSize: '11px' }}
             disabled={!isLocalMode}
-            title={!isLocalMode ? 'Preview not available in remote mode' : undefined}
+            title={
+              !isLocalMode ? 'Preview not available in remote mode' : undefined
+            }
             onClick={() => {
               if (isLocalMode) setPreviewFile(row?.name);
             }}
