@@ -132,97 +132,9 @@ async def init():
 
     print("✅ Database initialized")
 
-    # Run migrations (only for SQLite)
-    if DATABASE_TYPE == "sqlite":
-        await migrate_workflows_non_preserving()
     # await init_sql_model()
 
     return
-
-
-async def migrate_workflows_non_preserving():
-    """
-    Migration function that renames workflows table as backup and creates new table
-    based on current schema definition if experiment_id is not INTEGER type or config is not JSON type
-
-    Note: This only applies to SQLite databases. PostgreSQL uses Alembic migrations exclusively.
-    """
-
-    if DATABASE_TYPE != "sqlite":
-        # Skip this migration for PostgreSQL
-        return
-
-    try:
-        # Check if workflows table exists
-        cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='workflows'")
-        table_exists = await cursor.fetchone()
-        await cursor.close()
-
-        if not table_exists:
-            print("Workflows table does not exist. Skipping non-preserving migration.")
-            return
-
-        # Check column types in the current workflows table
-        cursor = await db.execute("PRAGMA table_info(workflows)")
-        columns_info = await cursor.fetchall()
-        await cursor.close()
-
-        experiment_id_type = None
-        config_type = None
-
-        for column in columns_info:
-            column_name = column[1]
-            column_type = column[2].upper()
-
-            if column_name == "experiment_id":
-                experiment_id_type = column_type
-            elif column_name == "config":
-                config_type = column_type
-
-        # Check if migration is needed based on column types
-        needs_migration = False
-        migration_reasons = []
-
-        if experiment_id_type and experiment_id_type != "INTEGER":
-            needs_migration = True
-            migration_reasons.append(f"experiment_id column type is {experiment_id_type}, expected INTEGER")
-
-        # SQLAlchemy JSON type maps to TEXT in SQLite, so we accept both
-        if config_type and config_type not in ["JSON", "TEXT"]:
-            needs_migration = True
-            migration_reasons.append(
-                f"config column type is {config_type}, expected JSON/TEXT (SQLAlchemy creates JSON as TEXT in SQLite)"
-            )
-
-        if not needs_migration:
-            # print("Column types are correct. No migration needed.")
-            return
-
-        print("Migration needed due to:")
-        for reason in migration_reasons:
-            print(f"  - {reason}")
-
-        # Check if backup table already exists and drop it
-        cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='workflows_backup'")
-        backup_exists = await cursor.fetchone()
-        await cursor.close()
-
-        if backup_exists:
-            await db.execute("DROP TABLE workflows_backup")
-
-        # Rename current table as backup
-        await db.execute("ALTER TABLE workflows RENAME TO workflows_backup")
-
-        # Note: Table creation is now handled by Alembic migrations
-        # If we need to recreate the workflows table, it should be done via a migration
-        pass
-
-        await db.commit()
-        print("Successfully created new workflows table with correct schema. Old table saved as workflows_backup.")
-
-    except Exception as e:
-        print(f"Failed to perform non-preserving migration: {e}")
-        raise e
 
 
 async def close():
