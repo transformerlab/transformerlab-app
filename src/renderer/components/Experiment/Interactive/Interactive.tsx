@@ -756,7 +756,12 @@ export default function Interactive() {
                 No interactive jobs yet
               </Typography>
               <Typography level="body-sm" color="neutral">
-                Create a new interactive job to get started
+                Interactive jobs are long running services like an Inference
+                Server, VS Code or Jupyter notebook.
+              </Typography>
+              <Typography level="body-sm" color="neutral">
+                Deploy a new Interactive Job by clicking the &quot;New&quot;
+                button above.
               </Typography>
             </Box>
           )}
