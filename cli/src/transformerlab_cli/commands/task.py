@@ -2,7 +2,7 @@ from rich.console import Console
 
 import typer
 from transformerlab_cli.util.ui import render_table, render_object
-from transformerlab_cli.util.config import check_configs
+from transformerlab_cli.util.config import check_configs, get_config
 
 import transformerlab_cli.util.api as api
 import yaml
@@ -136,7 +136,12 @@ def add_task(task_yaml_path: str, from_url: str):
 def command_task_list():
     """List all tasks."""
     check_configs()
-    list_tasks()
+    current_experiment = get_config("current_experiment")
+    if not current_experiment or not str(current_experiment).strip():
+        console.print("[yellow]current_experiment is not set in config.[/yellow]")
+        console.print("Set it first with: [bold]lab config set current_experiment <experiment_name>[/bold]")
+        raise typer.Exit(1)
+    list_tasks(experiment_id=current_experiment)
 
 
 @app.command("add")
