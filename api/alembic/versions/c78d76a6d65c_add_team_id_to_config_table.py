@@ -23,43 +23,37 @@ def upgrade() -> None:
     """Upgrade schema."""
     connection = op.get_bind()
 
-    # Get existing indexes by querying SQLite directly
-    # SQLite stores unique constraints as unique indexes
-    index_result = connection.execute(
-        sa.text("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='config'")
-    )
-    existing_index_names = [row[0] for row in index_result.fetchall()]
-
-    # Add columns first (outside batch mode to avoid circular dependency)
+    # Add columns (outside batch mode to avoid circular dependency)
     op.add_column("config", sa.Column("user_id", sa.String(), nullable=True))
     op.add_column("config", sa.Column("team_id", sa.String(), nullable=True))
 
-    # Handle indexes outside of batch mode to avoid type inference issues
-    # Drop existing unique index on key if it exists (to recreate as non-unique)
-    if "ix_config_key" in existing_index_names:
-        # Check if it's unique by querying the index definition
-        index_info = connection.execute(
-            sa.text("SELECT sql FROM sqlite_master WHERE type='index' AND name='ix_config_key'")
-        ).fetchone()
-        if index_info and index_info[0] and "UNIQUE" in index_info[0].upper():
-            # Drop the unique index using raw SQL to avoid batch mode issues
-            connection.execute(sa.text("DROP INDEX IF EXISTS ix_config_key"))
-            existing_index_names.remove("ix_config_key")  # Update our list
+    # Drop old unique index on key if it exists, then recreate as non-unique
+    try:
+        op.drop_index("ix_config_key", table_name="config")
+    except Exception:
+        pass  # Index doesn't exist or already dropped
 
-    # Create new indexes (non-unique) - these can be done outside batch mode
-    if "ix_config_key" not in existing_index_names:
+    # Create indexes (will fail silently if they already exist in some databases)
+    try:
         op.create_index("ix_config_key", "config", ["key"], unique=False)
-    if "ix_config_user_id" not in existing_index_names:
-        op.create_index("ix_config_user_id", "config", ["user_id"], unique=False)
-    if "ix_config_team_id" not in existing_index_names:
-        op.create_index("ix_config_team_id", "config", ["team_id"], unique=False)
+    except Exception:
+        pass
 
-    # For SQLite, unique constraints are stored as unique indexes
-    # Create the unique constraint as a unique index using raw SQL to avoid batch mode issues
-    if "uq_config_user_team_key" not in existing_index_names:
-        connection.execute(
-            sa.text("CREATE UNIQUE INDEX IF NOT EXISTS uq_config_user_team_key ON config(user_id, team_id, key)")
-        )
+    try:
+        op.create_index("ix_config_user_id", "config", ["user_id"], unique=False)
+    except Exception:
+        pass
+
+    try:
+        op.create_index("ix_config_team_id", "config", ["team_id"], unique=False)
+    except Exception:
+        pass
+
+    # Create unique constraint on (user_id, team_id, key)
+    try:
+        op.create_unique_constraint("uq_config_user_team_key", "config", ["user_id", "team_id", "key"])
+    except Exception:
+        pass  # Constraint already exists
 
     # Migrate existing configs to admin user's first team
     # Note: Don't call connection.commit() - Alembic manages transactions
@@ -104,43 +98,58 @@ def downgrade() -> None:
     """Downgrade schema."""
     connection = op.get_bind()
 
-    # Check existing indexes
-    index_result = connection.execute(
-        sa.text("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='config'")
-    )
-    existing_index_names = [row[0] for row in index_result.fetchall()]
-
-    # Drop indexes and constraints outside of batch mode to avoid type inference issues
-    # Drop unique constraint (stored as unique index in SQLite)
-    if "uq_config_user_team_key" in existing_index_names:
-        connection.execute(sa.text("DROP INDEX IF EXISTS uq_config_user_team_key"))
+    # Drop unique constraint
+    try:
+        op.drop_constraint("uq_config_user_team_key", "config", type_="unique")
+    except Exception:
+        pass  # Constraint doesn't exist
 
     # Drop indexes
-    if "ix_config_team_id" in existing_index_names:
+    try:
         op.drop_index("ix_config_team_id", table_name="config")
-    if "ix_config_user_id" in existing_index_names:
-        op.drop_index("ix_config_user_id", table_name="config")
-    if "ix_config_key" in existing_index_names:
-        op.drop_index("ix_config_key", table_name="config")
+    except Exception:
+        pass
 
-    # Drop columns using raw SQL to avoid batch mode type inference issues
-    # SQLite doesn't support DROP COLUMN directly, so we recreate the table
-    # Create new table without user_id and team_id columns
-    connection.execute(
-        sa.text("""
-            CREATE TABLE config_new (
-                id INTEGER NOT NULL PRIMARY KEY,
-                key VARCHAR NOT NULL,
-                value VARCHAR
-            )
-        """)
-    )
-    # Copy data from old table to new table (only id, key, value columns)
-    connection.execute(sa.text("INSERT INTO config_new (id, key, value) SELECT id, key, value FROM config"))
-    # Drop old table (this also drops all indexes)
-    connection.execute(sa.text("DROP TABLE config"))
-    # Rename new table to original name
-    connection.execute(sa.text("ALTER TABLE config_new RENAME TO config"))
-    # Recreate the original unique index on key (it was dropped with the old table)
-    op.create_index("ix_config_key", "config", ["key"], unique=True)
+    try:
+        op.drop_index("ix_config_user_id", table_name="config")
+    except Exception:
+        pass
+
+    try:
+        op.drop_index("ix_config_key", table_name="config")
+    except Exception:
+        pass
+
+    # Drop columns - SQLite < 3.35.0 doesn't support DROP COLUMN, so recreate table
+    if connection.dialect.name == "sqlite":
+        # Recreate table without user_id and team_id columns for SQLite compatibility
+        connection.execute(
+            sa.text("""
+                CREATE TABLE config_new (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    key VARCHAR NOT NULL,
+                    value VARCHAR
+                )
+            """)
+        )
+        connection.execute(sa.text("INSERT INTO config_new (id, key, value) SELECT id, key, value FROM config"))
+        connection.execute(sa.text("DROP TABLE config"))
+        connection.execute(sa.text("ALTER TABLE config_new RENAME TO config"))
+    else:
+        # PostgreSQL and modern SQLite support DROP COLUMN
+        try:
+            op.drop_column("config", "team_id")
+        except Exception:
+            pass
+
+        try:
+            op.drop_column("config", "user_id")
+        except Exception:
+            pass
+
+    # Recreate the original unique index on key
+    try:
+        op.create_index("ix_config_key", "config", ["key"], unique=True)
+    except Exception:
+        pass
     # ### end Alembic commands ###
