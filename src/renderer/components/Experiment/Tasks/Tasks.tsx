@@ -878,8 +878,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
     try {
       // Strip modal-only fields from config so API only gets parameter overrides
-      const { provider_id: _pid, provider_name: _pname, ...paramConfig } =
-        config ?? {};
+      const {
+        provider_id: _pid,
+        provider_name: _pname,
+        ...paramConfig
+      } = config ?? {};
 
       // For templates, fields are stored directly, so use task directly or cfg
       // Keep original parameters (the definitions/defaults) and send overrides separately

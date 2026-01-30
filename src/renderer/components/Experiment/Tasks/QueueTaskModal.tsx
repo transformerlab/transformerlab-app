@@ -186,8 +186,7 @@ export default function QueueTaskModal({
       }
 
       // Set provider: use task's provider if it exists in current list, else first provider
-      const taskProviderId =
-        cfg.provider_id ?? task.provider_id ?? '';
+      const taskProviderId = cfg.provider_id ?? task.provider_id ?? '';
       const taskProviderInList = providers.some(
         (p: { id: string }) => p.id === taskProviderId,
       );
