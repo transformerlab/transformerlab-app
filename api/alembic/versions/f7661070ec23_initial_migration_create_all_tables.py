@@ -9,6 +9,7 @@ Create Date: 2025-11-21 15:04:59.420186
 from typing import Sequence, Union
 
 from alembic import op
+from alembic.utils import table_exists
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
@@ -21,13 +22,6 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Create all initial tables."""
     connection = op.get_bind()
-
-    # Helper function to check if table exists
-    def table_exists(table_name: str) -> bool:
-        result = connection.execute(
-            sa.text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"), {"name": table_name}
-        )
-        return result.fetchone() is not None
 
     # Config table
     if not table_exists("config"):

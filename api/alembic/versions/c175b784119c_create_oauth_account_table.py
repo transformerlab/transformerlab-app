@@ -11,6 +11,8 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
+from alembic.utils import table_exists
+
 
 # revision identifiers, used by Alembic.
 revision: str = "c175b784119c"
@@ -21,15 +23,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Create oauth_account table."""
-    connection = op.get_bind()
-
-    # Helper function to check if table exists
-    def table_exists(table_name: str) -> bool:
-        result = connection.execute(
-            sa.text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"), {"name": table_name}
-        )
-        return result.fetchone() is not None
-
     if not table_exists("oauth_account"):
         op.create_table(
             "oauth_account",
