@@ -28,6 +28,7 @@
   "version": "0.28.3",
   "scripts": {
     "build": "dotenv -e .env -- cross-env NODE_ENV=production tsx node_modules/webpack/bin/webpack.js --config ./.erb/configs/webpack.config.cloud.prod.ts",
+    "build:multiuser": "cross-env NODE_ENV=production tsx node_modules/webpack/bin/webpack.js --config ./.erb/configs/webpack.config.cloud.prod.ts",
     "lint": "cross-env NODE_ENV=development eslint . --ext .js,.jsx,.ts,.tsx",
     "start": "dotenv -e .env -- cross-env NODE_ENV=development tsx node_modules/webpack-dev-server/bin/webpack-dev-server.js --config ./.erb/configs/webpack.config.cloud.dev.ts",
     "start:cloud": "dotenv -e .env -- cross-env NODE_ENV=development tsx node_modules/webpack-dev-server/bin/webpack-dev-server.js --config ./.erb/configs/webpack.config.cloud.dev.ts",
