@@ -32,9 +32,20 @@ def list_tasks(output_format: str = "pretty", experiment_id: str = "alpha") -> N
         console.print(f"[red]Error:[/red] Failed to fetch tasks. Status code: {response.status_code}")
 
 
-def delete_task(task_id: str) -> None:
+def delete_task(task_id: str, experiment_id: str) -> None:
     """Delete a task by ID."""
-    console.print(f"[yellow]Task delete '{task_id}' - not implemented[/yellow]")
+    with console.status(f"[bold green]Deleting task {task_id}...[/bold green]", spinner="dots"):
+        response = api.get(f"/experiment/{experiment_id}/task/{task_id}/delete")
+    if response.status_code == 200:
+        body = response.json()
+        if body.get("message") == "OK":
+            console.print(f"[green]✓[/green] Task [bold]{task_id}[/bold] deleted.")
+        else:
+            console.print(f"[red]Error:[/red] Task not found. {body.get('message', '')}")
+            raise typer.Exit(1)
+    else:
+        console.print(f"[red]Error:[/red] Failed to delete task. Status code: {response.status_code}")
+        raise typer.Exit(1)
 
 
 def info_task(task_id: str, experiment_id: str) -> None:
@@ -162,7 +173,12 @@ def command_task_delete(
 ):
     """Delete a task."""
     check_configs()
-    delete_task(task_id)
+    current_experiment = get_config("current_experiment")
+    if not current_experiment or not str(current_experiment).strip():
+        console.print("[yellow]current_experiment is not set in config.[/yellow]")
+        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
+        raise typer.Exit(1)
+    delete_task(task_id, experiment_id=current_experiment)
 
 
 @app.command("info")
