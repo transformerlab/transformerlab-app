@@ -23,7 +23,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Create oauth_account table."""
-    if not table_exists("oauth_account"):
+    connection = op.get_bind()
+
+    if not table_exists(connection, "oauth_account"):
         op.create_table(
             "oauth_account",
             sa.Column("id", sa.CHAR(length=36), nullable=False),

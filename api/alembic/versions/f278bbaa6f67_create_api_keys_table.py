@@ -22,7 +22,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Create api_keys table."""
-    if not table_exists("api_keys"):
+    connection = op.get_bind()
+
+    if not table_exists(connection, "api_keys"):
         op.create_table(
             "api_keys",
             sa.Column("id", sa.String(), nullable=False),
