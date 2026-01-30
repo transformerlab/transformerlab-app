@@ -34,10 +34,16 @@ def get_fastchat_logs_dir_sync():
 
 
 def get_static_files_dir_sync():
-    """Get STATIC_FILES_DIR synchronously - for module-level code only."""
+    """Get STATIC_FILES_DIR synchronously - for module-level code only.
+    When TFL_API_STORAGE_URI is set, use webapp_multi if it exists, else webapp.
+    """
     global _static_files_dir
     if _static_files_dir is None:
-        _static_files_dir = os.path.join(HOME_DIR, "webapp")
+        webapp_multi = os.path.join(HOME_DIR, "webapp_multi")
+        if os.getenv("TFL_API_STORAGE_URI") and os.path.isdir(webapp_multi):
+            _static_files_dir = webapp_multi
+        else:
+            _static_files_dir = os.path.join(HOME_DIR, "webapp")
     return _static_files_dir
 
 
@@ -57,8 +63,12 @@ async def initialize_dirs():
     if not await storage.exists(FASTCHAT_LOGS_DIR):
         await storage.makedirs(FASTCHAT_LOGS_DIR, exist_ok=True)
 
-    # Ensure STATIC_FILES_DIR exists
-    STATIC_FILES_DIR = storage.join(HOME_DIR, "webapp")
+    # Use webapp_multi when TFL_API_STORAGE_URI is set and it exists, else webapp
+    webapp_multi = storage.join(HOME_DIR, "webapp_multi")
+    if os.getenv("TFL_API_STORAGE_URI") and await storage.exists(webapp_multi):
+        STATIC_FILES_DIR = webapp_multi
+    else:
+        STATIC_FILES_DIR = storage.join(HOME_DIR, "webapp")
     await storage.makedirs(STATIC_FILES_DIR, exist_ok=True)
 
     # Create default index.html if missing

@@ -5,6 +5,7 @@ ENV_NAME="transformerlab"
 TLAB_DIR="$HOME/.transformerlab"
 TLAB_CODE_DIR="${TLAB_DIR}/src"
 TLAB_STATIC_WEB_DIR="${TLAB_DIR}/webapp"
+TLAB_STATIC_WEB_MULTI_DIR="${TLAB_DIR}/webapp_multi"
 
 OLD_MINICONDA_ROOT=${TLAB_DIR}/miniconda3 # old place -- used to detect if an old install exists
 MINIFORGE_ROOT=${TLAB_DIR}/miniforge3
@@ -240,39 +241,39 @@ download_transformer_lab() {
   fi
 
 
-  # Download the web app static files from the latest release.
-  # Multiuser web build: TLAB_MULTI=1 ./install.sh
-  if [ -n "${TLAB_MULTI:-}" ] && [ "${TLAB_MULTI}" != "0" ] && [ "${TLAB_MULTI}" != "false" ]; then
-    TLAB_WEB_ARTIFACT="transformerlab_web_multiuser.tar.gz"
-    ohai "Using multiuser web build (TLAB_MULTI is set)"
-  else
-    TLAB_WEB_ARTIFACT="transformerlab_web.tar.gz"
-  fi
-  TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/${TLAB_WEB_ARTIFACT}"
-  echo "Web app download location: $TLAB_APP_URL"
+  # Download both web app builds from the latest release (default → webapp, multiuser → webapp_multi).
+  TLAB_APP_BASE_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download"
 
-  # Delete and recreate the target static files directory
+  # Default web build → webapp
   echo "Creating clean directory at ${TLAB_STATIC_WEB_DIR}"
   rm -rf "${TLAB_STATIC_WEB_DIR:?}" 2>/dev/null || true
   mkdir -p "${TLAB_STATIC_WEB_DIR}"
-
-  # Download and extract, handling possible failure
-  if curl -L --fail "${TLAB_APP_URL}" -o "/tmp/${TLAB_WEB_ARTIFACT}"; then
-    # Extraction succeeded, proceed with unpacking
-    tar -xzf "/tmp/${TLAB_WEB_ARTIFACT}" -C "${TLAB_STATIC_WEB_DIR}"
-
-    # Clean up any nested directories if they exist
+  if curl -L --fail "${TLAB_APP_BASE_URL}/transformerlab_web.tar.gz" -o /tmp/transformerlab_web.tar.gz; then
+    tar -xzf /tmp/transformerlab_web.tar.gz -C "${TLAB_STATIC_WEB_DIR}"
+    rm /tmp/transformerlab_web.tar.gz
     if [ -d "${TLAB_STATIC_WEB_DIR}/transformerlab_web" ]; then
       mv "${TLAB_STATIC_WEB_DIR}/transformerlab_web/"* "${TLAB_STATIC_WEB_DIR}/" 2>/dev/null || true
       rmdir "${TLAB_STATIC_WEB_DIR}/transformerlab_web" 2>/dev/null || true
     fi
-
-    # Remove the temporary file
-    rm "/tmp/${TLAB_WEB_ARTIFACT}"
-
-    echo "Web app successfully installed."
+    echo "Web app (default) installed."
   else
-    echo "Warning: Could not download web app from ${TLAB_APP_URL}. Continuing without web app installation."
+    echo "Warning: Could not download transformerlab_web.tar.gz. Continuing without web app installation."
+  fi
+
+  # Multiuser web build → webapp_multi
+  rm -rf "${TLAB_STATIC_WEB_MULTI_DIR:?}" 2>/dev/null || true
+  mkdir -p "${TLAB_STATIC_WEB_MULTI_DIR}"
+  if curl -L --fail "${TLAB_APP_BASE_URL}/transformerlab_web_multiuser.tar.gz" -o /tmp/transformerlab_web_multiuser.tar.gz; then
+    tar -xzf /tmp/transformerlab_web_multiuser.tar.gz -C "${TLAB_STATIC_WEB_MULTI_DIR}"
+    rm /tmp/transformerlab_web_multiuser.tar.gz
+    if [ -d "${TLAB_STATIC_WEB_MULTI_DIR}/transformerlab_web" ]; then
+      mv "${TLAB_STATIC_WEB_MULTI_DIR}/transformerlab_web/"* "${TLAB_STATIC_WEB_MULTI_DIR}/" 2>/dev/null || true
+      rmdir "${TLAB_STATIC_WEB_MULTI_DIR}/transformerlab_web" 2>/dev/null || true
+    fi
+    echo "Web app (multiuser) installed."
+  else
+    echo "Warning: Could not download transformerlab_web_multiuser.tar.gz (may not exist on this release). Skipping webapp_multi."
+    rmdir "${TLAB_STATIC_WEB_MULTI_DIR}" 2>/dev/null || true
   fi
 
   echo "🌕 Step 1: COMPLETE"
@@ -604,7 +605,6 @@ else
       *)
         # Print allowed arguments
         echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies, multiuser_setup] or leave blank to perform a full installation."
-        echo "Set TLAB_MULTI=1 to download the multiuser web build instead of the default."
         abort "❌ Unknown argument: $arg"
         ;;
     esac
