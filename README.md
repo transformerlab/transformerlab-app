@@ -6,7 +6,7 @@
   </picture></a>
 
   <h3>The Operating System for AI Research Labs</h3>
-  <p>Train, Fine-tune, and Evaluate LLMs & Diffusion Models across Local Machines and GPU Clusters.</p>
+  <p>Designed for ML Researchers. Local, on-prem, or in the cloud. Open source.</p>
 
   <p>
     <a href="https://github.com/transformerlab/transformerlab-app/stargazers"><img src="https://img.shields.io/github/stars/transformerlab/transformerlab-app?style=flat&color=blue" alt="GitHub Stars"></a>
