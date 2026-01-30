@@ -139,7 +139,7 @@ def command_task_list():
     current_experiment = get_config("current_experiment")
     if not current_experiment or not str(current_experiment).strip():
         console.print("[yellow]current_experiment is not set in config.[/yellow]")
-        console.print("Set it first with: [bold]lab config set current_experiment <experiment_name>[/bold]")
+        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
         raise typer.Exit(1)
     list_tasks(experiment_id=current_experiment)
 
