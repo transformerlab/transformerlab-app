@@ -198,7 +198,7 @@ export default function ProviderDetailsModal({
                 >
                   <Option value="skypilot">Skypilot</Option>
                   <Option value="slurm">SLURM</Option>
-                  <Option value="runpod">Runpod</Option>
+                  <Option value="runpod">Runpod (beta)</Option>
                 </Select>
                 {providerId && (
                   <Typography
