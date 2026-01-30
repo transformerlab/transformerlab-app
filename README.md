@@ -15,7 +15,9 @@
   </p>
 
   <p>
-    <a href="https://lab.cloud/docs/download/"><strong>⬇️ Download</strong></a>
+    <a href="https://lab.cloud/docs/install/"><strong>⬇️ Install for Individuals</strong></a>
+    &nbsp;·&nbsp;
+    <a href="https://lab.cloud/for-teams/install"><strong>🏢 Install for Teams</strong></a>
     &nbsp;·&nbsp;
     <a href="https://lab.cloud/docs/"><strong>📖 Documentation</strong></a>
     &nbsp;·&nbsp;
@@ -132,9 +134,10 @@ Transformer Lab is a **100% open-source** desktop application that gives you com
 
 ## 📥 Quick Start
 
-### Download
+### Install
 
-[![Download Transformer Lab](https://img.shields.io/badge/Download-Latest_Release-blue?style=for-the-badge&logo=github)](https://lab.cloud/docs/download)
+[![Install for Individuals](https://img.shields.io/badge/Install_for_Individuals-blue?style=for-the-badge&logo=github)](https://lab.cloud/docs/install/)
+[![Install for Teams](https://img.shields.io/badge/Install_for_Teams-green?style=for-the-badge&logo=github)](https://lab.cloud/for-teams/install)
 
 ### Requirements
 
@@ -145,29 +148,6 @@ Transformer Lab is a **100% open-source** desktop application that gives you com
 | **Windows** | NVIDIA GPU via WSL2 ([setup guide](https://lab.cloud/docs/install/#install-on-windows)) |
 
 > CPU-only installations support inference but not GPU-accelerated training.
-
----
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Electron + React                      │
-│                    (Desktop App)                         │
-└─────────────────────┬───────────────────────────────────┘
-                      │ REST API
-┌─────────────────────▼───────────────────────────────────┐
-│                    FastAPI Backend                       │
-│                    (Python)                              │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────┐
-│                    Transformer Lab SDK                   │
-│                    (PyPI: transformerlab)                │
-└─────────────────────────────────────────────────────────┘
-```
-
----
 
 ## 👩‍💻 Development
 
