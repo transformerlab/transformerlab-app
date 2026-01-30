@@ -28,19 +28,20 @@ import {
   ZapIcon,
 } from 'lucide-react';
 
-import { SiNvidia } from 'react-icons/si';
-
-import { BsGpuCard } from 'react-icons/bs';
-import { FaComputer, FaW, FaApple } from 'react-icons/fa6';
-import { FaWindows } from 'react-icons/fa6';
-import { FaLinux } from 'react-icons/fa6';
+import {
+  SiNvidia,
+  BsGpuCard,
+  FaComputer,
+  FaApple,
+  FaWindows,
+  FaLinux,
+  FaPython,
+} from 'renderer/components/Icons';
 
 import { formatBytes } from 'renderer/lib/utils';
 
 import { useServerStats, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { useState } from 'react';
-
-import { FaPython } from 'react-icons/fa';
 
 function ComputerCard({ children, title, description = '', chip = '', icon }) {
   return (
