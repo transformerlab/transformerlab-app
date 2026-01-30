@@ -2,7 +2,7 @@ from rich.console import Console
 
 import typer
 from transformerlab_cli.util.ui import render_table, render_object
-from transformerlab_cli.util.config import check_configs
+from transformerlab_cli.util.config import check_configs, get_config
 
 import transformerlab_cli.util.api as api
 import yaml
@@ -17,11 +17,11 @@ console = Console()
 REQUIRED_TASK_FIELDS = ["name", "type"]
 
 
-def list_tasks(output_format: str = "pretty") -> None:
-    """List all tasks."""
+def list_tasks(output_format: str = "pretty", experiment_id: str = "alpha") -> None:
+    """List all REMOTE tasks."""
 
     with console.status("[bold green]Fetching tasks...[/bold green]", spinner="dots"):
-        response = api.get("/tasks/list")
+        response = api.get(f"/experiment/{experiment_id}/task/list_by_type_in_experiment?type=REMOTE")
 
     if response.status_code == 200:
         tasks = response.json()
@@ -32,15 +32,26 @@ def list_tasks(output_format: str = "pretty") -> None:
         console.print(f"[red]Error:[/red] Failed to fetch tasks. Status code: {response.status_code}")
 
 
-def delete_task(task_id: str) -> None:
+def delete_task(task_id: str, experiment_id: str) -> None:
     """Delete a task by ID."""
-    console.print(f"[yellow]Task delete '{task_id}' - not implemented[/yellow]")
+    with console.status(f"[bold green]Deleting task {task_id}...[/bold green]", spinner="dots"):
+        response = api.get(f"/experiment/{experiment_id}/task/{task_id}/delete")
+    if response.status_code == 200:
+        body = response.json()
+        if body.get("message") == "OK":
+            console.print(f"[green]✓[/green] Task [bold]{task_id}[/bold] deleted.")
+        else:
+            console.print(f"[red]Error:[/red] Task not found. {body.get('message', '')}")
+            raise typer.Exit(1)
+    else:
+        console.print(f"[red]Error:[/red] Failed to delete task. Status code: {response.status_code}")
+        raise typer.Exit(1)
 
 
-def info_task(task_id: str) -> None:
+def info_task(task_id: str, experiment_id: str) -> None:
     """Get info for a task by ID."""
     with console.status(f"[bold green]Fetching info for task {task_id}...[/bold green]", spinner="dots"):
-        response = api.get(f"/tasks/{task_id}/get")
+        response = api.get(f"/experiment/{experiment_id}/task/{task_id}/get")
 
     if response.status_code == 200:
         task_info = response.json()
@@ -136,7 +147,12 @@ def add_task(task_yaml_path: str, from_url: str):
 def command_task_list():
     """List all tasks."""
     check_configs()
-    list_tasks()
+    current_experiment = get_config("current_experiment")
+    if not current_experiment or not str(current_experiment).strip():
+        console.print("[yellow]current_experiment is not set in config.[/yellow]")
+        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
+        raise typer.Exit(1)
+    list_tasks(experiment_id=current_experiment)
 
 
 @app.command("add")
@@ -157,7 +173,12 @@ def command_task_delete(
 ):
     """Delete a task."""
     check_configs()
-    delete_task(task_id)
+    current_experiment = get_config("current_experiment")
+    if not current_experiment or not str(current_experiment).strip():
+        console.print("[yellow]current_experiment is not set in config.[/yellow]")
+        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
+        raise typer.Exit(1)
+    delete_task(task_id, experiment_id=current_experiment)
 
 
 @app.command("info")
@@ -166,4 +187,9 @@ def command_task_info(
 ):
     """Get task details."""
     check_configs()
-    info_task(task_id)
+    current_experiment = get_config("current_experiment")
+    if not current_experiment or not str(current_experiment).strip():
+        console.print("[yellow]current_experiment is not set in config.[/yellow]")
+        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
+        raise typer.Exit(1)
+    info_task(task_id, current_experiment)
