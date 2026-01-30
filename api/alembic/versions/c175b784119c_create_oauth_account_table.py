@@ -11,6 +11,8 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
+from transformerlab.db.migration_utils import table_exists
+
 
 # revision identifiers, used by Alembic.
 revision: str = "c175b784119c"
@@ -23,14 +25,7 @@ def upgrade() -> None:
     """Create oauth_account table."""
     connection = op.get_bind()
 
-    # Helper function to check if table exists
-    def table_exists(table_name: str) -> bool:
-        result = connection.execute(
-            sa.text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"), {"name": table_name}
-        )
-        return result.fetchone() is not None
-
-    if not table_exists("oauth_account"):
+    if not table_exists(connection, "oauth_account"):
         op.create_table(
             "oauth_account",
             sa.Column("id", sa.CHAR(length=36), nullable=False),
