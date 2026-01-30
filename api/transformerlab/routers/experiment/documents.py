@@ -67,6 +67,8 @@ async def document_view(experimentId: str, document_name: str, folder: str = Non
 @router.get("/list", summary="List available documents.")
 async def document_list(experimentId: str, folder: str = None):
     documents = []
+    tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
+    use_detail = not bool(tfl_api_storage_uri)  # no size/mtime when remote
     # List the files that are in the experiment/<experiment_name>/documents directory:
     exp_obj = Experiment(experimentId)
     experiment_dir = await exp_obj.get_dir()
@@ -79,11 +81,12 @@ async def document_list(experimentId: str, folder: str = None):
             return {"status": "error", "message": f'Folder "{folder}" not found'}
     if await storage.exists(documents_dir):
         try:
-            entries = await storage.ls(documents_dir, detail=True)
-        except Exception:
+            entries = await storage.ls(documents_dir, detail=use_detail)
+        except Exception as e:
+            print(f"Error listing documents: {e}")
             entries = []
         for entry in entries:
-            # fsspec detail entry may be dict; otherwise derive name from path
+            # With detail=True (local): entry is dict. With detail=False (remote): entry is path string.
             if isinstance(entry, dict):
                 full_path = entry.get("name") or entry.get("path") or ""
                 name = os.path.basename(full_path.rstrip("/"))
@@ -138,6 +141,7 @@ async def delete_document(experimentId: str, document_name: str, folder: str = N
 async def document_upload(experimentId: str, folder: str, files: list[UploadFile]):
     fileNames = []
     md = MarkItDown(enable_plugins=False)
+    tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
 
     # Adding secure filename to the folder name as well
     folder = secure_filename(folder)
@@ -191,51 +195,53 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
                     await storage.makedirs(documents_dir, exist_ok=True)
 
                 newfilename = storage.join(documents_dir, str(file_name))
-                async with aiofiles.open(newfilename, "wb") as out_file:
-                    await out_file.write(content)
+                if tfl_api_storage_uri:
+                    async with await storage.open(newfilename, "wb") as out_file:
+                        await out_file.write(content)
+                else:
+                    async with aiofiles.open(newfilename, "wb") as out_file:
+                        await out_file.write(content)
 
-                # Convert file to .md format using MarkitDown and save it in markitdown_dir
-                # Do not do this for .jpeg, .jpg, .png, .gif, .webp
-                # Check if the file is an image
-                if file_ext not in [".jpeg", ".jpg", ".png", ".gif", ".webp"]:
+                # Convert file to .md format using MarkItDown and save it in markitdown_dir (local only)
+                # Skip for remote storage, images, and unsupported types
+                if not tfl_api_storage_uri and file_ext not in [".jpeg", ".jpg", ".png", ".gif", ".webp"]:
                     try:
                         result = md.convert(newfilename)
-                        # Save the converted file
-                        newfilename = storage.join(markitdown_dir, str(file_name).replace(file_ext, ".md"))
+                        newfilename_md = storage.join(markitdown_dir, str(file_name).replace(file_ext, ".md"))
                         print(f"Saving converted file to {markitdown_dir}")
-
-                        async with aiofiles.open(newfilename, "w", encoding="utf-8") as out_file:
+                        async with aiofiles.open(newfilename_md, "w", encoding="utf-8") as out_file:
                             await out_file.write(result.markdown)
-
                     except Exception as e:
                         print(f"Error converting file to .md format: {e}")
-            except Exception:
+            except Exception as e:
+                print(f"Error uploading file: {e}")
                 raise HTTPException(status_code=403, detail="There was a problem uploading the file")
         else:
-            # Do the conversion to md using MarkitDown
-            # Save the file to the dataset directory
+            # Restricted file type: when TFL_API_STORAGE_URI is set, save as-is (no conversion).
+            # Otherwise try to convert to .md using MarkItDown for viewing.
             try:
                 content = await file.read()
-                # from io import BytesIO
-
-                # content_io = BytesIO(content)
-                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                    temp_file.write(content)
-                    temp_file_path = temp_file.name
-                    print(f"Temporary file created at {temp_file_path}")
-                    # Convert the file to .md format using MarkitDown
-                    result = md.convert(temp_file_path)
-                    # Save the converted file
-                    newfilename = storage.join(documents_dir, str(file_name).replace(file_ext, ".md"))
-                    newfilename_md = storage.join(markitdown_dir, str(file_name).replace(file_ext, ".md"))
-                    async with aiofiles.open(newfilename, "w", encoding="utf-8") as out_file:
-                        await out_file.write(result.markdown)
-                    print(f"Saving converted file to {markitdown_dir} as well")
-                    async with aiofiles.open(newfilename_md, "w", encoding="utf-8") as out_file:
-                        await out_file.write(result.markdown)
-                    # Remove the temporary file
-                    os.remove(temp_file_path)
-                    print(f"Temporary file {temp_file_path} deleted")
+                if tfl_api_storage_uri:
+                    # Save file as-is without conversion (e.g. task.yaml, application/x-yaml)
+                    newfilename = storage.join(documents_dir, str(file_name))
+                    async with await storage.open(newfilename, "wb") as out_file:
+                        await out_file.write(content)
+                else:
+                    temp_file_path = None
+                    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                        temp_file.write(content)
+                        temp_file_path = temp_file.name
+                    try:
+                        result = md.convert(temp_file_path)
+                        newfilename = storage.join(documents_dir, str(file_name).replace(file_ext, ".md"))
+                        newfilename_md = storage.join(markitdown_dir, str(file_name).replace(file_ext, ".md"))
+                        async with aiofiles.open(newfilename, "w", encoding="utf-8") as out_file:
+                            await out_file.write(result.markdown)
+                        async with aiofiles.open(newfilename_md, "w", encoding="utf-8") as out_file:
+                            await out_file.write(result.markdown)
+                    finally:
+                        if temp_file_path and os.path.exists(temp_file_path):
+                            os.remove(temp_file_path)
             except Exception as e:
                 print(f"Error converting file to .md format: {e}")
                 raise HTTPException(status_code=403, detail="There was a problem uploading the file")
@@ -265,6 +271,7 @@ async def create_folder(experimentId: str, name: str):
 async def document_upload_links(experimentId: str, folder: str = None, data: dict = Body(...)):
     urls = data.get("urls")
     folder = secure_filename(folder)
+    tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
     exp_obj = Experiment(experimentId)
     experiment_dir = await exp_obj.get_dir()
     documents_dir = storage.join(experiment_dir, "documents")
@@ -282,9 +289,9 @@ async def document_upload_links(experimentId: str, folder: str = None, data: dic
 
     # Find the next available number for link_X.md files
     existing_numbers = set()
-    if storage.exists(documents_dir):
+    if await storage.exists(documents_dir):
         try:
-            entries = storage.ls(documents_dir, detail=False)
+            entries = await storage.ls(documents_dir, detail=False)
             for entry in entries:
                 name = os.path.basename(entry.rstrip("/"))
                 if name.startswith("link_") and name.endswith(".md"):
@@ -305,15 +312,19 @@ async def document_upload_links(experimentId: str, folder: str = None, data: dic
     md = MarkItDown(enable_plugins=False)
     for i, url in enumerate(urls):
         result = md.convert(url)
-        # Use the next available number, incrementing for each URL in the batch
         file_number = next_number + i
         filename = storage.join(documents_dir, f"link_{file_number}.md")
         filename_md = storage.join(markitdown_dir, f"link_{file_number}.md")
-        async with aiofiles.open(filename, "w", encoding="utf-8") as out_file:
-            await out_file.write(result.markdown)
-
-        async with aiofiles.open(filename_md, "w", encoding="utf-8") as out_file:
-            await out_file.write(result.markdown)
+        if tfl_api_storage_uri:
+            async with await storage.open(filename, "w", encoding="utf-8") as out_file:
+                await out_file.write(result.markdown)
+            async with await storage.open(filename_md, "w", encoding="utf-8") as out_file:
+                await out_file.write(result.markdown)
+        else:
+            async with aiofiles.open(filename, "w", encoding="utf-8") as out_file:
+                await out_file.write(result.markdown)
+            async with aiofiles.open(filename_md, "w", encoding="utf-8") as out_file:
+                await out_file.write(result.markdown)
         # reindex the vector store on every file upload
         if folder == "rag":
             await rag.reindex(experimentId)
