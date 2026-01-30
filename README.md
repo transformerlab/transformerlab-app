@@ -238,5 +238,5 @@ AGPL-3.0 · See [LICENSE](LICENSE) for details.
 </p>
 
 <p align="center">
-  <sub>Built with ❤️ by <a href="https://twitter.com/transformerlab">Transformer Lab</a> in Toronto 🇨🇦</sub>
+  <sub>Built with ❤️ by <a href="https://twitter.com/transformerlab">Transformer Lab</a> in Canada 🇨🇦</sub>
 </p>
