@@ -40,6 +40,7 @@ export default function NewTaskModal2({
   const [selectedOption, setSelectedOption] = React.useState<string>('git');
   const [gitUrl, setGitUrl] = React.useState<string>('');
   const [gitRepoDirectory, setGitRepoDirectory] = React.useState<string>('');
+  const [gitBranch, setGitBranch] = React.useState<string>('');
   const [directoryFiles, setDirectoryFiles] = React.useState<File[]>([]);
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
@@ -62,6 +63,7 @@ export default function NewTaskModal2({
             body: JSON.stringify({
               git_url: url,
               git_repo_directory: gitRepoDirectory.trim() || undefined,
+              git_branch: gitBranch.trim() || undefined,
             }),
           },
         );
@@ -143,7 +145,7 @@ export default function NewTaskModal2({
                 sx={{ gap: 2, mt: 1 }}
               >
                 <Stack spacing={1}>
-                  <Radio value="git" label="Remote Git Repository" />
+                  <Radio value="git" label="From GitHub" />
                   {selectedOption === 'git' && (
                     <Stack spacing={1} sx={{ ml: 3 }}>
                       <Input
@@ -155,6 +157,11 @@ export default function NewTaskModal2({
                         placeholder="Optional: subdirectory (e.g. tasks/my-task)"
                         value={gitRepoDirectory}
                         onChange={(e) => setGitRepoDirectory(e.target.value)}
+                      />
+                      <Input
+                        placeholder="Optional: branch, tag, or commit (default branch if empty)"
+                        value={gitBranch}
+                        onChange={(e) => setGitBranch(e.target.value)}
                       />
                     </Stack>
                   )}

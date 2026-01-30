@@ -53,7 +53,7 @@ async def from_directory(
 ):
     """
     Create a task immediately and return its ID. Accepts either:
-    - JSON body: { "git_url": "https://github.com/...", "git_repo_directory": "optional/subdir" }
+    - JSON body: { "git_url": "https://github.com/...", "git_repo_directory": "optional/subdir", "git_branch": "optional branch/tag/commit" }
     - Multipart: directory_zip = ZIP file containing a directory with task.yaml (and optionally other files)
 
     The directory must contain task.yaml only (no task.json). The task is created (index.json)
@@ -69,9 +69,12 @@ async def from_directory(
         body = await request.json()
         git_url = (body.get("git_url") or "").strip()
         git_repo_directory = (body.get("git_repo_directory") or "").strip() or None
+        git_branch = (body.get("git_branch") or "").strip() or None
         if not git_url:
             raise HTTPException(status_code=400, detail="git_url is required")
-        task_yaml_content = await fetch_task_yaml_from_github(git_url, git_repo_directory)
+        task_yaml_content = await fetch_task_yaml_from_github(
+            git_url, directory=git_repo_directory, ref=git_branch
+        )
     elif "multipart/form-data" in content_type:
         form = await request.form()
         zip_file = form.get("directory_zip")
