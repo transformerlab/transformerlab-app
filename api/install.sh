@@ -240,9 +240,15 @@ download_transformer_lab() {
   fi
 
 
-  # Download the web app static files from the latest release
-  # The web app is built and published as transformerlab_web.tar.gz in the same repo
-  TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/transformerlab_web.tar.gz"
+  # Download the web app static files from the latest release.
+  # Multiuser web build: TLAB_MULTI=1 ./install.sh
+  if [ -n "${TLAB_MULTI:-}" ] && [ "${TLAB_MULTI}" != "0" ] && [ "${TLAB_MULTI}" != "false" ]; then
+    TLAB_WEB_ARTIFACT="transformerlab_web_multiuser.tar.gz"
+    ohai "Using multiuser web build (TLAB_MULTI is set)"
+  else
+    TLAB_WEB_ARTIFACT="transformerlab_web.tar.gz"
+  fi
+  TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/${TLAB_WEB_ARTIFACT}"
   echo "Web app download location: $TLAB_APP_URL"
 
   # Delete and recreate the target static files directory
@@ -251,9 +257,9 @@ download_transformer_lab() {
   mkdir -p "${TLAB_STATIC_WEB_DIR}"
 
   # Download and extract, handling possible failure
-  if curl -L --fail "${TLAB_APP_URL}" -o /tmp/transformerlab_web.tar.gz; then
+  if curl -L --fail "${TLAB_APP_URL}" -o "/tmp/${TLAB_WEB_ARTIFACT}"; then
     # Extraction succeeded, proceed with unpacking
-    tar -xzf /tmp/transformerlab_web.tar.gz -C "${TLAB_STATIC_WEB_DIR}"
+    tar -xzf "/tmp/${TLAB_WEB_ARTIFACT}" -C "${TLAB_STATIC_WEB_DIR}"
 
     # Clean up any nested directories if they exist
     if [ -d "${TLAB_STATIC_WEB_DIR}/transformerlab_web" ]; then
@@ -262,7 +268,7 @@ download_transformer_lab() {
     fi
 
     # Remove the temporary file
-    rm /tmp/transformerlab_web.tar.gz
+    rm "/tmp/${TLAB_WEB_ARTIFACT}"
 
     echo "Web app successfully installed."
   else
@@ -598,6 +604,7 @@ else
       *)
         # Print allowed arguments
         echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies, multiuser_setup] or leave blank to perform a full installation."
+        echo "Set TLAB_MULTI=1 to download the multiuser web build instead of the default."
         abort "❌ Unknown argument: $arg"
         ;;
     esac
