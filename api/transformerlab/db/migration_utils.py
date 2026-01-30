@@ -1,4 +1,8 @@
-"""Utility functions for Alembic migrations."""
+"""
+Utility functions for Alembic migrations.
+
+Keep this clean and isolated. Do NOT import Transformer Lab stuff in here.
+"""
 
 import sqlalchemy as sa
 
