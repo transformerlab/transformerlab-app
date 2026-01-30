@@ -2,306 +2,283 @@
   <a href="https://lab.cloud"><picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/main/assets/Transformer-Lab_Logo_Reverse.svg">
     <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/main/assets/Transformer-Lab_Logo.svg">
-    <img alt="transformer lab logo" src="https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/main/assets/Transformer-Lab_Logo.svg" style="max-width: 650px">
+    <img alt="Transformer Lab" src="https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/main/assets/Transformer-Lab_Logo.svg" width="400">
   </picture></a>
 
-  <p align="center">
-    100% Open Source Toolkit for Large Language Models: Train, Tune, Chat on your own Machine
-    <br />
-    <a href="https://lab.cloud/docs/download/"><strong>Download</strong></a>
-    ·
-    <a href="https://lab.cloud/docs/"><strong>Explore the docs »</strong></a>
-    <br />
-    <br />
-    <a href="https://youtu.be/tY5TAvKviLo">View Demo</a>
-    ·
-    <a href="https://github.com/transformerlab/transformerlab-app/issues">Report Bugs</a>
-    ·
-    <a href="https://github.com/transformerlab/transformerlab-app/issues/new">Suggest Features</a>
-    ·
-    <a href="https://discord.gg/transformerlab">Join Discord</a>
-    ·
-    <a href="https://twitter.com/transformerlab">Follow on Twitter</a>
+  <h3>Train, Fine-tune & Chat with LLMs on Your Own Machine</h3>
+
+  <p>
+    <a href="https://github.com/transformerlab/transformerlab-app/stargazers"><img src="https://img.shields.io/github/stars/transformerlab/transformerlab-app?style=flat&color=blue" alt="GitHub Stars"></a>
+    <a href="https://github.com/transformerlab/transformerlab-app/releases"><img src="https://img.shields.io/github/v/release/transformerlab/transformerlab-app?color=green" alt="Release"></a>
+    <a href="https://github.com/transformerlab/transformerlab-app/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License"></a>
+    <a href="https://twitter.com/transformerlab"><img src="https://img.shields.io/twitter/follow/transformerlab?style=flat&logo=x&color=black" alt="Twitter"></a>
   </p>
-  <p align="center">
-   Note: Transformer Lab is actively being developed. Please join our Discord or follow us on Twitter for updates. Questions, feedback and contributions are highly valued!</p>
+
+  <p>
+    <a href="https://lab.cloud/docs/download/"><strong>⬇️ Download</strong></a>
+    &nbsp;·&nbsp;
+    <a href="https://lab.cloud/docs/"><strong>📖 Documentation</strong></a>
+    &nbsp;·&nbsp;
+    <a href="https://youtu.be/tY5TAvKviLo"><strong>🎬 Demo</strong></a>
+    &nbsp;·&nbsp;
+    <a href="https://discord.gg/transformerlab"><strong>💬 Discord</strong></a>
+  </p>
+
+  <br/>
+  
+  <a href="https://future.mozilla.org/builders/">
+    <img src="https://img.shields.io/badge/Backed_by-Mozilla_Builders-black?style=flat&logo=mozilla" alt="Mozilla Builders">
+  </a>
 </div>
 
-<!-- ABOUT THE PROJECT -->
+<br/>
 
-## Download Now
+<p align="center">
+  <img src="assets/transformerlab-demo-jan2025.gif" alt="Transformer Lab Demo" width="800">
+</p>
 
-[![Download Icon]][Download URL]
+---
 
-## About The Project
+## ✨ Why Transformer Lab?
 
-![Product Screen Shot](assets/transformerlab-demo-jan2025.gif)
+Transformer Lab is a **100% open-source** desktop application that gives you complete control over large language models. No cloud dependencies, no API costs, no data leaving your machine.
 
-Transformer Lab is an app that allows anyone to experiment with Large Language Models.
+<table>
+<tr>
+<td width="50%">
 
-## Backed by Mozilla
+### 🎯 For Researchers & Engineers
+- Fine-tune models with RLHF, DPO, ORPO, SIMPO
+- Evaluate models with built-in benchmarks
+- Inspect attention patterns and activations
+- Full REST API for automation
 
-Transformer Lab is proud to be supported by Mozilla through the <a href="https://future.mozilla.org/builders/">Mozilla Builders Program</a>
+</td>
+<td width="50%">
 
-<a href="https://future.mozilla.org/builders/">
-    <img src="https://lab.cloud/img/mozilla-builders-2024.png" alt="Mozilla Builders Logo" width=300>
-</a>
+### 🚀 For Everyone
+- One-click model downloads from HuggingFace
+- Simple chat interface with history
+- Drag-and-drop RAG document upload
+- Cross-platform: macOS, Windows, Linux
 
-## Features
+</td>
+</tr>
+</table>
 
-Transformer Lab allows you to:
+---
 
-- 💕 **One-click Download Hundreds of Popular Models**:
-  - DeepSeek, Qwen, Gemma, Phi4, Llama, Mistral, Mixtral, Stable Diffusion, Flux, Command-R, and dozens more
-- ⬇ **Download any LLM, VLM, or Diffusion model from Huggingface**
-- 🎶 **Finetune / Train Across Different Hardware**
-  - Finetune using MLX on Apple Silicon
-  - Finetune using Huggingface on GPU
-  - Finetune Diffusion LoRAs on GPU
-- ⚖️ **RLHF and Preference Optimization**
-  - DPO
-  - ORPO
-  - SIMPO
-  - Reward Modeling
-- 💻 **Work with Models Across Operating Systems**:
-  - Windows App
-  - MacOS App
-  - Linux
-- 💬 **Chat with Models**
-  - Chat
-  - Completions
-  - Visualize Model Architecture
-  - Inspect activations & attention for each generated token
-  - Preset (Templated) Prompts
-  - Chat History
-  - Tweak generation parameters
-  - Batched Inference
-  - Tool Use / Function Calling (in alpha)
-- 🚂 **Use Different Inference Engines**
-  - MLX on Apple Silicon
-  - FastChat
-  - vLLM
-  - Llama CPP
-  - SGLang
-- 🖼️ **Support for Image Diffusion Models**
-  - Run and experiment with image generation models (e.g., Stable Diffusion, Flux, etc.)
-- 🧑‍🎓 **Evaluate models**
-- 📖 **RAG (Retreival Augmented Generation)**
-  - Drag and Drop File UI
-  - Works on Apple MLX, FastChat, and other engines
-- 📓 **Build Datasets for Training**
-  - Pull from hundreds of common datasets available on HuggingFace
-  - Provide your own dataset using drag and drop
-- 🔢 **Calculate Embeddings**
-- 💁 **Full REST API**
-- 🌩 **Run in the Cloud**
-  - You can run the user interface on your desktop/laptop while the engine runs on a remote or cloud machine
-  - Or you can run everything locally on a single machine
-- 🔀 **Convert Models Across Platforms**
-  - Convert from/to Huggingface, MLX, GGUF
-- 🔌 **Plugin Support**
-  - Easily install from a gallery of existing plugins
-  - Write your own plugins to extend functionality
-- 🧑‍💻 **Embedded Monaco Code Editor**
-  - Edit plugins and view what's happening behind the scenes
-- 📝 **Prompt Editing**
-  - Easily edit System Messages or Prompt Templates
-- 📜 **Inference Logs**
-  - While doing inference or RAG, view a log of the raw queries sent to the model
+## 🛠️ Features
 
-And you can do the above, all through a simple cross-platform GUI.
+<details open>
+<summary><strong>📦 Model Management</strong></summary>
 
-<!-- GETTING STARTED -->
+- **One-click downloads** for DeepSeek, Qwen, Gemma, Phi4, Llama, Mistral, Mixtral, Stable Diffusion, Flux, and more
+- Download any model from HuggingFace (LLMs, VLMs, Diffusion)
+- Convert between Huggingface, MLX, and GGUF formats
+</details>
 
-## Getting Started
+<details open>
+<summary><strong>🎓 Training & Fine-tuning</strong></summary>
 
-<a href="https://lab.cloud/docs/download">Click here</a> to download Transformer Lab.
+- **MLX** fine-tuning on Apple Silicon
+- **Huggingface Trainer** on NVIDIA/AMD GPUs
+- **Diffusion LoRA** training
+- **RLHF**: DPO, ORPO, SIMPO, Reward Modeling
+</details>
 
-<a href="https://lab.cloud/docs/install">Read this page</a> to learn how to install and use.
+<details open>
+<summary><strong>💬 Inference & Chat</strong></summary>
+
+- Multiple engines: MLX, vLLM, llama.cpp, SGLang, FastChat
+- Batched inference & function calling
+- Visualize model architecture, attention, and activations
+- Templated prompts with parameter tuning
+</details>
+
+<details>
+<summary><strong>📖 RAG & Datasets</strong></summary>
+
+- Drag-and-drop document upload
+- Works with MLX, FastChat, and other engines
+- Pull from HuggingFace datasets or bring your own
+- Calculate embeddings
+</details>
+
+<details>
+<summary><strong>🖼️ Image Generation</strong></summary>
+
+- Stable Diffusion, Flux, and more
+- Train custom LoRAs
+</details>
+
+<details>
+<summary><strong>🔌 Extensibility</strong></summary>
+
+- Plugin gallery with one-click install
+- Write custom plugins
+- Embedded Monaco code editor
+- Full REST API
+</details>
+
+<details>
+<summary><strong>☁️ Flexible Deployment</strong></summary>
+
+- Run everything locally on a single machine
+- Or split: UI on laptop, engine on cloud/remote GPU
+</details>
+
+---
+
+## 📥 Quick Start
+
+### Download
+
+[![Download Transformer Lab](https://img.shields.io/badge/Download-Latest_Release-blue?style=for-the-badge&logo=github)](https://lab.cloud/docs/download)
 
 ### Requirements
 
-- NVIDIA or AMD GPU on Linux (or Windows via WSL2)
-- macOS with Apple Silicon is supported (training functionality varies by hardware)
-- CPU-only installs run inference but not GPU-heavy workflows
+| Platform | Requirements |
+|----------|-------------|
+| **macOS** | Apple Silicon (M1/M2/M3/M4) |
+| **Linux** | NVIDIA or AMD GPU |
+| **Windows** | NVIDIA GPU via WSL2 ([setup guide](https://lab.cloud/docs/install/#install-on-windows)) |
 
-#### Windows Notes
+> CPU-only installations support inference but not GPU-accelerated training.
 
-See https://lab.cloud/docs/install/#install-on-windows for GPU driver and WSL guidance.
+---
 
-Need a fully manual install without the helper script? Follow https://lab.cloud/docs/install/advanced-install for step-by-step instructions.
+## 🏗️ Architecture
 
-### Built With
-
-- [![Electron][Electron]][Electron-url]
-- [![React][React.js]][React-url]
-- [![HuggingFace][HuggingFace]][HuggingFace-url]
-
-## Notes for Developers
-
-Transformer Lab consists of a React application "Frontend" that communicates with a Python API "Backend" (found in the `api` directory).
-Application data is stored in a file system workspace that is accessed by the API and third-party scripts using
-the SDK (which can be found in the `lab-sdk` directory).
-
-### Building Frontend from Scratch
-
-To build the app yourself, pull this repo, and follow the steps below:
-
-(Please note that the current build doesn't work on Node v23+. Use Node v22.)
-
-```bash
-npm install
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Electron + React                      │
+│                    (Desktop App)                         │
+└─────────────────────┬───────────────────────────────────┘
+                      │ REST API
+┌─────────────────────▼───────────────────────────────────┐
+│                    FastAPI Backend                       │
+│                    (Python)                              │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────┐
+│                    Transformer Lab SDK                   │
+│                    (PyPI: transformerlab)                │
+└─────────────────────────────────────────────────────────┘
 ```
 
+---
+
+## 👩‍💻 Development
+
+<details>
+<summary><strong>Frontend Development</strong></summary>
+
 ```bash
+# Requires Node.js v22 (not v23+)
+npm install
 npm start
 ```
 
-### Packaging Frontend for Production
-
-To package apps for the local platform:
-
+Package for distribution:
 ```bash
 npm run package
 ```
+</details>
 
-### Backend (API) Installation & Development
-
-If you need to run just the Transformer Lab API (for example, you might run the app on your local machine while running the API on a remote machine with GPU) you can install it directly:
-
-```bash
-cd api
-./install.sh
-```
-
-(You can also run `npm run api:install` from the repo root, which does the same thing)
-
-This script installs Miniforge/Mamba if needed, sets up the Conda environment, and installs all Python dependencies via `uv`.
-
-To start the API after installation:
+<details>
+<summary><strong>Backend (API) Development</strong></summary>
 
 ```bash
 cd api
-./run.sh
+./install.sh   # Sets up Conda env + Python deps
+./run.sh       # Start the API server
 ```
 
-(Or run `npm run api:start` from the repo root, which does the same)
-
-#### Updating API Python Requirements
-
-Python dependencies (used by the API) are managed with `pyproject.toml`. To add/change a dependency, update `pyproject.toml` directly:
-
-- Base dependencies go in `[project.dependencies]`
-- Platform-specific dependencies go in `[project.optional-dependencies]`:
-  - `nvidia` - For NVIDIA GPU support (includes `nvidia-ml-py`, PyTorch with `+cu128` suffix)
-  - `rocm` - For AMD ROCm GPU support (includes `pyrsmi`, and PyTorch with `+rocm6.4` suffix)
-  - `cpu` - For CPU-only installations
-
-To install with a specific platform:
-
+Or from repo root:
 ```bash
-cd api
-
-# NVIDIA GPU (default)
-uv pip install .[nvidia]
-
-# AMD ROCm
-uv pip install .[rocm] --index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match
-
-# CPU-only (Linux/Windows)
-uv pip install .[cpu] --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
-
-# macOS (Apple Silicon)
-uv pip install .[cpu]
+npm run api:install
+npm run api:start
 ```
+</details>
 
-The `install.sh` script automatically detects the platform and installs the appropriate extra.
-
-### Lab SDK Development
-
-This repository also includes the Transformer Lab Python SDK in the `lab-sdk/` directory. The SDK allows you to write plugins and ML scripts that integrate with Transformer Lab.
-
-The SDK is published to PyPI as `transformerlab` and can be installed with:
-
-```bash
-pip install transformerlab
-```
-
-The API uses the SDK to interact with the local workspace. In order to develop the SDK locally and have the API pick up changes, you should install the SDK in "editable" mode:
+<details>
+<summary><strong>SDK Development</strong></summary>
 
 ```bash
 cd lab-sdk
 uv venv
 uv pip install -e .
-uv run pytest  # Run tests
+uv run pytest
 ```
 
-### Database Migrations (Alembic)
+Or install from PyPI:
+```bash
+pip install transformerlab
+```
+</details>
 
-Our Alembic setup lives under `api/alembic`. Use the API Conda/uv environment before running any commands.
-
-- **Autogenerate a migration**
-
-  ```bash
-  cd api
-  alembic revision --autogenerate -m "describe change"
-  ```
-
-  The autogenerator respects the exclusions configured in `api/alembic/env.py` (e.g., exclusion of tables `workflows`, `workflow_runs`). Always review the generated file before committing.
-
-- **Run migrations locally for testing**
-
-  ```bash
-  cd api
-  alembic upgrade head
-  ```
-
-  To roll back the most recent migration while iterating, run `alembic downgrade -1`.
-
-### Running API Tests Locally
-
-To run API tests locally:
+<details>
+<summary><strong>Database Migrations</strong></summary>
 
 ```bash
-conda activate ~/.transformerlab/envs/transformerlab
 cd api
-pytest --cov=transformerlab --cov-branch --cov-report=xml -k 'not test_teams'
+alembic revision --autogenerate -m "describe change"
+alembic upgrade head
 ```
+</details>
 
-<!-- LICENSE -->
+<details>
+<summary><strong>Running Tests</strong></summary>
 
-## License
+```bash
+# Frontend
+npm test
 
-Distributed under the AGPL V3 License. See `LICENSE.txt` for more information.
-
-## Reference
-
-If you found Transformer Lab useful in your research or applications, please cite using the following BibTeX:
-
+# Backend
+cd api && pytest
 ```
+</details>
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please check our [issues](https://github.com/transformerlab/transformerlab-app/issues) for open tasks.
+
+<a href="https://github.com/transformerlab/transformerlab-app/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=transformerlab/transformerlab-app" />
+</a>
+
+---
+
+## 📄 License
+
+AGPL-3.0 · See [LICENSE](LICENSE) for details.
+
+---
+
+## 📚 Citation
+
+```bibtex
 @software{transformerlab,
   author = {Asaria, Ali},
   title = {Transformer Lab: Experiment with Large Language Models},
-  month = December,
   year = 2023,
   url = {https://github.com/transformerlab/transformerlab-app}
 }
 ```
 
-<!-- CONTACT -->
+---
 
-## Contact
+## 💬 Community
 
-- [@aliasaria](https://twitter.com/aliasaria) - Ali Asasria
-- [@dadmobile](https://github.com/dadmobile) - Tony Salomone
+<p align="center">
+  <a href="https://discord.gg/transformerlab"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
+  <a href="https://twitter.com/transformerlab"><img src="https://img.shields.io/badge/Twitter-Follow_Updates-black?style=for-the-badge&logo=x" alt="Twitter"></a>
+  <a href="https://github.com/transformerlab/transformerlab-app/issues/new"><img src="https://img.shields.io/badge/GitHub-Report_Issue-181717?style=for-the-badge&logo=github" alt="GitHub Issues"></a>
+</p>
 
-<!-- MARKDOWN LINKS & IMAGES -->
-
-[React.js]: https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB
-[React-url]: https://reactjs.org/
-[Electron]: https://img.shields.io/badge/Electron-20232A?style=for-the-badge&logo=electron&logoColor=61DAFB
-[Electron-url]: https://www.electronjs.org/
-[HuggingFace]: https://img.shields.io/badge/🤗_HuggingFace-20232A?style=for-the-badge
-[HuggingFace-url]: https://huggingface.co/
-[Download Icon]: https://img.shields.io/badge/Download-EF2D5E?style=for-the-badge&logoColor=white&logo=DocuSign
-[Download URL]: https://lab.cloud/docs/download
+<p align="center">
+  <sub>Built with ❤️ by <a href="https://twitter.com/transformerlab">Transformer Lab</a>
+</p>
