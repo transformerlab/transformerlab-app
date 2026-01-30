@@ -74,8 +74,6 @@ async def document_list(experimentId: str, folder: str = None):
     experiment_dir = await exp_obj.get_dir()
     documents_dir = storage.join(experiment_dir, "documents")
     folder = secure_filename(folder)
-    print(f"Documents directory: {documents_dir}")
-    print(f"FOLDER: {folder}")
     if folder and folder != "":
         if await storage.exists(storage.join(documents_dir, folder)):
             documents_dir = storage.join(documents_dir, folder)
@@ -84,7 +82,6 @@ async def document_list(experimentId: str, folder: str = None):
     if await storage.exists(documents_dir):
         try:
             entries = await storage.ls(documents_dir, detail=use_detail)
-            print(f"ENTRIES: {entries}")
         except Exception as e:
             print(f"Error listing documents: {e}")
             entries = []
