@@ -37,10 +37,10 @@ def delete_task(task_id: str) -> None:
     console.print(f"[yellow]Task delete '{task_id}' - not implemented[/yellow]")
 
 
-def info_task(task_id: str) -> None:
+def info_task(task_id: str, experiment_id: str) -> None:
     """Get info for a task by ID."""
     with console.status(f"[bold green]Fetching info for task {task_id}...[/bold green]", spinner="dots"):
-        response = api.get(f"/tasks/{task_id}/get")
+        response = api.get(f"/experiment/{experiment_id}/task/{task_id}/get")
 
     if response.status_code == 200:
         task_info = response.json()
@@ -171,4 +171,9 @@ def command_task_info(
 ):
     """Get task details."""
     check_configs()
-    info_task(task_id)
+    current_experiment = get_config("current_experiment")
+    if not current_experiment or not str(current_experiment).strip():
+        console.print("[yellow]current_experiment is not set in config.[/yellow]")
+        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
+        raise typer.Exit(1)
+    info_task(task_id, current_experiment)
