@@ -72,9 +72,7 @@ async def from_directory(
         git_branch = (body.get("git_branch") or "").strip() or None
         if not git_url:
             raise HTTPException(status_code=400, detail="git_url is required")
-        task_yaml_content = await fetch_task_yaml_from_github(
-            git_url, directory=git_repo_directory, ref=git_branch
-        )
+        task_yaml_content = await fetch_task_yaml_from_github(git_url, directory=git_repo_directory, ref=git_branch)
     elif "multipart/form-data" in content_type:
         form = await request.form()
         zip_file = form.get("directory_zip")
