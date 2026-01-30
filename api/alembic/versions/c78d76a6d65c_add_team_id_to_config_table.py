@@ -23,10 +23,6 @@ def upgrade() -> None:
     """Upgrade schema."""
     connection = op.get_bind()
 
-    # Check existing columns
-    column_result = connection.execute(sa.text("PRAGMA table_info(config)"))
-    existing_columns = [row[1] for row in column_result.fetchall()]
-
     # Get existing indexes by querying SQLite directly
     # SQLite stores unique constraints as unique indexes
     index_result = connection.execute(
@@ -35,11 +31,8 @@ def upgrade() -> None:
     existing_index_names = [row[0] for row in index_result.fetchall()]
 
     # Add columns first (outside batch mode to avoid circular dependency)
-    # Only add if they don't already exist
-    if "user_id" not in existing_columns:
-        op.add_column("config", sa.Column("user_id", sa.String(), nullable=True))
-    if "team_id" not in existing_columns:
-        op.add_column("config", sa.Column("team_id", sa.String(), nullable=True))
+    op.add_column("config", sa.Column("user_id", sa.String(), nullable=True))
+    op.add_column("config", sa.Column("team_id", sa.String(), nullable=True))
 
     # Handle indexes outside of batch mode to avoid type inference issues
     # Drop existing unique index on key if it exists (to recreate as non-unique)
@@ -117,10 +110,6 @@ def downgrade() -> None:
     )
     existing_index_names = [row[0] for row in index_result.fetchall()]
 
-    # Check existing columns
-    column_result = connection.execute(sa.text("PRAGMA table_info(config)"))
-    existing_columns = [row[1] for row in column_result.fetchall()]
-
     # Drop indexes and constraints outside of batch mode to avoid type inference issues
     # Drop unique constraint (stored as unique index in SQLite)
     if "uq_config_user_team_key" in existing_index_names:
@@ -136,26 +125,22 @@ def downgrade() -> None:
 
     # Drop columns using raw SQL to avoid batch mode type inference issues
     # SQLite doesn't support DROP COLUMN directly, so we recreate the table
-    if "team_id" in existing_columns or "user_id" in existing_columns:
-        # Create new table without user_id and team_id columns
-        connection.execute(
-            sa.text("""
-                CREATE TABLE config_new (
-                    id INTEGER NOT NULL PRIMARY KEY,
-                    key VARCHAR NOT NULL,
-                    value VARCHAR
-                )
-            """)
-        )
-        # Copy data from old table to new table (only id, key, value columns)
-        connection.execute(sa.text("INSERT INTO config_new (id, key, value) SELECT id, key, value FROM config"))
-        # Drop old table (this also drops all indexes)
-        connection.execute(sa.text("DROP TABLE config"))
-        # Rename new table to original name
-        connection.execute(sa.text("ALTER TABLE config_new RENAME TO config"))
-        # Recreate the original unique index on key (it was dropped with the old table)
-        op.create_index("ix_config_key", "config", ["key"], unique=True)
-    else:
-        # If we're not dropping columns, just recreate the unique index on key
-        op.create_index("ix_config_key", "config", ["key"], unique=True)
+    # Create new table without user_id and team_id columns
+    connection.execute(
+        sa.text("""
+            CREATE TABLE config_new (
+                id INTEGER NOT NULL PRIMARY KEY,
+                key VARCHAR NOT NULL,
+                value VARCHAR
+            )
+        """)
+    )
+    # Copy data from old table to new table (only id, key, value columns)
+    connection.execute(sa.text("INSERT INTO config_new (id, key, value) SELECT id, key, value FROM config"))
+    # Drop old table (this also drops all indexes)
+    connection.execute(sa.text("DROP TABLE config"))
+    # Rename new table to original name
+    connection.execute(sa.text("ALTER TABLE config_new RENAME TO config"))
+    # Recreate the original unique index on key (it was dropped with the old table)
+    op.create_index("ix_config_key", "config", ["key"], unique=True)
     # ### end Alembic commands ###
