@@ -11,7 +11,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-from alembic.utils import table_exists
+from transformerlab.db.migration_utils import table_exists
 
 
 # revision identifiers, used by Alembic.

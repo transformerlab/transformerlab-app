@@ -9,8 +9,9 @@ Create Date: 2025-11-21 15:04:59.420186
 from typing import Sequence, Union
 
 from alembic import op
-from alembic.utils import table_exists
 import sqlalchemy as sa
+
+from transformerlab.db.migration_utils import table_exists
 
 # revision identifiers, used by Alembic.
 revision: str = "f7661070ec23"
