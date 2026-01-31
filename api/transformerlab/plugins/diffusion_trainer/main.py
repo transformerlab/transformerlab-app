@@ -325,6 +325,11 @@ def train_diffusion_lora():
         eval_prompt = None
         args["eval_prompt"] = None
         args["eval_steps"] = 0
+    if args.get("model_architecture", "").strip() == "ZImagePipeline":
+        print("Disabling evaluation for ZImagePipeline as it is not supported.")
+        eval_prompt = None
+        args["eval_prompt"] = None
+        args["eval_steps"] = 0
     elif eval_prompt and eval_steps <= 0:
         print("Warning: eval_steps is set to 0, evaluation will not be performed.")
         eval_prompt = None
@@ -446,7 +451,9 @@ def train_diffusion_lora():
 
     is_flux = "FluxPipeline" in model_architecture
 
-    print(f"Architecture detection - SDXL: {is_sdxl}, SD3: {is_sd3}, Flux: {is_flux}")
+    is_zimage = "ZImagePipeline" in model_architecture
+
+    print(f"Architecture detection - SDXL: {is_sdxl}, SD3: {is_sd3}, Flux: {is_flux}, ZImage: {is_zimage}")
 
     # Define target modules based on detected architecture
     if is_sdxl:
@@ -461,6 +468,10 @@ def train_diffusion_lora():
         # Flux uses transformer-based architecture
         target_modules = ["to_q", "to_k", "to_v", "to_out.0"]
         architecture_name = "Flux"
+    elif is_zimage:
+        # ZImage uses a modified UNet architecture
+        target_modules = ["to_q", "to_k", "to_v", "to_out.0"]
+        architecture_name = "ZImage"
     else:
         # Default SD 1.x targets
         target_modules = ["to_k", "to_q", "to_v", "to_out.0"]
@@ -1147,6 +1158,21 @@ def train_diffusion_lora():
                 saved_successfully = True
         except Exception as e:
             print(f"Error with FluxPipeline.save_lora_weights: {e}")
+
+    if not saved_successfully and is_zimage:
+        try:
+            # ZImage pipelines may have their own save method
+            from diffusers import ZImagePipeline
+
+            ZImagePipeline.save_lora_weights(
+                save_directory=save_directory,
+                unet_lora_layers=model_lora_state_dict,
+                safe_serialization=True,
+            )
+            print(f"LoRA weights saved to {save_directory} using ZImagePipeline.save_lora_weights (ZImage)")
+            saved_successfully = True
+        except Exception as e:
+            print(f"Error with ZImagePipeline.save_lora_weights: {e}")
 
     # Method 5: Try the generic StableDiffusionPipeline method as fallback for all architectures
     if not saved_successfully:
