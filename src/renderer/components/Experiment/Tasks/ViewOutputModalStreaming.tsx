@@ -183,14 +183,15 @@ export default function ViewOutputModalStreaming({
             minHeight: 0,
             width: '100%',
             display: 'flex',
+            padding: '8px 0px 8px 11px',
+            backgroundColor: '#000',
+            borderRadius: '8px',
           }}
         >
           {activeTab === 'output' ? (
             <Box
               sx={{
-                borderRadius: '8px',
-                border: '1px solid #444',
-                padding: 0,
+                padding: `0`,
                 backgroundColor: '#000',
                 width: '100%',
                 flex: 1,
