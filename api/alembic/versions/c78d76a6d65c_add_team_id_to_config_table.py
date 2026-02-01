@@ -57,39 +57,42 @@ def upgrade() -> None:
 
     # Migrate existing configs to admin user's first team
     # Note: Don't call connection.commit() - Alembic manages transactions
-    connection = op.get_bind()
+
     # Find admin user's first team
+    users_teams = sa.table("users_teams", sa.column("user_id"), sa.column("team_id"))
+    users = sa.table("user", sa.column("id"), sa.column("email"))
+
     admin_team_result = connection.execute(
-        sa.text("""
-            SELECT ut.team_id
-            FROM users_teams ut
-            JOIN user u ON ut.user_id = u.id
-            WHERE u.email = 'admin@example.com'
-            LIMIT 1
-        """)
+        sa.select(users_teams.c.team_id)
+        .select_from(users_teams.join(users, users_teams.c.user_id == users.c.id))
+        .where(users.c.email == "admin@example.com")
+        .limit(1)
     )
     admin_team_row = admin_team_result.fetchone()
 
     if admin_team_row:
         admin_team_id = admin_team_row[0]
         # Update all existing configs (where team_id is NULL) to use admin team
+        config_table = sa.table("config", sa.column("team_id"))
         connection.execute(
-            sa.text("UPDATE config SET team_id = :team_id WHERE team_id IS NULL"), {"team_id": admin_team_id}
+            sa.update(config_table).where(config_table.c.team_id.is_(None)).values(team_id=admin_team_id)
         )
         print(f"✅ Migrated existing configs to team {admin_team_id}")
     else:
         # If no admin team found, try to get any user's first team
-        any_team_result = connection.execute(sa.text("SELECT team_id FROM users_teams LIMIT 1"))
+        any_team_result = connection.execute(sa.select(users_teams.c.team_id).limit(1))
         any_team_row = any_team_result.fetchone()
         if any_team_row:
             any_team_id = any_team_row[0]
+            config_table = sa.table("config", sa.column("team_id"))
             connection.execute(
-                sa.text("UPDATE config SET team_id = :team_id WHERE team_id IS NULL"), {"team_id": any_team_id}
+                sa.update(config_table).where(config_table.c.team_id.is_(None)).values(team_id=any_team_id)
             )
             print(f"✅ Migrated existing configs to team {any_team_id}")
         else:
             # No teams found, delete existing configs
-            deleted_count = connection.execute(sa.text("DELETE FROM config WHERE team_id IS NULL")).rowcount
+            config_table = sa.table("config", sa.column("team_id"))
+            deleted_count = connection.execute(sa.delete(config_table).where(config_table.c.team_id.is_(None))).rowcount
             print(f"⚠️  No teams found, deleted {deleted_count} config entries")
     # ### end Alembic commands ###
 
