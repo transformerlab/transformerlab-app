@@ -161,7 +161,7 @@ export default function QueueTaskModal({
     }
   };
 
-  // Initialize parameters from task when modal opens
+  // Initialize parameters and provider from task when modal opens
   React.useEffect(() => {
     if (open && task) {
       // Extract parameters from task
@@ -184,8 +184,17 @@ export default function QueueTaskModal({
       } else {
         setParameters([]);
       }
+
+      // Set provider: use task's provider if it exists in current list, else first provider
+      const taskProviderId = cfg.provider_id ?? task.provider_id ?? '';
+      const taskProviderInList = providers.some(
+        (p: { id: string }) => p.id === taskProviderId,
+      );
+      setSelectedProviderId(
+        taskProviderInList ? taskProviderId : (providers[0]?.id ?? ''),
+      );
     }
-  }, [open, task]);
+  }, [open, task, providers]);
 
   // Helper function to validate constraints
   const validateParameter = (param: ProcessedParameter): string | null => {

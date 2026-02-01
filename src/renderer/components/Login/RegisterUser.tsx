@@ -9,8 +9,7 @@ import {
   Typography,
 } from '@mui/joy';
 import { getPath } from 'renderer/lib/api-client/urls';
-import { FcGoogle } from 'react-icons/fc';
-import { FaGithub } from 'react-icons/fa6';
+import { FcGoogle, FaGithub } from 'renderer/components/Icons';
 import { useAuth } from '../../lib/authContext';
 
 export default function RegisterForm({ onClose }: { onClose: () => void }) {
