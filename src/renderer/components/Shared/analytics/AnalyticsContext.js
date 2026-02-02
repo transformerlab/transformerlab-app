@@ -39,6 +39,22 @@ export const useAnalytics = () => {
   return useContext(AnalyticsContext);
 };
 
+// Identify a user for tracking purposes
+export const identifyUser = (userId, traits = {}) => {
+  if (!userId) {
+    console.warn('[Analytics] identifyUser called without userId');
+    return;
+  }
+  console.log('[Analytics] Identifying user:', userId);
+  analytics.identify(userId, traits);
+};
+
+// Reset user identity (call on logout)
+export const resetUser = () => {
+  console.log('[Analytics] Resetting user identity');
+  analytics.reset();
+};
+
 // Export a provider component
 export const AnalyticsProvider = ({ children }) => {
   return (

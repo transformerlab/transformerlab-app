@@ -1,34 +1,14 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useState, useEffect } from 'react';
 import Sheet from '@mui/joy/Sheet';
 import { Tab, TabList, TabPanel, Tabs } from '@mui/joy';
 import { StoreIcon } from 'lucide-react';
 
-import { apiHealthz } from 'renderer/lib/transformerlab-api-sdk';
 import DataStore from './DataStore';
 import LocalDatasets from './LocalDatasets';
 import GeneratedDatasets from './GeneratedDatasets';
 
 export default function Data() {
-  const [mode, setMode] = useState<string>('local');
-
-  // Fetch healthz to get the mode
-  useEffect(() => {
-    const fetchHealthz = async () => {
-      try {
-        const data = await apiHealthz();
-        if (data?.mode) {
-          setMode(data.mode);
-        }
-      } catch (error) {
-        // Silently fail - mode will default to 'local'
-      }
-    };
-
-    fetchHealthz();
-  }, []);
-
-  const isLocalMode = mode === 'local';
+  const isLocalMode = window?.platform?.multiuser !== true;
   return (
     <Sheet sx={{ display: 'flex', height: '100%' }}>
       <Tabs

@@ -196,6 +196,17 @@ if os.getenv("SENTRY_DSN"):
     sentry_sdk.init(
         dsn=os.environ["SENTRY_DSN"],
         integrations=[FastApiIntegration()],
+        # Enable sending logs to Sentry
+        enable_logs=True,
+        # Set traces_sample_rate to 1.0 to capture 100%
+        # of transactions for tracing.
+        traces_sample_rate=1.0,
+        # Set profile_session_sample_rate to 1.0 to profile 100%
+        # of profile sessions.
+        profile_session_sample_rate=1.0,
+        # Set profile_lifecycle to "trace" to automatically
+        # run the profiler on when there is an active transaction
+        profile_lifecycle="trace",
     )
 
 app = fastapi.FastAPI(
@@ -279,7 +290,7 @@ app.include_router(prompts.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(tools.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(recipes.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(batched_prompts.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(fastchat_openai_api.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(fastchat_openai_api.router)
 app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(compute_provider.router)
 app.include_router(auth.router)
@@ -618,7 +629,7 @@ def print_launch_message():
     with open(os.path.join(os.path.dirname(__file__), "transformerlab/launch_header_text.txt"), "r") as f:
         text = f.read()
         shared.print_in_rainbow(text)
-    print("https://lab.cloud\nhttps://github.com/transformerlab/transformerlab-api\n")
+    print("https://lab.cloud\nhttps://github.com/transformerlab/transformerlab-app\n")
 
 
 def run():

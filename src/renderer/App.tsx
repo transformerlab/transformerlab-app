@@ -24,9 +24,9 @@ import {
   useExperimentInfo,
 } from './lib/ExperimentInfoContext';
 import * as chatAPI from './lib/transformerlab-api-sdk';
-import { apiHealthz } from './lib/transformerlab-api-sdk';
 import { AuthProvider, useAuth } from './lib/authContext';
 import LoginPage from './components/Login/LoginPage';
+import { AnalyticsProvider } from './components/Shared/analytics/AnalyticsContext';
 
 type AppContentProps = {
   connection: string;
@@ -59,33 +59,8 @@ function AppContent({
   );
 
   const authContext = useAuth();
-  const [mode, setMode] = useState<string>('local');
 
-  // Fetch healthz to get the mode
-  useEffect(() => {
-    const fetchHealthz = async () => {
-      try {
-        const data = await apiHealthz();
-        if (data?.mode) {
-          const detectedMode = String(data.mode).trim();
-          setMode(detectedMode);
-        }
-      } catch (error) {
-        console.error('Failed to fetch healthz data:', error);
-      }
-    };
-
-    fetchHealthz();
-  }, []);
-
-  const isLocalMode = mode === 'local';
-
-  // Close logs drawer when switching to non-local mode
-  useEffect(() => {
-    if (!isLocalMode && logsDrawerOpen) {
-      setLogsDrawerOpen(false);
-    }
-  }, [isLocalMode, logsDrawerOpen, setLogsDrawerOpen]);
+  const isLocalMode = window?.platform?.multiuser !== true;
 
   // Show LoginPage when:
   // 1. Multi-user mode is enabled AND user is not authenticated
@@ -270,17 +245,19 @@ export default function App() {
       <CssVarsProvider disableTransitionOnChange theme={theme}>
         <CssBaseline />
         <AuthProvider connection={connection}>
-          <ExperimentInfoProvider connection={connection}>
-            <AppContent
-              connection={connection}
-              logsDrawerOpen={logsDrawerOpen}
-              setLogsDrawerOpen={setLogsDrawerOpen}
-              logsDrawerHeight={logsDrawerHeight}
-              setLogsDrawerHeight={setLogsDrawerHeight}
-              themeSetter={themeSetter}
-              setConnection={setConnection}
-            />
-          </ExperimentInfoProvider>
+          <AnalyticsProvider>
+            <ExperimentInfoProvider connection={connection}>
+              <AppContent
+                connection={connection}
+                logsDrawerOpen={logsDrawerOpen}
+                setLogsDrawerOpen={setLogsDrawerOpen}
+                logsDrawerHeight={logsDrawerHeight}
+                setLogsDrawerHeight={setLogsDrawerHeight}
+                themeSetter={themeSetter}
+                setConnection={setConnection}
+              />
+            </ExperimentInfoProvider>
+          </AnalyticsProvider>
         </AuthProvider>
       </CssVarsProvider>
     </NotificationProvider>
