@@ -1,4 +1,7 @@
-from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
+from transformerlab.sdk.v1.tlab_plugin import TLabPlugin, _run_async_from_sync
+
+# Re-export so diffusion plugins can run lab async APIs from sync code (e.g. inside async_job_wrapper)
+run_async_from_sync = _run_async_from_sync
 
 
 class DiffusionTLabPlugin(TLabPlugin):
