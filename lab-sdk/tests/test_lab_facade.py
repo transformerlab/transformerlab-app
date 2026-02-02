@@ -465,21 +465,26 @@ def test_lab_save_dataset(tmp_path, monkeypatch):
     output_path = lab.save_dataset(df, "test_dataset")
 
     assert os.path.exists(output_path)
-    assert output_path.endswith("test_dataset.json")
+    # Dataset name should be prefixed with job_id
+    job_id = lab._job.id
+    expected_filename = f"{job_id}_test_dataset.json"
+    assert output_path.endswith(expected_filename)
 
     # Verify dataset metadata was created
     from lab.dataset import Dataset
 
-    ds = asyncio.run(Dataset.get("test_dataset"))
+    prefixed_dataset_id = f"{job_id}_test_dataset"
+    ds = asyncio.run(Dataset.get(prefixed_dataset_id, job_id=job_id))
     metadata = asyncio.run(ds.get_metadata())
-    assert metadata["dataset_id"] == "test_dataset"
+    assert metadata["dataset_id"] == prefixed_dataset_id
     assert metadata["location"] == "local"
     assert metadata["json_data"]["generated"] is True
     assert metadata["json_data"]["sample_count"] == 2
+    assert metadata["json_data"]["job_id"] == job_id
 
     # Verify dataset is tracked in job_data
     job_data = lab.get_job_data()
-    assert job_data["dataset_id"] == "test_dataset"
+    assert job_data["dataset_id"] == prefixed_dataset_id
 
 
 def test_lab_save_dataset_with_metadata(tmp_path, monkeypatch):
@@ -520,7 +525,9 @@ def test_lab_save_dataset_with_metadata(tmp_path, monkeypatch):
 
     from lab.dataset import Dataset
 
-    ds = asyncio.run(Dataset.get("test_dataset_meta"))
+    job_id = lab._job.id
+    prefixed_dataset_id = f"{job_id}_test_dataset_meta"
+    ds = asyncio.run(Dataset.get(prefixed_dataset_id, job_id=job_id))
     metadata = asyncio.run(ds.get_metadata())
     assert metadata["json_data"]["description"] == "Test dataset"
     assert metadata["json_data"]["source"] == "synthetic"
@@ -604,11 +611,16 @@ def test_lab_save_dataset_duplicate_error(tmp_path, monkeypatch):
 
     df = MockDataFrame([{"a": 1}])
 
-    try:
-        lab.save_dataset(df, "existing_dataset")
-        assert False, "Should have raised FileExistsError"
-    except FileExistsError:
-        pass
+    output_path_1 = lab.save_dataset(df, "existing_dataset")
+    assert os.path.exists(output_path_1)
+    job_id = lab._job.id
+    assert f"{job_id}_existing_dataset.json" in output_path_1
+    
+    # Save again with same name in same job - should create with suffix
+    output_path_2 = lab.save_dataset(df, "existing_dataset")
+    assert os.path.exists(output_path_2)
+    assert output_path_1 != output_path_2
+    assert f"{job_id}_existing_dataset_1.json" in output_path_2
 
 
 def test_lab_properties(tmp_path, monkeypatch):
