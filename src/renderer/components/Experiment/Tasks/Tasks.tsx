@@ -1152,7 +1152,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           onViewGeneratedDataset={(jobId, datasetId) => {
             setPreviewDatasetModal({ open: true, datasetId });
           }}
-          onViewJobDatasets={(jobId) => setViewJobDatasetsFromJob(parseInt(jobId))}
+          onViewJobDatasets={(jobId) =>
+            setViewJobDatasetsFromJob(parseInt(jobId))
+          }
           onViewJobModels={(jobId) => setViewJobModelsFromJob(parseInt(jobId))}
           onViewSweepOutput={(jobId) => {
             setViewOutputFromSweepJob(true);

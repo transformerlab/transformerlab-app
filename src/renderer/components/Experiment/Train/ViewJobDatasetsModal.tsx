@@ -35,11 +35,10 @@ export default function ViewJobDatasetsModal({
   jobId,
 }: ViewJobDatasetsModalProps) {
   const { experimentInfo } = useExperimentInfo();
-  const { data, isLoading, mutate } = useAPI(
-    'jobs',
-    ['getJobDatasets'],
-    { jobId, experimentId: experimentInfo?.id },
-  );
+  const { data, isLoading, mutate } = useAPI('jobs', ['getJobDatasets'], {
+    jobId,
+    experimentId: experimentInfo?.id,
+  });
 
   const [savingDataset, setSavingDataset] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);

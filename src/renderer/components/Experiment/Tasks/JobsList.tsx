@@ -310,9 +310,7 @@ const JobsList: React.FC<JobsListProps> = ({
                       <Menu>
                         {(job?.job_data?.artifacts ||
                           job?.job_data?.artifacts_dir) && (
-                          <MenuItem
-                            onClick={() => onViewArtifacts?.(job?.id)}
-                          >
+                          <MenuItem onClick={() => onViewArtifacts?.(job?.id)}>
                             View Artifacts
                           </MenuItem>
                         )}

@@ -35,11 +35,10 @@ export default function ViewJobModelsModal({
   jobId,
 }: ViewJobModelsModalProps) {
   const { experimentInfo } = useExperimentInfo();
-  const { data, isLoading, mutate } = useAPI(
-    'jobs',
-    ['getJobModels'],
-    { jobId, experimentId: experimentInfo?.id },
-  );
+  const { data, isLoading, mutate } = useAPI('jobs', ['getJobModels'], {
+    jobId,
+    experimentId: experimentInfo?.id,
+  });
 
   const [savingModel, setSavingModel] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
