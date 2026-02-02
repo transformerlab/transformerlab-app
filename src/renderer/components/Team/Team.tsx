@@ -902,7 +902,9 @@ export default function UserLoginTest(): JSX.Element {
                               setProviderId(provider.id);
                               setOpenProviderDetailsModal(true);
                             }}
-                            disabled={providersLoading}
+                            disabled={
+                              providersLoading || providers === undefined
+                            }
                             sx={{ minWidth: '60px', fontSize: '0.75rem' }}
                           >
                             Edit
@@ -914,7 +916,11 @@ export default function UserLoginTest(): JSX.Element {
                             onClick={() =>
                               handleDeleteProvider(provider.id, provider.name)
                             }
-                            disabled={!iAmOwner || providersLoading}
+                            disabled={
+                              !iAmOwner ||
+                              providersLoading ||
+                              providers === undefined
+                            }
                             sx={{ minWidth: '60px', fontSize: '0.75rem' }}
                           >
                             Delete
@@ -930,7 +936,7 @@ export default function UserLoginTest(): JSX.Element {
             startDecorator={<PlusIcon />}
             onClick={() => setOpenProviderDetailsModal(true)}
             variant="soft"
-            disabled={!iAmOwner}
+            disabled={!iAmOwner || providersLoading || providers === undefined}
           >
             Add Provider {!iAmOwner ? '(Only owners can add providers)' : ''}
           </Button>

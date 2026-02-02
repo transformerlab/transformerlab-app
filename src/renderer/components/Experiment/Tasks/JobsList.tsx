@@ -14,6 +14,7 @@ import {
   FileTextIcon,
   DatabaseIcon,
 } from 'lucide-react';
+import { Typography } from '@mui/joy';
 import JobProgress from './JobProgress';
 
 interface JobsListProps {
@@ -110,15 +111,13 @@ const JobsList: React.FC<JobsListProps> = ({
       return (
         <>
           {clusterName && (
-            <>
-              <b>Instance:</b> {clusterName}
+            <Typography level="title-sm" fontWeight="bold">
+              {clusterName}
               <br />
-            </>
+            </Typography>
           )}
           {userDisplay && (
-            <>
-              <b>Launched by:</b> {userDisplay}
-            </>
+            <Typography level="body-sm">{userDisplay}</Typography>
           )}
         </>
       );
@@ -141,14 +140,6 @@ const JobsList: React.FC<JobsListProps> = ({
   if (loading) {
     return (
       <Table style={{ tableLayout: 'auto' }} stickyHeader>
-        <thead>
-          <tr>
-            <th style={{ width: '60px' }}>ID</th>
-            <th>Details</th>
-            <th>Status</th>
-            <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
-          </tr>
-        </thead>
         <tbody>
           {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
             <tr key={i}>
@@ -178,26 +169,26 @@ const JobsList: React.FC<JobsListProps> = ({
 
   return (
     <Table style={{ tableLayout: 'auto' }} stickyHeader>
-      <thead>
-        <tr>
-          <th style={{ width: '60px' }}>ID</th>
-          <th>Details</th>
-          <th>Status</th>
-          <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
-        </tr>
-      </thead>
       <tbody style={{ overflow: 'auto', height: '100%' }}>
         {jobs?.length > 0 ? (
           jobs?.map((job) => (
             <tr key={job.id}>
-              <td>
+              <td style={{ verticalAlign: 'top', border: 'none' }}>
                 <b>{job.id}</b>
               </td>
-              <td>{formatJobConfig(job)}</td>
-              <td>
+              <td style={{ verticalAlign: 'top', border: 'none' }}>
+                {formatJobConfig(job)}
+              </td>
+              <td style={{ verticalAlign: 'top', border: 'none' }}>
                 <JobProgress job={job} showLaunchResultInfo />
               </td>
-              <td style={{ width: 'fit-content' }}>
+              <td
+                style={{
+                  verticalAlign: 'top',
+                  width: 'fit-content',
+                  border: 'none',
+                }}
+              >
                 <ButtonGroup
                   sx={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}
                 >
@@ -436,7 +427,15 @@ const JobsList: React.FC<JobsListProps> = ({
           ))
         ) : (
           <tr>
-            <td colSpan={4} style={{ textAlign: 'center', padding: '20px' }}>
+            <td
+              colSpan={4}
+              style={{
+                textAlign: 'center',
+                padding: '20px',
+                verticalAlign: 'top',
+                border: 'none',
+              }}
+            >
               No jobs found
             </td>
           </tr>

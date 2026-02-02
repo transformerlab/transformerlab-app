@@ -301,7 +301,7 @@ app.include_router(prompts.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(tools.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(recipes.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(batched_prompts.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(fastchat_openai_api.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(fastchat_openai_api.router)
 app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(compute_provider.router)
 app.include_router(auth.router)
@@ -640,7 +640,7 @@ def print_launch_message():
     with open(os.path.join(os.path.dirname(__file__), "transformerlab/launch_header_text.txt"), "r") as f:
         text = f.read()
         shared.print_in_rainbow(text)
-    print("https://lab.cloud\nhttps://github.com/transformerlab/transformerlab-api\n")
+    print("https://lab.cloud\nhttps://github.com/transformerlab/transformerlab-app\n")
 
 
 def run():

@@ -13,6 +13,7 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import { analytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal/NewTaskModal';
@@ -283,13 +284,32 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   useEffect(() => {
     if (!jobs || !Array.isArray(jobs)) return;
 
-    const jobsToCheck = jobs.filter(
-      (job: any) =>
-        job.type === 'REMOTE' &&
-        (job.status === 'LAUNCHING' ||
-          (job.status === 'COMPLETE' && job.job_data?.provider_id)) && // Also check recently completed jobs to ensure quota is recorded
-        job.job_data?.provider_id, // Only check jobs with provider_id
-    );
+    const now = dayjs();
+    const RECENT_COMPLETION_WINDOW_MINUTES = 5; // Only check jobs completed within last 5 minutes
+
+    const jobsToCheck = jobs.filter((job: any) => {
+      // Must be REMOTE type with provider_id
+      if (job.type !== 'REMOTE' || !job.job_data?.provider_id) {
+        return false;
+      }
+
+      // Always check LAUNCHING jobs
+      if (job.status === 'LAUNCHING') {
+        return true;
+      }
+
+      // Only check COMPLETE jobs that finished recently (to ensure quota is recorded)
+      if (job.status === 'COMPLETE' && job.job_data?.end_time) {
+        const endTime = dayjs(job.job_data.end_time);
+        const minutesSinceCompletion = now.diff(endTime, 'minute', true);
+        return (
+          minutesSinceCompletion >= 0 &&
+          minutesSinceCompletion <= RECENT_COMPLETION_WINDOW_MINUTES
+        );
+      }
+
+      return false;
+    });
 
     if (jobsToCheck.length === 0) return;
 
@@ -602,6 +622,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       );
 
       if (response.ok) {
+        analytics.track('Task Queued', {
+          task_type: 'REMOTE',
+        });
         setModalOpen(false);
         await templatesMutate();
         addNotification({
@@ -787,28 +810,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           : task.config
         : task; // If no config field, assume it's a template with flat structure
 
-    const providerId =
-      cfg.provider_id ||
-      task.provider_id ||
-      (providers.length ? providers[0]?.id : null);
-    if (!providerId) {
+    if (!providers.length) {
       addNotification({
         type: 'danger',
         message:
           'No providers available. Add a provider in the team settings first.',
-      });
-      return;
-    }
-
-    const providerMeta = providers.find(
-      (provider) => provider.id === providerId,
-    );
-
-    if (!providerMeta) {
-      addNotification({
-        type: 'danger',
-        message:
-          'Selected provider is unavailable. Please create or update providers in team settings.',
       });
       return;
     }
@@ -821,7 +827,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       return;
     }
 
-    // Open the queue modal to allow parameter customization
+    // Open the queue modal so user can pick provider (and customize params)
     setTaskBeingQueued(task);
     setQueueModalOpen(true);
   };
@@ -844,7 +850,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           : task.config
         : task; // If no config field, assume it's a template with flat structure
 
+    // Use provider from modal override first, then task/cfg
     const providerId =
+      config?.provider_id ||
       cfg.provider_id ||
       task.provider_id ||
       (providers.length ? providers[0]?.id : null);
@@ -869,6 +877,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     });
 
     try {
+      // Strip modal-only fields from config so API only gets parameter overrides
+      const {
+        provider_id: _pid,
+        provider_name: _pname,
+        ...paramConfig
+      } = config ?? {};
+
       // For templates, fields are stored directly, so use task directly or cfg
       // Keep original parameters (the definitions/defaults) and send overrides separately
       const payload = {
@@ -886,9 +901,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         setup: cfg.setup || task.setup,
         env_vars: cfg.env_vars || task.env_vars || {},
         parameters: cfg.parameters || task.parameters || undefined, // Keep original parameter definitions
-        config: Object.keys(config).length > 0 ? config : undefined, // Send user's custom values as config
+        config: Object.keys(paramConfig).length > 0 ? paramConfig : undefined, // Send user's custom values as config
         file_mounts: cfg.file_mounts || task.file_mounts,
-        provider_name: providerMeta.name,
+        provider_name: config?.provider_name ?? providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
         github_directory: cfg.github_directory || task.github_directory,
         github_branch: cfg.github_branch || task.github_branch,
