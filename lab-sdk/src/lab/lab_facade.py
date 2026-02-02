@@ -791,6 +791,9 @@ class Lab:
         This is a sync wrapper around the async implementation.
         Use a_save_dataset() if you're already in an async context.
         """
+        # Auto-fill job_id if not provided and lab is initialized
+        if job_id is None and self._job is not None:
+            job_id = self._job.id
         return _run_async(self.async_save_dataset(df, dataset_id, additional_metadata, suffix, is_image, job_id))
 
     async def async_save_dataset(
