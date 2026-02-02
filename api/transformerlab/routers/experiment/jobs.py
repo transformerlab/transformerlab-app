@@ -1353,7 +1353,7 @@ async def save_dataset_to_registry(job_id: str, dataset_name: str):
 
     except Exception as e:
         print(f"Error saving dataset to registry for job {job_id}: {e}")
-        return Response(f"Failed to save dataset: {str(e)}", status_code=500)
+        return Response("Failed to save dataset", status_code=500)
 
 
 @router.post("/{job_id}/models/{model_name}/save_to_registry")
@@ -1389,4 +1389,4 @@ async def save_model_to_registry(job_id: str, model_name: str):
 
     except Exception as e:
         print(f"Error saving model to registry for job {job_id}: {e}")
-        return Response(f"Failed to save model: {str(e)}", status_code=500)
+        return Response("Failed to save model", status_code=500)
