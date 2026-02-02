@@ -7,7 +7,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 from pydantic import BaseModel, Field
 
-from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.db.db import get_async_session
 from transformerlab.shared.models.models import ApiKey, User, Team
 from transformerlab.models.users import current_active_user
 from transformerlab.utils.api_key_utils import (

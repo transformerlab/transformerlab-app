@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, 
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, List, Optional, Union, Tuple
-from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.db.db import get_async_session
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.services.provider_service import (
     get_team_provider,

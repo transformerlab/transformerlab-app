@@ -9,7 +9,7 @@ from datetime import datetime
 
 from transformerlab.shared.models.models import ApiKey, User, UserTeam
 from transformerlab.utils.api_key_utils import verify_api_key, is_key_expired, validate_api_key_format
-from transformerlab.shared.models.user_model import create_personal_team
+from transformerlab.db.user import create_personal_team
 
 security = HTTPBearer(auto_error=False)
 

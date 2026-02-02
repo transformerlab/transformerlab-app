@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from fastapi_users import exceptions
-from transformerlab.shared.models.user_model import get_async_session, create_personal_team
+from transformerlab.db.db import get_async_session
+from transformerlab.db.user import create_personal_team
 from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole
 from transformerlab.models.users import (
     fastapi_users,
@@ -121,7 +122,7 @@ async def _get_user_from_jwt_or_api_key(
 
             # Create user_db and user_manager directly using the existing session
             from transformerlab.shared.models.models import User, OAuthAccount
-            from transformerlab.shared.models.user_model import SQLAlchemyUserDatabaseWithOAuth
+            from transformerlab.db.user import SQLAlchemyUserDatabaseWithOAuth
             from transformerlab.models.users import UserManager
 
             try:

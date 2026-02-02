@@ -7,7 +7,8 @@ from fastapi_users.authentication import AuthenticationBackend, BearerTransport,
 from fastapi_users.db import SQLAlchemyUserDatabase
 from httpx_oauth.clients.google import GoogleOAuth2
 from httpx_oauth.clients.github import GitHubOAuth2
-from transformerlab.shared.models.user_model import get_async_session, create_personal_team, get_user_db
+from transformerlab.db.db import get_async_session
+from transformerlab.db.user import create_personal_team, get_user_db
 from transformerlab.shared.models.models import User, UserTeam, TeamRole
 from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -357,7 +358,7 @@ async def current_active_user(
         # If it's not an API key format, try JWT validation
         if not validate_api_key_format(token):
             from transformerlab.shared.models.models import OAuthAccount
-            from transformerlab.shared.models.user_model import SQLAlchemyUserDatabaseWithOAuth
+            from transformerlab.db.user import SQLAlchemyUserDatabaseWithOAuth
 
             try:
                 # Create user_db instance

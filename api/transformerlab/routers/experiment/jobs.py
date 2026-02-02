@@ -22,7 +22,7 @@ import transformerlab.services.job_service as job_service
 from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
 from transformerlab.services.provider_service import get_team_provider, get_provider_instance
 from transformerlab.routers.auth import get_user_and_team
-from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.db.db import get_async_session
 from transformerlab.compute_providers.models import JobState
 from transformerlab.shared.tunnel_parser import get_tunnel_info
 from lab import Job

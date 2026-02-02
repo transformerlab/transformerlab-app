@@ -5,7 +5,8 @@ from lab import HOME_DIR
 from lab import dirs as lab_dirs
 
 from sqlalchemy import select
-from transformerlab.shared.models.user_model import AsyncSessionLocal, create_personal_team
+from transformerlab.db.session import async_session
+from transformerlab.db.user import create_personal_team
 from transformerlab.shared.models.models import User, UserTeam, TeamRole
 from transformerlab.models.users import UserManager, UserCreate
 from fastapi_users.db import SQLAlchemyUserDatabase
@@ -17,7 +18,7 @@ import json
 async def seed_default_admin_user():
     """Create a default admin user with credentials admin@example.com / admin123 if one doesn't exist."""
     try:
-        async with AsyncSessionLocal() as session:
+        async with async_session() as session:
             # Check if admin user already exists
             stmt = select(User).where(User.email == "admin@example.com")
             result = await session.execute(stmt)

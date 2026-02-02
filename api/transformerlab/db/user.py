@@ -1,31 +1,18 @@
-# database.py
-from typing import AsyncGenerator, Optional
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
-from fastapi_users.db import SQLAlchemyUserDatabase
-from sqlalchemy.dialects.sqlite import insert
-from fastapi import Depends
-from os import getenv
+from typing import Optional
 import uuid
+from os import getenv
 
-from transformerlab.db.constants import DATABASE_URL
-from transformerlab.shared.models.models import Team, User, OAuthAccount
+from fastapi import Depends
+from fastapi_users.db import SQLAlchemyUserDatabase
+from sqlalchemy import select
+from sqlalchemy.dialects.sqlite import insert
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from transformerlab.db.db import get_async_session
+from transformerlab.shared.models.models import OAuthAccount, Team, User
 from transformerlab.shared.remote_workspace import create_bucket_for_team
 
 
-# 3. Setup the Async Engine and Session
-engine = create_async_engine(DATABASE_URL)
-AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-
-# 5. Database session dependency
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionLocal() as session:
-        yield session
-
-
-# 6. Verification function to ensure user_id exists (no foreign key constraint)
 async def verify_user_exists(session: AsyncSession, user_id: uuid.UUID) -> bool:
     """
     Verify that a user_id exists in the user table.
@@ -36,7 +23,6 @@ async def verify_user_exists(session: AsyncSession, user_id: uuid.UUID) -> bool:
     return result.scalar_one_or_none() is not None
 
 
-# 7. Custom User Database with OAuth support (REQUIRED!)
 class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
     """
     Extended SQLAlchemyUserDatabase with OAuth support.
@@ -85,13 +71,11 @@ class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
         return user
 
 
-# 8. Get user database dependency (REQUIRED!)
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
-    """Provides database access for users and OAuth accounts"""
+    """Provides database access for users and OAuth accounts."""
     yield SQLAlchemyUserDatabaseWithOAuth(session, User, OAuthAccount)
 
 
-# 9. Create personal team for user
 async def create_personal_team(session: AsyncSession, user) -> Team:
     """
     Create a personal team for the user named "Username's Team".
@@ -128,7 +112,6 @@ async def create_personal_team(session: AsyncSession, user) -> Team:
     return team
 
 
-# Keep for backwards compatibility
 async def create_default_team(session: AsyncSession, user=None) -> Team:
     """
     Deprecated: Use create_personal_team instead.
@@ -143,3 +126,4 @@ async def create_default_team(session: AsyncSession, user=None) -> Team:
         await session.commit()
         await session.refresh(team)
         return team
+

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
-from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.db.db import get_async_session
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.services import quota_service
 from transformerlab.shared.models.models import User
