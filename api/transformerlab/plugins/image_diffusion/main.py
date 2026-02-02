@@ -45,7 +45,7 @@ from datetime import datetime
 import time
 from PIL import Image
 
-from transformerlab.sdk.v1.diffusion import tlab_diffusion
+from transformerlab.sdk.v1.diffusion import tlab_diffusion, run_async_from_sync
 import numpy as np
 import subprocess
 
@@ -453,14 +453,14 @@ def get_pipeline(
         # Load LoRA adaptor if provided - same code for local and HF Hub!
         if adaptor and adaptor.strip():
             try:
-                workspace_dir = asyncio.run(get_workspace_dir())
+                workspace_dir = run_async_from_sync(get_workspace_dir())
                 adaptor_dir = storage.join(
                     workspace_dir,
                     "adaptors",
                     secure_filename(model),
                 )
                 adaptor_path = storage.join(adaptor_dir, secure_filename(adaptor))
-                if asyncio.run(storage.exists(adaptor_path)):
+                if run_async_from_sync(storage.exists(adaptor_path)):
                     pipe.load_lora_weights(adaptor_path)
                     # if not isinstance(pipe, StableDiffusionXLPipeline):
                     #     pipe.load_lora_weights(adaptor_path)
@@ -593,7 +593,7 @@ def get_python_executable():
 
 def get_diffusion_dir(experiment_name: str = None):
     """Get the diffusion directory path"""
-    workspace_dir = asyncio.run(get_workspace_dir())
+    workspace_dir = run_async_from_sync(get_workspace_dir())
     if experiment_name is not None:
         return storage.join(workspace_dir, "experiments", experiment_name, "diffusion")
     else:
@@ -617,15 +617,15 @@ def ensure_directories(experiment_name: str = None):
     images_dir = get_images_dir(experiment_name)
     history_file_path = get_history_file_path(experiment_name)
 
-    asyncio.run(storage.makedirs(diffusion_dir, exist_ok=True))
-    asyncio.run(storage.makedirs(images_dir, exist_ok=True))
-    if not asyncio.run(storage.exists(history_file_path)):
+    run_async_from_sync(storage.makedirs(diffusion_dir, exist_ok=True))
+    run_async_from_sync(storage.makedirs(images_dir, exist_ok=True))
+    if not run_async_from_sync(storage.exists(history_file_path)):
 
         async def _create_file():
             async with await storage.open(history_file_path, "a"):
                 pass
 
-        asyncio.run(_create_file())
+        run_async_from_sync(_create_file())
 
 
 def save_to_history(item: ImageHistoryItem, experiment_name: str = None):
@@ -650,7 +650,7 @@ def save_to_history(item: ImageHistoryItem, experiment_name: str = None):
         async with await storage.open(history_file, "w") as f:
             await f.write(json.dumps(history, indent=2))
 
-    asyncio.run(_save())
+    run_async_from_sync(_save())
 
 
 def should_use_diffusion_worker(model) -> bool:
