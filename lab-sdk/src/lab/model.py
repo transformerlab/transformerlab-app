@@ -1,7 +1,7 @@
 import json
 from werkzeug.utils import secure_filename
 
-from .dirs import get_models_dir
+from .dirs import get_models_dir, get_job_models_dir
 from .labresource import BaseLabResource
 from . import storage
 
@@ -10,7 +10,7 @@ class Model(BaseLabResource):
     async def get_dir(self):
         """Abstract method on BaseLabResource"""
         model_id_safe = secure_filename(str(self.id))
-        models_dir = await get_models_dir()
+        models_dir = await get_job_models_dir()
         return storage.join(models_dir, model_id_safe)
 
     def _default_json(self):
