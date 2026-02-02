@@ -24,10 +24,29 @@ jobs:
           node-version: 18
           cache: npm
 
-      - name: Install and build
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build default web bundle
+        run: npm run build
+
+      - name: Archive default web bundle
         run: |
-          npm install
-          npm run build
+          cd release/cloud
+          tar -czvf transformerlab_web.tar.gz .
+          mv transformerlab_web.tar.gz ../transformerlab_web.tar.gz
+
+      - name: Build multiuser web bundle
+        run: npm run build:multiuser
+        env:
+          # build:multiuser skips dotenv so step env is the only source (no .env in CI)
+          MULTIUSER: 'true'
+
+      - name: Archive multiuser web bundle
+        run: |
+          cd release/cloud
+          tar -czvf transformerlab_web_multiuser.tar.gz .
+          mv transformerlab_web_multiuser.tar.gz ../transformerlab_web_multiuser.tar.gz
 
       - name: Extract version from package.json
         id: package-version
@@ -38,16 +57,14 @@ jobs:
 
       - name: Ensure GitHub Release exists
         run: |
-          gh release view ${{ github.ref_name }} >/dev/null 2>&1 || gh release create ${{ github.ref_name }} --generate-notes --verify-tag
+          gh release view ${{ github.ref_name }} >/dev/null 2>&1 || gh release create ${{ github.ref_name }} --generate-notes --verify-tag --draft
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
 
-      - name: Zip and upload static web assets
+      - name: Upload static web assets
         run: |
-          cd release/cloud
-          tar -czvf transformerlab_web.tar.gz .
-          gh release upload ${{ github.ref_name }} transformerlab_web.tar.gz
+          gh release upload ${{ github.ref_name }} release/transformerlab_web.tar.gz release/transformerlab_web_multiuser.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
