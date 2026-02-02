@@ -469,7 +469,7 @@ class Lab:
             # Extract the actual dataset_id with prefix from the path
             # The dataset_id with prefix is used in the path/filename
             dataset_id_with_prefix = f"{job_id}_{dataset_id}"
-            
+
             # Track dataset_id in job_data
             try:
                 job_data = await self._job.get_job_data()
@@ -621,7 +621,7 @@ class Lab:
                 base_name_original = name.strip()
             else:
                 base_name_original = posixpath.basename(src)
-            
+
             # Add job_id prefix to avoid conflicts between jobs
             base_name = f"{job_id}_{base_name_original}"
 
@@ -659,7 +659,7 @@ class Lab:
             try:
                 # Initialize model service
                 model_service = ModelService(base_name)
-                
+
                 # Use provided architecture or detect it
                 if architecture is None:
                     architecture = await model_service.detect_architecture(dest)
@@ -833,10 +833,10 @@ class Lab:
         # Always use job-specific directory
         if not job_id:
             raise ValueError("job_id is required for saving datasets")
-        
+
         # Add job_id prefix to dataset_id to avoid conflicts between jobs
         dataset_id_with_prefix = f"{job_id}_{dataset_id_safe}"
-        
+
         dataset_dir = await dirs.get_job_datasets_dir(job_id)
         await storage.makedirs(dataset_dir, exist_ok=True)
 
@@ -875,14 +875,18 @@ class Lab:
                         stem_with_suffix = f"{stem_with_suffix}_{suffix.strip()}"
                     output_filename = f"{stem_with_suffix}.json"
                     output_path = storage.join(dataset_dir, output_filename)
-                
+
                 if not await storage.exists(output_path):
                     stem = stem_with_suffix
                     output_filename = f"{stem}.json" if not is_image else "metadata.jsonl"
-                    dataset_id_with_prefix = stem_with_suffix.split("_")[0] + "_" + stem_with_suffix.split("_", 1)[1] if "_" in stem_with_suffix else stem_with_suffix
+                    dataset_id_with_prefix = (
+                        stem_with_suffix.split("_")[0] + "_" + stem_with_suffix.split("_", 1)[1]
+                        if "_" in stem_with_suffix
+                        else stem_with_suffix
+                    )
                     break
                 counter += 1
-            
+
             # Create directory for image datasets with new name
             if is_image:
                 await storage.makedirs(dataset_subdir, exist_ok=True)
