@@ -126,4 +126,3 @@ async def create_default_team(session: AsyncSession, user=None) -> Team:
         await session.commit()
         await session.refresh(team)
         return team
-
