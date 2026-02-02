@@ -17,6 +17,7 @@ import {
   ArrowDownIcon,
   FlaskRoundIcon,
   InfoIcon,
+  MessageCircle,
   SearchIcon,
   StoreIcon,
   Trash2Icon,
@@ -31,7 +32,6 @@ import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { filterByFilters, licenseTypes, modelTypes } from '../../lib/utils';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import SelectButton from '../Experiment/SelectButton';
-import { RiChatAiLine, RiImageAiLine } from 'react-icons/ri';
 import { fetchWithAuth } from 'renderer/lib/authContext';
 
 type Order = 'asc' | 'desc';
@@ -272,9 +272,9 @@ const LocalModelsTable = ({
                           startDecorator={
                             row?.json_data?.model_type === 'stable-diffusion' ||
                             row?.json_data?.model_type === 'diffusion' ? (
-                              <RiImageAiLine />
+                              <ImageIcon size={18} />
                             ) : (
-                              <RiChatAiLine />
+                              <MessageCircle size={18} />
                             )
                           }
                         >

@@ -6,6 +6,16 @@ from rich import print
 
 from transformerlab_cli.util.shared import BASE_URL
 from transformerlab_cli.util.auth import api_key
+from transformerlab_cli.util.config import get_config
+
+
+def _request_headers() -> dict:
+    """Build request headers: Authorization and optional X-Team-Id from config."""
+    headers: dict = {"Authorization": f"Bearer {api_key}"}
+    team_id = get_config("team_id")
+    if team_id:
+        headers["X-Team-Id"] = str(team_id)
+    return headers
 
 
 def get(path: str, timeout: float = 10.0, follow_redirects: bool = True) -> httpx.Response:
@@ -24,7 +34,7 @@ def get(path: str, timeout: float = 10.0, follow_redirects: bool = True) -> http
         response = client.request(
             method="GET",
             url=f"{BASE_URL()}{path}",
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers=_request_headers(),
             follow_redirects=follow_redirects,
         )
     return response
@@ -46,7 +56,7 @@ def post(path: str, data: dict = None, files: dict = None) -> httpx.Response:
         response = client.request(
             method="POST",
             url=f"{BASE_URL()}{path}",
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers=_request_headers(),
             data=data,
             files=files,
         )

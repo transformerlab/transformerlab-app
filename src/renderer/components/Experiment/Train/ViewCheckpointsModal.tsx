@@ -11,7 +11,6 @@ import { PlayIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { fetchWithAuth } from 'renderer/lib/authContext';
-import { formatBytes } from 'renderer/lib/utils';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 
