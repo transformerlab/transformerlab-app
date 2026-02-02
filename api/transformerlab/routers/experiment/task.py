@@ -448,7 +448,7 @@ async def add_task(
                 # Handle zip file if provided (for JSON requests, zip_file would come from multipart)
                 if zip_file and zip_file.filename:
                     try:
-                        zip_path = await _store_zip_file(zip_file, task_id)
+                        await _store_zip_file(zip_file, task_id)
                         # Update task with file_mounts: true so launch runs lab.copy_file_mounts()
                         await task_service.update_task(task_id, {"file_mounts": True})
                     except Exception as e:
@@ -477,7 +477,7 @@ async def add_task(
                 # Handle zip file if provided
                 if zip_file and zip_file.filename:
                     try:
-                        zip_path = await _store_zip_file(zip_file, task_id)
+                        await _store_zip_file(zip_file, task_id)
                         # Update task with file_mounts: true so launch runs lab.copy_file_mounts()
                         await task_service.update_task(task_id, {"file_mounts": True})
                     except Exception as e:
@@ -510,7 +510,7 @@ async def add_task(
             # Handle zip file if provided
             if zip_file and zip_file.filename:
                 try:
-                    zip_path = await _store_zip_file(zip_file, task_id)
+                    await _store_zip_file(zip_file, task_id)
                     # Update task with file_mounts: true so launch runs lab.copy_file_mounts()
                     await task_service.update_task(task_id, {"file_mounts": True})
                 except Exception as e:

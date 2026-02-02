@@ -6,7 +6,6 @@ Task metadata is also in index.json for listing/run.
 Runner uses GET .../task2/{task_id}/directory to fetch task dir as zip for lab.copy_file_mounts().
 """
 
-import io
 import os
 import tempfile
 import zipfile
@@ -14,7 +13,7 @@ from typing import Optional
 
 import yaml
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile, Depends
-from fastapi.responses import PlainTextResponse, Response
+from fastapi.responses import PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.utils import secure_filename
 

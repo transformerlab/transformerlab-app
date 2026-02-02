@@ -72,16 +72,10 @@ class TaskService:
                     continue
                 # Never overwrite file_mounts when update would clear (existing is True or non-empty dict)
                 if key == "file_mounts":
-                    would_clear = (
-                        value is None
-                        or value is False
-                        or (isinstance(value, dict) and len(value) == 0)
-                    )
+                    would_clear = value is None or value is False or (isinstance(value, dict) and len(value) == 0)
                     if would_clear:
                         existing_mounts = existing.get("file_mounts")
-                        if existing_mounts is True or (
-                            isinstance(existing_mounts, dict) and len(existing_mounts) > 0
-                        ):
+                        if existing_mounts is True or (isinstance(existing_mounts, dict) and len(existing_mounts) > 0):
                             continue  # preserve existing file_mounts
                 update_data[key] = value
 

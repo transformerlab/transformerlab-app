@@ -96,7 +96,9 @@ class ProviderTemplateLaunchRequest(BaseModel):
     """Payload for launching a remote template via providers."""
 
     experiment_id: str = Field(..., description="Experiment that owns the job")
-    task_id: Optional[str] = Field(None, description="Task ID; required when file_mounts is True for lab.copy_file_mounts()")
+    task_id: Optional[str] = Field(
+        None, description="Task ID; required when file_mounts is True for lab.copy_file_mounts()"
+    )
     task_name: Optional[str] = Field(None, description="Friendly task name")
     cluster_name: Optional[str] = Field(None, description="Base cluster name, suffix is appended automatically")
     command: str = Field(..., description="Command to execute on the cluster")
