@@ -1326,7 +1326,6 @@ async def save_dataset_to_registry(job_id: str, dataset_name: str):
 
     try:
         from lab.dirs import get_job_datasets_dir, get_datasets_dir
-        import shutil
 
         # Secure the dataset name
         dataset_name_secure = secure_filename(dataset_name)
@@ -1362,7 +1361,6 @@ async def save_model_to_registry(job_id: str, model_name: str):
 
     try:
         from lab.dirs import get_job_models_dir, get_models_dir
-        import shutil
 
         # Secure the model name
         model_name_secure = secure_filename(model_name)

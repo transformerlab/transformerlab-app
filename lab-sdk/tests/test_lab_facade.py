@@ -615,7 +615,7 @@ def test_lab_save_dataset_duplicate_error(tmp_path, monkeypatch):
     assert os.path.exists(output_path_1)
     job_id = lab._job.id
     assert f"{job_id}_existing_dataset.json" in output_path_1
-    
+
     # Save again with same name in same job - should create with suffix
     output_path_2 = lab.save_dataset(df, "existing_dataset")
     assert os.path.exists(output_path_2)
