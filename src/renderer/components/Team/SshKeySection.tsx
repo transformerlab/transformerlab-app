@@ -286,11 +286,13 @@ export default function SshKeySection({ teamId }: { teamId: string }) {
       <Alert color="primary" variant="soft" sx={{ mb: 2 }}>
         <Typography level="body-sm">
           <strong>Usage:</strong>
-          <br />• Download the key and save it securely (e.g.,{' '}
-          <code>~/.ssh/org_ssh_key</code>)
-          <br />• Set permissions: <code>chmod 600 ~/.ssh/org_ssh_key</code>
-          <br />• Use it to SSH into your interactive tasks:{' '}
-          <code>ssh -i ~/.ssh/org_ssh_key user@host</code>
+          <br />• Download the key and save it in your home directory (
+          <code>~</code>) with the downloaded filename (e.g.,{' '}
+          <code>~/org_ssh_key_{key?.id || teamId}</code>)
+          <br />• Set permissions:{' '}
+          <code>chmod 600 ~/org_ssh_key_{key?.id || teamId}</code>
+          <br />• Use it to SSH into your interactive tasks (the SSH panel will
+          show the exact command with this path)
         </Typography>
       </Alert>
 

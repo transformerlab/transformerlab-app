@@ -33,7 +33,8 @@ const configuration: webpack.Configuration = {
   output: {
     path: webpackPaths.distCloudPath,
     publicPath: './',
-    filename: 'renderer.js',
+    // Use [name] so Webpack can create multiple files
+    filename: '[name].js',
     library: {
       type: 'umd',
     },
@@ -91,15 +92,48 @@ const configuration: webpack.Configuration = {
           'file-loader',
         ],
       },
+      {
+        test: /[\\/]node_modules[\\/]react-icons[\\/].+\.js$/,
+        resolve: {
+          fullySpecified: false,
+        },
+        sideEffects: false, // ⬅️ THIS IS THE MAGIC LINE
+      },
     ],
   },
 
   optimization: {
     minimize: true,
+    sideEffects: true, // Tell webpack to respect the "sideEffects" flag in package.json
+    usedExports: true, // Tell webpack to determine used exports for each module
     minimizer: [
-      new EsbuildPlugin({ target: 'es2020' }),
+      new EsbuildPlugin({
+        target: 'es2020',
+        css: true,
+      }),
       new CssMinimizerPlugin(),
     ],
+    splitChunks: {
+      chunks: 'all',
+      maxInitialRequests: 25, // Allow more concurrent downloads
+      minSize: 20000, // Only split if the chunk is >20KB
+      cacheGroups: {
+        defaultVendors: {
+          test: /[\\/]node_modules[\\/]/,
+          priority: -10,
+          reuseExistingChunk: true,
+          name(module: any) {
+            const moduleContext = module.context || '';
+            const match = moduleContext.match(
+              /[\\/]node_modules[\\/](.*?)([\\/]|$)/,
+            );
+            const packageName = match ? match[1] : 'external';
+
+            return `npm.${packageName.replace('@', '')}`;
+          },
+        },
+      },
+    },
   },
 
   plugins: [

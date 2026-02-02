@@ -13,9 +13,10 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import { analytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
-import NewTaskModal from './NewTaskModal';
+import NewTaskModal from './NewTaskModal/NewTaskModal';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveVSCodeModal from './InteractiveVSCodeModal';
 import InteractiveJupyterModal from './InteractiveJupyterModal';
@@ -24,6 +25,7 @@ import InteractiveSshModal from './InteractiveSshModal';
 import InteractiveOllamaModal from './InteractiveOllamaModal';
 import EditTaskModal from './EditTaskModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
+import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
 import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
@@ -41,6 +43,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskBeingEdited, setTaskBeingEdited] = useState<any | null>(null);
+  const [queueModalOpen, setQueueModalOpen] = useState(false);
+  const [taskBeingQueued, setTaskBeingQueued] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [currentTensorboardForModal, setCurrentTensorboardForModal] =
@@ -280,13 +284,32 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   useEffect(() => {
     if (!jobs || !Array.isArray(jobs)) return;
 
-    const jobsToCheck = jobs.filter(
-      (job: any) =>
-        job.type === 'REMOTE' &&
-        (job.status === 'LAUNCHING' ||
-          (job.status === 'COMPLETE' && job.job_data?.provider_id)) && // Also check recently completed jobs to ensure quota is recorded
-        job.job_data?.provider_id, // Only check jobs with provider_id
-    );
+    const now = dayjs();
+    const RECENT_COMPLETION_WINDOW_MINUTES = 5; // Only check jobs completed within last 5 minutes
+
+    const jobsToCheck = jobs.filter((job: any) => {
+      // Must be REMOTE type with provider_id
+      if (job.type !== 'REMOTE' || !job.job_data?.provider_id) {
+        return false;
+      }
+
+      // Always check LAUNCHING jobs
+      if (job.status === 'LAUNCHING') {
+        return true;
+      }
+
+      // Only check COMPLETE jobs that finished recently (to ensure quota is recorded)
+      if (job.status === 'COMPLETE' && job.job_data?.end_time) {
+        const endTime = dayjs(job.job_data.end_time);
+        const minutesSinceCompletion = now.diff(endTime, 'minute', true);
+        return (
+          minutesSinceCompletion >= 0 &&
+          minutesSinceCompletion <= RECENT_COMPLETION_WINDOW_MINUTES
+        );
+      }
+
+      return false;
+    });
 
     if (jobsToCheck.length === 0) return;
 
@@ -599,6 +622,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       );
 
       if (response.ok) {
+        analytics.track('Task Queued', {
+          task_type: 'REMOTE',
+        });
         setModalOpen(false);
         await templatesMutate();
         addNotification({
@@ -784,11 +810,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           : task.config
         : task; // If no config field, assume it's a template with flat structure
 
-    const providerId =
-      cfg.provider_id ||
-      task.provider_id ||
-      (providers.length ? providers[0]?.id : null);
-    if (!providerId) {
+    if (!providers.length) {
       addNotification({
         type: 'danger',
         message:
@@ -797,23 +819,54 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       return;
     }
 
+    if (!cfg.command && !task.command) {
+      addNotification({
+        type: 'warning',
+        message: 'Task is missing a command to run.',
+      });
+      return;
+    }
+
+    // Open the queue modal so user can pick provider (and customize params)
+    setTaskBeingQueued(task);
+    setQueueModalOpen(true);
+  };
+
+  const handleQueueSubmit = async (config: Record<string, any>) => {
+    if (!experimentInfo?.id || !taskBeingQueued) return;
+
+    // Close modal and start submission
+    setQueueModalOpen(false);
+    setIsSubmitting(true);
+
+    const task = taskBeingQueued;
+
+    // For templates, all fields are stored directly (not nested in config)
+    // For backward compatibility, check if it's an old task format with nested config
+    const cfg =
+      task.config !== undefined
+        ? typeof task.config === 'string'
+          ? JSON.parse(task.config)
+          : task.config
+        : task; // If no config field, assume it's a template with flat structure
+
+    // Use provider from modal override first, then task/cfg
+    const providerId =
+      config?.provider_id ||
+      cfg.provider_id ||
+      task.provider_id ||
+      (providers.length ? providers[0]?.id : null);
+
     const providerMeta = providers.find(
       (provider) => provider.id === providerId,
     );
 
     if (!providerMeta) {
+      setIsSubmitting(false);
       addNotification({
         type: 'danger',
         message:
           'Selected provider is unavailable. Please create or update providers in team settings.',
-      });
-      return;
-    }
-
-    if (!cfg.command) {
-      addNotification({
-        type: 'warning',
-        message: 'Task is missing a command to run.',
       });
       return;
     }
@@ -824,7 +877,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     });
 
     try {
+      // Strip modal-only fields from config so API only gets parameter overrides
+      const {
+        provider_id: _pid,
+        provider_name: _pname,
+        ...paramConfig
+      } = config ?? {};
+
       // For templates, fields are stored directly, so use task directly or cfg
+      // Keep original parameters (the definitions/defaults) and send overrides separately
       const payload = {
         experiment_id: experimentInfo.id,
         task_name: task.name,
@@ -839,9 +900,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         num_nodes: cfg.num_nodes || task.num_nodes,
         setup: cfg.setup || task.setup,
         env_vars: cfg.env_vars || task.env_vars || {},
-        parameters: cfg.parameters || task.parameters || undefined,
+        parameters: cfg.parameters || task.parameters || undefined, // Keep original parameter definitions
+        config: Object.keys(paramConfig).length > 0 ? paramConfig : undefined, // Send user's custom values as config
         file_mounts: cfg.file_mounts || task.file_mounts,
-        provider_name: providerMeta.name,
+        provider_name: config?.provider_name ?? providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
         github_directory: cfg.github_directory || task.github_directory,
         github_branch: cfg.github_branch || task.github_branch,
@@ -909,6 +971,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         type: 'danger',
         message: 'Failed to queue provider-backed task.',
       });
+    } finally {
+      setIsSubmitting(false);
+      setTaskBeingQueued(null);
     }
   };
 
@@ -1013,6 +1078,18 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           onSaved={async () => {
             await templatesMutate();
           }}
+        />
+      )}
+      {taskBeingQueued && (
+        <QueueTaskModal
+          open={queueModalOpen}
+          onClose={() => {
+            setQueueModalOpen(false);
+            setTaskBeingQueued(null);
+          }}
+          task={taskBeingQueued}
+          onSubmit={handleQueueSubmit}
+          isSubmitting={isSubmitting}
         />
       )}
       <Stack
