@@ -1,7 +1,7 @@
 """Pydantic schemas for provider management."""
 
 from pydantic import BaseModel, Field
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
 from transformerlab.shared.models.models import ProviderType
 
@@ -96,6 +96,7 @@ class ProviderTemplateLaunchRequest(BaseModel):
     """Payload for launching a remote template via providers."""
 
     experiment_id: str = Field(..., description="Experiment that owns the job")
+    task_id: Optional[str] = Field(None, description="Task ID; required when file_mounts is True for lab.copy_file_mounts()")
     task_name: Optional[str] = Field(None, description="Friendly task name")
     cluster_name: Optional[str] = Field(None, description="Base cluster name, suffix is appended automatically")
     command: str = Field(..., description="Command to execute on the cluster")
@@ -108,10 +109,10 @@ class ProviderTemplateLaunchRequest(BaseModel):
     num_nodes: Optional[int] = None
     setup: Optional[str] = None
     env_vars: Dict[str, str] = Field(default_factory=dict, description="Environment variables as key-value pairs")
-    # File mounts: mapping of remote path -> local path
-    file_mounts: Optional[Dict[str, str]] = Field(
+    # File mounts: True = use lab.copy_file_mounts() at launch (task_id required); or dict for legacy path mapping
+    file_mounts: Optional[Union[Dict[str, str], bool]] = Field(
         default=None,
-        description="File mounts in the form {<remote_path>: <local_path>}",
+        description="True to copy task dir to ~/src via lab.copy_file_mounts(); or {<remote_path>: <local_path>} for legacy",
     )
     parameters: Optional[Dict[str, Any]] = Field(
         default=None,

@@ -58,15 +58,32 @@ class TaskService:
             return task_id
 
     async def update_task(self, task_id: str, new_task_data: Dict[str, Any]) -> bool:
-        """Update an existing task"""
+        """Update an existing task. Preserves existing file_mounts when the update
+        would clear them (e.g. edit form or YAML save that omits file_mounts).
+        """
         try:
             task = await self.task_service.get(str(task_id))
+            existing = await task.get_metadata()
 
             # Update only the fields that are provided
             update_data = {}
             for key, value in new_task_data.items():
-                if value is not None:
-                    update_data[key] = value
+                if value is None:
+                    continue
+                # Never overwrite file_mounts when update would clear (existing is True or non-empty dict)
+                if key == "file_mounts":
+                    would_clear = (
+                        value is None
+                        or value is False
+                        or (isinstance(value, dict) and len(value) == 0)
+                    )
+                    if would_clear:
+                        existing_mounts = existing.get("file_mounts")
+                        if existing_mounts is True or (
+                            isinstance(existing_mounts, dict) and len(existing_mounts) > 0
+                        ):
+                            continue  # preserve existing file_mounts
+                update_data[key] = value
 
             if update_data:
                 await task.set_metadata(**update_data)

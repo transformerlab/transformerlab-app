@@ -3,8 +3,10 @@ New task-from-directory flow: from_directory (git or zip), GET/PUT task.yaml.
 We maintain a task.yaml file inside the task directory (human-oriented: name, resources,
 envs, setup, run, git_repo, etc.). GET returns that file; PUT saves to it and syncs index.json.
 Task metadata is also in index.json for listing/run.
+Runner uses GET .../task2/{task_id}/directory to fetch task dir as zip for lab.copy_file_mounts().
 """
 
+import io
 import os
 import tempfile
 import zipfile
@@ -12,7 +14,7 @@ from typing import Optional
 
 import yaml
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile, Depends
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.utils import secure_filename
 
@@ -56,14 +58,15 @@ async def from_directory(
     - JSON body: { "git_url": "https://github.com/...", "git_repo_directory": "optional/subdir", "git_branch": "optional branch/tag/commit" }
     - Multipart: directory_zip = ZIP file containing a directory with task.yaml (and optionally other files)
 
-    The directory must contain task.yaml only (no task.json). The task is created (index.json)
-    and we write task.yaml into the task directory so the editor can show/edit it. For zip
-    uploads we copy the whole directory (task.yaml + any other files) into the task dir and set
-    file_mounts so the runner gets that dir at ~/src (same idea as legacy "uploaded zip").
+    The directory must contain task.yaml (no task.json). The task is created (index.json)
+    and we write task.yaml into the task directory. For zip uploads we copy the whole
+    directory into the task directory; at launch the runner uses lab.copy_file_mounts()
+    to fetch the task dir from the API and copy to ~/src (no SkyPilot file_mounts).
     """
     content_type = (request.headers.get("content-type") or "").lower()
     task_yaml_content = None
-    task_root_for_zip = None  # local path to copy into task dir when using zip
+    task_root_for_zip = None  # local path (only valid inside tempdir for zip)
+    task_id = None
 
     if "application/json" in content_type:
         body = await request.json()
@@ -99,44 +102,62 @@ async def from_directory(
             task_root_for_zip = os.path.dirname(task_yaml_path)
             with open(task_yaml_path, "r", encoding="utf-8") as f:
                 task_yaml_content = f.read()
+            # Parse and create task while tmpdir still exists so we can copy from task_root_for_zip
+            try:
+                task_data = _parse_yaml_to_task_data(task_yaml_content)
+            except yaml.YAMLError as e:
+                raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Error parsing YAML: {str(e)}")
+            if "experiment_id" not in task_data:
+                task_data["experiment_id"] = experimentId
+            if "type" not in task_data:
+                task_data["type"] = "REMOTE"
+            if "plugin" not in task_data:
+                task_data["plugin"] = "remote_orchestrator"
+            await _resolve_provider(task_data, user_and_team, session)
+            if "name" in task_data:
+                task_data["name"] = secure_filename(task_data["name"])
+            task_id = await task_service.add_task(task_data)
+            task_dir = await _get_task_dir_path(task_id)
+            await storage.makedirs(task_dir, exist_ok=True)
+            await storage.copy_dir(task_root_for_zip, task_dir)
     else:
         raise HTTPException(
             status_code=400,
             detail="Use application/json with git_url or multipart/form-data with directory_zip.",
         )
 
-    try:
-        task_data = _parse_yaml_to_task_data(task_yaml_content)
-    except yaml.YAMLError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error parsing YAML: {str(e)}")
+    # For git path we don't have task_id yet
+    if task_id is None:
+        try:
+            task_data = _parse_yaml_to_task_data(task_yaml_content)
+        except yaml.YAMLError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Error parsing YAML: {str(e)}")
+        if "experiment_id" not in task_data:
+            task_data["experiment_id"] = experimentId
+        if "type" not in task_data:
+            task_data["type"] = "REMOTE"
+        if "plugin" not in task_data:
+            task_data["plugin"] = "remote_orchestrator"
+        await _resolve_provider(task_data, user_and_team, session)
+        if "name" in task_data:
+            task_data["name"] = secure_filename(task_data["name"])
+        task_id = await task_service.add_task(task_data)
 
-    if "experiment_id" not in task_data:
-        task_data["experiment_id"] = experimentId
-    if "type" not in task_data:
-        task_data["type"] = "REMOTE"
-    if "plugin" not in task_data:
-        task_data["plugin"] = "remote_orchestrator"
-    await _resolve_provider(task_data, user_and_team, session)
-    if "name" in task_data:
-        task_data["name"] = secure_filename(task_data["name"])
-
-    task_id = await task_service.add_task(task_data)
     task_dir = await _get_task_dir_path(task_id)
     await storage.makedirs(task_dir, exist_ok=True)
-    if task_root_for_zip:
-        await storage.copy_dir(task_root_for_zip, task_dir)
-    # Always write task.yaml (human-oriented) so GET yaml and editor have it
     yaml_path = storage.join(task_dir, "task.yaml")
     async with await storage.open(yaml_path, "w", encoding="utf-8") as f:
         await f.write(task_yaml_content)
-    # # So the runner sees uploaded files: mount task dir at ~/src (same idea as legacy zip → file_mounts)
-    # if task_root_for_zip:
-    #     await task_service.update_task(task_id, {"file_mounts": {"~/src": task_dir}})
-
+    if task_root_for_zip is not None:
+        await task_service.update_task(task_id, {"file_mounts": True})
     return {"id": task_id}
 
 
