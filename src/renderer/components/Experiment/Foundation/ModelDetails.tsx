@@ -35,7 +35,7 @@ import {
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import placeholderLogo from 'renderer/img/attention.png';
-import { FaEject } from 'react-icons/fa6';
+import { FaEject } from 'renderer/components/Icons';
 
 function modelNameIsInHuggingfaceFormat(modelName: string) {
   return modelName.includes('/');
