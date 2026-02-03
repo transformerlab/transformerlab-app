@@ -191,7 +191,11 @@ class OllamaModel(basemodel.BaseModel):
         # If the storage backend is remote, this will need special handling
         try:
             # Check if it's a remote storage path (http/https are URLs, not storage paths)
-            local_link_path = link_name if not (storage.is_remote_path(link_name) or link_name.startswith(("http://", "https://"))) else None
+            local_link_path = (
+                link_name
+                if not (storage.is_remote_path(link_name) or link_name.startswith(("http://", "https://")))
+                else None
+            )
             if local_link_path:
                 os.symlink(input_model_path, local_link_path)
         except Exception as e:
