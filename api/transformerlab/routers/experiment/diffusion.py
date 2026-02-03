@@ -693,7 +693,7 @@ async def get_image_by_id(
 
             file_name = image_files[index]
             image_path = storage.join(image_item.image_path, file_name)
-            if not storage.exists(image_path):
+            if not await storage.exists(image_path):
                 raise HTTPException(status_code=404, detail=f"Image file not found: {file_name}")
             return FileResponse(image_path)
         else:
