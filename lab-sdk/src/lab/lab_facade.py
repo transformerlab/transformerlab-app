@@ -98,7 +98,7 @@ class Lab:
             self._job = _run_async(Job.get(existing_job_id))
             if self._job is None:
                 raise RuntimeError(f"Job with ID {existing_job_id} not found. Check _TFL_JOB_ID environment variable.")
-            logger.info("Using existing job ID: %s", existing_job_id)
+            logger.info(f"Using existing job ID: {existing_job_id}")
             # Set start_time if not already set (for remote jobs launched through providers)
             job_data = _run_async(self._job.get_job_data())
             if not job_data.get("start_time"):
@@ -111,7 +111,7 @@ class Lab:
             self._job = _run_async(self._experiment.create_job())
             _run_async(self._job.update_job_data_field("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))
             _run_async(self._job.set_experiment(experiment_id))
-            logger.info("Created new job ID: %s", self._job.id)
+            logger.info(f"Created new job ID: {self._job.id}")
 
         # Update status to RUNNING for both cases
         _run_async(self._job.update_status("RUNNING"))
@@ -319,7 +319,7 @@ class Lab:
                 async with await storage.open(full_path, "rb") as f:
                     data = await f.read()
             except Exception:
-                logger.error("Error opening path: %s", full_path, exc_info=True)
+                logger.error(f"Error opening path: {full_path}", exc_info=True)
                 continue
 
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
