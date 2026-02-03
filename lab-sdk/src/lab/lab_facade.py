@@ -1041,9 +1041,7 @@ class Lab:
         except Exception:
             logger.warning("Warning: Failed to track dataset in job_data", exc_info=True)
 
-        logger.info(
-            f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_with_prefix}'"
-        )
+        logger.info(f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_with_prefix}'")
         return output_path
 
     def save_checkpoint(self, source_path: str, name: Optional[str] = None) -> str:
