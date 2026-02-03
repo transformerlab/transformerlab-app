@@ -1,5 +1,4 @@
 import json
-import os
 from werkzeug.utils import secure_filename
 from typing import Optional
 
@@ -20,6 +19,7 @@ class Model(BaseLabResource):
         """
         super().__init__(id)
         self.job_id = job_id
+
     @classmethod
     async def create(cls, id: str, job_id: Optional[str] = None):
         """Create a new model, optionally scoped to a job."""
