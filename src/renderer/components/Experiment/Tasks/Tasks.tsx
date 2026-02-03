@@ -13,16 +13,16 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import { analytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
-import NewTaskModal from './NewTaskModal';
+import NewTaskModal from './NewTaskModal/NewTaskModal';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveVSCodeModal from './InteractiveVSCodeModal';
 import InteractiveJupyterModal from './InteractiveJupyterModal';
 import InteractiveVllmModal from './InteractiveVllmModal';
 import InteractiveSshModal from './InteractiveSshModal';
 import InteractiveOllamaModal from './InteractiveOllamaModal';
-import EditTaskModal from './EditTaskModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -31,6 +31,8 @@ import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
+import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
+import TaskYamlEditorModal from './TaskYamlEditorModal';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -59,6 +61,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     open: boolean;
     datasetId: string | null;
   }>({ open: false, datasetId: null });
+  const [yamlEditorTaskId, setYamlEditorTaskId] = useState<string | null>(null);
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const { fetchWithAuth, team } = useAuth();
@@ -283,13 +286,32 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   useEffect(() => {
     if (!jobs || !Array.isArray(jobs)) return;
 
-    const jobsToCheck = jobs.filter(
-      (job: any) =>
-        job.type === 'REMOTE' &&
-        (job.status === 'LAUNCHING' ||
-          (job.status === 'COMPLETE' && job.job_data?.provider_id)) && // Also check recently completed jobs to ensure quota is recorded
-        job.job_data?.provider_id, // Only check jobs with provider_id
-    );
+    const now = dayjs();
+    const RECENT_COMPLETION_WINDOW_MINUTES = 5; // Only check jobs completed within last 5 minutes
+
+    const jobsToCheck = jobs.filter((job: any) => {
+      // Must be REMOTE type with provider_id
+      if (job.type !== 'REMOTE' || !job.job_data?.provider_id) {
+        return false;
+      }
+
+      // Always check LAUNCHING jobs
+      if (job.status === 'LAUNCHING') {
+        return true;
+      }
+
+      // Only check COMPLETE jobs that finished recently (to ensure quota is recorded)
+      if (job.status === 'COMPLETE' && job.job_data?.end_time) {
+        const endTime = dayjs(job.job_data.end_time);
+        const minutesSinceCompletion = now.diff(endTime, 'minute', true);
+        return (
+          minutesSinceCompletion >= 0 &&
+          minutesSinceCompletion <= RECENT_COMPLETION_WINDOW_MINUTES
+        );
+      }
+
+      return false;
+    });
 
     if (jobsToCheck.length === 0) return;
 
@@ -602,6 +624,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       );
 
       if (response.ok) {
+        analytics.track('Task Queued', {
+          task_type: 'REMOTE',
+        });
         setModalOpen(false);
         await templatesMutate();
         addNotification({
@@ -787,28 +812,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           : task.config
         : task; // If no config field, assume it's a template with flat structure
 
-    const providerId =
-      cfg.provider_id ||
-      task.provider_id ||
-      (providers.length ? providers[0]?.id : null);
-    if (!providerId) {
+    if (!providers.length) {
       addNotification({
         type: 'danger',
         message:
           'No providers available. Add a provider in the team settings first.',
-      });
-      return;
-    }
-
-    const providerMeta = providers.find(
-      (provider) => provider.id === providerId,
-    );
-
-    if (!providerMeta) {
-      addNotification({
-        type: 'danger',
-        message:
-          'Selected provider is unavailable. Please create or update providers in team settings.',
       });
       return;
     }
@@ -821,7 +829,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       return;
     }
 
-    // Open the queue modal to allow parameter customization
+    // Open the queue modal so user can pick provider (and customize params)
     setTaskBeingQueued(task);
     setQueueModalOpen(true);
   };
@@ -844,7 +852,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           : task.config
         : task; // If no config field, assume it's a template with flat structure
 
+    // Use provider from modal override first, then task/cfg
     const providerId =
+      config?.provider_id ||
       cfg.provider_id ||
       task.provider_id ||
       (providers.length ? providers[0]?.id : null);
@@ -869,10 +879,18 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     });
 
     try {
+      // Strip modal-only fields from config so API only gets parameter overrides
+      const {
+        provider_id: _pid,
+        provider_name: _pname,
+        ...paramConfig
+      } = config ?? {};
+
       // For templates, fields are stored directly, so use task directly or cfg
       // Keep original parameters (the definitions/defaults) and send overrides separately
       const payload = {
         experiment_id: experimentInfo.id,
+        task_id: task.id,
         task_name: task.name,
         cluster_name: cfg.cluster_name || task.cluster_name,
         command: cfg.command || task.command,
@@ -886,9 +904,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         setup: cfg.setup || task.setup,
         env_vars: cfg.env_vars || task.env_vars || {},
         parameters: cfg.parameters || task.parameters || undefined, // Keep original parameter definitions
-        config: Object.keys(config).length > 0 ? config : undefined, // Send user's custom values as config
+        config: Object.keys(paramConfig).length > 0 ? paramConfig : undefined, // Send user's custom values as config
         file_mounts: cfg.file_mounts || task.file_mounts,
-        provider_name: providerMeta.name,
+        provider_name: config?.provider_name ?? providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
         github_directory: cfg.github_directory || task.github_directory,
         github_branch: cfg.github_branch || task.github_branch,
@@ -963,8 +981,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   };
 
   const handleEditTask = (task: any) => {
-    setTaskBeingEdited(task);
-    setEditModalOpen(true);
+    if (isInteractivePage && (task as any)?.interactive_type) {
+      setTaskBeingEdited(task);
+      setEditModalOpen(true);
+    } else {
+      setYamlEditorTaskId(task?.id ?? null);
+    }
   };
 
   return (
@@ -977,14 +999,32 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }}
     >
       {!isInteractivePage && (
-        <NewTaskModal
+        // <NewTaskModal
+        //   open={modalOpen}
+        //   onClose={handleClose}
+        //   experimentId={experimentInfo?.id}
+        //   onSubmit={handleSubmit}
+        //   isSubmitting={isSubmitting}
+        //   providers={providers}
+        //   isProvidersLoading={providersIsLoading}
+        // />
+        <NewTaskModal2
           open={modalOpen}
           onClose={handleClose}
-          experimentId={experimentInfo?.id}
-          onSubmit={handleSubmit}
-          isSubmitting={isSubmitting}
-          providers={providers}
-          isProvidersLoading={providersIsLoading}
+          experimentId={experimentInfo?.id ?? ''}
+          onTaskCreated={(taskId) => {
+            setYamlEditorTaskId(taskId);
+            handleClose();
+          }}
+        />
+      )}
+      {experimentInfo?.id && yamlEditorTaskId && (
+        <TaskYamlEditorModal
+          open={Boolean(yamlEditorTaskId)}
+          onClose={() => setYamlEditorTaskId(null)}
+          experimentId={experimentInfo.id}
+          taskId={yamlEditorTaskId}
+          onSaved={() => templatesMutate()}
         />
       )}
       {isInteractivePage && (
@@ -998,73 +1038,63 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         />
       )}
       {taskBeingEdited &&
-      (taskBeingEdited as any).interactive_type &&
-      isInteractivePage ? (
-        <EditInteractiveTaskModal
-          open={editModalOpen}
-          onClose={handleEditClose}
-          task={taskBeingEdited}
-          providers={providers}
-          isProvidersLoading={providersIsLoading}
-          onSaved={async (updatedBody: any) => {
-            if (!experimentInfo?.id || !taskBeingEdited?.id) {
-              addNotification({
-                type: 'warning',
-                message: 'Missing experiment or task ID',
-              });
-              return;
-            }
-
-            try {
-              const response = await chatAPI.authenticatedFetch(
-                chatAPI.Endpoints.Task.UpdateTemplate(
-                  experimentInfo.id,
-                  taskBeingEdited.id,
-                ),
-                {
-                  method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    accept: 'application/json',
-                  },
-                  body: JSON.stringify(updatedBody),
-                },
-              );
-
-              if (response.ok) {
-                await templatesMutate();
+        (taskBeingEdited as any).interactive_type &&
+        isInteractivePage && (
+          <EditInteractiveTaskModal
+            open={editModalOpen}
+            onClose={handleEditClose}
+            task={taskBeingEdited}
+            providers={providers}
+            isProvidersLoading={providersIsLoading}
+            onSaved={async (updatedBody: any) => {
+              if (!experimentInfo?.id || !taskBeingEdited?.id) {
                 addNotification({
-                  type: 'success',
-                  message: 'Interactive task updated successfully',
+                  type: 'warning',
+                  message: 'Missing experiment or task ID',
                 });
-              } else {
-                const txt = await response.text();
+                return;
+              }
+
+              try {
+                const response = await chatAPI.authenticatedFetch(
+                  chatAPI.Endpoints.Task.UpdateTemplate(
+                    experimentInfo.id,
+                    taskBeingEdited.id,
+                  ),
+                  {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      accept: 'application/json',
+                    },
+                    body: JSON.stringify(updatedBody),
+                  },
+                );
+
+                if (response.ok) {
+                  await templatesMutate();
+                  addNotification({
+                    type: 'success',
+                    message: 'Interactive task updated successfully',
+                  });
+                } else {
+                  const txt = await response.text();
+                  addNotification({
+                    type: 'danger',
+                    message: `Failed to update interactive task: ${txt}`,
+                  });
+                }
+              } catch (error) {
+                console.error('Error updating interactive task:', error);
                 addNotification({
                   type: 'danger',
-                  message: `Failed to update interactive task: ${txt}`,
+                  message:
+                    'Failed to update interactive task. Please try again.',
                 });
               }
-            } catch (error) {
-              console.error('Error updating interactive task:', error);
-              addNotification({
-                type: 'danger',
-                message: 'Failed to update interactive task. Please try again.',
-              });
-            }
-          }}
-        />
-      ) : (
-        <EditTaskModal
-          open={editModalOpen}
-          onClose={handleEditClose}
-          task={taskBeingEdited}
-          providers={providers}
-          isProvidersLoading={providersIsLoading}
-          onSaved={async () => {
-            await templatesMutate();
-          }}
-        />
-      )}
+            }}
+          />
+        )}
       {taskBeingQueued && (
         <QueueTaskModal
           open={queueModalOpen}

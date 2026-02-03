@@ -25,9 +25,10 @@
       "url": "https://github.com/dadmobile"
     }
   ],
-  "version": "0.28.2",
+  "version": "0.28.4",
   "scripts": {
     "build": "dotenv -e .env -- cross-env NODE_ENV=production tsx node_modules/webpack/bin/webpack.js --config ./.erb/configs/webpack.config.cloud.prod.ts",
+    "build:multiuser": "cross-env NODE_ENV=production tsx node_modules/webpack/bin/webpack.js --config ./.erb/configs/webpack.config.cloud.prod.ts",
     "lint": "cross-env NODE_ENV=development eslint . --ext .js,.jsx,.ts,.tsx",
     "start": "dotenv -e .env -- cross-env NODE_ENV=development tsx node_modules/webpack-dev-server/bin/webpack-dev-server.js --config ./.erb/configs/webpack.config.cloud.dev.ts",
     "start:cloud": "dotenv -e .env -- cross-env NODE_ENV=development tsx node_modules/webpack-dev-server/bin/webpack-dev-server.js --config ./.erb/configs/webpack.config.cloud.dev.ts",
@@ -112,6 +113,7 @@
     "chokidar": "^4.0.3",
     "command-exists": "^1.2.9",
     "dayjs": "^1.11.13",
+    "jszip": "^3.10.1",
     "debug": "^4.3.4",
     "easy-peasy": "^6.1.0",
     "lucide-react": "^0.477.0",
