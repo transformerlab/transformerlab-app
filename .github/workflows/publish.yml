@@ -3,7 +3,7 @@ name: Publish
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -40,7 +40,7 @@ jobs:
         run: npm run build:multiuser
         env:
           # build:multiuser skips dotenv so step env is the only source (no .env in CI)
-          MULTIUSER: "true"
+          MULTIUSER: 'true'
 
       - name: Archive multiuser web bundle
         run: |
@@ -57,7 +57,7 @@ jobs:
 
       - name: Ensure GitHub Release exists
         run: |
-          gh release view ${{ github.ref_name }} >/dev/null 2>&1 || gh release create ${{ github.ref_name }} --generate-notes --verify-tag
+          gh release view ${{ github.ref_name }} >/dev/null 2>&1 || gh release create ${{ github.ref_name }} --generate-notes --verify-tag --draft
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash

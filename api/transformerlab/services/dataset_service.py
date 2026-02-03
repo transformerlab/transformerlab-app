@@ -27,7 +27,7 @@ async def load_local_dataset(dataset_dir, data_files=None, streaming=False):
     For remote paths (s3://, gs://, etc.), uses load_from_disk which handles remote storage better.
     """
     # Check if this is a remote storage path
-    is_remote = dataset_dir.startswith(("s3://", "gs://", "abfs://", "gcs://"))
+    is_remote = storage.is_remote_path(dataset_dir)
 
     # For remote paths, try load_from_disk first (works better with datasets saved via save_to_disk)
     if is_remote:

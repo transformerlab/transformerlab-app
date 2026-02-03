@@ -491,6 +491,7 @@ export default function Interactive() {
     try {
       const payload = {
         experiment_id: experimentInfo.id,
+        task_id: task.id,
         task_name: task.name,
         cluster_name: cfg.cluster_name || task.cluster_name,
         command: cfg.command || task.command,

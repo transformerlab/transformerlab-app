@@ -5,6 +5,9 @@ from . import dirs
 from .labresource import BaseLabResource
 from .dirs import get_workspace_dir
 from . import storage
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Job(BaseLabResource):
@@ -156,10 +159,10 @@ class Job(BaseLabResource):
         """
         Save info message to output log file and display to terminal.
 
-        TODO: Using logging or something proper to do this.
+        TODO: Figure out a better way to do logging that doesn't rewrite the file!
         """
         # Always print to console
-        print(message)
+        logger.info(message)
 
         # Coerce message to string and ensure newline termination
         try:
