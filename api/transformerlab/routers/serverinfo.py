@@ -409,7 +409,7 @@ async def watch_log():
     global_log_path = await get_global_log_path()
 
     # Check if the path is an S3 or other remote filesystem path
-    is_remote_path = global_log_path.startswith(("s3://", "gs://", "abfs://", "gcs://"))
+    is_remote_path = storage.is_remote_path(global_log_path)
 
     if not await storage.exists(global_log_path):
         # Create the file using appropriate method
