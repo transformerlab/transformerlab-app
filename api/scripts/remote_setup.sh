@@ -20,6 +20,7 @@
 #                          --github-dir=DIR (sparse checkout),
 #                          --github-branch=BRANCH,
 #                          --github-pat=TOKEN (or set GITHUB_PAT in env; env is preferred for security).
+#   --copy-file-mounts     Run lab.copy_file_mounts() (copies task dir to ~/src). Requires _TFL_JOB_ID in env (e.g. when run at launch).
 #   --ssh-authorized-key=KEY   Append KEY to ~/.ssh/authorized_keys (one line).
 #   --help                 Show this usage and exit.
 
@@ -41,6 +42,7 @@ GITHUB_URL=""
 GITHUB_DIR=""
 GITHUB_BRANCH=""
 GITHUB_PAT_ARG=""   # PAT from --github-pat= (env GITHUB_PAT takes precedence when set)
+DO_COPY_FILE_MOUNTS=false
 SSH_AUTHORIZED_KEY=""
 
 # Helper functions
@@ -452,6 +454,27 @@ setup_aws() {
     success "AWS profile '${PROFILE}' configured successfully"
 }
 
+# Run lab.copy_file_mounts() (same as launch-time COPY_FILE_MOUNTS_SETUP). Requires _TFL_JOB_ID in env.
+setup_copy_file_mounts() {
+    info "Running copy_file_mounts (task dir -> ~/src)..."
+    if [ -z "${_TFL_JOB_ID}" ]; then
+        warn "_TFL_JOB_ID is not set; copy_file_mounts may fail or no-op. Set it when running at launch."
+    fi
+    export PATH="$HOME/.cargo/bin:$PATH"
+    if [ -x "$HOME/.venv/bin/python" ]; then
+        "$HOME/.venv/bin/python" -c "from lab import lab; lab.copy_file_mounts()" || {
+            error "copy_file_mounts failed"
+            exit 1
+        }
+    else
+        pip install -q transformerlab && python -c "from lab import lab; lab.copy_file_mounts()" || {
+            error "copy_file_mounts failed"
+            exit 1
+        }
+    fi
+    success "copy_file_mounts completed"
+}
+
 # Clone GitHub repo (optional dir/branch; PAT from env GITHUB_PAT or --github-pat=)
 setup_github_clone() {
     if [ -z "$GITHUB_URL" ]; then
@@ -537,6 +560,7 @@ show_usage() {
     echo "  --github-dir=DIR           Sparse-checkout only DIR (use with --github-url)"
     echo "  --github-branch=BRANCH     Branch/tag to checkout (use with --github-url)"
     echo "  --github-pat=TOKEN         GitHub PAT for private repos (prefer env GITHUB_PAT to avoid token in process list)"
+    echo "  --copy-file-mounts         Run lab.copy_file_mounts() (requires _TFL_JOB_ID in env, e.g. at launch)"
     echo "  --ssh-authorized-key=KEY   Append KEY to ~/.ssh/authorized_keys"
     echo "  --help                     Show this message and exit"
     echo ""
@@ -585,6 +609,10 @@ parse_args() {
                 GITHUB_PAT_ARG="${1#--github-pat=}"
                 shift
                 ;;
+            --copy-file-mounts)
+                DO_COPY_FILE_MOUNTS=true
+                shift
+                ;;
             --ssh-authorized-key=*)
                 SSH_AUTHORIZED_KEY="${1#--ssh-authorized-key=}"
                 shift
@@ -626,6 +654,9 @@ main() {
     fi
     if [ -n "$GITHUB_URL" ]; then
         setup_github_clone
+    fi
+    if [ "$DO_COPY_FILE_MOUNTS" = true ]; then
+        setup_copy_file_mounts
     fi
     if [ -n "$SSH_AUTHORIZED_KEY" ]; then
         setup_ssh_authorized_key
