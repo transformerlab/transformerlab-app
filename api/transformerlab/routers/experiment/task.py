@@ -14,7 +14,6 @@ from transformerlab.services.task_service import task_service
 from transformerlab.services.provider_service import list_team_providers
 from transformerlab.shared import galleries
 from transformerlab.shared.github_utils import (
-    fetch_task_json_from_github_helper,
     fetch_task_json_from_github,
     fetch_task_yaml_from_github,
 )
@@ -600,7 +599,7 @@ async def import_task_from_gallery(
         if e.status_code == 404:
             raise HTTPException(
                 status_code=404,
-                detail=f"task.yaml not found in repository. Please ensure the repository contains a task.yaml file.",
+                detail="task.yaml not found in repository. Please ensure the repository contains a task.yaml file.",
             )
         raise
 
@@ -713,7 +712,7 @@ async def import_task_from_team_gallery(
         if e.status_code == 404:
             raise HTTPException(
                 status_code=404,
-                detail=f"task.yaml not found in repository. Please ensure the repository contains a task.yaml file.",
+                detail="task.yaml not found in repository. Please ensure the repository contains a task.yaml file.",
             )
         raise
 
