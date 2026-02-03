@@ -347,6 +347,26 @@
     "usage-report": {
       "method": "GET",
       "path": "compute_provider/usage-report"
+    },
+    "downloadSshKey": {
+      "method": "GET",
+      "path": "ssh-key/download"
+    },
+    "getSshKey": {
+      "method": "GET",
+      "path": "ssh-key/"
+    },
+    "createSshKey": {
+      "method": "POST",
+      "path": "ssh-key/"
+    },
+    "updateSshKey": {
+      "method": "PATCH",
+      "path": "ssh-key/"
+    },
+    "deleteSshKey": {
+      "method": "DELETE",
+      "path": "ssh-key/"
     }
   },
   "auth": {

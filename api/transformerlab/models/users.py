@@ -176,6 +176,17 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 email=account_email, password=random_password, is_verified=True
             )  # OAuth emails are pre-verified
             user = await self.create(user_create, request=request)
+
+            # Link OAuth account to the newly created user
+            oauth_account_dict = {
+                "oauth_name": oauth_name,
+                "access_token": access_token,
+                "account_id": account_id,
+                "account_email": account_email,
+                "expires_at": expires_at,
+                "refresh_token": refresh_token,
+            }
+            await self.user_db.add_oauth_account(user, oauth_account_dict)
             return user
 
 
@@ -285,10 +296,14 @@ class OAuthBackend(AuthenticationBackend):
         access_token = await strategy.write_token(user)
         refresh_token = await get_refresh_strategy().write_token(user)
 
-        # Redirect to frontend callback with tokens in URL
+        # Redirect to frontend home page with tokens in URL
+        # The frontend reads tokens from window.location.search, so any path works
+        # Redirecting to home page (/) is simpler and works regardless of URL configuration
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
+        frontend_url_normalized = frontend_url.rstrip("/")
+
         callback_url = (
-            f"{frontend_url}/auth/callback?access_token={access_token}&refresh_token={refresh_token}&token_type=bearer"
+            f"{frontend_url_normalized}/?access_token={access_token}&refresh_token={refresh_token}&token_type=bearer"
         )
 
         return Response(status_code=302, headers={"Location": callback_url})

@@ -11,7 +11,6 @@ import { PlayIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { fetchWithAuth } from 'renderer/lib/authContext';
-import { formatBytes } from 'renderer/lib/utils';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 
@@ -82,7 +81,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
 
   return (
     <Modal open={open} onClose={() => onClose()}>
-      <ModalDialog sx={{ minWidth: '80%' }}>
+      <ModalDialog sx={{ minWidth: '80%', height: '80vh' }}>
         <ModalClose />
 
         {noCheckpoints ? (

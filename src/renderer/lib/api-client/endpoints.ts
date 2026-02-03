@@ -80,6 +80,12 @@ Endpoints.Task = {
     `${API_URL()}experiment/${experimentId}/task/gallery/team/delete`,
   FetchTaskJson: (experimentId: string, url: string) =>
     `${API_URL()}experiment/${experimentId}/task/fetch_task_json?url=${encodeURIComponent(url)}`,
+  FromDirectory: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task2/from_directory`,
+  GetYaml: (experimentId: string, taskId: string) =>
+    `${API_URL()}experiment/${experimentId}/task2/${taskId}/yaml`,
+  UpdateYaml: (experimentId: string, taskId: string) =>
+    `${API_URL()}experiment/${experimentId}/task2/${taskId}/yaml`,
 };
 
 Endpoints.ComputeProvider = {
@@ -118,6 +124,14 @@ Endpoints.ComputeProvider = {
     }
     return `${API_URL()}compute_provider/jobs/ensure-quota-recorded`;
   },
+};
+
+Endpoints.SshKeys = {
+  Get: () => `${API_URL()}ssh-key/`,
+  Create: () => `${API_URL()}ssh-key/`,
+  Update: () => `${API_URL()}ssh-key/`,
+  Delete: () => `${API_URL()}ssh-key/`,
+  Download: () => `${API_URL()}ssh-key/download`,
 };
 
 Endpoints.Workflows = {

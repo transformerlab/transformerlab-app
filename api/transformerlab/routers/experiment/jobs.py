@@ -16,8 +16,6 @@ from werkzeug.utils import secure_filename
 
 from transformerlab.routers.serverinfo import watch_file
 
-from datetime import datetime
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import transformerlab.services.job_service as job_service
@@ -289,6 +287,12 @@ async def get_provider_job_logs(
     if provider_job_id is None:
         try:
             provider_jobs = provider_instance.list_jobs(cluster_name)
+        except NotImplementedError:
+            # Provider doesn't support listing jobs (e.g., Runpod)
+            # For Runpod, we can't determine a job_id, so we'll use the cluster_name as a fallback
+            # or return a message that logs aren't available via job_id
+            provider_job_id = cluster_name  # Use cluster_name as fallback identifier
+            provider_job_candidates = []
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"Failed to enumerate provider jobs: {exc}") from exc
 
@@ -399,6 +403,10 @@ async def get_tunnel_info_for_job(
     if provider_job_id is None:
         try:
             provider_jobs = provider_instance.list_jobs(cluster_name)
+        except NotImplementedError:
+            # Provider doesn't support listing jobs (e.g., Runpod)
+            # For Runpod, we can't determine a job_id, so we'll use the cluster_name as a fallback
+            provider_job_id = cluster_name  # Use cluster_name as fallback identifier
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"Failed to enumerate provider jobs: {exc}") from exc
 
@@ -888,58 +896,11 @@ async def get_checkpoints(job_id: str, request: Request):
             checkpoints = []
             for checkpoint_path in checkpoint_paths:
                 try:
-                    if await storage.isdir(checkpoint_path):
-                        # Don't set formatted_time and filesize for directories
-                        formatted_time = None
-                        filesize = None
-                    else:
-                        # Try to get file info from storage
-                        try:
-                            # Use storage.ls to get file details if available
-                            file_info_list = await storage.ls(checkpoint_path, detail=True)
-                            if file_info_list and isinstance(file_info_list, dict):
-                                file_info = file_info_list.get(checkpoint_path, {})
-                                filesize = file_info.get("size", 0)
-                                mtime = file_info.get("mtime", None)
-                                if mtime:
-                                    formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                                else:
-                                    formatted_time = None
-                            elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
-                                file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
-                                filesize = file_info.get("size", 0)
-                                mtime = file_info.get("mtime", None)
-                                if mtime:
-                                    formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                                else:
-                                    formatted_time = None
-                            else:
-                                # Fallback: try os.stat for local files (won't work for remote)
-                                try:
-                                    stat = os.stat(checkpoint_path)
-                                    modified_time = stat.st_mtime
-                                    filesize = stat.st_size
-                                    formatted_time = datetime.fromtimestamp(modified_time).isoformat()
-                                except (OSError, AttributeError):
-                                    # Remote storage or stat not available
-                                    formatted_time = None
-                                    filesize = None
-                        except Exception:
-                            # If storage.ls fails, try os.stat as fallback
-                            try:
-                                stat = os.stat(checkpoint_path)
-                                modified_time = stat.st_mtime
-                                filesize = stat.st_size
-                                formatted_time = datetime.fromtimestamp(modified_time).isoformat()
-                            except (OSError, AttributeError):
-                                formatted_time = None
-                                filesize = None
-
                     # Get filename from path
                     filename = checkpoint_path.split("/")[-1] if "/" in checkpoint_path else checkpoint_path
-                    checkpoints.append({"filename": filename, "date": formatted_time, "size": filesize})
+                    checkpoints.append({"filename": filename})
                 except Exception as e:
-                    print(f"Error getting stat for checkpoint {checkpoint_path}: {e}")
+                    print(f"Error processing checkpoint {checkpoint_path}: {e}")
                     continue
 
             # Sort checkpoints by filename in reverse (descending) order for consistent ordering
@@ -985,35 +946,10 @@ async def get_checkpoints(job_id: str, request: Request):
                 filename = file_path.split("/")[-1] if "/" in file_path else file_path
 
                 if fnmatch(filename, "*_adapters.safetensors"):
-                    # Try to get file info
-                    try:
-                        file_info_list = await storage.ls(file_path, detail=True)
-                        if file_info_list and isinstance(file_info_list, dict):
-                            file_info = file_info_list.get(file_path, {})
-                            filesize = file_info.get("size", 0)
-                            mtime = file_info.get("mtime", None)
-                            modified_time = mtime if mtime else None
-                        elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
-                            file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
-                            filesize = file_info.get("size", 0)
-                            mtime = file_info.get("mtime", None)
-                            modified_time = mtime if mtime else None
-                        else:
-                            # Fallback to os.stat for local files
-                            try:
-                                stat = os.stat(file_path)
-                                modified_time = stat.st_mtime
-                                filesize = stat.st_size
-                            except (OSError, AttributeError):
-                                modified_time = None
-                                filesize = None
-                        checkpoints.append({"filename": filename, "date": modified_time, "size": filesize})
-                    except Exception as e:
-                        print(f"Error getting file info for {file_path}: {e}")
-                        checkpoints.append({"filename": filename, "date": None, "size": None})
+                    checkpoints.append({"filename": filename})
                 # allow directories too
                 elif await storage.isdir(file_path):
-                    checkpoints.append({"filename": filename, "date": None, "size": None})
+                    checkpoints.append({"filename": filename})
             if checkpoints:
                 return {"checkpoints": checkpoints}
         except Exception as e:
@@ -1033,40 +969,7 @@ async def get_checkpoints(job_id: str, request: Request):
             filename = file_path.split("/")[-1] if "/" in file_path else file_path
 
             if fnmatch(filename, checkpoints_file_filter):
-                try:
-                    # Try to get file info from storage
-                    file_info_list = await storage.ls(file_path, detail=True)
-                    if file_info_list and isinstance(file_info_list, dict):
-                        file_info = file_info_list.get(file_path, {})
-                        filesize = file_info.get("size", 0)
-                        mtime = file_info.get("mtime", None)
-                        if mtime:
-                            formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                        else:
-                            formatted_time = None
-                    elif file_info_list and isinstance(file_info_list, list) and len(file_info_list) > 0:
-                        file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
-                        filesize = file_info.get("size", 0)
-                        mtime = file_info.get("mtime", None)
-                        if mtime:
-                            formatted_time = datetime.fromtimestamp(mtime).isoformat()
-                        else:
-                            formatted_time = None
-                    else:
-                        # Fallback to os.stat for local files
-                        try:
-                            stat = os.stat(file_path)
-                            modified_time = stat.st_mtime
-                            filesize = stat.st_size
-                            formatted_time = datetime.fromtimestamp(modified_time).isoformat()
-                        except (OSError, AttributeError):
-                            formatted_time = None
-                            filesize = None
-                except Exception as e:
-                    print(f"Error getting stat for file {file_path}: {e}")
-                    formatted_time = None
-                    filesize = None
-                checkpoints.append({"filename": filename, "date": formatted_time, "size": filesize})
+                checkpoints.append({"filename": filename})
     except Exception as e:
         print(f"Error reading checkpoints directory {checkpoints_dir}: {e}")
 
@@ -1089,9 +992,6 @@ async def get_artifacts(job_id: str, request: Request):
         return {"artifacts": []}
 
     """Get list of artifacts for a job"""
-    job = await job_service.job_get(job_id)
-    if job is None:
-        return {"artifacts": []}
 
     # Use get_job_artifacts_dir to get the artifacts directory directly
     try:

@@ -3,9 +3,10 @@ from __future__ import annotations
 import time
 import asyncio
 from typing import Optional, Dict, Any, Union
-import os
 import io
+import os
 import posixpath
+import logging
 
 from .experiment import Experiment
 from .job import Job
@@ -13,6 +14,10 @@ from . import dirs
 from .model import Model as ModelService
 from . import storage
 from .dataset import Dataset
+from .task_template import TaskTemplate
+
+
+logger = logging.getLogger(__name__)
 
 
 def _run_async(coro):
@@ -93,7 +98,7 @@ class Lab:
             self._job = _run_async(Job.get(existing_job_id))
             if self._job is None:
                 raise RuntimeError(f"Job with ID {existing_job_id} not found. Check _TFL_JOB_ID environment variable.")
-            print(f"Using existing job ID: {existing_job_id}")
+            logger.info(f"Using existing job ID: {existing_job_id}")
             # Set start_time if not already set (for remote jobs launched through providers)
             job_data = _run_async(self._job.get_job_data())
             if not job_data.get("start_time"):
@@ -106,7 +111,7 @@ class Lab:
             self._job = _run_async(self._experiment.create_job())
             _run_async(self._job.update_job_data_field("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))
             _run_async(self._job.set_experiment(experiment_id))
-            print(f"Created new job ID: {self._job.id}")
+            logger.info(f"Created new job ID: {self._job.id}")
 
         # Update status to RUNNING for both cases
         _run_async(self._job.update_status("RUNNING"))
@@ -224,9 +229,101 @@ class Lab:
                 content = await f.read()
                 secrets = json.loads(content)
                 return secrets.get(secret_name)
-        except Exception as e:
-            print(f"Warning: Failed to load team secret: {e}")
+        except Exception:
+            logger.warning("Failed to load team secret", exc_info=True)
             return None
+
+    def copy_file_mounts(self) -> None:
+        """
+        Copy all files in the task directory to ~/src.
+        Uses _TFL_JOB_ID to get the job, reads task_id from job_data, then copies
+        from the task dir (workspace/task/<task_id>) to ~/src. No network/URL;
+        assumes the runner has access to the same storage (e.g. mounted workspace).
+        No-op if _TFL_JOB_ID is not set or job_data has no task_id.
+        """
+        job_id = os.environ.get("_TFL_JOB_ID")
+        if not job_id:
+            return
+        _run_async(self._copy_file_mounts_async(job_id))
+
+    async def _copy_file_mounts_async(self, job_id: str) -> None:
+        """Async implementation of copy_file_mounts."""
+        job = await Job.get(job_id)
+        if job is None:
+            return
+        job_data = await job.get_job_data()
+        if not isinstance(job_data, dict):
+            return
+        task_id = job_data.get("task_id")
+        if not task_id:
+            return
+        task_template = TaskTemplate(task_id)
+        task_dir = await task_template.get_dir()
+        if not await storage.exists(task_dir):
+            return
+        dest_dir = os.path.expanduser("~/src")
+        os.makedirs(dest_dir, exist_ok=True)
+
+        # Determine if we're working with a remote URI (e.g., s3://)
+        is_remote = storage.is_remote_path(task_dir)
+        protocol_prefix = ""
+        if is_remote and isinstance(task_dir, str):
+            # Extract protocol, e.g., "s3://"
+            protocol_prefix = task_dir.split("://")[0] + "://"
+
+        try:
+            files = await storage.find(task_dir)
+        except Exception:
+            logger.info("Failed to find task directory. Using fallback.", exc_info=True)
+            files = []
+            try:
+                walk_gen = await storage.walk(task_dir)
+                for root, _dirs, names in walk_gen:
+                    for name in names:
+                        files.append(storage.join(root, name))
+            except Exception:
+                logger.error("Failed to read task directory for mounting.", exc_info=True)
+                return
+
+        for path in files:
+            # Normalize remote paths returned by storage.find()/walk() to full URIs
+            full_path = path
+            if is_remote and isinstance(path, str) and not storage.is_remote_path(path):
+                # For S3/GCS/etc, fsspec.find() often returns keys without protocol
+                full_path = protocol_prefix + path.lstrip("/")
+
+            # Compute path relative to task_dir robustly, but never allow it to escape task_dir
+            if is_remote:
+                base = task_dir.rstrip("/")
+                full_path_normalized = full_path.rstrip("/")
+                if not full_path_normalized.startswith(base + "/"):
+                    # Skip anything outside the task_dir subtree
+                    logger.warning(f"Skipping path outside task_dir: {full_path_normalized}")
+                    continue
+                rel = full_path_normalized[len(base) + 1 :]
+            else:
+                try:
+                    rel = os.path.relpath(full_path, task_dir)
+                except ValueError as e:
+                    # If relpath fails (different drives, etc.), skip this entry
+                    logger.warning(f"Error computing relpath: {e}")
+                    continue
+
+            # Safety: skip anything that would traverse outside the task_dir
+            if not rel or rel == "." or rel.startswith(".."):
+                continue
+
+            local_path = os.path.join(dest_dir, rel)
+            try:
+                async with await storage.open(full_path, "rb") as f:
+                    data = await f.read()
+            except Exception:
+                logger.error(f"Error opening path: {full_path}", exc_info=True)
+                continue
+
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, "wb") as out:
+                out.write(data)
 
     # ------------- convenience logging -------------
     def log(self, message: str) -> None:
@@ -316,9 +413,7 @@ class Lab:
 
             # Security check: ensure the checkpoint path is within the checkpoints directory
             # Handle remote storage URIs (s3://, gs://, etc.) differently from local paths
-            is_remote = checkpoint_path.startswith(("s3://", "gs://", "gcs://", "abfs://"))
-
-            if is_remote:
+            if storage.is_remote_path(checkpoint_path):
                 # For remote storage, normalize only the path portion after the protocol
                 # posixpath.normpath breaks S3 URI format, so we need to handle it manually
                 checkpoint_path_normalized = checkpoint_path.rstrip("/")
@@ -340,8 +435,8 @@ class Lab:
                 return checkpoint_path_normalized
 
             return None
-        except Exception as e:
-            print(f"Error getting parent job checkpoint path: {str(e)}")
+        except Exception:
+            logger.error("Error getting parent job checkpoint path", exc_info=True)
             return None
 
     # ------------- completion -------------
@@ -573,8 +668,8 @@ class Lab:
             if not isinstance(source_path, str) or source_path.strip() == "":
                 raise ValueError("source_path must be a non-empty string when type='model'")
             src = source_path
-            # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
-            is_remote = src.startswith(("s3://", "gs://", "abfs://", "gcs://", "http://", "https://"))
+            # For local paths, resolve to absolute path; for remote paths (s3://, etc.) or URLs, use as-is
+            is_remote = storage.is_remote_path(src) or src.startswith(("http://", "https://"))
             if not is_remote:
                 src = os.path.abspath(src)
 
@@ -693,8 +788,8 @@ class Lab:
         if not isinstance(source_path, str) or source_path.strip() == "":
             raise ValueError("source_path must be a non-empty string")
         src = source_path
-        # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
-        is_remote = src.startswith(("s3://", "gs://", "abfs://", "gcs://", "http://", "https://"))
+        # For local paths, resolve to absolute path; for remote paths (s3://, etc.) or URLs, use as-is
+        is_remote = storage.is_remote_path(src) or src.startswith(("http://", "https://"))
         if not is_remote:
             src = os.path.abspath(src)
 
@@ -803,8 +898,8 @@ class Lab:
         try:
             if hasattr(df, "to_pandas") and callable(getattr(df, "to_pandas")):
                 df = df.to_pandas()
-        except Exception as e:
-            print(f"Warning: Failed to convert dataset to pandas DataFrame: {str(e)}")
+        except Exception:
+            logger.warning("Failed to convert dataset to pandas DataFrame", exc_info=True)
 
         # Prepare dataset directory
         dataset_id_safe = dataset_id.strip()
@@ -864,22 +959,20 @@ class Lab:
                 json_data=json_data,
             )
         except Exception as e:
-            # Do not fail the save if metadata write fails; log to job data
-            print(f"Warning: Failed to create dataset metadata: {str(e)}")
+            # Do not fail the save if metadata write fails; log to standard logger
+            logger.warning("Failed to create dataset metadata", exc_info=True)
             try:
                 await self._job.update_job_data_field("dataset_metadata_error", str(e))  # type: ignore[union-attr]
-            except Exception as e2:
-                print(f"Warning: Failed to log dataset metadata error: {str(e2)}")
+            except Exception:
+                logger.warning("Failed to log dataset metadata error", exc_info=True)
 
         # Track dataset on the job for provenance
         try:
             await self._job.update_job_data_field("dataset_id", dataset_id_safe)  # type: ignore[union-attr]
-        except Exception as e:
-            print(f"Warning: Failed to track dataset in job_data: {str(e)}")
+        except Exception:
+            logger.warning("Failed to track dataset in job_data", exc_info=True)
 
-        await self._job.log_info(
-            f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_safe}'"
-        )  # type: ignore[union-attr]
+        logger.info(f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_safe}'")
         return output_path
 
     def save_checkpoint(self, source_path: str, name: Optional[str] = None) -> str:
@@ -900,8 +993,8 @@ class Lab:
         if not isinstance(source_path, str) or source_path.strip() == "":
             raise ValueError("source_path must be a non-empty string")
         src = source_path
-        # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
-        is_remote = src.startswith(("s3://", "gs://", "abfs://", "gcs://", "http://", "https://"))
+        # For local paths, resolve to absolute path; for remote paths (s3://, etc.) or URLs, use as-is
+        is_remote = storage.is_remote_path(src) or src.startswith(("http://", "https://"))
         if not is_remote:
             src = os.path.abspath(src)
 
@@ -946,8 +1039,8 @@ class Lab:
             ckpt_list.append(dest)
             await self._job.update_job_data_field("checkpoints", ckpt_list)
             await self._job.update_job_data_field("latest_checkpoint", dest)
-        except Exception as e:
-            print(f"Warning: Failed to track checkpoint in job_data: {str(e)}")
+        except Exception:
+            logger.warning("Failed to track checkpoint in job_data", exc_info=True)
 
         return dest
 
@@ -1039,7 +1132,7 @@ class Lab:
             wandb_url = os.environ.get("WANDB_URL")
             if wandb_url:
                 _run_async(self._job.update_job_data_field("wandb_run_url", wandb_url))
-                print(f"📊 Detected wandb run URL: {wandb_url}")
+                logger.info(f"📊 Detected wandb run URL: {wandb_url}")
                 return
 
             # Method 2: Check for active wandb run in current process
@@ -1050,7 +1143,7 @@ class Lab:
                     wandb_url = wandb.run.url
                     if wandb_url:
                         _run_async(self._job.update_job_data_field("wandb_run_url", wandb_url))
-                        print(f"📊 Detected wandb run URL: {wandb_url}")
+                        logger.info(f"📊 Detected wandb run URL: {wandb_url}")
                         return
             except ImportError:
                 pass
@@ -1068,7 +1161,7 @@ class Lab:
                         wandb_url = current_run.url
                         if wandb_url:
                             _run_async(self._job.update_job_data_field("wandb_run_url", wandb_url))
-                            print(f"📊 Detected wandb run URL: {wandb_url}")
+                            logger.info(f"📊 Detected wandb run URL: {wandb_url}")
                             return
             except (ImportError, AttributeError):
                 pass
@@ -1092,7 +1185,7 @@ class Lab:
             wandb_url = os.environ.get("WANDB_URL")
             if wandb_url:
                 _run_async(self._job.update_job_data_field("wandb_run_url", wandb_url))
-                print(f"📊 Auto-detected wandb URL from environment: {wandb_url}")
+                logger.info(f"📊 Auto-detected wandb URL from environment: {wandb_url}")
                 return
 
             # Method 2: Check active wandb run
@@ -1103,7 +1196,7 @@ class Lab:
                     wandb_url = wandb.run.url
                     if wandb_url:
                         _run_async(self._job.update_job_data_field("wandb_run_url", wandb_url))
-                        print(f"📊 Auto-detected wandb URL from wandb.run: {wandb_url}")
+                        logger.info(f"📊 Auto-detected wandb URL from wandb.run: {wandb_url}")
                         return
             except ImportError:
                 pass
@@ -1119,8 +1212,9 @@ class Lab:
         """
         if wandb_url and wandb_url.strip():
             self._ensure_initialized()
-            _run_async(self._job.update_job_data_field("wandb_run_url", wandb_url.strip()))
-            print(f"📊 Captured wandb run URL: {wandb_url.strip()}")
+            clean_url = wandb_url.strip()
+            _run_async(self._job.update_job_data_field("wandb_run_url", clean_url))
+            logger.info(f"📊 Captured wandb run URL: {clean_url}")
 
     # ------------- helpers -------------
     def _ensure_initialized(self) -> None:

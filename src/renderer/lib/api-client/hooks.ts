@@ -48,7 +48,11 @@ export const fetcher = async (
 
 export function useModelStatus() {
   const api_url = API_URL();
-  const url: string | null = api_url ? api_url + 'server/worker_healthz' : null;
+  const isLocalMode = window?.platform?.multiuser !== true;
+
+  // Only set URL if in local mode, otherwise SWR won't make the request
+  const url: string | null =
+    api_url && isLocalMode ? api_url + 'server/worker_healthz' : null;
 
   // Poll every 2 seconds
   const options = { refreshInterval: 2000 };

@@ -27,6 +27,83 @@ ALLOWED_JOB_TYPES = [
 # Centralized set of job types that can trigger workflows on completion
 SUPPORTED_WORKFLOW_TRIGGERS = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE", "DOWNLOAD_MODEL"]
 
+# Queue file management for efficient job queueing
+QUEUE_FILE_NAME = "job_queue.json"
+
+
+def _get_queue_file_path() -> str:
+    """Get the path to the job queue file."""
+    try:
+        home_dir = lab_dirs.HOME_DIR
+    except AttributeError:
+        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
+    return storage.join(home_dir, QUEUE_FILE_NAME)
+
+
+async def _get_queued_jobs_from_file() -> List[Dict[str, str]]:
+    """
+    Read all queued jobs from the queue file.
+    Returns a list of dicts with 'job_id' and 'org_id' keys.
+    """
+    queue_file = _get_queue_file_path()
+    try:
+        if await storage.exists(queue_file):
+            async with await storage.open(queue_file, "r") as f:
+                content = await f.read()
+                if content.strip():
+                    return json.loads(content)
+        return []
+    except Exception as e:
+        print(f"Error reading queue file {queue_file}: {e}")
+        return []
+
+
+async def _write_queued_jobs_to_file(queued_jobs: List[Dict[str, str]]):
+    """Write the queue list to the queue file."""
+    queue_file = _get_queue_file_path()
+    try:
+        # Ensure directory exists
+        queue_dir = storage.join(*queue_file.split("/")[:-1]) if "/" in queue_file else "."
+        await storage.makedirs(queue_dir, exist_ok=True)
+
+        async with await storage.open(queue_file, "w") as f:
+            await f.write(json.dumps(queued_jobs, indent=2))
+    except Exception as e:
+        print(f"Error writing queue file {queue_file}: {e}")
+
+
+async def _add_job_to_queue(job_id: str, org_id: Optional[str] = None):
+    """
+    Add a job to the queue file.
+    If org_id is not provided, attempts to find it.
+    """
+    try:
+        if org_id is None:
+            org_id = await _find_org_id_for_job(job_id)
+        if org_id is None:
+            print(f"Warning: Could not determine org_id for job {job_id}, skipping queue add")
+            return
+
+        queued_jobs = await _get_queued_jobs_from_file()
+        # Check if already in queue
+        if any(j["job_id"] == job_id for j in queued_jobs):
+            return
+
+        queued_jobs.append({"job_id": str(job_id), "org_id": org_id})
+        await _write_queued_jobs_to_file(queued_jobs)
+    except Exception as e:
+        print(f"Error adding job {job_id} to queue: {e}")
+
+
+async def _remove_job_from_queue(job_id: str):
+    """Remove a job from the queue file."""
+    try:
+        queued_jobs = await _get_queued_jobs_from_file()
+        queued_jobs = [j for j in queued_jobs if j["job_id"] != str(job_id)]
+        await _write_queued_jobs_to_file(queued_jobs)
+    except Exception as e:
+        print(f"Error removing job {job_id} from queue: {e}")
+
 
 async def job_create(type, status, experiment_id, job_data="{}"):
     # check if type is allowed
@@ -49,6 +126,19 @@ async def job_create(type, status, experiment_id, job_data="{}"):
     await job.set_type(type)
     await job.update_status(status)
     await job.set_job_data(job_data)
+
+    # Add to queue file if status is QUEUED
+    if status == "QUEUED":
+        # Get org_id from current context
+        try:
+            from lab.dirs import get_workspace_dir
+
+            workspace_dir = await get_workspace_dir()
+            if "/orgs/" in workspace_dir:
+                org_id = workspace_dir.split("/orgs/")[-1].split("/")[0]
+                await _add_job_to_queue(job.id, org_id)
+        except Exception as e:
+            print(f"Error adding job {job.id} to queue during creation: {e}")
 
     return job.id
 
@@ -170,60 +260,51 @@ async def jobs_get_next_queued_job_across_all_orgs() -> Tuple[Optional[dict], Op
     Get the next queued job across all organizations.
     Returns a tuple of (job_data_dict, organization_id) or (None, None) if no queued jobs found.
 
+    Uses the queue file for efficient lookup instead of scanning all jobs on disk.
     Jobs are sorted by job_id (oldest first) to ensure fair queue ordering across all orgs.
     """
-    queued_jobs = []  # List of (job_id, job_data, org_id) tuples
+    # Read queued jobs from queue file
+    queued_jobs_from_file = await _get_queued_jobs_from_file()
 
-    # Get HOME_DIR - need to access it from lab.dirs module
-    try:
-        # Get HOME_DIR value - it's set at module level
-        home_dir = lab_dirs.HOME_DIR
-    except AttributeError:
-        # Fallback to environment variable or default
-        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
+    if not queued_jobs_from_file:
+        return (None, None)
 
-    # List all organization directories
-    orgs_dir = storage.join(home_dir, "orgs")
+    # Convert to list of (job_id, job_data, org_id) tuples, filtering out invalid entries
+    valid_queued_jobs = []
 
-    # Check all org directories
-    if await storage.exists(orgs_dir) and await storage.isdir(orgs_dir):
+    for job_entry in queued_jobs_from_file:
+        job_id_str = job_entry.get("job_id")
+        org_id = job_entry.get("org_id")
+
+        if not job_id_str or not org_id:
+            continue
+
         try:
-            org_entries = await storage.ls(orgs_dir, detail=False)
-            for org_path in org_entries:
-                if await storage.isdir(org_path):
-                    org_id = org_path.rstrip("/").split("/")[-1]
+            # Set org context and verify job exists and is still QUEUED
+            lab_dirs.set_organization_id(org_id)
+            try:
+                job = await Job.get(job_id_str)
+                job_data = await job.get_json_data(uncached=True)
 
-                    # Set org context to get jobs for this org
-                    lab_dirs.set_organization_id(org_id)
-
-                    try:
-                        # Get jobs directory for this org
-                        jobs_dir = await lab_dirs.get_jobs_dir()
-                        if await storage.exists(jobs_dir) and await storage.isdir(jobs_dir):
-                            entries = await storage.ls(jobs_dir, detail=False)
-                            for job_path in entries:
-                                if await storage.isdir(job_path):
-                                    job_id_str = job_path.rstrip("/").split("/")[-1]
-                                    try:
-                                        job_id = int(job_id_str) if job_id_str.isdigit() else 0
-                                        job = await Job.get(job_id_str)
-                                        job_data = await job.get_json_data(uncached=True)
-                                        if job_data.get("status") == "QUEUED":
-                                            queued_jobs.append((job_id, job_data, org_id))
-                                    except Exception:
-                                        continue
-                    except Exception:
-                        continue
-        except Exception:
-            pass
-
-    # Clear org context after scanning
-    lab_dirs.set_organization_id(None)
+                # Verify job is still QUEUED (in case queue file is out of sync)
+                if job_data.get("status") == "QUEUED":
+                    job_id = int(job_id_str) if job_id_str.isdigit() else 0
+                    valid_queued_jobs.append((job_id, job_data, org_id))
+                else:
+                    # Job is no longer QUEUED, remove from queue file
+                    await _remove_job_from_queue(job_id_str)
+            except Exception:
+                # Job doesn't exist or error accessing it, remove from queue
+                await _remove_job_from_queue(job_id_str)
+        except Exception as e:
+            print(f"Error processing queued job {job_id_str}: {e}")
+        finally:
+            lab_dirs.set_organization_id(None)
 
     # Sort by job_id (oldest first) and return the first one
-    if queued_jobs:
-        queued_jobs.sort(key=lambda x: x[0])
-        job_id, job_data, org_id = queued_jobs[0]
+    if valid_queued_jobs:
+        valid_queued_jobs.sort(key=lambda x: x[0])
+        job_id, job_data, org_id = valid_queued_jobs[0]
         return (job_data, org_id)
 
     return (None, None)
@@ -242,6 +323,8 @@ async def job_delete(job_id, experiment_id):
         if experiment_id is not None and exp_id != experiment_id:
             return
         await job.delete()
+        # Remove from queue file if it was queued
+        await _remove_job_from_queue(job_id)
     except Exception as e:
         print(f"Error deleting job {job_id}: {e}")
 
@@ -458,8 +541,7 @@ async def _record_quota_usage_internal(
         # Get user_id from email
         stmt = select(User).where(User.email == user_email)
         result = await session.execute(stmt)
-        # unique() is required because User has lazy="joined" relationships (oauth_accounts)
-        user = result.unique().scalar_one_or_none()
+        user = result.scalar_one_or_none()
         if not user:
             return
 
@@ -540,19 +622,44 @@ async def job_update_status(
         error_msg: Optional error message to add to job data
         session: Optional database session for quota tracking. If not provided, quota tracking will use a background task.
     """
-    # Update the job status using SDK Job class
+    # Get old status before updating for queue management
+    old_status = None
+    org_id = None
     try:
         job = await Job.get(job_id)
         exp_id = await job.get_experiment_id()
         if experiment_id is not None and exp_id != experiment_id:
             return
+        old_status = await job.get_status()
+
+        # Get org_id for queue management
+        try:
+            from lab.dirs import get_workspace_dir
+
+            workspace_dir = await get_workspace_dir()
+            if "/orgs/" in workspace_dir:
+                org_id = workspace_dir.split("/orgs/")[-1].split("/")[0]
+        except Exception:
+            org_id = await _find_org_id_for_job(job_id)
+
         await job.update_status(status)
         if error_msg:
             await job.set_error_message(error_msg)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
-
         pass
+
+    # Update queue file based on status change
+    try:
+        if old_status == "QUEUED" and status != "QUEUED":
+            # Job was queued but is no longer queued, remove from queue
+            await _remove_job_from_queue(job_id)
+        elif old_status != "QUEUED" and status == "QUEUED":
+            # Job is now queued, add to queue
+            if org_id:
+                await _add_job_to_queue(job_id, org_id)
+    except Exception as e:
+        print(f"Error updating queue for job {job_id}: {e}")
 
     # Track quota for REMOTE jobs when they transition to terminal states
     if status in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
@@ -589,17 +696,43 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
         status: The new status to set
         experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
     """
-    # Update the job in the database using SDK Job class
+    # Get old status before updating for queue management
+    old_status = None
+    org_id = None
     try:
         job = await Job.get(job_id)
         exp_id = await job.get_experiment_id()
         if experiment_id is not None and exp_id != experiment_id:
             return
+        old_status = await job.get_status()
+
+        # Get org_id for queue management
+        try:
+            from lab.dirs import get_workspace_dir
+
+            workspace_dir = await get_workspace_dir()
+            if "/orgs/" in workspace_dir:
+                org_id = workspace_dir.split("/orgs/")[-1].split("/")[0]
+        except Exception:
+            org_id = await _find_org_id_for_job(job_id)
+
         await job.set_type(type)
         await job.update_status(status)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
         pass
+
+    # Update queue file based on status change
+    try:
+        if old_status == "QUEUED" and status != "QUEUED":
+            # Job was queued but is no longer queued, remove from queue
+            await _remove_job_from_queue(job_id)
+        elif old_status != "QUEUED" and status == "QUEUED":
+            # Job is now queued, add to queue
+            if org_id:
+                await _add_job_to_queue(job_id, org_id)
+    except Exception as e:
+        print(f"Error updating queue for job {job_id}: {e}")
 
     # # Trigger workflows if job status is COMPLETE
     # if status == "COMPLETE":
@@ -818,16 +951,7 @@ async def format_artifact(file_path: str, storage) -> Optional[Dict[str, any]]:
     """
     try:
         filename = file_path.split("/")[-1] if "/" in file_path else file_path
-        metadata = await get_file_metadata(file_path, storage)
-
         artifact = {"filename": filename, "full_path": file_path}
-
-        if metadata["mtime"] is not None:
-            artifact["date"] = datetime.fromtimestamp(metadata["mtime"]).isoformat()
-
-        if metadata["size"] is not None:
-            artifact["size"] = metadata["size"]
-
         return artifact
     except Exception as e:
         print(f"Error formatting artifact {file_path}: {e}")
@@ -865,7 +989,7 @@ async def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict
     Get artifacts by listing files in the artifacts directory.
     Returns list of artifacts (empty if directory can't be read).
     """
-    if not artifacts_dir or not await storage.exists(artifacts_dir):
+    if not artifacts_dir:  ## /*or not await storage.exists(artifacts_dir):
         return []
 
     artifacts = []
@@ -883,10 +1007,9 @@ async def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict
             else:
                 file_path = str(item)
 
-            if await storage.isfile(file_path):
+            if item:
                 artifact = await format_artifact(file_path, storage)
-                if artifact:
-                    artifacts.append(artifact)
+                artifacts.append(artifact)
     except Exception as e:
         print(f"Error reading artifacts directory {artifacts_dir}: {e}")
 

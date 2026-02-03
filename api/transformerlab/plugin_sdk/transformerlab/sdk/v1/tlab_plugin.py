@@ -1,5 +1,7 @@
 import argparse
 import asyncio
+import concurrent.futures
+import contextvars
 import functools
 import os
 import time
@@ -11,6 +13,30 @@ from typing import Any, List
 
 from datasets import get_dataset_split_names, get_dataset_config_names, load_dataset
 
+
+def _run_async_from_sync(coro):
+    """
+    Run a coroutine from sync code. Safe to call from either sync context or from
+    inside an already-running event loop (e.g. from async_job_wrapper's run_async).
+    When a loop is already running, runs the coroutine in a separate thread to
+    avoid 'asyncio.run() cannot be called from a running event loop'. Copies the
+    current context (e.g. org_id, storage_uri) into the worker thread so Job
+    and storage use the correct workspace.
+    """
+    try:
+        asyncio.get_running_loop()
+        running = True
+    except RuntimeError:
+        running = False
+    if not running:
+        return asyncio.run(coro)
+    # Copy context so lab SDK context vars (org_id, storage_uri) are available in worker thread
+    ctx = contextvars.copy_context()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(lambda: ctx.run(asyncio.run, coro))
+        return future.result()
+
+
 try:
     from transformerlab.plugin import get_dataset_path
     import transformerlab.plugin as tlab_core
@@ -18,8 +44,8 @@ except ModuleNotFoundError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_dataset_path
     import transformerlab.plugin_sdk.transformerlab.plugin as tlab_core
 
-from lab import Job
-from lab import storage
+from lab import Job  # noqa: E402
+from lab import storage  # noqa: E402
 
 
 class DotDict(dict):
@@ -239,17 +265,17 @@ class TLabPlugin:
 
     def progress_update(self, progress: int):
         """Update job progress using SDK directly"""
-        job_data = asyncio.run(self.job.get_job_data())
+        job_data = _run_async_from_sync(self.job.get_job_data())
         if job_data.get("sweep_progress") is not None:
             if int(job_data.get("sweep_progress")) != 100:
-                asyncio.run(self.job.update_job_data_field("sweep_subprogress", progress))
+                _run_async_from_sync(self.job.update_job_data_field("sweep_subprogress", progress))
                 return
 
-        asyncio.run(self.job.update_progress(progress))
+        _run_async_from_sync(self.job.update_progress(progress))
         # Check stop status using SDK
-        job_data = asyncio.run(self.job.get_job_data())
+        job_data = _run_async_from_sync(self.job.get_job_data())
         if job_data.get("stop", False):
-            asyncio.run(self.job.update_status("STOPPED"))
+            _run_async_from_sync(self.job.update_status("STOPPED"))
             raise KeyboardInterrupt("Job stopped by user")
 
     def get_experiment_config(self, experiment_name: str):
@@ -258,7 +284,7 @@ class TLabPlugin:
 
     def add_job_data(self, key: str, value: Any):
         """Add data to job using SDK directly"""
-        asyncio.run(self.job.update_job_data_field(key, value))
+        _run_async_from_sync(self.job.update_job_data_field(key, value))
 
     def load_dataset(self, dataset_types: List[str] = ["train"], config_name: str = None):
         """Decorator for loading datasets with error handling"""

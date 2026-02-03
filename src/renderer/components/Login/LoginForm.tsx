@@ -8,8 +8,7 @@ import {
   Typography,
   Box,
 } from '@mui/joy';
-import { FcGoogle } from 'react-icons/fc';
-import { FaGithub } from 'react-icons/fa6';
+import { FcGoogle, FaGithub } from 'renderer/components/Icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/authContext';
 import { useNotification } from '../Shared/NotificationSystem';

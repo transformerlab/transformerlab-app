@@ -9,6 +9,10 @@ import React, {
 import { API_URL, fetcher } from './transformerlab-api-sdk';
 import useSWR from 'swr';
 import { getAPIFullPath, getPath } from './api-client/urls';
+import {
+  identifyUser,
+  resetUser,
+} from '../components/Shared/analytics/AnalyticsContext';
 // Added types
 export type Team = {
   id: string;
@@ -352,20 +356,25 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     // Logic to auto-select team if none selected
     const teams = teamsData?.teams;
     if (teams && teams.length > 0) {
-      if (!getCurrentTeam()) {
-        updateCurrentTeam(teams[0]);
-        setTeamState(teams[0]);
-      }
-
-      // Keep the cached team in sync if its name changed (e.g., rename)
       const current = getCurrentTeam();
+
+      // Validate that the current team belongs to the current user
       if (current) {
         const updated = teams.find((t: Team) => t.id === current.id);
-        if (updated && updated.name !== current.name) {
+        if (!updated) {
+          // Current team doesn't belong to this user - clear it and select first team
+          updateCurrentTeam(teams[0]);
+          setTeamState(teams[0]);
+        } else if (updated.name !== current.name) {
+          // Team name changed (e.g., rename) - update it
           const next = { id: updated.id, name: updated.name };
           updateCurrentTeam(next);
           setTeamState(next);
         }
+      } else {
+        // No team selected - select the first team
+        updateCurrentTeam(teams[0]);
+        setTeamState(teams[0]);
       }
     } else if (teams && teams.length === 0) {
       // No teams available
@@ -373,6 +382,15 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       setTeamState(null);
     }
   }, [teamsData, token, team]);
+
+  // Identify user in analytics when user data is available
+  useEffect(() => {
+    if (user?.id) {
+      identifyUser(user.id, {
+        email: user.email,
+      });
+    }
+  }, [user]);
 
   // Login handler
   const handleLogin = useCallback(
@@ -481,6 +499,7 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       /* ignore errors */
     }
     logoutUser();
+    resetUser();
     setToken(null);
     setTeamState(null);
     if (userMutate) userMutate(null, false);
