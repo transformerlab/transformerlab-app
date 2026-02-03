@@ -15,7 +15,6 @@ jobs:
     steps:
       - uses: actions/stale@v10
         with:
-          # Issues: match your previous .github/stale.yml behavior
           days-before-issue-stale: 60
           days-before-issue-close: 7
           stale-issue-label: "wontfix"
