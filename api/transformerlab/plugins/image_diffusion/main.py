@@ -675,7 +675,7 @@ def should_use_diffusion_worker(model) -> bool:
         return False
 
 
-async def run_video_diffusion_genration(
+async def run_video_diffusion_generation_for_images(
     request: DiffusionRequest,
     generation_id: str,
     images_folder: str,
