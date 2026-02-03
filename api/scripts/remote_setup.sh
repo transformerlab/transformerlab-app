@@ -2,6 +2,26 @@
 # Remote Setup Script for Compute Provider Machines
 # This script installs essential tools and sets up the Python environment
 # for Transformer Lab on remote compute provider instances.
+#
+# Usage:
+#   curl -sSL https://lab.cloud/remote_setup.sh | sh
+#   curl -sSL https://lab.cloud/remote_setup.sh | sh -s -- [OPTIONS]
+#
+# Core steps (run every time): OS detection, essential tools, Python 3.11+, pip,
+# uv, venv at ~/.venv, and transformerlab package. This matches what launch-time
+# setup expects (e.g. copy_file_mounts runs "pip install -q transformerlab && ...").
+#
+# Optional steps (run only when flags are passed):
+#   --aws                  Set up ~/.aws and write credentials. Credentials from
+#                          env (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY) or
+#                          --aws-access-key-id=, --aws-secret-access-key= (env preferred).
+#                          Optional --aws-profile=NAME (default transformerlab-s3).
+#   --github-url=URL       Clone a repo into current dir. Optional:
+#                          --github-dir=DIR (sparse checkout),
+#                          --github-branch=BRANCH,
+#                          --github-pat=TOKEN (or set GITHUB_PAT in env; env is preferred for security).
+#   --ssh-authorized-key=KEY   Append KEY to ~/.ssh/authorized_keys (one line).
+#   --help                 Show this usage and exit.
 
 set -e
 
@@ -11,6 +31,17 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# Optional steps (set by args)
+DO_AWS=false
+AWS_ACCESS_KEY_ID_ARG=""
+AWS_SECRET_ACCESS_KEY_ARG=""
+AWS_PROFILE_ARG=""   # default transformerlab-s3 (or AWS_PROFILE env)
+GITHUB_URL=""
+GITHUB_DIR=""
+GITHUB_BRANCH=""
+GITHUB_PAT_ARG=""   # PAT from --github-pat= (env GITHUB_PAT takes precedence when set)
+SSH_AUTHORIZED_KEY=""
 
 # Helper functions
 info() {
@@ -387,6 +418,189 @@ install_transformerlab() {
     fi
 }
 
+# ----- Optional steps (match launch-time setup) -----
+
+# Set up AWS credentials (matches _generate_aws_credentials_setup in compute_provider.py).
+# Credentials from env AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY or from --aws-access-key-id= / --aws-secret-access-key= (env preferred).
+setup_aws() {
+    info "Setting up AWS configuration..."
+    PROFILE="${AWS_PROFILE_ARG:-${AWS_PROFILE:-transformerlab-s3}}"
+    # Prefer env so credentials are not in process list / shell history
+    AK="${AWS_ACCESS_KEY_ID:-$AWS_ACCESS_KEY_ID_ARG}"
+    SK="${AWS_SECRET_ACCESS_KEY:-$AWS_SECRET_ACCESS_KEY_ARG}"
+    if [ -z "$AK" ] || [ -z "$SK" ]; then
+        warn "AWS credentials not set. Use env (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY) or --aws-access-key-id=, --aws-secret-access-key= with --aws"
+        mkdir -p "$HOME/.aws"
+        chmod 700 "$HOME/.aws"
+        return 0
+    fi
+    # Strip newlines/carriage returns (safe for credentials file)
+    AK=$(echo "$AK" | tr -d '\n\r')
+    SK=$(echo "$SK" | tr -d '\n\r')
+    mkdir -p "$HOME/.aws"
+    chmod 700 "$HOME/.aws"
+    if [ -f "$HOME/.aws/credentials" ]; then
+        # Remove existing profile section (same logic as _generate_aws_credentials_setup)
+        awk -v p="$PROFILE" 'BEGIN{in_profile=0} $0=="["p"]"{in_profile=1;next} /^\[/{in_profile=0} !in_profile{print}' \
+            "$HOME/.aws/credentials" > "$HOME/.aws/credentials.new" 2>/dev/null && \
+            mv "$HOME/.aws/credentials.new" "$HOME/.aws/credentials" || true
+    fi
+    echo "[${PROFILE}]" >> "$HOME/.aws/credentials"
+    echo "aws_access_key_id=${AK}" >> "$HOME/.aws/credentials"
+    echo "aws_secret_access_key=${SK}" >> "$HOME/.aws/credentials"
+    chmod 600 "$HOME/.aws/credentials"
+    success "AWS profile '${PROFILE}' configured successfully"
+}
+
+# Clone GitHub repo (optional dir/branch; PAT from env GITHUB_PAT or --github-pat=)
+setup_github_clone() {
+    if [ -z "$GITHUB_URL" ]; then
+        return 0
+    fi
+    # Prefer env GITHUB_PAT so PAT is not in process list / shell history
+    GIT_PAT="${GITHUB_PAT:-$GITHUB_PAT_ARG}"
+    info "Cloning GitHub repository: $GITHUB_URL"
+    CLONE_DIR="/tmp/git-clone-$$"
+    CURRENT_DIR="$PWD"
+    if [ -n "$GIT_PAT" ]; then
+        if echo "$GITHUB_URL" | grep -q '^https://github.com/'; then
+            AUTH_URL="https://${GIT_PAT}@github.com/${GITHUB_URL#https://github.com/}"
+        else
+            AUTH_URL="https://${GIT_PAT}@${GITHUB_URL#https://}"
+        fi
+    else
+        AUTH_URL="$GITHUB_URL"
+    fi
+    mkdir -p "$CLONE_DIR"
+    cd "$CLONE_DIR"
+    if [ -n "$GITHUB_DIR" ]; then
+        git init
+        git remote add origin "$AUTH_URL"
+        git config core.sparseCheckout true
+        echo "${GITHUB_DIR}/" > .git/info/sparse-checkout
+        if [ -n "$GITHUB_BRANCH" ]; then
+            git pull origin "$GITHUB_BRANCH" || git pull origin main || git pull origin master || git pull origin HEAD
+        else
+            git pull origin main || git pull origin master || git pull origin HEAD
+        fi
+        if [ -d "$GITHUB_DIR" ]; then
+            cp -r "$GITHUB_DIR" "$CURRENT_DIR/"
+            success "Cloned directory ${GITHUB_DIR} into ${CURRENT_DIR}"
+        else
+            warn "Directory ${GITHUB_DIR} not found in repository"
+        fi
+    else
+        if [ -n "$GITHUB_BRANCH" ]; then
+            git clone -b "$GITHUB_BRANCH" "$AUTH_URL" repo_tmp
+        else
+            git clone "$AUTH_URL" repo_tmp
+        fi
+        cp -r repo_tmp/. "$CURRENT_DIR/"
+        success "Cloned repository into ${CURRENT_DIR}"
+    fi
+    cd "$CURRENT_DIR"
+    rm -rf "$CLONE_DIR"
+}
+
+# Append SSH public key to authorized_keys
+setup_ssh_authorized_key() {
+    if [ -z "$SSH_AUTHORIZED_KEY" ]; then
+        return 0
+    fi
+    info "Adding SSH authorized key..."
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+    if [ ! -f "$HOME/.ssh/authorized_keys" ]; then
+        touch "$HOME/.ssh/authorized_keys"
+        chmod 600 "$HOME/.ssh/authorized_keys"
+    fi
+    KEY_LINE=$(echo "$SSH_AUTHORIZED_KEY" | tr -d '\n\r')
+    if grep -qF "$KEY_LINE" "$HOME/.ssh/authorized_keys" 2>/dev/null; then
+        success "SSH key already present in authorized_keys"
+    else
+        echo "$KEY_LINE" >> "$HOME/.ssh/authorized_keys"
+        success "SSH key added to authorized_keys"
+    fi
+}
+
+show_usage() {
+    echo "Usage: curl -sSL https://lab.cloud/remote_setup.sh | sh -s -- [OPTIONS]"
+    echo ""
+    echo "Core (always run): essential tools, Python 3.11+, uv, ~/.venv, transformerlab."
+    echo ""
+    echo "Optional (run only when specified):"
+    echo "  --aws                      Set up ~/.aws and write credentials (env or args below)"
+    echo "  --aws-access-key-id=KEY    AWS access key (prefer env AWS_ACCESS_KEY_ID)"
+    echo "  --aws-secret-access-key=SECRET  AWS secret key (prefer env AWS_SECRET_ACCESS_KEY)"
+    echo "  --aws-profile=NAME         Profile name (default: transformerlab-s3)"
+    echo "  --github-url=URL           Clone repo into current dir"
+    echo "  --github-dir=DIR           Sparse-checkout only DIR (use with --github-url)"
+    echo "  --github-branch=BRANCH     Branch/tag to checkout (use with --github-url)"
+    echo "  --github-pat=TOKEN         GitHub PAT for private repos (prefer env GITHUB_PAT to avoid token in process list)"
+    echo "  --ssh-authorized-key=KEY   Append KEY to ~/.ssh/authorized_keys"
+    echo "  --help                     Show this message and exit"
+    echo ""
+    echo "Examples:"
+    echo "  curl -sSL https://lab.cloud/remote_setup.sh | sh"
+    echo "  curl -sSL https://lab.cloud/remote_setup.sh | sh -s -- --aws"
+    echo "  curl -sSL https://lab.cloud/remote_setup.sh | sh -s -- --aws --aws-access-key-id=AKIA... --aws-secret-access-key=..."
+    echo "  curl -sSL https://lab.cloud/remote_setup.sh | sh -s -- --github-url=https://github.com/org/repo --github-branch=main"
+    echo "  GITHUB_PAT=xxx curl -sSL ... | sh -s -- --github-url=https://github.com/org/private-repo   # private repo (PAT from env)"
+    echo "  curl -sSL https://lab.cloud/remote_setup.sh | sh -s -- --ssh-authorized-key=\"\$(cat mykey.pub)\""
+}
+
+# Parse arguments (POSIX-friendly)
+parse_args() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --aws)
+                DO_AWS=true
+                shift
+                ;;
+            --aws-access-key-id=*)
+                AWS_ACCESS_KEY_ID_ARG="${1#--aws-access-key-id=}"
+                shift
+                ;;
+            --aws-secret-access-key=*)
+                AWS_SECRET_ACCESS_KEY_ARG="${1#--aws-secret-access-key=}"
+                shift
+                ;;
+            --aws-profile=*)
+                AWS_PROFILE_ARG="${1#--aws-profile=}"
+                shift
+                ;;
+            --github-url=*)
+                GITHUB_URL="${1#--github-url=}"
+                shift
+                ;;
+            --github-dir=*)
+                GITHUB_DIR="${1#--github-dir=}"
+                shift
+                ;;
+            --github-branch=*)
+                GITHUB_BRANCH="${1#--github-branch=}"
+                shift
+                ;;
+            --github-pat=*)
+                GITHUB_PAT_ARG="${1#--github-pat=}"
+                shift
+                ;;
+            --ssh-authorized-key=*)
+                SSH_AUTHORIZED_KEY="${1#--ssh-authorized-key=}"
+                shift
+                ;;
+            --help|-h)
+                show_usage
+                exit 0
+                ;;
+            *)
+                warn "Unknown option: $1"
+                shift
+                ;;
+        esac
+    done
+}
+
 # Main execution
 main() {
     echo ""
@@ -395,6 +609,9 @@ main() {
     echo "=========================================="
     echo ""
 
+    parse_args "$@"
+
+    # Core steps (run every time)
     detect_os
     install_essential_tools
     install_build_tools
@@ -402,6 +619,17 @@ main() {
     install_uv
     setup_uv_venv
     install_transformerlab
+
+    # Optional steps (only when flags were passed)
+    if [ "$DO_AWS" = true ]; then
+        setup_aws
+    fi
+    if [ -n "$GITHUB_URL" ]; then
+        setup_github_clone
+    fi
+    if [ -n "$SSH_AUTHORIZED_KEY" ]; then
+        setup_ssh_authorized_key
+    fi
 
     echo ""
     echo "=========================================="
@@ -413,5 +641,5 @@ main() {
     echo ""
 }
 
-# Run main function
-main
+# Run main function with all script arguments
+main "$@"
