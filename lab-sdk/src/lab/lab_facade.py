@@ -230,7 +230,7 @@ class Lab:
                 secrets = json.loads(content)
                 return secrets.get(secret_name)
         except Exception as e:
-            logger.warning(f"Failed to load team secret: {str(e)}", exc_info=True)
+            logger.warning("Failed to load team secret", exc_info=True)
             return None
 
     def copy_file_mounts(self) -> None:
@@ -275,7 +275,7 @@ class Lab:
         try:
             files = await storage.find(task_dir)
         except Exception as e:
-            print(f"Error finding files: {e}")
+            logger.info("Failed to find task directory. Using fallback.", exc_info=True)
             files = []
             try:
                 walk_gen = await storage.walk(task_dir)
@@ -283,7 +283,7 @@ class Lab:
                     for name in names:
                         files.append(storage.join(root, name))
             except Exception as e:
-                print(f"Error walking task dir: {e}")
+                logger.error("Failed to read task directory for mounting.", exc_info=True)
                 return
 
         for path in files:
@@ -299,7 +299,7 @@ class Lab:
                 full_path_normalized = full_path.rstrip("/")
                 if not full_path_normalized.startswith(base + "/"):
                     # Skip anything outside the task_dir subtree
-                    print(f"Skipping path outside task_dir: {full_path_normalized}")
+                    logger.warning(f"Skipping path outside task_dir: {full_path_normalized}")
                     continue
                 rel = full_path_normalized[len(base) + 1 :]
             else:
@@ -307,7 +307,7 @@ class Lab:
                     rel = os.path.relpath(full_path, task_dir)
                 except ValueError as e:
                     # If relpath fails (different drives, etc.), skip this entry
-                    print(f"Error computing relpath: {e}")
+                    logger.warning(f"Error computing relpath: {e}")
                     continue
 
             # Safety: skip anything that would traverse outside the task_dir
@@ -319,7 +319,7 @@ class Lab:
                 async with await storage.open(full_path, "rb") as f:
                     data = await f.read()
             except Exception as e:
-                print(f"Error opening path: {e}")
+                logger.error("Error opening path: %s", full_path, exc_info=True)
                 continue
 
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
@@ -439,7 +439,7 @@ class Lab:
 
             return None
         except Exception as e:
-            logger.error(f"Error getting parent job checkpoint path: {str(e)}", exc_info=True)
+            logger.error("Error getting parent job checkpoint path", exc_info=True)
             return None
 
     # ------------- completion -------------
@@ -902,7 +902,7 @@ class Lab:
             if hasattr(df, "to_pandas") and callable(getattr(df, "to_pandas")):
                 df = df.to_pandas()
         except Exception as e:
-            logger.warning(f"Failed to convert dataset to pandas DataFrame: {str(e)}", exc_info=True)
+            logger.warning("Failed to convert dataset to pandas DataFrame", exc_info=True)
 
         # Prepare dataset directory
         dataset_id_safe = dataset_id.strip()
@@ -963,17 +963,17 @@ class Lab:
             )
         except Exception as e:
             # Do not fail the save if metadata write fails; log to standard logger
-            logger.warning(f"Failed to create dataset metadata: {str(e)}", exc_info=True)
+            logger.warning("Failed to create dataset metadata", exc_info=True)
             try:
                 await self._job.update_job_data_field("dataset_metadata_error", str(e))  # type: ignore[union-attr]
             except Exception as e2:
-                logger.warning(f"Failed to log dataset metadata error: {str(e2)}", exc_info=True)
+                logger.warning("Failed to log dataset metadata error", exc_info=True)
 
         # Track dataset on the job for provenance
         try:
             await self._job.update_job_data_field("dataset_id", dataset_id_safe)  # type: ignore[union-attr]
         except Exception as e:
-            logger.warning(f"Failed to track dataset in job_data: {str(e)}", exc_info=True)
+            logger.warning("Failed to track dataset in job_data", exc_info=True)
 
         logger.info(f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_safe}'")
         return output_path
@@ -1043,7 +1043,7 @@ class Lab:
             await self._job.update_job_data_field("checkpoints", ckpt_list)
             await self._job.update_job_data_field("latest_checkpoint", dest)
         except Exception as e:
-            logger.warning(f"Failed to track checkpoint in job_data: {str(e)}", exc_info=True)
+            logger.warning("Failed to track checkpoint in job_data", exc_info=True)
 
         return dest
 
