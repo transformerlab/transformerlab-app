@@ -588,7 +588,9 @@ async def import_task_from_gallery(
         or gallery_entry.get("directory_path")
         or gallery_entry.get("github_directory")
     )
-    github_branch = gallery_entry.get("github_branch") or gallery_entry.get("git_branch")
+    github_branch = (
+        gallery_entry.get("github_branch") or gallery_entry.get("github_repo_branch") or gallery_entry.get("git_branch")
+    )
 
     if not github_repo_url:
         raise HTTPException(status_code=400, detail="Gallery entry missing github_repo_url")
@@ -701,7 +703,9 @@ async def import_task_from_team_gallery(
         or gallery_entry.get("directory_path")
         or gallery_entry.get("github_directory")
     )
-    github_branch = gallery_entry.get("github_branch") or gallery_entry.get("git_branch")
+    github_branch = (
+        gallery_entry.get("github_branch") or gallery_entry.get("github_repo_branch") or gallery_entry.get("git_branch")
+    )
 
     if not github_repo_url:
         raise HTTPException(status_code=400, detail="Gallery entry missing github_repo_url")
