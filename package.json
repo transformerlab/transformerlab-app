@@ -113,6 +113,7 @@
     "chokidar": "^4.0.3",
     "command-exists": "^1.2.9",
     "dayjs": "^1.11.13",
+    "jszip": "^3.10.1",
     "debug": "^4.3.4",
     "easy-peasy": "^6.1.0",
     "lucide-react": "^0.477.0",
