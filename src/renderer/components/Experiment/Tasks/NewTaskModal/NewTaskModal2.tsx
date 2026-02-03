@@ -44,9 +44,21 @@ export default function NewTaskModal2({
   const [directoryFiles, setDirectoryFiles] = React.useState<File[]>([]);
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const [showCreateBlank, setShowCreateBlank] = React.useState(false);
+  const [creatingBlank, setCreatingBlank] = React.useState(false);
 
-  const handleSubmit = async () => {
+  // Reset state when modal opens/closes
+  React.useEffect(() => {
+    if (!open) {
+      setShowCreateBlank(false);
+      setSubmitError(null);
+      setCreatingBlank(false);
+    }
+  }, [open]);
+
+  const handleSubmit = async (createIfMissing = false) => {
     setSubmitError(null);
+    setShowCreateBlank(false);
     if (selectedOption === 'git') {
       const url = gitUrl.trim();
       if (!url) {
@@ -64,12 +76,24 @@ export default function NewTaskModal2({
               git_url: url,
               git_repo_directory: gitRepoDirectory.trim() || undefined,
               git_branch: gitBranch.trim() || undefined,
+              create_if_missing: createIfMissing,
             }),
           },
         );
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
-          setSubmitError(err.detail || `Request failed: ${response.status}`);
+          const errorDetail =
+            err.detail || `Request failed: ${response.status}`;
+          // Check if it's a task.yaml not found error
+          if (
+            response.status === 404 &&
+            errorDetail.includes('task.yaml not found')
+          ) {
+            setShowCreateBlank(true);
+            setSubmitError(errorDetail);
+            return;
+          }
+          setSubmitError(errorDetail);
           return;
         }
         const data = await response.json();
@@ -151,7 +175,11 @@ export default function NewTaskModal2({
                       <Input
                         placeholder="https://github.com/username/repository.git"
                         value={gitUrl}
-                        onChange={(e) => setGitUrl(e.target.value)}
+                        onChange={(e) => {
+                          setGitUrl(e.target.value);
+                          setShowCreateBlank(false);
+                          setSubmitError(null);
+                        }}
                       />
                       <Input
                         placeholder="Optional: subdirectory (e.g. tasks/my-task)"
@@ -177,13 +205,51 @@ export default function NewTaskModal2({
             )}
 
             {submitError && (
-              <div
-                style={{
-                  color: 'var(--joy-palette-danger-500)',
-                  fontSize: 14,
-                }}
-              >
-                {submitError}
+              <div>
+                <div
+                  style={{
+                    color: 'var(--joy-palette-danger-500)',
+                    fontSize: 14,
+                    marginBottom: showCreateBlank ? 12 : 0,
+                  }}
+                >
+                  {submitError}
+                </div>
+                {showCreateBlank && (
+                  <div
+                    style={{
+                      padding: 12,
+                      backgroundColor: 'var(--joy-palette-neutral-50)',
+                      borderRadius: 8,
+                      marginTop: 8,
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: 'var(--joy-palette-neutral-700)',
+                        fontSize: 14,
+                        marginBottom: 12,
+                      }}
+                    >
+                      task.yaml not found in the repository. Create a blank
+                      task.yaml with a sample template?
+                    </div>
+                    <Button
+                      color="primary"
+                      variant="solid"
+                      size="sm"
+                      onClick={async () => {
+                        setCreatingBlank(true);
+                        await handleSubmit(true);
+                        setCreatingBlank(false);
+                      }}
+                      loading={creatingBlank}
+                      disabled={creatingBlank || submitting}
+                    >
+                      Create Blank
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </Stack>
@@ -192,8 +258,9 @@ export default function NewTaskModal2({
           <Button
             startDecorator={<PlayIcon />}
             color="success"
-            onClick={handleSubmit}
-            loading={submitting}
+            onClick={() => handleSubmit(false)}
+            loading={submitting && !creatingBlank}
+            disabled={creatingBlank}
           >
             Submit
           </Button>
