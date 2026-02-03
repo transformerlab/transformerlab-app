@@ -97,7 +97,7 @@ async def generate_ssh_key_pair(team_id: str, key_id: str) -> Tuple[str, str]:
 
     # Set permissions on private key (if local filesystem)
     # Note: For cloud storage, permissions are handled differently
-    if not any(private_key_path.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
+    if not storage.is_remote_path(private_key_path):
         os.chmod(private_key_path, stat.S_IRUSR | stat.S_IWUSR)  # 0600
 
     return private_key_path, public_key_path
