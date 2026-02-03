@@ -159,7 +159,7 @@ class Job(BaseLabResource):
         """
         Save info message to output log file and display to terminal.
 
-        TODO: Using logging to handle the file print as well as the console?
+        TODO: Figure out a better way to do logging that doesn't rewrite the file!
         """
         # Always print to console
         logger.info(message)
