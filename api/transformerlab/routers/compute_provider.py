@@ -812,10 +812,8 @@ async def _launch_sweep_jobs(
                     env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
                     env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
 
-                # Build setup script (prepend copy_file_mounts when file_mounts is True)
+                # Build setup script (add copy_file_mounts when file_mounts is True, after AWS credentials)
                 setup_commands = []
-                if request.file_mounts is True and request.task_id:
-                    setup_commands.append(COPY_FILE_MOUNTS_SETUP)
                 aws_profile = "transformerlab-s3"
                 if os.getenv("TFL_API_STORAGE_URI"):
                     aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
@@ -825,6 +823,9 @@ async def _launch_sweep_jobs(
                         )
                         setup_commands.append(aws_setup)
                         env_vars["AWS_PROFILE"] = aws_profile
+
+                if request.file_mounts is True and request.task_id:
+                    setup_commands.append(COPY_FILE_MOUNTS_SETUP)
 
                 if request.github_repo_url:
                     workspace_dir = await get_workspace_dir()
@@ -1112,13 +1113,13 @@ async def launch_template_on_provider(
     else:
         aws_access_key_id, aws_secret_access_key = None, None
 
-    # Build setup script - prepend copy_file_mounts when file_mounts is True (task dir -> ~/src)
+    # Build setup script - add copy_file_mounts after AWS credentials when file_mounts is True (task dir -> ~/src)
     setup_commands = []
-    if request.file_mounts is True and request.task_id:
-        setup_commands.append(COPY_FILE_MOUNTS_SETUP)
     if aws_access_key_id and aws_secret_access_key:
         aws_setup = _generate_aws_credentials_setup(aws_access_key_id, aws_secret_access_key, aws_profile)
         setup_commands.append(aws_setup)
+    if request.file_mounts is True and request.task_id:
+        setup_commands.append(COPY_FILE_MOUNTS_SETUP)
 
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
