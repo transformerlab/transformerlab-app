@@ -309,3 +309,87 @@ async def fetch_task_json_from_github(
             detail=f"Failed to fetch task.json from {owner}/{repo}",
         )
     return task_json
+
+
+async def fetch_task_yaml_from_github(repo_url: str, directory: Optional[str] = None, ref: Optional[str] = None) -> str:
+    """
+    Fetch task.yaml from a GitHub repository as raw string.
+
+    Args:
+        repo_url: GitHub repository URL (must start with https://github.com/)
+        directory: Optional subdirectory path where task.yaml is located
+        ref: Optional branch, tag, or commit SHA to fetch from
+
+    Returns:
+        Raw task.yaml file content
+
+    Raises:
+        HTTPException: On any error (404, 403, 500, etc.)
+    """
+    repo_url_clean = repo_url.replace(".git", "").strip()
+    if not repo_url_clean.startswith("https://github.com/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid GitHub repository URL. Must start with https://github.com/",
+        )
+
+    parts = repo_url_clean.replace("https://github.com/", "").split("/")
+    if len(parts) < 2:
+        raise HTTPException(status_code=400, detail="Invalid GitHub repository URL format")
+
+    owner, repo = parts[0], parts[1]
+    file_path = f"{directory}/task.yaml" if directory else "task.yaml"
+    file_path = file_path.strip("/")
+
+    workspace_dir = await get_workspace_dir()
+    github_pat = await read_github_pat_from_workspace(workspace_dir)
+
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
+    if ref:
+        api_url = f"{api_url}?ref={ref}"
+
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "TransformerLab",
+    }
+    if github_pat:
+        headers["Authorization"] = f"token {github_pat}"
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.get(api_url, headers=headers)
+
+    if response.status_code == 404:
+        raise HTTPException(
+            status_code=404,
+            detail=f"task.yaml not found at {file_path} in repository {owner}/{repo}",
+        )
+    if response.status_code == 403:
+        if github_pat:
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied. Please check your GitHub PAT permissions.",
+            )
+        raise HTTPException(
+            status_code=403,
+            detail="Repository is private. Please configure a GitHub PAT in team settings.",
+        )
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=f"Failed to fetch task.yaml: {response.text}",
+        )
+
+    file_data = response.json()
+    if "content" not in file_data:
+        raise HTTPException(
+            status_code=500,
+            detail="GitHub API response missing content field",
+        )
+
+    try:
+        return base64.b64decode(file_data["content"]).decode("utf-8")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to decode file content: {str(e)}",
+        )
