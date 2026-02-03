@@ -74,6 +74,10 @@ class LocalProvider(ComputeProvider):
     """
     Provider that runs each "cluster" (task run) in a dedicated uv venv
     synced with the base environment (same as plugin install: uv venv + uv pip install .[extra]).
+
+    Resource fields (cpus, memory, accelerators, num_nodes, disk_size) from ClusterConfig
+    are ignored; runs use the local machine. Launches are serialized via a queue so only
+    one local task launch runs at a time.
     """
 
     def __init__(self, extra_config: Optional[Dict[str, Any]] = None):
@@ -119,6 +123,7 @@ class LocalProvider(ComputeProvider):
         """
         Create a uv venv synced with base, run setup (if any), then run command in background.
         workspace_dir in provider_config is the job directory (per-run workspace).
+        Resource fields (cpus, memory, accelerators, etc.) are ignored.
         Returns dict with job_id (cluster_name) and pid for status polling.
         """
         job_dir = (config.provider_config or {}).get("workspace_dir")
@@ -227,7 +232,7 @@ class LocalProvider(ComputeProvider):
         return []
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
-        """Return minimal local resource info."""
+        """Return minimal local resource info. Resources are not applicable for local runs."""
         return ResourceInfo(
             cluster_name=cluster_name,
             gpus=[],

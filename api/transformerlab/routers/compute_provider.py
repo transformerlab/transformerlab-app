@@ -1,5 +1,6 @@
 """Router for managing team-scoped compute providers."""
 
+import asyncio
 import os
 import time
 import json
@@ -50,6 +51,9 @@ from transformerlab.shared.secret_utils import load_team_secrets, replace_secret
 from typing import Any
 
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
+
+# Serialize local provider launches so only one uv venv sync + run happens at a time
+_LOCAL_PROVIDER_LAUNCH_LOCK = asyncio.Lock()
 
 
 def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
@@ -1278,7 +1282,16 @@ async def launch_template_on_provider(
     )
 
     try:
-        launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
+        if provider.type == ProviderType.LOCAL.value:
+            # Queue: one local launch at a time; run sync launch_cluster in executor to avoid blocking
+            async with _LOCAL_PROVIDER_LAUNCH_LOCK:
+                loop = asyncio.get_running_loop()
+                launch_result = await loop.run_in_executor(
+                    None,
+                    lambda: provider_instance.launch_cluster(formatted_cluster_name, cluster_config),
+                )
+        else:
+            launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
     except Exception as exc:
         print(f"Failed to launch cluster: {exc}")
         # Release quota hold if launch failed
