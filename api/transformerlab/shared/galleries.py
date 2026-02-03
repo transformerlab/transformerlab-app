@@ -8,6 +8,7 @@ import json
 import posixpath
 import urllib.request
 import shutil
+import time
 
 from transformerlab.shared import dirs
 
@@ -64,6 +65,8 @@ async def get_exp_recipe_gallery():
 
 
 async def get_tasks_gallery():
+    # Refresh the tasks gallery from remote at most once every 5 minutes
+    await maybe_update_gallery_cache_file(TASKS_GALLERY_FILE, max_age_seconds=300)
     return await get_gallery_file(TASKS_GALLERY_FILE)
 
 
@@ -191,6 +194,33 @@ async def gallery_cache_file_path(filename: str):
     from lab.dirs import get_galleries_cache_dir
 
     return os.path.join(get_galleries_cache_dir(), filename)
+
+
+async def maybe_update_gallery_cache_file(filename: str, max_age_seconds: int = 300):
+    """
+    Conditionally refresh a gallery cache file from remote if it is older than max_age_seconds.
+    Ensures the file exists (initializing from the local fallback if needed) before checking age.
+    """
+
+    cached_gallery_file = await gallery_cache_file_path(filename)
+
+    # If the file does not exist yet, initialize it (this will also try remote once)
+    if not os.path.isfile(cached_gallery_file):
+        await update_gallery_cache_file(filename)
+        return
+
+    try:
+        mtime = os.path.getmtime(cached_gallery_file)
+    except OSError as e:
+        print(f"❌ Failed to read mtime for {filename}: {e}")
+        # If we can't read mtime for some reason, fall back to a full update
+        await update_gallery_cache_file(filename)
+        return
+
+    # Only hit the remote source if the cache is older than max_age_seconds
+    now = time.time()
+    if now - mtime > max_age_seconds:
+        await update_cache_from_remote(filename)
 
 
 async def update_gallery_cache_file(filename: str):
