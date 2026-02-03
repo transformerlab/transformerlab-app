@@ -263,27 +263,65 @@ class Lab:
             return
         dest_dir = os.path.expanduser("~/src")
         os.makedirs(dest_dir, exist_ok=True)
+
+        # Determine if we're working with a remote URI (e.g., s3://)
+        remote_prefixes = ("s3://", "gs://", "gcs://", "abfs://")
+        is_remote = isinstance(task_dir, str) and task_dir.startswith(remote_prefixes)
+        protocol_prefix = ""
+        if is_remote:
+            # Extract protocol, e.g., "s3://"
+            protocol_prefix = task_dir.split("://")[0] + "://"
+
         try:
             files = await storage.find(task_dir)
-        except Exception:
+        except Exception as e:
+            print(f"Error finding files: {e}")
             files = []
             try:
                 walk_gen = await storage.walk(task_dir)
                 for root, _dirs, names in walk_gen:
                     for name in names:
                         files.append(storage.join(root, name))
-            except Exception:
+            except Exception as e:
+                print(f"Error walking task dir: {e}")
                 return
+
         for path in files:
-            rel = path[len(task_dir) :].lstrip("/")
-            if not rel:
+            # Normalize remote paths returned by storage.find()/walk() to full URIs
+            full_path = path
+            if is_remote and not path.startswith(remote_prefixes):
+                # For S3/GCS/etc, fsspec.find() often returns keys without protocol
+                full_path = protocol_prefix + path.lstrip("/")
+
+            # Compute path relative to task_dir robustly, but never allow it to escape task_dir
+            if is_remote:
+                base = task_dir.rstrip("/")
+                full_path_normalized = full_path.rstrip("/")
+                if not full_path_normalized.startswith(base + "/"):
+                    # Skip anything outside the task_dir subtree
+                    print(f"Skipping path outside task_dir: {full_path_normalized}")
+                    continue
+                rel = full_path_normalized[len(base) + 1 :]
+            else:
+                try:
+                    rel = os.path.relpath(full_path, task_dir)
+                except ValueError as e:
+                    # If relpath fails (different drives, etc.), skip this entry
+                    print(f"Error computing relpath: {e}")
+                    continue
+
+            # Safety: skip anything that would traverse outside the task_dir
+            if not rel or rel == "." or rel.startswith(".."):
                 continue
+
             local_path = os.path.join(dest_dir, rel)
             try:
-                async with await storage.open(path, "rb") as f:
+                async with await storage.open(full_path, "rb") as f:
                     data = await f.read()
-            except Exception:
+            except Exception as e:
+                print(f"Error opening path: {e}")
                 continue
+
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
             with open(local_path, "wb") as out:
                 out.write(data)
