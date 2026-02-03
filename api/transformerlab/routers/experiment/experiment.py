@@ -20,6 +20,8 @@ from transformerlab.routers.experiment import (
     workflows,
     diffusion,
     jobs,
+    task as task_router,
+    tasks2 as tasks2_router,
 )
 from lab.dirs import get_workspace_dir
 
@@ -31,32 +33,35 @@ router.include_router(router=rag.router, prefix="/{experimentId}", tags=["rag"])
 router.include_router(router=documents.router, prefix="/{experimentId}", tags=["documents"])
 router.include_router(router=plugins.router, prefix="/{id}", tags=["plugins"])
 router.include_router(router=conversations.router, prefix="/{experimentId}", tags=["conversations"])
+router.include_router(router=conversations.audio_router, prefix="/{experimentId}", tags=["conversations"])
 router.include_router(router=export.router, prefix="/{id}", tags=["export"])
 router.include_router(router=evals.router, prefix="/{experimentId}", tags=["evals"])
 router.include_router(router=generations.router, prefix="/{experimentId}", tags=["generations"])
 router.include_router(router=workflows.router, prefix="/{experimentId}", tags=["workflows"])
 router.include_router(router=diffusion.router, prefix="/{experimentId}", tags=["diffusion"])
 router.include_router(router=jobs.router, prefix="/{experimentId}", tags=["jobs"])
+router.include_router(router=tasks2_router.router, prefix="/{experimentId}", tags=["task2"])
+router.include_router(router=task_router.router, prefix="/{experimentId}", tags=["task"])
 
 
 @router.get("/", summary="Get all Experiments", tags=["experiment"])
-def experiments_get_all():
+async def experiments_get_all():
     """Get a list of all experiments"""
-    return experiment_service.experiment_get_all()
+    return await experiment_service.experiment_get_all()
 
 
 @router.get("/create", summary="Create Experiment", tags=["experiment"])
-def experiments_create(name: str):
+async def experiments_create(name: str):
     # Apply secure filename validation to the experiment name
     secure_name = secure_filename(name)
 
-    newid = experiment_service.experiment_create(secure_name, {})
+    newid = await experiment_service.experiment_create(secure_name, {})
     return newid
 
 
 @router.get("/{id}", summary="Get Experiment by ID", tags=["experiment"])
-def experiment_get(id: str):
-    data = experiment_service.experiment_get(id)
+async def experiment_get(id: str):
+    data = await experiment_service.experiment_get(id)
 
     if data is None:
         return {"status": "error", "message": f"Experiment {id} does not exist"}
@@ -66,37 +71,37 @@ def experiment_get(id: str):
 
 
 @router.get("/{id}/delete", tags=["experiment"])
-def experiments_delete(id: str):
-    experiment_service.experiment_delete(id)
+async def experiments_delete(id: str):
+    await experiment_service.experiment_delete(id)
     return {"message": f"Experiment {id} deleted"}
 
 
 @router.get("/{id}/update", tags=["experiment"])
-def experiments_update(id: str, name: str):
-    experiment_service.experiment_update(id, name)
+async def experiments_update(id: str, name: str):
+    await experiment_service.experiment_update(id, name)
     return {"message": f"Experiment {id} updated to {name}"}
 
 
 @router.get("/{id}/update_config", tags=["experiment"])
-def experiments_update_config(id: str, key: str, value: str):
-    experiment_service.experiment_update_config(id, key, value)
+async def experiments_update_config(id: str, key: str, value: str):
+    await experiment_service.experiment_update_config(id, key, value)
     return {"message": f"Experiment {id} updated"}
 
 
 @router.post("/{id}/update_configs", tags=["experiment"])
-def experiments_update_configs(id: str, updates: Annotated[dict, Body()]):
-    experiment_service.experiment_update_configs(id, updates)
+async def experiments_update_configs(id: str, updates: Annotated[dict, Body()]):
+    await experiment_service.experiment_update_configs(id, updates)
     return {"message": f"Experiment {id} configs updated"}
 
 
 @router.post("/{id}/prompt", tags=["experiment"])
-def experiments_save_prompt_template(id: str, template: Annotated[str, Body()]):
-    experiment_service.experiment_save_prompt_template(id, template)
+async def experiments_save_prompt_template(id: str, template: Annotated[str, Body()]):
+    await experiment_service.experiment_save_prompt_template(id, template)
     return {"message": f"Experiment {id} prompt template saved"}
 
 
 @router.post("/{id}/save_file_contents", tags=["experiment"])
-def experiment_save_file_contents(id: str, filename: str, file_contents: Annotated[str, Body()]):
+async def experiment_save_file_contents(id: str, filename: str, file_contents: Annotated[str, Body()]):
     filename = secure_filename(filename)
 
     # remove file extension from file:
@@ -108,8 +113,8 @@ def experiment_save_file_contents(id: str, filename: str, file_contents: Annotat
     # clean the file name:
     filename = shared.slugify(filename)
 
-    exp_obj = Experiment.get(id)
-    experiment_dir = exp_obj.get_dir()
+    exp_obj = await Experiment.get(id)
+    experiment_dir = await exp_obj.get_dir()
 
     # For remote paths, use storage.join which handles remote URIs properly
     file_path = storage.join(experiment_dir, f"{filename}{file_ext}")
@@ -118,18 +123,18 @@ def experiment_save_file_contents(id: str, filename: str, file_contents: Annotat
         return {"message": "Invalid file path - path traversal detected"}
 
     # Save the file contents securely
-    with storage.open(file_path, "w", encoding="utf-8") as f:
-        f.write(file_contents)
+    async with await storage.open(file_path, "w", encoding="utf-8") as f:
+        await f.write(file_contents)
 
     return {"message": f"{file_path} file contents saved"}
 
 
 @router.get("/{id}/file_contents", tags=["experiment"])
-def experiment_get_file_contents(id: str, filename: str):
+async def experiment_get_file_contents(id: str, filename: str):
     filename = secure_filename(filename)
 
-    exp_obj = Experiment.get(id)
-    experiment_dir = exp_obj.get_dir()
+    exp_obj = await Experiment.get(id)
+    experiment_dir = await exp_obj.get_dir()
 
     # remove file extension from file:
     [filename, file_ext] = os.path.splitext(filename)
@@ -152,8 +157,8 @@ def experiment_get_file_contents(id: str, filename: str):
 
     # now get the file contents
     try:
-        with storage.open(final_path, "r") as f:
-            file_contents = f.read()
+        async with await storage.open(final_path, "r") as f:
+            file_contents = await f.read()
     except FileNotFoundError:
         return ""
 
@@ -161,11 +166,11 @@ def experiment_get_file_contents(id: str, filename: str):
 
 
 @router.get("/{id}/export_to_recipe", summary="Export experiment to recipe format", tags=["experiment"])
-def export_experiment_to_recipe(id: str, request: Request):
+async def export_experiment_to_recipe(id: str, request: Request):
     """Export an experiment to JSON format that matches the recipe gallery structure."""
 
     # Get experiment data
-    data = experiment_service.experiment_get(id)
+    data = await experiment_service.experiment_get(id)
     if data is None:
         return {"status": "error", "message": f"Experiment {id} does not exist"}
 
@@ -183,12 +188,12 @@ def export_experiment_to_recipe(id: str, request: Request):
     }
 
     # Get the notes content from readme.md if it exists
-    exp_obj = Experiment.get(id)
-    experiment_dir = exp_obj.get_dir()
+    exp_obj = await Experiment.get(id)
+    experiment_dir = await exp_obj.get_dir()
     notes_path = storage.join(experiment_dir, "readme.md")
     try:
-        with storage.open(notes_path, "r") as f:
-            export_data["notes"] = f.read()
+        async with await storage.open(notes_path, "r") as f:
+            export_data["notes"] = await f.read()
     except FileNotFoundError:
         # If no notes file exists, leave it as empty string
         pass
@@ -196,16 +201,17 @@ def export_experiment_to_recipe(id: str, request: Request):
     # Track unique dependencies to avoid duplicates
     added_dependencies = set()
 
-    def add_dependency(dep_type: str, dep_name: str):
+    async def add_dependency(dep_type: str, dep_name: str):
         """Helper function to add a dependency if it's not already added"""
         dep_key = f"{dep_type}:{dep_name}"
         if dep_key not in added_dependencies and dep_name:
             # For datasets, check if it's generated and skip if it is
             if dep_type == "dataset":
                 try:
-                    dataset_info = Dataset.get(dep_name)
+                    dataset_info = await Dataset.get(dep_name)
                     if dataset_info:
-                        json_data = dataset_info.get("json_data", "{}")
+                        json_data = await dataset_info.get_metadata()
+                        json_data = json_data.get("json_data", {})
                         if not isinstance(json_data, dict):
                             json_data = json.loads(json_data)
                         if json_data.get("generated", False):
@@ -224,7 +230,7 @@ def export_experiment_to_recipe(id: str, request: Request):
     for task_type in task_types:
         from transformerlab.services.tasks_service import tasks_service
 
-        tasks = tasks_service.tasks_get_by_type_in_experiment(task_type, id)
+        tasks = await tasks_service.tasks_get_by_type_in_experiment(task_type, id)
         for task in tasks:
             if not isinstance(task["config"], dict):
                 task_config = json.loads(task["config"])
@@ -238,17 +244,17 @@ def export_experiment_to_recipe(id: str, request: Request):
             else:
                 model_name = task_config.get("model_name")
             if model_name:
-                add_dependency("model", model_name)
+                await add_dependency("model", model_name)
 
             # Add dataset dependency from task
             dataset_name = task_config.get("dataset_name")
             if dataset_name:
-                add_dependency("dataset", dataset_name)
+                await add_dependency("dataset", dataset_name)
 
             # Add plugin dependency
             plugin_name = task_config.get("plugin_name")
             if plugin_name:
-                add_dependency("plugin", plugin_name)
+                await add_dependency("plugin", plugin_name)
 
             # Add task to tasks list with its configuration
             export_data["tasks"].append(
@@ -271,9 +277,9 @@ def export_experiment_to_recipe(id: str, request: Request):
     export_data["workflows"] = []
 
     # Write to file in the workspace directory (org-aware via request context)
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     output_file = storage.join(workspace_dir, f"{data['name']}_export.json")
-    with storage.open(output_file, "w") as f:
-        json.dump(export_data, f, indent=2)
+    async with await storage.open(output_file, "w") as f:
+        await f.write(json.dumps(export_data, indent=2))
 
     return FileResponse(output_file, filename=output_file)

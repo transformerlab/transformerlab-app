@@ -12,7 +12,7 @@ import {
   FormControl,
   Grid,
   Input,
-  LinearProgress,
+  Skeleton,
   Sheet,
   Box,
   Typography,
@@ -28,6 +28,8 @@ import {
   ScanTextIcon,
   PlusIcon,
   Trash2Icon,
+  GraduationCapIcon,
+  ChartColumnIncreasingIcon,
 } from 'lucide-react';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -66,16 +68,40 @@ function generateGithubLink(repoUrl?: string, repoDir?: string) {
   return repoDir ? `${finalRepoUrl}/tree/main/${repoDir}` : finalRepoUrl;
 }
 
-function TaskIcon({ icon, color }: { icon: React.ReactNode; color?: string }) {
+function TaskIcon({ category }: { category: string }) {
+  let icon = <ScanTextIcon />;
+  let color: string = '#1976d2';
+
+  switch (category) {
+    case 'dataset-generation':
+      icon = <ScanTextIcon />;
+      color = '#1976d2';
+      break;
+    case 'training':
+      icon = <GraduationCapIcon />;
+      color = '#388e3c';
+      break;
+    case 'eval':
+      icon = <ChartColumnIncreasingIcon />;
+      color = '#d27d00';
+      break;
+    default:
+      icon = <ScanTextIcon />;
+      color = '#5b5e61ff';
+      break;
+  }
+
   return (
     <Box
       sx={{
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: 24,
-        height: 24,
-        color: color || 'inherit',
+        width: 32,
+        height: 32,
+        color,
+        backgroundColor: `${color}11`,
+        padding: '1px',
       }}
     >
       {icon}
@@ -85,7 +111,7 @@ function TaskIcon({ icon, color }: { icon: React.ReactNode; color?: string }) {
 
 function TaskCard({
   task,
-  index,
+  galleryIdentifier,
   onImport,
   isImporting,
   disableImport,
@@ -94,15 +120,15 @@ function TaskCard({
   onSelect,
 }: {
   task: any;
-  index: number;
-  onImport: (idx: number) => void;
+  galleryIdentifier: string | number;
+  onImport: (identifier: string | number) => void;
   isImporting: boolean;
   disableImport: boolean;
   showCheckbox?: boolean;
   isSelected?: boolean;
   onSelect?: (taskId: string, selected: boolean) => void;
 }) {
-  const taskId = task?.id || task?.title || index.toString();
+  const taskId = task?.id || task?.title || galleryIdentifier.toString();
   return (
     <Card variant="outlined" sx={{ height: '100%' }}>
       <CardContent
@@ -120,7 +146,7 @@ function TaskCard({
               alignItems: 'flex-start',
             }}
           >
-            <TaskIcon icon={<ScanTextIcon />} color="#1976d2" />
+            <TaskIcon category={task?.metadata?.category} />
             {showCheckbox && (
               <Checkbox
                 checked={isSelected || false}
@@ -192,7 +218,17 @@ function TaskCard({
               </Box>
             )}
           </Box>
-          {task.config && (
+          {task?.metadata?.framework && (
+            /* Framework is an array of strings */
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              {task.metadata.framework.map((fw: string, fwIndex: number) => (
+                <Chip key={fwIndex} size="sm" variant="soft">
+                  {fw}
+                </Chip>
+              ))}
+            </Stack>
+          )}
+          {/* {task.config && (
             <Stack spacing={0.5}>
               <Typography level="body-xs" fontWeight="bold">
                 Compute:
@@ -215,14 +251,14 @@ function TaskCard({
                 )}
               </Stack>
             </Stack>
-          )}
+          )} */}
         </Stack>
         <CardActions>
           <Button
             variant="soft"
             color="success"
             endDecorator={<DownloadIcon size={16} />}
-            onClick={() => onImport(index)}
+            onClick={() => onImport(galleryIdentifier)}
             loading={isImporting}
             disabled={disableImport}
           >
@@ -240,14 +276,18 @@ export default function TasksGallery() {
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const navigate = useNavigate();
-  const [importingIndex, setImportingIndex] = useState<number | null>(null);
+  const [importingIndex, setImportingIndex] = useState<string | number | null>(
+    null,
+  );
   const [newTeamTaskModalOpen, setNewTeamTaskModalOpen] = useState(false);
   const [isSubmittingTeamTask, setIsSubmittingTeamTask] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { data, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Tasks.Gallery(),
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Task.Gallery(experimentInfo.id)
+      : null,
     fetcher,
   );
   const {
@@ -255,9 +295,14 @@ export default function TasksGallery() {
     isLoading: teamLoading,
     mutate: teamMutate,
     isError: teamError,
-  } = useSWR(chatAPI.Endpoints.Tasks.TeamGallery(), fetcher);
+  } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Task.TeamGallery(experimentInfo.id)
+      : null,
+    fetcher,
+  );
 
-  const handleImport = async (galleryIndex: number) => {
+  const handleImport = async (galleryIdentifier: string | number) => {
     if (!experimentInfo?.id) {
       addNotification({
         type: 'warning',
@@ -267,19 +312,20 @@ export default function TasksGallery() {
       return;
     }
 
-    setImportingIndex(galleryIndex);
+    // Use the identifier as the key for tracking import state
+    setImportingIndex(galleryIdentifier);
     try {
       const endpoint =
         activeTab === 'team'
-          ? chatAPI.Endpoints.Tasks.ImportFromTeamGallery(experimentInfo.id)
-          : chatAPI.Endpoints.Tasks.ImportFromGallery(experimentInfo.id);
+          ? chatAPI.Endpoints.Task.ImportFromTeamGallery(experimentInfo.id)
+          : chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id);
       const response = await chatAPI.authenticatedFetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          gallery_id: galleryIndex.toString(),
+          gallery_id: galleryIdentifier.toString(),
           experiment_id: experimentInfo.id,
         }),
       });
@@ -308,10 +354,10 @@ export default function TasksGallery() {
       // Navigate to the tasks page for the experiment
       navigate(`/experiment/tasks`);
     } catch (err: any) {
-      console.error('Error importing task:', err);
+      console.error('Error importing template:', err);
       addNotification({
         type: 'danger',
-        message: `Failed to import task: ${err?.message || String(err)}`,
+        message: `Failed to import template: ${err?.message || String(err)}`,
       });
     } finally {
       setImportingIndex(null);
@@ -332,7 +378,7 @@ export default function TasksGallery() {
     setIsSubmittingTeamTask(true);
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Tasks.AddToTeamGallery(),
+        chatAPI.Endpoints.Task.AddToTeamGallery(experimentInfo?.id || ''),
         {
           method: 'POST',
           headers: {
@@ -346,7 +392,7 @@ export default function TasksGallery() {
         const errorText = await response.text();
         addNotification({
           type: 'danger',
-          message: `Failed to add team task: ${errorText}`,
+          message: `Failed to add team template: ${errorText}`,
         });
         return;
       }
@@ -354,16 +400,16 @@ export default function TasksGallery() {
       const result = await response.json();
       addNotification({
         type: 'success',
-        message: result?.message || 'Team task added successfully!',
+        message: result?.message || 'Team template added successfully!',
       });
 
       // Refresh the team gallery
       teamMutate();
     } catch (err: any) {
-      console.error('Error adding team task:', err);
+      console.error('Error adding team template:', err);
       addNotification({
         type: 'danger',
-        message: `Failed to add team task: ${err?.message || String(err)}`,
+        message: `Failed to add team template: ${err?.message || String(err)}`,
       });
     } finally {
       setIsSubmittingTeamTask(false);
@@ -388,7 +434,7 @@ export default function TasksGallery() {
     // eslint-disable-next-line no-alert
     if (
       !confirm(
-        `Are you sure you want to delete ${selectedTasks.size} task(s)? This action cannot be undone.`,
+        `Are you sure you want to delete ${selectedTasks.size} template(s)? This action cannot be undone.`,
       )
     ) {
       return;
@@ -403,7 +449,9 @@ export default function TasksGallery() {
       for (const taskId of taskIds) {
         try {
           const response = await chatAPI.authenticatedFetch(
-            chatAPI.Endpoints.Tasks.DeleteFromTeamGallery(),
+            chatAPI.Endpoints.Task.DeleteFromTeamGallery(
+              experimentInfo?.id || '',
+            ),
             {
               method: 'POST',
               headers: {
@@ -419,7 +467,7 @@ export default function TasksGallery() {
             failCount++;
           }
         } catch (err) {
-          console.error(`Error deleting task ${taskId}:`, err);
+          console.error(`Error deleting template ${taskId}:`, err);
           failCount++;
         }
       }
@@ -427,7 +475,7 @@ export default function TasksGallery() {
       if (successCount > 0) {
         addNotification({
           type: 'success',
-          message: `Successfully deleted ${successCount} task(s)${
+          message: `Successfully deleted ${successCount} template(s)${
             failCount > 0 ? `. ${failCount} failed.` : '.'
           }`,
         });
@@ -437,14 +485,14 @@ export default function TasksGallery() {
       } else {
         addNotification({
           type: 'danger',
-          message: 'Failed to delete tasks. Please try again.',
+          message: 'Failed to delete templates. Please try again.',
         });
       }
     } catch (err: any) {
-      console.error('Error deleting tasks:', err);
+      console.error('Error deleting templates:', err);
       addNotification({
         type: 'danger',
-        message: `Failed to delete tasks: ${err?.message || String(err)}`,
+        message: `Failed to delete templates: ${err?.message || String(err)}`,
       });
     } finally {
       setIsDeleting(false);
@@ -555,7 +603,47 @@ export default function TasksGallery() {
           paddingRight: 2,
         }}
       >
-        {isActiveLoading && <LinearProgress />}
+        {isActiveLoading && (
+          <Grid container spacing={2}>
+            {[...Array(12)].map((_, i) => (
+              <Grid xs={12} sm={12} md={6} lg={4} xl={3} key={i}>
+                <Card variant="outlined" sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Stack spacing={0}>
+                      <Skeleton variant="rectangular" width={32} height={32} />
+                      <Skeleton
+                        variant="text"
+                        level="title-lg"
+                        width="60%"
+                        sx={{ mt: 2 }}
+                      />
+                      <Skeleton
+                        variant="text"
+                        level="body-sm"
+                        width="100%"
+                        sx={{ mt: 1 }}
+                      />
+                      <Skeleton variant="text" level="body-sm" width="100%" />{' '}
+                      <Skeleton variant="text" level="body-sm" width="100%" />
+                      <Skeleton
+                        variant="text"
+                        level="body-sm"
+                        width="15%"
+                        sx={{ mt: 1 }}
+                      />
+                      <Skeleton
+                        variant="rectangular"
+                        width="100%"
+                        height={32}
+                        sx={{ mt: 2 }}
+                      />
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        )}
         {!isActiveLoading && gallery.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <Typography level="body-lg" color="neutral">
@@ -572,15 +660,39 @@ export default function TasksGallery() {
         {!isActiveLoading && gallery.length > 0 && (
           <Grid container spacing={2} sx={{ flexGrow: 1 }}>
             {filterTasksGallery(gallery, searchText).map(
-              (task: any, index: number) => {
-                const taskId = task?.id || task?.title || index.toString();
+              (task: any, filteredIndex: number) => {
+                // Use task ID or title if available, otherwise find original index
+                // The backend supports both ID/title and numeric index
+                let galleryIdentifier: string | number;
+                if (task?.id) {
+                  galleryIdentifier = task.id;
+                } else if (task?.title) {
+                  galleryIdentifier = task.title;
+                } else {
+                  // Find original index by matching task properties
+                  const originalIndex = gallery.findIndex(
+                    (galleryTask) =>
+                      galleryTask === task ||
+                      (galleryTask?.id &&
+                        task?.id &&
+                        galleryTask.id === task.id) ||
+                      (galleryTask?.title &&
+                        task?.title &&
+                        galleryTask.title === task.title &&
+                        galleryTask.github_repo_url === task.github_repo_url),
+                  );
+                  galleryIdentifier =
+                    originalIndex >= 0 ? originalIndex : filteredIndex;
+                }
+                const taskId =
+                  task?.id || task?.title || galleryIdentifier.toString();
                 return (
-                  <Grid xs={12} sm={12} md={6} lg={4} xl={3} key={index}>
+                  <Grid xs={12} sm={12} md={6} lg={4} xl={3} key={taskId}>
                     <TaskCard
                       task={task}
-                      index={index}
+                      galleryIdentifier={galleryIdentifier}
                       onImport={handleImport}
-                      isImporting={importingIndex === index}
+                      isImporting={importingIndex === galleryIdentifier}
                       disableImport={
                         !experimentInfo?.id || importingIndex !== null
                       }

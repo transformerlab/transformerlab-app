@@ -3,6 +3,7 @@ import os
 import torch
 from lab.dirs import get_workspace_dir
 from lab import storage
+import asyncio
 
 if torch.cuda.is_available():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -198,7 +199,7 @@ def train_vlm():
                 model_id_short = model_id
             adaptor_name = tlab_trainer.params.get("adaptor_name", "default")
             fused_model_name = f"{model_id_short}_{adaptor_name}"
-            workspace_dir = get_workspace_dir()
+            workspace_dir = asyncio.run(get_workspace_dir())
             fused_model_location = storage.join(workspace_dir, "models", fused_model_name)
             peft_model = PeftModel.from_pretrained(model, args.adaptor_output_dir)
             merged_model = peft_model.merge_and_unload()

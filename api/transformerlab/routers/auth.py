@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, Request
+from fastapi_users import exceptions
 from transformerlab.shared.models.user_model import get_async_session, create_personal_team
 from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole
 from transformerlab.models.users import (
@@ -62,12 +63,6 @@ if EMAIL_AUTH_ENABLED:
         prefix="/auth",
         tags=["auth"],
     )
-# Include User Management Router (allows authenticated users to view/update their profile)
-router.include_router(
-    fastapi_users.get_users_router(UserRead, UserUpdate, requires_verification=True),
-    prefix="/users",
-    tags=["users"],
-)
 
 
 # Check if Google OAuth is enabled
@@ -310,8 +305,58 @@ async def refresh_access_token(
         raise HTTPException(status_code=401, detail="Could not refresh token")
 
 
+@router.get("/users/me", response_model=UserRead)
+async def get_current_user(user: User = Depends(current_active_user)):
+    """
+    Get current user information.
+    Supports both JWT and API key authentication.
+    """
+    return UserRead(
+        id=user.id,
+        email=user.email,
+        is_active=user.is_active,
+        is_superuser=user.is_superuser,
+        is_verified=user.is_verified,
+        first_name=user.first_name,
+        last_name=user.last_name,
+    )
+
+
+@router.patch("/users/me", response_model=UserRead)
+async def update_current_user(
+    user_update: UserUpdate,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+    user_manager=Depends(get_user_manager),
+):
+    """
+    Update current user information.
+    Supports both JWT and API key authentication.
+    """
+    try:
+        # Use the user manager to handle the update (includes validation, password hashing, etc.)
+        updated_user = await user_manager.update(user_update, user, safe=True, request=None)
+        return UserRead(
+            id=updated_user.id,
+            email=updated_user.email,
+            is_active=updated_user.is_active,
+            is_superuser=updated_user.is_superuser,
+            is_verified=updated_user.is_verified,
+            first_name=updated_user.first_name,
+            last_name=updated_user.last_name,
+        )
+    except exceptions.InvalidPasswordException as e:
+        raise HTTPException(status_code=400, detail={"code": "UPDATE_USER_INVALID_PASSWORD", "reason": str(e)})
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.get("/users/me/teams")
 async def get_user_teams(user: User = Depends(current_active_user), session: AsyncSession = Depends(get_async_session)):
+    """
+    Get all teams the current user is a member of.
+    Supports both JWT and API key authentication.
+    """
     # Check if user has any team associations
     stmt = select(UserTeam).where(UserTeam.user_id == str(user.id))
     result = await session.execute(stmt)

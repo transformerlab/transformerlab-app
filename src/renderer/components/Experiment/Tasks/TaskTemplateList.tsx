@@ -9,12 +9,14 @@ import {
   MenuButton,
   Menu,
   MenuItem,
+  Skeleton,
 } from '@mui/joy';
 import { PlayIcon, Trash2Icon, MoreVerticalIcon } from 'lucide-react';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 
 type TaskRow = {
   id: string;
+  title?: string;
   name: string;
   description?: string;
   type?: string;
@@ -31,7 +33,15 @@ type TaskTemplateListProps = {
   onQueueTask: (task: TaskRow) => void;
   onEditTask: (task: TaskRow) => void;
   onExportTask?: (taskId: string) => void;
+  loading: boolean;
 };
+
+function getTitle(task: TaskRow) {
+  if (task.title && task.title.trim() !== '') {
+    return task.title;
+  }
+  return task.name;
+}
 
 const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   tasksList,
@@ -39,28 +49,43 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   onQueueTask,
   onEditTask,
   onExportTask,
+  loading,
 }) => {
   const getResourcesInfo = (task: TaskRow) => {
-    if (!task.remote_task) {
+    if (task.type !== 'REMOTE') {
       return 'N/A';
     }
 
+    // For templates, fields are stored directly (not nested in config)
+    // Check if it's a template (no config or config is empty/just an object)
     const config =
       (typeof task.config === 'string'
         ? SafeJSONParse(task.config as string, {})
         : (task.config as any)) || {};
 
-    // Debug: verify parsed config shape
-    // eslint-disable-next-line no-console
-    console.debug('Task resources config', { id: task.id, config });
-    const resources = [];
+    // Check if config has nested structure (old task format) or is empty
+    const isTemplate =
+      !task.config ||
+      (typeof config === 'object' && Object.keys(config).length === 0) ||
+      (!config.command && !config.cluster_name);
 
-    if (config.cpus) resources.push(`CPUs: ${config.cpus}`);
-    if (config.memory) resources.push(`Memory: ${config.memory}`);
-    if (config.disk_space) resources.push(`Disk: ${config.disk_space}`);
-    if (config.accelerators)
-      resources.push(`Accelerators: ${config.accelerators}`);
-    if (config.num_nodes) resources.push(`Nodes: ${config.num_nodes}`);
+    // Use template fields directly if it's a template, otherwise use config
+    const cpus = isTemplate ? (task as any).cpus : config.cpus;
+    const memory = isTemplate ? (task as any).memory : config.memory;
+    const disk_space = isTemplate
+      ? (task as any).disk_space
+      : config.disk_space;
+    const accelerators = isTemplate
+      ? (task as any).accelerators
+      : config.accelerators;
+    const num_nodes = isTemplate ? (task as any).num_nodes : config.num_nodes;
+
+    const resources: string[] = [];
+    if (cpus) resources.push(`CPUs: ${cpus}`);
+    if (memory) resources.push(`Memory: ${memory}`);
+    if (disk_space) resources.push(`Disk: ${disk_space}`);
+    if (accelerators) resources.push(`Accelerators: ${accelerators}`);
+    if (num_nodes) resources.push(`Nodes: ${num_nodes}`);
 
     return resources.length > 0
       ? resources.join(', ')
@@ -68,19 +93,97 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   };
 
   const getCommandInfo = (task: TaskRow) => {
-    if (!task.remote_task) {
+    if (task.type !== 'REMOTE') {
       return 'N/A';
     }
 
+    // For templates, fields are stored directly (not nested in config)
     const config =
       (typeof task.config === 'string'
         ? SafeJSONParse(task.config as string, {})
         : (task.config as any)) || {};
-    const command = config.command || 'No command specified';
+
+    // Check if config has nested structure (old task format) or is empty
+    const isTemplate =
+      !task.config ||
+      (typeof config === 'object' && Object.keys(config).length === 0) ||
+      (!config.command && !config.cluster_name);
+
+    // Use template field directly if it's a template, otherwise use config
+    const command = isTemplate
+      ? (task as any).command || 'No command specified'
+      : config.command || 'No command specified';
 
     // Truncate long commands
     return command.length > 50 ? `${command.substring(0, 50)}...` : command;
   };
+
+  const getProviderInfo = (task: TaskRow) => {
+    if (task.type !== 'REMOTE') {
+      return 'N/A';
+    }
+
+    // For templates, fields are stored directly (not nested in config)
+    const config =
+      (typeof task.config === 'string'
+        ? SafeJSONParse(task.config as string, {})
+        : (task.config as any)) || {};
+
+    // Check if config has nested structure (old task format) or is empty
+    const isTemplate =
+      !task.config ||
+      (typeof config === 'object' && Object.keys(config).length === 0) ||
+      (!config.command && !config.cluster_name);
+
+    // Use template field directly if it's a template, otherwise use config
+    const providerName = isTemplate
+      ? (task as any).provider_name
+      : config.provider_name;
+
+    return providerName || 'Not specified';
+  };
+
+  if (loading) {
+    return (
+      <Table stickyHeader>
+        <thead>
+          <tr>
+            <th style={{ width: '150px' }}>Name</th>
+            <th>Command</th>
+            <th>Resources</th>
+            <th>Provider</th>
+            <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[1, 2, 3, 4].map((i) => (
+            <tr key={i}>
+              <td>
+                <Skeleton variant="text" level="title-sm" />
+              </td>
+              <td>
+                <Skeleton variant="text" level="body-sm" />
+              </td>
+              <td>
+                <Skeleton variant="text" level="body-sm" />
+              </td>
+              <td>
+                <Skeleton variant="text" level="body-sm" />
+              </td>
+              <td style={{ textAlign: 'right' }}>
+                <Skeleton
+                  variant="rectangular"
+                  width={200}
+                  height={32}
+                  sx={{ ml: 'auto' }}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    );
+  }
 
   return (
     <Table stickyHeader>
@@ -89,6 +192,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
           <th style={{ width: '150px' }}>Name</th>
           <th>Command</th>
           <th>Resources</th>
+          <th>Provider</th>
           <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
         </tr>
       </thead>
@@ -97,7 +201,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
           <tr key={row.id}>
             <td>
               <Typography level="title-sm" sx={{ overflow: 'clip' }}>
-                {row.name}
+                {getTitle(row)}
               </Typography>
             </td>
             <td style={{ overflow: 'clip' }}>
@@ -105,6 +209,9 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
             </td>
             <td style={{ overflow: 'hidden' }}>
               <Typography level="body-sm">{getResourcesInfo(row)}</Typography>
+            </td>
+            <td style={{ overflow: 'clip' }}>
+              <Typography level="body-sm">{getProviderInfo(row)}</Typography>
             </td>
             <td
               style={{

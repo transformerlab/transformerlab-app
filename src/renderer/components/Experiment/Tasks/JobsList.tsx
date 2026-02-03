@@ -7,7 +7,6 @@ import Skeleton from '@mui/joy/Skeleton';
 import Box from '@mui/joy/Box';
 import {
   Trash2Icon,
-  InfoIcon,
   LineChartIcon,
   WaypointsIcon,
   ArchiveIcon,
@@ -15,6 +14,7 @@ import {
   FileTextIcon,
   DatabaseIcon,
 } from 'lucide-react';
+import { Typography } from '@mui/joy';
 import JobProgress from './JobProgress';
 
 interface JobsListProps {
@@ -26,8 +26,11 @@ interface JobsListProps {
   onViewArtifacts?: (jobId: string) => void;
   onViewEvalImages?: (jobId: string) => void;
   onViewSweepOutput?: (jobId: string) => void;
+  onViewSweepResults?: (jobId: string) => void;
   onViewEvalResults?: (jobId: string) => void;
   onViewGeneratedDataset?: (jobId: string, datasetId: string) => void;
+  onViewInteractive?: (jobId: string) => void;
+  loading: boolean;
 }
 
 const JobsList: React.FC<JobsListProps> = ({
@@ -39,11 +42,55 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewArtifacts,
   onViewEvalImages,
   onViewSweepOutput,
+  onViewSweepResults,
   onViewEvalResults,
   onViewGeneratedDataset,
+  onViewInteractive,
+  loading,
 }) => {
   const formatJobConfig = (job: any) => {
     const jobData = job?.job_data || {};
+
+    // Handle sweep child jobs
+    if (jobData?.parent_sweep_job_id) {
+      const runIndex = jobData.sweep_run_index || 0;
+      const total = jobData.sweep_total || 0;
+      const sweepParams = jobData.sweep_params || {};
+      const paramStr = Object.entries(sweepParams)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(', ');
+      return (
+        <>
+          <b>
+            Sweep Run {runIndex}/{total}
+          </b>
+          {paramStr && (
+            <>
+              <br />
+              <small>{paramStr}</small>
+            </>
+          )}
+        </>
+      );
+    }
+
+    // Handle sweep parent jobs
+    if (jobData?.sweep_parent || job?.type === 'SWEEP') {
+      const total = jobData.sweep_total || 0;
+      const sweepConfig = jobData.sweep_config || {};
+      const configStr = Object.keys(sweepConfig).join(' × ');
+      return (
+        <>
+          <b>Sweep: {total} configurations</b>
+          {configStr && (
+            <>
+              <br />
+              <small>{configStr}</small>
+            </>
+          )}
+        </>
+      );
+    }
 
     // Prefer showing Cluster Name (if present) and the user identifier (name/email)
     const clusterName = jobData?.cluster_name;
@@ -64,15 +111,13 @@ const JobsList: React.FC<JobsListProps> = ({
       return (
         <>
           {clusterName && (
-            <>
-              <b>Instance:</b> {clusterName}
+            <Typography level="title-sm" fontWeight="bold">
+              {clusterName}
               <br />
-            </>
+            </Typography>
           )}
           {userDisplay && (
-            <>
-              <b>Launched by:</b> {userDisplay}
-            </>
+            <Typography level="body-sm">{userDisplay}</Typography>
           )}
         </>
       );
@@ -92,53 +137,63 @@ const JobsList: React.FC<JobsListProps> = ({
     return <b>{job.type || 'Unknown Job'}</b>;
   };
 
+  if (loading) {
+    return (
+      <Table style={{ tableLayout: 'auto' }} stickyHeader>
+        <tbody>
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <tr key={i}>
+              <td>
+                <Skeleton variant="text" level="title-sm" />
+              </td>
+              <td>
+                <Skeleton variant="text" level="body-sm" />
+              </td>
+              <td>
+                <Skeleton variant="text" level="body-sm" />
+              </td>
+              <td style={{ textAlign: 'right' }}>
+                <Skeleton
+                  variant="rectangular"
+                  width={200}
+                  height={32}
+                  sx={{ ml: 'auto' }}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    );
+  }
+
   return (
     <Table style={{ tableLayout: 'auto' }} stickyHeader>
-      <thead>
-        <tr>
-          <th style={{ width: '60px' }}>ID</th>
-          <th>Details</th>
-          <th>Status</th>
-          <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
-        </tr>
-      </thead>
       <tbody style={{ overflow: 'auto', height: '100%' }}>
         {jobs?.length > 0 ? (
           jobs?.map((job) => (
             <tr key={job.id}>
-              <td>
+              <td style={{ verticalAlign: 'top', border: 'none' }}>
                 <b>{job.id}</b>
-                <br />
-                {job?.placeholder ? (
-                  <Skeleton variant="text" level="body-xs" width={60} />
-                ) : (
-                  <InfoIcon
-                    onClick={() => {
-                      const jobDataConfig = job?.job_data;
-                      if (typeof jobDataConfig === 'object') {
-                        alert(JSON.stringify(jobDataConfig, null, 2));
-                      } else {
-                        alert(jobDataConfig);
-                      }
-                    }}
-                    size="16px"
-                    color="var(--joy-palette-neutral-500)"
-                    style={{ cursor: 'pointer' }}
-                  />
-                )}
               </td>
-              <td>{formatJobConfig(job)}</td>
-              <td>
-                <JobProgress job={job} />
+              <td style={{ verticalAlign: 'top', border: 'none' }}>
+                {formatJobConfig(job)}
               </td>
-              <td style={{ width: 'fit-content' }}>
+              <td style={{ verticalAlign: 'top', border: 'none' }}>
+                <JobProgress job={job} showLaunchResultInfo />
+              </td>
+              <td
+                style={{
+                  verticalAlign: 'top',
+                  width: 'fit-content',
+                  border: 'none',
+                }}
+              >
                 <ButtonGroup
                   sx={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}
                 >
                   {job?.placeholder && (
-                    <>
-                      <Skeleton variant="rectangular" width={100} height={28} />
-                    </>
+                    <Skeleton variant="rectangular" width={100} height={28} />
                   )}
                   {job?.job_data?.tensorboard_output_dir && (
                     <Button
@@ -250,6 +305,27 @@ const JobsList: React.FC<JobsListProps> = ({
                         </Box>
                       </Button>
                     )}
+                  {(job?.type === 'SWEEP' || job?.job_data?.sweep_parent) &&
+                    job?.status === 'COMPLETE' && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewSweepResults?.(job?.id)}
+                        startDecorator={<LineChartIcon />}
+                      >
+                        <Box
+                          sx={{
+                            display: {
+                              xs: 'none',
+                              sm: 'none',
+                              md: 'inline-flex',
+                            },
+                          }}
+                        >
+                          Sweep Results
+                        </Box>
+                      </Button>
+                    )}
                   {job?.job_data?.sweep_output_file && (
                     <Button
                       size="sm"
@@ -259,6 +335,40 @@ const JobsList: React.FC<JobsListProps> = ({
                       Sweep Output
                     </Button>
                   )}
+                  {job?.status === 'INTERACTIVE' &&
+                    (job?.job_data?.interactive_type === 'vscode' ||
+                      job?.job_data?.interactive_type === 'jupyter' ||
+                      job?.job_data?.interactive_type === 'vllm' ||
+                      job?.job_data?.interactive_type === 'ollama' ||
+                      job?.job_data?.interactive_type === 'ssh') && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewInteractive?.(job?.id)}
+                        >
+                          Interactive Setup
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewOutput?.(job?.id)}
+                          startDecorator={<LogsIcon />}
+                        >
+                          <Box
+                            sx={{
+                              display: {
+                                xs: 'none',
+                                sm: 'none',
+                                md: 'inline-flex',
+                              },
+                            }}
+                          >
+                            Output
+                          </Box>
+                        </Button>
+                      </>
+                    )}
                   {job?.job_data?.checkpoints && (
                     <Button
                       size="sm"
@@ -317,7 +427,15 @@ const JobsList: React.FC<JobsListProps> = ({
           ))
         ) : (
           <tr>
-            <td colSpan={4} style={{ textAlign: 'center', padding: '20px' }}>
+            <td
+              colSpan={4}
+              style={{
+                textAlign: 'center',
+                padding: '20px',
+                verticalAlign: 'top',
+                border: 'none',
+              }}
+            >
               No jobs found
             </td>
           </tr>

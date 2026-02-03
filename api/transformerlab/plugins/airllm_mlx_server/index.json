@@ -4,7 +4,7 @@
   "description": "Performing inference using AirLLM on your Apple Silicon machine",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "model_architectures": [
     "MLX",
     "CohereForCausalLM",
@@ -20,13 +20,8 @@
     "Phi3ForCausalLM",
     "Qwen2ForCausalLM"
   ],
-  "supported_hardware_architectures": [
-    "mlx"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["mlx"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {}
 }

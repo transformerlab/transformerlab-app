@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
+  CircularProgress,
   Input,
   Modal,
   ModalDialog,
@@ -25,6 +26,28 @@ interface ProviderDetailsModalProps {
   providerId?: string;
 }
 
+// Default configurations for each provider type
+const DEFAULT_CONFIGS = {
+  skypilot: `{
+  "server_url": "<Your SkyPilot server URL e.g. http://localhost:46580>",
+  "default_env_vars": {
+    "SKYPILOT_USER_ID": "<Your SkyPilot user ID>",
+    "SKYPILOT_USER": "<Your SkyPilot user name>"
+  },
+  "default_entrypoint_command": ""
+}`,
+  slurm: `{
+  "ssh_host": "<Machine IP for the SLURM login node>",
+  "ssh_user": "<User name for SSH to the SLURM login node, usually SLURM>",
+  "ssh_key_path": "<Path to private key for SSH if present>",
+  "ssh_port": 22
+}`,
+  runpod: `{
+  "api_key": "<Your Runpod API key>",
+  "api_base_url": "https://rest.runpod.io/v1"
+}`,
+};
+
 export default function ProviderDetailsModal({
   open,
   onClose,
@@ -36,7 +59,7 @@ export default function ProviderDetailsModal({
   const [config, setConfig] = useState('');
   const [loading, setLoading] = useState(false);
   const { fetchWithAuth } = useAuth();
-  const { data: providerData } = useAPI(
+  const { data: providerData, isLoading: providerDataLoading } = useAPI(
     'compute_provider',
     ['get'],
     {
@@ -75,6 +98,13 @@ export default function ProviderDetailsModal({
       setConfig('');
     }
   }, [open]);
+
+  // Populate default config when provider type changes (only when adding new provider)
+  useEffect(() => {
+    if (!providerId && type && type in DEFAULT_CONFIGS) {
+      setConfig(DEFAULT_CONFIGS[type as keyof typeof DEFAULT_CONFIGS]);
+    }
+  }, [type, providerId]);
 
   async function createProvider(name: String, type: String, config: String) {
     return await fetchWithAuth(
@@ -135,54 +165,75 @@ export default function ProviderDetailsModal({
           {providerId ? 'Edit Compute Provider' : 'Add Compute Provider'}
         </DialogTitle>
         <DialogContent>
-          <FormControl sx={{ mt: 2 }}>
-            <FormLabel>Provider Name</FormLabel>
-            <Input
-              value={name}
-              onChange={(event) => setName(event.currentTarget.value)}
-              placeholder="Enter friendly name for provider"
-              fullWidth
-            />
-          </FormControl>
-          <FormControl sx={{ mt: 1 }}>
-            <FormLabel>Provider Type</FormLabel>
-            <Select
-              value={type}
-              onChange={(event, value) => setType(value ?? 'skypilot')}
-              disabled={!!providerId}
-              sx={{ width: '100%' }}
+          {providerId && providerDataLoading ? (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 200,
+                width: '100%',
+              }}
             >
-              <Option value="skypilot">Skypilot</Option>
-              <Option value="slurm">SLURM</Option>
-            </Select>
-            {providerId && (
-              <Typography
-                level="body-sm"
-                sx={{ mt: 0.5, color: 'text.tertiary' }}
-              >
-                Provider type cannot be changed after creation
-              </Typography>
-            )}
-          </FormControl>
-          <FormControl sx={{ mt: 1 }}>
-            <FormLabel>Configuration</FormLabel>
-            <Textarea
-              value={
-                typeof config === 'string' ? config : JSON.stringify(config)
-              }
-              onChange={(event) => setConfig(event.currentTarget.value)}
-              placeholder="JSON sent to provider"
-              minRows={5}
-              maxRows={10}
-            />
-          </FormControl>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <>
+              <FormControl sx={{ mt: 2 }}>
+                <FormLabel>Provider Name</FormLabel>
+                <Input
+                  value={name}
+                  onChange={(event) => setName(event.currentTarget.value)}
+                  placeholder="Enter friendly name for provider"
+                  fullWidth
+                />
+              </FormControl>
+              <FormControl sx={{ mt: 1 }}>
+                <FormLabel>Provider Type</FormLabel>
+                <Select
+                  value={type}
+                  onChange={(event, value) => setType(value ?? 'skypilot')}
+                  disabled={!!providerId}
+                  sx={{ width: '100%' }}
+                >
+                  <Option value="skypilot">Skypilot</Option>
+                  <Option value="slurm">SLURM</Option>
+                  <Option value="runpod">Runpod (beta)</Option>
+                </Select>
+                {providerId && (
+                  <Typography
+                    level="body-sm"
+                    sx={{ mt: 0.5, color: 'text.tertiary' }}
+                  >
+                    Provider type cannot be changed after creation
+                  </Typography>
+                )}
+              </FormControl>
+              <FormControl sx={{ mt: 1 }}>
+                <FormLabel>Configuration</FormLabel>
+                <Textarea
+                  value={
+                    typeof config === 'string' ? config : JSON.stringify(config)
+                  }
+                  onChange={(event) => setConfig(event.currentTarget.value)}
+                  placeholder="JSON sent to provider"
+                  minRows={5}
+                  maxRows={10}
+                />
+              </FormControl>
+            </>
+          )}
         </DialogContent>
         <DialogActions>
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
             <Button variant="outlined" onClick={onClose} sx={{ mr: 1 }}>
               Cancel
             </Button>
-            <Button onClick={saveProvider} loading={loading}>
+            <Button
+              onClick={saveProvider}
+              loading={loading}
+              disabled={!!providerId && providerDataLoading}
+            >
               {providerId ? 'Save Provider' : 'Add Provider'}
             </Button>
           </Box>

@@ -4,22 +4,10 @@
   "description": "A text-to-speech (TTS) audio generation server, supporting efficient, high-quality speech synthesis.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.0.12",
-  "supports": [
-    "Text-to-Speech",
-    "Audio"
-  ],
-  "model_architectures": [
-    "CsmForConditionalGeneration",
-    "LlamaForCausalLM"
-  ],
-  "supported_hardware_architectures": [
-    "cuda",
-    "amd"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "version": "0.0.15",
+  "supports": ["Text-to-Speech", "Audio"],
+  "model_architectures": ["CsmForConditionalGeneration", "LlamaForCausalLM"],
+  "supported_hardware_architectures": ["cuda", "amd"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh"
 }

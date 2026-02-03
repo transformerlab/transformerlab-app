@@ -67,18 +67,38 @@ export function ExperimentInfoProvider({ connection, children }) {
     fetcher,
   );
 
+  // Immediately revalidate experiments when auth state becomes authenticated
+  useEffect(() => {
+    // Try both explicit isAuthenticated flag and team id change as some auth providers may expose one or the other.
+    const becameAuthed =
+      authContext?.isAuthenticated !== undefined
+        ? authContext.isAuthenticated
+        : !!authContext?.team?.id;
+
+    if (!becameAuthed) return;
+
+    if (typeof mutateAllExperiments === 'function') {
+      // force immediate revalidation
+      void mutateAllExperiments();
+    }
+
+    if (typeof experimentInfoMutate === 'function') {
+      void experimentInfoMutate();
+    }
+  }, [
+    authContext?.isAuthenticated,
+    authContext?.team?.id,
+    mutateAllExperiments,
+    experimentInfoMutate,
+  ]);
+
   // Auto-select first experiment when team changes and no experiment is selected
   // or if current experiment doesn't exist in the new team's experiments
   useEffect(() => {
     const currentTeamId = authContext?.team?.id;
-    
+
     // Only run if we have a team, connection, and experiments are loaded
-    if (
-      !currentTeamId ||
-      !connection ||
-      connection === '' ||
-      !allExperiments
-    ) {
+    if (!currentTeamId || !connection || connection === '' || !allExperiments) {
       return;
     }
 
@@ -109,7 +129,10 @@ export function ExperimentInfoProvider({ connection, children }) {
 
     // If no experiment is selected, or current experiment doesn't exist in new team,
     // auto-select the first one
-    if ((!experimentId || !currentExperimentExists) && allExperiments.length > 0) {
+    if (
+      (!experimentId || !currentExperimentExists) &&
+      allExperiments.length > 0
+    ) {
       const firstExperiment = allExperiments[0];
       setExperimentId(firstExperiment.name || firstExperiment.id);
       lastAutoSelectedTeamId.current = currentTeamId;

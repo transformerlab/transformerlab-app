@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useMemo, CSSProperties } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 import {
   CodeIcon,
@@ -22,7 +22,7 @@ import {
   StretchHorizontalIcon,
 } from 'lucide-react';
 
-import { RiImageAiLine } from 'react-icons/ri';
+import { RiImageAiLine } from 'renderer/components/Icons';
 
 import {
   ButtonGroup,
@@ -37,7 +37,6 @@ import {
   useModelStatus,
   usePluginStatus,
   getAPIFullPath,
-  apiHealthz,
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -51,16 +50,14 @@ import LoginChip from './UserWidget';
 interface ExperimentMenuItemsProps {
   experimentInfo: any;
   models: any;
-  mode: string;
 }
 
 function ExperimentMenuItems({
   experimentInfo,
   models,
-  mode,
 }: ExperimentMenuItemsProps) {
   const { team } = useAuth();
-  const isS3Mode = mode === 's3';
+  const isLocalMode = window?.platform?.multiuser !== true;
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
@@ -81,11 +78,10 @@ function ExperimentMenuItems({
   const pipelineIsTTS = pipelineTag === 'text-to-speech';
   const pipelineIsSTT = pipelineTag === 'speech-to-text';
   const isDiffusionModel = isValidDiffusionModel === true;
-  const showInteractTab =
-    !isS3Mode && !isDiffusionModel && !pipelineIsTTS && !pipelineIsSTT;
-  const showDiffusionTab = !isS3Mode && isDiffusionModel;
-  const showAudioTTSTab = !isS3Mode && pipelineIsTTS;
-  const showAudioSTTTab = !isS3Mode && pipelineIsSTT;
+  const showInteractTab = !isDiffusionModel && !pipelineIsTTS && !pipelineIsSTT;
+  const showDiffusionTab = isLocalMode && isDiffusionModel;
+  const showAudioTTSTab = isLocalMode && pipelineIsTTS;
+  const showAudioSTTTab = isLocalMode && pipelineIsSTT;
 
   const isActiveModelDifferent = useMemo(() => {
     if (!models || !experimentReady) return true;
@@ -186,7 +182,7 @@ function ExperimentMenuItems({
       }}
     >
       <>
-        {!isS3Mode && (
+        {isLocalMode && (
           <SubNavItem
             title="Foundation"
             path="/experiment/model"
@@ -197,9 +193,15 @@ function ExperimentMenuItems({
         {showInteractTab && (
           <SubNavItem
             title="Interact"
-            path="/experiment/chat"
-            icon={<MessageCircleIcon strokeWidth={9} />}
-            disabled={disableInteract}
+            path={isLocalMode ? '/experiment/chat' : '/experiment/interactive'}
+            icon={
+              isLocalMode ? (
+                <MessageCircleIcon strokeWidth={9} />
+              ) : (
+                <CodeIcon strokeWidth={1} />
+              )
+            }
+            disabled={isLocalMode ? disableInteract : !experimentReady}
           />
         )}
         {showDiffusionTab && (
@@ -226,7 +228,7 @@ function ExperimentMenuItems({
             disabled={disableInteract}
           />
         )}
-        {!isS3Mode && (
+        {isLocalMode && (
           <SubNavItem
             title="Train"
             path="/experiment/training"
@@ -234,7 +236,7 @@ function ExperimentMenuItems({
             disabled={!experimentReady}
           />
         )}
-        {hasProviders && (
+        {!isLocalMode && (
           <SubNavItem
             title="Tasks"
             path="/experiment/tasks"
@@ -242,7 +244,7 @@ function ExperimentMenuItems({
             disabled={!experimentReady}
           />
         )}
-        {!isS3Mode && (
+        {isLocalMode && (
           <SubNavItem
             title="Generate"
             path="/experiment/generate"
@@ -250,7 +252,7 @@ function ExperimentMenuItems({
             disabled={!experimentReady}
           />
         )}
-        {!isS3Mode && (
+        {isLocalMode && (
           <SubNavItem
             title="Evaluate"
             path="/experiment/eval"
@@ -264,7 +266,7 @@ function ExperimentMenuItems({
           icon={<FileIcon />}
           disabled={!experimentReady}
         />
-        {!isS3Mode && (
+        {isLocalMode && (
           <SubNavItem
             title="Export"
             path="/experiment/export"
@@ -285,18 +287,16 @@ function ExperimentMenuItems({
 
 interface GlobalMenuItemsProps {
   outdatedPluginsCount: number | undefined;
-  mode: string;
   hasProviders: boolean;
   experimentInfo: any;
 }
 
 function GlobalMenuItems({
   outdatedPluginsCount,
-  mode,
   hasProviders,
   experimentInfo,
 }: GlobalMenuItemsProps) {
-  const isS3Mode = mode === 's3';
+  const isLocalMode = window?.platform?.multiuser !== true;
   return (
     <List
       sx={{
@@ -310,14 +310,14 @@ function GlobalMenuItems({
 
       <SubNavItem title="Model Registry" path="/zoo" icon={<BoxesIcon />} />
       <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
-      {hasProviders && (
+      {!isLocalMode && (
         <SubNavItem
           title="Tasks Gallery"
           path="/tasks-gallery"
           icon={<StretchHorizontalIcon />}
         />
       )}
-      {!isS3Mode && (
+      {isLocalMode && (
         <SubNavItem
           title="API"
           path="/api"
@@ -325,10 +325,10 @@ function GlobalMenuItems({
           disabled={!experimentInfo?.name}
         />
       )}
-      {!isS3Mode && (
+      {isLocalMode && (
         <SubNavItem title="Logs" path="/logs" icon={<TextIcon />} />
       )}
-      {!isS3Mode && (
+      {isLocalMode && (
         <SubNavItem
           title="Plugins"
           path="/plugins"
@@ -336,10 +336,10 @@ function GlobalMenuItems({
           counter={outdatedPluginsCount}
         />
       )}
-      {hasProviders && (
+      {!isLocalMode && (
         <SubNavItem title="Compute" path="/compute" icon={<MonitorIcon />} />
       )}
-      {!isS3Mode && (
+      {isLocalMode && (
         <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
       )}
     </List>
@@ -409,10 +409,8 @@ export default function Sidebar({
   const { experimentInfo } = useExperimentInfo();
   const { models } = useModelStatus();
   const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
-  const [mode, setMode] = useState<string>('local');
 
   const navigate = useNavigate();
-  const isDevExperiment = experimentInfo?.name === 'dev';
 
   const { team } = useAuth();
 
@@ -427,22 +425,6 @@ export default function Sidebar({
   );
 
   const hasProviders = providers.length > 0;
-
-  // Fetch healthz to get the mode
-  useEffect(() => {
-    const fetchHealthz = async () => {
-      try {
-        const data = await apiHealthz();
-        if (data?.mode) {
-          setMode(data.mode);
-        }
-      } catch (error) {
-        console.error('Failed to fetch healthz data:', error);
-      }
-    };
-
-    fetchHealthz();
-  }, []);
 
   return (
     <Sheet
@@ -474,18 +456,13 @@ export default function Sidebar({
       }}
     >
       <SelectExperimentMenu models={models} />
-      <ExperimentMenuItems
-        experimentInfo={experimentInfo}
-        models={models}
-        mode={mode}
-      />
+      <ExperimentMenuItems experimentInfo={experimentInfo} models={models} />
       <GlobalMenuItems
         outdatedPluginsCount={outdatedPlugins?.length}
-        mode={mode}
         hasProviders={hasProviders}
         experimentInfo={experimentInfo}
       />
-      {process.env.MULTIUSER === 'true' && <LoginChip />}
+      {window?.platform?.multiuser === true && <LoginChip />}
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
     </Sheet>
   );

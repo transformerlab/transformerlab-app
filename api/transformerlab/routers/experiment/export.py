@@ -4,6 +4,7 @@ import time
 import asyncio
 import subprocess
 import sys
+from typing import Optional
 
 from fastapi import APIRouter
 
@@ -27,7 +28,8 @@ async def run_exporter_script(
     plugin_architecture: str,
     plugin_params: str = "{}",
     job_id: str = None,
-    org_id: str = None,
+    org_id: Optional[str] = None,
+    user_id: Optional[str] = None,
 ):
     """
     plugin_name: the id of the exporter plugin to run
@@ -37,7 +39,7 @@ async def run_exporter_script(
     """
 
     # Load experiment details into config
-    experiment_details = experiment_get(id=id)
+    experiment_details = await experiment_get(id=id)
     if experiment_details is None:
         return {"message": f"Experiment {id} does not exist"}
 
@@ -93,13 +95,14 @@ async def run_exporter_script(
         output_filename = "."
 
     # Figure out plugin and model output directories
-    script_directory = lab_dirs.plugin_dir_by_name(plugin_name)
+    script_directory = await lab_dirs.plugin_dir_by_name(plugin_name)
 
     output_model_id = secure_filename(output_model_id)
 
     from lab.dirs import get_models_dir
 
-    output_path = storage.join(get_models_dir(), output_model_id)
+    models_dir = await get_models_dir()
+    output_path = storage.join(models_dir, output_model_id)
 
     # Create a job in the DB with the details of this export (only if job_id not provided)
     if job_id is None:
@@ -115,7 +118,9 @@ async def run_exporter_script(
             params=params,
         )
         job_data_json = json.dumps(job_data)
-        job_id = job_create(type="EXPORT", status="Started", experiment_id=experiment_name, job_data=job_data_json)
+        job_id = await job_create(
+            type="EXPORT", status="Started", experiment_id=experiment_name, job_data=job_data_json
+        )
         return job_id
 
     # Setup arguments to pass to plugin
@@ -145,18 +150,46 @@ async def run_exporter_script(
     subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + args
 
     # Prepare environment variables for subprocess
-    # Pass organization_id via environment variable if provided
+    # Pass organization_id and user_id via environment variable
+    # Priority: use org_id parameter, then try to get from workspace
     process_env = None
-    if org_id:
+    team_id = org_id
+    if not team_id:
+        # Try to get org_id from workspace path
+        from lab.dirs import get_workspace_dir
+
+        workspace_dir = await get_workspace_dir()
+        if "/orgs/" in workspace_dir:
+            team_id = workspace_dir.split("/orgs/")[-1].split("/")[0]
+
+    if team_id:
         process_env = os.environ.copy()
-        process_env["_TFL_ORG_ID"] = org_id
+        process_env["_TFL_ORG_ID"] = team_id
+
+    # Get user_id: from parameter or job_data (for calls from shared.run_job)
+    resolved_user_id = user_id
+    if not resolved_user_id and job_id:
+        try:
+            job_row = job_get(job_id)
+            job_data = job_row.get("job_data", {})
+            if isinstance(job_data, str):
+                job_data = json.loads(job_data)
+            if isinstance(job_data, dict) and "user_id" in job_data:
+                resolved_user_id = job_data["user_id"]
+        except Exception:
+            pass  # If we can't get job_data, just continue without user_id
+
+    if resolved_user_id:
+        if process_env is None:
+            process_env = os.environ.copy()
+        process_env["_TFL_USER_ID"] = resolved_user_id
 
     try:
         # Get the output file path
         job_output_file = await shared.get_job_output_file_name(job_id, experiment_name=experiment_name)
 
         # Create the output file and run the process with output redirection
-        with storage.open(job_output_file, "w") as f:
+        async with await storage.open(job_output_file, "w") as f:
             process = await asyncio.create_subprocess_exec(
                 *subprocess_command, stdout=f, stderr=subprocess.PIPE, cwd=script_directory, env=process_env
             )
@@ -169,10 +202,10 @@ async def run_exporter_script(
 
             if stderr_str.strip():
                 print(f"Error: {stderr_str}")
-                f.write(f"\nError:\n{stderr_str}")
+                await f.write(f"\nError:\n{stderr_str}")
 
             if process.returncode != 0:
-                job = job_get(job_id)
+                job = await job_get(job_id)
                 experiment_id = job["experiment_id"]
                 await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
                 return {
@@ -182,7 +215,7 @@ async def run_exporter_script(
 
     except Exception as e:
         print(f"Failed to export model. Exception: {e}")
-        job = job_get(job_id)
+        job = await job_get(job_id)
         experiment_id = job["experiment_id"]
         await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
         return {"message": "Failed to export model due to an internal error."}
@@ -207,7 +240,7 @@ async def run_exporter_script(
         },
     }
     model_description_file_path = storage.join(output_path, "index.json")
-    with storage.open(model_description_file_path, "w") as model_description_file:
-        json.dump(model_description, model_description_file)
+    async with await storage.open(model_description_file_path, "w") as model_description_file:
+        await model_description_file.write(json.dumps(model_description, indent=2))
 
     return {"status": "success", "job_id": job_id}

@@ -3,11 +3,14 @@ import json
 import os
 import subprocess
 import sys
+from typing import Optional
 from transformerlab.services.experiment_service import experiment_get
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Header
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from transformerlab.shared import dirs
+from transformerlab.models.users import current_active_user
+from transformerlab.shared.models.models import User
 from lab import Experiment
 from lab import storage
 
@@ -23,19 +26,26 @@ router = APIRouter(prefix="/rag", tags=["rag"])
 
 
 @router.get("/query")
-async def query(experimentId: str, query: str, settings: str = None, rag_folder: str = "rag"):
+async def query(
+    experimentId: str,
+    query: str,
+    settings: str = None,
+    rag_folder: str = "rag",
+    x_team_id: Optional[str] = Header(None, alias="X-Team-Id"),
+    user: User = Depends(current_active_user),
+):
     """Query the RAG engine"""
 
     exp_obj = Experiment(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    experiment_dir = await exp_obj.get_dir()
     documents_dir = storage.join(experiment_dir, "documents")
     documents_dir = storage.join(documents_dir, rag_folder)
     # Basic traversal protection for posix paths
     if not documents_dir.startswith(experiment_dir.rstrip("/") + "/") and documents_dir != experiment_dir:
         return "Error: Invalid RAG folder path"
-    if not storage.exists(documents_dir):
+    if not await storage.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory"
-    experiment_details = experiment_get(id=experimentId)
+    experiment_details = await experiment_get(id=experimentId)
     experiment_config = (
         experiment_details["config"]
         if isinstance(experiment_details["config"], dict)
@@ -70,7 +80,8 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
     # Check if it exists in workspace/plugins:
     from lab.dirs import get_plugin_dir
 
-    plugin_path = os.path.join(get_plugin_dir(), plugin)
+    plugin_dir = await get_plugin_dir()
+    plugin_path = os.path.join(plugin_dir, plugin)
     if not os.path.exists(plugin_path):
         return f"Plugin {plugin} does not exist on the filesystem -- you must install or reinstall this plugin."
 
@@ -101,10 +112,24 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
         print(">Using system python interpreter")
         command = [sys.executable, *params]
 
+    # Prepare environment variables for subprocess
+    # Pass organization_id and user_id via environment variable
+    process_env = None
+    if x_team_id:
+        process_env = os.environ.copy()
+        process_env["_TFL_ORG_ID"] = x_team_id
+    # Get user_id from authenticated user for user-specific configs
+    user_id = str(user.id) if user else None
+    if user_id:
+        if process_env is None:
+            process_env = os.environ.copy()
+        process_env["_TFL_USER_ID"] = user_id
+
     process = await asyncio.create_subprocess_exec(
         *command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env=process_env,
     )
     stdout, stderr = await process.communicate()
     print(stderr)
@@ -127,17 +152,22 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
 
 
 @router.get("/reindex")
-async def reindex(experimentId: str, rag_folder: str = "rag"):
+async def reindex(
+    experimentId: str,
+    rag_folder: str = "rag",
+    x_team_id: Optional[str] = Header(None, alias="X-Team-Id"),
+    user: User = Depends(current_active_user),
+):
     """Reindex the RAG engine"""
 
     exp_obj = Experiment(experimentId)
-    experiment_dir = exp_obj.get_dir()
+    experiment_dir = await exp_obj.get_dir()
     documents_dir = storage.join(experiment_dir, "documents")
     documents_dir = storage.join(documents_dir, secure_filename(rag_folder))
-    if not storage.exists(documents_dir):
+    if not await storage.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory."
 
-    experiment_details = experiment_get(id=experimentId)
+    experiment_details = await experiment_get(id=experimentId)
     experiment_config = (
         experiment_details["config"]
         if isinstance(experiment_details["config"], dict)
@@ -163,7 +193,8 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
     # Check if it exists in workspace/plugins:
     from lab.dirs import get_plugin_dir
 
-    plugin_path = os.path.join(get_plugin_dir(), plugin)
+    plugin_dir = await get_plugin_dir()
+    plugin_path = os.path.join(plugin_dir, plugin)
     if not os.path.exists(plugin_path):
         return f"Plugin {plugin} does not exist on the filesystem -- you must install or reinstall this plugin."
 
@@ -190,10 +221,25 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
     else:
         print(">Using system python interpreter")
         command = [sys.executable, *params]
+
+    # Prepare environment variables for subprocess
+    # Pass organization_id and user_id via environment variable
+    process_env = None
+    if x_team_id:
+        process_env = os.environ.copy()
+        process_env["_TFL_ORG_ID"] = x_team_id
+    # Get user_id from authenticated user for user-specific configs
+    user_id = str(user.id) if user else None
+    if user_id:
+        if process_env is None:
+            process_env = os.environ.copy()
+        process_env["_TFL_USER_ID"] = user_id
+
     process = await asyncio.create_subprocess_exec(
         *command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env=process_env,
     )
     stdout, stderr = await process.communicate()
     print(stderr)
@@ -220,7 +266,7 @@ async def embed_text(request: EmbedRequest):
     """Embed text using the embedding model using sentence transformers"""
     from sentence_transformers import SentenceTransformer
 
-    experiment_details = experiment_get(id=request.experiment_id)
+    experiment_details = await experiment_get(id=request.experiment_id)
     experiment_config = (
         experiment_details["config"]
         if isinstance(experiment_details["config"], dict)

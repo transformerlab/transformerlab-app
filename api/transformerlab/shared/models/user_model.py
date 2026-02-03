@@ -7,21 +7,16 @@ from fastapi_users.db import SQLAlchemyUserDatabase
 from sqlalchemy.dialects.sqlite import insert
 from fastapi import Depends
 from os import getenv
+import uuid
 
 from transformerlab.db.constants import DATABASE_URL
-from transformerlab.shared.models.models import Base, Team, User, OAuthAccount
-from transformerlab.shared.s3_bucket import create_s3_bucket_for_team
+from transformerlab.shared.models.models import Team, User, OAuthAccount
+from transformerlab.shared.remote_workspace import create_bucket_for_team
 
 
 # 3. Setup the Async Engine and Session
 engine = create_async_engine(DATABASE_URL)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-
-# 4. Utility to create tables (run this on app startup)
-async def create_db_and_tables():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
 
 
 # 5. Database session dependency
@@ -30,7 +25,18 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-# 6. Custom User Database with OAuth support (REQUIRED!)
+# 6. Verification function to ensure user_id exists (no foreign key constraint)
+async def verify_user_exists(session: AsyncSession, user_id: uuid.UUID) -> bool:
+    """
+    Verify that a user_id exists in the user table.
+    Used to ensure data integrity without foreign key constraints.
+    """
+    stmt = select(User).where(User.id == user_id)
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none() is not None
+
+
+# 7. Custom User Database with OAuth support (REQUIRED!)
 class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
     """
     Extended SQLAlchemyUserDatabase with OAuth support.
@@ -52,15 +58,20 @@ class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
             .where(OAuthAccount.oauth_name == oauth, OAuthAccount.account_id == account_id)
         )
         result = await self.session.execute(statement)
-        # The unique() is used to ensure that we only get one user back. The `lazy=joined` in the table definition makes sure it returns a collection and we need to pick a single user.
-        user = result.unique().scalar_one_or_none()
+        user = result.scalar_one_or_none()
         return user
 
     async def add_oauth_account(self, user, create_dict: dict):
         """
         Override add_oauth_account to perform upsert instead of insert to handle
         IntegrityError when re-authenticating after revoking OAuth access.
+        Verifies user exists before adding OAuth account (no foreign key constraint).
         """
+        # Verify user exists (no foreign key constraint, so we check manually)
+        user_exists = await verify_user_exists(self.session, user.id)
+        if not user_exists:
+            raise ValueError(f"User with id {user.id} does not exist")
+
         # Perform an upsert: insert if not exists, update if conflict on unique constraint
         stmt = (
             insert(OAuthAccount)
@@ -71,19 +82,16 @@ class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
             )
         )
         await self.session.execute(stmt)
-
-        # Refresh the user to include the updated oauth_accounts
-        await self.session.refresh(user)
         return user
 
 
-# 7. Get user database dependency (REQUIRED!)
+# 8. Get user database dependency (REQUIRED!)
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
     """Provides database access for users and OAuth accounts"""
     yield SQLAlchemyUserDatabaseWithOAuth(session, User, OAuthAccount)
 
 
-# 8. Create personal team for user
+# 9. Create personal team for user
 async def create_personal_team(session: AsyncSession, user) -> Team:
     """
     Create a personal team for the user named "Username's Team".
@@ -112,7 +120,7 @@ async def create_personal_team(session: AsyncSession, user) -> Team:
     # Create S3 bucket if TFL_API_STORAGE_URI is set
     if getenv("TFL_API_STORAGE_URI"):
         try:
-            create_s3_bucket_for_team(team.id, profile_name="transformerlab-s3")
+            create_bucket_for_team(team.id, profile_name="transformerlab-s3")
         except Exception as e:
             # Log error but don't fail team creation if bucket creation fails
             print(f"Warning: Failed to create S3 bucket for team {team.id}: {e}")

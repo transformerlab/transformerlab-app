@@ -1,20 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
+from transformerlab.utils.api_key_utils import mask_key
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole, TeamInvitation, InvitationStatus
 from transformerlab.models.users import current_active_user
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
-from transformerlab.shared.s3_bucket import create_s3_bucket_for_team
+from transformerlab.shared.remote_workspace import create_bucket_for_team
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from sqlalchemy import select, delete, update, func, and_
 from datetime import datetime, timedelta
 from os import getenv
 from PIL import Image
 import io
+import json
+import logging
 
 from lab import Experiment
 from lab.dirs import set_organization_id, get_workspace_dir
@@ -69,6 +72,10 @@ class GitHubPATRequest(BaseModel):
     pat: Optional[str] = None
 
 
+class TeamSecretsRequest(BaseModel):
+    secrets: dict[str, str] = Field(..., description="Team secrets as key-value pairs")
+
+
 router = APIRouter(tags=["teams"])
 
 
@@ -93,7 +100,7 @@ async def create_team(
     # Create S3 bucket if TFL_API_STORAGE_URI is set
     if getenv("TFL_API_STORAGE_URI"):
         try:
-            create_s3_bucket_for_team(team.id, profile_name="transformerlab-s3")
+            create_bucket_for_team(team.id, profile_name="transformerlab-s3")
         except Exception as e:
             # Log error but don't fail team creation if bucket creation fails
             print(f"Warning: Failed to create S3 bucket for team {team.id}: {e}")
@@ -107,12 +114,12 @@ async def create_team(
         set_organization_id(team.id)
 
         # Create the default experiment
-        Experiment("alpha", create_new=True)
+        await Experiment.create_or_get("alpha", create_new=True)
 
         # Save logo if provided
         if logo:
             try:
-                workspace_dir = get_workspace_dir()
+                workspace_dir = await get_workspace_dir()
                 logo_path = storage.join(workspace_dir, "logo.png")
 
                 # Validate content type
@@ -172,7 +179,7 @@ async def create_team(
                     image = image.convert("RGB")
 
                 # Save as PNG
-                with storage.open(logo_path, "wb") as f:
+                async with await storage.open(logo_path, "wb") as f:
                     image.save(f, format="PNG")
             except HTTPException:
                 # Re-raise HTTPExceptions (validation errors)
@@ -381,8 +388,9 @@ async def invite_member(
                 raise HTTPException(status_code=400, detail=str(e))
             except (ConnectionError, RuntimeError) as e:
                 # Log warning but don't fail the invitation
+                logging.warning("Failed to send invitation email", exc_info=e)
                 email_sent = False
-                email_error = str(e)
+                email_error = "Failed to send invitation email"
 
             return {
                 "message": "Invitation renewed and resent",
@@ -412,9 +420,10 @@ async def invite_member(
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=str(e))
             except (ConnectionError, RuntimeError) as e:
+                logging.warning("Failed to send invitation email", exc_info=e)
                 # Log warning but don't fail the invitation
                 email_sent = False
-                email_error = str(e)
+                email_error = "Failed to send invitation email"
 
             return {
                 "message": "Invitation already exists and was resent",
@@ -460,8 +469,9 @@ async def invite_member(
         raise HTTPException(status_code=400, detail=str(e))
     except (ConnectionError, RuntimeError) as e:
         # Log warning but don't fail the invitation
+        logging.warning("Failed to send invitation email", exc_info=e)
         email_sent = False
-        email_error = str(e)
+        email_error = "Failed to send invitation email"
 
     return {
         "message": "Invitation created successfully",
@@ -824,22 +834,22 @@ async def get_github_pat(
     if team_id != user_and_team["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     pat_path = storage.join(workspace_dir, "github_pat.txt")
 
-    if storage.exists(pat_path):
+    if await storage.exists(pat_path):
         try:
-            with storage.open(pat_path, "r") as f:
-                pat = f.read().strip()
+            async with await storage.open(pat_path, "r") as f:
+                pat = (await f.read()).strip()
                 if pat:
                     # Return masked version for security (only show last 4 chars)
-                    masked_pat = "*" * (len(pat) - 4) + pat[-4:] if len(pat) > 4 else "*" * len(pat)
+                    masked_pat = mask_key(pat)
                     return {"status": "success", "pat_exists": True, "masked_pat": masked_pat}
         except Exception as e:
             print(f"Error reading GitHub PAT: {e}")
             return {"status": "error", "message": "Failed to read GitHub PAT"}
 
-    return {"status": "success", "pat_exists": False}
+    return {"status": "error", "message": "GitHub PAT not found"}
 
 
 @router.put("/teams/{team_id}/github_pat")
@@ -857,20 +867,20 @@ async def set_github_pat(
     if team_id != owner_info["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     pat_path = storage.join(workspace_dir, "github_pat.txt")
 
     try:
         pat = pat_data.pat
         if pat and pat.strip():
             # Store the PAT
-            with storage.open(pat_path, "w") as f:
-                f.write(pat.strip())
+            async with await storage.open(pat_path, "w") as f:
+                await f.write(pat.strip())
             return {"status": "success", "message": "GitHub PAT saved successfully"}
         else:
             # Remove the PAT if empty string is provided
-            if storage.exists(pat_path):
-                storage.rm(pat_path)
+            if await storage.exists(pat_path):
+                await storage.rm(pat_path)
             return {"status": "success", "message": "GitHub PAT removed successfully"}
     except Exception as e:
         print(f"Error saving GitHub PAT: {e}")
@@ -890,10 +900,10 @@ async def get_team_logo(
     if team_id != user_and_team["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     logo_path = storage.join(workspace_dir, "logo.png")
 
-    if not storage.exists(logo_path):
+    if not await storage.exists(logo_path):
         raise HTTPException(status_code=404, detail="Team logo not found")
 
     try:
@@ -902,8 +912,8 @@ async def get_team_logo(
             return FileResponse(logo_path, media_type="image/png")
         else:
             # For remote storage, read and return as bytes
-            with storage.open(logo_path, "rb") as f:
-                return Response(content=f.read(), media_type="image/png")
+            async with await storage.open(logo_path, "rb") as f:
+                return Response(content=await f.read(), media_type="image/png")
     except Exception as e:
         print(f"Error reading team logo: {e}")
         raise HTTPException(status_code=500, detail="Failed to read team logo")
@@ -923,7 +933,7 @@ async def set_team_logo(
     if team_id != owner_info["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     logo_path = storage.join(workspace_dir, "logo.png")
 
     try:
@@ -983,7 +993,7 @@ async def set_team_logo(
             image = image.convert("RGB")
 
         # Save as PNG
-        with storage.open(logo_path, "wb") as f:
+        async with await storage.open(logo_path, "wb") as f:
             image.save(f, format="PNG")
 
         return {"status": "success", "message": "Team logo saved successfully"}
@@ -1004,13 +1014,109 @@ async def delete_team_logo(
     if team_id != owner_info["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     logo_path = storage.join(workspace_dir, "logo.png")
 
     try:
-        if storage.exists(logo_path):
-            storage.rm(logo_path)
+        if await storage.exists(logo_path):
+            await storage.rm(logo_path)
         return {"status": "success", "message": "Team logo deleted successfully"}
     except Exception as e:
         print(f"Error deleting team logo: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete team logo")
+
+
+@router.get("/teams/{team_id}/secrets")
+async def get_team_secrets(
+    team_id: str,
+    user_and_team=Depends(get_user_and_team),
+    include_values: bool = Query(False, description="Include actual secret values (only for team owners)"),
+):
+    """
+    Get team secrets.
+    - Team members can view secret keys only (values are masked).
+    - Team owners can view actual values by setting include_values=true.
+    """
+    # Verify team_id matches the one in header
+    if team_id != user_and_team["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, "team_secrets.json")
+
+    try:
+        if not await storage.exists(secrets_path):
+            return {"status": "success", "secrets": {}}
+
+        async with await storage.open(secrets_path, "r") as f:
+            secrets = json.loads(await f.read())
+
+        # Check if user is team owner and requested values
+        is_owner = user_and_team.get("role") == TeamRole.OWNER.value
+        if include_values and is_owner:
+            # Return actual values for team owners
+            return {
+                "status": "success",
+                "secrets": secrets,
+                "secret_keys": list(secrets.keys()),
+            }
+        else:
+            # Mask all secret values for security
+            masked_secrets = {key: "***" for key in secrets.keys()}
+            return {
+                "status": "success",
+                "secrets": masked_secrets,
+                "secret_keys": list(secrets.keys()),
+            }
+    except Exception as e:
+        print(f"Error reading team secrets: {e}")
+        raise HTTPException(status_code=500, detail="Failed to read team secrets")
+
+
+@router.put("/teams/{team_id}/secrets")
+async def set_team_secrets(
+    team_id: str,
+    secrets_data: TeamSecretsRequest,
+    owner_info=Depends(require_team_owner),
+):
+    """
+    Set team secrets. Only team owners can set/update secrets.
+    Stored in workspace/team_secrets.json file.
+    """
+    # Verify team_id matches the one in header
+    if team_id != owner_info["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, "team_secrets.json")
+
+    try:
+        # Validate that all keys are valid environment variable names
+        # Environment variable names can contain letters, numbers, and underscores
+        import re
+
+        valid_key_pattern = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+        for key in secrets_data.secrets.keys():
+            if not valid_key_pattern.match(key):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid secret key '{key}'. Secret keys must start with a letter or underscore and contain only letters, numbers, and underscores.",
+                )
+
+        # Ensure workspace directory exists
+        await storage.makedirs(workspace_dir, exist_ok=True)
+
+        # Write secrets to file
+        async with await storage.open(secrets_path, "w") as f:
+            await f.write(json.dumps(secrets_data.secrets, indent=2))
+
+        return {
+            "status": "success",
+            "message": "Team secrets saved successfully",
+            "secret_keys": list(secrets_data.secrets.keys()),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving team secrets: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save team secrets")

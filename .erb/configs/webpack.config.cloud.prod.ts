@@ -9,7 +9,7 @@ import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 import CssMinimizerPlugin from 'css-minimizer-webpack-plugin';
 import { merge } from 'webpack-merge';
-import TerserPlugin from 'terser-webpack-plugin';
+import { EsbuildPlugin } from 'esbuild-loader';
 import baseConfig from './webpack.config.base';
 import webpackPaths from './webpack.paths';
 import checkNodeEnv from '../scripts/check-node-env';
@@ -23,7 +23,7 @@ const configuration: webpack.Configuration = {
 
   mode: 'production',
 
-  target: ['web', 'electron-renderer'],
+  target: 'web',
 
   entry: [
     path.join(webpackPaths.srcMainPath, 'preload-cloud.ts'),
@@ -33,7 +33,8 @@ const configuration: webpack.Configuration = {
   output: {
     path: webpackPaths.distCloudPath,
     publicPath: './',
-    filename: 'renderer.js',
+    // Use [name] so Webpack can create multiple files
+    filename: '[name].js',
     library: {
       type: 'umd',
     },
@@ -91,12 +92,48 @@ const configuration: webpack.Configuration = {
           'file-loader',
         ],
       },
+      {
+        test: /[\\/]node_modules[\\/]react-icons[\\/].+\.js$/,
+        resolve: {
+          fullySpecified: false,
+        },
+        sideEffects: false, // ⬅️ THIS IS THE MAGIC LINE
+      },
     ],
   },
 
   optimization: {
     minimize: true,
-    minimizer: [new TerserPlugin(), new CssMinimizerPlugin()],
+    sideEffects: true, // Tell webpack to respect the "sideEffects" flag in package.json
+    usedExports: true, // Tell webpack to determine used exports for each module
+    minimizer: [
+      new EsbuildPlugin({
+        target: 'es2020',
+        css: true,
+      }),
+      new CssMinimizerPlugin(),
+    ],
+    splitChunks: {
+      chunks: 'all',
+      maxInitialRequests: 25, // Allow more concurrent downloads
+      minSize: 20000, // Only split if the chunk is >20KB
+      cacheGroups: {
+        defaultVendors: {
+          test: /[\\/]node_modules[\\/]/,
+          priority: -10,
+          reuseExistingChunk: true,
+          name(module: any) {
+            const moduleContext = module.context || '';
+            const match = moduleContext.match(
+              /[\\/]node_modules[\\/](.*?)([\\/]|$)/,
+            );
+            const packageName = match ? match[1] : 'external';
+
+            return `npm.${packageName.replace('@', '')}`;
+          },
+        },
+      },
+    },
   },
 
   plugins: [
@@ -116,6 +153,8 @@ const configuration: webpack.Configuration = {
       TL_API_URL: '',
       TL_FORCE_API_URL: 'false',
       EMAIL_AUTH_ENABLED: 'true',
+      SENTRY_DSN: '',
+      SENTRY_ENABLE_TRACING: 'false',
     }),
 
     new MiniCssExtractPlugin({

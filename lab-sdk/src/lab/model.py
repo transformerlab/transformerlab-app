@@ -4,13 +4,17 @@ from werkzeug.utils import secure_filename
 from .dirs import get_models_dir
 from .labresource import BaseLabResource
 from . import storage
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Model(BaseLabResource):
-    def get_dir(self):
+    async def get_dir(self):
         """Abstract method on BaseLabResource"""
         model_id_safe = secure_filename(str(self.id))
-        return storage.join(get_models_dir(), model_id_safe)
+        models_dir = await get_models_dir()
+        return storage.join(models_dir, model_id_safe)
 
     def _default_json(self):
         # Default metadata modeled after API model table fields
@@ -20,7 +24,7 @@ class Model(BaseLabResource):
             "json_data": {},
         }
 
-    def set_metadata(
+    async def set_metadata(
         self,
         *,
         model_id: str | None = None,
@@ -28,7 +32,7 @@ class Model(BaseLabResource):
         json_data: dict | None = None,
     ):
         """Set model metadata, similar to dataset service"""
-        data = self.get_json_data()
+        data = await self.get_json_data()
         if model_id is not None:
             data["model_id"] = model_id
         if name is not None:
@@ -40,42 +44,42 @@ class Model(BaseLabResource):
                 current = {}
             current.update(json_data)
             data["json_data"] = current
-        self._set_json_data(data)
+        await self._set_json_data(data)
 
-    def get_metadata(self):
+    async def get_metadata(self):
         """Get model metadata"""
-        return self.get_json_data()
+        return await self.get_json_data()
 
     @staticmethod
-    def list_all():
+    async def list_all():
         """List all models in the filesystem, similar to dataset service"""
         results = []
-        models_dir = get_models_dir()
-        if not storage.isdir(models_dir):
+        models_dir = await get_models_dir()
+        if not await storage.isdir(models_dir):
             return results
         try:
-            entries = storage.ls(models_dir, detail=False)
+            entries = await storage.ls(models_dir, detail=False)
         except Exception:
             entries = []
         for full in entries:
-            if not storage.isdir(full):
+            if not await storage.isdir(full):
                 continue
             # Attempt to read index.json (or latest snapshot)
             try:
                 entry = full.rstrip("/").split("/")[-1]
                 model = Model(entry)
-                results.append(model.get_metadata())
+                results.append(await model.get_metadata())
             except Exception:
                 continue
         return results
 
-    def import_model(self, model_name, model_path):
+    async def import_model(self, model_name, model_path):
         """
         Given a model name and path, create a new model that can be used in the workspace.
         """
-        self.generate_model_json(model_name, model_path)
+        await self.generate_model_json(model_name, model_path)
 
-    def detect_architecture(self, model_path: str) -> str:
+    async def detect_architecture(self, model_path: str) -> str:
         """
         Detect the model architecture from a model directory's config.json.
 
@@ -87,12 +91,13 @@ class Model(BaseLabResource):
         """
         architecture = "Unknown"
 
-        if storage.isdir(model_path):
+        if await storage.isdir(model_path):
             config_path = storage.join(model_path, "config.json")
-            if storage.exists(config_path):
+            if await storage.exists(config_path):
                 try:
-                    with storage.open(config_path, "r") as f:
-                        config = json.load(f)
+                    async with await storage.open(config_path, "r") as f:
+                        content = await f.read()
+                        config = json.loads(content)
                         architectures = config.get("architectures", [])
                         if architectures:
                             architecture = architectures[0]
@@ -118,10 +123,10 @@ class Model(BaseLabResource):
             model_info = api.model_info(parent_model)
             return model_info.pipeline_tag
         except Exception as e:
-            print(f"Could not fetch pipeline tag from parent model '{parent_model}': {type(e).__name__}: {e}")
+            logger.error(f"Could not fetch pipeline tag from parent model '{parent_model}': {type(e).__name__}: {e}")
             return None
 
-    def create_md5_checksums(self, model_path: str) -> list:
+    async def create_md5_checksums(self, model_path: str) -> list:
         """
         Create MD5 checksums for all files in the model directory.
 
@@ -133,45 +138,46 @@ class Model(BaseLabResource):
         """
         import hashlib
 
-        def compute_md5(file_path):
+        async def compute_md5(file_path):
             md5 = hashlib.md5()
-            with storage.open(file_path, "rb") as f:
-                while chunk := f.read(8192):
+            async with await storage.open(file_path, "rb") as f:
+                while chunk := await f.read(8192):
                     md5.update(chunk)
             return md5.hexdigest()
 
         md5_objects = []
 
-        if not storage.isdir(model_path):
-            print(f"Model path '{model_path}' is not a directory, skipping MD5 checksum creation")
+        if not await storage.isdir(model_path):
+            logger.warning(f"Model path '{model_path}' is not a directory, skipping MD5 checksum creation")
             return md5_objects
 
         # Use fsspec's walk equivalent for directory traversal
         try:
-            files = storage.find(model_path)
+            files = await storage.find(model_path)
             for file_path in files:
                 try:
-                    md5_hash = compute_md5(file_path)
+                    md5_hash = await compute_md5(file_path)
                     md5_objects.append({"file_path": file_path, "md5_hash": md5_hash})
                 except Exception as e:
-                    print(f"Warning: Could not compute MD5 for {file_path}: {str(e)}")
+                    logger.warning(f"Warning: Could not compute MD5 for {file_path}: {str(e)}")
         except Exception:
             # Fallback: if find doesn't work, try listing the directory
             try:
-                entries = storage.ls(model_path, detail=False)
+                entries = await storage.ls(model_path, detail=False)
                 for entry in entries:
-                    if storage.isfile(entry):
+                    if await storage.isfile(entry):
                         try:
-                            md5_hash = compute_md5(entry)
+                            md5_hash = await compute_md5(entry)
                             md5_objects.append({"file_path": entry, "md5_hash": md5_hash})
                         except Exception as e:
-                            print(f"Warning: Could not compute MD5 for {entry}: {str(e)}")
+                            logger.warning(f"Warning: Could not compute MD5 for {entry}: {str(e)}")
             except Exception:
+                logger.warning(f"Warning: Failed to get directory listing: {model_path}")
                 pass
 
         return md5_objects
 
-    def create_provenance_file(
+    async def create_provenance_file(
         self,
         model_path: str,
         model_name: str = None,
@@ -223,12 +229,12 @@ class Model(BaseLabResource):
 
         # Write provenance to file
         provenance_path = storage.join(model_path, "_tlab_provenance.json")
-        with storage.open(provenance_path, "w") as f:
-            json.dump(final_provenance, f, indent=2)
+        async with await storage.open(provenance_path, "w") as f:
+            await f.write(json.dumps(final_provenance, indent=2))
 
         return provenance_path
 
-    def generate_model_json(
+    async def generate_model_json(
         self,
         architecture: str,
         model_filename: str = "",
@@ -265,7 +271,8 @@ class Model(BaseLabResource):
         model_description["json_data"].update(json_data)
 
         # Output the json to the file
-        with storage.open(storage.join(self.get_dir(), "index.json"), "w") as outfile:
-            json.dump(model_description, outfile)
+        model_dir = await self.get_dir()
+        async with await storage.open(storage.join(model_dir, "index.json"), "w") as outfile:
+            await outfile.write(json.dumps(model_description))
 
         return model_description

@@ -9,6 +9,10 @@ import React, {
 import { API_URL, fetcher } from './transformerlab-api-sdk';
 import useSWR from 'swr';
 import { getAPIFullPath, getPath } from './api-client/urls';
+import {
+  identifyUser,
+  resetUser,
+} from '../components/Shared/analytics/AnalyticsContext';
 // Added types
 export type Team = {
   id: string;
@@ -215,7 +219,23 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   // Handle cases where url might be partial or full
   // Ideally fetchWithAuth is passed a relative path, but we handle both.
-  const fullUrl = url.startsWith('http') ? url : `${API_URL()}${url}`;
+  let fullUrl: string;
+  if (url.startsWith('http')) {
+    fullUrl = url;
+  } else {
+    const baseUrl = API_URL();
+    if (baseUrl === null) {
+      // Default to same host as frontend with API port if API_URL is not set
+      // Ensure URL doesn't start with / (baseUrl already has trailing slash)
+      const cleanPath = url.startsWith('/') ? url.slice(1) : url;
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      fullUrl = `${protocol}//${hostname}:8338/${cleanPath}`;
+    } else {
+      // baseUrl already has trailing slash from API_URL()
+      fullUrl = `${baseUrl}${url}`;
+    }
+  }
 
   const headers: Record<string, string> = {
     ...((options.headers as Record<string, string>) || {}),
@@ -336,7 +356,23 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     // Logic to auto-select team if none selected
     const teams = teamsData?.teams;
     if (teams && teams.length > 0) {
-      if (!getCurrentTeam()) {
+      const current = getCurrentTeam();
+
+      // Validate that the current team belongs to the current user
+      if (current) {
+        const updated = teams.find((t: Team) => t.id === current.id);
+        if (!updated) {
+          // Current team doesn't belong to this user - clear it and select first team
+          updateCurrentTeam(teams[0]);
+          setTeamState(teams[0]);
+        } else if (updated.name !== current.name) {
+          // Team name changed (e.g., rename) - update it
+          const next = { id: updated.id, name: updated.name };
+          updateCurrentTeam(next);
+          setTeamState(next);
+        }
+      } else {
+        // No team selected - select the first team
         updateCurrentTeam(teams[0]);
         setTeamState(teams[0]);
       }
@@ -345,7 +381,16 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       updateCurrentTeam(null);
       setTeamState(null);
     }
-  }, [teamsData, token]);
+  }, [teamsData, token, team]);
+
+  // Identify user in analytics when user data is available
+  useEffect(() => {
+    if (user?.id) {
+      identifyUser(user.id, {
+        email: user.email,
+      });
+    }
+  }, [user]);
 
   // Login handler
   const handleLogin = useCallback(
@@ -454,6 +499,7 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       /* ignore errors */
     }
     logoutUser();
+    resetUser();
     setToken(null);
     setTeamState(null);
     if (userMutate) userMutate(null, false);
