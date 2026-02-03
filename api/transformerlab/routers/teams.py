@@ -908,7 +908,7 @@ async def get_team_logo(
 
     try:
         # For local filesystem, return file directly
-        if not workspace_dir.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+        if not storage.is_remote_path(workspace_dir):
             return FileResponse(logo_path, media_type="image/png")
         else:
             # For remote storage, read and return as bytes
