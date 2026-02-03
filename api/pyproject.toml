@@ -33,7 +33,7 @@ dependencies = [
   "soundfile==0.13.1",
   "tensorboardX==2.6.2.2",
   "timm==1.0.15",
-  "transformerlab==0.0.67",
+  "transformerlab==0.0.70",
   "transformerlab-inference==0.2.52",
   "transformers==4.57.1",
   "wandb==0.23.1",
