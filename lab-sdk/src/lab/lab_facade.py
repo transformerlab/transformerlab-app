@@ -271,8 +271,13 @@ class Lab:
             except Exception:
                 return
         for path in files:
-            rel = path[len(task_dir) :].lstrip("/")
-            if not rel:
+            # Compute path relative to task_dir robustly (handles differing slashes/prefixes)
+            try:
+                rel = os.path.relpath(path, task_dir)
+            except ValueError:
+                # If relpath fails (different drives, etc.), skip this entry
+                continue
+            if not rel or rel == ".":
                 continue
             local_path = os.path.join(dest_dir, rel)
             try:
