@@ -245,21 +245,16 @@ class Lab:
     async def _copy_file_mounts_async(self, job_id: str) -> None:
         """Async implementation of copy_file_mounts."""
         job = await Job.get(job_id)
-        print(f"Job: {job}")
         if job is None:
             return
         job_data = await job.get_job_data()
-        print(f"Job data: {job_data}")
         if not isinstance(job_data, dict):
-            print(f"Job data is not a dict: {job_data}")
             return
         task_id = job_data.get("task_id")
-        print(f"Task id: {task_id}")
         if not task_id:
             return
         task_template = TaskTemplate(task_id)
         task_dir = await task_template.get_dir()
-        print(f"Task dir: {task_dir}")
         if not await storage.exists(task_dir):
             return
         dest_dir = os.path.expanduser("~/src")
@@ -275,7 +270,6 @@ class Lab:
 
         try:
             files = await storage.find(task_dir)
-            print(f"Files: {files}")
         except Exception as e:
             print(f"Error finding files: {e}")
             files = []
@@ -289,8 +283,6 @@ class Lab:
                 return
 
         for path in files:
-            print(f"Path: {path}")
-
             # Normalize remote paths returned by storage.find()/walk() to full URIs
             full_path = path
             if is_remote and not path.startswith(remote_prefixes):
@@ -327,9 +319,7 @@ class Lab:
                 continue
 
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
-            print(f"Writing data to {local_path}")
             with open(local_path, "wb") as out:
-                print(f"Writing data to {local_path}")
                 out.write(data)
 
     # ------------- convenience logging -------------
