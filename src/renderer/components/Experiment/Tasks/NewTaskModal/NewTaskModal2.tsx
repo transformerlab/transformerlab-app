@@ -61,9 +61,9 @@ export default function NewTaskModal2({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              git_url: url,
-              git_repo_directory: gitRepoDirectory.trim() || undefined,
-              git_branch: gitBranch.trim() || undefined,
+              github_repo_url: url,
+              github_repo_dir: gitRepoDirectory.trim() || undefined,
+              github_repo_branch: gitBranch.trim() || undefined,
             }),
           },
         );

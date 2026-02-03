@@ -1,7 +1,7 @@
 """
 New task-from-directory flow: from_directory (git or zip), GET/PUT task.yaml.
 We maintain a task.yaml file inside the task directory (human-oriented: name, resources,
-envs, setup, run, git_repo, etc.). GET returns that file; PUT saves to it and syncs index.json.
+envs, setup, run, github_repo_url, github_repo_dir, github_repo_branch, etc.). GET returns that file; PUT saves to it and syncs index.json.
 Task metadata is also in index.json for listing/run.
 Runner uses GET .../task2/{task_id}/directory to fetch task dir as zip for lab.copy_file_mounts().
 """
@@ -54,7 +54,7 @@ async def from_directory(
 ):
     """
     Create a task immediately and return its ID. Accepts either:
-    - JSON body: { "git_url": "https://github.com/...", "git_repo_directory": "optional/subdir", "git_branch": "optional branch/tag/commit" }
+    - JSON body: { "github_repo_url": "https://github.com/...", "github_repo_dir": "optional/subdir", "github_repo_branch": "optional" }
     - Multipart: directory_zip = ZIP file containing a directory with task.yaml (and optionally other files)
 
     The directory must contain task.yaml (no task.json). The task is created (index.json)
@@ -69,12 +69,14 @@ async def from_directory(
 
     if "application/json" in content_type:
         body = await request.json()
-        git_url = (body.get("git_url") or "").strip()
-        git_repo_directory = (body.get("git_repo_directory") or "").strip() or None
-        git_branch = (body.get("git_branch") or "").strip() or None
-        if not git_url:
-            raise HTTPException(status_code=400, detail="git_url is required")
-        task_yaml_content = await fetch_task_yaml_from_github(git_url, directory=git_repo_directory, ref=git_branch)
+        github_repo_url = (body.get("github_repo_url") or "").strip()
+        github_repo_dir = (body.get("github_repo_dir") or "").strip() or None
+        github_repo_branch = (body.get("github_repo_branch") or "").strip() or None
+        if not github_repo_url:
+            raise HTTPException(status_code=400, detail="github_repo_url is required")
+        task_yaml_content = await fetch_task_yaml_from_github(
+            github_repo_url, directory=github_repo_dir, ref=github_repo_branch
+        )
     elif "multipart/form-data" in content_type:
         form = await request.form()
         zip_file = form.get("directory_zip")

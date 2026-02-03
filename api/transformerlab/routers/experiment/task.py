@@ -209,8 +209,9 @@ def _parse_yaml_to_task_data(yaml_content: str) -> dict:
       KEY: value
     setup: "command"
     run: "command"
-    git_repo: "url"
-    git_repo_directory: "dir"
+    github_repo_url: "url"
+    github_repo_dir: "optional/subdir"
+    github_repo_branch: "optional branch/tag"
     parameters: {...}
     sweeps:
       sweep_config: {...}
@@ -264,13 +265,13 @@ def _parse_yaml_to_task_data(yaml_content: str) -> dict:
     if "run" in task_yaml:
         task_data["command"] = str(task_yaml["run"])
 
-    # GitHub
-    if "git_repo" in task_yaml:
-        task_data["github_repo_url"] = str(task_yaml["git_repo"])
-    if "git_repo_directory" in task_yaml:
-        task_data["github_directory"] = str(task_yaml["git_repo_directory"])
-    if "git_repo_branch" in task_yaml:
-        task_data["github_branch"] = str(task_yaml["git_repo_branch"])
+    # GitHub (task.yaml: github_repo_url, github_repo_dir, github_repo_branch; stored as github_directory/github_branch internally)
+    if "github_repo_url" in task_yaml:
+        task_data["github_repo_url"] = str(task_yaml["github_repo_url"])
+    if "github_repo_dir" in task_yaml:
+        task_data["github_directory"] = str(task_yaml["github_repo_dir"])
+    if "github_repo_branch" in task_yaml:
+        task_data["github_branch"] = str(task_yaml["github_repo_branch"])
 
     # Parameters
     if "parameters" in task_yaml:
@@ -378,8 +379,9 @@ async def add_task(
       KEY: value
     setup: "command"
     run: "command"
-    git_repo: "url"
-    git_repo_directory: "dir"
+    github_repo_url: "url"
+    github_repo_dir: "optional/subdir"
+    github_repo_branch: "optional branch/tag"
     parameters: {...}
     sweeps:
       sweep_config: {...}
