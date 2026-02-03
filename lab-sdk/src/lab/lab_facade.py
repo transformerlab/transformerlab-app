@@ -229,7 +229,7 @@ class Lab:
                 content = await f.read()
                 secrets = json.loads(content)
                 return secrets.get(secret_name)
-        except Exception as e:
+        except Exception:
             logger.warning("Failed to load team secret", exc_info=True)
             return None
 
@@ -274,7 +274,7 @@ class Lab:
 
         try:
             files = await storage.find(task_dir)
-        except Exception as e:
+        except Exception:
             logger.info("Failed to find task directory. Using fallback.", exc_info=True)
             files = []
             try:
@@ -282,7 +282,7 @@ class Lab:
                 for root, _dirs, names in walk_gen:
                     for name in names:
                         files.append(storage.join(root, name))
-            except Exception as e:
+            except Exception:
                 logger.error("Failed to read task directory for mounting.", exc_info=True)
                 return
 
@@ -318,7 +318,7 @@ class Lab:
             try:
                 async with await storage.open(full_path, "rb") as f:
                     data = await f.read()
-            except Exception as e:
+            except Exception:
                 logger.error("Error opening path: %s", full_path, exc_info=True)
                 continue
 
@@ -438,7 +438,7 @@ class Lab:
                 return checkpoint_path_normalized
 
             return None
-        except Exception as e:
+        except Exception:
             logger.error("Error getting parent job checkpoint path", exc_info=True)
             return None
 
@@ -901,7 +901,7 @@ class Lab:
         try:
             if hasattr(df, "to_pandas") and callable(getattr(df, "to_pandas")):
                 df = df.to_pandas()
-        except Exception as e:
+        except Exception:
             logger.warning("Failed to convert dataset to pandas DataFrame", exc_info=True)
 
         # Prepare dataset directory
@@ -966,13 +966,13 @@ class Lab:
             logger.warning("Failed to create dataset metadata", exc_info=True)
             try:
                 await self._job.update_job_data_field("dataset_metadata_error", str(e))  # type: ignore[union-attr]
-            except Exception as e2:
+            except Exception:
                 logger.warning("Failed to log dataset metadata error", exc_info=True)
 
         # Track dataset on the job for provenance
         try:
             await self._job.update_job_data_field("dataset_id", dataset_id_safe)  # type: ignore[union-attr]
-        except Exception as e:
+        except Exception:
             logger.warning("Failed to track dataset in job_data", exc_info=True)
 
         logger.info(f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_safe}'")
@@ -1042,7 +1042,7 @@ class Lab:
             ckpt_list.append(dest)
             await self._job.update_job_data_field("checkpoints", ckpt_list)
             await self._job.update_job_data_field("latest_checkpoint", dest)
-        except Exception as e:
+        except Exception:
             logger.warning("Failed to track checkpoint in job_data", exc_info=True)
 
         return dest
