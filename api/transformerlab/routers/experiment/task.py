@@ -199,7 +199,8 @@ async def _resolve_provider(
 def _parse_yaml_to_task_data(yaml_content: str) -> dict:
     """
     Parse YAML content and convert it to the task structure.
-    Expected YAML format (all fields at root level):
+    Title and description are gallery/catalog metadata (from the gallery entry),
+    not part of task.yaml. Expected YAML format (all fields at root level):
     name: task-name
     resources:
       compute_provider: provider-name
