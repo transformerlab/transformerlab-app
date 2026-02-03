@@ -821,6 +821,7 @@ async def export_task_to_team_gallery(
         "config": config,
         "github_repo_url": task.get("github_repo_url"),
         "github_repo_dir": task.get("github_directory"),
+        "github_branch": task.get("github_branch"),
     }
 
     await galleries.add_team_task_to_gallery(gallery_entry)
