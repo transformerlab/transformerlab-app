@@ -23,7 +23,6 @@ import InteractiveJupyterModal from './InteractiveJupyterModal';
 import InteractiveVllmModal from './InteractiveVllmModal';
 import InteractiveSshModal from './InteractiveSshModal';
 import InteractiveOllamaModal from './InteractiveOllamaModal';
-import EditTaskModal from './EditTaskModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -34,6 +33,8 @@ import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
 import ViewJobDatasetsModal from '../Train/ViewJobDatasetsModal';
 import ViewJobModelsModal from '../Train/ViewJobModelsModal';
+import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
+import TaskYamlEditorModal from './TaskYamlEditorModal';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -64,6 +65,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     open: boolean;
     datasetId: string | null;
   }>({ open: false, datasetId: null });
+  const [yamlEditorTaskId, setYamlEditorTaskId] = useState<string | null>(null);
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const { fetchWithAuth, team } = useAuth();
@@ -892,6 +894,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       // Keep original parameters (the definitions/defaults) and send overrides separately
       const payload = {
         experiment_id: experimentInfo.id,
+        task_id: task.id,
         task_name: task.name,
         cluster_name: cfg.cluster_name || task.cluster_name,
         command: cfg.command || task.command,
@@ -982,8 +985,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   };
 
   const handleEditTask = (task: any) => {
-    setTaskBeingEdited(task);
-    setEditModalOpen(true);
+    if (isInteractivePage && (task as any)?.interactive_type) {
+      setTaskBeingEdited(task);
+      setEditModalOpen(true);
+    } else {
+      setYamlEditorTaskId(task?.id ?? null);
+    }
   };
 
   return (
@@ -996,14 +1003,32 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }}
     >
       {!isInteractivePage && (
-        <NewTaskModal
+        // <NewTaskModal
+        //   open={modalOpen}
+        //   onClose={handleClose}
+        //   experimentId={experimentInfo?.id}
+        //   onSubmit={handleSubmit}
+        //   isSubmitting={isSubmitting}
+        //   providers={providers}
+        //   isProvidersLoading={providersIsLoading}
+        // />
+        <NewTaskModal2
           open={modalOpen}
           onClose={handleClose}
-          experimentId={experimentInfo?.id}
-          onSubmit={handleSubmit}
-          isSubmitting={isSubmitting}
-          providers={providers}
-          isProvidersLoading={providersIsLoading}
+          experimentId={experimentInfo?.id ?? ''}
+          onTaskCreated={(taskId) => {
+            setYamlEditorTaskId(taskId);
+            handleClose();
+          }}
+        />
+      )}
+      {experimentInfo?.id && yamlEditorTaskId && (
+        <TaskYamlEditorModal
+          open={Boolean(yamlEditorTaskId)}
+          onClose={() => setYamlEditorTaskId(null)}
+          experimentId={experimentInfo.id}
+          taskId={yamlEditorTaskId}
+          onSaved={() => templatesMutate()}
         />
       )}
       {isInteractivePage && (
@@ -1017,73 +1042,63 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         />
       )}
       {taskBeingEdited &&
-      (taskBeingEdited as any).interactive_type &&
-      isInteractivePage ? (
-        <EditInteractiveTaskModal
-          open={editModalOpen}
-          onClose={handleEditClose}
-          task={taskBeingEdited}
-          providers={providers}
-          isProvidersLoading={providersIsLoading}
-          onSaved={async (updatedBody: any) => {
-            if (!experimentInfo?.id || !taskBeingEdited?.id) {
-              addNotification({
-                type: 'warning',
-                message: 'Missing experiment or task ID',
-              });
-              return;
-            }
-
-            try {
-              const response = await chatAPI.authenticatedFetch(
-                chatAPI.Endpoints.Task.UpdateTemplate(
-                  experimentInfo.id,
-                  taskBeingEdited.id,
-                ),
-                {
-                  method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    accept: 'application/json',
-                  },
-                  body: JSON.stringify(updatedBody),
-                },
-              );
-
-              if (response.ok) {
-                await templatesMutate();
+        (taskBeingEdited as any).interactive_type &&
+        isInteractivePage && (
+          <EditInteractiveTaskModal
+            open={editModalOpen}
+            onClose={handleEditClose}
+            task={taskBeingEdited}
+            providers={providers}
+            isProvidersLoading={providersIsLoading}
+            onSaved={async (updatedBody: any) => {
+              if (!experimentInfo?.id || !taskBeingEdited?.id) {
                 addNotification({
-                  type: 'success',
-                  message: 'Interactive task updated successfully',
+                  type: 'warning',
+                  message: 'Missing experiment or task ID',
                 });
-              } else {
-                const txt = await response.text();
+                return;
+              }
+
+              try {
+                const response = await chatAPI.authenticatedFetch(
+                  chatAPI.Endpoints.Task.UpdateTemplate(
+                    experimentInfo.id,
+                    taskBeingEdited.id,
+                  ),
+                  {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      accept: 'application/json',
+                    },
+                    body: JSON.stringify(updatedBody),
+                  },
+                );
+
+                if (response.ok) {
+                  await templatesMutate();
+                  addNotification({
+                    type: 'success',
+                    message: 'Interactive task updated successfully',
+                  });
+                } else {
+                  const txt = await response.text();
+                  addNotification({
+                    type: 'danger',
+                    message: `Failed to update interactive task: ${txt}`,
+                  });
+                }
+              } catch (error) {
+                console.error('Error updating interactive task:', error);
                 addNotification({
                   type: 'danger',
-                  message: `Failed to update interactive task: ${txt}`,
+                  message:
+                    'Failed to update interactive task. Please try again.',
                 });
               }
-            } catch (error) {
-              console.error('Error updating interactive task:', error);
-              addNotification({
-                type: 'danger',
-                message: 'Failed to update interactive task. Please try again.',
-              });
-            }
-          }}
-        />
-      ) : (
-        <EditTaskModal
-          open={editModalOpen}
-          onClose={handleEditClose}
-          task={taskBeingEdited}
-          providers={providers}
-          isProvidersLoading={providersIsLoading}
-          onSaved={async () => {
-            await templatesMutate();
-          }}
-        />
-      )}
+            }}
+          />
+        )}
       {taskBeingQueued && (
         <QueueTaskModal
           open={queueModalOpen}

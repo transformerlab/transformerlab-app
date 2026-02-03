@@ -3,8 +3,8 @@ from __future__ import annotations
 import time
 import asyncio
 from typing import Optional, Dict, Any, Union
-import os
 import io
+import os
 import posixpath
 
 from .experiment import Experiment
@@ -13,6 +13,7 @@ from . import dirs
 from .model import Model as ModelService
 from . import storage
 from .dataset import Dataset
+from .task_template import TaskTemplate
 
 
 def _run_async(coro):
@@ -227,6 +228,61 @@ class Lab:
         except Exception as e:
             print(f"Warning: Failed to load team secret: {e}")
             return None
+
+    def copy_file_mounts(self) -> None:
+        """
+        Copy all files in the task directory to ~/src.
+        Uses _TFL_JOB_ID to get the job, reads task_id from job_data, then copies
+        from the task dir (workspace/task/<task_id>) to ~/src. No network/URL;
+        assumes the runner has access to the same storage (e.g. mounted workspace).
+        No-op if _TFL_JOB_ID is not set or job_data has no task_id.
+        """
+        job_id = os.environ.get("_TFL_JOB_ID")
+        if not job_id:
+            return
+        _run_async(self._copy_file_mounts_async(job_id))
+
+    async def _copy_file_mounts_async(self, job_id: str) -> None:
+        """Async implementation of copy_file_mounts."""
+        job = await Job.get(job_id)
+        if job is None:
+            return
+        job_data = await job.get_job_data()
+        if not isinstance(job_data, dict):
+            return
+        task_id = job_data.get("task_id")
+        if not task_id:
+            return
+        task_template = TaskTemplate(task_id)
+        task_dir = await task_template.get_dir()
+        if not await storage.exists(task_dir):
+            return
+        dest_dir = os.path.expanduser("~/src")
+        os.makedirs(dest_dir, exist_ok=True)
+        try:
+            files = await storage.find(task_dir)
+        except Exception:
+            files = []
+            try:
+                walk_gen = await storage.walk(task_dir)
+                for root, _dirs, names in walk_gen:
+                    for name in names:
+                        files.append(storage.join(root, name))
+            except Exception:
+                return
+        for path in files:
+            rel = path[len(task_dir) :].lstrip("/")
+            if not rel:
+                continue
+            local_path = os.path.join(dest_dir, rel)
+            try:
+                async with await storage.open(path, "rb") as f:
+                    data = await f.read()
+            except Exception:
+                continue
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, "wb") as out:
+                out.write(data)
 
     # ------------- convenience logging -------------
     def log(self, message: str) -> None:
