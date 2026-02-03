@@ -41,7 +41,7 @@ from transformerlab.compute_providers.models import (
 from transformerlab.services import job_service
 from transformerlab.services import quota_service
 from lab import storage
-from lab.dirs import get_workspace_dir
+from lab.dirs import get_workspace_dir, get_job_dir
 from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
     generate_github_clone_setup,
@@ -170,10 +170,10 @@ async def create_provider(
     user = owner_info["user"]
 
     # Validate provider type
-    if provider_data.type not in [ProviderType.SLURM, ProviderType.SKYPILOT, ProviderType.RUNPOD]:
+    if provider_data.type not in [ProviderType.SLURM, ProviderType.SKYPILOT, ProviderType.RUNPOD, ProviderType.LOCAL]:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid provider type. Must be one of: {ProviderType.SLURM.value}, {ProviderType.SKYPILOT.value}, {ProviderType.RUNPOD.value}",
+            detail=f"Invalid provider type. Must be one of: {ProviderType.SLURM.value}, {ProviderType.SKYPILOT.value}, {ProviderType.RUNPOD.value}, {ProviderType.LOCAL.value}",
         )
 
     # Check if provider name already exists for this team
@@ -1207,6 +1207,20 @@ async def launch_template_on_provider(
     else:
         parameters_with_secrets = merged_parameters if merged_parameters else None
 
+    # Build provider_config for cluster_config (and job_data for local provider)
+    provider_config_dict = {"requested_disk_space": request.disk_space}
+    if provider.type == ProviderType.LOCAL.value:
+        workspace_root = await get_workspace_dir()
+        if storage.is_remote_path(workspace_root):
+            raise HTTPException(
+                status_code=400,
+                detail="Local provider requires a local workspace (TFL_STORAGE_URI / remote workspace not supported)",
+            )
+        # Use the lab job directory <workspace_dir>/jobs/<job_id>/ as the run workspace
+        job_dir = await get_job_dir(job_id)
+        await storage.makedirs(job_dir, exist_ok=True)
+        provider_config_dict["workspace_dir"] = job_dir
+
     job_data = {
         "task_name": request.task_name,
         "command": command_with_secrets,
@@ -1229,6 +1243,8 @@ async def launch_template_on_provider(
         "team_id": team_id,  # Store team_id for quota tracking
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
+    if provider.type == ProviderType.LOCAL.value and provider_config_dict.get("workspace_dir"):
+        job_data["workspace_dir"] = provider_config_dict["workspace_dir"]
     if request.file_mounts is True and request.task_id:
         job_data["task_id"] = request.task_id
 
@@ -1258,7 +1274,7 @@ async def launch_template_on_provider(
         num_nodes=request.num_nodes,
         disk_size=disk_size,
         file_mounts=file_mounts_for_provider,
-        provider_config={"requested_disk_space": request.disk_space},
+        provider_config=provider_config_dict,
     )
 
     try:
@@ -1385,6 +1401,55 @@ async def check_provider_job_status(
             "job_id": job_id,
             "message": "Failed to instantiate provider",
         }
+
+    # Local provider needs workspace_dir from job_data for status/logs
+    if provider.type == ProviderType.LOCAL.value and job_data.get("workspace_dir"):
+        if hasattr(provider_instance, "extra_config"):
+            provider_instance.extra_config["workspace_dir"] = job_data["workspace_dir"]
+
+    # Local provider: single process per "cluster"; check process status
+    if provider.type == ProviderType.LOCAL.value:
+        try:
+            cluster_status = provider_instance.get_cluster_status(cluster_name)
+            terminal_states_local = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
+            if cluster_status.state in terminal_states_local:
+                try:
+                    end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+                    await job_service.job_update_job_data_insert_key_value(
+                        job_id, "end_time", end_time_str, experiment_id
+                    )
+                    await job_service.job_update_status(
+                        job_id, "COMPLETE", experiment_id=experiment_id, session=session
+                    )
+                    await session.commit()
+                    return {
+                        "status": "success",
+                        "job_id": job_id,
+                        "updated": True,
+                        "new_status": "COMPLETE",
+                        "message": f"Local job finished (status: {cluster_status.state.value})",
+                    }
+                except Exception as exc:
+                    print(f"Failed to update job status: {exc}")
+                    return {
+                        "status": "error",
+                        "job_id": job_id,
+                        "message": "Failed to update job status",
+                    }
+            return {
+                "status": "success",
+                "job_id": job_id,
+                "updated": False,
+                "current_status": "LAUNCHING",
+                "message": f"Local job still running (status: {cluster_status.state.value})",
+            }
+        except Exception as exc:
+            print(f"Failed to check local job status: {exc}")
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": "Failed to check local job status",
+            }
 
     # Runpod doesn't have a job queue - check pod status instead
     if provider.type == ProviderType.RUNPOD.value:
