@@ -265,10 +265,9 @@ class Lab:
         os.makedirs(dest_dir, exist_ok=True)
 
         # Determine if we're working with a remote URI (e.g., s3://)
-        remote_prefixes = ("s3://", "gs://", "gcs://", "abfs://")
-        is_remote = isinstance(task_dir, str) and task_dir.startswith(remote_prefixes)
+        is_remote = storage.is_remote_path(task_dir)
         protocol_prefix = ""
-        if is_remote:
+        if is_remote and isinstance(task_dir, str):
             # Extract protocol, e.g., "s3://"
             protocol_prefix = task_dir.split("://")[0] + "://"
 
@@ -289,7 +288,7 @@ class Lab:
         for path in files:
             # Normalize remote paths returned by storage.find()/walk() to full URIs
             full_path = path
-            if is_remote and not path.startswith(remote_prefixes):
+            if is_remote and isinstance(path, str) and not storage.is_remote_path(path):
                 # For S3/GCS/etc, fsspec.find() often returns keys without protocol
                 full_path = protocol_prefix + path.lstrip("/")
 
@@ -414,9 +413,7 @@ class Lab:
 
             # Security check: ensure the checkpoint path is within the checkpoints directory
             # Handle remote storage URIs (s3://, gs://, etc.) differently from local paths
-            is_remote = checkpoint_path.startswith(("s3://", "gs://", "gcs://", "abfs://"))
-
-            if is_remote:
+            if storage.is_remote_path(checkpoint_path):
                 # For remote storage, normalize only the path portion after the protocol
                 # posixpath.normpath breaks S3 URI format, so we need to handle it manually
                 checkpoint_path_normalized = checkpoint_path.rstrip("/")
@@ -671,8 +668,8 @@ class Lab:
             if not isinstance(source_path, str) or source_path.strip() == "":
                 raise ValueError("source_path must be a non-empty string when type='model'")
             src = source_path
-            # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
-            is_remote = src.startswith(("s3://", "gs://", "abfs://", "gcs://", "http://", "https://"))
+            # For local paths, resolve to absolute path; for remote paths (s3://, etc.) or URLs, use as-is
+            is_remote = storage.is_remote_path(src) or src.startswith(("http://", "https://"))
             if not is_remote:
                 src = os.path.abspath(src)
 
@@ -791,8 +788,8 @@ class Lab:
         if not isinstance(source_path, str) or source_path.strip() == "":
             raise ValueError("source_path must be a non-empty string")
         src = source_path
-        # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
-        is_remote = src.startswith(("s3://", "gs://", "abfs://", "gcs://", "http://", "https://"))
+        # For local paths, resolve to absolute path; for remote paths (s3://, etc.) or URLs, use as-is
+        is_remote = storage.is_remote_path(src) or src.startswith(("http://", "https://"))
         if not is_remote:
             src = os.path.abspath(src)
 
@@ -996,8 +993,8 @@ class Lab:
         if not isinstance(source_path, str) or source_path.strip() == "":
             raise ValueError("source_path must be a non-empty string")
         src = source_path
-        # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
-        is_remote = src.startswith(("s3://", "gs://", "abfs://", "gcs://", "http://", "https://"))
+        # For local paths, resolve to absolute path; for remote paths (s3://, etc.) or URLs, use as-is
+        is_remote = storage.is_remote_path(src) or src.startswith(("http://", "https://"))
         if not is_remote:
             src = os.path.abspath(src)
 
