@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/stale@v10
         with:
-          days-before-issue-stale: 60
+          days-before-issue-stale: 180
           days-before-issue-close: 7
           stale-issue-label: "wontfix"
           stale-issue-message: |
