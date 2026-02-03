@@ -148,7 +148,7 @@ async def get_team_quota_usage_by_users(
         user_id_str = member.user_id
 
         # Get user details
-        user_stmt = select(User).where(User.id == user_id_str)
+        user_stmt = select(User).where(User.id == str(user_id_str))
         user_result = await session.execute(user_stmt)
         user = user_result.scalar_one_or_none()
         if not user:

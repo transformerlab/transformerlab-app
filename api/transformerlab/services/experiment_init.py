@@ -79,7 +79,7 @@ async def seed_default_admin_user():
             admin_user_id = admin_user.id
 
             # Re-fetch the user from the database to get a fresh, attached instance
-            stmt = select(User).where(User.id == admin_user_id)
+            stmt = select(User).where(User.id == str(admin_user_id))
             result = await session.execute(stmt)
             admin_user = result.unique().scalar_one()
 
