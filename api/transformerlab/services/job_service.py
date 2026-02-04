@@ -1046,3 +1046,97 @@ async def get_all_artifact_paths(job_id: str, storage) -> List[str]:
                 return [a.get("full_path") for a in dir_artifacts if a.get("full_path")]
 
     return []
+
+
+async def get_datasets_from_directory(datasets_dir: str, storage) -> List[Dict]:
+    """
+    Get datasets by listing directories in the datasets directory.
+    Returns list of datasets (empty if directory can't be read).
+    """
+    if not datasets_dir:
+        return []
+
+    datasets = []
+    try:
+        items = await storage.ls(datasets_dir, detail=False)
+
+        for item in items:
+            # Handle both string paths and dict responses from storage.ls
+            if isinstance(item, dict):
+                # Extract path from dict (some storage backends return dicts even with detail=False)
+                dir_path = item.get("name") or item.get("path") or str(item)
+                # Skip if it's not a directory
+                if item.get("type") != "directory":
+                    continue
+            else:
+                dir_path = str(item)
+
+            if item and await storage.isdir(dir_path):
+                dataset = await format_dataset(dir_path, storage)
+                if dataset:
+                    datasets.append(dataset)
+    except Exception as e:
+        print(f"Error reading datasets directory {datasets_dir}: {e}")
+
+    return datasets
+
+
+async def get_models_from_directory(models_dir: str, storage) -> List[Dict]:
+    """
+    Get models by listing directories in the models directory.
+    Returns list of models (empty if directory can't be read).
+    """
+    if not models_dir:
+        return []
+
+    models = []
+    try:
+        items = await storage.ls(models_dir, detail=False)
+
+        for item in items:
+            # Handle both string paths and dict responses from storage.ls
+            if isinstance(item, dict):
+                # Extract path from dict (some storage backends return dicts even with detail=False)
+                dir_path = item.get("name") or item.get("path") or str(item)
+                # Skip if it's not a directory
+                if item.get("type") != "directory":
+                    continue
+            else:
+                dir_path = str(item)
+
+            if item and await storage.isdir(dir_path):
+                model = await format_model(dir_path, storage)
+                if model:
+                    models.append(model)
+    except Exception as e:
+        print(f"Error reading models directory {models_dir}: {e}")
+
+    return models
+
+
+async def format_dataset(dir_path: str, storage) -> Optional[Dict[str, any]]:
+    """
+    Format a single dataset directory into the response structure.
+    Returns None if the dataset can't be processed.
+    """
+    try:
+        dataset_name = dir_path.split("/")[-1] if "/" in dir_path else dir_path
+        dataset = {"name": dataset_name, "full_path": dir_path}
+        return dataset
+    except Exception as e:
+        print(f"Error formatting dataset {dir_path}: {e}")
+        return None
+
+
+async def format_model(dir_path: str, storage) -> Optional[Dict[str, any]]:
+    """
+    Format a single model directory into the response structure.
+    Returns None if the model can't be processed.
+    """
+    try:
+        model_name = dir_path.split("/")[-1] if "/" in dir_path else dir_path
+        model = {"name": model_name, "full_path": dir_path}
+        return model
+    except Exception as e:
+        print(f"Error formatting model {dir_path}: {e}")
+        return None
