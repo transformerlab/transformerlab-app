@@ -30,6 +30,7 @@ from transformerlab.shared.models.models import ProviderType
 from lab import Job
 from lab.dirs import get_workspace_dir
 from transformerlab.shared import zip_utils
+from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -96,7 +97,7 @@ async def _fetch_runpod_provider_logs(
             return f"Failed to load SSH key: {e}"
 
         ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.set_missing_host_key_policy(get_add_if_verified_policy())
         try:
             ssh.connect(
                 hostname=host,
