@@ -61,77 +61,15 @@ def info_task(task_id: str, experiment_id: str) -> None:
         console.print(f"[red]Error:[/red] Failed to fetch task info. Status code: {response.status_code}")
 
 
-def add_task(task_yaml_path: str, from_url: str):
-    """Add a new task."""
-    if task_yaml_path and from_url:
-        console.print("[red]Error:[/red] Please provide either a file path or a URL, not both.")
-        return {"status_code": 400, "message": "Provide either a file path or a URL, not both."}
+def add_task_from_directory(task_directory_path: str):
+    pass
 
-    if not task_yaml_path and not from_url:
-        console.print("[red]Error:[/red] You must provide either a file path or a URL. Type --help for more info.")
-        return {"status_code": 400, "message": "Provide either a file path or a URL."}
 
-    if from_url:
-        console.print(f"[yellow]Fetching Task YAML from URL: {from_url}[/yellow]")
-        try:
-            response = requests.get(from_url)
-            if response.status_code == 200:
-                try:
-                    task_data = yaml.safe_load(response.text)
-                except yaml.YAMLError:
-                    console.print("[red]Error:[/red] Failed to parse YAML from URL. Are you sure the URL is correct?")
-                    return {"status_code": 422, "message": "Failed to parse YAML from URL."}
-            else:
-                console.print(
-                    f"[red]Error:[/red] Failed to fetch Task YAML from URL. Status code: {response.status_code}"
-                )
-                return {"status_code": response.status_code, "message": "Failed to fetch Task YAML from URL."}
-        except requests.ConnectionError as e:
-            console.print(f"[red]Error:[/red] Failed to connect to the URL: {from_url}. Details: {e}")
-            return {"status_code": 503, "message": "Failed to connect to the URL."}
-        except requests.RequestException as e:
-            console.print(f"[red]Error:[/red] An error occurred while fetching the URL: {from_url}. Details: {e}")
-            return {"status_code": 500, "message": "An error occurred while fetching the URL."}
-    else:
-        console.print(f"[yellow]Task add from file: '{task_yaml_path}'[/yellow]")
-        try:
-            with open(task_yaml_path, "r") as f:
-                task_data = yaml.safe_load(f)
-        except FileNotFoundError:
-            console.print("[red]Error:[/red] File not found.")
-            return {"status_code": 404, "message": "File not found."}
-        except yaml.YAMLError:
-            console.print("[red]Error:[/red] Failed to parse YAML from file.")
-            return {"status_code": 422, "message": "Failed to parse YAML from file."}
+def add_task_from_github(repo_url: str):
+    pass
 
-    console.print("[bold]Task YAML to be uploaded:[/bold]")
-    console.print(yaml.dump(task_data))
-    # Validate required fields
-    # Don't validate fields yet
-    # missing_fields = [field for field in REQUIRED_TASK_FIELDS if field not in task_data]
-    # if missing_fields:
-    #     console.print(f"[red]Error:[/red] Missing required fields in task YAML: {', '.join(missing_fields)}")
-    #     raise typer.Exit(1)
 
-    # Now if directory is not None, then we would package files from there
-    # Don't support files yet
-    # files = {}
-    # if directory:
-    #     console.print(f"[yellow]Including files from directory '{directory}'[/yellow]")
-    #     zip_path = os.path.join(directory, "files.zip")
-    #     _check_if_zip_command_exists()
-    #     subprocess.run(["zip", "-r", zip_path, "."], cwd=directory, check=True)
-    #     with open(zip_path, "rb") as zip_file:
-    #         files["files"] = ("files.zip", zip_file.read(), "application/zip")
-
-    # Now send the YAML and the zip (if any) to the server
-    # with console.status("[bold green]Uploading task...[/bold green]", spinner="dots"):
-    #     data = {"task_yaml": yaml.dump(task_data)}
-    #     response = api.post("/task/new_task", data=data)
-    # if response.status_code == 201:
-    #     console.print(f"[green]✓[/green] Task added successfully with ID: {response.json().get('task_id')}")
-    # else:
-    #     console.print(f"[red]Error:[/red] Failed to add task. Status code: {response.status_code}")
+## COMMANDS ##
 
 
 @app.command("list")
@@ -153,9 +91,6 @@ def command_task_add(
 ):
     """Add a new task. Provide a file path directly, or use --from-url to fetch the YAML from a URL."""
     check_configs()
-    response = add_task(task_yaml_path, from_url)
-    if response and response.get("status_code") != 200:
-        raise typer.Exit(1)
 
 
 @app.command("delete")
