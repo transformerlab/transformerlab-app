@@ -4,19 +4,10 @@
   "description": "This plugin just takes in the inputs provided, and prints them out. Use it as a template to see what parameters are available to a script.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "1.0.3",
-  "model_architectures": [
-    "LlamaForCausalLM"
-  ],
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "version": "1.0.5",
+  "model_architectures": ["LlamaForCausalLM"],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
     "adaptor_name": {

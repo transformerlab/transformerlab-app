@@ -17,51 +17,74 @@ DATA_GALLERY_FILE = "dataset-gallery.json"
 MODEL_GROUP_GALLERY_FILE = "model-group-gallery.json"
 EXP_RECIPES_GALLERY_FILE = "exp-recipe-gallery.json"
 # Tasks gallery main file
-TASKS_GALLERY_FILE = "tasks-gallery.json"
+TASKS_GALLERY_FILE = "task-gallery.json"
+# Interactive tasks gallery (for interactive task templates)
+INTERACTIVE_GALLERY_FILE = "interactive-gallery.json"
 # Team-specific tasks gallery stored in workspace dir (per team)
 TEAM_TASKS_GALLERY_FILE = "team_specific_tasks.json"
+# Announcements gallery
+ANNOUNCEMENTS_GALLERY_FILE = "announcement-gallery.json"
+
 GALLERY_FILES = [
     MODEL_GALLERY_FILE,
     DATA_GALLERY_FILE,
     MODEL_GROUP_GALLERY_FILE,
     EXP_RECIPES_GALLERY_FILE,
     TASKS_GALLERY_FILE,
+    INTERACTIVE_GALLERY_FILE,
 ]
 
 TLAB_REMOTE_GALLERIES_URL = "https://raw.githubusercontent.com/transformerlab/galleries/main/"
 
 
-def update_gallery_cache():
+async def update_gallery_cache():
     """
     Called when Transformer Lab starts up.
     Initializes any cached gallery files and tries to update from remote.
     """
 
     for filename in GALLERY_FILES:
-        update_gallery_cache_file(filename)
+        await update_gallery_cache_file(filename)
 
 
-def get_models_gallery():
-    return get_gallery_file(MODEL_GALLERY_FILE)
+async def get_models_gallery():
+    return await get_gallery_file(MODEL_GALLERY_FILE)
 
 
-def get_model_groups_gallery():
-    return get_gallery_file(MODEL_GROUP_GALLERY_FILE)
+async def get_model_groups_gallery():
+    return await get_gallery_file(MODEL_GROUP_GALLERY_FILE)
 
 
-def get_data_gallery():
-    return get_gallery_file(DATA_GALLERY_FILE)
+async def get_data_gallery():
+    return await get_gallery_file(DATA_GALLERY_FILE)
 
 
-def get_exp_recipe_gallery():
-    return get_gallery_file(EXP_RECIPES_GALLERY_FILE)
+async def get_exp_recipe_gallery():
+    return await get_gallery_file(EXP_RECIPES_GALLERY_FILE)
 
 
-def get_tasks_gallery():
-    return get_gallery_file(TASKS_GALLERY_FILE)
+async def get_tasks_gallery():
+    return await get_gallery_file(TASKS_GALLERY_FILE)
 
 
-def get_team_tasks_gallery():
+async def get_interactive_gallery():
+    """
+    Get the interactive tasks gallery.
+    This contains templates for interactive task types (vscode, jupyter, vllm, ssh).
+    """
+    return await get_gallery_file(INTERACTIVE_GALLERY_FILE)
+
+
+async def get_announcements_gallery():
+    """
+    Get the announcements gallery.
+    This contains announcements to display to users.
+    """
+    await update_gallery_cache_file(ANNOUNCEMENTS_GALLERY_FILE)
+    return await get_gallery_file(ANNOUNCEMENTS_GALLERY_FILE)
+
+
+async def get_team_tasks_gallery():
     """
     Team-specific tasks gallery stored in the workspace directory.
     Falls back to an empty list when missing or unreadable.
@@ -69,27 +92,27 @@ def get_team_tasks_gallery():
     from lab.dirs import get_workspace_dir
     from lab import storage
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     gallery_path = storage.join(workspace_dir, TEAM_TASKS_GALLERY_FILE)
 
     try:
         # Ensure the workspace directory exists before checking the file
-        storage.makedirs(workspace_dir, exist_ok=True)
+        await storage.makedirs(workspace_dir, exist_ok=True)
 
-        if not storage.exists(gallery_path):
+        if not await storage.exists(gallery_path):
             # Initialize an empty gallery file
-            with storage.open(gallery_path, "w") as f:
-                json.dump([], f)
+            async with await storage.open(gallery_path, "w") as f:
+                await f.write(json.dumps([]))
             return []
 
-        with storage.open(gallery_path, "r") as f:
-            return json.load(f)
+        async with await storage.open(gallery_path, "r") as f:
+            return json.loads(await f.read())
     except Exception as e:
         print(f"❌ Failed to read team tasks gallery: {e}")
         return []
 
 
-def add_team_task_to_gallery(entry: dict):
+async def add_team_task_to_gallery(entry: dict):
     """
     Append (or upsert) a task entry to the team-specific gallery.
     Replaces an existing entry with the same id/title to avoid duplicates.
@@ -97,12 +120,12 @@ def add_team_task_to_gallery(entry: dict):
     from lab.dirs import get_workspace_dir
     from lab import storage
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     gallery_path = storage.join(workspace_dir, TEAM_TASKS_GALLERY_FILE)
 
     try:
-        storage.makedirs(workspace_dir, exist_ok=True)
-        current = get_team_tasks_gallery()
+        await storage.makedirs(workspace_dir, exist_ok=True)
+        current = await get_team_tasks_gallery()
 
         # De-duplicate on id or title
         new_id = entry.get("id")
@@ -117,15 +140,15 @@ def add_team_task_to_gallery(entry: dict):
 
         filtered.append(entry)
 
-        with storage.open(gallery_path, "w") as f:
-            json.dump(filtered, f, indent=2)
+        async with await storage.open(gallery_path, "w") as f:
+            await f.write(json.dumps(filtered, indent=2))
         return filtered
     except Exception as e:
         print(f"❌ Failed to write team tasks gallery: {e}")
-        return get_team_tasks_gallery()
+        return await get_team_tasks_gallery()
 
 
-def delete_team_task_from_gallery(task_id: str):
+async def delete_team_task_from_gallery(task_id: str):
     """
     Delete a task entry from the team-specific gallery by id or title.
     Returns True if deleted, False if not found.
@@ -133,12 +156,12 @@ def delete_team_task_from_gallery(task_id: str):
     from lab.dirs import get_workspace_dir
     from lab import storage
 
-    workspace_dir = get_workspace_dir()
+    workspace_dir = await get_workspace_dir()
     gallery_path = storage.join(workspace_dir, TEAM_TASKS_GALLERY_FILE)
 
     try:
-        storage.makedirs(workspace_dir, exist_ok=True)
-        current = get_team_tasks_gallery()
+        await storage.makedirs(workspace_dir, exist_ok=True)
+        current = await get_team_tasks_gallery()
 
         # Filter out the task with matching id or title
         filtered = []
@@ -150,8 +173,8 @@ def delete_team_task_from_gallery(task_id: str):
             filtered.append(item)
 
         if found:
-            with storage.open(gallery_path, "w") as f:
-                json.dump(filtered, f, indent=2)
+            async with await storage.open(gallery_path, "w") as f:
+                await f.write(json.dumps(filtered, indent=2))
             return True
         return False
     except Exception as e:
@@ -164,20 +187,20 @@ def delete_team_task_from_gallery(task_id: str):
 ######################
 
 
-def gallery_cache_file_path(filename: str):
+async def gallery_cache_file_path(filename: str):
     from lab.dirs import get_galleries_cache_dir
 
     return os.path.join(get_galleries_cache_dir(), filename)
 
 
-def update_gallery_cache_file(filename: str):
+async def update_gallery_cache_file(filename: str):
     """
     Initialize the gallery cache file if it doesn't exist from code,
     then try to update from remote.
     """
 
     # First, if nothing is cached yet, then initialize with the local copy.
-    cached_gallery_file = gallery_cache_file_path(filename)
+    cached_gallery_file = await gallery_cache_file_path(filename)
     if not os.path.isfile(cached_gallery_file):
         print(f"✅ Initializing {filename} from local source.")
 
@@ -192,16 +215,16 @@ def update_gallery_cache_file(filename: str):
             print("❌ Unable to find local gallery file", sourcefile)
 
     # Then, try to update from remote.
-    update_cache_from_remote(filename)
+    await update_cache_from_remote(filename)
 
 
-def update_cache_from_remote(gallery_filename: str):
+async def update_cache_from_remote(gallery_filename: str):
     """
     Fetches a gallery file from source and updates the cache
     """
     try:
         remote_gallery = TLAB_REMOTE_GALLERIES_URL + gallery_filename
-        local_cache_filename = gallery_cache_file_path(gallery_filename)
+        local_cache_filename = await gallery_cache_file_path(gallery_filename)
         # Stream download and write via fsspec
         with urllib.request.urlopen(remote_gallery) as resp:
             data = resp.read()
@@ -215,15 +238,15 @@ def update_cache_from_remote(gallery_filename: str):
         print(f"❌ Failed to update gallery from remote: {remote_gallery} {e}")
 
 
-def get_gallery_file(filename: str):
+async def get_gallery_file(filename: str):
     # default empty gallery returned in case of failed gallery file open
     gallery = []
-    gallery_path = gallery_cache_file_path(filename)
+    gallery_path = await gallery_cache_file_path(filename)
 
     # Check for the cached file. If it's not there then initialize.
     if not os.path.isfile(gallery_path):
         print(f"Updating gallery cache file {filename}")
-        update_gallery_cache_file(filename)
+        await update_gallery_cache_file(filename)
 
     with open(gallery_path, "r") as f:
         gallery = json.load(f)

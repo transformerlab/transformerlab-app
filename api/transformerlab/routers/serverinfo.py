@@ -18,6 +18,7 @@ import torch
 from lab.dirs import get_global_log_path
 from lab import HOME_DIR
 from lab import storage
+from transformerlab.shared import galleries
 
 
 try:
@@ -321,15 +322,15 @@ async def watch_s3_file(
     print(f"👀 Watching S3 file: {filename}")
 
     # create the file if it doesn't already exist:
-    if not storage.exists(filename):
-        with storage.open(filename, "w") as f:
-            f.write("")
+    if not await storage.exists(filename):
+        async with await storage.open(filename, "w") as f:
+            await f.write("")
 
     last_content = ""
     if start_from_beginning:
         try:
-            with storage.open(filename, "r") as f:
-                last_content = f.read()
+            async with await storage.open(filename, "r") as f:
+                last_content = await f.read()
                 if last_content:
                     lines = last_content.splitlines(keepends=True)
                     yield (f"data: {json.dumps(lines)}\n\n")
@@ -339,8 +340,8 @@ async def watch_s3_file(
     else:
         # Start from current end of file
         try:
-            with storage.open(filename, "r") as f:
-                last_content = f.read()
+            async with await storage.open(filename, "r") as f:
+                last_content = await f.read()
         except Exception as e:
             print(f"Error reading S3 file: {e}")
             last_content = ""
@@ -349,8 +350,8 @@ async def watch_s3_file(
     while True:
         await asyncio.sleep(poll_interval_ms / 1000.0)
         try:
-            with storage.open(filename, "r") as f:
-                current_content = f.read()
+            async with await storage.open(filename, "r") as f:
+                current_content = await f.read()
 
             # Check if file has grown
             if len(current_content) > len(last_content):
@@ -375,46 +376,50 @@ async def watch_file(filename: str, start_from_beginning=False, force_polling=Tr
     print(f"👀 Watching file: {filename}")
 
     # create the file if it doesn't already exist:
-    if not storage.exists(filename):
-        with storage.open(filename, "w") as f:
-            f.write("")
+    if not await storage.exists(filename):
+        async with await storage.open(filename, "w") as f:
+            await f.write("")
 
     last_position = 0
     if start_from_beginning:
         last_position = 0
-        with storage.open(filename, "r") as f:
-            f.seek(last_position)
-            new_lines = f.readlines()
+        async with await storage.open(filename, "r") as f:
+            await f.seek(last_position)
+            new_lines = await f.readlines()
             yield (f"data: {json.dumps(new_lines)}\n\n")
-            last_position = f.tell()
+            last_position = await f.tell()
     else:
         try:
-            with storage.open(filename, "r") as f:
-                f.seek(0, os.SEEK_END)
-                last_position = f.tell()
+            async with await storage.open(filename, "r") as f:
+                await f.seek(0, os.SEEK_END)
+                last_position = await f.tell()
         except Exception as e:
             print(f"Error seeking to end of file: {e}")
 
     async for changes in awatch(filename, force_polling=force_polling, poll_delay_ms=100):
-        with storage.open(filename, "r") as f:
-            f.seek(last_position)
-            new_lines = f.readlines()
+        async with await storage.open(filename, "r") as f:
+            await f.seek(last_position)
+            new_lines = await f.readlines()
             yield (f"data: {json.dumps(new_lines)}\n\n")
-            last_position = f.tell()
+            last_position = await f.tell()
 
 
 @router.get("/stream_log")
 async def watch_log():
-    global_log_path = get_global_log_path()
+    global_log_path = await get_global_log_path()
 
-    if not storage.exists(global_log_path):
-        # Create the file
-        with storage.open(global_log_path, "w") as f:
-            f.write("")
+    # Check if the path is an S3 or other remote filesystem path
+    is_remote_path = global_log_path.startswith(("s3://", "gs://", "abfs://", "gcs://"))
+
+    if not await storage.exists(global_log_path):
+        # Create the file using appropriate method
+        if is_remote_path:
+            async with await storage.open(global_log_path, "w") as f:
+                await f.write("")
+        else:
+            async with await storage.open(global_log_path, "w") as f:
+                await f.write("")
     try:
-        # Check if the path is an S3 or other remote filesystem path
-        is_remote_path = global_log_path.startswith(("s3://", "gs://", "abfs://", "gcs://"))
-
         if is_remote_path:
             # Use S3 polling watcher for remote filesystems
             return StreamingResponse(
@@ -438,6 +443,16 @@ async def watch_log():
         )
 
 
+@router.get("/announcements")
+async def get_announcements():
+    """
+    Get announcements from the announcements gallery.
+    Returns a list of announcements that can be displayed to users.
+    """
+    announcements = await galleries.get_announcements_gallery()
+    return {"status": "success", "data": announcements}
+
+
 @router.get("/download_logs")
 async def download_logs():
     """
@@ -453,13 +468,13 @@ async def download_logs():
     local_server_log_path = storage.join(HOME_DIR, "local_server.log")
 
     # Path to transformerlab.log in workspace_dir
-    transformerlab_log_path = get_global_log_path()
+    transformerlab_log_path = await get_global_log_path()
 
     # Check which files exist and add them to the list
-    if storage.exists(local_server_log_path):
+    if await storage.exists(local_server_log_path):
         log_files.append(("local_server.log", local_server_log_path))
 
-    if storage.exists(transformerlab_log_path):
+    if await storage.exists(transformerlab_log_path):
         log_files.append(("transformerlab.log", transformerlab_log_path))
 
     # If no files exist, return an error
@@ -475,8 +490,8 @@ async def download_logs():
             for filename, file_path in log_files:
                 try:
                     # Read file content (works with both local and remote storage)
-                    with storage.open(file_path, "rb") as log_file:
-                        content = log_file.read()
+                    async with await storage.open(file_path, "rb") as log_file:
+                        content = await log_file.read()
                         zipf.writestr(filename, content)
                 except Exception as e:
                     # If we can't read a file, log it but continue with others

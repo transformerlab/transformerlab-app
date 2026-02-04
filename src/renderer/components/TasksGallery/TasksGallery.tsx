@@ -12,7 +12,7 @@ import {
   FormControl,
   Grid,
   Input,
-  LinearProgress,
+  Skeleton,
   Sheet,
   Box,
   Typography,
@@ -28,6 +28,8 @@ import {
   ScanTextIcon,
   PlusIcon,
   Trash2Icon,
+  GraduationCapIcon,
+  ChartColumnIncreasingIcon,
 } from 'lucide-react';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -66,16 +68,40 @@ function generateGithubLink(repoUrl?: string, repoDir?: string) {
   return repoDir ? `${finalRepoUrl}/tree/main/${repoDir}` : finalRepoUrl;
 }
 
-function TaskIcon({ icon, color }: { icon: React.ReactNode; color?: string }) {
+function TaskIcon({ category }: { category: string }) {
+  let icon = <ScanTextIcon />;
+  let color: string = '#1976d2';
+
+  switch (category) {
+    case 'dataset-generation':
+      icon = <ScanTextIcon />;
+      color = '#1976d2';
+      break;
+    case 'training':
+      icon = <GraduationCapIcon />;
+      color = '#388e3c';
+      break;
+    case 'eval':
+      icon = <ChartColumnIncreasingIcon />;
+      color = '#d27d00';
+      break;
+    default:
+      icon = <ScanTextIcon />;
+      color = '#5b5e61ff';
+      break;
+  }
+
   return (
     <Box
       sx={{
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: 24,
-        height: 24,
-        color: color || 'inherit',
+        width: 32,
+        height: 32,
+        color,
+        backgroundColor: `${color}11`,
+        padding: '1px',
       }}
     >
       {icon}
@@ -85,7 +111,7 @@ function TaskIcon({ icon, color }: { icon: React.ReactNode; color?: string }) {
 
 function TaskCard({
   task,
-  index,
+  galleryIdentifier,
   onImport,
   isImporting,
   disableImport,
@@ -94,15 +120,15 @@ function TaskCard({
   onSelect,
 }: {
   task: any;
-  index: number;
-  onImport: (idx: number) => void;
+  galleryIdentifier: string | number;
+  onImport: (identifier: string | number) => void;
   isImporting: boolean;
   disableImport: boolean;
   showCheckbox?: boolean;
   isSelected?: boolean;
   onSelect?: (taskId: string, selected: boolean) => void;
 }) {
-  const taskId = task?.id || task?.title || index.toString();
+  const taskId = task?.id || task?.title || galleryIdentifier.toString();
   return (
     <Card variant="outlined" sx={{ height: '100%' }}>
       <CardContent
@@ -120,7 +146,7 @@ function TaskCard({
               alignItems: 'flex-start',
             }}
           >
-            <TaskIcon icon={<ScanTextIcon />} color="#1976d2" />
+            <TaskIcon category={task?.metadata?.category} />
             {showCheckbox && (
               <Checkbox
                 checked={isSelected || false}
@@ -192,7 +218,17 @@ function TaskCard({
               </Box>
             )}
           </Box>
-          {task.config && (
+          {task?.metadata?.framework && (
+            /* Framework is an array of strings */
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              {task.metadata.framework.map((fw: string, fwIndex: number) => (
+                <Chip key={fwIndex} size="sm" variant="soft">
+                  {fw}
+                </Chip>
+              ))}
+            </Stack>
+          )}
+          {/* {task.config && (
             <Stack spacing={0.5}>
               <Typography level="body-xs" fontWeight="bold">
                 Compute:
@@ -215,14 +251,14 @@ function TaskCard({
                 )}
               </Stack>
             </Stack>
-          )}
+          )} */}
         </Stack>
         <CardActions>
           <Button
             variant="soft"
             color="success"
             endDecorator={<DownloadIcon size={16} />}
-            onClick={() => onImport(index)}
+            onClick={() => onImport(galleryIdentifier)}
             loading={isImporting}
             disabled={disableImport}
           >
@@ -240,7 +276,9 @@ export default function TasksGallery() {
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const navigate = useNavigate();
-  const [importingIndex, setImportingIndex] = useState<number | null>(null);
+  const [importingIndex, setImportingIndex] = useState<string | number | null>(
+    null,
+  );
   const [newTeamTaskModalOpen, setNewTeamTaskModalOpen] = useState(false);
   const [isSubmittingTeamTask, setIsSubmittingTeamTask] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
@@ -264,7 +302,7 @@ export default function TasksGallery() {
     fetcher,
   );
 
-  const handleImport = async (galleryIndex: number) => {
+  const handleImport = async (galleryIdentifier: string | number) => {
     if (!experimentInfo?.id) {
       addNotification({
         type: 'warning',
@@ -274,7 +312,8 @@ export default function TasksGallery() {
       return;
     }
 
-    setImportingIndex(galleryIndex);
+    // Use the identifier as the key for tracking import state
+    setImportingIndex(galleryIdentifier);
     try {
       const endpoint =
         activeTab === 'team'
@@ -286,7 +325,7 @@ export default function TasksGallery() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          gallery_id: galleryIndex.toString(),
+          gallery_id: galleryIdentifier.toString(),
           experiment_id: experimentInfo.id,
         }),
       });
@@ -564,7 +603,47 @@ export default function TasksGallery() {
           paddingRight: 2,
         }}
       >
-        {isActiveLoading && <LinearProgress />}
+        {isActiveLoading && (
+          <Grid container spacing={2}>
+            {[...Array(12)].map((_, i) => (
+              <Grid xs={12} sm={12} md={6} lg={4} xl={3} key={i}>
+                <Card variant="outlined" sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Stack spacing={0}>
+                      <Skeleton variant="rectangular" width={32} height={32} />
+                      <Skeleton
+                        variant="text"
+                        level="title-lg"
+                        width="60%"
+                        sx={{ mt: 2 }}
+                      />
+                      <Skeleton
+                        variant="text"
+                        level="body-sm"
+                        width="100%"
+                        sx={{ mt: 1 }}
+                      />
+                      <Skeleton variant="text" level="body-sm" width="100%" />{' '}
+                      <Skeleton variant="text" level="body-sm" width="100%" />
+                      <Skeleton
+                        variant="text"
+                        level="body-sm"
+                        width="15%"
+                        sx={{ mt: 1 }}
+                      />
+                      <Skeleton
+                        variant="rectangular"
+                        width="100%"
+                        height={32}
+                        sx={{ mt: 2 }}
+                      />
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        )}
         {!isActiveLoading && gallery.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <Typography level="body-lg" color="neutral">
@@ -581,15 +660,39 @@ export default function TasksGallery() {
         {!isActiveLoading && gallery.length > 0 && (
           <Grid container spacing={2} sx={{ flexGrow: 1 }}>
             {filterTasksGallery(gallery, searchText).map(
-              (task: any, index: number) => {
-                const taskId = task?.id || task?.title || index.toString();
+              (task: any, filteredIndex: number) => {
+                // Use task ID or title if available, otherwise find original index
+                // The backend supports both ID/title and numeric index
+                let galleryIdentifier: string | number;
+                if (task?.id) {
+                  galleryIdentifier = task.id;
+                } else if (task?.title) {
+                  galleryIdentifier = task.title;
+                } else {
+                  // Find original index by matching task properties
+                  const originalIndex = gallery.findIndex(
+                    (galleryTask) =>
+                      galleryTask === task ||
+                      (galleryTask?.id &&
+                        task?.id &&
+                        galleryTask.id === task.id) ||
+                      (galleryTask?.title &&
+                        task?.title &&
+                        galleryTask.title === task.title &&
+                        galleryTask.github_repo_url === task.github_repo_url),
+                  );
+                  galleryIdentifier =
+                    originalIndex >= 0 ? originalIndex : filteredIndex;
+                }
+                const taskId =
+                  task?.id || task?.title || galleryIdentifier.toString();
                 return (
-                  <Grid xs={12} sm={12} md={6} lg={4} xl={3} key={index}>
+                  <Grid xs={12} sm={12} md={6} lg={4} xl={3} key={taskId}>
                     <TaskCard
                       task={task}
-                      index={index}
+                      galleryIdentifier={galleryIdentifier}
                       onImport={handleImport}
-                      isImporting={importingIndex === index}
+                      isImporting={importingIndex === galleryIdentifier}
                       disableImport={
                         !experimentInfo?.id || importingIndex !== null
                       }

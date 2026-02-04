@@ -1,14 +1,13 @@
 {
   "compilerOptions": {
-    "incremental": true,
+    "module": "ESNext",         // ⬅️ CRITICAL: Was "commonjs"
+    "moduleResolution": "node", // ⬅️ REQUIRED for ESNext
     "target": "es2021",
-    "module": "commonjs",
     "lib": ["dom", "es2021"],
     "jsx": "react-jsx",
     "strict": true,
     "sourceMap": true,
     "baseUrl": "./src",
-    "moduleResolution": "node",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
@@ -21,5 +20,8 @@
               "*.css.d.ts",
               "*.sass.d.ts",
               "*.scss.d.ts",
-              "cli/dist"]
+              "cli/dist",
+              "api/*",
+              "release/*"
+              ]
 }

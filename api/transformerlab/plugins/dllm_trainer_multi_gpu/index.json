@@ -4,7 +4,7 @@
   "description": "A training plugin using dllm library for SFT training with support for bert, dream, and llada training methods",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.2",
+  "version": "0.0.5",
   "model_architectures": [
     "BertForMaskedLM",
     "ModernBertForMaskedLM",

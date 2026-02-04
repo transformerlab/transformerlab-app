@@ -1,34 +1,14 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useState, useEffect } from 'react';
 import Sheet from '@mui/joy/Sheet';
 import { Tab, TabList, TabPanel, Tabs } from '@mui/joy';
 import { StoreIcon } from 'lucide-react';
 
-import { apiHealthz } from 'renderer/lib/transformerlab-api-sdk';
 import DataStore from './DataStore';
 import LocalDatasets from './LocalDatasets';
 import GeneratedDatasets from './GeneratedDatasets';
 
 export default function Data() {
-  const [mode, setMode] = useState<string>('local');
-
-  // Fetch healthz to get the mode
-  useEffect(() => {
-    const fetchHealthz = async () => {
-      try {
-        const data = await apiHealthz();
-        if (data?.mode) {
-          setMode(data.mode);
-        }
-      } catch (error) {
-        // Silently fail - mode will default to 'local'
-      }
-    };
-
-    fetchHealthz();
-  }, []);
-
-  const isS3Mode = mode === 's3';
+  const isLocalMode = window?.platform?.multiuser !== true;
   return (
     <Sheet sx={{ display: 'flex', height: '100%' }}>
       <Tabs
@@ -45,7 +25,7 @@ export default function Data() {
         <TabList>
           <Tab>Local Datasets</Tab>
           <Tab>Generated Datasets</Tab>
-          {!isS3Mode && (
+          {isLocalMode && (
             <Tab>
               <StoreIcon color="grey" />
               &nbsp; Dataset Store
@@ -58,7 +38,7 @@ export default function Data() {
         <TabPanel value={1} sx={{ overflow: 'hidden' }}>
           <GeneratedDatasets />
         </TabPanel>
-        {!isS3Mode && (
+        {isLocalMode && (
           <TabPanel value={2} sx={{ overflow: 'hidden' }}>
             <DataStore />
           </TabPanel>

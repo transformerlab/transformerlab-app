@@ -2,8 +2,10 @@ import os
 import shutil
 import requests
 import pandas as pd
+import asyncio
 from tqdm import tqdm
 from transformerlab.sdk.v1.generate import tlab_gen
+from lab.dirs import get_workspace_dir
 
 
 @tlab_gen.job_wrapper(progress_start=0, progress_end=100)
@@ -21,9 +23,9 @@ def run_generation():
     negative_column = tlab_gen.params.negative_prompt_column.strip()
 
     dataset_id = tlab_gen.params.get("output_dataset_name")
-    from transformerlab.plugin import WORKSPACE_DIR
+    workspace_dir = asyncio.run(get_workspace_dir())
 
-    output_dir = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
+    output_dir = os.path.join(workspace_dir, "datasets", dataset_id)
     os.makedirs(output_dir, exist_ok=True)
 
     # Load dataset

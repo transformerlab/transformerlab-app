@@ -6,6 +6,7 @@ import webpack from 'webpack';
 import TsconfigPathsPlugins from 'tsconfig-paths-webpack-plugin';
 import webpackPaths from './webpack.paths';
 import { dependencies as externals } from '../../release/app/package.json';
+// import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 
 const configuration: webpack.Configuration = {
   externals: [...Object.keys(externals || {})],
@@ -17,15 +18,10 @@ const configuration: webpack.Configuration = {
       {
         test: /\.[jt]sx?$/,
         exclude: /node_modules/,
-        use: {
-          loader: 'ts-loader',
-          options: {
-            // Remove this line to enable type checking in webpack builds
-            transpileOnly: true,
-            compilerOptions: {
-              module: 'esnext',
-            },
-          },
+        loader: 'esbuild-loader',
+        options: {
+          target: 'es2020',
+          loader: 'tsx',
         },
       },
     ],
@@ -58,6 +54,7 @@ const configuration: webpack.Configuration = {
       TL_FORCE_API_URL: 'false',
       EMAIL_AUTH_ENABLED: 'true',
     }),
+    // new BundleAnalyzerPlugin(), // uncomment to enable bundle analysis
   ],
 };
 

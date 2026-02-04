@@ -1,14 +1,7 @@
 /* eslint-disable react/jsx-no-useless-fragment */
 import Sheet from '@mui/joy/Sheet';
 import { Sparklines, SparklinesLine } from 'react-sparklines';
-import {
-  Box,
-  Button,
-  LinearProgress,
-  Stack,
-  Tooltip,
-  Typography,
-} from '@mui/joy';
+import { Box, LinearProgress, Stack, Tooltip, Typography } from '@mui/joy';
 import {
   useServerStats,
   apiHealthz,
@@ -29,7 +22,6 @@ import ConnectionLostModal from './Shared/ConnectionLostModal';
 function StatsBar({ connection, setConnection }) {
   const [cs, setCS] = useState({ cpu: [0], gpu: [0], mem: [0] });
   const { server, isLoading, isError } = useServerStats();
-  const isCloudMode = (window as any).platform?.appmode === 'cloud';
 
   useEffect(() => {
     if (connection === '') return;
@@ -295,24 +287,6 @@ function StatsBar({ connection, setConnection }) {
                           More about this computer
                         </ReactRouterLink>
                       </Typography>
-
-                      {!isCloudMode && (
-                        <Button
-                          variant="solid"
-                          color="danger"
-                          size="sm"
-                          sx={{ m: 0, p: 1 }}
-                          onClick={() => {
-                            // Clear the API URL when disconnecting
-                            if ((window as any).TransformerLab) {
-                              (window as any).TransformerLab.API_URL = null;
-                            }
-                            setConnection('');
-                          }}
-                        >
-                          Disconnect
-                        </Button>
-                      )}
                     </Stack>
                   </Box>
                 </Box>
@@ -362,25 +336,8 @@ function StatsBar({ connection, setConnection }) {
 
 export default function Header({ connection, setConnection }) {
   const { experimentInfo } = useExperimentInfo();
-  const [mode, setMode] = useState<string>('local');
   const { isError, server } = useServerStats();
   const [connectionLost, setConnectionLost] = useState(false);
-
-  // Fetch healthz to get the mode
-  useEffect(() => {
-    const fetchHealthz = async () => {
-      try {
-        const data = await apiHealthz();
-        if (data?.mode) {
-          setMode(data.mode);
-        }
-      } catch (error) {
-        console.error('Failed to fetch healthz data:', error);
-      }
-    };
-
-    fetchHealthz();
-  }, []);
 
   // Check connection health when we have a connection URL set
   useEffect(() => {
@@ -438,7 +395,7 @@ export default function Header({ connection, setConnection }) {
     // Don't override connectionLost=false here because the direct check above handles that
   }, [connection, isError]);
 
-  const isS3Mode = mode === 's3';
+  const isLocalMode = window?.platform?.multiuser !== true;
   // Show connection lost modal when we have a connection but it's lost
   const showConnectionLostModal = connection !== '' && connectionLost;
 
@@ -470,7 +427,7 @@ export default function Header({ connection, setConnection }) {
           } as any
         }
       />
-      {!isS3Mode && (
+      {isLocalMode && (
         <div
           id="currently-playing"
           style={{
@@ -499,7 +456,7 @@ export default function Header({ connection, setConnection }) {
           } as any
         }
       />
-      {isS3Mode ? (
+      {!isLocalMode ? (
         <Box sx={{ mr: 2 }} />
       ) : (
         <StatsBar connection={connection} setConnection={setConnection} />

@@ -2,10 +2,10 @@
 A model worker using Apple MLX Audio
 """
 
-import sys
 import argparse
 import asyncio
 import uuid
+import os
 from contextlib import asynccontextmanager
 from typing import List
 import json
@@ -15,15 +15,13 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
-from lab.dirs import get_workspace_dir
 from lab import storage
 
 from mlx_audio.tts.generate import generate_audio
+
+# from mlx_audio.stt.generate import generate_transcription as generate
 from mlx_audio.stt.generate import generate
 from datetime import datetime
-
-from lab.dirs import get_experiments_dir
-from werkzeug.utils import secure_filename
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -79,7 +77,7 @@ class MLXAudioWorker(BaseModelWorker):
             text = params.get("text", "")
             model = params.get("model", None)
             speed = params.get("speed", 1.0)
-            file_prefix = secure_filename(params.get("file_prefix", "audio"))
+            file_prefix = params.get("file_prefix", "audio")
             audio_format = params.get("audio_format", "wav")
             sample_rate = params.get("sample_rate", 24000)
             temperature = params.get("temperature", 0.0)
@@ -89,29 +87,32 @@ class MLXAudioWorker(BaseModelWorker):
             lang_code = params.get("lang_code", None)
             stream = params.get("stream", False)
 
-            experiment_dir = get_experiments_dir()
-            audio_dir_name = secure_filename(params.get("audio_dir", "audio"))
-            audio_dir = storage.join(experiment_dir, audio_dir_name)
-            storage.makedirs(name=audio_dir, exist_ok=True)
+            audio_dir = params.get("audio_dir")
 
             try:
+                await storage.makedirs(path=audio_dir, exist_ok=True)
                 kwargs = {
                     "text": text,
                     "model_path": model,
                     "speed": speed,
-                    "file_prefix": storage.join(audio_dir, file_prefix),
-                    "sample_rate": sample_rate,
+                    "file_prefix": os.path.join(audio_dir, file_prefix),
                     "join_audio": True,
                     "verbose": True,
                     "temperature": temperature,
                     "top_p": top_p,
                     "stream": stream,
-                    "voice": voice,
                 }
-                if lang_code:
+                if voice and lang_code:
+                    kwargs["voice"] = voice
                     kwargs["lang_code"] = lang_code
-
                 generate_audio(**kwargs)
+
+                audio_file_path = storage.join(audio_dir, f"{file_prefix}.{audio_format}")
+                if not await storage.exists(audio_file_path):
+                    return {
+                        "status": "error",
+                        "message": "Audio file was not generated",
+                    }
 
                 # Also save the parameters and metadata used to generate the audio
                 metadata = {
@@ -129,41 +130,54 @@ class MLXAudioWorker(BaseModelWorker):
                 }
 
                 metadata_file = storage.join(audio_dir, f"{file_prefix}.json")
-                with storage.open(metadata_file, "w") as f:
-                    json.dump(metadata, f)
+                async with await storage.open(metadata_file, "w") as f:
+                    await f.write(json.dumps(metadata))
 
                 logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
 
                 return {
                     "status": "success",
-                    "message": f"{audio_dir}/{file_prefix}.{audio_format}",
+                    "message": f"{file_prefix}.{audio_format}",
                 }
             except Exception:
-                logger.error(f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}")
+                logger.exception("Error generating audio.")
                 return {
                     "status": "error",
-                    "message": f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}",
+                    "message": "Error generating audio",
                 }
 
         elif task == "stt":
             audio_path = params.get("audio_path", "")
             model = params.get("model", None)
             format = params.get("format", "txt")
-            output_path_name = secure_filename(params.get("output_path", "transcriptions"))
-            transcriptions_dir = storage.join(get_workspace_dir(), output_path_name)
-            storage.makedirs(name=transcriptions_dir, exist_ok=True)
+            transcriptions_dir = params.get("output_path")
+            if not transcriptions_dir:
+                logger.error("output_path parameter is missing or None")
+                return {
+                    "status": "error",
+                    "message": "output_path parameter is required for STT",
+                }
 
             # Generate a UUID for this file name:
             file_prefix = str(uuid.uuid4())
 
             try:
-                generate(
+                await storage.makedirs(path=transcriptions_dir, exist_ok=True)
+                await asyncio.to_thread(
+                    generate,
                     audio_path=audio_path,
                     model_path=model,
                     format=format,
                     output_path=storage.join(transcriptions_dir, file_prefix),
                     verbose=True,  # Set to False to disable print messages
                 )
+
+                transcription_file_path = storage.join(transcriptions_dir, f"{file_prefix}.{format}")
+                if not await storage.exists(transcription_file_path):
+                    return {
+                        "status": "error",
+                        "message": "Transcription file was not generated",
+                    }
 
                 # Also save the parameters and metadata used to generate the audio
                 metadata = {
@@ -183,13 +197,13 @@ class MLXAudioWorker(BaseModelWorker):
 
                 return {
                     "status": "success",
-                    "message": f"{transcriptions_dir}/{file_prefix}.{format}",
+                    "message": f"{file_prefix}.{format}",
                 }
             except Exception:
-                logger.error(f"Error generating transcription: {transcriptions_dir}/{file_prefix}.{format}")
+                logger.error("Error generating transcription")
                 return {
                     "status": "error",
-                    "message": f"Error generating transcription: {transcriptions_dir}/{file_prefix}.{format}",
+                    "message": "Error generating transcription",
                 }
 
         else:
@@ -222,15 +236,19 @@ def create_background_tasks(request_id):
 
 @app.post("/worker_generate")
 async def api_generate(request: Request):
-    params = await request.json()
-    await acquire_worker_semaphore()
-    request_id = uuid.uuid4()
-    params["request_id"] = str(request_id)
-    output = await worker.generate(params)
-    release_worker_semaphore()
-    # await engine.abort(request_id)
-    # logger.debug("Trying to abort but not implemented")
-    return JSONResponse(output)
+    try:
+        params = await request.json()
+        logger.info(f"Worker received request: task={params.get('task')}, model={params.get('model')}")
+        await acquire_worker_semaphore()
+        try:
+            request_id = uuid.uuid4()
+            params["request_id"] = str(request_id)
+            output = await worker.generate(params)
+            return JSONResponse(output)
+        finally:
+            release_worker_semaphore()
+    except Exception:
+        return JSONResponse({"status": "error", "message": "An error occurred during generation."})
 
 
 @app.post("/worker_get_status")
@@ -284,10 +302,7 @@ def main():
         False,
     )
 
-    # Restore original stdout/stderr to prevent logging recursion
-    sys.stdout = sys.__stdout__
-    sys.stderr = sys.__stderr__
-    uvicorn.run(app, host=args.host, port=args.port, log_level="info", access_log=False)
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
 
 if __name__ == "__main__":

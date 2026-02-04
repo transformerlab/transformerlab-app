@@ -2,7 +2,7 @@ from rich.console import Console
 
 import typer
 from transformerlab_cli.util.ui import render_table, render_object
-from transformerlab_cli.util.config import check_configs
+from transformerlab_cli.util.config import check_configs, get_config
 
 import transformerlab_cli.util.api as api
 import yaml
@@ -17,11 +17,11 @@ console = Console()
 REQUIRED_TASK_FIELDS = ["name", "type"]
 
 
-def list_tasks(output_format: str = "pretty") -> None:
-    """List all tasks."""
+def list_tasks(output_format: str = "pretty", experiment_id: str = "alpha") -> None:
+    """List all REMOTE tasks."""
 
     with console.status("[bold green]Fetching tasks...[/bold green]", spinner="dots"):
-        response = api.get("/tasks/list")
+        response = api.get(f"/experiment/{experiment_id}/task/list_by_type_in_experiment?type=REMOTE")
 
     if response.status_code == 200:
         tasks = response.json()
@@ -32,15 +32,26 @@ def list_tasks(output_format: str = "pretty") -> None:
         console.print(f"[red]Error:[/red] Failed to fetch tasks. Status code: {response.status_code}")
 
 
-def delete_task(task_id: str) -> None:
+def delete_task(task_id: str, experiment_id: str) -> None:
     """Delete a task by ID."""
-    console.print(f"[yellow]Task delete '{task_id}' - not implemented[/yellow]")
+    with console.status(f"[bold green]Deleting task {task_id}...[/bold green]", spinner="dots"):
+        response = api.get(f"/experiment/{experiment_id}/task/{task_id}/delete")
+    if response.status_code == 200:
+        body = response.json()
+        if body.get("message") == "OK":
+            console.print(f"[green]✓[/green] Task [bold]{task_id}[/bold] deleted.")
+        else:
+            console.print(f"[red]Error:[/red] Task not found. {body.get('message', '')}")
+            raise typer.Exit(1)
+    else:
+        console.print(f"[red]Error:[/red] Failed to delete task. Status code: {response.status_code}")
+        raise typer.Exit(1)
 
 
-def info_task(task_id: str) -> None:
+def info_task(task_id: str, experiment_id: str) -> None:
     """Get info for a task by ID."""
     with console.status(f"[bold green]Fetching info for task {task_id}...[/bold green]", spinner="dots"):
-        response = api.get(f"/tasks/{task_id}/get")
+        response = api.get(f"/experiment/{experiment_id}/task/{task_id}/get")
 
     if response.status_code == 200:
         task_info = response.json()
@@ -59,15 +70,15 @@ def _check_if_zip_command_exists():
         raise typer.Exit(1)
 
 
-def add_task(task_yaml_path: str, from_url: str) -> None:
+def add_task(task_yaml_path: str, from_url: str):
     """Add a new task."""
     if task_yaml_path and from_url:
         console.print("[red]Error:[/red] Please provide either a file path or a URL, not both.")
-        raise typer.Exit(1)
+        return {"status_code": 400, "message": "Provide either a file path or a URL, not both."}
 
     if not task_yaml_path and not from_url:
         console.print("[red]Error:[/red] You must provide either a file path or a URL. Type --help for more info.")
-        raise typer.Exit(1)
+        return {"status_code": 400, "message": "Provide either a file path or a URL."}
 
     if from_url:
         console.print(f"[yellow]Fetching Task YAML from URL: {from_url}[/yellow]")
@@ -78,22 +89,29 @@ def add_task(task_yaml_path: str, from_url: str) -> None:
                     task_data = yaml.safe_load(response.text)
                 except yaml.YAMLError:
                     console.print("[red]Error:[/red] Failed to parse YAML from URL. Are you sure the URL is correct?")
-                    raise typer.Exit(1)
+                    return {"status_code": 422, "message": "Failed to parse YAML from URL."}
             else:
                 console.print(
                     f"[red]Error:[/red] Failed to fetch Task YAML from URL. Status code: {response.status_code}"
                 )
-                raise typer.Exit(1)
+                return {"status_code": response.status_code, "message": "Failed to fetch Task YAML from URL."}
         except requests.ConnectionError as e:
             console.print(f"[red]Error:[/red] Failed to connect to the URL: {from_url}. Details: {e}")
-            raise typer.Exit(1)
+            return {"status_code": 503, "message": "Failed to connect to the URL."}
         except requests.RequestException as e:
             console.print(f"[red]Error:[/red] An error occurred while fetching the URL: {from_url}. Details: {e}")
-            raise typer.Exit(1)
+            return {"status_code": 500, "message": "An error occurred while fetching the URL."}
     else:
         console.print(f"[yellow]Task add from file: '{task_yaml_path}'[/yellow]")
-        with open(task_yaml_path, "r") as f:
-            task_data = yaml.safe_load(f)
+        try:
+            with open(task_yaml_path, "r") as f:
+                task_data = yaml.safe_load(f)
+        except FileNotFoundError:
+            console.print("[red]Error:[/red] File not found.")
+            return {"status_code": 404, "message": "File not found."}
+        except yaml.YAMLError:
+            console.print("[red]Error:[/red] Failed to parse YAML from file.")
+            return {"status_code": 422, "message": "Failed to parse YAML from file."}
 
     console.print("[bold]Task YAML to be uploaded:[/bold]")
     console.print(yaml.dump(task_data))
@@ -129,7 +147,12 @@ def add_task(task_yaml_path: str, from_url: str) -> None:
 def command_task_list():
     """List all tasks."""
     check_configs()
-    list_tasks()
+    current_experiment = get_config("current_experiment")
+    if not current_experiment or not str(current_experiment).strip():
+        console.print("[yellow]current_experiment is not set in config.[/yellow]")
+        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
+        raise typer.Exit(1)
+    list_tasks(experiment_id=current_experiment)
 
 
 @app.command("add")
@@ -139,7 +162,9 @@ def command_task_add(
 ):
     """Add a new task. Provide a file path directly, or use --from-url to fetch the YAML from a URL."""
     check_configs()
-    add_task(task_yaml_path, from_url)
+    response = add_task(task_yaml_path, from_url)
+    if response and response.get("status_code") != 200:
+        raise typer.Exit(1)
 
 
 @app.command("delete")
@@ -148,7 +173,12 @@ def command_task_delete(
 ):
     """Delete a task."""
     check_configs()
-    delete_task(task_id)
+    current_experiment = get_config("current_experiment")
+    if not current_experiment or not str(current_experiment).strip():
+        console.print("[yellow]current_experiment is not set in config.[/yellow]")
+        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
+        raise typer.Exit(1)
+    delete_task(task_id, experiment_id=current_experiment)
 
 
 @app.command("info")
@@ -157,4 +187,9 @@ def command_task_info(
 ):
     """Get task details."""
     check_configs()
-    info_task(task_id)
+    current_experiment = get_config("current_experiment")
+    if not current_experiment or not str(current_experiment).strip():
+        console.print("[yellow]current_experiment is not set in config.[/yellow]")
+        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
+        raise typer.Exit(1)
+    info_task(task_id, current_experiment)

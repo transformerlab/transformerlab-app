@@ -31,7 +31,7 @@ import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { filterByFilters, licenseTypes, modelTypes } from '../../lib/utils';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import SelectButton from '../Experiment/SelectButton';
-import { RiChatAiLine, RiImageAiLine } from 'react-icons/ri';
+import { RiChatAiLine, RiImageAiLine } from 'renderer/components/Icons';
 import { fetchWithAuth } from 'renderer/lib/authContext';
 
 type Order = 'asc' | 'desc';
@@ -219,7 +219,6 @@ const LocalModelsTable = ({
             '--Table-headerUnderlineThickness': '1px',
             '--TableRow-hoverBackground': (theme) =>
               theme.vars.palette.background.level1,
-            height: '100px',
             overflow: 'auto',
           }}
         >

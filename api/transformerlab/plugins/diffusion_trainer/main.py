@@ -2,6 +2,7 @@ import math
 import random
 import json
 import gc
+import asyncio
 
 import numpy as np
 import torch
@@ -35,7 +36,7 @@ from transformerlab.sdk.v1.train import tlab_trainer
 from lab.dirs import get_workspace_dir
 from lab import storage
 
-workspace_dir = get_workspace_dir()
+workspace_dir = asyncio.run(get_workspace_dir())
 
 
 def cleanup_pipeline():

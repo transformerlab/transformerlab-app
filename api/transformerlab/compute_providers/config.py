@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 class ComputeProviderConfig(BaseModel):
     """Configuration for a single compute provider."""
 
-    type: str  # "skypilot" or "slurm"
+    type: str  # "skypilot", "slurm", or "runpod"
     name: str  # Provider name/identifier
 
     # SkyPilot-specific config
@@ -27,6 +27,14 @@ class ComputeProviderConfig(BaseModel):
     ssh_user: Optional[str] = None
     ssh_key_path: Optional[str] = None
     ssh_port: int = 22
+
+    # Runpod-specific config
+    api_key: Optional[str] = None  # Runpod API key (sensitive)
+    api_base_url: Optional[str] = None  # Defaults to https://rest.runpod.io/v1
+    default_gpu_type: Optional[str] = None  # Default GPU type (e.g., "RTX 3090", "A100")
+    default_region: Optional[str] = None  # Default region
+    default_template_id: Optional[str] = None  # Default Docker template ID
+    default_network_volume_id: Optional[str] = None  # Default network volume ID
 
     # Additional provider-specific config
     extra_config: Dict[str, Any] = Field(default_factory=dict)
@@ -118,10 +126,9 @@ def create_compute_provider(config: ComputeProviderConfig):
     Returns:
         ComputeProvider instance
     """
-    from .skypilot import SkyPilotProvider
-    from .slurm import SLURMProvider
-
     if config.type == "skypilot":
+        from .skypilot import SkyPilotProvider
+
         if not config.server_url:
             raise ValueError("SkyPilot provider requires server_url in config")
         return SkyPilotProvider(
@@ -132,6 +139,8 @@ def create_compute_provider(config: ComputeProviderConfig):
             extra_config=config.extra_config,
         )
     elif config.type == "slurm":
+        from .slurm import SLURMProvider
+
         if config.mode == "rest":
             if not config.rest_url:
                 raise ValueError("SLURM provider in REST mode requires rest_url in config")
@@ -154,5 +163,19 @@ def create_compute_provider(config: ComputeProviderConfig):
             )
         else:
             raise ValueError(f"SLURM provider mode must be 'rest' or 'ssh', got: {config.mode}")
+    elif config.type == "runpod":
+        from .runpod import RunpodProvider
+
+        if not config.api_key:
+            raise ValueError("Runpod provider requires api_key in config")
+        return RunpodProvider(
+            api_key=config.api_key,
+            api_base_url=config.api_base_url,
+            default_gpu_type=config.default_gpu_type,
+            default_region=config.default_region,
+            default_template_id=config.default_template_id,
+            default_network_volume_id=config.default_network_volume_id,
+            extra_config=config.extra_config,
+        )
     else:
         raise ValueError(f"Unknown provider type: {config.type}")

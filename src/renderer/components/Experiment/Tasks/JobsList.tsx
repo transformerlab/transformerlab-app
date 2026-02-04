@@ -14,6 +14,7 @@ import {
   FileTextIcon,
   DatabaseIcon,
 } from 'lucide-react';
+import { Typography } from '@mui/joy';
 import JobProgress from './JobProgress';
 
 interface JobsListProps {
@@ -29,6 +30,7 @@ interface JobsListProps {
   onViewEvalResults?: (jobId: string) => void;
   onViewGeneratedDataset?: (jobId: string, datasetId: string) => void;
   onViewInteractive?: (jobId: string) => void;
+  loading: boolean;
 }
 
 const JobsList: React.FC<JobsListProps> = ({
@@ -44,6 +46,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewEvalResults,
   onViewGeneratedDataset,
   onViewInteractive,
+  loading,
 }) => {
   const formatJobConfig = (job: any) => {
     const jobData = job?.job_data || {};
@@ -108,15 +111,13 @@ const JobsList: React.FC<JobsListProps> = ({
       return (
         <>
           {clusterName && (
-            <>
-              <b>Instance:</b> {clusterName}
+            <Typography level="title-sm" fontWeight="bold">
+              {clusterName}
               <br />
-            </>
+            </Typography>
           )}
           {userDisplay && (
-            <>
-              <b>Launched by:</b> {userDisplay}
-            </>
+            <Typography level="body-sm">{userDisplay}</Typography>
           )}
         </>
       );
@@ -136,28 +137,58 @@ const JobsList: React.FC<JobsListProps> = ({
     return <b>{job.type || 'Unknown Job'}</b>;
   };
 
+  if (loading) {
+    return (
+      <Table style={{ tableLayout: 'auto' }} stickyHeader>
+        <tbody>
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <tr key={i}>
+              <td>
+                <Skeleton variant="text" level="title-sm" />
+              </td>
+              <td>
+                <Skeleton variant="text" level="body-sm" />
+              </td>
+              <td>
+                <Skeleton variant="text" level="body-sm" />
+              </td>
+              <td style={{ textAlign: 'right' }}>
+                <Skeleton
+                  variant="rectangular"
+                  width={200}
+                  height={32}
+                  sx={{ ml: 'auto' }}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    );
+  }
+
   return (
     <Table style={{ tableLayout: 'auto' }} stickyHeader>
-      <thead>
-        <tr>
-          <th style={{ width: '60px' }}>ID</th>
-          <th>Details</th>
-          <th>Status</th>
-          <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
-        </tr>
-      </thead>
       <tbody style={{ overflow: 'auto', height: '100%' }}>
         {jobs?.length > 0 ? (
           jobs?.map((job) => (
             <tr key={job.id}>
-              <td>
+              <td style={{ verticalAlign: 'top', border: 'none' }}>
                 <b>{job.id}</b>
               </td>
-              <td>{formatJobConfig(job)}</td>
-              <td>
-                <JobProgress job={job} />
+              <td style={{ verticalAlign: 'top', border: 'none' }}>
+                {formatJobConfig(job)}
               </td>
-              <td style={{ width: 'fit-content' }}>
+              <td style={{ verticalAlign: 'top', border: 'none' }}>
+                <JobProgress job={job} showLaunchResultInfo />
+              </td>
+              <td
+                style={{
+                  verticalAlign: 'top',
+                  width: 'fit-content',
+                  border: 'none',
+                }}
+              >
                 <ButtonGroup
                   sx={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}
                 >
@@ -305,14 +336,38 @@ const JobsList: React.FC<JobsListProps> = ({
                     </Button>
                   )}
                   {job?.status === 'INTERACTIVE' &&
-                    job?.job_data?.interactive_type === 'vscode' && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => onViewInteractive?.(job?.id)}
-                      >
-                        Interactive Setup
-                      </Button>
+                    (job?.job_data?.interactive_type === 'vscode' ||
+                      job?.job_data?.interactive_type === 'jupyter' ||
+                      job?.job_data?.interactive_type === 'vllm' ||
+                      job?.job_data?.interactive_type === 'ollama' ||
+                      job?.job_data?.interactive_type === 'ssh') && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewInteractive?.(job?.id)}
+                        >
+                          Interactive Setup
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewOutput?.(job?.id)}
+                          startDecorator={<LogsIcon />}
+                        >
+                          <Box
+                            sx={{
+                              display: {
+                                xs: 'none',
+                                sm: 'none',
+                                md: 'inline-flex',
+                              },
+                            }}
+                          >
+                            Output
+                          </Box>
+                        </Button>
+                      </>
                     )}
                   {job?.job_data?.checkpoints && (
                     <Button
@@ -372,7 +427,15 @@ const JobsList: React.FC<JobsListProps> = ({
           ))
         ) : (
           <tr>
-            <td colSpan={4} style={{ textAlign: 'center', padding: '20px' }}>
+            <td
+              colSpan={4}
+              style={{
+                textAlign: 'center',
+                padding: '20px',
+                verticalAlign: 'top',
+                border: 'none',
+              }}
+            >
               No jobs found
             </td>
           </tr>

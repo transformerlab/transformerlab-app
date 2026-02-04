@@ -117,7 +117,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         else:
             logger.info("No reference audio provided, performing standard TTS")
 
-        workspace_dir = get_workspace_dir()
+        workspace_dir = await get_workspace_dir()
         # Make sure the path is still inside the workspace directory
         # For both local and fsspec paths, check if audio_dir starts with workspace_dir
         is_safe = audio_dir.startswith(workspace_dir)
