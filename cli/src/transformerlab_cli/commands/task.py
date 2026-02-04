@@ -61,15 +61,6 @@ def info_task(task_id: str, experiment_id: str) -> None:
         console.print(f"[red]Error:[/red] Failed to fetch task info. Status code: {response.status_code}")
 
 
-def _check_if_zip_command_exists():
-    """Check if the 'zip' command is available on the system."""
-    if which("zip") is None:
-        console.print(
-            "[red]Error:[/red] The 'zip' command is not available on this system. Please install it to proceed."
-        )
-        raise typer.Exit(1)
-
-
 def add_task(task_yaml_path: str, from_url: str):
     """Add a new task."""
     if task_yaml_path and from_url:
