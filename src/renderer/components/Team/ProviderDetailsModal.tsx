@@ -46,6 +46,7 @@ const DEFAULT_CONFIGS = {
   "api_key": "<Your Runpod API key>",
   "api_base_url": "https://rest.runpod.io/v1"
 }`,
+  local: `{}`,
 };
 
 export default function ProviderDetailsModal({
@@ -199,6 +200,7 @@ export default function ProviderDetailsModal({
                   <Option value="skypilot">Skypilot</Option>
                   <Option value="slurm">SLURM</Option>
                   <Option value="runpod">Runpod (beta)</Option>
+                  <Option value="local">Local (beta)</Option>
                 </Select>
                 {providerId && (
                   <Typography

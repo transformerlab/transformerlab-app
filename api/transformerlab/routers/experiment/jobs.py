@@ -26,7 +26,7 @@ from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.compute_providers.models import JobState
 from transformerlab.shared.tunnel_parser import get_tunnel_info
 from lab import Job
-from lab.dirs import get_workspace_dir
+from lab.dirs import get_workspace_dir, get_local_provider_job_dir
 from transformerlab.shared import zip_utils
 
 router = APIRouter(prefix="/jobs", tags=["train"])
@@ -313,6 +313,12 @@ async def get_provider_job_logs(
 
     if provider_job_id is None:
         raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
+
+    # For local provider, set workspace_dir (job dir) so LocalProvider can read logs.
+    # Use the dedicated local-only directory so this works even when TFL_API_STORAGE_URI is set.
+    if getattr(provider, "type", None) == "local" and hasattr(provider_instance, "extra_config"):
+        job_dir = get_local_provider_job_dir(job_id, org_id=user_and_team["team_id"])
+        provider_instance.extra_config["workspace_dir"] = job_dir
 
     try:
         raw_logs = provider_instance.get_job_logs(
