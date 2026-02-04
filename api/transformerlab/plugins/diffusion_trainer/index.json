@@ -289,12 +289,6 @@
       "title": "Log to Weights and Biases",
       "type": "boolean",
       "default": true
-    },
-    "training_adapter": {
-      "title": "Z-Image-Turbo Training Adapter Path",
-      "type": "string",
-      "default": "",
-      "ui:help": "Optional local path to a custom de-distillation training adapter (.safetensors or .bin). Leave empty to automatically download and use the recommended ostris v2 adapter when training on Z-Image-Turbo."
     }
   },
   "parameters_ui": {
@@ -303,9 +297,6 @@
     },
     "trigger_word": {
       "ui:help": "Optional trigger word to prepend to all captions during training. Example: 'sks person' or 'ohwx style'"
-    },
-    "training_adapter": {
-      "ui:help": "Leave blank for auto-download of the recommended adapter. Provide a local path if you want to use a custom or offline adapter (e.g., v1 or your own)."
     },
     "num_train_epochs": {
       "ui:help": "Total number of training epochs to run."
