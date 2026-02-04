@@ -581,6 +581,10 @@ def _get_aws_credentials_from_file(profile_name: str = "transformerlab-s3") -> T
     return None, None
 
 
+# lab.init() not required; copy_file_mounts uses _TFL_JOB_ID and job_data only
+COPY_FILE_MOUNTS_SETUP = 'pip install -q transformerlab && python -c "from lab import lab; lab.copy_file_mounts()"'
+
+
 def _generate_aws_credentials_setup(
     aws_access_key_id: str, aws_secret_access_key: str, aws_profile: Optional[str] = None
 ) -> str:
@@ -797,9 +801,7 @@ async def _launch_sweep_jobs(
                 tfl_storage_uri = None
                 try:
                     storage_root = await storage.root_uri()
-                    if storage_root and any(
-                        storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")
-                    ):
+                    if storage_root and storage.is_remote_path(storage_root):
                         tfl_storage_uri = storage_root
                 except Exception:
                     pass
@@ -808,7 +810,7 @@ async def _launch_sweep_jobs(
                     env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
                     env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
 
-                # Build setup script
+                # Build setup script (add copy_file_mounts when file_mounts is True, after AWS credentials)
                 setup_commands = []
                 aws_profile = "transformerlab-s3"
                 if os.getenv("TFL_API_STORAGE_URI"):
@@ -819,6 +821,9 @@ async def _launch_sweep_jobs(
                         )
                         setup_commands.append(aws_setup)
                         env_vars["AWS_PROFILE"] = aws_profile
+
+                if request.file_mounts is True and request.task_id:
+                    setup_commands.append(COPY_FILE_MOUNTS_SETUP)
 
                 if request.github_repo_url:
                     workspace_dir = await get_workspace_dir()
@@ -869,7 +874,7 @@ async def _launch_sweep_jobs(
                     "num_nodes": request.num_nodes,
                     "setup": final_setup,
                     "env_vars": env_vars if env_vars else None,
-                    "file_mounts": request.file_mounts or None,
+                    "file_mounts": request.file_mounts if request.file_mounts is not True else True,
                     "parameters": parameters_with_secrets or None,
                     "provider_id": provider.id,
                     "provider_type": provider.type,
@@ -877,6 +882,8 @@ async def _launch_sweep_jobs(
                     "user_info": user_info or None,
                     "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
                 }
+                if request.file_mounts is True and request.task_id:
+                    child_job_data["task_id"] = request.task_id
 
                 for key, value in child_job_data.items():
                     if value is not None:
@@ -892,6 +899,8 @@ async def _launch_sweep_jobs(
                     except (TypeError, ValueError):
                         disk_size = None
 
+                # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
+                file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
                 cluster_config = ClusterConfig(
                     cluster_name=formatted_cluster_name,
                     provider_name=provider_display_name,
@@ -904,7 +913,7 @@ async def _launch_sweep_jobs(
                     accelerators=request.accelerators,
                     num_nodes=request.num_nodes,
                     disk_size=disk_size,
-                    file_mounts=request.file_mounts or {},
+                    file_mounts=file_mounts_for_provider,
                     provider_config={"requested_disk_space": request.disk_space},
                 )
 
@@ -1102,11 +1111,13 @@ async def launch_template_on_provider(
     else:
         aws_access_key_id, aws_secret_access_key = None, None
 
-    # Build setup script - prepend AWS credentials setup if credentials are provided
+    # Build setup script - add copy_file_mounts after AWS credentials when file_mounts is True (task dir -> ~/src)
     setup_commands = []
     if aws_access_key_id and aws_secret_access_key:
         aws_setup = _generate_aws_credentials_setup(aws_access_key_id, aws_secret_access_key, aws_profile)
         setup_commands.append(aws_setup)
+    if request.file_mounts is True and request.task_id:
+        setup_commands.append(COPY_FILE_MOUNTS_SETUP)
 
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
@@ -1164,7 +1175,7 @@ async def launch_template_on_provider(
     try:
         storage_root = await storage.root_uri()
         # Check if it's a remote URI (not a local path)
-        if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
+        if storage_root and storage.is_remote_path(storage_root):
             tfl_storage_uri = storage_root
     except Exception:
         pass
@@ -1209,7 +1220,7 @@ async def launch_template_on_provider(
         "num_nodes": request.num_nodes,
         "setup": final_setup,
         "env_vars": env_vars if env_vars else None,
-        "file_mounts": request.file_mounts or None,
+        "file_mounts": request.file_mounts if request.file_mounts is not True else True,
         "parameters": parameters_with_secrets or None,
         "provider_id": provider.id,
         "provider_type": provider.type,
@@ -1218,6 +1229,8 @@ async def launch_template_on_provider(
         "team_id": team_id,  # Store team_id for quota tracking
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
+    if request.file_mounts is True and request.task_id:
+        job_data["task_id"] = request.task_id
 
     for key, value in job_data.items():
         if value is not None:
@@ -1230,6 +1243,8 @@ async def launch_template_on_provider(
         except (TypeError, ValueError):
             disk_size = None
 
+    # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
+    file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
@@ -1242,7 +1257,7 @@ async def launch_template_on_provider(
         accelerators=request.accelerators,
         num_nodes=request.num_nodes,
         disk_size=disk_size,
-        file_mounts=request.file_mounts or {},
+        file_mounts=file_mounts_for_provider,
         provider_config={"requested_disk_space": request.disk_space},
     )
 
@@ -1934,7 +1949,7 @@ async def resume_from_checkpoint(
     tfl_storage_uri = None
     try:
         storage_root = storage.root_uri()
-        if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
+        if storage_root and storage.is_remote_path(storage_root):
             tfl_storage_uri = storage_root
     except Exception:
         pass
