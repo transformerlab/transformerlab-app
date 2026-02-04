@@ -14,6 +14,10 @@ from .models import (
 )
 
 
+# Path inside the RunPod container where we tee stdout/stderr for provider log retrieval via SSH
+RUNPOD_RUN_LOGS_PATH = "/workspace/run_logs.txt"
+
+
 class RunpodProvider(ComputeProvider):
     """Provider implementation for Runpod API."""
 
@@ -314,8 +318,12 @@ class RunpodProvider(ComputeProvider):
                 config.provider_config.get("network_volume_id") or self.default_network_volume_id
             )
 
+        # Expose SSH so we can later read run_logs.txt for provider logs
+        pod_data["ports"] = ["22/tcp"]
+
         # Build dockerStartCmd - Runpod expects a single command string or array
-        # that will be executed by the container's entrypoint
+        # that will be executed by the container's entrypoint.
+        # We tee stdout/stderr to RUNPOD_RUN_LOGS_PATH so provider logs can be read via SSH.
         docker_cmds = []
 
         if config.setup:
@@ -327,19 +335,21 @@ class RunpodProvider(ComputeProvider):
             docker_cmds.append(config.command)
 
         # Join commands with && so they run sequentially
-        # Wrap in sh -c so complex commands with arguments work properly
+        # Tee to a fixed path so get_job_logs can read it via SSH (no RunPod logs API)
         if docker_cmds:
-            # If we have multiple commands, join them
             combined_cmd = " && ".join(docker_cmds)
-            # Wrap in sh -c to ensure proper command execution
-            # This prevents issues with exec trying to find "echo hello" as a single executable
-            pod_data["dockerStartCmd"] = ["sh", "-c", combined_cmd]
+            # mkdir -p /workspace works with or without a network volume; tee writes run logs there
+            wrapped_cmd = (
+                f"mkdir -p /workspace && ({combined_cmd}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}"
+            )
+            pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
         elif config.setup:
-            # Just setup, no command
             pod_data["dockerStartCmd"] = ["sh", "-c", config.setup]
         elif config.command:
-            # Just command, no setup
-            pod_data["dockerStartCmd"] = ["sh", "-c", config.command]
+            wrapped_cmd = (
+                f"mkdir -p /workspace && ({config.command}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}"
+            )
+            pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
 
         if self.default_region or config.region:
             pod_data["region"] = config.region or self.default_region

@@ -1,4 +1,5 @@
 import asyncio
+import io
 from fnmatch import fnmatch
 import json
 import os
@@ -25,11 +26,75 @@ from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.compute_providers.models import JobState
 from transformerlab.shared.tunnel_parser import get_tunnel_info
+from transformerlab.shared.models.models import ProviderType
 from lab import Job
 from lab.dirs import get_workspace_dir
 from transformerlab.shared import zip_utils
 
 router = APIRouter(prefix="/jobs", tags=["train"])
+
+
+async def _fetch_runpod_provider_logs(
+    provider_instance,
+    cluster_name: str,
+    team_id: str,
+    tail_lines: int,
+) -> str:
+    """
+    For RunPod: get pod public IP, SSH with org key, read /workspace/run_logs.txt and return.
+    """
+    from transformerlab.compute_providers.runpod import RUNPOD_RUN_LOGS_PATH
+    from transformerlab.services.ssh_key_service import get_org_ssh_private_key
+
+    status = provider_instance.get_cluster_status(cluster_name)
+    provider_data = getattr(status, "provider_data", None) or {}
+    runtime = provider_data.get("runtime") or {}
+    host = runtime.get("publicIp") or runtime.get("public_ip")
+    if not host:
+        return "Pod has no public IP yet (still starting or not available)."
+
+    try:
+        key_bytes = await get_org_ssh_private_key(team_id)
+    except Exception as e:
+        return f"Cannot load SSH key for provider logs: {e}"
+
+    def _ssh_cat_log() -> str:
+        import paramiko
+
+        try:
+            pkey = None
+            try:
+                pkey = paramiko.Ed25519Key.from_private_key(io.BytesIO(key_bytes))
+            except paramiko.ssh_exception.SSHException:
+                pkey = paramiko.RSAKey.from_private_key(io.BytesIO(key_bytes))
+        except Exception as e:
+            return f"Failed to load SSH key: {e}"
+
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        try:
+            ssh.connect(
+                hostname=host,
+                port=22,
+                username="root",
+                pkey=pkey,
+                timeout=15,
+                banner_timeout=15,
+            )
+            # Prefer tail to limit size; fallback to cat if tail fails
+            cmd = f"tail -n {tail_lines} {RUNPOD_RUN_LOGS_PATH} 2>/dev/null || cat {RUNPOD_RUN_LOGS_PATH} 2>/dev/null || echo 'No log file found.'"
+            stdin, stdout, stderr = ssh.exec_command(cmd, timeout=10)
+            out = stdout.read().decode("utf-8", errors="replace")
+            err = stderr.read().decode("utf-8", errors="replace")
+            if err and "No such file" not in err:
+                out = out or err
+            return out.strip() or "No log output yet."
+        except Exception as e:
+            return f"SSH failed: {e}"
+        finally:
+            ssh.close()
+
+    return await asyncio.to_thread(_ssh_cat_log)
 
 
 @router.get("/list")
@@ -315,12 +380,17 @@ async def get_provider_job_logs(
         raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
 
     try:
-        raw_logs = provider_instance.get_job_logs(
-            cluster_name,
-            provider_job_id,
-            tail_lines=tail_lines or None,
-            follow=False,
-        )
+        if provider.type == ProviderType.RUNPOD.value:
+            raw_logs = await _fetch_runpod_provider_logs(
+                provider_instance, cluster_name, user_and_team["team_id"], tail_lines
+            )
+        else:
+            raw_logs = provider_instance.get_job_logs(
+                cluster_name,
+                provider_job_id,
+                tail_lines=tail_lines or None,
+                follow=False,
+            )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
 

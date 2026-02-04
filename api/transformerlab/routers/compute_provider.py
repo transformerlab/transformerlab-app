@@ -1131,8 +1131,8 @@ async def launch_template_on_provider(
         )
         setup_commands.append(github_setup)
 
-    # Add SSH public key setup for SSH interactive tasks
-    if request.subtype == "interactive" and request.interactive_type == "ssh":
+    # Add SSH public key setup for SSH interactive tasks and for RunPod (so we can read provider logs via SSH)
+    if (request.subtype == "interactive" and request.interactive_type == "ssh") or provider.type == ProviderType.RUNPOD.value:
         from transformerlab.services.ssh_key_service import get_or_create_org_ssh_key_pair, get_org_ssh_public_key
 
         try:
