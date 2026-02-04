@@ -1276,8 +1276,7 @@ async def get_job_datasets(job_id: str, request: Request):
         print(f"Error getting datasets for job {job_id}: {e}")
         datasets = []
 
-    # Sort by name for consistent ordering
-    datasets.sort(key=lambda x: x["name"])
+    datasets.sort(key=lambda x: x["name"], reverse=True)
 
     return {"datasets": datasets}
 
@@ -1298,8 +1297,7 @@ async def get_job_models(job_id: str, request: Request):
         print(f"Error getting models for job {job_id}: {e}")
         models = []
 
-    # Sort by name for consistent ordering
-    models.sort(key=lambda x: x["name"])
+    models.sort(key=lambda x: x["name"], reverse=True)
 
     return {"models": models}
 
