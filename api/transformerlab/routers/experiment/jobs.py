@@ -1265,26 +1265,15 @@ async def get_job_datasets(job_id: str, request: Request):
         from lab.dirs import get_job_datasets_dir
 
         datasets_dir = await get_job_datasets_dir(job_id)
-
-        if not await storage.exists(datasets_dir):
-            return {"datasets": []}
-
-        datasets = []
-        entries = await storage.ls(datasets_dir, detail=True)
-
-        for entry in entries:
-            if await storage.isdir(entry["name"]):
-                dataset_name = entry["name"].split("/")[-1]
-                dataset_size = entry.get("size", 0)
-
-                datasets.append({"name": dataset_name, "size": dataset_size, "date": entry.get("mtime", None)})
-
-        datasets.sort(key=lambda x: x["name"])
-        return {"datasets": datasets}
-
+        datasets = await job_service.get_datasets_from_directory(datasets_dir, storage)
     except Exception as e:
         print(f"Error getting datasets for job {job_id}: {e}")
-        return {"datasets": []}
+        datasets = []
+
+    # Sort by name for consistent ordering
+    datasets.sort(key=lambda x: x["name"])
+
+    return {"datasets": datasets}
 
 
 @router.get("/{job_id}/models")
@@ -1298,26 +1287,15 @@ async def get_job_models(job_id: str, request: Request):
         from lab.dirs import get_job_models_dir
 
         models_dir = await get_job_models_dir(job_id)
-
-        if not await storage.exists(models_dir):
-            return {"models": []}
-
-        models = []
-        entries = await storage.ls(models_dir, detail=True)
-
-        for entry in entries:
-            if await storage.isdir(entry["name"]):
-                model_name = entry["name"].split("/")[-1]
-                model_size = entry.get("size", 0)
-
-                models.append({"name": model_name, "size": model_size, "date": entry.get("mtime", None)})
-
-        models.sort(key=lambda x: x["name"])
-        return {"models": models}
-
+        models = await job_service.get_models_from_directory(models_dir, storage)
     except Exception as e:
         print(f"Error getting models for job {job_id}: {e}")
-        return {"models": []}
+        models = []
+
+    # Sort by name for consistent ordering
+    models.sort(key=lambda x: x["name"])
+
+    return {"models": models}
 
 
 @router.post("/{job_id}/datasets/{dataset_name}/save_to_registry")
