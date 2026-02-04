@@ -1011,8 +1011,6 @@ async def launch_template_on_provider(
 
         # Launch child jobs in the background using asyncio.create_task
         # This runs concurrently but still within the request context
-        import asyncio
-
         # Merge parameters (defaults) with config for sweep
         base_params_for_sweep = {}
         if request.parameters:
