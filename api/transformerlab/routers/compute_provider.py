@@ -43,7 +43,7 @@ from transformerlab.services import job_service
 from transformerlab.services import quota_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
 from lab import storage
-from lab.dirs import get_workspace_dir, get_job_dir
+from lab.dirs import get_workspace_dir, get_job_dir, get_local_provider_job_dir
 from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
     generate_github_clone_setup,
@@ -1213,15 +1213,10 @@ async def launch_template_on_provider(
     # Build provider_config for cluster_config (and job_data for local provider)
     provider_config_dict = {"requested_disk_space": request.disk_space}
     if provider.type == ProviderType.LOCAL.value:
-        workspace_root = await get_workspace_dir()
-        if storage.is_remote_path(workspace_root):
-            raise HTTPException(
-                status_code=400,
-                detail="Local provider requires a local workspace (TFL_STORAGE_URI / remote workspace not supported)",
-            )
-        # Use the lab job directory <workspace_dir>/jobs/<job_id>/ as the run workspace
-        job_dir = await get_job_dir(job_id)
-        await storage.makedirs(job_dir, exist_ok=True)
+        # Use a dedicated local-only job directory for the local provider.
+        # This directory is always on the host filesystem and does not depend
+        # on TFL_API_STORAGE_URI / remote storage configuration.
+        job_dir = get_local_provider_job_dir(job_id, org_id=team_id)
         provider_config_dict["workspace_dir"] = job_dir
 
     job_data = {
@@ -2425,8 +2420,7 @@ async def get_job_logs(
 
         # Local provider needs workspace_dir (job dir) to read logs
         if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
-            job_dir = await get_job_dir(job_id)
-            await storage.makedirs(job_dir, exist_ok=True)
+            job_dir = get_local_provider_job_dir(job_id, org_id=team_id)
             provider_instance.extra_config["workspace_dir"] = job_dir
 
         # Get job logs
@@ -2518,8 +2512,7 @@ async def cancel_job(
 
         # Local provider needs workspace_dir (job dir) to cancel the correct process
         if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
-            job_dir = await get_job_dir(job_id)
-            await storage.makedirs(job_dir, exist_ok=True)
+            job_dir = get_local_provider_job_dir(job_id, org_id=team_id)
             provider_instance.extra_config["workspace_dir"] = job_dir
 
         # Cancel job
