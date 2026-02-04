@@ -26,6 +26,7 @@ type NewTeamTaskModalProps = {
     accelerators?: string;
     github_repo_url?: string;
     github_repo_dir?: string;
+    github_repo_branch?: string;
   }) => Promise<void>;
   isSubmitting?: boolean;
 };
@@ -47,6 +48,7 @@ export default function NewTeamTaskModal({
   const [setup, setSetup] = React.useState('');
   const [githubRepoUrl, setGithubRepoUrl] = React.useState('');
   const [githubRepoDir, setGithubRepoDir] = React.useState('');
+  const [githubRepoBranch, setGithubRepoBranch] = React.useState('');
   // keep separate refs for the two Monaco editors
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
@@ -79,6 +81,7 @@ export default function NewTeamTaskModal({
       accelerators: accelerators.trim() || undefined,
       github_repo_url: githubRepoUrl.trim() || undefined,
       github_repo_dir: githubRepoDir.trim() || undefined,
+      github_repo_branch: githubRepoBranch.trim() || undefined,
     });
 
     // Reset all form fields
@@ -91,6 +94,7 @@ export default function NewTeamTaskModal({
     setSetup('');
     setGithubRepoUrl('');
     setGithubRepoDir('');
+    setGithubRepoBranch('');
     // clear editor contents if mounted
     try {
       setupEditorRef?.current?.setValue?.('');
@@ -243,6 +247,18 @@ export default function NewTeamTaskModal({
                 <FormHelperText>
                   Optional: Specific directory within the repo. If empty, the
                   entire repo will be cloned.
+                </FormHelperText>
+              </FormControl>
+              <FormControl sx={{ mt: 1 }}>
+                <FormLabel>Branch / tag / commit (Optional)</FormLabel>
+                <Input
+                  value={githubRepoBranch}
+                  onChange={(e) => setGithubRepoBranch(e.target.value)}
+                  placeholder="main"
+                />
+                <FormHelperText>
+                  Optional: Branch, tag, or commit SHA to clone. Defaults to
+                  main if empty.
                 </FormHelperText>
               </FormControl>
             </FormControl>

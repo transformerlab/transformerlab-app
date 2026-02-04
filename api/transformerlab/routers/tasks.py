@@ -595,6 +595,8 @@ async def add_team_task_to_gallery(
         config["github_repo_url"] = request.github_repo_url
     if request.github_repo_dir:
         config["github_directory"] = request.github_repo_dir
+    if request.github_branch:
+        config["github_branch"] = request.github_branch
 
     # Create gallery entry
     gallery_entry = {
@@ -604,6 +606,7 @@ async def add_team_task_to_gallery(
         "config": config,
         "github_repo_url": request.github_repo_url,
         "github_repo_dir": request.github_repo_dir,
+        "github_branch": request.github_branch,
     }
 
     await galleries.add_team_task_to_gallery(gallery_entry)
