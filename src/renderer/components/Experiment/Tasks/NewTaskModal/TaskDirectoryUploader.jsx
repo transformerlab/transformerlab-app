@@ -1,11 +1,13 @@
 import React, { useCallback, useState, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { FolderOpenIcon } from 'lucide-react';
-import { Box, Typography, List, ListItem, Alert } from '@mui/joy';
+import { Box, Typography, List, ListItem, Alert, Button } from '@mui/joy';
 
 const TaskDirectoryUploader = ({ onUpload }) => {
   const [fileList, setFileList] = useState([]);
   const [error, setError] = useState(null);
+  const [showCreateBlank, setShowCreateBlank] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState([]);
   const inputRef = useRef(null);
 
   /**
@@ -73,6 +75,8 @@ const TaskDirectoryUploader = ({ onUpload }) => {
       });
 
       setError(null);
+      setShowCreateBlank(false);
+      setPendingFiles([]);
       let allFiles = [];
 
       // DETECT SOURCE: Drag (DataTransfer) vs Click (Input)
@@ -115,11 +119,15 @@ const TaskDirectoryUploader = ({ onUpload }) => {
         setError(
           "❌ Invalid Task: The directory must contain a 'task.yaml' file.",
         );
+        setShowCreateBlank(true);
+        setPendingFiles(allFiles);
         setFileList([]);
         return;
       }
 
       // Success
+      setShowCreateBlank(false);
+      setPendingFiles([]);
       setFileList(allFiles);
       if (onUpload) {
         onUpload(allFiles);
@@ -175,6 +183,41 @@ const TaskDirectoryUploader = ({ onUpload }) => {
     if (files.length > 0) {
       // Simulate the onDrop callback for click-selected files
       onDrop(files, [], e);
+    }
+  };
+
+  const handleCreateBlank = () => {
+    // Create a default task.yaml file
+    const defaultYaml =
+      'name: my-task\nresources:\n  cpus: 2\n  memory: 4\nrun: "echo hello"';
+    const blob = new Blob([defaultYaml], { type: 'text/yaml' });
+    const taskYamlFile = new File([blob], 'task.yaml', { type: 'text/yaml' });
+
+    // Set webkitRelativePath to the root of the directory
+    // Try to infer the root directory from existing files
+    let rootPath = '';
+    if (pendingFiles.length > 0) {
+      const firstFile = pendingFiles[0];
+      const path = firstFile.webkitRelativePath || firstFile.name;
+      const pathParts = path.split('/');
+      if (pathParts.length > 1) {
+        rootPath = pathParts[0] + '/';
+      }
+    }
+
+    Object.defineProperty(taskYamlFile, 'webkitRelativePath', {
+      value: rootPath + 'task.yaml',
+      writable: true,
+    });
+
+    // Add the task.yaml file to the file list
+    const filesWithTaskYaml = [...pendingFiles, taskYamlFile];
+    setShowCreateBlank(false);
+    setPendingFiles([]);
+    setError(null);
+    setFileList(filesWithTaskYaml);
+    if (onUpload) {
+      onUpload(filesWithTaskYaml);
     }
   };
 
@@ -264,9 +307,38 @@ const TaskDirectoryUploader = ({ onUpload }) => {
       </Box>
 
       {error && (
-        <Alert color="danger" sx={{ mt: 2 }}>
-          {error}
-        </Alert>
+        <Box sx={{ mt: 2 }}>
+          <Alert color="danger" sx={{ mb: showCreateBlank ? 2 : 0 }}>
+            {error}
+          </Alert>
+          {showCreateBlank && (
+            <Box
+              sx={{
+                padding: 2,
+                backgroundColor: 'var(--joy-palette-neutral-50)',
+                borderRadius: 'md',
+                border: '1px solid',
+                borderColor: 'neutral.200',
+              }}
+            >
+              <Typography
+                level="body-sm"
+                sx={{ mb: 1.5, color: 'neutral.700' }}
+              >
+                task.yaml not found in the directory. Create a blank task.yaml
+                with a sample template?
+              </Typography>
+              <Button
+                color="primary"
+                variant="solid"
+                size="sm"
+                onClick={handleCreateBlank}
+              >
+                Create Blank
+              </Button>
+            </Box>
+          )}
+        </Box>
       )}
 
       {fileList.length > 0 && (
