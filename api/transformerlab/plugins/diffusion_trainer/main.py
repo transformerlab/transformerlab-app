@@ -59,6 +59,7 @@ def cleanup_pipeline():
 
 cleanup_pipeline()
 
+
 def build_zimage_model_configs(model_id_or_path: str) -> tuple[list[ModelConfig], ModelConfig]:
     """Build ModelConfig list + tokenizer config for Z-Image Turbo."""
     transformer_pattern = os.path.join("transformer", "*.safetensors")
@@ -89,6 +90,7 @@ def build_zimage_model_configs(model_id_or_path: str) -> tuple[list[ModelConfig]
         tokenizer_config = ModelConfig(model_id=model_id_or_path, subfolder="tokenizer")
 
     return model_configs, tokenizer_config
+
 
 def compute_loss_weighting(args, timesteps, noise_scheduler):
     """
@@ -339,6 +341,7 @@ def encode_prompt_sdxl(
 
     return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
+
 def encode_prompt_zimage(pipe, prompts, device, max_sequence_length: int = 512):
     """Encode prompts using Z-Image tokenizer/chat template."""
     if isinstance(prompts, str):
@@ -382,6 +385,7 @@ def encode_prompt_zimage(pipe, prompts, device, max_sequence_length: int = 512):
         embedding_list.append(prompt_embeds[i][prompt_masks[i]])
 
     return embedding_list
+
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
 def train_diffusion_lora():
@@ -435,7 +439,7 @@ def train_diffusion_lora():
     variant = args.get("variant", None)
 
     model_architecture = args.get("model_architecture")
-    
+
     # Load pipeline to auto-detect architecture and get correct components
     print(f"Loading pipeline to detect model architecture: {pretrained_model_name_or_path}")
 
@@ -488,7 +492,7 @@ def train_diffusion_lora():
         model_component_name = "dit"
         text_encoder_2 = None
         tokenizer_2 = None
-        vae = None 
+        vae = None
     else:
         temp_pipeline = AutoPipelineForText2Image.from_pretrained(pretrained_model_name_or_path, **pipeline_kwargs)
 
@@ -1063,7 +1067,11 @@ def train_diffusion_lora():
                     raise ValueError(
                         f"Unknown prediction type {noise_scheduler.config.prediction_type}"
                     )  # Handle SDXL-specific conditioning parameters with proper metadata
-                unet_kwargs = {"timestep": timesteps, "encoder_hidden_states": encoder_hidden_states, "return_dict": False}
+                unet_kwargs = {
+                    "timestep": timesteps,
+                    "encoder_hidden_states": encoder_hidden_states,
+                    "return_dict": False,
+                }
 
                 # SDXL requires additional conditioning kwargs with proper pooled embeddings and time_ids
                 if is_sdxl:
@@ -1115,7 +1123,7 @@ def train_diffusion_lora():
                 model_pred = unet(noisy_latents, **unet_kwargs)[0]
                 loss = compute_loss(model_pred, target, timesteps, noise_scheduler, args)
                 print(f"Step {step + 1}/{len(train_dataloader)} - Loss: {loss.item()}")
-            
+
             loss.backward()
 
             if (step + 1) % gradient_accumulation_steps == 0 or (step + 1) == len(train_dataloader):
@@ -1227,14 +1235,14 @@ def train_diffusion_lora():
 
             zimage_lora_state_dict = get_peft_model_state_dict(unet)
             save_file(zimage_lora_state_dict, storage.join(save_directory, "pytorch_lora_weights.safetensors"))
-            print(f"LoRA weights saved to {save_directory}/pytorch_lora_weights.safetensors using safetensors (Z-Image)")
+            print(
+                f"LoRA weights saved to {save_directory}/pytorch_lora_weights.safetensors using safetensors (Z-Image)"
+            )
             saved_successfully = True
         except ImportError:
             zimage_lora_state_dict = get_peft_model_state_dict(unet)
             torch.save(zimage_lora_state_dict, storage.join(save_directory, "pytorch_lora_weights.bin"))
-            print(
-                f"LoRA weights saved to {save_directory}/pytorch_lora_weights.bin using PyTorch format (Z-Image)"
-            )
+            print(f"LoRA weights saved to {save_directory}/pytorch_lora_weights.bin using PyTorch format (Z-Image)")
             saved_successfully = True
         except Exception as e:
             print(f"Error saving Z-Image LoRA weights: {e}")
