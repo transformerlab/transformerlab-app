@@ -130,4 +130,3 @@ async def _local_launch_worker() -> None:
                         )
         finally:
             _local_launch_queue.task_done()
-
