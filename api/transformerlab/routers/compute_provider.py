@@ -43,7 +43,7 @@ from transformerlab.services import job_service
 from transformerlab.services import quota_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
 from lab import storage
-from lab.dirs import get_workspace_dir, get_job_dir, get_local_provider_job_dir
+from lab.dirs import get_workspace_dir, get_local_provider_job_dir
 from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
     generate_github_clone_setup,
