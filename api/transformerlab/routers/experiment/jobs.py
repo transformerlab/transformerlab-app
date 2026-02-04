@@ -48,8 +48,14 @@ async def _fetch_runpod_provider_logs(
 
     status = provider_instance.get_cluster_status(cluster_name)
     provider_data = getattr(status, "provider_data", None) or {}
-    runtime = provider_data.get("runtime") or {}
-    host = runtime.get("publicIp") or runtime.get("public_ip")
+    # RunPod API returns publicIp directly on the pod object, not nested under runtime
+    host = provider_data.get("publicIp") or provider_data.get("public_ip")
+    print("PROVIDER DATA: ", provider_data)
+    print("HOST: ", host)
+    # Fallback to runtime if not found at top level
+    if not host:
+        runtime = provider_data.get("runtime") or {}
+        host = runtime.get("publicIp") or runtime.get("public_ip")
     if not host:
         return "Pod has no public IP yet (still starting or not available)."
 
@@ -350,6 +356,7 @@ async def get_provider_job_logs(
             provider_job_id = provider_launch_result.get("job_id")
 
     if provider_job_id is None:
+        provider_jobs: List = []
         try:
             provider_jobs = provider_instance.list_jobs(cluster_name)
         except NotImplementedError:
