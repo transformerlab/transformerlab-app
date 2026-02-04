@@ -73,22 +73,22 @@ async def from_directory(
         github_repo_dir = (body.get("github_repo_dir") or "").strip() or None
         github_repo_branch = (body.get("github_repo_branch") or "").strip() or None
         create_if_missing = body.get("create_if_missing", False)
-        if not git_url:
+        if not github_repo_url:
             raise HTTPException(status_code=400, detail="git_url is required")
         try:
-          task_yaml_content = await fetch_task_yaml_from_github(
-              github_repo_url, directory=github_repo_dir, ref=github_repo_branch
-          )
+            task_yaml_content = await fetch_task_yaml_from_github(
+                github_repo_url, directory=github_repo_dir, ref=github_repo_branch
+            )
         except HTTPException as e:
             if e.status_code == 404 and create_if_missing:
                 # Create a default task.yaml with git_repo info
                 default_yaml_lines = ["name: my-task", "resources:", "  cpus: 2", "  memory: 4", 'run: "echo hello"']
-                if git_url:
-                    default_yaml_lines.append(f'git_repo: "{git_url}"')
-                if git_repo_directory:
-                    default_yaml_lines.append(f'git_repo_directory: "{git_repo_directory}"')
-                if git_branch:
-                    default_yaml_lines.append(f'git_repo_branch: "{git_branch}"')
+                if github_repo_url:
+                    default_yaml_lines.append(f'git_repo: "{github_repo_url}"')
+                if github_repo_dir:
+                    default_yaml_lines.append(f'git_repo_directory: "{github_repo_dir}"')
+                if github_repo_branch:
+                    default_yaml_lines.append(f'git_repo_branch: "{github_repo_branch}"')
                 task_yaml_content = "\n".join(default_yaml_lines)
             else:
                 raise
