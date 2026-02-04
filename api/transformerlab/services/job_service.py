@@ -989,8 +989,16 @@ async def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict
     Get artifacts by listing files in the artifacts directory.
     Returns list of artifacts (empty if directory can't be read).
     """
-    if not artifacts_dir:  ## /*or not await storage.exists(artifacts_dir):
+    if not artifacts_dir:
         return []
+
+    # Check if directory exists before trying to list it
+    try:
+        if not await storage.exists(artifacts_dir):
+            return []
+    except Exception:
+        # If exists() fails, try to list anyway (some storage backends may not support exists)
+        pass
 
     artifacts = []
     try:
@@ -1056,6 +1064,14 @@ async def get_datasets_from_directory(datasets_dir: str, storage) -> List[Dict]:
     if not datasets_dir:
         return []
 
+    # Check if directory exists before trying to list it
+    try:
+        if not await storage.exists(datasets_dir):
+            return []
+    except Exception:
+        # If exists() fails, try to list anyway (some storage backends may not support exists)
+        pass
+
     datasets = []
     try:
         items = await storage.ls(datasets_dir, detail=False)
@@ -1065,16 +1081,18 @@ async def get_datasets_from_directory(datasets_dir: str, storage) -> List[Dict]:
             if isinstance(item, dict):
                 # Extract path from dict (some storage backends return dicts even with detail=False)
                 dir_path = item.get("name") or item.get("path") or str(item)
-                # Skip if it's not a directory
-                if item.get("type") != "directory":
-                    continue
+                # Only process directories (skip files)
+                if item.get("type") == "directory":
+                    dataset = await format_dataset(dir_path, storage)
+                    if dataset:
+                        datasets.append(dataset)
             else:
+                # For string responses, check if it's a directory
                 dir_path = str(item)
-
-            if item and await storage.isdir(dir_path):
-                dataset = await format_dataset(dir_path, storage)
-                if dataset:
-                    datasets.append(dataset)
+                if await storage.isdir(dir_path):
+                    dataset = await format_dataset(dir_path, storage)
+                    if dataset:
+                        datasets.append(dataset)
     except Exception as e:
         print(f"Error reading datasets directory {datasets_dir}: {e}")
 
@@ -1083,11 +1101,20 @@ async def get_datasets_from_directory(datasets_dir: str, storage) -> List[Dict]:
 
 async def get_models_from_directory(models_dir: str, storage) -> List[Dict]:
     """
-    Get models by listing directories in the models directory.
+    Get models by listing both directories and files in the models directory.
+    Models can be either directories (containing multiple files) or single files (.pt, .safetensors, etc.)
     Returns list of models (empty if directory can't be read).
     """
     if not models_dir:
         return []
+
+    # Check if directory exists before trying to list it
+    try:
+        if not await storage.exists(models_dir):
+            return []
+    except Exception:
+        # If exists() fails, try to list anyway (some storage backends may not support exists)
+        pass
 
     models = []
     try:
@@ -1097,15 +1124,15 @@ async def get_models_from_directory(models_dir: str, storage) -> List[Dict]:
             # Handle both string paths and dict responses from storage.ls
             if isinstance(item, dict):
                 # Extract path from dict (some storage backends return dicts even with detail=False)
-                dir_path = item.get("name") or item.get("path") or str(item)
-                # Skip if it's not a directory
-                if item.get("type") != "directory":
-                    continue
+                item_path = item.get("name") or item.get("path") or str(item)
+                # Accept both directories and files (models can be either)
+                model = await format_model(item_path, storage)
+                if model:
+                    models.append(model)
             else:
-                dir_path = str(item)
-
-            if item and await storage.isdir(dir_path):
-                model = await format_model(dir_path, storage)
+                # For string responses, process all items
+                item_path = str(item)
+                model = await format_model(item_path, storage)
                 if model:
                     models.append(model)
     except Exception as e:
@@ -1121,7 +1148,16 @@ async def format_dataset(dir_path: str, storage) -> Optional[Dict[str, any]]:
     """
     try:
         dataset_name = dir_path.split("/")[-1] if "/" in dir_path else dir_path
-        dataset = {"name": dataset_name, "full_path": dir_path}
+        
+        # Get size and date metadata
+        metadata = await get_file_metadata(dir_path, storage)
+        
+        dataset = {
+            "name": dataset_name,
+            "full_path": dir_path,
+            "size": metadata.get("size"),
+            "date": metadata.get("mtime"),
+        }
         return dataset
     except Exception as e:
         print(f"Error formatting dataset {dir_path}: {e}")
@@ -1135,7 +1171,16 @@ async def format_model(dir_path: str, storage) -> Optional[Dict[str, any]]:
     """
     try:
         model_name = dir_path.split("/")[-1] if "/" in dir_path else dir_path
-        model = {"name": model_name, "full_path": dir_path}
+        
+        # Get size and date metadata
+        metadata = await get_file_metadata(dir_path, storage)
+        
+        model = {
+            "name": model_name,
+            "full_path": dir_path,
+            "size": metadata.get("size"),
+            "date": metadata.get("mtime"),
+        }
         return model
     except Exception as e:
         print(f"Error formatting model {dir_path}: {e}")
