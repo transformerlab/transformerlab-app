@@ -21,7 +21,7 @@ if "TFL_HOME_DIR" in os.environ and not (_current_tfl_storage_uri.get() or os.ge
     logger.info("Home directory is set to: %s", HOME_DIR)
 else:
     # For remote storage, this is a placeholder - actual value resolved via async functions
-    if _current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI"):
+    if _current_tfl_storage_uri.get() or (os.getenv("TFL_STORAGE_URI") and os.getenv("TFL_STORAGE_PROVIDER") != "nfs"):
         HOME_DIR = os.getenv("TFL_STORAGE_URI", "")
     else:
         HOME_DIR = os.path.join(os.path.expanduser("~"), ".transformerlab")
@@ -52,11 +52,8 @@ def set_organization_id(organization_id: str | None) -> None:
 async def get_workspace_dir() -> str:
     # Remote SkyPilot workspace override (highest precedence)
     # Only return container workspace path when value is exactly "true"
-    if os.getenv("_TFL_REMOTE_SKYPILOT_WORKSPACE") == "true":
-        if os.getenv("TFL_STORAGE_URI") is not None:
-            return await storage.root_uri()
-
-        return "/workspace"
+    if os.getenv("TFL_STORAGE_URI") is not None:
+        return await storage.root_uri()
 
     # Explicit override wins
     if "TFL_WORKSPACE_DIR" in os.environ and not (

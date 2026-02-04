@@ -11,7 +11,7 @@ import re
 from typing import List, Tuple
 import sys
 
-from lab.storage import REMOTE_WORKSPACE_HOST
+from lab.storage import REMOTE_WORKSPACE_HOST, STORAGE_PROVIDER
 
 
 def validate_cloud_credentials() -> None:
@@ -22,6 +22,10 @@ def validate_cloud_credentials() -> None:
     Raises:
         SystemExit: If cloud storage is enabled but credentials are missing
     """
+    # If NFS or other non-cloud storage is configured, skip validation
+    if STORAGE_PROVIDER == "nfs":
+        return
+
     # Check if cloud storage is enabled
     tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")
 
@@ -168,6 +172,11 @@ def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3"
     Returns:
         True if bucket was created successfully or already exists, False otherwise
     """
+
+    # If NFS or other non-cloud storage is configured, skip bucket creation
+    if STORAGE_PROVIDER == "nfs":
+        print("TFL_STORAGE_PROVIDER=nfs, skipping cloud bucket creation")
+        return False
 
     # Check if TFL_API_STORAGE_URI is set
     tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")
@@ -318,6 +327,11 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
         Tuple of (success_count, failure_count, error_messages)
     """
     from transformerlab.shared.models.models import Team
+
+    # If NFS or other non-cloud storage is configured, skip bucket creation
+    if STORAGE_PROVIDER == "nfs":
+        print("TFL_STORAGE_PROVIDER=nfs, skipping bucket creation for all teams")
+        return (0, 0, ["TFL_STORAGE_PROVIDER is 'nfs', skipping bucket creation"])
 
     # Check if TFL_API_STORAGE_URI is set
     tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")

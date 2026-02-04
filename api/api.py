@@ -559,10 +559,13 @@ async def healthz():
     Health check endpoint to verify server status and mode.
     """
     tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
+    storage_provider = os.getenv("TFL_STORAGE_PROVIDER", "").lower()
 
-    # Determine mode: s3 or local
+    # Determine mode: s3 (or other cloud) vs nfs vs local
     if tfl_api_storage_uri:
         mode = "s3"
+    elif storage_provider == "nfs":
+        mode = "nfs"
     else:
         mode = "local"
 
