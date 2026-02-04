@@ -1,3 +1,6 @@
+import os
+
+
 def get_add_if_verified_policy():
     import paramiko
 
