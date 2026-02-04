@@ -64,7 +64,7 @@ async def initialize_dirs():
     # Create default index.html if missing
     index_html_path = os.path.join(STATIC_FILES_DIR, "index.html")
     if not os.path.exists(index_html_path):
-        async with open(index_html_path, "w") as f:
+        with open(index_html_path, "w") as f:
             f.write(
                 "<html><body><p>Transformer Lab Cloud App Files Missing. Run <pre>curl https://raw.githubusercontent.com/transformerlab/transformerlab-app/main/api/install.sh | bash</pre> to install.</p></body></html>"
             )
