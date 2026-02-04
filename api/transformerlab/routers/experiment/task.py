@@ -493,9 +493,8 @@ async def add_task(
 
         # Common processing for YAML-based requests
         if task_data:
-            # Inject experimentId from path parameter if not in YAML
-            if "experiment_id" not in task_data:
-                task_data["experiment_id"] = experimentId
+            # Always set experiment_id from path so the task belongs to this experiment
+            task_data["experiment_id"] = experimentId
 
             # Add required fields if not present
             if "type" not in task_data:
@@ -618,9 +617,8 @@ async def import_task_from_gallery(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error parsing YAML: {str(e)}")
 
-    # Set experiment_id
-    if "experiment_id" not in task_data:
-        task_data["experiment_id"] = experimentId
+    # Always set experiment_id from path so the task belongs to this experiment
+    task_data["experiment_id"] = experimentId
 
     # Ensure required fields
     if "type" not in task_data:
@@ -733,9 +731,8 @@ async def import_task_from_team_gallery(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error parsing YAML: {str(e)}")
 
-    # Set experiment_id
-    if "experiment_id" not in task_data:
-        task_data["experiment_id"] = experimentId
+    # Always set experiment_id from path so the task belongs to this experiment
+    task_data["experiment_id"] = experimentId
 
     # Ensure required fields
     if "type" not in task_data:

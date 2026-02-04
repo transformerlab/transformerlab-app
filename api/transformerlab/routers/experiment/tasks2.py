@@ -128,8 +128,8 @@ async def from_directory(
                 raise
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Error parsing YAML: {str(e)}")
-            if "experiment_id" not in task_data:
-                task_data["experiment_id"] = experimentId
+            # Always set experiment_id from path so the task belongs to this experiment
+            task_data["experiment_id"] = experimentId
             if "type" not in task_data:
                 task_data["type"] = "REMOTE"
             if "plugin" not in task_data:
@@ -157,8 +157,8 @@ async def from_directory(
             raise
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Error parsing YAML: {str(e)}")
-        if "experiment_id" not in task_data:
-            task_data["experiment_id"] = experimentId
+        # Always set experiment_id from path so the task belongs to this experiment
+        task_data["experiment_id"] = experimentId
         if "type" not in task_data:
             task_data["type"] = "REMOTE"
         if "plugin" not in task_data:
