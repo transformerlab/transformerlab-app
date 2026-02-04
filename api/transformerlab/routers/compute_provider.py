@@ -2407,6 +2407,12 @@ async def get_job_logs(
         # Get provider instance
         provider_instance = get_provider_instance(provider)
 
+        # Local provider needs workspace_dir (job dir) to read logs
+        if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
+            job_dir = await get_job_dir(job_id)
+            await storage.makedirs(job_dir, exist_ok=True)
+            provider_instance.extra_config["workspace_dir"] = job_dir
+
         # Get job logs
         try:
             logs = provider_instance.get_job_logs(cluster_name, job_id, tail_lines=tail_lines, follow=follow)
@@ -2493,6 +2499,12 @@ async def cancel_job(
     try:
         # Get provider instance
         provider_instance = get_provider_instance(provider)
+
+        # Local provider needs workspace_dir (job dir) to cancel the correct process
+        if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
+            job_dir = await get_job_dir(job_id)
+            await storage.makedirs(job_dir, exist_ok=True)
+            provider_instance.extra_config["workspace_dir"] = job_dir
 
         # Cancel job
         result = provider_instance.cancel_job(cluster_name, job_id)
