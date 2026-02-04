@@ -4,6 +4,9 @@ from werkzeug.utils import secure_filename
 from .dirs import get_models_dir
 from .labresource import BaseLabResource
 from . import storage
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Model(BaseLabResource):
@@ -120,7 +123,7 @@ class Model(BaseLabResource):
             model_info = api.model_info(parent_model)
             return model_info.pipeline_tag
         except Exception as e:
-            print(f"Could not fetch pipeline tag from parent model '{parent_model}': {type(e).__name__}: {e}")
+            logger.error(f"Could not fetch pipeline tag from parent model '{parent_model}': {type(e).__name__}: {e}")
             return None
 
     async def create_md5_checksums(self, model_path: str) -> list:
@@ -145,7 +148,7 @@ class Model(BaseLabResource):
         md5_objects = []
 
         if not await storage.isdir(model_path):
-            print(f"Model path '{model_path}' is not a directory, skipping MD5 checksum creation")
+            logger.warning(f"Model path '{model_path}' is not a directory, skipping MD5 checksum creation")
             return md5_objects
 
         # Use fsspec's walk equivalent for directory traversal
@@ -156,7 +159,7 @@ class Model(BaseLabResource):
                     md5_hash = await compute_md5(file_path)
                     md5_objects.append({"file_path": file_path, "md5_hash": md5_hash})
                 except Exception as e:
-                    print(f"Warning: Could not compute MD5 for {file_path}: {str(e)}")
+                    logger.warning(f"Warning: Could not compute MD5 for {file_path}: {str(e)}")
         except Exception:
             # Fallback: if find doesn't work, try listing the directory
             try:
@@ -167,8 +170,9 @@ class Model(BaseLabResource):
                             md5_hash = await compute_md5(entry)
                             md5_objects.append({"file_path": entry, "md5_hash": md5_hash})
                         except Exception as e:
-                            print(f"Warning: Could not compute MD5 for {entry}: {str(e)}")
+                            logger.warning(f"Warning: Could not compute MD5 for {entry}: {str(e)}")
             except Exception:
+                logger.warning(f"Warning: Failed to get directory listing: {model_path}")
                 pass
 
         return md5_objects

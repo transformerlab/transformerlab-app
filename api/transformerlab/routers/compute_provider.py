@@ -801,9 +801,7 @@ async def _launch_sweep_jobs(
                 tfl_storage_uri = None
                 try:
                     storage_root = await storage.root_uri()
-                    if storage_root and any(
-                        storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")
-                    ):
+                    if storage_root and storage.is_remote_path(storage_root):
                         tfl_storage_uri = storage_root
                 except Exception:
                     pass
@@ -1177,7 +1175,7 @@ async def launch_template_on_provider(
     try:
         storage_root = await storage.root_uri()
         # Check if it's a remote URI (not a local path)
-        if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
+        if storage_root and storage.is_remote_path(storage_root):
             tfl_storage_uri = storage_root
     except Exception:
         pass
@@ -1951,7 +1949,7 @@ async def resume_from_checkpoint(
     tfl_storage_uri = None
     try:
         storage_root = storage.root_uri()
-        if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
+        if storage_root and storage.is_remote_path(storage_root):
             tfl_storage_uri = storage_root
     except Exception:
         pass
