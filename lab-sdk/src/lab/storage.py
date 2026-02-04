@@ -124,6 +124,19 @@ REMOTE_WORKSPACE_HOST = os.getenv("REMOTE_WORKSPACE_HOST", "aws")
 _AWS_PROFILE = os.getenv("AWS_PROFILE", "transformerlab-s3")
 _GCP_PROJECT = os.getenv("GCP_PROJECT", "transformerlab-workspace")
 
+# Common prefixes that represent remote storage locations handled by this module
+_REMOTE_PATH_PREFIXES: tuple[str, ...] = ("s3://", "gs://", "gcs://", "abfs://")
+
+
+def is_remote_path(path: str) -> bool:
+    """
+    Return True if the given path represents a remote storage location.
+
+    This centralizes the logic for detecting remote paths (S3, GCS, Azure, etc.)
+    so that callers don't need to duplicate prefix checks.
+    """
+    return isinstance(path, str) and path.startswith(_REMOTE_PATH_PREFIXES)
+
 
 def _get_storage_options() -> dict:
     """Get storage options based on REMOTE_WORKSPACE_HOST."""

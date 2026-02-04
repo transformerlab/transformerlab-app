@@ -177,5 +177,9 @@ def create_compute_provider(config: ComputeProviderConfig):
             default_network_volume_id=config.default_network_volume_id,
             extra_config=config.extra_config,
         )
+    elif config.type == "local":
+        from .local import LocalProvider
+
+        return LocalProvider(extra_config=config.extra_config)
     else:
         raise ValueError(f"Unknown provider type: {config.type}")

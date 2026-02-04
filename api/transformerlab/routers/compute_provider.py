@@ -5,6 +5,7 @@ import time
 import json
 import configparser
 from pathlib import Path
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,8 +41,9 @@ from transformerlab.compute_providers.models import (
 )
 from transformerlab.services import job_service
 from transformerlab.services import quota_service
+from transformerlab.services.local_provider_queue import enqueue_local_launch
 from lab import storage
-from lab.dirs import get_workspace_dir
+from lab.dirs import get_workspace_dir, get_local_provider_job_dir
 from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
     generate_github_clone_setup,
@@ -170,10 +172,10 @@ async def create_provider(
     user = owner_info["user"]
 
     # Validate provider type
-    if provider_data.type not in [ProviderType.SLURM, ProviderType.SKYPILOT, ProviderType.RUNPOD]:
+    if provider_data.type not in [ProviderType.SLURM, ProviderType.SKYPILOT, ProviderType.RUNPOD, ProviderType.LOCAL]:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid provider type. Must be one of: {ProviderType.SLURM.value}, {ProviderType.SKYPILOT.value}, {ProviderType.RUNPOD.value}",
+            detail=f"Invalid provider type. Must be one of: {ProviderType.SLURM.value}, {ProviderType.SKYPILOT.value}, {ProviderType.RUNPOD.value}, {ProviderType.LOCAL.value}",
         )
 
     # Check if provider name already exists for this team
@@ -581,6 +583,10 @@ def _get_aws_credentials_from_file(profile_name: str = "transformerlab-s3") -> T
     return None, None
 
 
+# lab.init() not required; copy_file_mounts uses _TFL_JOB_ID and job_data only
+COPY_FILE_MOUNTS_SETUP = 'pip install -q transformerlab && python -c "from lab import lab; lab.copy_file_mounts()"'
+
+
 def _generate_aws_credentials_setup(
     aws_access_key_id: str, aws_secret_access_key: str, aws_profile: Optional[str] = None
 ) -> str:
@@ -797,9 +803,7 @@ async def _launch_sweep_jobs(
                 tfl_storage_uri = None
                 try:
                     storage_root = await storage.root_uri()
-                    if storage_root and any(
-                        storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")
-                    ):
+                    if storage_root and storage.is_remote_path(storage_root):
                         tfl_storage_uri = storage_root
                 except Exception:
                     pass
@@ -808,7 +812,7 @@ async def _launch_sweep_jobs(
                     env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
                     env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
 
-                # Build setup script
+                # Build setup script (add copy_file_mounts when file_mounts is True, after AWS credentials)
                 setup_commands = []
                 aws_profile = "transformerlab-s3"
                 if os.getenv("TFL_API_STORAGE_URI"):
@@ -819,6 +823,9 @@ async def _launch_sweep_jobs(
                         )
                         setup_commands.append(aws_setup)
                         env_vars["AWS_PROFILE"] = aws_profile
+
+                if request.file_mounts is True and request.task_id:
+                    setup_commands.append(COPY_FILE_MOUNTS_SETUP)
 
                 if request.github_repo_url:
                     workspace_dir = await get_workspace_dir()
@@ -869,7 +876,7 @@ async def _launch_sweep_jobs(
                     "num_nodes": request.num_nodes,
                     "setup": final_setup,
                     "env_vars": env_vars if env_vars else None,
-                    "file_mounts": request.file_mounts or None,
+                    "file_mounts": request.file_mounts if request.file_mounts is not True else True,
                     "parameters": parameters_with_secrets or None,
                     "provider_id": provider.id,
                     "provider_type": provider.type,
@@ -877,6 +884,8 @@ async def _launch_sweep_jobs(
                     "user_info": user_info or None,
                     "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
                 }
+                if request.file_mounts is True and request.task_id:
+                    child_job_data["task_id"] = request.task_id
 
                 for key, value in child_job_data.items():
                     if value is not None:
@@ -892,6 +901,8 @@ async def _launch_sweep_jobs(
                     except (TypeError, ValueError):
                         disk_size = None
 
+                # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
+                file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
                 cluster_config = ClusterConfig(
                     cluster_name=formatted_cluster_name,
                     provider_name=provider_display_name,
@@ -904,7 +915,7 @@ async def _launch_sweep_jobs(
                     accelerators=request.accelerators,
                     num_nodes=request.num_nodes,
                     disk_size=disk_size,
-                    file_mounts=request.file_mounts or {},
+                    file_mounts=file_mounts_for_provider,
                     provider_config={"requested_disk_space": request.disk_space},
                 )
 
@@ -998,8 +1009,6 @@ async def launch_template_on_provider(
 
         # Launch child jobs in the background using asyncio.create_task
         # This runs concurrently but still within the request context
-        import asyncio
-
         # Merge parameters (defaults) with config for sweep
         base_params_for_sweep = {}
         if request.parameters:
@@ -1047,8 +1056,11 @@ async def launch_template_on_provider(
 
     provider_instance = get_provider_instance(provider)
 
-    # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING
+    # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING,
+    # except for LOCAL providers where we introduce a WAITING status while queued.
     initial_status = "INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING"
+    if provider.type == ProviderType.LOCAL.value:
+        initial_status = "WAITING"
 
     job_id = await job_service.job_create(
         type="REMOTE",
@@ -1102,11 +1114,13 @@ async def launch_template_on_provider(
     else:
         aws_access_key_id, aws_secret_access_key = None, None
 
-    # Build setup script - prepend AWS credentials setup if credentials are provided
+    # Build setup script - add copy_file_mounts after AWS credentials when file_mounts is True (task dir -> ~/src)
     setup_commands = []
     if aws_access_key_id and aws_secret_access_key:
         aws_setup = _generate_aws_credentials_setup(aws_access_key_id, aws_secret_access_key, aws_profile)
         setup_commands.append(aws_setup)
+    if request.file_mounts is True and request.task_id:
+        setup_commands.append(COPY_FILE_MOUNTS_SETUP)
 
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
@@ -1164,7 +1178,7 @@ async def launch_template_on_provider(
     try:
         storage_root = await storage.root_uri()
         # Check if it's a remote URI (not a local path)
-        if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
+        if storage_root and storage.is_remote_path(storage_root):
             tfl_storage_uri = storage_root
     except Exception:
         pass
@@ -1196,6 +1210,15 @@ async def launch_template_on_provider(
     else:
         parameters_with_secrets = merged_parameters if merged_parameters else None
 
+    # Build provider_config for cluster_config (and job_data for local provider)
+    provider_config_dict = {"requested_disk_space": request.disk_space}
+    if provider.type == ProviderType.LOCAL.value:
+        # Use a dedicated local-only job directory for the local provider.
+        # This directory is always on the host filesystem and does not depend
+        # on TFL_API_STORAGE_URI / remote storage configuration.
+        job_dir = get_local_provider_job_dir(job_id, org_id=team_id)
+        provider_config_dict["workspace_dir"] = job_dir
+
     job_data = {
         "task_name": request.task_name,
         "command": command_with_secrets,
@@ -1209,7 +1232,7 @@ async def launch_template_on_provider(
         "num_nodes": request.num_nodes,
         "setup": final_setup,
         "env_vars": env_vars if env_vars else None,
-        "file_mounts": request.file_mounts or None,
+        "file_mounts": request.file_mounts if request.file_mounts is not True else True,
         "parameters": parameters_with_secrets or None,
         "provider_id": provider.id,
         "provider_type": provider.type,
@@ -1218,6 +1241,10 @@ async def launch_template_on_provider(
         "team_id": team_id,  # Store team_id for quota tracking
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
+    if provider.type == ProviderType.LOCAL.value and provider_config_dict.get("workspace_dir"):
+        job_data["workspace_dir"] = provider_config_dict["workspace_dir"]
+    if request.file_mounts is True and request.task_id:
+        job_data["task_id"] = request.task_id
 
     for key, value in job_data.items():
         if value is not None:
@@ -1230,6 +1257,8 @@ async def launch_template_on_provider(
         except (TypeError, ValueError):
             disk_size = None
 
+    # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
+    file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
@@ -1242,9 +1271,33 @@ async def launch_template_on_provider(
         accelerators=request.accelerators,
         num_nodes=request.num_nodes,
         disk_size=disk_size,
-        file_mounts=request.file_mounts or {},
-        provider_config={"requested_disk_space": request.disk_space},
+        file_mounts=file_mounts_for_provider,
+        provider_config=provider_config_dict,
     )
+
+    # For LOCAL provider, enqueue the launch and return immediately with WAITING status
+    if provider.type == ProviderType.LOCAL.value:
+        # Commit quota hold (if any) before enqueuing so the worker can see it
+        if quota_hold:
+            await session.commit()
+
+        await enqueue_local_launch(
+            job_id=str(job_id),
+            experiment_id=request.experiment_id,
+            provider_id=provider.id,
+            cluster_name=formatted_cluster_name,
+            cluster_config=cluster_config,
+            quota_hold_id=str(quota_hold.id) if quota_hold else None,
+            initial_status="INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING",
+        )
+
+        return {
+            "status": "WAITING",
+            "job_id": job_id,
+            "cluster_name": formatted_cluster_name,
+            "request_id": None,
+            "message": "Local provider launch waiting in queue",
+        }
 
     try:
         launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
@@ -1370,6 +1423,55 @@ async def check_provider_job_status(
             "job_id": job_id,
             "message": "Failed to instantiate provider",
         }
+
+    # Local provider needs workspace_dir from job_data for status/logs
+    if provider.type == ProviderType.LOCAL.value and job_data.get("workspace_dir"):
+        if hasattr(provider_instance, "extra_config"):
+            provider_instance.extra_config["workspace_dir"] = job_data["workspace_dir"]
+
+    # Local provider: single process per "cluster"; check process status
+    if provider.type == ProviderType.LOCAL.value:
+        try:
+            cluster_status = provider_instance.get_cluster_status(cluster_name)
+            terminal_states_local = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
+            if cluster_status.state in terminal_states_local:
+                try:
+                    end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+                    await job_service.job_update_job_data_insert_key_value(
+                        job_id, "end_time", end_time_str, experiment_id
+                    )
+                    await job_service.job_update_status(
+                        job_id, "COMPLETE", experiment_id=experiment_id, session=session
+                    )
+                    await session.commit()
+                    return {
+                        "status": "success",
+                        "job_id": job_id,
+                        "updated": True,
+                        "new_status": "COMPLETE",
+                        "message": f"Local job finished (status: {cluster_status.state.value})",
+                    }
+                except Exception as exc:
+                    print(f"Failed to update job status: {exc}")
+                    return {
+                        "status": "error",
+                        "job_id": job_id,
+                        "message": "Failed to update job status",
+                    }
+            return {
+                "status": "success",
+                "job_id": job_id,
+                "updated": False,
+                "current_status": "LAUNCHING",
+                "message": f"Local job still running (status: {cluster_status.state.value})",
+            }
+        except Exception as exc:
+            print(f"Failed to check local job status: {exc}")
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": "Failed to check local job status",
+            }
 
     # Runpod doesn't have a job queue - check pod status instead
     if provider.type == ProviderType.RUNPOD.value:
@@ -1934,7 +2036,7 @@ async def resume_from_checkpoint(
     tfl_storage_uri = None
     try:
         storage_root = storage.root_uri()
-        if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
+        if storage_root and storage.is_remote_path(storage_root):
             tfl_storage_uri = storage_root
     except Exception:
         pass
@@ -2316,6 +2418,11 @@ async def get_job_logs(
         # Get provider instance
         provider_instance = get_provider_instance(provider)
 
+        # Local provider needs workspace_dir (job dir) to read logs
+        if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
+            job_dir = get_local_provider_job_dir(job_id, org_id=team_id)
+            provider_instance.extra_config["workspace_dir"] = job_dir
+
         # Get job logs
         try:
             logs = provider_instance.get_job_logs(cluster_name, job_id, tail_lines=tail_lines, follow=follow)
@@ -2402,6 +2509,11 @@ async def cancel_job(
     try:
         # Get provider instance
         provider_instance = get_provider_instance(provider)
+
+        # Local provider needs workspace_dir (job dir) to cancel the correct process
+        if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
+            job_dir = get_local_provider_job_dir(job_id, org_id=team_id)
+            provider_instance.extra_config["workspace_dir"] = job_dir
 
         # Cancel job
         result = provider_instance.cancel_job(cluster_name, job_id)

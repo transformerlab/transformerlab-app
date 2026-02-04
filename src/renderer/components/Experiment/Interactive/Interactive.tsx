@@ -10,6 +10,7 @@ import {
   Chip,
   Box,
   IconButton,
+  Skeleton,
 } from '@mui/joy';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -490,6 +491,7 @@ export default function Interactive() {
     try {
       const payload = {
         experiment_id: experimentInfo.id,
+        task_id: task.id,
         task_name: task.name,
         cluster_name: cfg.cluster_name || task.cluster_name,
         command: cfg.command || task.command,
@@ -722,27 +724,49 @@ export default function Interactive() {
           overflow: 'auto',
         }}
       >
-        {jobsIsLoading ? (
-          <LinearProgress />
-        ) : jobsWithPlaceholders.length === 0 ? (
+        {(jobsIsLoading || !experimentInfo?.id) && (
           <Box
             sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              py: 8,
-              textAlign: 'center',
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                md: 'repeat(3, 1fr)',
+                lg: 'repeat(4, 1fr)',
+              },
+              gap: 2,
             }}
           >
-            <Typography level="body-lg" sx={{ mb: 2 }}>
-              No interactive jobs yet
-            </Typography>
-            <Typography level="body-sm" color="neutral">
-              Create a new interactive job to get started
-            </Typography>
+            <Skeleton variant="rectangular" height={100} width={100} />
           </Box>
-        ) : (
+        )}
+        {!jobsIsLoading &&
+          experimentInfo?.id &&
+          jobsWithPlaceholders.length === 0 && (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                py: 8,
+                textAlign: 'center',
+              }}
+            >
+              <Typography level="body-lg" sx={{ mb: 2 }}>
+                No interactive jobs yet
+              </Typography>
+              <Typography level="body-sm" color="neutral">
+                Interactive jobs are long running services like an Inference
+                Server, VS Code or Jupyter notebook.
+              </Typography>
+              <Typography level="body-sm" color="neutral">
+                Deploy a new Interactive Job by clicking the &quot;New&quot;
+                button above.
+              </Typography>
+            </Box>
+          )}
+        {!jobsIsLoading && jobsWithPlaceholders.length > 0 && (
           <Box
             sx={{
               display: 'grid',
@@ -803,8 +827,7 @@ export default function Interactive() {
                       {jobData.start_time && (
                         <Typography level="body-xs" color="neutral">
                           Started:{' '}
-                          {dayjs
-                            .utc(jobData.start_time)
+                          {dayjs(jobData.start_time)
                             .local()
                             .format('MMM D, YYYY HH:mm:ss')}
                         </Typography>
@@ -826,7 +849,7 @@ export default function Interactive() {
                                 size="sm"
                                 startDecorator={<LogsIcon size={16} />}
                                 onClick={() =>
-                                  setViewOutputFromJob(parseInt(job.id))
+                                  setViewOutputFromJob(parseInt(job.id, 10))
                                 }
                               >
                                 Output
@@ -836,7 +859,7 @@ export default function Interactive() {
                                 color="primary"
                                 size="sm"
                                 onClick={() =>
-                                  handleViewInteractive(parseInt(job.id))
+                                  handleViewInteractive(parseInt(job.id, 10))
                                 }
                               >
                                 Interactive Setup
@@ -872,16 +895,13 @@ export default function Interactive() {
           overflow: 'auto',
         }}
       >
-        {templatesIsLoading ? (
-          <LinearProgress />
-        ) : (
-          <TaskTemplateList
-            tasksList={tasks}
-            onDeleteTask={handleDeleteTask}
-            onQueueTask={handleQueue}
-            onEditTask={handleEditTask}
-          />
-        )}
+        <TaskTemplateList
+          tasksList={tasks}
+          onDeleteTask={handleDeleteTask}
+          onQueueTask={handleQueue}
+          onEditTask={handleEditTask}
+          loading={templatesIsLoading || !experimentInfo?.id}
+        />
       </Sheet>
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}

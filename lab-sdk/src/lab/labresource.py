@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 import json
 from . import storage
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class BaseLabResource(ABC):
@@ -59,7 +62,7 @@ class BaseLabResource(ABC):
         # Create directory for this resource
         dir = await self.get_dir()
         await storage.makedirs(dir, exist_ok=True)
-        print(f"Created directory for {type(self).__name__} with id '{self.id}'")
+        logger.info("Created directory for %s with id '%s'", type(self).__name__, self.id)
 
         # Create a default json file. Throw an error if one already exists.
         json_file = await self._get_json_file()

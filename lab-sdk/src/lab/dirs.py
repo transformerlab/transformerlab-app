@@ -5,6 +5,10 @@ import contextvars
 from werkzeug.utils import secure_filename
 from . import storage
 from .storage import _current_tfl_storage_uri, REMOTE_WORKSPACE_HOST
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 # TFL_HOME_DIR
 # Note: This is a temporary sync value for module initialization
@@ -12,9 +16,9 @@ from .storage import _current_tfl_storage_uri, REMOTE_WORKSPACE_HOST
 if "TFL_HOME_DIR" in os.environ and not (_current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")):
     HOME_DIR = os.environ["TFL_HOME_DIR"]
     if not os.path.exists(HOME_DIR):
-        print(f"Error: Home directory {HOME_DIR} does not exist")
+        logger.error(f"Error: Home directory {HOME_DIR} does not exist")
         exit(1)
-    print(f"Home directory is set to: {HOME_DIR}")
+    logger.info("Home directory is set to: %s", HOME_DIR)
 else:
     # For remote storage, this is a placeholder - actual value resolved via async functions
     if _current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI"):
@@ -22,7 +26,7 @@ else:
     else:
         HOME_DIR = os.path.join(os.path.expanduser("~"), ".transformerlab")
         os.makedirs(name=HOME_DIR, exist_ok=True)
-        print(f"Using default home directory: {HOME_DIR}")
+        logger.info(f"Using default home directory: {HOME_DIR}")
 
 # Context var for organization id (set by host app/session)
 _current_org_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("current_org_id", default=None)
@@ -60,7 +64,7 @@ async def get_workspace_dir() -> str:
     ):
         value = os.environ["TFL_WORKSPACE_DIR"]
         if not os.path.exists(value):
-            print(f"Error: Workspace directory {value} does not exist")
+            logger.error(f"Error: Workspace directory {value} does not exist")
             exit(1)
         return value
 
@@ -287,3 +291,61 @@ async def generation_output_file(experiment_name: str, generation_name: str) -> 
     p = storage.join(experiment_dir, "generations", generation_name)
     await storage.makedirs(p, exist_ok=True)
     return storage.join(p, "output.txt")
+
+
+def _get_local_provider_runs_root() -> str:
+    """
+    Return the root directory for all local provider runs.
+
+    This is intentionally kept on the local filesystem and does NOT depend on
+    TFL_API_STORAGE_URI or the storage abstraction so that things like PIDs,
+    stdout/stderr logs, and virtual environments are always available locally,
+    even when the main workspace is configured to use remote storage.
+
+    Layout:
+        ~/.transformerlab/local_provider_runs/
+    """
+    root = os.path.join(HOME_DIR, "local_provider_runs")
+    os.makedirs(root, exist_ok=True)
+    return root
+
+
+def get_local_provider_org_dir(org_id: str | None = None) -> str:
+    """
+    Return the directory for local provider runs for a given organization.
+
+    Layout:
+        ~/.transformerlab/local_provider_runs/orgs/<org_id>/
+
+    If org_id is not provided, the current org context (if any) is used.
+    """
+    if org_id is None:
+        org_id = _current_org_id.get()
+
+    # Fall back to a shared directory if org_id is still None
+    org_segment = org_id if org_id is not None else "shared"
+
+    root = _get_local_provider_runs_root()
+    org_dir = os.path.join(root, "orgs", secure_filename(str(org_segment)))
+    os.makedirs(org_dir, exist_ok=True)
+    return org_dir
+
+
+def get_local_provider_job_dir(job_id: str | int, org_id: str | None = None) -> str:
+    """
+    Return the directory for a specific local provider job.
+
+    Layout:
+        ~/.transformerlab/local_provider_runs/orgs/<org_id>/<job_id>/
+
+    This directory is always on the local filesystem and is suitable for:
+      - Storing PIDs
+      - stdout/stderr log files
+      - Per-job virtual environments
+      - Any other host-local state for a job that should not go to cloud storage
+    """
+    org_dir = get_local_provider_org_dir(org_id)
+    job_id_safe = secure_filename(str(job_id))
+    job_dir = os.path.join(org_dir, job_id_safe)
+    os.makedirs(job_dir, exist_ok=True)
+    return job_dir
