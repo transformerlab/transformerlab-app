@@ -214,12 +214,20 @@ class LocalProvider(ComputeProvider):
             )
         try:
             pid = int(pid_file.read_text().strip())
-            os.kill(pid, 0)
-            return ClusterStatus(
-                cluster_name=cluster_name,
-                state=ClusterState.UP,
-                status_message="Process running",
-            )
+            os_killed = os.kill(pid, 0)
+            # Return up only if the process is not running
+            if os_killed is not None:
+                return ClusterStatus(
+                    cluster_name=cluster_name,
+                    state=ClusterState.UP,
+                    status_message="Process running",
+                )
+            else:
+                return ClusterStatus(
+                    cluster_name=cluster_name,
+                    state=ClusterState.DOWN,
+                    status_message="Process not running",
+                )
         except (ValueError, ProcessLookupError, OSError):
             return ClusterStatus(
                 cluster_name=cluster_name,

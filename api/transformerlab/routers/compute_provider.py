@@ -1,11 +1,11 @@
 """Router for managing team-scoped compute providers."""
 
-import asyncio
 import os
 import time
 import json
 import configparser
 from pathlib import Path
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,6 +41,7 @@ from transformerlab.compute_providers.models import (
 )
 from transformerlab.services import job_service
 from transformerlab.services import quota_service
+from transformerlab.services.local_provider_queue import enqueue_local_launch
 from lab import storage
 from lab.dirs import get_workspace_dir, get_job_dir
 from transformerlab.shared.github_utils import (
@@ -51,9 +52,6 @@ from transformerlab.shared.secret_utils import load_team_secrets, replace_secret
 from typing import Any
 
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
-
-# Serialize local provider launches so only one uv venv sync + run happens at a time
-_LOCAL_PROVIDER_LAUNCH_LOCK = asyncio.Lock()
 
 
 def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
@@ -1058,8 +1056,11 @@ async def launch_template_on_provider(
 
     provider_instance = get_provider_instance(provider)
 
-    # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING
+    # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING,
+    # except for LOCAL providers where we introduce a WAITING status while queued.
     initial_status = "INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING"
+    if provider.type == ProviderType.LOCAL.value:
+        initial_status = "WAITING"
 
     job_id = await job_service.job_create(
         type="REMOTE",
@@ -1279,17 +1280,32 @@ async def launch_template_on_provider(
         provider_config=provider_config_dict,
     )
 
+    # For LOCAL provider, enqueue the launch and return immediately with WAITING status
+    if provider.type == ProviderType.LOCAL.value:
+        # Commit quota hold (if any) before enqueuing so the worker can see it
+        if quota_hold:
+            await session.commit()
+
+        await enqueue_local_launch(
+            job_id=str(job_id),
+            experiment_id=request.experiment_id,
+            provider_id=provider.id,
+            cluster_name=formatted_cluster_name,
+            cluster_config=cluster_config,
+            quota_hold_id=str(quota_hold.id) if quota_hold else None,
+            initial_status="INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING",
+        )
+
+        return {
+            "status": "WAITING",
+            "job_id": job_id,
+            "cluster_name": formatted_cluster_name,
+            "request_id": None,
+            "message": "Local provider launch waiting in queue",
+        }
+
     try:
-        if provider.type == ProviderType.LOCAL.value:
-            # Queue: one local launch at a time; run sync launch_cluster in executor to avoid blocking
-            async with _LOCAL_PROVIDER_LAUNCH_LOCK:
-                loop = asyncio.get_running_loop()
-                launch_result = await loop.run_in_executor(
-                    None,
-                    lambda: provider_instance.launch_cluster(formatted_cluster_name, cluster_config),
-                )
-        else:
-            launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
+        launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
     except Exception as exc:
         print(f"Failed to launch cluster: {exc}")
         # Release quota hold if launch failed
