@@ -341,11 +341,7 @@ class RunpodProvider(ComputeProvider):
             combined_cmd = " && ".join(docker_cmds)
             # mkdir -p /workspace works with or without a network volume; tee writes run logs there
             # Run command, tee output to log file, then always sleep to keep container alive
-            wrapped_cmd = (
-                f"mkdir -p /workspace && "
-                f"(({combined_cmd}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}); "
-                f"sleep infinity"
-            )
+            wrapped_cmd = f"mkdir -p /workspace && (({combined_cmd}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}); sleep infinity"
             pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
         elif config.setup:
             # For setup-only, still keep container running
@@ -353,9 +349,7 @@ class RunpodProvider(ComputeProvider):
             pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
         elif config.command:
             wrapped_cmd = (
-                f"mkdir -p /workspace && "
-                f"(({config.command}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}); "
-                f"sleep infinity"
+                f"mkdir -p /workspace && (({config.command}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}); sleep infinity"
             )
             pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
 
