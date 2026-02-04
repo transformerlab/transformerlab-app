@@ -7,9 +7,15 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
-from peft import LoraConfig
+from peft import LoraConfig, get_peft_model
 from peft.utils import get_peft_model_state_dict
 from torchvision import transforms
+from diffsynth import ModelConfig
+from diffsynth.pipelines.z_image import ZImagePipeline
+from diffsynth.diffusion.loss import FlowMatchSFTLoss, TrajectoryImitationLoss
+import os
+import glob
+import accelerate
 
 from diffusers import AutoPipelineForText2Image, StableDiffusionPipeline
 
@@ -52,6 +58,36 @@ def cleanup_pipeline():
 
 cleanup_pipeline()
 
+def build_zimage_model_configs(model_id_or_path: str) -> tuple[list[ModelConfig], ModelConfig]:
+    """Build ModelConfig list + tokenizer config for Z-Image Turbo."""
+    transformer_pattern = os.path.join("transformer", "*.safetensors")
+    text_encoder_pattern = os.path.join("text_encoder", "*.safetensors")
+    vae_pattern = os.path.join("vae", "vae", "diffusion_pytorch_model.safetensors")
+
+    tokenizer_pattern = "tokenizer/"
+
+    if model_id_or_path and os.path.isdir(model_id_or_path):
+        transformer_paths = glob.glob(os.path.join(model_id_or_path, transformer_pattern))
+        text_encoder_paths = glob.glob(os.path.join(model_id_or_path, text_encoder_pattern))
+        vae_paths = glob.glob(os.path.join(model_id_or_path, vae_pattern))
+
+        model_configs = [
+            ModelConfig(path=transformer_paths),
+            ModelConfig(path=text_encoder_paths),
+            ModelConfig(path=vae_paths),
+        ]
+
+        tokenizer_config = ModelConfig(path=os.path.join(model_id_or_path, tokenizer_pattern))
+    else:
+        model_configs = [
+            ModelConfig(model_id=model_id_or_path, subfolder="transformer"),
+            ModelConfig(model_id=model_id_or_path, subfolder="text_encoder"),
+            ModelConfig(model_id=model_id_or_path, subfolder="vae/vae"),
+        ]
+
+        tokenizer_config = ModelConfig(model_id=model_id_or_path, subfolder="tokenizer")
+
+    return model_configs, tokenizer_config
 
 def compute_loss_weighting(args, timesteps, noise_scheduler):
     """
@@ -302,6 +338,49 @@ def encode_prompt_sdxl(
 
     return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
+def encode_prompt_zimage(pipe, prompts, device, max_sequence_length: int = 512):
+    """Encode prompts using Z-Image tokenizer/chat template."""
+    if isinstance(prompts, str):
+        prompts = [prompts]
+
+    chat_prompts = []
+    for prompt_item in prompts:
+        messages = [
+            {"role": "user", "content": prompt_item},
+        ]
+
+        chat_prompt = pipe.tokenizer.build_chat_prompt(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=True,
+        )
+
+        chat_prompts.append(chat_prompt)
+
+    text_inputs = pipe.tokenizer(
+        chat_prompts,
+        padding="max_length",
+        max_length=max_sequence_length,
+        truncation=True,
+        return_tensors="pt",
+    )
+
+    text_input_ids = text_inputs.input_ids.to(device)
+    prompt_masks = text_inputs.attention_mask.to(device).bool()
+
+    prompt_embeds = pipe.text_encoder(
+        input_ids=text_input_ids,
+        attention_mask=prompt_masks,
+        output_hidden_states=True,
+    ).hidden_states[-2]
+
+    embedding_list = []
+
+    for i in range(len(prompt_embeds)):
+        embedding_list.append(prompt_embeds[i][prompt_masks[i]])
+
+    return embedding_list
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
 def train_diffusion_lora():
@@ -355,44 +434,89 @@ def train_diffusion_lora():
     variant = args.get("variant", None)
 
     model_architecture = args.get("model_architecture")
-
     # Load pipeline to auto-detect architecture and get correct components
     print(f"Loading pipeline to detect model architecture: {pretrained_model_name_or_path}")
+
+    # Detect architecture based on multiple indicators
+    is_sdxl = "StableDiffusionXLPipeline" in model_architecture
+
+    is_sd3 = "StableDiffusion3Pipeline" in model_architecture
+
+    is_flux = "FluxPipeline" in model_architecture
+
+    is_zimage = "ZImagePipeline" in model_architecture
+
+    print(f"Architecture detection - SDXL: {is_sdxl}, SD3: {is_sd3}, Flux: {is_flux}, ZImage: {is_zimage}")
+
+    #  Mixed Precision
+    weight_dtype = torch.float32
+    mixed_precision = args.get("mixed_precision", None)
+    if is_zimage and (mixed_precision is None or mixed_precision == "" or mixed_precision == "no"):
+        weight_dtype = torch.bfloat16
+    elif mixed_precision == "fp16":
+        weight_dtype = torch.float16
+    elif mixed_precision == "bf16":
+        weight_dtype = torch.bfloat16
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     pipeline_kwargs = {
         "torch_dtype": torch.float16,
         "safety_checker": None,
         "requires_safety_checker": False,
     }
 
-    temp_pipeline = AutoPipelineForText2Image.from_pretrained(pretrained_model_name_or_path, **pipeline_kwargs)
+    pipe = None
+    if is_zimage:
+        model_configs, tokenizer_config = build_zimage_model_configs(pretrained_model_name_or_path)
+        pipe = ZImagePipeline.from_pretrained(
+            torch_dtype=weight_dtype,
+            device=device,
+            model_configs=model_configs,
+            tokenizer_config=tokenizer_config,
+        )
 
-    # Extract components from the loaded pipeline
-    noise_scheduler = temp_pipeline.scheduler
-    tokenizer = temp_pipeline.tokenizer
-    text_encoder = temp_pipeline.text_encoder
-    vae = temp_pipeline.vae
-
-    # Handle different architectures: FluxPipeline uses 'transformer', others use 'unet'
-    # We use 'unet' as a unified variable name for the main model component regardless of architecture
-    if hasattr(temp_pipeline, "transformer"):
-        # FluxPipeline and other transformer-based models
-        unet = temp_pipeline.transformer
-        model_component_name = "transformer"
+        pipe.scheduler.set_timesteps(int(args.get("num_train_timesteps", 1000)), device=device)
+        noise_scheduler = pipe.scheduler
+        tokenizer = pipe.tokenizer
+        text_encoder = pipe.text_encoder
+        vae_encoder = pipe.vae_encoder
+        vae_decoder = pipe.vae_decoder
+        unet = pipe.dit
+        model_component_name = "dit"
+        text_encoder_2 = None
+        tokenizer_2 = None
+        vae = None 
     else:
-        # SD 1.x, SDXL, SD3 and other UNet-based models
-        unet = temp_pipeline.unet
-        model_component_name = "unet"
+        temp_pipeline = AutoPipelineForText2Image.from_pretrained(pretrained_model_name_or_path, **pipeline_kwargs)
 
-    # Handle SDXL case with dual text encoders
-    text_encoder_2 = getattr(temp_pipeline, "text_encoder_2", None)
-    tokenizer_2 = getattr(temp_pipeline, "tokenizer_2", None)
+        # Extract components from the loaded pipeline
+        noise_scheduler = temp_pipeline.scheduler
+        tokenizer = temp_pipeline.tokenizer
+        text_encoder = temp_pipeline.text_encoder
+        vae = temp_pipeline.vae
 
-    # Clean up temporary pipeline
-    del temp_pipeline
-    torch.cuda.empty_cache() if torch.cuda.is_available() else None
+        # Handle different architectures: FluxPipeline uses 'transformer', others use 'unet'
+        # We use 'unet' as a unified variable name for the main model component regardless of architecture
+        if hasattr(temp_pipeline, "transformer"):
+            # FluxPipeline and other transformer-based models
+            unet = temp_pipeline.transformer
+            model_component_name = "transformer"
+        else:
+            # SD 1.x, SDXL, SD3 and other UNet-based models
+            unet = temp_pipeline.unet
+            model_component_name = "unet"
 
-    print(f"Model components loaded successfully: {pretrained_model_name_or_path}")
-    print(f"Architecture detected - Model component ({model_component_name}): {type(unet).__name__}")
+        # Handle SDXL case with dual text encoders
+        text_encoder_2 = getattr(temp_pipeline, "text_encoder_2", None)
+        tokenizer_2 = getattr(temp_pipeline, "tokenizer_2", None)
+
+        # Clean up temporary pipeline
+        del temp_pipeline
+        torch.cuda.empty_cache() if torch.cuda.is_available() else None
+
+        print(f"Model components loaded successfully: {pretrained_model_name_or_path}")
+        print(f"Architecture detected - Model component ({model_component_name}): {type(unet).__name__}")
     if text_encoder_2 is not None:
         print("Dual text encoder setup detected (likely SDXL)")
     print(f"Text encoder type: {type(text_encoder).__name__}")
@@ -400,7 +524,12 @@ def train_diffusion_lora():
 
     # Freeze parameters
     unet.requires_grad_(False)
-    vae.requires_grad_(False)
+
+    if is_zimage:
+        vae_encoder.requires_grad_(False)
+        vae_decoder.requires_grad_(False)
+    else:
+        vae.requires_grad_(False)
     text_encoder.requires_grad_(False)
     if text_encoder_2 is not None:
         text_encoder_2.requires_grad_(False)
@@ -410,6 +539,8 @@ def train_diffusion_lora():
         try:
             unet.enable_xformers_memory_efficient_attention()
             if hasattr(vae, "enable_xformers_memory_efficient_attention"):
+                vae.enable_xformers_memory_efficient_attention()
+            if not is_zimage and hasattr(vae, "enable_xformers_memory_efficient_attention"):
                 vae.enable_xformers_memory_efficient_attention()
             print("xFormers memory efficient attention enabled")
         except Exception as e:
@@ -424,14 +555,6 @@ def train_diffusion_lora():
             text_encoder_2.gradient_checkpointing_enable()
         print("Gradient checkpointing enabled")
 
-    # Mixed precision
-    weight_dtype = torch.float32
-    mixed_precision = args.get("mixed_precision", None)
-    if mixed_precision == "fp16":
-        weight_dtype = torch.float16
-    elif mixed_precision == "bf16":
-        weight_dtype = torch.bfloat16
-
     # LoRA config - adaptive target modules for different architectures
     model_type = type(unet).__name__
 
@@ -442,15 +565,6 @@ def train_diffusion_lora():
     print(
         f"Has addition_embed_type: {hasattr(unet.config, 'addition_embed_type') if hasattr(unet, 'config') else 'No config'}"
     )
-
-    # Detect architecture based on multiple indicators
-    is_sdxl = "StableDiffusionXLPipeline" in model_architecture
-
-    is_sd3 = "StableDiffusion3Pipeline" in model_architecture
-
-    is_flux = "FluxPipeline" in model_architecture
-
-    is_zimage = "ZImagePipeline" in model_architecture
 
     print(f"Architecture detection - SDXL: {is_sdxl}, SD3: {is_sd3}, Flux: {is_flux}, ZImage: {is_zimage}")
 
@@ -468,9 +582,9 @@ def train_diffusion_lora():
         target_modules = ["to_q", "to_k", "to_v", "to_out.0"]
         architecture_name = "Flux"
     elif is_zimage:
-        # ZImage uses a modified UNet architecture
+        # Z-Image DiT uses standard attention projections
         target_modules = ["to_q", "to_k", "to_v", "to_out.0"]
-        architecture_name = "ZImage"
+        architecture_name = "Z-Image"
     else:
         # Default SD 1.x targets
         target_modules = ["to_k", "to_q", "to_v", "to_out.0"]
@@ -485,14 +599,21 @@ def train_diffusion_lora():
         target_modules=target_modules,
     )
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     unet.to(device, dtype=weight_dtype)
-    vae.to(device, dtype=weight_dtype)
+    if is_zimage:
+        vae_encoder.to(device, dtype=weight_dtype)
+        vae_decoder.to(device, dtype=weight_dtype)
+    else:
+        vae.to(device, dtype=weight_dtype)
     text_encoder.to(device, dtype=weight_dtype)
     if text_encoder_2 is not None:
         text_encoder_2.to(device, dtype=weight_dtype)
 
-    unet.add_adapter(unet_lora_config)
+    if is_zimage:
+        unet = get_peft_model(unet, unet_lora_config)
+        pipe.dit = unet
+    else:
+        unet.add_adapter(unet_lora_config)
     if mixed_precision == "fp16":
         cast_training_params(unet, dtype=torch.float32)
 
@@ -621,7 +742,7 @@ def train_diffusion_lora():
 
     train_transforms = transforms.Compose(transform_list)
 
-    def tokenize_captions(examples, is_train=True):
+    def build_captions(examples, is_train=True):
         captions = []
         caption_column = args.get("caption_column", "text")
         trigger_word = args.get("trigger_word", "").strip()
@@ -658,6 +779,8 @@ def train_diffusion_lora():
 
                 captions.append(processed_caption)
 
+    def tokenize_captions(examples, is_train=True):
+        captions = build_captions(examples, is_train=is_train)
         # Primary tokenizer (always present)
         inputs = tokenizer(
             captions, max_length=tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt"
@@ -717,13 +840,16 @@ def train_diffusion_lora():
         examples["crop_coords_top_left"] = crop_coords_top_left
         examples["target_sizes"] = target_sizes
 
-        # Get tokenization results
-        tokenization_results = tokenize_captions(examples)
-        examples["input_ids"] = tokenization_results["input_ids"]
+        if is_zimage:
+            examples["prompt"] = build_captions(examples, is_train=True)
+        else:
+            # Get tokenization results
+            tokenization_results = tokenize_captions(examples)
+            examples["input_ids"] = tokenization_results["input_ids"]
 
-        # Add second input_ids for SDXL if present
-        if "input_ids_2" in tokenization_results:
-            examples["input_ids_2"] = tokenization_results["input_ids_2"]
+            # Add second input_ids for SDXL if present
+            if "input_ids_2" in tokenization_results:
+                examples["input_ids_2"] = tokenization_results["input_ids_2"]
 
         return examples
 
@@ -799,181 +925,195 @@ def train_diffusion_lora():
     for epoch in range(num_train_epochs):
         unet.train()
         for step, batch in enumerate(train_dataloader):
-            # Convert images to latent space
-            latents = vae.encode(batch["pixel_values"].to(device, dtype=weight_dtype)).latent_dist.sample()
-            latents = latents * vae.config.scaling_factor
+            if is_zimage:
+                pixel_values = batch["pixel_values"].to(device, dtype=weight_dtype)
+                input_latents = vae_encoder(pixel_values)
+                prompt_embeds = encode_prompt_zimage(pipe, batch["prompt"], device)
 
-            # Sample noise
-            noise = torch.randn_like(latents)
-            if args.get("noise_offset", 0):
-                noise += args["noise_offset"] * torch.randn(
-                    (latents.shape[0], latents.shape[1], 1, 1), device=latents.device
+                loss = FlowMatchSFTLoss(
+                    pipe,
+                    input_latents=input_latents,
+                    prompt_embeds=prompt_embeds,
+                    image_embeds=None,
+                    image_latents=None,
+                    use_gradient_checkpointing=args.get("gradient_checkpointing", False),
+                    use_gradient_checkpointing_offload=False,
                 )
 
-            bsz = latents.shape[0]
-            timesteps = torch.randint(
-                0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device
-            ).long()
-            noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
-
-            # Enhanced text encoding - always use encode_prompt for SDXL
-            if is_sdxl:
-                # Always use encode_prompt for SDXL, regardless of text_encoder_2
-                prompts = tokenizer.batch_decode(batch["input_ids"], skip_special_tokens=True)
-                # if tokenizer_2 is not None and "input_ids_2" in batch:
-                #     prompts_2 = tokenizer_2.batch_decode(batch["input_ids_2"], skip_special_tokens=True)
-                # else:
-                #     prompts_2 = None
-
-                text_encoders = [text_encoder, text_encoder_2] if text_encoder_2 is not None else [text_encoder]
-                tokenizers = [tokenizer, tokenizer_2] if tokenizer_2 is not None else [tokenizer]
-
-                # Create a temporary pipeline-like object for encode_prompt compatibility
-                class TempPipeline:
-                    def __init__(self, text_encoder, text_encoder_2, tokenizer, tokenizer_2):
-                        self.text_encoder = text_encoder
-                        self.text_encoder_2 = text_encoder_2
-                        self.tokenizer = tokenizer
-                        self.tokenizer_2 = tokenizer_2
-
-                temp_pipe = TempPipeline(text_encoder, text_encoder_2, tokenizer, tokenizer_2)
-
-                encoder_hidden_states, _, pooled_prompt_embeds, _ = encode_prompt(
-                    temp_pipe,
-                    text_encoders,
-                    tokenizers,
-                    prompts,
-                    device,
-                    num_images_per_prompt=1,
-                    do_classifier_free_guidance=False,
-                )
+                print(f"Step {step + 1}/{len(train_dataloader)} - FlowMatchSFT Loss: {loss.item()}")
             else:
-                # Standard single text encoder approach
-                encoder_hidden_states = text_encoder(batch["input_ids"].to(device), return_dict=False)[0]
-                pooled_prompt_embeds = None
+                # Convert images to latent space
+                latents = vae.encode(batch["pixel_values"].to(device, dtype=weight_dtype)).latent_dist.sample()
+                latents = latents * vae.config.scaling_factor
 
-                # For SDXL with dual text encoders, handle dimension compatibility and concatenate
-                if text_encoder_2 is not None and "input_ids_2" in batch:
-                    encoder_hidden_states_2 = text_encoder_2(batch["input_ids_2"].to(device), return_dict=False)[0]
-
-                    # Handle dimension mismatch - ensure both tensors have the same number of dimensions
-                    if encoder_hidden_states.dim() != encoder_hidden_states_2.dim():
-                        # If one is 2D and the other is 3D, add a dimension to the 2D tensor
-                        if encoder_hidden_states.dim() == 2 and encoder_hidden_states_2.dim() == 3:
-                            encoder_hidden_states = encoder_hidden_states.unsqueeze(1)
-                        elif encoder_hidden_states.dim() == 3 and encoder_hidden_states_2.dim() == 2:
-                            encoder_hidden_states_2 = encoder_hidden_states_2.unsqueeze(1)
-
-                    # Ensure sequence lengths match for concatenation
-                    seq_len_1 = (
-                        encoder_hidden_states.shape[1]
-                        if encoder_hidden_states.dim() == 3
-                        else encoder_hidden_states.shape[0]
-                    )
-                    seq_len_2 = (
-                        encoder_hidden_states_2.shape[1]
-                        if encoder_hidden_states_2.dim() == 3
-                        else encoder_hidden_states_2.shape[0]
+                # Sample noise
+                noise = torch.randn_like(latents)
+                if args.get("noise_offset", 0):
+                    noise += args["noise_offset"] * torch.randn(
+                        (latents.shape[0], latents.shape[1], 1, 1), device=latents.device
                     )
 
-                    if seq_len_1 != seq_len_2:
-                        # Pad the shorter sequence to match the longer one
-                        max_seq_len = max(seq_len_1, seq_len_2)
+                bsz = latents.shape[0]
+                timesteps = torch.randint(
+                    0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device
+                ).long()
+                noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
 
-                        if encoder_hidden_states.dim() == 3:
-                            if encoder_hidden_states.shape[1] < max_seq_len:
-                                pad_size = max_seq_len - encoder_hidden_states.shape[1]
-                                padding = torch.zeros(
-                                    encoder_hidden_states.shape[0],
-                                    pad_size,
-                                    encoder_hidden_states.shape[2],
-                                    device=encoder_hidden_states.device,
-                                    dtype=encoder_hidden_states.dtype,
-                                )
-                                encoder_hidden_states = torch.cat([encoder_hidden_states, padding], dim=1)
+                # Enhanced text encoding - always use encode_prompt for SDXL
+                if is_sdxl:
+                    # Always use encode_prompt for SDXL, regardless of text_encoder_2
+                    prompts = tokenizer.batch_decode(batch["input_ids"], skip_special_tokens=True)
+                    # if tokenizer_2 is not None and "input_ids_2" in batch:
+                    #     prompts_2 = tokenizer_2.batch_decode(batch["input_ids_2"], skip_special_tokens=True)
+                    # else:
+                    #     prompts_2 = None
+                    text_encoders = [text_encoder, text_encoder_2] if text_encoder_2 is not None else [text_encoder]
+                    tokenizers = [tokenizer, tokenizer_2] if tokenizer_2 is not None else [tokenizer]
 
-                            if encoder_hidden_states_2.shape[1] < max_seq_len:
-                                pad_size = max_seq_len - encoder_hidden_states_2.shape[1]
-                                padding = torch.zeros(
-                                    encoder_hidden_states_2.shape[0],
-                                    pad_size,
-                                    encoder_hidden_states_2.shape[2],
-                                    device=encoder_hidden_states_2.device,
-                                    dtype=encoder_hidden_states_2.dtype,
-                                )
-                                encoder_hidden_states_2 = torch.cat([encoder_hidden_states_2, padding], dim=1)
+                    # Create a temporary pipeline-like object for encode_prompt compatibility
+                    class TempPipeline:
+                        def __init__(self, text_encoder, text_encoder_2, tokenizer, tokenizer_2):
+                            self.text_encoder = text_encoder
+                            self.text_encoder_2 = text_encoder_2
+                            self.tokenizer = tokenizer
+                            self.tokenizer_2 = tokenizer_2
 
-                    # Concatenate along the feature dimension (last dimension)
-                    encoder_hidden_states = torch.cat([encoder_hidden_states, encoder_hidden_states_2], dim=-1)
+                    temp_pipe = TempPipeline(text_encoder, text_encoder_2, tokenizer, tokenizer_2)
 
-            # Loss target
-            prediction_type = args.get("prediction_type", None)
-            if prediction_type is not None:
-                noise_scheduler.register_to_config(prediction_type=prediction_type)
-
-            if noise_scheduler.config.prediction_type == "epsilon":
-                target = noise
-            elif noise_scheduler.config.prediction_type == "v_prediction":
-                target = noise_scheduler.get_velocity(latents, noise, timesteps)
-            else:
-                raise ValueError(
-                    f"Unknown prediction type {noise_scheduler.config.prediction_type}"
-                )  # Handle SDXL-specific conditioning parameters with proper metadata
-            unet_kwargs = {"timestep": timesteps, "encoder_hidden_states": encoder_hidden_states, "return_dict": False}
-
-            # SDXL requires additional conditioning kwargs with proper pooled embeddings and time_ids
-            if is_sdxl:
-                batch_size = noisy_latents.shape[0]
-
-                # Use proper pooled embeddings if available, otherwise create dummy ones
-                if pooled_prompt_embeds is not None:
-                    text_embeds = (
-                        pooled_prompt_embeds.repeat(batch_size, 1)
-                        if pooled_prompt_embeds.shape[0] == 1
-                        else pooled_prompt_embeds
+                    encoder_hidden_states, _, pooled_prompt_embeds, _ = encode_prompt(
+                        temp_pipe,
+                        text_encoders,
+                        tokenizers,
+                        prompts,
+                        device,
+                        num_images_per_prompt=1,
+                        do_classifier_free_guidance=False,
                     )
                 else:
-                    # Fallback to dummy embeddings for compatibility
-                    text_embeds = torch.zeros(batch_size, 1280, device=device, dtype=weight_dtype)
+                    # Standard single text encoder approach
+                    encoder_hidden_states = text_encoder(batch["input_ids"].to(device), return_dict=False)[0]
+                    pooled_prompt_embeds = None
 
-                # Compute proper time_ids from actual image metadata if available
-                if "original_sizes" in batch and "crop_coords_top_left" in batch and "target_sizes" in batch:
-                    time_ids_list = []
-                    for i in range(batch_size):
-                        original_size = batch["original_sizes"][i]
-                        crop_coords = batch["crop_coords_top_left"][i]
-                        target_size = batch["target_sizes"][i]
+                    # For SDXL with dual text encoders, handle dimension compatibility and concatenate
+                    if text_encoder_2 is not None and "input_ids_2" in batch:
+                        encoder_hidden_states_2 = text_encoder_2(batch["input_ids_2"].to(device), return_dict=False)[0]
 
-                        # Compute time_ids for this sample
-                        time_ids = compute_time_ids(
-                            original_size,
-                            crop_coords,
-                            target_size,
-                            dtype=weight_dtype,
-                            device=device,
-                            weight_dtype=weight_dtype,
+                        # Handle dimension mismatch - ensure both tensors have the same number of dimensions
+                        if encoder_hidden_states.dim() != encoder_hidden_states_2.dim():
+                            # If one is 2D and the other is 3D, add a dimension to the 2D tensor
+                            if encoder_hidden_states.dim() == 2 and encoder_hidden_states_2.dim() == 3:
+                                encoder_hidden_states = encoder_hidden_states.unsqueeze(1)
+                            elif encoder_hidden_states.dim() == 3 and encoder_hidden_states_2.dim() == 2:
+                                encoder_hidden_states_2 = encoder_hidden_states_2.unsqueeze(1)
+
+                        # Ensure sequence lengths match for concatenation
+                        seq_len_1 = (
+                            encoder_hidden_states.shape[1]
+                            if encoder_hidden_states.dim() == 3
+                            else encoder_hidden_states.shape[0]
                         )
-                        time_ids_list.append(time_ids)
+                        seq_len_2 = (
+                            encoder_hidden_states_2.shape[1]
+                            if encoder_hidden_states_2.dim() == 3
+                            else encoder_hidden_states_2.shape[0]
+                        )
 
-                    time_ids = torch.cat(time_ids_list, dim=0)
+                        if seq_len_1 != seq_len_2:
+                            # Pad the shorter sequence to match the longer one
+                            max_seq_len = max(seq_len_1, seq_len_2)
+
+                            if encoder_hidden_states.dim() == 3:
+                                if encoder_hidden_states.shape[1] < max_seq_len:
+                                    pad_size = max_seq_len - encoder_hidden_states.shape[1]
+                                    padding = torch.zeros(
+                                        encoder_hidden_states.shape[0],
+                                        pad_size,
+                                        encoder_hidden_states.shape[2],
+                                        device=encoder_hidden_states.device,
+                                        dtype=encoder_hidden_states.dtype,
+                                    )
+                                    encoder_hidden_states = torch.cat([encoder_hidden_states, padding], dim=1)
+
+                                if encoder_hidden_states_2.shape[1] < max_seq_len:
+                                    pad_size = max_seq_len - encoder_hidden_states_2.shape[1]
+                                    padding = torch.zeros(
+                                        encoder_hidden_states_2.shape[0],
+                                        pad_size,
+                                        encoder_hidden_states_2.shape[2],
+                                        device=encoder_hidden_states_2.device,
+                                        dtype=encoder_hidden_states_2.dtype,
+                                    )
+                                    encoder_hidden_states_2 = torch.cat([encoder_hidden_states_2, padding], dim=1)
+
+                        # Concatenate along the feature dimension (last dimension)
+                        encoder_hidden_states = torch.cat([encoder_hidden_states, encoder_hidden_states_2], dim=-1)
+
+                # Loss target
+                prediction_type = args.get("prediction_type", None)
+                if prediction_type is not None:
+                    noise_scheduler.register_to_config(prediction_type=prediction_type)
+
+                if noise_scheduler.config.prediction_type == "epsilon":
+                    target = noise
+                elif noise_scheduler.config.prediction_type == "v_prediction":
+                    target = noise_scheduler.get_velocity(latents, noise, timesteps)
                 else:
-                    # Fallback to dummy time_ids for compatibility
-                    resolution = int(args.get("resolution", 512))
-                    time_ids = torch.tensor(
-                        [[resolution, resolution, 0, 0, resolution, resolution]] * batch_size,
-                        device=device,
-                        dtype=weight_dtype,
-                    )
+                    raise ValueError(
+                        f"Unknown prediction type {noise_scheduler.config.prediction_type}"
+                    )  # Handle SDXL-specific conditioning parameters with proper metadata
+                unet_kwargs = {"timestep": timesteps, "encoder_hidden_states": encoder_hidden_states, "return_dict": False}
 
-                added_cond_kwargs = {"text_embeds": text_embeds, "time_ids": time_ids}
-                unet_kwargs["added_cond_kwargs"] = added_cond_kwargs
+                # SDXL requires additional conditioning kwargs with proper pooled embeddings and time_ids
+                if is_sdxl:
+                    batch_size = noisy_latents.shape[0]
 
-            model_pred = unet(noisy_latents, **unet_kwargs)[0]
+                    # Use proper pooled embeddings if available, otherwise create dummy ones
+                    if pooled_prompt_embeds is not None:
+                        text_embeds = (
+                            pooled_prompt_embeds.repeat(batch_size, 1)
+                            if pooled_prompt_embeds.shape[0] == 1
+                            else pooled_prompt_embeds
+                        )
+                    else:
+                        # Fallback to dummy embeddings for compatibility
+                        text_embeds = torch.zeros(batch_size, 1280, device=device, dtype=weight_dtype)
 
-            # Use improved loss computation with support for different loss types and weighting
-            loss = compute_loss(model_pred, target, timesteps, noise_scheduler, args)
-            print(f"Step {step + 1}/{len(train_dataloader)} - Loss: {loss.item()}")
+                    # Compute proper time_ids from actual image metadata if available
+                    if "original_sizes" in batch and "crop_coords_top_left" in batch and "target_sizes" in batch:
+                        time_ids_list = []
+                        for i in range(batch_size):
+                            original_size = batch["original_sizes"][i]
+                            crop_coords = batch["crop_coords_top_left"][i]
+                            target_size = batch["target_sizes"][i]
 
+                            # Compute time_ids for this sample
+                            time_ids = compute_time_ids(
+                                original_size,
+                                crop_coords,
+                                target_size,
+                                dtype=weight_dtype,
+                                device=device,
+                                weight_dtype=weight_dtype,
+                            )
+                            time_ids_list.append(time_ids)
+
+                        time_ids = torch.cat(time_ids_list, dim=0)
+                    else:
+                        # Fallback to dummy time_ids for compatibility
+                        resolution = int(args.get("resolution", 512))
+                        time_ids = torch.tensor(
+                            [[resolution, resolution, 0, 0, resolution, resolution]] * batch_size,
+                            device=device,
+                            dtype=weight_dtype,
+                        )
+
+                    added_cond_kwargs = {"text_embeds": text_embeds, "time_ids": time_ids}
+                    unet_kwargs["added_cond_kwargs"] = added_cond_kwargs
+
+                model_pred = unet(noisy_latents, **unet_kwargs)[0]
+                loss = compute_loss(model_pred, target, timesteps, noise_scheduler, args)
+                print(f"Step {step + 1}/{len(train_dataloader)} - Loss: {loss.item()}")
+            
             loss.backward()
 
             if (step + 1) % gradient_accumulation_steps == 0 or (step + 1) == len(train_dataloader):
@@ -1078,8 +1218,27 @@ def train_diffusion_lora():
     with storage.open(storage.join(save_directory, "tlab_adaptor_info.json"), "w", encoding="utf-8") as f:
         json.dump(save_info, f, indent=4)
 
+    # Method 0: Z-Image PEFT safetensors save
+    if is_zimage:
+        try:
+            from safetensors.torch import save_file
+
+            zimage_lora_state_dict = get_peft_model_state_dict(unet)
+            save_file(zimage_lora_state_dict, storage.join(save_directory, "pytorch_lora_weights.safetensors"))
+            print(f"LoRA weights saved to {save_directory}/pytorch_lora_weights.safetensors using safetensors (Z-Image)")
+            saved_successfully = True
+        except ImportError:
+            zimage_lora_state_dict = get_peft_model_state_dict(unet)
+            torch.save(zimage_lora_state_dict, storage.join(save_directory, "pytorch_lora_weights.bin"))
+            print(
+                f"LoRA weights saved to {save_directory}/pytorch_lora_weights.bin using PyTorch format (Z-Image)"
+            )
+            saved_successfully = True
+        except Exception as e:
+            print(f"Error saving Z-Image LoRA weights: {e}")
+
     # Method 1: Try the original SD 1.x approach that worked perfectly
-    if not is_sdxl and not is_sd3 and not is_flux:
+    if not saved_successfully and not is_sdxl and not is_sd3 and not is_flux:
         try:
             StableDiffusionPipeline.save_lora_weights(
                 save_directory=save_directory,
@@ -1157,21 +1316,6 @@ def train_diffusion_lora():
                 saved_successfully = True
         except Exception as e:
             print(f"Error with FluxPipeline.save_lora_weights: {e}")
-
-    if not saved_successfully and is_zimage:
-        try:
-            # ZImage pipelines may have their own save method
-            from diffusers import ZImagePipeline
-
-            ZImagePipeline.save_lora_weights(
-                save_directory=save_directory,
-                unet_lora_layers=model_lora_state_dict,
-                safe_serialization=True,
-            )
-            print(f"LoRA weights saved to {save_directory} using ZImagePipeline.save_lora_weights (ZImage)")
-            saved_successfully = True
-        except Exception as e:
-            print(f"Error with ZImagePipeline.save_lora_weights: {e}")
 
     # Method 5: Try the generic StableDiffusionPipeline method as fallback for all architectures
     if not saved_successfully:
