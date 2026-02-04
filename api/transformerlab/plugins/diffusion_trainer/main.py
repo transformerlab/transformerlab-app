@@ -435,6 +435,7 @@ def train_diffusion_lora():
     variant = args.get("variant", None)
 
     model_architecture = args.get("model_architecture")
+    
     # Load pipeline to auto-detect architecture and get correct components
     print(f"Loading pipeline to detect model architecture: {pretrained_model_name_or_path}")
 
