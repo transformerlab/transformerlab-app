@@ -49,15 +49,24 @@ async def _fetch_runpod_provider_logs(
     status = provider_instance.get_cluster_status(cluster_name)
     provider_data = getattr(status, "provider_data", None) or {}
     # RunPod API returns publicIp directly on the pod object, not nested under runtime
+    # Handle empty string case - pod might still be starting
     host = provider_data.get("publicIp") or provider_data.get("public_ip")
-    print("PROVIDER DATA: ", provider_data)
-    print("HOST: ", host)
-    # Fallback to runtime if not found at top level
-    if not host:
+    if not host or host == "":
         runtime = provider_data.get("runtime") or {}
         host = runtime.get("publicIp") or runtime.get("public_ip")
-    if not host:
+    # If still no host, check if pod is still starting (desiredStatus might indicate this)
+    if not host or host == "":
+        desired_status = provider_data.get("desiredStatus", "")
+        if desired_status == "RUNNING":
+            return "Pod is starting up - public IP not yet assigned. Please wait a moment and try again."
         return "Pod has no public IP yet (still starting or not available)."
+
+    # Get SSH port from portMappings - RunPod maps internal port 22 to an external port
+    port_mappings = provider_data.get("portMappings") or {}
+    ssh_port = port_mappings.get("22") or port_mappings.get(22)  # Try both string and int key
+    if not ssh_port:
+        # Fallback to port 22 if no mapping found (shouldn't happen if port 22 is exposed)
+        ssh_port = 22
 
     try:
         key_bytes = await get_org_ssh_private_key(team_id)
@@ -69,10 +78,20 @@ async def _fetch_runpod_provider_logs(
 
         try:
             pkey = None
+            # Decode key bytes to string - paramiko's from_private_key expects string content
+            key_str = key_bytes.decode("utf-8")
+            key_file = io.StringIO(key_str)
+
+            # Try Ed25519 first (modern key type), then RSA
             try:
-                pkey = paramiko.Ed25519Key.from_private_key(io.BytesIO(key_bytes))
-            except paramiko.ssh_exception.SSHException:
-                pkey = paramiko.RSAKey.from_private_key(io.BytesIO(key_bytes))
+                pkey = paramiko.Ed25519Key.from_private_key(key_file)
+            except (paramiko.ssh_exception.SSHException, ValueError, TypeError, AttributeError):
+                # Reset file pointer and try RSA
+                key_file.seek(0)
+                try:
+                    pkey = paramiko.RSAKey.from_private_key(key_file)
+                except (paramiko.ssh_exception.SSHException, ValueError, TypeError, AttributeError) as e:
+                    return f"Failed to load SSH key as Ed25519 or RSA: {e}"
         except Exception as e:
             return f"Failed to load SSH key: {e}"
 
@@ -81,7 +100,7 @@ async def _fetch_runpod_provider_logs(
         try:
             ssh.connect(
                 hostname=host,
-                port=22,
+                port=ssh_port,
                 username="root",
                 pkey=pkey,
                 timeout=15,

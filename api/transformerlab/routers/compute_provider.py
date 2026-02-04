@@ -1132,7 +1132,9 @@ async def launch_template_on_provider(
         setup_commands.append(github_setup)
 
     # Add SSH public key setup for SSH interactive tasks and for RunPod (so we can read provider logs via SSH)
-    if (request.subtype == "interactive" and request.interactive_type == "ssh") or provider.type == ProviderType.RUNPOD.value:
+    if (
+        request.subtype == "interactive" and request.interactive_type == "ssh"
+    ) or provider.type == ProviderType.RUNPOD.value:
         from transformerlab.services.ssh_key_service import get_or_create_org_ssh_key_pair, get_org_ssh_public_key
 
         try:
@@ -1146,8 +1148,26 @@ async def launch_template_on_provider(
             public_key_clean = public_key.strip().replace("\n", "").replace("\r", "")
             # Escape single quotes in public key for use within single-quoted string
             public_key_escaped = public_key_clean.replace("'", "'\"'\"'")
-            # Create SSH setup as a single line command (no trailing semicolon - will be added by join)
-            ssh_setup = f"mkdir -p ~/.ssh && chmod 700 ~/.ssh; if [ ! -f ~/.ssh/authorized_keys ]; then touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys; fi; if ! grep -qF '{public_key_escaped}' ~/.ssh/authorized_keys; then echo '{public_key_escaped}' >> ~/.ssh/authorized_keys; fi"
+
+            if provider.type == ProviderType.RUNPOD.value:
+                # For RunPod: use RunPod's recommended SSH setup from their docs
+                # Set SSH_PUBLIC_KEY environment variable (RunPod's override env var for SSH keys)
+                # Reference: https://docs.runpod.io/pods/configuration/use-ssh
+                env_vars["SSH_PUBLIC_KEY"] = public_key_clean
+                ssh_setup = (
+                    "apt-get update -qq && "
+                    "DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openssh-server >/dev/null 2>&1 && "
+                    "mkdir -p ~/.ssh && "
+                    "cd ~/.ssh && "
+                    "chmod 700 ~/.ssh && "
+                    'echo "$SSH_PUBLIC_KEY" >> authorized_keys && '
+                    "chmod 600 authorized_keys && "
+                    "service ssh start"
+                )
+            else:
+                # For other providers (interactive SSH tasks): standard setup
+                ssh_setup = f"mkdir -p ~/.ssh && chmod 700 ~/.ssh; if [ ! -f ~/.ssh/authorized_keys ]; then touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys; fi; if ! grep -qF '{public_key_escaped}' ~/.ssh/authorized_keys; then echo '{public_key_escaped}' >> ~/.ssh/authorized_keys; fi"
+
             setup_commands.append(ssh_setup)
         except Exception as e:
             # Log error but don't fail the launch - SSH key setup is optional

@@ -336,18 +336,26 @@ class RunpodProvider(ComputeProvider):
 
         # Join commands with && so they run sequentially
         # Tee to a fixed path so get_job_logs can read it via SSH (no RunPod logs API)
+        # Append 'sleep infinity' to keep container running after command completes (using ; ensures it always runs)
         if docker_cmds:
             combined_cmd = " && ".join(docker_cmds)
             # mkdir -p /workspace works with or without a network volume; tee writes run logs there
+            # Run command, tee output to log file, then always sleep to keep container alive
             wrapped_cmd = (
-                f"mkdir -p /workspace && ({combined_cmd}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}"
+                f"mkdir -p /workspace && "
+                f"(({combined_cmd}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}); "
+                f"sleep infinity"
             )
             pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
         elif config.setup:
-            pod_data["dockerStartCmd"] = ["sh", "-c", config.setup]
+            # For setup-only, still keep container running
+            wrapped_cmd = f"({config.setup}); sleep infinity"
+            pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
         elif config.command:
             wrapped_cmd = (
-                f"mkdir -p /workspace && ({config.command}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}"
+                f"mkdir -p /workspace && "
+                f"(({config.command}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}); "
+                f"sleep infinity"
             )
             pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
 
