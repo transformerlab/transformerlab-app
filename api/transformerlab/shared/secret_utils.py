@@ -78,8 +78,8 @@ def replace_secret_placeholders(text: str, secrets: Dict[str, str]) -> str:
     if not isinstance(text, str):
         return text
 
-    # Pattern to match {{secret.<secret_name>}}
-    pattern = r"\{\{secret\.([A-Za-z_][A-Za-z0-9_]*)\}\}"
+    # Pattern to match {{secret.<secret_name>}} or {{secrets.<secret_name>}}
+    pattern = r"\{\{secrets?\.([A-Za-z_][A-Za-z0-9_]*)\}\}"
 
     def replace_match(match: re.Match) -> str:
         secret_name = match.group(1)
