@@ -92,6 +92,14 @@ class TaskQueueModal(ModalScreen):
         margin-top: 1;
         width: 100%;
     }
+    #queue-spinner {
+        height: 3;
+        display: none;
+    }
+    #queue-status {
+        text-align: center;
+        height: auto;
+    }
     """
 
     BINDINGS = [("escape", "dismiss", "Close")]
@@ -131,6 +139,8 @@ class TaskQueueModal(ModalScreen):
                         yield from self._render_param_field(key, schema)
 
             yield Button("Queue", id="queue-submit-btn", variant="primary")
+            yield LoadingIndicator(id="queue-spinner")
+            yield Label("", id="queue-status")
 
     def on_mount(self) -> None:
         self.fetch_providers()
@@ -280,7 +290,18 @@ class TaskQueueModal(ModalScreen):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "queue-submit-btn":
+            self._show_spinner(True, "Queuing task...")
             self.queue_task()
+
+    def _show_spinner(self, show: bool, message: str = "") -> None:
+        """Show or hide the spinner and update status message."""
+        spinner = self.query_one("#queue-spinner", LoadingIndicator)
+        status = self.query_one("#queue-status", Label)
+        button = self.query_one("#queue-submit-btn", Button)
+
+        spinner.display = show
+        button.display = not show
+        status.update(message)
 
     @work(thread=True)
     def queue_task(self) -> None:
@@ -290,6 +311,7 @@ class TaskQueueModal(ModalScreen):
 
         provider_id = self.selected_provider_id
         if not provider_id:
+            self.app.call_from_thread(self._show_spinner, False)
             self.app.call_from_thread(
                 self.notify, "Please select a provider before queuing.", severity="error"
             )
@@ -321,17 +343,23 @@ class TaskQueueModal(ModalScreen):
                 self.app.call_from_thread(
                     self.notify, f"Task queued successfully. Job ID: {job_id}", severity="information"
                 )
+                self.app.call_from_thread(self._dismiss_all_modals)
             else:
                 detail = response.json().get("detail", response.text) if response.text else "Unknown error"
+                self.app.call_from_thread(self._show_spinner, False)
                 self.app.call_from_thread(
                     self.notify, f"Failed to queue task: {detail}", severity="error"
                 )
         except Exception as e:
+            self.app.call_from_thread(self._show_spinner, False)
             self.app.call_from_thread(
                 self.notify, f"Error queuing task: {e}", severity="error"
             )
 
-        self.app.call_from_thread(self.dismiss)
+    def _dismiss_all_modals(self) -> None:
+        """Dismiss this modal and the parent TaskListModal to return to homepage."""
+        self.dismiss()
+        self.app.pop_screen()
 
 
 class TaskListModal(ModalScreen):
