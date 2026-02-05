@@ -26,8 +26,10 @@ from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.compute_providers.models import JobState
 from transformerlab.shared.tunnel_parser import get_tunnel_info
 from lab import Job
-from lab.dirs import get_workspace_dir, get_local_provider_job_dir
+from lab.dirs import get_workspace_dir, get_local_provider_job_dir, get_job_datasets_dir, get_datasets_dir
 from transformerlab.shared import zip_utils
+from datetime import datetime
+import shutil
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -1312,10 +1314,6 @@ async def save_dataset_to_registry(
     """Copy a dataset from job's datasets directory to the global datasets registry"""
 
     try:
-        from lab.dirs import get_job_datasets_dir, get_datasets_dir
-        from datetime import datetime
-        import shutil
-        import os
 
         # Secure the dataset name
         dataset_name_secure = secure_filename(dataset_name)
@@ -1343,19 +1341,10 @@ async def save_dataset_to_registry(
         # Copy the dataset to the registry
         # Try local copy first (if both are local paths)
         try:
-            if source_path.startswith("/") and dest_path.startswith("/"):
-                # Both are local paths, use shutil for better reliability
-                if os.path.isdir(source_path):
-                    shutil.copytree(source_path, dest_path)
-                else:
-                    shutil.copy2(source_path, dest_path)
-            else:
-                # Use storage.copy_dir for remote/mixed paths
-                await storage.copy_dir(source_path, dest_path)
+            await storage.copy_dir(source_path, dest_path)
         except Exception as copy_err:
             # If shutil fails, fallback to storage.copy_dir
-            print(f"Local copy failed, trying storage.copy_dir: {copy_err}")
-            await storage.copy_dir(source_path, dest_path)
+            print(f"Storage.copy_dir failed: {copy_err}")
 
         return {"status": "success", "message": f"Dataset saved to registry as '{dataset_name_secure}'"}
 
@@ -1376,8 +1365,6 @@ async def save_model_to_registry(job_id: str, model_name: str):
     """Copy a model from job's models directory to the global models registry"""
 
     try:
-        from lab.dirs import get_job_models_dir, get_models_dir
-
         # Secure the model name
         model_name_secure = secure_filename(model_name)
 
@@ -1386,7 +1373,10 @@ async def save_model_to_registry(job_id: str, model_name: str):
         source_path = storage.join(job_models_dir, model_name_secure)
 
         if not await storage.exists(source_path):
-            return Response("Model not found in job directory", status_code=404)
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model '{model_name}' not found in job directory"
+            )
 
         # Get destination path (global models registry)
         models_registry_dir = await get_models_dir()
@@ -1394,13 +1384,26 @@ async def save_model_to_registry(job_id: str, model_name: str):
 
         # Check if model already exists in registry
         if await storage.exists(dest_path):
-            return Response("Model already exists in registry", status_code=409)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            model_name_secure = f"{model_name_secure}_{timestamp}"
+            dest_path = storage.join(models_registry_dir, model_name_secure)
 
         # Copy the model directory to the registry
-        await storage.copy(source_path, dest_path, recursive=True)
+        try:
+            await storage.copy_dir(source_path, dest_path)
+        except Exception as copy_err:
+            print(f"storage.copy_dir failed: {copy_err}")
+            await storage.copy_dir(source_path, dest_path)
 
-        return {"status": "success", "message": f"Model {model_name_secure} saved to registry"}
+        return {"status": "success", "message": f"Model saved to registry as '{model_name_secure}'"}
 
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error saving model to registry for job {job_id}: {e}")
-        return Response("Failed to save model", status_code=500)
+        print(f"Error saving model to registry for job {job_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save model to registry: {str(e)}"
+        )
