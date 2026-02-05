@@ -64,7 +64,7 @@ def build_zimage_model_configs(model_id_or_path: str) -> tuple[list[ModelConfig]
     """Build ModelConfig list + tokenizer config for Z-Image Turbo."""
     transformer_pattern = os.path.join("transformer", "*.safetensors")
     text_encoder_pattern = os.path.join("text_encoder", "*.safetensors")
-    vae_pattern = os.path.join("vae", "vae", "diffusion_pytorch_model.safetensors")
+    vae_pattern = os.path.join("vae", "diffusion_pytorch_model.safetensors")
 
     tokenizer_pattern = "tokenizer/"
 
@@ -84,6 +84,7 @@ def build_zimage_model_configs(model_id_or_path: str) -> tuple[list[ModelConfig]
         model_configs = [
             ModelConfig(model_id=model_id_or_path, origin_file_pattern=transformer_pattern),
             ModelConfig(model_id=model_id_or_path, origin_file_pattern=text_encoder_pattern),
+            # Fix: Use the corrected pattern for remote loading
             ModelConfig(model_id=model_id_or_path, origin_file_pattern=vae_pattern),
         ]
 
@@ -92,6 +93,7 @@ def build_zimage_model_configs(model_id_or_path: str) -> tuple[list[ModelConfig]
         )
 
     return model_configs, tokenizer_config
+
 
 def compute_loss_weighting(args, timesteps, noise_scheduler):
     """
@@ -354,12 +356,20 @@ def encode_prompt_zimage(pipe, prompts, device, max_sequence_length: int = 512):
             {"role": "user", "content": prompt_item},
         ]
 
-        chat_prompt = pipe.tokenizer.build_chat_prompt(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True,
-            enable_thinking=True,
-        )
+        if hasattr(pipe.tokenizer, "build_chat_prompt"):
+            chat_prompt = pipe.tokenizer.build_chat_prompt(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=True,
+            )
+        else:
+            # Fallback for tokenizers like Qwen2TokenizerFast
+            chat_prompt = pipe.tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+            )
 
         chat_prompts.append(chat_prompt)
 
@@ -441,9 +451,6 @@ def train_diffusion_lora():
 
     model_architecture = args.get("model_architecture")
 
-    # Load pipeline to auto-detect architecture and get correct components
-    print(f"Loading pipeline to detect model architecture: {pretrained_model_name_or_path}")
-
     # Detect architecture based on multiple indicators
     is_sdxl = "StableDiffusionXLPipeline" in model_architecture
 
@@ -475,6 +482,17 @@ def train_diffusion_lora():
 
     pipe = None
     if is_zimage:
+        # Ensure the model is downloaded locally if it's not already a directory
+        if not os.path.isdir(pretrained_model_name_or_path):
+            from huggingface_hub import snapshot_download
+
+            print(f"Downloading Z-Image model {pretrained_model_name_or_path} from Hugging Face...")
+            pretrained_model_name_or_path = snapshot_download(
+                repo_id=pretrained_model_name_or_path,
+                allow_patterns=["*.safetensors", "*.json", "tokenizer/*"],
+            )
+            print(f"Model downloaded to: {pretrained_model_name_or_path}")
+
         model_configs, tokenizer_config = build_zimage_model_configs(pretrained_model_name_or_path)
         pipe = ZImagePipeline.from_pretrained(
             torch_dtype=weight_dtype,
@@ -483,7 +501,7 @@ def train_diffusion_lora():
             tokenizer_config=tokenizer_config,
         )
 
-        pipe.scheduler.set_timesteps(int(args.get("num_train_timesteps", 1000)), device=device)
+        pipe.scheduler.set_timesteps(int(args.get("num_train_timesteps", 1000)), training=True)
         noise_scheduler = pipe.scheduler
         tokenizer = pipe.tokenizer
         text_encoder = pipe.text_encoder
@@ -555,7 +573,8 @@ def train_diffusion_lora():
 
     # Enable gradient checkpointing for memory savings
     if args.get("gradient_checkpointing", False):
-        unet.enable_gradient_checkpointing()
+        if hasattr(unet, "enable_gradient_checkpointing"):
+            unet.enable_gradient_checkpointing()
         if hasattr(text_encoder, "gradient_checkpointing_enable"):
             text_encoder.gradient_checkpointing_enable()
         if text_encoder_2 is not None and hasattr(text_encoder_2, "gradient_checkpointing_enable"):
@@ -785,6 +804,7 @@ def train_diffusion_lora():
                         processed_caption = f"{trigger_word}, {processed_caption}"
 
                 captions.append(processed_caption)
+        return captions
 
     def tokenize_captions(examples, is_train=True):
         captions = build_captions(examples, is_train=is_train)
@@ -809,8 +829,41 @@ def train_diffusion_lora():
         return result
 
     image_column = args.get("image_column", "image")
+    caption_column = args.get("caption_column", "text")
+
+    if image_column not in dataset.column_names:
+        raise ValueError(f"Image column '{image_column}' not found in dataset.")
+    
+    keep_columns = [image_column]
+    if caption_column in dataset.column_names:
+        keep_columns.append(caption_column)
+
+    drop_columns = [col for col in dataset.column_names if col not in keep_columns]
+    if drop_columns:
+        dataset = dataset.remove_columns(drop_columns)
+
+    if hasattr(dataset, "reset_format"):
+        dataset.reset_format()
+
+    dataset = dataset.filter(lambda x: x.get(image_column) is not None)
 
     def preprocess_train(examples):
+        # Filter out examples with None images
+        images_value = examples.get(image_column)
+        if images_value is None:
+            return {}
+        
+        valid_indices = [i for i, img in enumerate(images_value) if img is not None]
+        if not valid_indices:
+            return {}
+        
+        filtered_examples = {}
+        for key, value in examples.items():
+            if isinstance(value, (list, tuple, np.ndarray)):
+                filtered_examples[key] = [value[i] for i in valid_indices]
+
+        examples = filtered_examples
+
         images = [image.convert("RGB") for image in examples[image_column]]
 
         # Enhanced preprocessing for SDXL with proper image metadata tracking
@@ -865,9 +918,18 @@ def train_diffusion_lora():
     def collate_fn(examples):
         pixel_values = torch.stack([example["pixel_values"] for example in examples])
         pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
-        input_ids = torch.stack([example["input_ids"] for example in examples])
+        batch = {"pixel_values": pixel_values}
 
-        batch = {"pixel_values": pixel_values, "input_ids": input_ids}
+        if is_zimage:
+            batch["prompt"] = [example["prompt"] for example in examples]
+            if "original_sizes" in examples[0]:
+                batch["original_sizes"] = [example["original_sizes"] for example in examples]
+                batch["crop_coords_top_left"] = [example["crop_coords_top_left"] for example in examples]
+                batch["target_sizes"] = [example["target_sizes"] for example in examples]
+            return batch
+
+        input_ids = torch.stack([example["input_ids"] for example in examples])
+        batch["input_ids"] = input_ids
 
         # Add second input_ids for SDXL if present
         if "input_ids_2" in examples[0]:
