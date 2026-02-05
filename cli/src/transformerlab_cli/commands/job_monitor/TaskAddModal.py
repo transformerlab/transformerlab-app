@@ -8,8 +8,6 @@ from textual.widgets import (
 from textual.containers import Vertical
 from textual.screen import ModalScreen
 from textual import on
-from transformerlab_cli.commands.task import add_task
-import re
 
 
 class TaskAddModal(ModalScreen):
@@ -59,10 +57,7 @@ class TaskAddModal(ModalScreen):
 
         response = None
 
-        if re.match(r"https?://", task_path):
-            response = add_task(task_yaml_path=None, from_url=task_path)
-        else:
-            response = add_task(task_yaml_path=task_path, from_url=None)
+        ## TODO Add task here
 
         if response and response.get("status_code") != 200:
             self.notify("Task submission failed!", severity="warning")

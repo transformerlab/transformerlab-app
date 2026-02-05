@@ -228,19 +228,33 @@ app = fastapi.FastAPI(
 # Use FRONTEND_URL env var to specify allowed origins (comma-separated), or default to "*" without credentials
 cors_origins_env = os.getenv("FRONTEND_URL", "*")
 if cors_origins_env == "*":
-    cors_origins = ["*"]
-    cors_credentials = False
+
+    class DynamicCORSMiddleware(CORSMiddleware):
+        def is_allowed_origin(self, origin: str) -> bool:
+            try:
+                return origin.endswith(":8338") or origin.endswith(":1212")
+            except Exception:
+                return False
+
+    app.add_middleware(
+        DynamicCORSMiddleware,
+        allow_origins=[],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
 else:
     cors_origins = [origin.strip() for origin in cors_origins_env.split(",")]
     cors_credentials = True
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=cors_credentials,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=cors_credentials,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 # Middleware to set context var for organization id per request (multitenant)

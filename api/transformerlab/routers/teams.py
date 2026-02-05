@@ -697,6 +697,72 @@ async def accept_invitation(
     }
 
 
+@router.post("/invitations/{invitation_id}/accept")
+async def accept_invitation_by_id(
+    invitation_id: str,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Accept a team invitation using the invitation ID.
+
+    This is primarily intended for in-app acceptance of invitations that are
+    shown in the UI (e.g. user settings). The user must be authenticated and
+    the invitation must match their email address.
+    """
+    # Find the invitation by ID
+    stmt = select(TeamInvitation).where(TeamInvitation.id == invitation_id)
+    result = await session.execute(stmt)
+    invitation = result.scalar_one_or_none()
+
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+
+    # Verify the invitation is for this user
+    if invitation.email != user.email:
+        raise HTTPException(status_code=403, detail="This invitation is not for your email address")
+
+    # Check if invitation is still pending
+    if invitation.status != InvitationStatus.PENDING.value:
+        raise HTTPException(status_code=400, detail=f"Invitation is no longer pending (status: {invitation.status})")
+
+    # Check if expired
+    if invitation.expires_at < datetime.utcnow():
+        invitation.status = InvitationStatus.EXPIRED.value
+        await session.commit()
+        raise HTTPException(status_code=400, detail="Invitation has expired")
+
+    # Check if user is already in the team
+    stmt = select(UserTeam).where(UserTeam.user_id == str(user.id), UserTeam.team_id == invitation.team_id)
+    result = await session.execute(stmt)
+    if result.scalar_one_or_none():
+        # Mark invitation as accepted anyway
+        invitation.status = InvitationStatus.ACCEPTED.value
+        await session.commit()
+        raise HTTPException(status_code=400, detail="You are already a member of this team")
+
+    # Add user to team
+    user_team = UserTeam(user_id=str(user.id), team_id=invitation.team_id, role=invitation.role)
+    session.add(user_team)
+
+    # Update invitation status
+    invitation.status = InvitationStatus.ACCEPTED.value
+
+    await session.commit()
+
+    # Get team info
+    stmt = select(Team).where(Team.id == invitation.team_id)
+    result = await session.execute(stmt)
+    team = result.scalar_one_or_none()
+
+    return {
+        "message": "Invitation accepted successfully",
+        "team_id": invitation.team_id,
+        "team_name": team.name if team else None,
+        "role": invitation.role,
+    }
+
+
 @router.post("/invitations/{invitation_id}/reject")
 async def reject_invitation(
     invitation_id: str,
