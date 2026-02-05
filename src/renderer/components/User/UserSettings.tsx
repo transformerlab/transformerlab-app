@@ -176,7 +176,7 @@ export default function UserSettings(): JSX.Element {
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
   const { data: userInfo, mutate: userInfoMutate } = useAPI('users', ['me']);
   const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
-   const { data: invitations, mutate: invitationsMutate } = useAPI(
+  const { data: invitations, mutate: invitationsMutate } = useAPI(
     'invitations',
     ['me'],
     {},
@@ -748,11 +748,11 @@ function TeamInvitationsSection({
                       invitation.status === 'pending'
                         ? 'primary'
                         : invitation.status === 'accepted'
-                        ? 'success'
-                        : invitation.status === 'rejected' ||
-                          invitation.status === 'cancelled'
-                        ? 'danger'
-                        : 'neutral'
+                          ? 'success'
+                          : invitation.status === 'rejected' ||
+                              invitation.status === 'cancelled'
+                            ? 'danger'
+                            : 'neutral'
                     }
                   >
                     {invitation.status}
@@ -767,7 +767,11 @@ function TeamInvitationsSection({
                 </td>
                 <td>
                   {invitation.status === 'pending' && (
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      justifyContent="flex-end"
+                    >
                       <Button
                         size="sm"
                         variant="soft"

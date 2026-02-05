@@ -812,99 +812,98 @@ export default function UserLoginTest(): JSX.Element {
                 No invitations have been sent for this team yet.
               </Typography>
             )}
-            {invitations?.invitations &&
-              invitations.invitations.length > 0 && (
-                <Table variant="soft" sx={{ mb: 2 }}>
-                  <thead>
-                    <tr>
-                      <th>Email</th>
-                      <th>Role</th>
-                      <th>Status</th>
-                      <th>Invited By</th>
-                      <th>Expires</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invitations.invitations.map((invitation: any) => (
-                      <tr key={invitation.id}>
-                        <td>
-                          <Typography level="body-sm">
-                            {invitation.email}
-                          </Typography>
-                        </td>
-                        <td>
-                          <Chip size="sm" variant="soft">
-                            {invitation.role}
-                          </Chip>
-                        </td>
-                        <td>
-                          <Chip
-                            size="sm"
-                            variant="soft"
-                            color={
-                              invitation.status === 'pending'
-                                ? 'primary'
-                                : invitation.status === 'accepted'
+            {invitations?.invitations && invitations.invitations.length > 0 && (
+              <Table variant="soft" sx={{ mb: 2 }}>
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Invited By</th>
+                    <th>Expires</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {invitations.invitations.map((invitation: any) => (
+                    <tr key={invitation.id}>
+                      <td>
+                        <Typography level="body-sm">
+                          {invitation.email}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Chip size="sm" variant="soft">
+                          {invitation.role}
+                        </Chip>
+                      </td>
+                      <td>
+                        <Chip
+                          size="sm"
+                          variant="soft"
+                          color={
+                            invitation.status === 'pending'
+                              ? 'primary'
+                              : invitation.status === 'accepted'
                                 ? 'success'
                                 : invitation.status === 'rejected' ||
-                                  invitation.status === 'cancelled'
-                                ? 'danger'
-                                : 'neutral'
-                            }
-                          >
-                            {invitation.status}
-                          </Chip>
-                        </td>
-                        <td>
-                          <Typography level="body-sm">
-                            {invitation.invited_by_email}
-                          </Typography>
-                        </td>
-                        <td>
-                          <Typography level="body-xs">
-                            {invitation.expires_at
-                              ? new Date(
-                                  invitation.expires_at,
-                                ).toLocaleDateString()
-                              : '—'}
-                          </Typography>
-                        </td>
-                        <td>
-                          {invitation.status === 'pending' && (
-                            <Button
-                              size="sm"
-                              variant="outlined"
-                              color="neutral"
-                              onClick={async () => {
-                                if (!authContext?.team?.id) return;
-                                try {
-                                  const res = await authContext.fetchWithAuth(
-                                    `teams/${authContext.team.id}/invitations/${invitation.id}`,
-                                    {
-                                      method: 'DELETE',
-                                    },
-                                  );
-                                  if (res.ok && invitationsMutate) {
-                                    invitationsMutate();
-                                  }
-                                } catch (e: any) {
-                                  console.error(
-                                    'Error cancelling invitation:',
-                                    e,
-                                  );
+                                    invitation.status === 'cancelled'
+                                  ? 'danger'
+                                  : 'neutral'
+                          }
+                        >
+                          {invitation.status}
+                        </Chip>
+                      </td>
+                      <td>
+                        <Typography level="body-sm">
+                          {invitation.invited_by_email}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Typography level="body-xs">
+                          {invitation.expires_at
+                            ? new Date(
+                                invitation.expires_at,
+                              ).toLocaleDateString()
+                            : '—'}
+                        </Typography>
+                      </td>
+                      <td>
+                        {invitation.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            variant="outlined"
+                            color="neutral"
+                            onClick={async () => {
+                              if (!authContext?.team?.id) return;
+                              try {
+                                const res = await authContext.fetchWithAuth(
+                                  `teams/${authContext.team.id}/invitations/${invitation.id}`,
+                                  {
+                                    method: 'DELETE',
+                                  },
+                                );
+                                if (res.ok && invitationsMutate) {
+                                  invitationsMutate();
                                 }
-                              }}
-                            >
-                              Cancel
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              )}
+                              } catch (e: any) {
+                                console.error(
+                                  'Error cancelling invitation:',
+                                  e,
+                                );
+                              }
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
           </Box>
         )}
         <Box sx={{ mt: 4 }}>
