@@ -305,9 +305,7 @@ class TaskQueueModal(ModalScreen):
         provider_id = self.selected_provider_id
         if not provider_id:
             self.app.call_from_thread(self._show_spinner, False)
-            self.app.call_from_thread(
-                self.notify, "Please select a provider before queuing.", severity="error"
-            )
+            self.app.call_from_thread(self.notify, "Please select a provider before queuing.", severity="error")
             return
 
         selected_provider = next((p for p in self.providers if p.get("id") == provider_id), None)
@@ -324,9 +322,7 @@ class TaskQueueModal(ModalScreen):
             self.app.call_from_thread(self._dismiss_all_modals)
         except RuntimeError as e:
             self.app.call_from_thread(self._show_spinner, False)
-            self.app.call_from_thread(
-                self.notify, str(e), severity="error"
-            )
+            self.app.call_from_thread(self.notify, str(e), severity="error")
 
     def _dismiss_all_modals(self) -> None:
         """Dismiss this modal and the parent TaskListModal to return to homepage."""
