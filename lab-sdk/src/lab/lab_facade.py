@@ -519,69 +519,156 @@ class Lab:
         job_id = self._job.id  # type: ignore[union-attr]
 
         # Handle DataFrame input when type="dataset"
-        if type == "dataset" and hasattr(source_path, "to_json"):
-            # Normalize input: convert Hugging Face datasets.Dataset to pandas DataFrame
-            df = source_path
-            try:
-                if hasattr(df, "to_pandas") and callable(getattr(df, "to_pandas")):
-                    df = df.to_pandas()
-            except Exception:
-                pass
+        if type == "dataset":
+            # Check if source is a DataFrame (pandas or HuggingFace dataset)
+            if hasattr(source_path, "to_json"):
+                # Normalize input: convert Hugging Face datasets.Dataset to pandas DataFrame
+                df = source_path
+                try:
+                    if hasattr(df, "to_pandas") and callable(getattr(df, "to_pandas")):
+                        df = df.to_pandas()
+                except Exception:
+                    pass
 
-            # Use name as dataset_id, or generate one if not provided
-            if name is None or (isinstance(name, str) and name.strip() == ""):
-                import time
+                # Use name as dataset_id, or generate one if not provided
+                if name is None or (isinstance(name, str) and name.strip() == ""):
+                    import time
 
-                timestamp = time.strftime("%Y%m%d_%H%M%S")
-                dataset_id = f"generated_dataset_{job_id}_{timestamp}"
+                    timestamp = time.strftime("%Y%m%d_%H%M%S")
+                    dataset_id = f"generated_dataset_{job_id}_{timestamp}"
+                else:
+                    dataset_id = name.strip()
+
+                # Get additional metadata from config if provided
+                additional_metadata = {}
+                if config and isinstance(config, dict) and "dataset" in config:
+                    additional_metadata = config["dataset"]
+
+                # Get other parameters from config
+                suffix = None
+                is_image = False
+                if config and isinstance(config, dict):
+                    if "suffix" in config:
+                        suffix = config["suffix"]
+                    if "is_image" in config:
+                        is_image = config["is_image"]
+
+                # Use the existing save_dataset method with job_id parameter
+                output_path = await self.async_save_dataset(
+                    df=df,
+                    dataset_id=dataset_id,
+                    additional_metadata=additional_metadata if additional_metadata else None,
+                    suffix=suffix,
+                    is_image=is_image,
+                    job_id=job_id,
+                )
+
+                # Extract the actual dataset_id with prefix from the path
+                # The dataset_id with prefix is used in the path/filename
+                dataset_id_with_prefix = f"{job_id}_{dataset_id}"
+
+                # Track dataset_id in job_data
+                try:
+                    job_data = await self._job.get_job_data()
+                    generated_datasets_list = []
+                    if isinstance(job_data, dict):
+                        existing = job_data.get("generated_datasets", [])
+                        if isinstance(existing, list):
+                            generated_datasets_list = existing
+                    generated_datasets_list.append(dataset_id_with_prefix)
+                    await self._job.update_job_data_field("generated_datasets", generated_datasets_list)
+                except Exception:
+                    pass
+
+                await self._job.log_info(
+                    f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_with_prefix}'"
+                )  # type: ignore[union-attr]
+                return output_path
+            
+            # Handle file path input for datasets
             else:
-                dataset_id = name.strip()
+                if not isinstance(source_path, str) or source_path.strip() == "":
+                    raise ValueError("source_path must be a non-empty string when type='dataset'")
+                src = source_path
+                # For local paths, resolve to absolute path; for remote paths (s3://, etc.) or URLs, use as-is
+                is_remote = storage.is_remote_path(src) or src.startswith(("http://", "https://"))
+                if not is_remote:
+                    src = os.path.abspath(src)
 
-            # Get additional metadata from config if provided
-            additional_metadata = {}
-            if config and isinstance(config, dict) and "dataset" in config:
-                additional_metadata = config["dataset"]
+                # Check source existence: use local filesystem for local paths, storage backend for remote
+                if is_remote:
+                    if not await storage.exists(src):
+                        raise FileNotFoundError(f"Dataset source does not exist: {src}")
+                else:
+                    if not os.path.exists(src):
+                        raise FileNotFoundError(f"Dataset source does not exist: {src}")
 
-            # Get other parameters from config
-            suffix = None
-            is_image = False
-            if config and isinstance(config, dict):
-                if "suffix" in config:
-                    suffix = config["suffix"]
-                if "is_image" in config:
-                    is_image = config["is_image"]
+                # Get dataset-specific parameters from config
+                dataset_config = {}
+                if config and isinstance(config, dict) and "dataset" in config:
+                    dataset_config = config["dataset"]
 
-            # Use the existing save_dataset method with job_id parameter
-            output_path = await self.async_save_dataset(
-                df=df,
-                dataset_id=dataset_id,
-                additional_metadata=additional_metadata if additional_metadata else None,
-                suffix=suffix,
-                is_image=is_image,
-                job_id=job_id,
-            )
+                # Determine base name with job_id prefix
+                if isinstance(name, str) and name.strip() != "":
+                    base_name_original = name.strip()
+                else:
+                    base_name_original = posixpath.basename(src)
 
-            # Extract the actual dataset_id with prefix from the path
-            # The dataset_id with prefix is used in the path/filename
-            dataset_id_with_prefix = f"{job_id}_{dataset_id}"
+                # Add job_id prefix to avoid conflicts between jobs (like models)
+                base_name = f"{job_id}_{base_name_original}"
 
-            # Track dataset_id in job_data
-            try:
-                job_data = await self._job.get_job_data()
-                generated_datasets_list = []
-                if isinstance(job_data, dict):
-                    existing = job_data.get("generated_datasets", [])
-                    if isinstance(existing, list):
-                        generated_datasets_list = existing
-                generated_datasets_list.append(dataset_id_with_prefix)
-                await self._job.update_job_data_field("generated_datasets", generated_datasets_list)
-            except Exception:
-                pass
+                # Save to job-specific datasets directory (not a subdirectory per dataset)
+                datasets_dir = await dirs.get_job_datasets_dir(job_id)
+                dest = storage.join(datasets_dir, base_name)
 
-            await self._job.log_info(
-                f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_with_prefix}'"
-            )  # type: ignore[union-attr]
-            return output_path
+                # Create parent directories
+                await storage.makedirs(datasets_dir, exist_ok=True)
+
+                # Handle duplicate names within the same job by adding suffix
+                if await storage.exists(dest):
+                    counter = 1
+                    while True:
+                        base_name_with_suffix = f"{job_id}_{base_name_original}"
+                        # Insert counter before extension if it exists
+                        name_parts = base_name_original.rsplit(".", 1)
+                        if len(name_parts) > 1:
+                            base_name_with_suffix = f"{job_id}_{name_parts[0]}_{counter}.{name_parts[1]}"
+                        else:
+                            base_name_with_suffix = f"{job_id}_{base_name_original}_{counter}"
+                        
+                        dest = storage.join(datasets_dir, base_name_with_suffix)
+                        if not await storage.exists(dest):
+                            base_name = base_name_with_suffix
+                            break
+                        counter += 1
+
+                # Copy file or directory
+                # Check if source is directory: use local filesystem for local paths, storage backend for remote
+                if is_remote:
+                    src_is_dir = await storage.isdir(src)
+                else:
+                    src_is_dir = os.path.isdir(src)
+
+                if src_is_dir:
+                    await storage.copy_dir(src, dest)
+                else:
+                    await storage.copy_file(src, dest)
+
+                # Track in job_data
+                try:
+                    job_data = await self._job.get_job_data()
+                    dataset_list = []
+                    if isinstance(job_data, dict):
+                        existing = job_data.get("generated_datasets", [])
+                        if isinstance(existing, list):
+                            dataset_list = existing
+                    dataset_list.append(dest)
+                    await self._job.update_job_data_field("generated_datasets", dataset_list)
+                except Exception:
+                    pass
+
+                await self._job.log_info(f"Dataset saved to '{dest}'")  # type: ignore[union-attr]
+                return dest
 
         # Handle DataFrame input when type="evals"
         if type == "eval" and hasattr(source_path, "to_csv"):
