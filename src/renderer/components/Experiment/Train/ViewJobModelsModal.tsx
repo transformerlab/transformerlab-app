@@ -10,6 +10,7 @@ import {
   Button,
   Stack,
   Alert,
+  Sheet,
 } from '@mui/joy';
 import { Save } from 'lucide-react';
 import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
@@ -87,21 +88,30 @@ export default function ViewJobModelsModal({
     }
   }, [saveSuccess, saveError]);
 
+  const noModelsFound = !isLoading && models.length === 0;
+
   return (
     <Modal open={open} onClose={onClose}>
       <ModalDialog
         sx={{
-          width: '80%',
-          maxWidth: '900px',
-          height: '80%',
-          maxHeight: '800px',
+          width: '90vw',
+          height: '80vh',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         <ModalClose />
-        <Typography level="h4">Job Models - Job {jobId}</Typography>
-        <Typography level="body-sm" sx={{ mb: 2 }}>
-          Models generated or stored in this job's directory
-        </Typography>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          sx={{ mb: 2, mr: 4 }}
+        >
+          <Typography id="models-modal-title" level="h2">
+            Models for Job {jobId}
+          </Typography>
+        </Stack>
 
         {saveSuccess && (
           <Alert color="success" sx={{ mb: 2 }}>
@@ -115,63 +125,91 @@ export default function ViewJobModelsModal({
           </Alert>
         )}
 
-        <Box
-          sx={{
-            flex: 1,
-            overflow: 'auto',
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 'sm',
-          }}
-        >
-          {isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : models.length === 0 ? (
-            <Box sx={{ p: 3, textAlign: 'center' }}>
-              <Typography level="body-md" color="neutral">
-                No models found for this job
-              </Typography>
-            </Box>
-          ) : (
-            <Table>
-              <thead>
-                <tr>
-                  <th style={{ width: '50%' }}>Model Name</th>
-                  <th style={{ width: '20%' }}>Size</th>
-                  <th style={{ width: '30%' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {models.map((model) => (
-                  <tr key={model.name}>
-                    <td>
-                      <Typography level="body-sm">{model.name}</Typography>
-                    </td>
-                    <td>
-                      <Typography level="body-sm">
-                        {model.size ? formatBytes(model.size) : '-'}
-                      </Typography>
-                    </td>
-                    <td>
-                      <Button
-                        size="sm"
-                        variant="outlined"
-                        onClick={() => handleSaveToRegistry(model.name)}
-                        startDecorator={<Save />}
-                        loading={savingModel === model.name}
-                        disabled={savingModel !== null}
-                      >
-                        Save to Registry
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          )}
-        </Box>
+        {noModelsFound ? (
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Typography level="body-lg" color="neutral">
+              No models found for this job.
+            </Typography>
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              flex: 1,
+            }}
+          >
+            <Typography level="body-md" sx={{ mt: 1, mb: 2 }}>
+              This job has{' '}
+              {models.length || (
+                <CircularProgress
+                  sx={{
+                    '--CircularProgress-size': '18px',
+                    '--CircularProgress-trackThickness': '4px',
+                    '--CircularProgress-progressThickness': '2px',
+                  }}
+                />
+              )}{' '}
+              model(s):
+            </Typography>
+
+            {isLoading ? (
+              <Typography level="body-md">Loading models...</Typography>
+            ) : (
+              <Sheet
+                sx={{
+                  overflow: 'auto',
+                  borderRadius: 'sm',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <Table stickyHeader>
+                  <thead>
+                    <tr>
+                      <th style={{ width: '50px' }}>#</th>
+                      <th style={{ width: '50%' }}>Model Name</th>
+                      <th style={{ width: '20%' }}>Size</th>
+                      <th style={{ width: '30%' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {models.map((model, index) => (
+                      <tr key={model.name}>
+                        <td>
+                          <Typography level="body-sm">
+                            {models.length - index}.
+                          </Typography>
+                        </td>
+                        <td>
+                          <Typography level="title-sm">{model.name}</Typography>
+                        </td>
+                        <td>
+                          <Typography level="body-sm">
+                            {model.size ? formatBytes(model.size) : '-'}
+                          </Typography>
+                        </td>
+                        <td>
+                          <Button
+                            size="sm"
+                            variant="outlined"
+                            onClick={() => handleSaveToRegistry(model.name)}
+                            startDecorator={<Save size={16} />}
+                            loading={savingModel === model.name}
+                            disabled={savingModel !== null}
+                          >
+                            Save to Registry
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </Sheet>
+            )}
+          </Box>
+        )}
       </ModalDialog>
     </Modal>
   );
