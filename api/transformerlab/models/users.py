@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 from fastapi import Depends, Request, Response, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas, exceptions
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, CookieTransport, JWTStrategy, Strategy
 from fastapi_users.db import SQLAlchemyUserDatabase
@@ -353,21 +353,46 @@ class OAuthBackend(AuthenticationBackend):
     """
 
     async def login(self, strategy: Strategy, user: User) -> Response:
+        """
+        After successful OAuth login, issue the same cookies used for regular
+        cookie-based auth and redirect back to the frontend.
+
+        This keeps Google/GitHub OAuth compatible with the cookie-auth frontend,
+        which relies on httpOnly cookies and /users/me instead of URL tokens.
+        """
         # Generate tokens
         access_token = await strategy.write_token(user)
         refresh_token = await get_refresh_strategy().write_token(user)
 
-        # Redirect to frontend home page with tokens in URL
-        # The frontend reads tokens from window.location.search, so any path works
-        # Redirecting to home page (/) is simpler and works regardless of URL configuration
+        # Normalize frontend URL and redirect to home page
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
         frontend_url_normalized = frontend_url.rstrip("/")
 
-        callback_url = (
-            f"{frontend_url_normalized}/?access_token={access_token}&refresh_token={refresh_token}&token_type=bearer"
+        response = RedirectResponse(url=f"{frontend_url_normalized}/", status_code=302)
+
+        cookie_secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+
+        # Set access token cookie
+        response.set_cookie(
+            key="tlab_auth",
+            value=access_token,
+            max_age=TOKEN_LIFETIME,
+            httponly=True,
+            secure=cookie_secure,
+            samesite="lax",
         )
 
-        return Response(status_code=302, headers={"Location": callback_url})
+        # Set refresh token cookie
+        response.set_cookie(
+            key="tlab_refresh",
+            value=refresh_token,
+            max_age=REFRESH_LIFETIME,
+            httponly=True,
+            secure=cookie_secure,
+            samesite="lax",
+        )
+
+        return response
 
 
 oauth_backend = OAuthBackend(
