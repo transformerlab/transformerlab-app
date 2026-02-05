@@ -228,21 +228,33 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     return unsub;
   }, []);
 
-  // Fetch user data - will succeed if cookies are valid
+  // Fetch user data using cookie-based auth; presence of a valid user implies authentication
+  const userKey = getAPIFullPath('users', ['me'], {}) ?? null;
   const {
     data: user,
     error: userError,
     isLoading: userIsLoading,
     mutate: userMutate,
-  } = useSWR(
-    isAuthenticated ? (getAPIFullPath('users', ['me'], {}) ?? null) : null,
-    // Use fetchWithAuth which includes credentials: 'include' for cookie auth
-    (url) => fetchWithAuth(url).then((r) => r.json()),
-  );
+  } = useSWR(userKey, (url) => fetchWithAuth(url).then((r) => r.json()));
 
-  // Get a list of teams this user belongs to
+  // Once we know the user result, derive isAuthenticated from it
+  useEffect(() => {
+    if (user && !userError) {
+      if (!isAuthenticated) {
+        setIsAuthenticated(true);
+      }
+    } else if (userError) {
+      if (isAuthenticated) {
+        setIsAuthenticated(false);
+      }
+    }
+  }, [user, userError, isAuthenticated]);
+
+  // Get a list of teams this user belongs to (only after user is known)
+  const teamsKey =
+    user && !userError ? getAPIFullPath('teams', ['list'], {}) : null;
   const { data: teamsData, mutate: teamsMutate } = useSWR(
-    isAuthenticated ? getAPIFullPath('teams', ['list'], {}) : null,
+    teamsKey,
     (url) => fetchWithAuth(url).then((r) => r.json()),
   );
 
