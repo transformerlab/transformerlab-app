@@ -57,8 +57,8 @@ class TaskQueueModal(ModalScreen):
         background: $panel;
     }
     #queue-form-container {
-        height: auto;
-        max-height: 100%;
+        height: 1fr;
+        max-height: 20;
     }
     .form-row {
         height: auto;
@@ -70,6 +70,20 @@ class TaskQueueModal(ModalScreen):
     }
     .form-input {
         width: 100%;
+    }
+    Select {
+        width: 100%;
+        height: auto;
+        min-height: 3;
+    }
+    Select > SelectCurrent {
+        width: 1fr;
+        height: auto;
+        min-height: 1;
+        padding: 0 1;
+    }
+    Select > SelectCurrent > Static {
+        width: 1fr;
     }
     .form-switch {
         height: auto;
@@ -86,6 +100,8 @@ class TaskQueueModal(ModalScreen):
         super().__init__()
         self.task_info = task_info
         self.param_widgets: dict[str, str] = {}
+        self.providers: list[dict] = []
+        self.selected_provider_id: str = task_info.get("provider_id", "")
 
     def compose(self) -> ComposeResult:
         task_name = self.task_info.get("name", "Unknown")
@@ -94,7 +110,19 @@ class TaskQueueModal(ModalScreen):
         with Vertical(id="queue-modal"):
             yield Label(f"[b]Queue Task: {task_name}[/b]")
 
+            with Vertical(classes="form-row"):
+                yield Label("Provider:", classes="form-label")
+                yield Select(
+                    [("Loading...", "_loading")],
+                    value="_loading",
+                    allow_blank=False,
+                    id="provider-select",
+                    classes="form-input",
+                )
+                # yield Label("[DEBUG] Selected: (none)", id="debug-provider-label")
+
             with ScrollableContainer(id="queue-form-container"):
+                yield Label("[b]Task Parameters[/b]")
                 if not parameters:
                     yield Label("[dim]No configurable parameters[/dim]")
                 else:
@@ -103,6 +131,64 @@ class TaskQueueModal(ModalScreen):
                         yield from self._render_param_field(key, schema)
 
             yield Button("Queue", id="queue-submit-btn", variant="primary")
+
+    def on_mount(self) -> None:
+        self.fetch_providers()
+
+    @work(thread=True)
+    def fetch_providers(self) -> None:
+        """Fetch available compute providers from the API."""
+        try:
+            response = api.get("/compute_provider/")
+            if response.status_code == 200:
+                providers = response.json()
+            else:
+                providers = []
+        except Exception:
+            providers = []
+
+        self.app.call_from_thread(self.populate_providers, providers)
+
+    def populate_providers(self, providers: list[dict]) -> None:
+        """Populate the provider select widget."""
+        self.providers = providers
+        provider_select = self.query_one("#provider-select", Select)
+
+        if not providers:
+            with provider_select.prevent(Select.Changed):
+                provider_select.set_options([("No providers available", "_none")])
+                provider_select.value = "_none"
+            return
+
+        options = [(p.get("name", p.get("id")), p.get("id")) for p in providers]
+
+        task_provider_id = self.task_info.get("provider_id", "")
+        if task_provider_id and any(p.get("id") == task_provider_id for p in providers):
+            initial_value = task_provider_id
+        else:
+            initial_value = providers[0].get("id")
+
+        with provider_select.prevent(Select.Changed):
+            provider_select.set_options(options)
+            provider_select.value = initial_value
+
+        self.selected_provider_id = initial_value
+        # self._update_debug_label(initial_value)
+
+    # def _update_debug_label(self, value: str) -> None:
+    #     """Update the debug label with current selection."""
+    #     try:
+    #         debug_label = self.query_one("#debug-provider-label", Label)
+    #         provider_name = next((p.get("name") for p in self.providers if p.get("id") == value), value)
+    #         debug_label.update(f"[DEBUG] Selected: {provider_name} (id={value})")
+    #     except Exception:
+    #         pass
+
+    @on(Select.Changed, "#provider-select")
+    def on_provider_changed(self, event: Select.Changed) -> None:
+        if event.value != Select.BLANK:
+            self.selected_provider_id = str(event.value)
+            # self._update_debug_label(str(event.value))
 
     def _render_param_field(self, key: str, schema: dict) -> ComposeResult:
         """Render a single parameter field based on its schema."""
@@ -194,9 +280,58 @@ class TaskQueueModal(ModalScreen):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "queue-submit-btn":
-            param_values = self._collect_param_values()
-            self.notify(f"Queue functionality not implemented yet. Params: {param_values}", severity="information")
-            self.dismiss()
+            self.queue_task()
+
+    @work(thread=True)
+    def queue_task(self) -> None:
+        """Queue the task by calling the provider launch endpoint."""
+        param_values = self._collect_param_values()
+        task = self.task_info
+
+        provider_id = self.selected_provider_id
+        if not provider_id:
+            self.app.call_from_thread(
+                self.notify, "Please select a provider before queuing.", severity="error"
+            )
+            return
+
+        selected_provider = next((p for p in self.providers if p.get("id") == provider_id), None)
+        provider_name = selected_provider.get("name") if selected_provider else task.get("provider_name")
+
+        payload = {
+            "experiment_id": task.get("experiment_id"),
+            "task_id": task.get("id"),
+            "task_name": task.get("name"),
+            "command": task.get("command"),
+            "setup": task.get("setup"),
+            "accelerators": task.get("accelerators"),
+            "env_vars": task.get("env_vars", {}),
+            "parameters": task.get("parameters", {}),
+            "config": param_values if param_values else None,
+            "provider_name": provider_name,
+            "github_repo_url": task.get("github_repo_url"),
+            "github_directory": task.get("github_directory"),
+        }
+
+        try:
+            response = api.post_json(f"/compute_provider/{provider_id}/task/launch", payload)
+            if response.status_code == 200:
+                data = response.json()
+                job_id = data.get("job_id", "unknown")
+                self.app.call_from_thread(
+                    self.notify, f"Task queued successfully. Job ID: {job_id}", severity="information"
+                )
+            else:
+                detail = response.json().get("detail", response.text) if response.text else "Unknown error"
+                self.app.call_from_thread(
+                    self.notify, f"Failed to queue task: {detail}", severity="error"
+                )
+        except Exception as e:
+            self.app.call_from_thread(
+                self.notify, f"Error queuing task: {e}", severity="error"
+            )
+
+        self.app.call_from_thread(self.dismiss)
 
 
 class TaskListModal(ModalScreen):
