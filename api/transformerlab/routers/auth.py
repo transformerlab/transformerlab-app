@@ -24,7 +24,7 @@ from transformerlab.models.users import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
 import json
 import re
@@ -37,6 +37,12 @@ from transformerlab.shared.api_key_auth import (
 from transformerlab.utils.api_key_utils import mask_key
 from lab.dirs import get_workspace_dir
 from lab import storage
+from transformerlab.schemas.secrets import (
+    UserSecretsRequest,
+    SpecialSecretRequest,
+    SPECIAL_SECRET_TYPES,
+    SPECIAL_SECRET_KEYS,
+)
 
 router = APIRouter(tags=["users"])
 
@@ -497,10 +503,6 @@ async def get_user_teams(user: User = Depends(current_active_user), session: Asy
     return {"user_id": str(user.id), "teams": teams_with_roles}
 
 
-class UserSecretsRequest(BaseModel):
-    secrets: dict[str, str] = Field(..., description="User secrets as key-value pairs")
-
-
 @router.get("/users/me/secrets")
 async def get_user_secrets(
     user: User = Depends(current_active_user),
@@ -559,9 +561,7 @@ async def set_user_secrets(
         # Validate that all keys are valid environment variable names
         # Environment variable names can contain letters, numbers, and underscores
         valid_key_pattern = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-        # Special secrets that can only be set via special secrets endpoints
-        SPECIAL_SECRET_KEYS = {"_GITHUB_PAT_TOKEN", "_HF_TOKEN", "_WANDB_API_KEY"}
-        
+
         for key in secrets_data.secrets.keys():
             if not valid_key_pattern.match(key):
                 raise HTTPException(
@@ -591,18 +591,6 @@ async def set_user_secrets(
     except Exception as e:
         print(f"Error saving user secrets: {e}")
         raise HTTPException(status_code=500, detail="Failed to save user secrets")
-
-
-class SpecialSecretRequest(BaseModel):
-    secret_type: str = Field(..., description="Type of special secret: _GITHUB_PAT_TOKEN, _HF_TOKEN, or _WANDB_API_KEY")
-    value: str = Field(..., description="Secret value")
-
-
-SPECIAL_SECRET_TYPES = {
-    "_GITHUB_PAT_TOKEN": "GitHub Personal Access Token",
-    "_HF_TOKEN": "HuggingFace Token",
-    "_WANDB_API_KEY": "Weights & Biases API Key",
-}
 
 
 @router.get("/users/me/special_secrets")

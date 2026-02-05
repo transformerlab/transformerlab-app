@@ -14,7 +14,7 @@ from lab.dirs import get_workspace_dir
 
 async def read_github_pat_from_workspace(workspace_dir: str, user_id: Optional[str] = None) -> Optional[str]:
     """Read GitHub PAT from secrets (team_secrets.json or user_secrets_{user_id}.json).
-    
+
     First checks user secrets, then falls back to team secrets.
 
     Args:
@@ -25,7 +25,7 @@ async def read_github_pat_from_workspace(workspace_dir: str, user_id: Optional[s
         GitHub PAT string if found, None otherwise
     """
     import json
-    
+
     try:
         # First, try to read from secrets (user secrets override team secrets)
         if user_id:
@@ -35,7 +35,7 @@ async def read_github_pat_from_workspace(workspace_dir: str, user_id: Optional[s
                     user_secrets = json.loads(await f.read())
                     if "_GITHUB_PAT_TOKEN" in user_secrets and user_secrets["_GITHUB_PAT_TOKEN"]:
                         return user_secrets["_GITHUB_PAT_TOKEN"].strip()
-        
+
         # Check team secrets
         team_secrets_path = storage.join(workspace_dir, "team_secrets.json")
         if await storage.exists(team_secrets_path):

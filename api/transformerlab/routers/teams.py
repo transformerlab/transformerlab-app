@@ -9,7 +9,7 @@ from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
 from transformerlab.shared.remote_workspace import create_bucket_for_team
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr
 from typing import Optional
 from sqlalchemy import select, delete, update, func, and_
 from datetime import datetime, timedelta
@@ -22,6 +22,12 @@ import logging
 from lab import Experiment
 from lab.dirs import set_organization_id, get_workspace_dir
 from lab import storage
+from transformerlab.schemas.secrets import (
+    TeamSecretsRequest,
+    SpecialSecretRequest,
+    SPECIAL_SECRET_TYPES,
+    SPECIAL_SECRET_KEYS,
+)
 
 
 class TeamCreate(BaseModel):
@@ -70,10 +76,6 @@ class AcceptInvitationRequest(BaseModel):
 
 class GitHubPATRequest(BaseModel):
     pat: Optional[str] = None
-
-
-class TeamSecretsRequest(BaseModel):
-    secrets: dict[str, str] = Field(..., description="Team secrets as key-value pairs")
 
 
 router = APIRouter(tags=["teams"])
@@ -902,7 +904,7 @@ async def get_github_pat(
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
     workspace_dir = await get_workspace_dir()
-    
+
     # Check secrets only
     secrets_path = storage.join(workspace_dir, "team_secrets.json")
     if await storage.exists(secrets_path):
@@ -947,12 +949,12 @@ async def set_github_pat(
             if await storage.exists(secrets_path):
                 async with await storage.open(secrets_path, "r") as f:
                     existing_secrets = json.loads(await f.read())
-            
+
             existing_secrets["_GITHUB_PAT_TOKEN"] = pat.strip()
             await storage.makedirs(workspace_dir, exist_ok=True)
             async with await storage.open(secrets_path, "w") as f:
                 await f.write(json.dumps(existing_secrets, indent=2))
-            
+
             return {"status": "success", "message": "GitHub PAT saved successfully"}
         else:
             # Remove the PAT if empty string is provided
@@ -1177,9 +1179,7 @@ async def set_team_secrets(
         import re
 
         valid_key_pattern = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-        # Special secrets that can only be set via special secrets endpoints
-        SPECIAL_SECRET_KEYS = {"_GITHUB_PAT_TOKEN", "_HF_TOKEN", "_WANDB_API_KEY"}
-        
+
         for key in secrets_data.secrets.keys():
             if not valid_key_pattern.match(key):
                 raise HTTPException(
@@ -1209,18 +1209,6 @@ async def set_team_secrets(
     except Exception as e:
         print(f"Error saving team secrets: {e}")
         raise HTTPException(status_code=500, detail="Failed to save team secrets")
-
-
-class SpecialSecretRequest(BaseModel):
-    secret_type: str = Field(..., description="Type of special secret: _GITHUB_PAT_TOKEN, _HF_TOKEN, or _WANDB_API_KEY")
-    value: str = Field(..., description="Secret value")
-
-
-SPECIAL_SECRET_TYPES = {
-    "_GITHUB_PAT_TOKEN": "GitHub Personal Access Token",
-    "_HF_TOKEN": "HuggingFace Token",
-    "_WANDB_API_KEY": "Weights & Biases API Key",
-}
 
 
 @router.get("/teams/{team_id}/special_secrets")
