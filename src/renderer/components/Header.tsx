@@ -2,7 +2,10 @@
 import Sheet from '@mui/joy/Sheet';
 import { Sparklines, SparklinesLine } from 'react-sparklines';
 import { Box, LinearProgress, Stack, Tooltip, Typography } from '@mui/joy';
-import { useServerStats } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  useServerStats,
+  useConnectionHealth,
+} from 'renderer/lib/transformerlab-api-sdk';
 import { useEffect, useState } from 'react';
 import { Link2Icon } from 'lucide-react';
 
@@ -333,11 +336,14 @@ function StatsBar({ connection, setConnection }) {
 
 export default function Header({ connection, setConnection }) {
   const { experimentInfo } = useExperimentInfo();
-  const { isLoading: serverLoading, isError: serverError } = useServerStats();
+  const { isError: connectionHealthError, isLoading: connectionHealthLoading } =
+    useConnectionHealth(connection);
 
   const isLocalMode = window?.platform?.multiuser !== true;
-  // Show connection lost modal when we have a connection but server is unreachable
-  const connectionLost = connection !== '' && !serverLoading && !!serverError;
+  // Use connection health (with timeout) so we get a definite fail when server is down;
+  // useServerStats can hang and never set error
+  const connectionLost =
+    connection !== '' && !connectionHealthLoading && !!connectionHealthError;
   const showConnectionLostModal = connection !== '' && connectionLost;
 
   return (
