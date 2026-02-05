@@ -911,39 +911,6 @@ def job_mark_as_complete_if_running(job_id: int, org_id: str) -> None:
             pass
 
 
-async def get_file_metadata(file_path: str, storage) -> Dict[str, any]:
-    """
-    Extract file metadata (size, modified time) from storage or filesystem.
-    Returns dict with 'size' and 'mtime' keys, or empty values if unavailable.
-    """
-    try:
-        # Try storage.ls with detail=True first (works for S3 and local)
-        file_info_list = await storage.ls(file_path, detail=True)
-
-        # Handle dict response (some storage backends)
-        if isinstance(file_info_list, dict):
-            file_info = file_info_list.get(file_path, {})
-            return {"size": file_info.get("size", 0), "mtime": file_info.get("mtime")}
-
-        # Handle list response
-        elif isinstance(file_info_list, list) and file_info_list:
-            file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
-            return {"size": file_info.get("size", 0), "mtime": file_info.get("mtime")}
-    except Exception as e:
-        print(f"storage.ls failed for {file_path}: {e}")
-
-    # Fallback to os.stat for local files only (won't work for S3)
-    # Ensure file_path is a string before checking startswith
-    if isinstance(file_path, str) and not file_path.startswith("s3://"):
-        try:
-            stat = os.stat(file_path)
-            return {"size": stat.st_size, "mtime": stat.st_mtime}
-        except (OSError, AttributeError) as e:
-            print(f"os.stat failed for {file_path}: {e}")
-
-    return {"size": None, "mtime": None}
-
-
 async def format_artifact(file_path: str, storage) -> Optional[Dict[str, any]]:
     """
     Format a single artifact file into the response structure.
@@ -1148,14 +1115,9 @@ async def format_dataset(dir_path: str, storage) -> Optional[Dict[str, any]]:
     try:
         dataset_name = dir_path.split("/")[-1] if "/" in dir_path else dir_path
 
-        # Get size and date metadata
-        metadata = await get_file_metadata(dir_path, storage)
-
         dataset = {
             "name": dataset_name,
             "full_path": dir_path,
-            "size": metadata.get("size"),
-            "date": metadata.get("mtime"),
         }
         return dataset
     except Exception as e:
@@ -1171,14 +1133,9 @@ async def format_model(dir_path: str, storage) -> Optional[Dict[str, any]]:
     try:
         model_name = dir_path.split("/")[-1] if "/" in dir_path else dir_path
 
-        # Get size and date metadata
-        metadata = await get_file_metadata(dir_path, storage)
-
         model = {
             "name": model_name,
             "full_path": dir_path,
-            "size": metadata.get("size"),
-            "date": metadata.get("mtime"),
         }
         return model
     except Exception as e:
