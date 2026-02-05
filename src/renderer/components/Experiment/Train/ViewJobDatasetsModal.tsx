@@ -79,7 +79,8 @@ export default function ViewJobDatasetsModal({
       // Refresh the dataset list
       mutate();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('Failed to save dataset:', error);
       setSaveError(errorMessage);
     } finally {
@@ -192,7 +193,9 @@ export default function ViewJobDatasetsModal({
                           </Typography>
                         </td>
                         <td>
-                          <Typography level="title-sm">{dataset.name}</Typography>
+                          <Typography level="title-sm">
+                            {dataset.name}
+                          </Typography>
                         </td>
                         <td>
                           <Typography level="body-sm">
