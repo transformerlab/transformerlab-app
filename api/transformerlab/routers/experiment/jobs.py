@@ -26,7 +26,14 @@ from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.compute_providers.models import JobState
 from transformerlab.shared.tunnel_parser import get_tunnel_info
 from lab import Job
-from lab.dirs import get_workspace_dir, get_local_provider_job_dir, get_job_datasets_dir, get_datasets_dir, get_job_models_dir, get_models_dir
+from lab.dirs import (
+    get_workspace_dir,
+    get_local_provider_job_dir,
+    get_job_datasets_dir,
+    get_datasets_dir,
+    get_job_models_dir,
+    get_models_dir,
+)
 from transformerlab.shared import zip_utils
 from datetime import datetime
 
