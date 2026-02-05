@@ -79,7 +79,8 @@ export default function ViewJobModelsModal({
       // Refresh the model list
       mutate();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('Failed to save model:', error);
       setSaveError(errorMessage);
     } finally {
