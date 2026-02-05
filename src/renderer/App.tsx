@@ -23,6 +23,7 @@ import {
   ExperimentInfoProvider,
   useExperimentInfo,
 } from './lib/ExperimentInfoContext';
+import { ServerModeProvider } from './lib/ServerModeContext';
 import * as chatAPI from './lib/transformerlab-api-sdk';
 import { AuthProvider, useAuth } from './lib/authContext';
 import LoginPage from './components/Login/LoginPage';
@@ -246,17 +247,19 @@ export default function App() {
         <CssBaseline />
         <AuthProvider connection={connection}>
           <AnalyticsProvider>
-            <ExperimentInfoProvider connection={connection}>
-              <AppContent
-                connection={connection}
-                logsDrawerOpen={logsDrawerOpen}
-                setLogsDrawerOpen={setLogsDrawerOpen}
-                logsDrawerHeight={logsDrawerHeight}
-                setLogsDrawerHeight={setLogsDrawerHeight}
-                themeSetter={themeSetter}
-                setConnection={setConnection}
-              />
-            </ExperimentInfoProvider>
+            <ServerModeProvider>
+              <ExperimentInfoProvider connection={connection}>
+                <AppContent
+                  connection={connection}
+                  logsDrawerOpen={logsDrawerOpen}
+                  setLogsDrawerOpen={setLogsDrawerOpen}
+                  logsDrawerHeight={logsDrawerHeight}
+                  setLogsDrawerHeight={setLogsDrawerHeight}
+                  themeSetter={themeSetter}
+                  setConnection={setConnection}
+                />
+              </ExperimentInfoProvider>
+            </ServerModeProvider>
           </AnalyticsProvider>
         </AuthProvider>
       </CssVarsProvider>

@@ -40,7 +40,7 @@ export function ServerModeProvider({
     revalidateOnFocus: true, // Revalidate when window regains focus
     revalidateOnReconnect: true, // Revalidate when network reconnects
     shouldRetryOnError: true, // Retry on error (e.g., when API is restarting)
-    errorRetryInterval: 2000, // Retry every 2 seconds on error
+    errorRetryInterval: 5000, // Retry every 5 seconds on error
   });
 
   const mode = healthzData?.mode ? String(healthzData.mode).trim() : null;
