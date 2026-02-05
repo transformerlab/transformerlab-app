@@ -9,6 +9,8 @@ def fetch_jobs() -> list[dict]:
         response = api.get(f"/experiment/{exp}/jobs/list?type=REMOTE")
         if response.status_code == 200:
             return response.json()
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+
+        logging.warning(f"Failed to fetch jobs: {e}")
     return []
