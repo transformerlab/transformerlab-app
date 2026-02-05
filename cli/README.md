@@ -59,6 +59,14 @@ pip install -e .
 uv run textual run --dev src/transformerlab_cli/commands/job_monitor/job_monitor.py
 ```
 
+and then in another window do:
+
+```
+textual console -x SYSTEM -x EVENT -x INFO
+```
+
+## Run Textual in Browser
+
 Run in browser (for fun?)
 ```
 uv run textual serve src/transformerlab_cli/commands/job_monitor/job_monitor.py
