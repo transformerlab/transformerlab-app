@@ -384,6 +384,8 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     resetUser();
     setIsAuthenticated(false);
     setTeamState(null);
+    // Clear team cookie
+    document.cookie = 'tlab_team_id=; Max-Age=0; path=/; SameSite=Lax';
     if (userMutate) userMutate(null, false);
   }, [userMutate]);
 
@@ -395,6 +397,12 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           : value;
       updateCurrentTeam(next);
       setTeamState(next);
+      // Persist team selection in cookie so non-fetch requests (e.g. <img>) have team context
+      if (next?.id) {
+        document.cookie = `tlab_team_id=${next.id}; path=/; SameSite=Lax`;
+      } else {
+        document.cookie = 'tlab_team_id=; Max-Age=0; path=/; SameSite=Lax';
+      }
       // If the team changes, we reload the app to ensure all components pick up new team context
       // But only do this if the team actually changed
       if (next?.id !== team?.id) {

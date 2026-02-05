@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Header, Request
+from fastapi import APIRouter, Depends, HTTPException, Header, Request, Cookie
 from fastapi_users import exceptions
 from transformerlab.shared.models.user_model import get_async_session, create_personal_team
 from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole
@@ -178,6 +178,7 @@ if GITHUB_OAUTH_ENABLED:
 async def get_user_and_team(
     request: Request,
     x_team: str | None = Header(None, alias="X-Team-Id"),
+    team_cookie: str | None = Cookie(None, alias="tlab_team_id"),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
@@ -207,10 +208,15 @@ async def get_user_and_team(
             # API key works for all teams, but no X-Team-Id - use personal team
             team_id = await get_user_personal_team_id(session, user)
     else:
-        # JWT authentication - requires X-Team-Id
-        if not x_team:
-            raise HTTPException(status_code=400, detail="X-Team-Id header required for JWT authentication")
-        team_id = x_team
+        # JWT authentication - prefer X-Team-Id, fall back to team cookie if present
+        if x_team:
+            team_id = x_team
+        elif team_cookie:
+            team_id = team_cookie
+        else:
+            raise HTTPException(
+                status_code=400, detail="X-Team-Id header or team cookie required for JWT authentication"
+            )
 
     # Context should already be set by middleware, but ensure it's correct
     # (in case middleware couldn't determine it, or for consistency)
@@ -238,19 +244,21 @@ async def get_user_and_team(
 async def require_team_owner(
     user: User = Depends(current_active_user),
     x_team: str | None = Header(None, alias="X-Team-Id"),
+    team_cookie: str | None = Cookie(None, alias="tlab_team_id"),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
     Dependency to validate user authentication and ensure user is an owner of the team.
-    Extracts X-Team-Id header and verifies user has owner role.
+    Uses X-Team-Id header when present, otherwise falls back to team cookie.
     """
-    if not x_team:
-        raise HTTPException(status_code=400, detail="X-Team-Id header missing")
+    team_id = x_team or team_cookie
+    if not team_id:
+        raise HTTPException(status_code=400, detail="X-Team-Id header or team cookie missing")
 
     # Verify user is an owner of the team
     stmt = select(UserTeam).where(
         UserTeam.user_id == str(user.id),
-        UserTeam.team_id == x_team,
+        UserTeam.team_id == team_id,
     )
     result = await session.execute(stmt)
     user_team = result.scalar_one_or_none()

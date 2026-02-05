@@ -30,7 +30,6 @@ import {
   UsersRoundIcon,
 } from 'lucide-react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
-import { API_URL } from 'renderer/lib/api-client/urls';
 import { useNavigate } from 'react-router-dom';
 
 type Props = {};
@@ -57,18 +56,15 @@ export default function LoginChip({}: Props) {
 
     const fetchLogos = async () => {
       const logoMap: Record<string, string> = {};
-      const base = API_URL();
-      if (!base) {
-        setTeamLogos({});
-        return;
-      }
       const promises = teams.teams.map(async (team: any) => {
         try {
           const res = await authContext.fetchWithAuth(`teams/${team.id}/logo`, {
             method: 'GET',
           });
           if (res.ok) {
-            logoMap[team.id] = `${base}teams/${team.id}/logo`;
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            logoMap[team.id] = url;
           }
         } catch (e) {
           // Logo not found is expected if no logo is set
@@ -80,6 +76,17 @@ export default function LoginChip({}: Props) {
 
     fetchLogos();
   }, [teams?.teams, authContext?.fetchWithAuth]);
+
+  // Cleanup object URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      Object.values(teamLogos).forEach((url) => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [teamLogos]);
 
   return (
     <Sheet

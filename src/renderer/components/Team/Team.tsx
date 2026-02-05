@@ -158,12 +158,9 @@ export default function UserLoginTest(): JSX.Element {
           { method: 'GET' },
         );
         if (res.ok) {
-          const base = chatAPI.API_URL();
-          if (base) {
-            setTeamLogo(`${base}teams/${authContext.team.id}/logo`);
-          } else {
-            setTeamLogo(null);
-          }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          setTeamLogo(url);
         } else {
           setTeamLogo(null);
         }
@@ -181,18 +178,15 @@ export default function UserLoginTest(): JSX.Element {
 
     const fetchLogos = async () => {
       const logoMap: Record<string, string> = {};
-      const base = chatAPI.API_URL();
-      if (!base) {
-        setTeamLogos({});
-        return;
-      }
       const promises = teams.teams.map(async (team: any) => {
         try {
           const res = await authContext.fetchWithAuth(`teams/${team.id}/logo`, {
             method: 'GET',
           });
           if (res.ok) {
-            logoMap[team.id] = `${base}teams/${team.id}/logo`;
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            logoMap[team.id] = url;
           }
         } catch (e) {
           // Logo not found is expected if no logo is set
@@ -204,6 +198,17 @@ export default function UserLoginTest(): JSX.Element {
 
     fetchLogos();
   }, [teams?.teams, authContext?.fetchWithAuth]);
+
+  // Cleanup object URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      Object.values(teamLogos).forEach((url) => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [teamLogos]);
 
   const handleSaveGitHubPAT = async () => {
     if (!authContext?.team?.id || !iAmOwner) return;
@@ -293,9 +298,8 @@ export default function UserLoginTest(): JSX.Element {
             { method: 'GET' },
           );
           if (logoRes.ok) {
-            const base = chatAPI.API_URL();
-            if (!base) return;
-            const url = `${base}teams/${data.id}/logo`;
+            const blob = await logoRes.blob();
+            const url = URL.createObjectURL(blob);
             setTeamLogos((prev) => ({
               ...prev,
               [data.id]: url,
@@ -1206,10 +1210,14 @@ export default function UserLoginTest(): JSX.Element {
                   );
 
                   if (res.ok) {
-                    // Refresh logo display using direct URL (cookies handle auth)
-                    const base = chatAPI.API_URL();
-                    if (base) {
-                      const url = `${base}teams/${authContext.team.id}/logo`;
+                    // Refresh logo display
+                    const logoRes = await authContext.fetchWithAuth(
+                      `teams/${authContext.team.id}/logo`,
+                      { method: 'GET' },
+                    );
+                    if (logoRes.ok) {
+                      const blob = await logoRes.blob();
+                      const url = URL.createObjectURL(blob);
                       setTeamLogo(url);
                       // Update the logo in the teamLogos map for dropdown
                       const teamId = authContext.team?.id;
