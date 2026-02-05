@@ -95,6 +95,13 @@ export default function UserLoginTest(): JSX.Element {
       teamId: authContext?.team?.id,
     },
   );
+  const { data: invitations, mutate: invitationsMutate } = useAPI(
+    'teams',
+    ['getInvitations'],
+    {
+      teamId: authContext?.team?.id,
+    },
+  );
 
   // Get compute_provider list (unchanged)
   const {
@@ -794,6 +801,112 @@ export default function UserLoginTest(): JSX.Element {
             Invite Member {!iAmOwner ? '(Only owners can invite members)' : ''}
           </Button>
         </Box>
+        {iAmOwner && (
+          <Box sx={{ mt: 3 }}>
+            <Typography level="title-lg" mb={1}>
+              Invitations
+            </Typography>
+            {(!invitations?.invitations ||
+              invitations.invitations.length === 0) && (
+              <Typography level="body-sm" color="neutral">
+                No invitations have been sent for this team yet.
+              </Typography>
+            )}
+            {invitations?.invitations &&
+              invitations.invitations.length > 0 && (
+                <Table variant="soft" sx={{ mb: 2 }}>
+                  <thead>
+                    <tr>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Invited By</th>
+                      <th>Expires</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invitations.invitations.map((invitation: any) => (
+                      <tr key={invitation.id}>
+                        <td>
+                          <Typography level="body-sm">
+                            {invitation.email}
+                          </Typography>
+                        </td>
+                        <td>
+                          <Chip size="sm" variant="soft">
+                            {invitation.role}
+                          </Chip>
+                        </td>
+                        <td>
+                          <Chip
+                            size="sm"
+                            variant="soft"
+                            color={
+                              invitation.status === 'pending'
+                                ? 'primary'
+                                : invitation.status === 'accepted'
+                                ? 'success'
+                                : invitation.status === 'rejected' ||
+                                  invitation.status === 'cancelled'
+                                ? 'danger'
+                                : 'neutral'
+                            }
+                          >
+                            {invitation.status}
+                          </Chip>
+                        </td>
+                        <td>
+                          <Typography level="body-sm">
+                            {invitation.invited_by_email}
+                          </Typography>
+                        </td>
+                        <td>
+                          <Typography level="body-xs">
+                            {invitation.expires_at
+                              ? new Date(
+                                  invitation.expires_at,
+                                ).toLocaleDateString()
+                              : '—'}
+                          </Typography>
+                        </td>
+                        <td>
+                          {invitation.status === 'pending' && (
+                            <Button
+                              size="sm"
+                              variant="outlined"
+                              color="neutral"
+                              onClick={async () => {
+                                if (!authContext?.team?.id) return;
+                                try {
+                                  const res = await authContext.fetchWithAuth(
+                                    `teams/${authContext.team.id}/invitations/${invitation.id}`,
+                                    {
+                                      method: 'DELETE',
+                                    },
+                                  );
+                                  if (res.ok && invitationsMutate) {
+                                    invitationsMutate();
+                                  }
+                                } catch (e: any) {
+                                  console.error(
+                                    'Error cancelling invitation:',
+                                    e,
+                                  );
+                                }
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
+          </Box>
+        )}
         <Box sx={{ mt: 4 }}>
           <Typography level="title-lg" mb={1} startDecorator={<ServerIcon />}>
             Compute Providers: ({providers?.length ?? 0})
