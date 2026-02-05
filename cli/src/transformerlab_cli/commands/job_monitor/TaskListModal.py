@@ -101,8 +101,9 @@ class TaskListModal(ModalScreen):
 
     BINDINGS = [("escape", "dismiss", "Close")]
 
-    def __init__(self) -> None:
+    def __init__(self, experiment_id: str = "default") -> None:
         super().__init__()
+        self.experiment_id = experiment_id
         self.tasks_data: list[dict] = []
 
     def compose(self) -> ComposeResult:
@@ -121,7 +122,7 @@ class TaskListModal(ModalScreen):
     @work(thread=True)
     def fetch_tasks(self) -> None:
         try:
-            response = api.get("/tasks/list")
+            response = api.get(f"/experiment/{self.experiment_id}/task/list")
             if response.status_code == 200:
                 data = response.json()
             else:
@@ -145,11 +146,12 @@ class TaskListModal(ModalScreen):
 
         self.tasks_data = tasks
         option_list.clear_options()
+        print("[DEBUG] Populating tasks:", tasks)
         for task in tasks:
             task_id = task.get("id", "?")
             task_name = task.get("name", "Unknown")
             task_type = task.get("type", "N/A")
-            option_list.add_option(Option(f"{task_name} ({task_type})", id=task_id))
+            option_list.add_option(Option(f"{task_name}", id=task_id))
 
     @on(OptionList.OptionSelected, "#task-option-list")
     def on_task_selected(self, event: OptionList.OptionSelected) -> None:
