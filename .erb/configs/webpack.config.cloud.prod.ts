@@ -151,7 +151,6 @@ const configuration: webpack.Configuration = {
       DEBUG_PROD: false,
       MULTIUSER: 'false',
       TL_API_URL: '',
-      TL_FORCE_API_URL: 'false',
       EMAIL_AUTH_ENABLED: 'true',
       SENTRY_DSN: '',
       SENTRY_ENABLE_TRACING: 'false',
