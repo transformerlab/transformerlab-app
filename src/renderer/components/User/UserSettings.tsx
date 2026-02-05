@@ -23,6 +23,10 @@ import {
   Card,
   Chip,
   Table,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanel,
 } from '@mui/joy';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
@@ -182,86 +186,152 @@ export default function UserSettings(): JSX.Element {
     ['me'],
     {},
   );
+  const [activeTab, setActiveTab] = useState<number>(0);
 
   return (
     <Sheet sx={{ overflowY: 'auto', p: 2 }}>
       <Typography level="h2" mb={2}>
         User Settings
       </Typography>
-      <Typography level="title-lg" mt={3}>
-        User Profile:
-      </Typography>
-      <Stack gap={1} mt={1} maxWidth={400}>
-        <Typography>
-          Name:{' '}
-          <b>
-            {userInfo?.first_name} {userInfo?.last_name}
-          </b>
-        </Typography>
-        <Typography>
-          Email: <b>{userInfo?.email}</b>
-        </Typography>
-        <Button variant="outlined" onClick={() => setIsNameChangeOpen(true)}>
-          Change Name
-        </Button>
-        {/* <Button variant="outlined">Change Profile Icon</Button> */}
-        <Button
-          variant="outlined"
-          onClick={() => {
-            setIsPasswordChangeOpen(true);
+
+      <Tabs
+        aria-label="User settings tabs"
+        value={activeTab}
+        onChange={(event, value) => setActiveTab(value as number)}
+        sx={{
+          mt: 2,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <TabList>
+          <Tab>Profile</Tab>
+          <Tab>Secrets</Tab>
+          <Tab>API Keys</Tab>
+          <Tab>Team Invitations</Tab>
+          <Tab>Quota</Tab>
+        </TabList>
+
+        {/* Profile Tab */}
+        <TabPanel
+          value={0}
+          sx={{
+            p: 2,
+            overflowY: 'auto',
           }}
         >
-          Change Password
-        </Button>
-        <PasswordChangeForm
-          open={isPasswordChangeOpen}
-          onClose={() => setIsPasswordChangeOpen(false)}
-        />
-      </Stack>
-      <UserNameChangeForm
-        open={isNameChangeOpen}
-        onClose={() => {
-          setIsNameChangeOpen(false);
-          userInfoMutate();
-        }}
-        originalFirstName={userInfo?.first_name || ''}
-        originalLastName={userInfo?.last_name || ''}
-      />
-      <Box>
-        <Typography level="title-lg" mt={3}>
-          Teams you belong to:
-        </Typography>
-        {/* {JSON.stringify(authContext, null, 2)} */}
-        {teams?.teams && (
-          <List>
-            {teams.teams.map((team: any) => (
-              <ListItem key={team.id}>
-                <ListItemButton
-                  // onClick={() => {
-                  //   authContext.setTeam({ id: team.id, name: team.name });
-                  // }}
-                  selected={authContext.team?.id === team.id}
-                >
-                  <ListItemContent>
-                    <Typography level="title-md">
-                      {team.name}
-                      {authContext.team?.id === team.id ? ' (current)' : ''}
-                    </Typography>
-                    <Typography level="body-xs">{team.id}</Typography>
-                  </ListItemContent>
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-        )}
-      </Box>
-      <TeamInvitationsSection
-        invitations={invitations?.invitations || []}
-        onRefresh={invitationsMutate}
-      />
-      <ApiKeysSection teams={teams?.teams || []} />
-      <UserSecretsSection />
-      <QuotaReportSection />
+          <Typography level="title-lg" mt={1}>
+            User Profile:
+          </Typography>
+          <Stack gap={1} mt={1} maxWidth={400}>
+            <Typography>
+              Name:{' '}
+              <b>
+                {userInfo?.first_name} {userInfo?.last_name}
+              </b>
+            </Typography>
+            <Typography>
+              Email: <b>{userInfo?.email}</b>
+            </Typography>
+            <Button variant="outlined" onClick={() => setIsNameChangeOpen(true)}>
+              Change Name
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setIsPasswordChangeOpen(true);
+              }}
+            >
+              Change Password
+            </Button>
+            <PasswordChangeForm
+              open={isPasswordChangeOpen}
+              onClose={() => setIsPasswordChangeOpen(false)}
+            />
+          </Stack>
+          <UserNameChangeForm
+            open={isNameChangeOpen}
+            onClose={() => {
+              setIsNameChangeOpen(false);
+              userInfoMutate();
+            }}
+            originalFirstName={userInfo?.first_name || ''}
+            originalLastName={userInfo?.last_name || ''}
+          />
+          <Box mt={4}>
+            <Typography level="title-lg">
+              Teams you belong to:
+            </Typography>
+            {teams?.teams && (
+              <List>
+                {teams.teams.map((team: any) => (
+                  <ListItem key={team.id}>
+                    <ListItemButton
+                      selected={authContext.team?.id === team.id}
+                    >
+                      <ListItemContent>
+                        <Typography level="title-md">
+                          {team.name}
+                          {authContext.team?.id === team.id ? ' (current)' : ''}
+                        </Typography>
+                        <Typography level="body-xs">{team.id}</Typography>
+                      </ListItemContent>
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </Box>
+        </TabPanel>
+
+        {/* Secrets Tab */}
+        <TabPanel
+          value={1}
+          sx={{
+            p: 2,
+            overflowY: 'auto',
+          }}
+        >
+          <UserSecretsSection />
+        </TabPanel>
+
+        {/* API Keys Tab */}
+        <TabPanel
+          value={2}
+          sx={{
+            p: 2,
+            overflowY: 'auto',
+          }}
+        >
+          <ApiKeysSection teams={teams?.teams || []} />
+        </TabPanel>
+
+        {/* Team Invitations Tab */}
+        <TabPanel
+          value={3}
+          sx={{
+            p: 2,
+            overflowY: 'auto',
+          }}
+        >
+          <TeamInvitationsSection
+            invitations={invitations?.invitations || []}
+            onRefresh={invitationsMutate}
+          />
+        </TabPanel>
+
+        {/* Quota Tab */}
+        <TabPanel
+          value={4}
+          sx={{
+            p: 2,
+            overflowY: 'auto',
+          }}
+        >
+          <QuotaReportSection />
+        </TabPanel>
+      </Tabs>
     </Sheet>
   );
 }

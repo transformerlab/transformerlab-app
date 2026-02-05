@@ -30,6 +30,7 @@ import {
 import { useEffect, useState } from 'react';
 import { useAuth } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import SpecialSecretsSection from './SpecialSecretsSection';
 
 interface SecretEntry {
   key: string;
@@ -292,25 +293,38 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
       <Typography level="title-lg" mb={2} startDecorator={<KeyIcon />}>
         Team Secrets
       </Typography>
-      <Typography level="body-sm" color="neutral" mb={2}>
-        Secrets can be referenced in task configurations using the syntax{' '}
-        <code>{'{{secret.<secret_name>}}'}</code>. The system will automatically
-        replace these placeholders with the actual secret values when launching
-        tasks.
-      </Typography>
-      <Alert color="primary" variant="soft" sx={{ mb: 2 }}>
-        <Typography level="body-sm">
-          <strong>Usage examples:</strong>
-          <br />• In command:{' '}
-          <code>python script.py --api-key {'{{secret.API_KEY}}'}</code>
-          <br />• In setup: <code>export TOKEN={'{{secret.TOKEN}}'}</code>
-          <br />• In env_vars:{' '}
-          <code>
-            {'{'} "API_KEY": "{'{{secret.API_KEY}}'}" {'}'}
-          </code>
-          <br />• In Python code: <code>lab.get_secret("API_KEY")</code>
+
+      {/* Special Secrets Section */}
+      <SpecialSecretsSection teamId={teamId} />
+
+      {/* Custom Secrets Section */}
+      <Box sx={{ mt: 4 }}>
+        <Typography level="title-md" mb={2}>
+          Custom Secrets
         </Typography>
-      </Alert>
+        <Typography level="body-sm" color="neutral" mb={2}>
+          Custom secrets can be referenced in task configurations using the syntax{' '}
+          <code>{'{{secret.<secret_name>}}'}</code>. The system will automatically
+          replace these placeholders with the actual secret values when launching
+          tasks.
+        </Typography>
+        <Alert color="primary" variant="soft" sx={{ mb: 2 }}>
+          <Typography level="body-sm">
+            <strong>Usage examples:</strong>
+            <br />• In command:{' '}
+            <code>python script.py --api-key {'{{secret.API_KEY}}'}</code>
+            <br />• In setup: <code>export TOKEN={'{{secret.TOKEN}}'}</code>
+            <br />• In env_vars:{' '}
+            <code>
+              {'{'} "API_KEY": "{'{{secret.API_KEY}}'}" {'}'}
+            </code>
+            <br />• In Python code: <code>lab.get_secret("API_KEY")</code>
+            <br />
+            <br />
+            <strong>Note:</strong> Special secrets (_GITHUB_PAT_TOKEN, _HF_TOKEN, _WANDB_API_KEY)
+            cannot be set here. Use the Special Secrets section above.
+          </Typography>
+        </Alert>
 
       {error && (
         <Alert color="danger" sx={{ mb: 2 }}>
@@ -447,6 +461,7 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
           </Button>
         </Stack>
       </Card>
+      </Box>
 
       {/* View Secret Confirmation Modal */}
       <Modal

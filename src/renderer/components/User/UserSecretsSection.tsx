@@ -29,6 +29,7 @@ import {
 import { useEffect, useState } from 'react';
 import { useAuth } from 'renderer/lib/authContext';
 import { API_URL } from 'renderer/lib/api-client/urls';
+import SpecialSecretsSection from '../Team/SpecialSecretsSection';
 
 interface SecretEntry {
   key: string;
@@ -268,38 +269,49 @@ export default function UserSecretsSection() {
         User Secrets
       </Typography>
       <Typography level="body-sm" color="neutral" mb={2}>
-        User-specific secrets override team secrets. Secrets can be referenced
-        in task configurations using the syntax{' '}
-        <code>{'{{secret.<secret_name>}}'}</code>. The system will automatically
-        replace these placeholders with the actual secret values when launching
-        tasks. User secrets take precedence over team secrets with the same
-        name.
+        User-specific secrets override team secrets. User secrets take precedence
+        over team secrets with the same name.
       </Typography>
-      <Alert color="primary" variant="soft" sx={{ mb: 2 }}>
-        <Typography level="body-sm">
-          <strong>Usage examples:</strong>
-          <br />• In command:{' '}
-          <code>python script.py --api-key {'{{secret.API_KEY}}'}</code>
-          <br />• In setup: <code>export TOKEN={'{{secret.TOKEN}}'}</code>
-          <br />• In env_vars:{' '}
-          <code>
-            {'{'} "API_KEY": "{'{{secret.API_KEY}}'}" {'}'}
-          </code>
-          <br />• In Python code: <code>lab.get_secret("API_KEY")</code>
-          <br />
-          <br />
-          <strong>Note:</strong> If a secret exists in both user and team
-          settings, your user-specific secret will be used.
+
+      {/* Special Secrets Section */}
+      <SpecialSecretsSection isUser={true} />
+
+      {/* Custom Secrets Section */}
+      <Box sx={{ mt: 4 }}>
+        <Typography level="title-md" mb={2}>
+          Custom Secrets
         </Typography>
-      </Alert>
-
-      {error && (
-        <Alert color="danger" sx={{ mb: 2 }}>
-          {error}
+        <Typography level="body-sm" color="neutral" mb={2}>
+          Custom secrets can be referenced in task configurations using the syntax{' '}
+          <code>{'{{secret.<secret_name>}}'}</code>. The system will automatically
+          replace these placeholders with the actual secret values when launching
+          tasks.
+        </Typography>
+        <Alert color="primary" variant="soft" sx={{ mb: 2 }}>
+          <Typography level="body-sm">
+            <strong>Usage examples:</strong>
+            <br />• In command:{' '}
+            <code>python script.py --api-key {'{{secret.API_KEY}}'}</code>
+            <br />• In setup: <code>export TOKEN={'{{secret.TOKEN}}'}</code>
+            <br />• In env_vars:{' '}
+            <code>
+              {'{'} "API_KEY": "{'{{secret.API_KEY}}'}" {'}'}
+            </code>
+            <br />• In Python code: <code>lab.get_secret("API_KEY")</code>
+            <br />
+            <br />
+            <strong>Note:</strong> Special secrets (_GITHUB_PAT_TOKEN, _HF_TOKEN, _WANDB_API_KEY)
+            cannot be set here. Use the Special Secrets section above.
+          </Typography>
         </Alert>
-      )}
 
-      <Card variant="outlined" sx={{ p: 2, mb: 3 }}>
+        {error && (
+          <Alert color="danger" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        <Card variant="outlined" sx={{ p: 2, mb: 3 }}>
         {secrets.length === 0 ? (
           <Alert color="neutral" variant="soft" sx={{ mb: 2 }}>
             No secrets configured. Click "Add Secret" to add one.
@@ -427,7 +439,8 @@ export default function UserSecretsSection() {
             Add Secret
           </Button>
         </Stack>
-      </Card>
+        </Card>
+      </Box>
 
       {/* View Secret Value Modal */}
       <Modal

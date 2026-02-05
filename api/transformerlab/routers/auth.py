@@ -34,6 +34,7 @@ from transformerlab.shared.api_key_auth import (
     validate_api_key_and_get_user,
     get_user_personal_team_id,
 )
+from transformerlab.utils.api_key_utils import mask_key
 from lab.dirs import get_workspace_dir
 from lab import storage
 
@@ -558,11 +559,19 @@ async def set_user_secrets(
         # Validate that all keys are valid environment variable names
         # Environment variable names can contain letters, numbers, and underscores
         valid_key_pattern = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+        # Special secrets that can only be set via special secrets endpoints
+        SPECIAL_SECRET_KEYS = {"_GITHUB_PAT_TOKEN", "_HF_TOKEN", "_WANDB_API_KEY"}
+        
         for key in secrets_data.secrets.keys():
             if not valid_key_pattern.match(key):
                 raise HTTPException(
                     status_code=400,
                     detail=f"Invalid secret key '{key}'. Secret keys must start with a letter or underscore and contain only letters, numbers, and underscores.",
+                )
+            if key in SPECIAL_SECRET_KEYS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Secret key '{key}' is a special secret and can only be set via the Special Secrets section.",
                 )
 
         # Ensure workspace directory exists
@@ -582,3 +591,114 @@ async def set_user_secrets(
     except Exception as e:
         print(f"Error saving user secrets: {e}")
         raise HTTPException(status_code=500, detail="Failed to save user secrets")
+
+
+class SpecialSecretRequest(BaseModel):
+    secret_type: str = Field(..., description="Type of special secret: _GITHUB_PAT_TOKEN, _HF_TOKEN, or _WANDB_API_KEY")
+    value: str = Field(..., description="Secret value")
+
+
+SPECIAL_SECRET_TYPES = {
+    "_GITHUB_PAT_TOKEN": "GitHub Personal Access Token",
+    "_HF_TOKEN": "HuggingFace Token",
+    "_WANDB_API_KEY": "Weights & Biases API Key",
+}
+
+
+@router.get("/users/me/special_secrets")
+async def get_user_special_secrets(
+    user: User = Depends(current_active_user),
+):
+    """
+    Get user special secrets.
+    Users can view which special secrets are configured (values are masked).
+    """
+    user_id = str(user.id)
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, f"user_secrets_{user_id}.json")
+
+    result = {}
+    try:
+        if await storage.exists(secrets_path):
+            async with await storage.open(secrets_path, "r") as f:
+                all_secrets = json.loads(await f.read())
+                # Filter only special secrets
+                for key in SPECIAL_SECRET_TYPES.keys():
+                    if key in all_secrets:
+                        result[key] = {
+                            "name": SPECIAL_SECRET_TYPES[key],
+                            "exists": True,
+                            "masked_value": mask_key(all_secrets[key]) if all_secrets[key] else None,
+                        }
+                    else:
+                        result[key] = {
+                            "name": SPECIAL_SECRET_TYPES[key],
+                            "exists": False,
+                            "masked_value": None,
+                        }
+        else:
+            # No secrets file, return all as not configured
+            for key in SPECIAL_SECRET_TYPES.keys():
+                result[key] = {
+                    "name": SPECIAL_SECRET_TYPES[key],
+                    "exists": False,
+                    "masked_value": None,
+                }
+    except Exception as e:
+        print(f"Error reading user special secrets: {e}")
+        raise HTTPException(status_code=500, detail="Failed to read user special secrets")
+
+    return {"status": "success", "special_secrets": result}
+
+
+@router.put("/users/me/special_secrets")
+async def set_user_special_secret(
+    secret_data: SpecialSecretRequest,
+    user: User = Depends(current_active_user),
+):
+    """
+    Set a user special secret. Users can set/update their own special secrets.
+    Stored in workspace/user_secrets_{user_id}.json file.
+    """
+    # Validate secret type
+    if secret_data.secret_type not in SPECIAL_SECRET_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid secret type '{secret_data.secret_type}'. Must be one of: {', '.join(SPECIAL_SECRET_TYPES.keys())}",
+        )
+
+    user_id = str(user.id)
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, f"user_secrets_{user_id}.json")
+
+    try:
+        # Load existing secrets
+        existing_secrets = {}
+        if await storage.exists(secrets_path):
+            async with await storage.open(secrets_path, "r") as f:
+                existing_secrets = json.loads(await f.read())
+
+        # Update or remove the special secret
+        if secret_data.value and secret_data.value.strip():
+            existing_secrets[secret_data.secret_type] = secret_data.value.strip()
+        else:
+            # Remove if empty
+            existing_secrets.pop(secret_data.secret_type, None)
+
+        # Ensure workspace directory exists
+        await storage.makedirs(workspace_dir, exist_ok=True)
+
+        # Write secrets to file
+        async with await storage.open(secrets_path, "w") as f:
+            await f.write(json.dumps(existing_secrets, indent=2))
+
+        return {
+            "status": "success",
+            "message": f"{SPECIAL_SECRET_TYPES[secret_data.secret_type]} saved successfully",
+            "secret_type": secret_data.secret_type,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving user special secret: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save user special secret")

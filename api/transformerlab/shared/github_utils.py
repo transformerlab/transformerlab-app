@@ -12,22 +12,37 @@ from lab import storage
 from lab.dirs import get_workspace_dir
 
 
-async def read_github_pat_from_workspace(workspace_dir: str) -> Optional[str]:
-    """Read GitHub PAT from workspace/github_pat.txt file.
+async def read_github_pat_from_workspace(workspace_dir: str, user_id: Optional[str] = None) -> Optional[str]:
+    """Read GitHub PAT from secrets (team_secrets.json or user_secrets_{user_id}.json).
+    
+    First checks user secrets, then falls back to team secrets.
 
     Args:
         workspace_dir: Path to the workspace directory
+        user_id: Optional user ID to check user-specific secrets
 
     Returns:
         GitHub PAT string if found, None otherwise
     """
+    import json
+    
     try:
-        pat_path = storage.join(workspace_dir, "github_pat.txt")
-        if await storage.exists(pat_path):
-            async with await storage.open(pat_path, "r") as f:
-                pat = (await f.read()).strip()
-                if pat:
-                    return pat
+        # First, try to read from secrets (user secrets override team secrets)
+        if user_id:
+            user_secrets_path = storage.join(workspace_dir, f"user_secrets_{user_id}.json")
+            if await storage.exists(user_secrets_path):
+                async with await storage.open(user_secrets_path, "r") as f:
+                    user_secrets = json.loads(await f.read())
+                    if "_GITHUB_PAT_TOKEN" in user_secrets and user_secrets["_GITHUB_PAT_TOKEN"]:
+                        return user_secrets["_GITHUB_PAT_TOKEN"].strip()
+        
+        # Check team secrets
+        team_secrets_path = storage.join(workspace_dir, "team_secrets.json")
+        if await storage.exists(team_secrets_path):
+            async with await storage.open(team_secrets_path, "r") as f:
+                team_secrets = json.loads(await f.read())
+                if "_GITHUB_PAT_TOKEN" in team_secrets and team_secrets["_GITHUB_PAT_TOKEN"]:
+                    return team_secrets["_GITHUB_PAT_TOKEN"].strip()
     except Exception as e:
         print(f"Error reading GitHub PAT from workspace: {e}")
     return None
@@ -148,9 +163,9 @@ async def _fetch_task_json_impl(
     # Normalize path (remove leading/trailing slashes)
     file_path = file_path.strip("/")
 
-    # Get GitHub PAT from workspace
+    # Get GitHub PAT from workspace (no user_id available in this context)
     workspace_dir = await get_workspace_dir()
-    github_pat = await read_github_pat_from_workspace(workspace_dir)
+    github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=None)
 
     # Build GitHub API URL with optional ref parameter
     api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
@@ -342,7 +357,7 @@ async def fetch_task_yaml_from_github(repo_url: str, directory: Optional[str] = 
     file_path = file_path.strip("/")
 
     workspace_dir = await get_workspace_dir()
-    github_pat = await read_github_pat_from_workspace(workspace_dir)
+    github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=None)
 
     api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
     if ref:

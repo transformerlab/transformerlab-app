@@ -831,7 +831,7 @@ async def _launch_sweep_jobs(
 
                 if request.github_repo_url:
                     workspace_dir = await get_workspace_dir()
-                    github_pat = read_github_pat_from_workspace(workspace_dir)
+                    github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
                     github_setup = generate_github_clone_setup(
                         repo_url=request.github_repo_url,
                         directory=request.github_directory,
@@ -1128,7 +1128,7 @@ async def launch_template_on_provider(
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
         workspace_dir = await get_workspace_dir()
-        github_pat = await read_github_pat_from_workspace(workspace_dir)
+        github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
         github_setup = generate_github_clone_setup(
             repo_url=request.github_repo_url,
             directory=request.github_directory,
@@ -2057,7 +2057,8 @@ async def resume_from_checkpoint(
     github_repo_url = job_data.get("github_repo_url")
     if github_repo_url:
         workspace_dir = await get_workspace_dir()
-        github_pat = read_github_pat_from_workspace(workspace_dir)
+        user_id_for_pat = str(user.id) if user else None
+        github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id_for_pat)
         github_setup = generate_github_clone_setup(
             repo_url=github_repo_url,
             directory=job_data.get("github_directory"),
