@@ -253,9 +253,8 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   // Get a list of teams this user belongs to (only after user is known)
   const teamsKey =
     user && !userError ? getAPIFullPath('teams', ['list'], {}) : null;
-  const { data: teamsData, mutate: teamsMutate } = useSWR(
-    teamsKey,
-    (url) => fetchWithAuth(url).then((r) => r.json()),
+  const { data: teamsData, mutate: teamsMutate } = useSWR(teamsKey, (url) =>
+    fetchWithAuth(url).then((r) => r.json()),
   );
 
   useEffect(() => {
