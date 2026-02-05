@@ -305,6 +305,14 @@
     "inviteMember": {
       "method": "POST",
       "path": "teams/{teamId}/members"
+    },
+    "getInvitations": {
+      "method": "GET",
+      "path": "teams/{teamId}/invitations"
+    },
+    "cancelInvitation": {
+      "method": "DELETE",
+      "path": "teams/{teamId}/invitations/{invitationId}"
     }
   },
   "compute_provider": {
@@ -438,9 +446,21 @@
     }
   },
   "invitations": {
+    "me": {
+      "method": "GET",
+      "path": "invitations/me"
+    },
     "accept": {
       "method": "POST",
       "path": "invitations/accept"
+    },
+    "acceptById": {
+      "method": "POST",
+      "path": "invitations/{invitationId}/accept"
+    },
+    "reject": {
+      "method": "POST",
+      "path": "invitations/{invitationId}/reject"
     }
   },
   "experiment": {

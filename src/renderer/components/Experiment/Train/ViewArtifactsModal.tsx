@@ -143,48 +143,29 @@ export default function ViewArtifactsModal({
       } else if (
         ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'].includes(ext)
       ) {
-        // Image preview - URLs will be authenticated by browser when fetching
+        // Image preview - use direct URL; cookies handle auth
         const imageUrl = getAPIFullPath('jobs', ['getArtifact'], {
           experimentId: experimentInfo?.id,
           jobId: jobId.toString(),
           filename: artifact.filename,
         });
-        // For images, we need to fetch as blob and create object URL to handle auth
-        const response = await fetchWithAuth(`${imageUrl}?task=view`);
-        if (!response.ok) {
-          throw new Error('Failed to load image');
-        }
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        setPreviewData({ type: 'image', url: blobUrl });
+        setPreviewData({ type: 'image', url: `${imageUrl}?task=view` });
       } else if (['mp4', 'webm', 'mov'].includes(ext)) {
-        // Video preview - fetch as blob and create object URL
+        // Video preview - use direct URL; cookies handle auth
         const videoUrl = getAPIFullPath('jobs', ['getArtifact'], {
           experimentId: experimentInfo?.id,
           jobId: jobId.toString(),
           filename: artifact.filename,
         });
-        const response = await fetchWithAuth(`${videoUrl}?task=view`);
-        if (!response.ok) {
-          throw new Error('Failed to load video');
-        }
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        setPreviewData({ type: 'video', url: blobUrl });
+        setPreviewData({ type: 'video', url: `${videoUrl}?task=view` });
       } else if (['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(ext)) {
-        // Audio preview - fetch as blob and create object URL
+        // Audio preview - use direct URL; cookies handle auth
         const audioUrl = getAPIFullPath('jobs', ['getArtifact'], {
           experimentId: experimentInfo?.id,
           jobId: jobId.toString(),
           filename: artifact.filename,
         });
-        const response = await fetchWithAuth(`${audioUrl}?task=view`);
-        if (!response.ok) {
-          throw new Error('Failed to load audio');
-        }
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        setPreviewData({ type: 'audio', url: blobUrl });
+        setPreviewData({ type: 'audio', url: `${audioUrl}?task=view` });
       }
     } catch (error) {
       setPreviewError('Failed to load artifact preview');
