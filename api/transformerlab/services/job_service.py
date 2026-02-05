@@ -1147,10 +1147,10 @@ async def format_dataset(dir_path: str, storage) -> Optional[Dict[str, any]]:
     """
     try:
         dataset_name = dir_path.split("/")[-1] if "/" in dir_path else dir_path
-        
+
         # Get size and date metadata
         metadata = await get_file_metadata(dir_path, storage)
-        
+
         dataset = {
             "name": dataset_name,
             "full_path": dir_path,
@@ -1170,10 +1170,10 @@ async def format_model(dir_path: str, storage) -> Optional[Dict[str, any]]:
     """
     try:
         model_name = dir_path.split("/")[-1] if "/" in dir_path else dir_path
-        
+
         # Get size and date metadata
         metadata = await get_file_metadata(dir_path, storage)
-        
+
         model = {
             "name": model_name,
             "full_path": dir_path,

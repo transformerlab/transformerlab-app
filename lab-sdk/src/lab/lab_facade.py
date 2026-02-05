@@ -584,7 +584,7 @@ class Lab:
                     f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_with_prefix}'"
                 )  # type: ignore[union-attr]
                 return output_path
-            
+
             # Handle file path input for datasets
             else:
                 if not isinstance(source_path, str) or source_path.strip() == "":
@@ -604,9 +604,9 @@ class Lab:
                         raise FileNotFoundError(f"Dataset source does not exist: {src}")
 
                 # Get dataset-specific parameters from config
-                dataset_config = {}
-                if config and isinstance(config, dict) and "dataset" in config:
-                    dataset_config = config["dataset"]
+                # dataset_config = {}
+                # if config and isinstance(config, dict) and "dataset" in config:
+                #     dataset_config = config["dataset"]
 
                 # Determine base name with job_id prefix
                 if isinstance(name, str) and name.strip() != "":
@@ -635,7 +635,7 @@ class Lab:
                             base_name_with_suffix = f"{job_id}_{name_parts[0]}_{counter}.{name_parts[1]}"
                         else:
                             base_name_with_suffix = f"{job_id}_{base_name_original}_{counter}"
-                        
+
                         dest = storage.join(datasets_dir, base_name_with_suffix)
                         if not await storage.exists(dest):
                             base_name = base_name_with_suffix
@@ -882,13 +882,20 @@ class Lab:
                     contents = await storage.ls(dest, detail=False)
                     # Filter out metadata files
                     model_files = [
-                        f for f in contents 
-                        if not posixpath.basename(str(f) if not isinstance(f, dict) else f.get("name", "")).startswith(".")
-                        and not posixpath.basename(str(f) if not isinstance(f, dict) else f.get("name", "")).endswith(".json")
+                        f
+                        for f in contents
+                        if not posixpath.basename(str(f) if not isinstance(f, dict) else f.get("name", "")).startswith(
+                            "."
+                        )
+                        and not posixpath.basename(str(f) if not isinstance(f, dict) else f.get("name", "")).endswith(
+                            ".json"
+                        )
                     ]
                     if len(model_files) == 1:
                         # Single file model
-                        file_path = model_files[0] if isinstance(model_files[0], str) else model_files[0].get("name", "")
+                        file_path = (
+                            model_files[0] if isinstance(model_files[0], str) else model_files[0].get("name", "")
+                        )
                         model_filename = posixpath.basename(file_path)
                 except Exception:
                     pass

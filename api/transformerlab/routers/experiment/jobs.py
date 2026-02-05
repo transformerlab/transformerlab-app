@@ -26,10 +26,9 @@ from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.compute_providers.models import JobState
 from transformerlab.shared.tunnel_parser import get_tunnel_info
 from lab import Job
-from lab.dirs import get_workspace_dir, get_local_provider_job_dir, get_job_datasets_dir, get_datasets_dir
+from lab.dirs import get_workspace_dir, get_local_provider_job_dir, get_job_datasets_dir, get_datasets_dir, get_job_models_dir, get_models_dir
 from transformerlab.shared import zip_utils
 from datetime import datetime
-import shutil
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -1314,7 +1313,6 @@ async def save_dataset_to_registry(
     """Copy a dataset from job's datasets directory to the global datasets registry"""
 
     try:
-
         # Secure the dataset name
         dataset_name_secure = secure_filename(dataset_name)
 
@@ -1323,10 +1321,7 @@ async def save_dataset_to_registry(
         source_path = storage.join(job_datasets_dir, dataset_name_secure)
 
         if not await storage.exists(source_path):
-            raise HTTPException(
-                status_code=404,
-                detail=f"Dataset '{dataset_name}' not found in job directory"
-            )
+            raise HTTPException(status_code=404, detail=f"Dataset '{dataset_name}' not found in job directory")
 
         # Get destination path (global datasets registry)
         datasets_registry_dir = await get_datasets_dir()
@@ -1353,11 +1348,9 @@ async def save_dataset_to_registry(
     except Exception as e:
         print(f"Error saving dataset to registry for job {job_id}: {str(e)}")
         import traceback
+
         traceback.print_exc()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to save dataset to registry: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to save dataset to registry: {str(e)}")
 
 
 @router.post("/{job_id}/models/{model_name}/save_to_registry")
@@ -1373,10 +1366,7 @@ async def save_model_to_registry(job_id: str, model_name: str):
         source_path = storage.join(job_models_dir, model_name_secure)
 
         if not await storage.exists(source_path):
-            raise HTTPException(
-                status_code=404,
-                detail=f"Model '{model_name}' not found in job directory"
-            )
+            raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found in job directory")
 
         # Get destination path (global models registry)
         models_registry_dir = await get_models_dir()
@@ -1402,8 +1392,6 @@ async def save_model_to_registry(job_id: str, model_name: str):
     except Exception as e:
         print(f"Error saving model to registry for job {job_id}: {str(e)}")
         import traceback
+
         traceback.print_exc()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to save model to registry: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to save model to registry: {str(e)}")
