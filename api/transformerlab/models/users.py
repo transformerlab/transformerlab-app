@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 from fastapi import Depends, Request, Response, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas, exceptions
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, CookieTransport, JWTStrategy, Strategy
 from fastapi_users.db import SQLAlchemyUserDatabase
@@ -349,7 +349,13 @@ cookie_auth_backend = CookieAuthBackend(
 # OAuth backend
 class OAuthBackend(AuthenticationBackend):
     """
-    OAuth backend that redirects to frontend callback with tokens in URL.
+    OAuth backend that redirects back to the frontend.
+
+    Behavior:
+    - If FRONTEND_URL is set: issue cookie-based auth (tlab_auth/tlab_refresh)
+      and redirect cleanly to the frontend root.
+    - If FRONTEND_URL is not set: fall back to legacy behavior and include
+      tokens in the redirect URL query string (for non-UI clients).
     """
 
     async def login(self, strategy: Strategy, user: User) -> Response:
@@ -357,17 +363,45 @@ class OAuthBackend(AuthenticationBackend):
         access_token = await strategy.write_token(user)
         refresh_token = await get_refresh_strategy().write_token(user)
 
-        # Redirect to frontend home page with tokens in URL
-        # The frontend reads tokens from window.location.search, so any path works
-        # Redirecting to home page (/) is simpler and works regardless of URL configuration
-        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
-        frontend_url_normalized = frontend_url.rstrip("/")
+        frontend_url = os.getenv("FRONTEND_URL")
 
-        callback_url = (
-            f"{frontend_url_normalized}/?access_token={access_token}&refresh_token={refresh_token}&token_type=bearer"
+        # FRONTEND_URL not configured: legacy behavior with tokens in URL
+        if not frontend_url:
+            legacy_frontend_url = "http://localhost:1212"
+            frontend_url_normalized = legacy_frontend_url.rstrip("/")
+            callback_url = (
+                f"{frontend_url_normalized}/?access_token={access_token}"
+                f"&refresh_token={refresh_token}&token_type=bearer"
+            )
+            return RedirectResponse(url=callback_url, status_code=302)
+
+        # FRONTEND_URL configured: cookie-based auth + clean redirect
+        frontend_url_normalized = frontend_url.rstrip("/")
+        response = RedirectResponse(url=f"{frontend_url_normalized}/", status_code=302)
+
+        cookie_secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+
+        # Set access token cookie
+        response.set_cookie(
+            key="tlab_auth",
+            value=access_token,
+            max_age=TOKEN_LIFETIME,
+            httponly=True,
+            secure=cookie_secure,
+            samesite="lax",
         )
 
-        return Response(status_code=302, headers={"Location": callback_url})
+        # Set refresh token cookie
+        response.set_cookie(
+            key="tlab_refresh",
+            value=refresh_token,
+            max_age=REFRESH_LIFETIME,
+            httponly=True,
+            secure=cookie_secure,
+            samesite="lax",
+        )
+
+        return response
 
 
 oauth_backend = OAuthBackend(

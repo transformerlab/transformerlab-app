@@ -226,6 +226,9 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     return unsub;
   }, []);
 
+  // Build the users/me endpoint (may be null if API URL is not yet available)
+  const userEndpoint = getAPIFullPath('users', ['me'], {});
+
   // Fetch user data - will succeed if cookies are valid
   const {
     data: user,
@@ -233,10 +236,25 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     isLoading: userIsLoading,
     mutate: userMutate,
   } = useSWR(
-    isAuthenticated ? (getAPIFullPath('users', ['me'], {}) ?? null) : null,
+    userEndpoint,
     // Use fetchWithAuth which includes credentials: 'include' for cookie auth
     (url) => fetchWithAuth(url).then((r) => r.json()),
   );
+
+  // Keep isAuthenticated in sync with server-side cookie/session state.
+  // If we successfully load a user, mark as authenticated.
+  // If the user fetch errors (e.g. 401), mark as unauthenticated.
+  useEffect(() => {
+    if (user && !userError) {
+      if (!isAuthenticated) {
+        setIsAuthenticated(true);
+      }
+    } else if (userError) {
+      if (isAuthenticated) {
+        setIsAuthenticated(false);
+      }
+    }
+  }, [user, userError, isAuthenticated]);
 
   // Get a list of teams this user belongs to
   const { data: teamsData, mutate: teamsMutate } = useSWR(
