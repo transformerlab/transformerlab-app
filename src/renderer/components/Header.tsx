@@ -337,8 +337,7 @@ export default function Header({ connection, setConnection }) {
 
   const isLocalMode = window?.platform?.multiuser !== true;
   // Show connection lost modal when we have a connection but server is unreachable
-  const connectionLost =
-    connection !== '' && !serverLoading && !!serverError;
+  const connectionLost = connection !== '' && !serverLoading && !!serverError;
   const showConnectionLostModal = connection !== '' && connectionLost;
 
   return (
