@@ -82,15 +82,16 @@ def build_zimage_model_configs(model_id_or_path: str) -> tuple[list[ModelConfig]
         tokenizer_config = ModelConfig(path=os.path.join(model_id_or_path, tokenizer_pattern))
     else:
         model_configs = [
-            ModelConfig(model_id=model_id_or_path, subfolder="transformer"),
-            ModelConfig(model_id=model_id_or_path, subfolder="text_encoder"),
-            ModelConfig(model_id=model_id_or_path, subfolder="vae/vae"),
+            ModelConfig(model_id=model_id_or_path, origin_file_pattern=transformer_pattern),
+            ModelConfig(model_id=model_id_or_path, origin_file_pattern=text_encoder_pattern),
+            ModelConfig(model_id=model_id_or_path, origin_file_pattern=vae_pattern),
         ]
 
-        tokenizer_config = ModelConfig(model_id=model_id_or_path, subfolder="tokenizer")
+        tokenizer_config = ModelConfig(
+            model_id=model_id_or_path, origin_file_pattern=os.path.join(tokenizer_pattern, "*")
+        )
 
     return model_configs, tokenizer_config
-
 
 def compute_loss_weighting(args, timesteps, noise_scheduler):
     """
