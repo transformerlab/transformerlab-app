@@ -833,7 +833,7 @@ def train_diffusion_lora():
 
     if image_column not in dataset.column_names:
         raise ValueError(f"Image column '{image_column}' not found in dataset.")
-    
+
     keep_columns = [image_column]
     if caption_column in dataset.column_names:
         keep_columns.append(caption_column)
@@ -852,11 +852,11 @@ def train_diffusion_lora():
         images_value = examples.get(image_column)
         if images_value is None:
             return {}
-        
+
         valid_indices = [i for i, img in enumerate(images_value) if img is not None]
         if not valid_indices:
             return {}
-        
+
         filtered_examples = {}
         for key, value in examples.items():
             if isinstance(value, (list, tuple, np.ndarray)):
