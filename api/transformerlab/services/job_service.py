@@ -1058,7 +1058,8 @@ async def get_all_artifact_paths(job_id: str, storage) -> List[str]:
 
 async def get_datasets_from_directory(datasets_dir: str, storage) -> List[Dict]:
     """
-    Get datasets by listing directories in the datasets directory.
+    Get datasets by listing both directories and files in the datasets directory.
+    Datasets can be either directories (containing multiple files) or single files (.hdf, .npy, etc.)
     Returns list of datasets (empty if directory can't be read).
     """
     if not datasets_dir:
@@ -1080,19 +1081,17 @@ async def get_datasets_from_directory(datasets_dir: str, storage) -> List[Dict]:
             # Handle both string paths and dict responses from storage.ls
             if isinstance(item, dict):
                 # Extract path from dict (some storage backends return dicts even with detail=False)
-                dir_path = item.get("name") or item.get("path") or str(item)
-                # Only process directories (skip files)
-                if item.get("type") == "directory":
-                    dataset = await format_dataset(dir_path, storage)
-                    if dataset:
-                        datasets.append(dataset)
+                item_path = item.get("name") or item.get("path") or str(item)
+                # Process both directories and files
+                dataset = await format_dataset(item_path, storage)
+                if dataset:
+                    datasets.append(dataset)
             else:
-                # For string responses, check if it's a directory
-                dir_path = str(item)
-                if await storage.isdir(dir_path):
-                    dataset = await format_dataset(dir_path, storage)
-                    if dataset:
-                        datasets.append(dataset)
+                # For string responses, process both files and directories
+                item_path = str(item)
+                dataset = await format_dataset(item_path, storage)
+                if dataset:
+                    datasets.append(dataset)
     except Exception as e:
         print(f"Error reading datasets directory {datasets_dir}: {e}")
 
