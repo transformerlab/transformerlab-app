@@ -8,7 +8,6 @@ from textual.widgets import (
 from textual.containers import Vertical
 from textual.screen import ModalScreen
 from textual import on
-import re
 
 
 class TaskAddModal(ModalScreen):
