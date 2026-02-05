@@ -137,7 +137,9 @@ export function useServerStats() {
 export function useConnectionHealth(connection: string | null) {
   const base = connection?.trim() ?? '';
   const healthzUrl =
-    base.length > 0 ? (base.endsWith('/') ? base : `${base}/`) + 'healthz' : null;
+    base.length > 0
+      ? (base.endsWith('/') ? base : `${base}/`) + 'healthz'
+      : null;
   const { error, isLoading } = useSWRRaw(
     healthzUrl,
     healthzFetcherWithTimeout,
