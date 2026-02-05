@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Header, Request, Cookie
+from fastapi import APIRouter, Depends, HTTPException, Header, Request, Cookie, Query
 from fastapi_users import exceptions
 from transformerlab.shared.models.user_model import get_async_session, create_personal_team
 from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole
@@ -24,14 +24,19 @@ from transformerlab.models.users import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
+import json
+import re
 
 from transformerlab.shared.api_key_auth import (
     extract_api_key_from_request,
     validate_api_key_and_get_user,
     get_user_personal_team_id,
 )
+from lab.dirs import get_workspace_dir
+from lab import storage
+from transformerlab.shared.secret_utils import load_user_secrets
 
 router = APIRouter(tags=["users"])
 
@@ -490,3 +495,91 @@ async def get_user_teams(user: User = Depends(current_active_user), session: Asy
     ]
 
     return {"user_id": str(user.id), "teams": teams_with_roles}
+
+
+class UserSecretsRequest(BaseModel):
+    secrets: dict[str, str] = Field(..., description="User secrets as key-value pairs")
+
+
+@router.get("/users/me/secrets")
+async def get_user_secrets(
+    user: User = Depends(current_active_user),
+    include_values: bool = Query(False, description="Include actual secret values"),
+):
+    """
+    Get user-specific secrets.
+    - Users can view their own secret keys and values.
+    - Values are always included since users own their secrets.
+    """
+    user_id = str(user.id)
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, f"user_secrets_{user_id}.json")
+
+    try:
+        if not await storage.exists(secrets_path):
+            return {"status": "success", "secrets": {}, "secret_keys": []}
+
+        async with await storage.open(secrets_path, "r") as f:
+            secrets = json.loads(await f.read())
+
+        if include_values:
+            # Return actual values
+            return {
+                "status": "success",
+                "secrets": secrets,
+                "secret_keys": list(secrets.keys()),
+            }
+        else:
+            # Mask all secret values
+            masked_secrets = {key: "***" for key in secrets.keys()}
+            return {
+                "status": "success",
+                "secrets": masked_secrets,
+                "secret_keys": list(secrets.keys()),
+            }
+    except Exception as e:
+        print(f"Error reading user secrets: {e}")
+        raise HTTPException(status_code=500, detail="Failed to read user secrets")
+
+
+@router.put("/users/me/secrets")
+async def set_user_secrets(
+    secrets_data: UserSecretsRequest,
+    user: User = Depends(current_active_user),
+):
+    """
+    Set user-specific secrets. Users can set/update their own secrets.
+    Stored in workspace/user_secrets_{user_id}.json file.
+    """
+    user_id = str(user.id)
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, f"user_secrets_{user_id}.json")
+
+    try:
+        # Validate that all keys are valid environment variable names
+        # Environment variable names can contain letters, numbers, and underscores
+        valid_key_pattern = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+        for key in secrets_data.secrets.keys():
+            if not valid_key_pattern.match(key):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid secret key '{key}'. Secret keys must start with a letter or underscore and contain only letters, numbers, and underscores.",
+                )
+
+        # Ensure workspace directory exists
+        await storage.makedirs(workspace_dir, exist_ok=True)
+
+        # Write secrets to file
+        async with await storage.open(secrets_path, "w") as f:
+            await f.write(json.dumps(secrets_data.secrets, indent=2))
+
+        return {
+            "status": "success",
+            "message": "User secrets saved successfully",
+            "secret_keys": list(secrets_data.secrets.keys()),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving user secrets: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save user secrets")
