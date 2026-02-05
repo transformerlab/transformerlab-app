@@ -87,7 +87,9 @@ export function logoutUser() {
 // allow components to re-render when auth changes
 export function subscribeAuthChange(cb: () => void) {
   listeners.add(cb);
-  return () => listeners.delete(cb);
+  return () => {
+    listeners.delete(cb);
+  };
 }
 
 // --- 2. Refresh Logic (Singleton Pattern) ---
@@ -226,24 +228,16 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     return unsub;
   }, []);
 
-  // Build the users/me endpoint (may be null if API URL is not yet available)
-  const userEndpoint = getAPIFullPath('users', ['me'], {});
-
-  // Fetch user data - will succeed if cookies are valid
+  // Fetch user data using cookie-based auth; presence of a valid user implies authentication
+  const userKey = getAPIFullPath('users', ['me'], {}) ?? null;
   const {
     data: user,
     error: userError,
     isLoading: userIsLoading,
     mutate: userMutate,
-  } = useSWR(
-    userEndpoint,
-    // Use fetchWithAuth which includes credentials: 'include' for cookie auth
-    (url) => fetchWithAuth(url).then((r) => r.json()),
-  );
+  } = useSWR(userKey, (url) => fetchWithAuth(url).then((r) => r.json()));
 
-  // Keep isAuthenticated in sync with server-side cookie/session state.
-  // If we successfully load a user, mark as authenticated.
-  // If the user fetch errors (e.g. 401), mark as unauthenticated.
+  // Once we know the user result, derive isAuthenticated from it
   useEffect(() => {
     if (user && !userError) {
       if (!isAuthenticated) {
@@ -256,10 +250,11 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     }
   }, [user, userError, isAuthenticated]);
 
-  // Get a list of teams this user belongs to
-  const { data: teamsData, mutate: teamsMutate } = useSWR(
-    isAuthenticated ? getAPIFullPath('teams', ['list'], {}) : null,
-    (url) => fetchWithAuth(url).then((r) => r.json()),
+  // Get a list of teams this user belongs to (only after user is known)
+  const teamsKey =
+    user && !userError ? getAPIFullPath('teams', ['list'], {}) : null;
+  const { data: teamsData, mutate: teamsMutate } = useSWR(teamsKey, (url) =>
+    fetchWithAuth(url).then((r) => r.json()),
   );
 
   useEffect(() => {
@@ -275,16 +270,19 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           // Current team doesn't belong to this user - clear it and select first team
           updateCurrentTeam(teams[0]);
           setTeamState(teams[0]);
+          document.cookie = `tlab_team_id=${teams[0].id}; path=/; SameSite=Lax`;
         } else if (updated.name !== current.name) {
           // Team name changed (e.g., rename) - update it
           const next = { id: updated.id, name: updated.name };
           updateCurrentTeam(next);
           setTeamState(next);
+          document.cookie = `tlab_team_id=${next.id}; path=/; SameSite=Lax`;
         }
       } else {
         // No team selected - select the first team
         updateCurrentTeam(teams[0]);
         setTeamState(teams[0]);
+        document.cookie = `tlab_team_id=${teams[0].id}; path=/; SameSite=Lax`;
       }
     } else if (teams && teams.length === 0) {
       // No teams available
@@ -402,6 +400,8 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     resetUser();
     setIsAuthenticated(false);
     setTeamState(null);
+    // Clear team cookie
+    document.cookie = 'tlab_team_id=; Max-Age=0; path=/; SameSite=Lax';
     if (userMutate) userMutate(null, false);
   }, [userMutate]);
 
@@ -413,6 +413,12 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           : value;
       updateCurrentTeam(next);
       setTeamState(next);
+      // Persist team selection in cookie so non-fetch requests (e.g. <img>) have team context
+      if (next?.id) {
+        document.cookie = `tlab_team_id=${next.id}; path=/; SameSite=Lax`;
+      } else {
+        document.cookie = 'tlab_team_id=; Max-Age=0; path=/; SameSite=Lax';
+      }
       // If the team changes, we reload the app to ensure all components pick up new team context
       // But only do this if the team actually changed
       if (next?.id !== team?.id) {
