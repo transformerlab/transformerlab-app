@@ -64,15 +64,24 @@ export default function ViewJobModelsModal({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save model to registry');
+        let errorMessage = 'Failed to save model to registry';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorMessage;
+        } catch (e) {
+          // If response is not JSON, use status text
+          errorMessage = `${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       setSaveSuccess(`Successfully saved ${modelName} to registry`);
       // Refresh the model list
       mutate();
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('Failed to save model:', error);
-      setSaveError(`Failed to save ${modelName} to registry`);
+      setSaveError(errorMessage);
     } finally {
       setSavingModel(null);
     }

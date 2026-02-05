@@ -64,15 +64,24 @@ export default function ViewJobDatasetsModal({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save dataset to registry');
+        let errorMessage = 'Failed to save dataset to registry';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorMessage;
+        } catch (e) {
+          // If response is not JSON, use status text
+          errorMessage = `${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       setSaveSuccess(`Successfully saved ${datasetName} to registry`);
       // Refresh the dataset list
       mutate();
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('Failed to save dataset:', error);
-      setSaveError(`Failed to save ${datasetName} to registry`);
+      setSaveError(errorMessage);
     } finally {
       setSavingDataset(null);
     }
