@@ -15,7 +15,6 @@ import TinyNVIDIALogo from './Shared/TinyNVIDIALogo';
 import TinyAMDLogo from './Shared/TinyAMDLogo';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import ConnectionLostModal from './Shared/ConnectionLostModal';
-import { useServerMode } from 'renderer/lib/ServerModeContext';
 
 function StatsBar({ connection, setConnection }) {
   const [cs, setCS] = useState({ cpu: [0], gpu: [0], mem: [0] });
@@ -334,16 +333,12 @@ function StatsBar({ connection, setConnection }) {
 
 export default function Header({ connection, setConnection }) {
   const { experimentInfo } = useExperimentInfo();
-  const {
-    isLoading: healthzLoading,
-    isError: healthzError,
-    healthzData,
-  } = useServerMode();
+  const { isLoading: serverLoading, isError: serverError } = useServerStats();
 
   const isLocalMode = window?.platform?.multiuser !== true;
-  // Show connection lost modal when we have a connection but it's lost
+  // Show connection lost modal when we have a connection but server is unreachable
   const connectionLost =
-    connection !== '' && !healthzLoading && (healthzError || !healthzData);
+    connection !== '' && !serverLoading && !!serverError;
   const showConnectionLostModal = connection !== '' && connectionLost;
 
   return (
