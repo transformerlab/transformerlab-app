@@ -15,6 +15,7 @@ from textual.screen import ModalScreen
 from textual import work, on
 
 from transformerlab_cli.util import api
+from transformerlab_cli.commands.task import fetch_providers, build_launch_payload, launch_task_on_provider
 
 
 def _infer_param_type(value) -> str:
@@ -143,20 +144,12 @@ class TaskQueueModal(ModalScreen):
             yield Label("", id="queue-status")
 
     def on_mount(self) -> None:
-        self.fetch_providers()
+        self._fetch_providers_async()
 
     @work(thread=True)
-    def fetch_providers(self) -> None:
+    def _fetch_providers_async(self) -> None:
         """Fetch available compute providers from the API."""
-        try:
-            response = api.get("/compute_provider/")
-            if response.status_code == 200:
-                providers = response.json()
-            else:
-                providers = []
-        except Exception:
-            providers = []
-
+        providers = fetch_providers()
         self.app.call_from_thread(self.populate_providers, providers)
 
     def populate_providers(self, providers: list[dict]) -> None:
@@ -320,40 +313,19 @@ class TaskQueueModal(ModalScreen):
         selected_provider = next((p for p in self.providers if p.get("id") == provider_id), None)
         provider_name = selected_provider.get("name") if selected_provider else task.get("provider_name")
 
-        payload = {
-            "experiment_id": task.get("experiment_id"),
-            "task_id": task.get("id"),
-            "task_name": task.get("name"),
-            "command": task.get("command"),
-            "setup": task.get("setup"),
-            "accelerators": task.get("accelerators"),
-            "env_vars": task.get("env_vars", {}),
-            "parameters": task.get("parameters", {}),
-            "config": param_values if param_values else None,
-            "provider_name": provider_name,
-            "github_repo_url": task.get("github_repo_url"),
-            "github_directory": task.get("github_directory"),
-        }
+        payload = build_launch_payload(task, provider_name, param_values)
 
         try:
-            response = api.post_json(f"/compute_provider/{provider_id}/task/launch", payload)
-            if response.status_code == 200:
-                data = response.json()
-                job_id = data.get("job_id", "unknown")
-                self.app.call_from_thread(
-                    self.notify, f"Task queued successfully. Job ID: {job_id}", severity="information"
-                )
-                self.app.call_from_thread(self._dismiss_all_modals)
-            else:
-                detail = response.json().get("detail", response.text) if response.text else "Unknown error"
-                self.app.call_from_thread(self._show_spinner, False)
-                self.app.call_from_thread(
-                    self.notify, f"Failed to queue task: {detail}", severity="error"
-                )
-        except Exception as e:
+            data = launch_task_on_provider(provider_id, payload)
+            job_id = data.get("job_id", "unknown")
+            self.app.call_from_thread(
+                self.notify, f"Task queued successfully. Job ID: {job_id}", severity="information"
+            )
+            self.app.call_from_thread(self._dismiss_all_modals)
+        except RuntimeError as e:
             self.app.call_from_thread(self._show_spinner, False)
             self.app.call_from_thread(
-                self.notify, f"Error queuing task: {e}", severity="error"
+                self.notify, str(e), severity="error"
             )
 
     def _dismiss_all_modals(self) -> None:
