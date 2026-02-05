@@ -36,7 +36,6 @@ from transformerlab.shared.api_key_auth import (
 )
 from lab.dirs import get_workspace_dir
 from lab import storage
-from transformerlab.shared.secret_utils import load_user_secrets
 
 router = APIRouter(tags=["users"])
 

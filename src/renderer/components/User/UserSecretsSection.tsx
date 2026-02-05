@@ -272,7 +272,8 @@ export default function UserSecretsSection() {
         in task configurations using the syntax{' '}
         <code>{'{{secret.<secret_name>}}'}</code>. The system will automatically
         replace these placeholders with the actual secret values when launching
-        tasks. User secrets take precedence over team secrets with the same name.
+        tasks. User secrets take precedence over team secrets with the same
+        name.
       </Typography>
       <Alert color="primary" variant="soft" sx={{ mb: 2 }}>
         <Typography level="body-sm">

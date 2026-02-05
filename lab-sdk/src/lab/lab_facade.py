@@ -228,7 +228,7 @@ class Lab:
 
         try:
             workspace_dir = await get_workspace_dir()
-            
+
             # Load team secrets first
             team_secrets = {}
             team_secrets_path = storage.join(workspace_dir, "team_secrets.json")
@@ -236,7 +236,7 @@ class Lab:
                 async with await storage.open(team_secrets_path, "r") as f:
                     content = await f.read()
                     team_secrets = json.loads(content)
-            
+
             # Load user secrets if _TFL_USER_ID is set
             user_id = os.environ.get("_TFL_USER_ID")
             if user_id:
@@ -250,7 +250,7 @@ class Lab:
                     except Exception:
                         # If user secrets file exists but can't be read, log warning but continue
                         logger.warning(f"Failed to load user secrets for user {user_id}", exc_info=True)
-                
+
                 # Merge: user secrets override team secrets
                 merged_secrets = {**team_secrets, **user_secrets}
                 return merged_secrets.get(secret_name)
