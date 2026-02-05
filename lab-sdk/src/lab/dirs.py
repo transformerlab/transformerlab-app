@@ -291,3 +291,61 @@ async def generation_output_file(experiment_name: str, generation_name: str) -> 
     p = storage.join(experiment_dir, "generations", generation_name)
     await storage.makedirs(p, exist_ok=True)
     return storage.join(p, "output.txt")
+
+
+def _get_local_provider_runs_root() -> str:
+    """
+    Return the root directory for all local provider runs.
+
+    This is intentionally kept on the local filesystem and does NOT depend on
+    TFL_API_STORAGE_URI or the storage abstraction so that things like PIDs,
+    stdout/stderr logs, and virtual environments are always available locally,
+    even when the main workspace is configured to use remote storage.
+
+    Layout:
+        ~/.transformerlab/local_provider_runs/
+    """
+    root = os.path.join(HOME_DIR, "local_provider_runs")
+    os.makedirs(root, exist_ok=True)
+    return root
+
+
+def get_local_provider_org_dir(org_id: str | None = None) -> str:
+    """
+    Return the directory for local provider runs for a given organization.
+
+    Layout:
+        ~/.transformerlab/local_provider_runs/orgs/<org_id>/
+
+    If org_id is not provided, the current org context (if any) is used.
+    """
+    if org_id is None:
+        org_id = _current_org_id.get()
+
+    # Fall back to a shared directory if org_id is still None
+    org_segment = org_id if org_id is not None else "shared"
+
+    root = _get_local_provider_runs_root()
+    org_dir = os.path.join(root, "orgs", secure_filename(str(org_segment)))
+    os.makedirs(org_dir, exist_ok=True)
+    return org_dir
+
+
+def get_local_provider_job_dir(job_id: str | int, org_id: str | None = None) -> str:
+    """
+    Return the directory for a specific local provider job.
+
+    Layout:
+        ~/.transformerlab/local_provider_runs/orgs/<org_id>/<job_id>/
+
+    This directory is always on the local filesystem and is suitable for:
+      - Storing PIDs
+      - stdout/stderr log files
+      - Per-job virtual environments
+      - Any other host-local state for a job that should not go to cloud storage
+    """
+    org_dir = get_local_provider_org_dir(org_id)
+    job_id_safe = secure_filename(str(job_id))
+    job_dir = os.path.join(org_dir, job_id_safe)
+    os.makedirs(job_dir, exist_ok=True)
+    return job_dir
