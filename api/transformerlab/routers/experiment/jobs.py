@@ -1303,11 +1303,19 @@ async def get_job_models(job_id: str, request: Request):
 
 
 @router.post("/{job_id}/datasets/{dataset_name}/save_to_registry")
-async def save_dataset_to_registry(job_id: str, dataset_name: str):
+async def save_dataset_to_registry(
+    job_id: str,
+    dataset_name: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
     """Copy a dataset from job's datasets directory to the global datasets registry"""
 
     try:
         from lab.dirs import get_job_datasets_dir, get_datasets_dir
+        from datetime import datetime
+        import shutil
+        import os
 
         # Secure the dataset name
         dataset_name_secure = secure_filename(dataset_name)
@@ -1317,24 +1325,50 @@ async def save_dataset_to_registry(job_id: str, dataset_name: str):
         source_path = storage.join(job_datasets_dir, dataset_name_secure)
 
         if not await storage.exists(source_path):
-            return Response("Dataset not found in job directory", status_code=404)
+            raise HTTPException(
+                status_code=404,
+                detail=f"Dataset '{dataset_name}' not found in job directory"
+            )
 
         # Get destination path (global datasets registry)
         datasets_registry_dir = await get_datasets_dir()
         dest_path = storage.join(datasets_registry_dir, dataset_name_secure)
 
-        # Check if dataset already exists in registry
+        # Check if dataset already exists in registry and generate a unique name if needed
         if await storage.exists(dest_path):
-            return Response("Dataset already exists in registry", status_code=409)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            dataset_name_secure = f"{dataset_name_secure}_{timestamp}"
+            dest_path = storage.join(datasets_registry_dir, dataset_name_secure)
 
-        # Copy the dataset directory to the registry
-        await storage.copy(source_path, dest_path, recursive=True)
+        # Copy the dataset to the registry
+        # Try local copy first (if both are local paths)
+        try:
+            if source_path.startswith("/") and dest_path.startswith("/"):
+                # Both are local paths, use shutil for better reliability
+                if os.path.isdir(source_path):
+                    shutil.copytree(source_path, dest_path)
+                else:
+                    shutil.copy2(source_path, dest_path)
+            else:
+                # Use storage.copy_dir for remote/mixed paths
+                await storage.copy_dir(source_path, dest_path)
+        except Exception as copy_err:
+            # If shutil fails, fallback to storage.copy_dir
+            print(f"Local copy failed, trying storage.copy_dir: {copy_err}")
+            await storage.copy_dir(source_path, dest_path)
 
-        return {"status": "success", "message": f"Dataset {dataset_name_secure} saved to registry"}
+        return {"status": "success", "message": f"Dataset saved to registry as '{dataset_name_secure}'"}
 
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error saving dataset to registry for job {job_id}: {e}")
-        return Response("Failed to save dataset", status_code=500)
+        print(f"Error saving dataset to registry for job {job_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save dataset to registry: {str(e)}"
+        )
 
 
 @router.post("/{job_id}/models/{model_name}/save_to_registry")
