@@ -717,26 +717,49 @@ class Lab:
             else:
                 base_name_original = posixpath.basename(src)
 
+            # For single file models, remove the extension from the directory name
+            base_name_without_ext = base_name_original
+            if not (is_remote and await storage.isdir(src)) and not (not is_remote and os.path.isdir(src)):
+                # It's a file, remove extension for directory name
+                name_parts = base_name_original.rsplit(".", 1)
+                if len(name_parts) > 1:
+                    base_name_without_ext = name_parts[0]
+
             # Add job_id prefix to avoid conflicts between jobs
-            base_name = f"{job_id}_{base_name_original}"
+            base_name = f"{job_id}_{base_name_without_ext}"
 
             # Save to job-specific models directory
             models_dir = await dirs.get_job_models_dir(job_id)
             dest = storage.join(models_dir, base_name)
 
-            # Create parent directories
-            await storage.makedirs(models_dir, exist_ok=True)
+            # Create model directory
+            await storage.makedirs(dest, exist_ok=True)
 
             # Handle duplicate names within the same job by adding suffix
             if await storage.exists(dest):
-                counter = 1
-                while True:
-                    base_name_with_suffix = f"{job_id}_{base_name_original}_{counter}"
-                    dest = storage.join(models_dir, base_name_with_suffix)
-                    if not await storage.exists(dest):
-                        base_name = base_name_with_suffix
-                        break
-                    counter += 1
+                # Check if there are any files in the directory (not just the directory exists)
+                try:
+                    contents = await storage.ls(dest, detail=False)
+                    if contents:  # Directory exists and has contents
+                        counter = 1
+                        while True:
+                            base_name_with_suffix = f"{job_id}_{base_name_without_ext}_{counter}"
+                            dest = storage.join(models_dir, base_name_with_suffix)
+                            if not await storage.exists(dest):
+                                base_name = base_name_with_suffix
+                                await storage.makedirs(dest, exist_ok=True)
+                                break
+                            # Check if this directory has contents
+                            try:
+                                contents = await storage.ls(dest, detail=False)
+                                if not contents:  # Empty directory, we can use it
+                                    base_name = base_name_with_suffix
+                                    break
+                            except Exception:
+                                pass
+                            counter += 1
+                except Exception:
+                    pass
 
             # Copy file or directory
             # Check if source is directory: use local filesystem for local paths, storage backend for remote
@@ -748,7 +771,8 @@ class Lab:
             if src_is_dir:
                 await storage.copy_dir(src, dest)
             else:
-                await storage.copy_file(src, dest)
+                dest_file = storage.join(dest, base_name_original)
+                await storage.copy_file(src, dest_file)
 
             # Create model metadata JSON file alongside the model
             try:
@@ -765,7 +789,22 @@ class Lab:
                     pipeline_tag = model_service.fetch_pipeline_tag(parent_model)
 
                 # Determine model_filename for single-file models
-                model_filename = "" if await storage.isdir(dest) else posixpath.basename(dest)
+                # Check if dest contains a single model file
+                model_filename = ""
+                try:
+                    contents = await storage.ls(dest, detail=False)
+                    # Filter out metadata files
+                    model_files = [
+                        f for f in contents 
+                        if not posixpath.basename(str(f) if not isinstance(f, dict) else f.get("name", "")).startswith(".")
+                        and not posixpath.basename(str(f) if not isinstance(f, dict) else f.get("name", "")).endswith(".json")
+                    ]
+                    if len(model_files) == 1:
+                        # Single file model
+                        file_path = model_files[0] if isinstance(model_files[0], str) else model_files[0].get("name", "")
+                        model_filename = posixpath.basename(file_path)
+                except Exception:
+                    pass
 
                 # Prepare json_data with basic info
                 json_data = {
