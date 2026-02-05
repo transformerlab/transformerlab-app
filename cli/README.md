@@ -55,6 +55,7 @@ Adds a `lab` command to your terminal
 ## Debug the Job Monitor:
 
 ```
+pip install -e .
 uv run textual run --dev src/transformerlab_cli/commands/job_monitor/job_monitor.py
 ```
 

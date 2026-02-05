@@ -482,7 +482,6 @@ export default function Diffusion() {
     setCurrentIntermediateImage(null);
 
     let isActive = true;
-    let lastImageUrl: string | null = null;
     let pollTimeoutId: number;
     const pollInterval = 1000;
 
@@ -498,16 +497,8 @@ export default function Diffusion() {
           imageId: genId,
           index: 0,
         });
-        const stepResponse = await fetchWithAuth(`${stepUrl}&step=true`);
-        if (stepResponse.ok) {
-          const blob = await stepResponse.blob();
-          const imageUrl = URL.createObjectURL(blob);
-          if (imageUrl !== lastImageUrl) {
-            if (lastImageUrl) URL.revokeObjectURL(lastImageUrl);
-            setCurrentIntermediateImage(imageUrl);
-            lastImageUrl = imageUrl;
-          }
-        }
+        const stepImageUrl = `${stepUrl}&step=true`;
+        setCurrentIntermediateImage(stepImageUrl);
 
         // FINAL JSON polling
         if (!hasReceivedJson) {
@@ -538,7 +529,6 @@ export default function Diffusion() {
       isActive = false;
       setIsPolling(false);
       if (pollTimeoutId) clearTimeout(pollTimeoutId);
-      if (lastImageUrl) URL.revokeObjectURL(lastImageUrl);
     };
 
     pollTimeoutId = window.setTimeout(poll, pollInterval);
@@ -671,31 +661,18 @@ export default function Diffusion() {
           if (data.error_code !== 0) {
             setError(data.detail || 'Error in generation result.');
           } else {
-            // Fetch images with authentication and convert to blob URLs
-            const imageUrls: string[] = [];
+            // Use direct image URLs; cookies handle auth
+            const urls: string[] = [];
             for (let i = 0; i < data.num_images; i++) {
               const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
                 experimentId: experimentId,
                 imageId: data.id,
                 index: i,
               });
-              try {
-                const response = await fetchWithAuth(imageUrl);
-                if (response.ok) {
-                  const blob = await response.blob();
-                  const blobUrl = URL.createObjectURL(blob);
-                  imageUrls.push(blobUrl);
-                } else {
-                  // Fallback to URL if fetch fails
-                  imageUrls.push(imageUrl);
-                }
-              } catch (e) {
-                // Fallback to URL if fetch fails
-                imageUrls.push(imageUrl);
-              }
+              urls.push(imageUrl);
             }
 
-            setCurrentImages(imageUrls);
+            setCurrentImages(urls);
             setCurrentGenerationData(data);
           }
 
@@ -832,31 +809,18 @@ export default function Diffusion() {
           if (data.error_code !== 0) {
             setError(data.detail || 'Error in generation result.');
           } else {
-            // Fetch images with authentication and convert to blob URLs
-            const imageUrls: string[] = [];
+            // Use direct image URLs; cookies handle auth
+            const urls: string[] = [];
             for (let i = 0; i < data.num_images; i++) {
               const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
                 experimentId: experimentId,
                 imageId: data.id,
                 index: i,
               });
-              try {
-                const response = await fetchWithAuth(imageUrl);
-                if (response.ok) {
-                  const blob = await response.blob();
-                  const blobUrl = URL.createObjectURL(blob);
-                  imageUrls.push(blobUrl);
-                } else {
-                  // Fallback to URL if fetch fails
-                  imageUrls.push(imageUrl);
-                }
-              } catch (e) {
-                // Fallback to URL if fetch fails
-                imageUrls.push(imageUrl);
-              }
+              urls.push(imageUrl);
             }
 
-            setInpaintingImages(imageUrls);
+            setInpaintingImages(urls);
             setCurrentGenerationData(data);
           }
 
