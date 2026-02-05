@@ -349,25 +349,34 @@ cookie_auth_backend = CookieAuthBackend(
 # OAuth backend
 class OAuthBackend(AuthenticationBackend):
     """
-    OAuth backend that redirects to frontend callback with tokens in URL.
+    OAuth backend that redirects back to the frontend.
+
+    Behavior:
+    - If FRONTEND_URL is set: issue cookie-based auth (tlab_auth/tlab_refresh)
+      and redirect cleanly to the frontend root.
+    - If FRONTEND_URL is not set: fall back to legacy behavior and include
+      tokens in the redirect URL query string (for non-UI clients).
     """
 
     async def login(self, strategy: Strategy, user: User) -> Response:
-        """
-        After successful OAuth login, issue the same cookies used for regular
-        cookie-based auth and redirect back to the frontend.
-
-        This keeps Google/GitHub OAuth compatible with the cookie-auth frontend,
-        which relies on httpOnly cookies and /users/me instead of URL tokens.
-        """
         # Generate tokens
         access_token = await strategy.write_token(user)
         refresh_token = await get_refresh_strategy().write_token(user)
 
-        # Normalize frontend URL and redirect to home page
-        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
-        frontend_url_normalized = frontend_url.rstrip("/")
+        frontend_url = os.getenv("FRONTEND_URL")
 
+        # FRONTEND_URL not configured: legacy behavior with tokens in URL
+        if not frontend_url:
+            legacy_frontend_url = "http://localhost:1212"
+            frontend_url_normalized = legacy_frontend_url.rstrip("/")
+            callback_url = (
+                f"{frontend_url_normalized}/?access_token={access_token}"
+                f"&refresh_token={refresh_token}&token_type=bearer"
+            )
+            return RedirectResponse(url=callback_url, status_code=302)
+
+        # FRONTEND_URL configured: cookie-based auth + clean redirect
+        frontend_url_normalized = frontend_url.rstrip("/")
         response = RedirectResponse(url=f"{frontend_url_normalized}/", status_code=302)
 
         cookie_secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
