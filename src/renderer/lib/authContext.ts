@@ -87,7 +87,9 @@ export function logoutUser() {
 // allow components to re-render when auth changes
 export function subscribeAuthChange(cb: () => void) {
   listeners.add(cb);
-  return () => listeners.delete(cb);
+  return () => {
+    listeners.delete(cb);
+  };
 }
 
 // --- 2. Refresh Logic (Singleton Pattern) ---
@@ -257,16 +259,19 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           // Current team doesn't belong to this user - clear it and select first team
           updateCurrentTeam(teams[0]);
           setTeamState(teams[0]);
+          document.cookie = `tlab_team_id=${teams[0].id}; path=/; SameSite=Lax`;
         } else if (updated.name !== current.name) {
           // Team name changed (e.g., rename) - update it
           const next = { id: updated.id, name: updated.name };
           updateCurrentTeam(next);
           setTeamState(next);
+          document.cookie = `tlab_team_id=${next.id}; path=/; SameSite=Lax`;
         }
       } else {
         // No team selected - select the first team
         updateCurrentTeam(teams[0]);
         setTeamState(teams[0]);
+        document.cookie = `tlab_team_id=${teams[0].id}; path=/; SameSite=Lax`;
       }
     } else if (teams && teams.length === 0) {
       // No teams available
