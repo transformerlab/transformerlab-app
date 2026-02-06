@@ -603,8 +603,7 @@ export default function CurrentFoundationInfo({
               )}
               {foundationModel && !peftData && !peftIsLoading && !peftError && (
                 <Typography level="body-sm" color="neutral">
-                  No adaptors found. The request may not have been triggered.
-                  Check console for details.
+                  No adaptors found.
                 </Typography>
               )}
               {foundationModel && !peftData && !peftIsLoading && peftError && (
