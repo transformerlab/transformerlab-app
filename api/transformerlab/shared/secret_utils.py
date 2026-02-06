@@ -1,30 +1,66 @@
-"""Utility functions for handling team secrets in task configurations."""
+"""Utility functions for handling team and user secrets in task configurations."""
 
 import json
 import re
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from lab import storage
 from lab.dirs import get_workspace_dir
 
 
-async def load_team_secrets() -> Dict[str, str]:
+async def load_user_secrets(user_id: str) -> Dict[str, str]:
     """
-    Load team secrets from workspace/team_secrets.json.
+    Load user-specific secrets from workspace/user_secrets_{user_id}.json.
+
+    Args:
+        user_id: The user ID to load secrets for
 
     Returns:
         Dictionary of secret names to secret values. Returns empty dict if file doesn't exist or on error.
     """
     workspace_dir = await get_workspace_dir()
-    secrets_path = storage.join(workspace_dir, "team_secrets.json")
+    secrets_path = storage.join(workspace_dir, f"user_secrets_{user_id}.json")
 
     try:
         if await storage.exists(secrets_path):
             async with await storage.open(secrets_path, "r") as f:
                 return json.loads(await f.read())
     except Exception as e:
-        print(f"Warning: Failed to load team secrets: {e}")
+        print(f"Warning: Failed to load user secrets for user {user_id}: {e}")
 
     return {}
+
+
+async def load_team_secrets(user_id: Optional[str] = None) -> Dict[str, str]:
+    """
+    Load team secrets from workspace/team_secrets.json, and optionally merge with user secrets.
+    User secrets override team secrets (user-specific secrets win).
+
+    Args:
+        user_id: Optional user ID. If provided, user secrets will be loaded and merged with team secrets.
+
+    Returns:
+        Dictionary of secret names to secret values. User secrets override team secrets.
+        Returns empty dict if no secrets exist or on error.
+    """
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, "team_secrets.json")
+
+    team_secrets = {}
+    try:
+        if await storage.exists(secrets_path):
+            async with await storage.open(secrets_path, "r") as f:
+                team_secrets = json.loads(await f.read())
+    except Exception as e:
+        print(f"Warning: Failed to load team secrets: {e}")
+
+    # If user_id is provided, load user secrets and merge (user secrets override team secrets)
+    if user_id:
+        user_secrets = await load_user_secrets(user_id)
+        # Merge: user secrets override team secrets
+        merged_secrets = {**team_secrets, **user_secrets}
+        return merged_secrets
+
+    return team_secrets
 
 
 def replace_secret_placeholders(text: str, secrets: Dict[str, str]) -> str:
@@ -42,8 +78,8 @@ def replace_secret_placeholders(text: str, secrets: Dict[str, str]) -> str:
     if not isinstance(text, str):
         return text
 
-    # Pattern to match {{secret.<secret_name>}}
-    pattern = r"\{\{secret\.([A-Za-z_][A-Za-z0-9_]*)\}\}"
+    # Pattern to match {{secret.<secret_name>}} or {{secrets.<secret_name>}}
+    pattern = r"\{\{secrets?\.([A-Za-z_][A-Za-z0-9_]*)\}\}"
 
     def replace_match(match: re.Match) -> str:
         secret_name = match.group(1)

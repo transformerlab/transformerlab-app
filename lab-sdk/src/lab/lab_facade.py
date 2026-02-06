@@ -167,10 +167,14 @@ class Lab:
 
     def get_secret(self, secret_name: str) -> Optional[str]:
         """
-        Get a team secret by name (sync version).
+        Get a secret by name (sync version).
 
-        This method reads team secrets from the workspace/team_secrets.json file.
-        Secrets are stored per-team and can be configured in Team Settings.
+        This method reads secrets from both team_secrets.json and user_secrets_{user_id}.json files.
+        User secrets override team secrets (similar to GitHub secrets behavior).
+        Secrets can be configured in Team Settings (team secrets) or User Settings (user secrets).
+
+        If _TFL_USER_ID environment variable is set, user-specific secrets will be loaded and
+        merged with team secrets. User secrets take precedence over team secrets.
 
         This is a sync wrapper around the async implementation.
         Use async_get_secret() if you're already in an async context.
@@ -194,10 +198,14 @@ class Lab:
 
     async def async_get_secret(self, secret_name: str) -> Optional[str]:
         """
-        Get a team secret by name (async version).
+        Get a secret by name (async version).
 
-        This method reads team secrets from the workspace/team_secrets.json file.
-        Secrets are stored per-team and can be configured in Team Settings.
+        This method reads secrets from both team_secrets.json and user_secrets_{user_id}.json files.
+        User secrets override team secrets (similar to GitHub secrets behavior).
+        Secrets can be configured in Team Settings (team secrets) or User Settings (user secrets).
+
+        If _TFL_USER_ID environment variable is set, user-specific secrets will be loaded and
+        merged with team secrets. User secrets take precedence over team secrets.
 
         Args:
             secret_name: Name of the secret to retrieve
@@ -220,17 +228,37 @@ class Lab:
 
         try:
             workspace_dir = await get_workspace_dir()
-            secrets_path = storage.join(workspace_dir, "team_secrets.json")
 
-            if not await storage.exists(secrets_path):
-                return None
+            # Load team secrets first
+            team_secrets = {}
+            team_secrets_path = storage.join(workspace_dir, "team_secrets.json")
+            if await storage.exists(team_secrets_path):
+                async with await storage.open(team_secrets_path, "r") as f:
+                    content = await f.read()
+                    team_secrets = json.loads(content)
 
-            async with await storage.open(secrets_path, "r") as f:
-                content = await f.read()
-                secrets = json.loads(content)
-                return secrets.get(secret_name)
+            # Load user secrets if _TFL_USER_ID is set
+            user_id = os.environ.get("_TFL_USER_ID")
+            if user_id:
+                user_secrets = {}
+                user_secrets_path = storage.join(workspace_dir, f"user_secrets_{user_id}.json")
+                if await storage.exists(user_secrets_path):
+                    try:
+                        async with await storage.open(user_secrets_path, "r") as f:
+                            content = await f.read()
+                            user_secrets = json.loads(content)
+                    except Exception:
+                        # If user secrets file exists but can't be read, log warning but continue
+                        logger.warning(f"Failed to load user secrets for user {user_id}", exc_info=True)
+
+                # Merge: user secrets override team secrets
+                merged_secrets = {**team_secrets, **user_secrets}
+                return merged_secrets.get(secret_name)
+            else:
+                # No user_id, just return team secret
+                return team_secrets.get(secret_name)
         except Exception:
-            logger.warning("Failed to load team secret", exc_info=True)
+            logger.warning("Failed to load secret", exc_info=True)
             return None
 
     def copy_file_mounts(self) -> None:
