@@ -768,7 +768,8 @@ export default function Interactive() {
                 Server, VS Code or Jupyter notebook.
               </Typography>
               <Typography level="body-sm" color="neutral">
-                Import an interactive task from the gallery and then queue it to start.
+                Import an interactive task from the gallery and then queue it to
+                start.
               </Typography>
             </Box>
           )}
