@@ -27,7 +27,8 @@ import {
   DownloadIcon,
   CheckIcon,
 } from 'lucide-react';
-import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
+import useSWR from 'swr';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import {
   getAPIFullPath,
@@ -40,15 +41,36 @@ import ModelProvenanceTimeline from './ModelProvenanceTimeline';
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
-import { fetchWithAuth } from 'renderer/lib/authContext';
 
 const DEFAULT_EMBEDDING_MODEL = 'BAAI/bge-base-en-v1.5';
 
-const fetchWithPost = ({ url, post }) =>
-  fetchWithAuth(url, {
+const fetchWithPost = (key) => {
+  if (!key) {
+    return Promise.resolve([]);
+  }
+  
+  if (!key.url || !key.post) {
+    return Promise.resolve([]);
+  }
+  
+  const { url, post } = key;
+  
+  return fetchWithAuth(url, {
     method: 'POST',
-    body: post,
-  }).then((res) => res.json());
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(post),
+  })
+    .then((res) => {
+      if (!res.ok) {
+        return res.text().then(text => {
+          throw new Error(`HTTP ${res.status}: ${text}`);
+        });
+      }
+      return res.json();
+    });
+};
 
 function modelNameIsInHuggingfaceFormat(modelName: string) {
   return modelName.includes('/');
@@ -87,12 +109,26 @@ export default function CurrentFoundationInfo({
   setAdaptor,
   setLogsDrawerOpen = null,
 }) {
-  const { data: peftData, mutate: peftMutate } = useSWR(
-    {
+  const foundationModel = experimentInfo?.config?.foundation;
+  
+  // Use useMemo to create a stable key object for SWR
+  const swrKey = useMemo(() => {
+    if (!foundationModel) {
+      return null;
+    }
+    return {
       url: chatAPI.Endpoints.Models.GetPeftsForModel(),
-      post: experimentInfo?.config?.foundation,
-    },
+      post: foundationModel,
+    };
+  }, [foundationModel]);
+
+  const { data: peftData, mutate: peftMutate, error: peftError, isLoading: peftIsLoading } = useSWR(
+    swrKey,
     fetchWithPost,
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    }
   );
 
   const { mutate: experimentInfoMutate } = useSWR(
@@ -201,7 +237,10 @@ export default function CurrentFoundationInfo({
       chatAPI.Endpoints.Models.GetPeftsForModel(),
       {
         method: 'POST',
-        body: experimentInfo.config.foundation,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(experimentInfo.config.foundation),
       },
     );
     const installed = await installedResponse.json(); // sanitized names (e.g., sheenrooff_Llama...)
@@ -368,7 +407,12 @@ export default function CurrentFoundationInfo({
       <Tabs
         aria-label="Model tabs"
         value={activeTab}
-        onChange={(event, value) => setActiveTab(value)}
+        onChange={(event, value) => {
+          setActiveTab(value);
+          if (value === 2) {
+            peftMutate();
+          }
+        }}
         sx={{
           mt: 2,
           overflow: 'hidden',
@@ -551,12 +595,37 @@ export default function CurrentFoundationInfo({
           </Typography>
           <Box sx={{ maxHeight: 400, overflowY: 'auto', pr: 1 }}>
             <Stack direction="column" gap={1}>
-              {peftData && peftData.length === 0 && (
+              {!foundationModel && (
+                <Typography level="body-sm" color="neutral">
+                  No foundation model selected. Please select a foundation model first.
+                </Typography>
+              )}
+              {foundationModel && !peftData && !peftIsLoading && !peftError && (
+                <Typography level="body-sm" color="neutral">
+                  No adaptors found. The request may not have been triggered. Check console for details.
+                </Typography>
+              )}
+              {foundationModel && !peftData && !peftIsLoading && peftError && (
+                <Typography level="body-sm" color="danger">
+                  Error loading adaptors: {peftError?.message || String(peftError)}
+                </Typography>
+              )}
+              {peftIsLoading && (
+                <Typography level="body-sm" color="neutral">
+                  Loading adaptors...
+                </Typography>
+              )}
+              {peftError && (
+                <Typography level="body-sm" color="danger">
+                  Error loading adaptors: {peftError?.message || String(peftError)}
+                </Typography>
+              )}
+              {Array.isArray(peftData) && peftData.length === 0 && (
                 <Typography level="body-sm" color="neutral">
                   No adaptors installed. Train one!
                 </Typography>
               )}
-              {peftData &&
+              {Array.isArray(peftData) &&
                 peftData.map((peft) => (
                   <Sheet
                     key={peft}
