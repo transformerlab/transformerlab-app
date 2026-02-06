@@ -267,9 +267,6 @@ export default function NewInteractiveTaskModal({
                       <Typography level="title-md">
                         Your Templates
                       </Typography>
-                      <Typography level="body-sm" color="neutral">
-                        Add templates to Templates section to queue and launch them later, or delete templates you no longer need.
-                      </Typography>
                     </Stack>
                     <List
                       sx={{
@@ -302,6 +299,19 @@ export default function NewInteractiveTaskModal({
                               <Stack direction="row" spacing={1}>
                                 <IconButton
                                   size="sm"
+                                  variant="soft"
+                                  color="primary"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onQueueTask(task);
+                                    onClose();
+                                  }}
+                                  title="Launch this template"
+                                >
+                                  <PlayIcon size={16} />
+                                </IconButton>
+                                <IconButton
+                                  size="sm"
                                   variant="plain"
                                   color="danger"
                                   onClick={(e) => {
@@ -318,14 +328,6 @@ export default function NewInteractiveTaskModal({
                               borderColor: 'divider',
                               borderRadius: 'sm',
                               mb: 1,
-                              cursor: 'pointer',
-                              '&:hover': {
-                                bgcolor: 'background.level1',
-                              },
-                            }}
-                            onClick={() => {
-                              onQueueTask(task);
-                              onClose();
                             }}
                           >
                             <ListItemContent>
@@ -350,16 +352,33 @@ export default function NewInteractiveTaskModal({
 
                 {/* Import More Section */}
                 <Stack spacing={1}>
-                  <Typography level="title-md">
-                    {importedTasks.length === 0
-                      ? 'Get Started with Interactive Tasks'
-                      : 'Import More Interactive Tasks'}
-                  </Typography>
-                  <Typography level="body-sm" color="neutral">
-                    {importedTasks.length === 0
-                      ? 'Select an interactive task type to import. Start with VS Code, Jupyter, or vLLM.'
-                      : 'Visit the Task Gallery to import additional interactive task templates.'}
-                  </Typography>
+                  {importedTasks.length === 0 ? (
+                    <>
+                      <Typography level="title-md">
+                        Get Started with Interactive Tasks
+                      </Typography>
+                      <Typography level="body-sm" color="neutral">
+                        Select an interactive task type to import. Start with VS Code, Jupyter, or vLLM.
+                      </Typography>
+                    </>
+                  ) : (
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                      <Typography level="body-sm" color="neutral">
+                        Want more tasks?
+                      </Typography>
+                      <Button
+                        variant="plain"
+                        size="sm"
+                        onClick={() => {
+                          window.location.href = '/tasks-gallery?tab=interactive';
+                        }}
+                        sx={{ px: 0, textDecoration: 'underline' }}
+                        endDecorator={<LibraryIcon size={14} />}
+                      >
+                        Import more
+                      </Button>
+                    </Stack>
+                  )}
                 </Stack>
 
                 {importedTasks.length === 0 ? (
@@ -439,21 +458,7 @@ export default function NewInteractiveTaskModal({
                       </Grid>
                     )}
                   </>
-                ) : (
-                  // Show redirect button for users with imported tasks
-                  <Button
-                    variant="soft"
-                    color="primary"
-                    size="lg"
-                    startDecorator={<LibraryIcon size={20} />}
-                    onClick={() => {
-                      window.location.href = '/tasks-gallery?tab=interactive';
-                    }}
-                    sx={{ alignSelf: 'flex-start' }}
-                  >
-                    Go to Task Gallery
-                  </Button>
-                )}
+                ) : null}
               </Stack>
             ) : (
               <Stack spacing={3}>
