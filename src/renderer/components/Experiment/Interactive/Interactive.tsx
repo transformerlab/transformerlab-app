@@ -885,7 +885,7 @@ export default function Interactive() {
           </Box>
         )}
       </Sheet>
-      <Typography level="title-md">Templates</Typography>
+      <Typography level="title-md">History</Typography>
       <Sheet
         variant="soft"
         sx={{
