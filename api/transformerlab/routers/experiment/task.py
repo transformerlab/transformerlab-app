@@ -557,10 +557,56 @@ async def import_task_from_gallery(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Import a task from the tasks gallery.
-    Creates a new task using task.yaml from GitHub repository.
+    Import a task from the tasks gallery or interactive gallery.
+    Creates a new task using task.yaml from GitHub repository (for regular tasks)
+    or creates an interactive task template from gallery definition.
     Uses the team's GitHub PAT if available.
     """
+    # Check if importing from interactive gallery
+    if request.is_interactive:
+        # Import from interactive gallery
+        gallery = await galleries.get_interactive_gallery()
+
+        # Find the gallery entry by index or ID
+        try:
+            gallery_index = int(request.gallery_id)
+            if gallery_index < 0 or gallery_index >= len(gallery):
+                raise HTTPException(status_code=404, detail="Gallery entry not found")
+            gallery_entry = gallery[gallery_index]
+        except (ValueError, IndexError):
+            gallery_entry = None
+            for entry in gallery:
+                if entry.get("id") == request.gallery_id:
+                    gallery_entry = entry
+                    break
+            if not gallery_entry:
+                raise HTTPException(status_code=404, detail="Gallery entry not found")
+
+        # Create interactive task template
+        task_name = gallery_entry.get("name", "Interactive Task")
+        interactive_type = gallery_entry.get("interactive_type", "vscode")
+
+        # Resolve provider
+        task_data = {
+            "name": secure_filename(task_name),
+            "type": "REMOTE",
+            "plugin": "remote_orchestrator",
+            "experiment_id": experimentId,
+            "cluster_name": task_name,
+            "command": gallery_entry.get("command", ""),
+            "setup": gallery_entry.get("setup", ""),
+            "interactive_type": interactive_type,
+            "subtype": "interactive",
+        }
+
+        await _resolve_provider(task_data, user_and_team, session)
+
+        # Create the task
+        task_id = await task_service.add_task(task_data)
+
+        return {"status": "success", "message": f"Interactive task '{task_name}' imported successfully", "id": task_id}
+
+    # Regular task import (existing logic)
     gallery = await galleries.get_tasks_gallery()
 
     # Find the gallery entry by index or ID

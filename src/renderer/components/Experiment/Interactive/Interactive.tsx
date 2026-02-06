@@ -20,8 +20,10 @@ import {
   PlayIcon,
   Trash2Icon,
   LogsIcon,
+  LibraryIcon,
 } from 'lucide-react';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
+import { useNavigate } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -55,6 +57,7 @@ export default function Interactive() {
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const { fetchWithAuth, team } = useAuth();
+  const navigate = useNavigate();
 
   // Trigger to force re-render when localStorage changes
   const [pendingIdsTrigger, setPendingIdsTrigger] = useState(0);
@@ -639,6 +642,10 @@ export default function Interactive() {
         isSubmitting={isSubmitting}
         providers={providers}
         isProvidersLoading={providersIsLoading}
+        importedTasks={tasks}
+        onDeleteTask={handleDeleteTask}
+        onQueueTask={handleQueue}
+        onRefreshTasks={templatesMutate}
       />
       {taskBeingEdited && (
         <EditInteractiveTaskModal
@@ -706,7 +713,7 @@ export default function Interactive() {
       >
         <Typography level="title-md">Running Services</Typography>
         <Button
-          startDecorator={<TerminalIcon />}
+          startDecorator={<PlusIcon size={16} />}
           onClick={() => setInteractiveModalOpen(true)}
         >
           New
@@ -756,13 +763,13 @@ export default function Interactive() {
               <Typography level="body-lg" sx={{ mb: 2 }}>
                 No interactive jobs yet
               </Typography>
-              <Typography level="body-sm" color="neutral">
+              <Typography level="body-sm" color="neutral" sx={{ mb: 1 }}>
                 Interactive jobs are long running services like an Inference
                 Server, VS Code or Jupyter notebook.
               </Typography>
               <Typography level="body-sm" color="neutral">
-                Deploy a new Interactive Job by clicking the &quot;New&quot;
-                button above.
+                Import an interactive task from the gallery and then queue it to
+                start.
               </Typography>
             </Box>
           )}

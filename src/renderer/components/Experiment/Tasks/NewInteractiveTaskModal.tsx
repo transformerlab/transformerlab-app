@@ -20,8 +20,21 @@ import {
   CardContent,
   Grid,
   Skeleton,
+  IconButton,
+  Divider,
+  List,
+  ListItem,
+  ListItemContent,
+  Chip,
 } from '@mui/joy';
-import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react';
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  Trash2Icon,
+  PlayIcon,
+  LibraryIcon,
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
@@ -51,6 +64,13 @@ type InteractiveTemplate = {
   icon?: string;
 };
 
+type ImportedTask = {
+  id: string;
+  name: string;
+  config: string | object;
+  interactive_type?: string;
+};
+
 type NewInteractiveTaskModalProps = {
   open: boolean;
   onClose: () => void;
@@ -69,6 +89,10 @@ type NewInteractiveTaskModalProps = {
   isSubmitting?: boolean;
   providers: ProviderOption[];
   isProvidersLoading?: boolean;
+  importedTasks: ImportedTask[];
+  onDeleteTask: (taskId: string) => void;
+  onQueueTask: (task: ImportedTask) => void;
+  onRefreshTasks: () => void;
 };
 
 export default function NewInteractiveTaskModal({
@@ -78,8 +102,13 @@ export default function NewInteractiveTaskModal({
   isSubmitting = false,
   providers,
   isProvidersLoading = false,
+  importedTasks = [],
+  onDeleteTask,
+  onQueueTask,
+  onRefreshTasks,
 }: NewInteractiveTaskModalProps) {
   const { experimentInfo } = useExperimentInfo();
+  const navigate = useNavigate();
   const [step, setStep] = React.useState<'gallery' | 'config'>('gallery');
   const [selectedTemplate, setSelectedTemplate] =
     React.useState<InteractiveTemplate | null>(null);
@@ -238,83 +267,213 @@ export default function NewInteractiveTaskModal({
             sx={{ maxHeight: '60vh', overflow: 'auto', padding: 1 }}
           >
             {step === 'gallery' ? (
-              <Stack spacing={2}>
-                <Typography level="body-sm">
-                  Select an interactive task type to get started.
-                </Typography>
-                {(galleryIsLoading || !galleryData) && (
-                  <Grid container spacing={2}>
-                    {[1, 2, 3].map((i) => (
-                      <Grid xs={12} sm={6} md={4} key={i}>
-                        <Card variant="outlined">
-                          <CardContent>
-                            <Skeleton
-                              variant="rectangular"
-                              width={32}
-                              height={28}
-                            />
-                            <Skeleton
-                              variant="text"
-                              level="title-md"
-                              sx={{ mt: 1 }}
-                            />
-                            <Skeleton
-                              variant="text"
-                              level="body-sm"
-                              sx={{ mt: 1 }}
-                            />
-                            <Skeleton
-                              variant="text"
-                              level="body-sm"
-                              width="60%"
-                            />
-                          </CardContent>
-                        </Card>
+              <Stack spacing={3}>
+                {/* Imported Tasks Section */}
+                {importedTasks.length > 0 && (
+                  <>
+                    <Stack spacing={1}>
+                      <Typography level="title-md">Your Templates</Typography>
+                    </Stack>
+                    <List
+                      sx={{
+                        '--ListItem-paddingY': '12px',
+                        '--ListItem-paddingX': '16px',
+                      }}
+                    >
+                      {importedTasks.map((task) => {
+                        const cfg =
+                          typeof task.config === 'string'
+                            ? JSON.parse(task.config)
+                            : task.config;
+                        const interactiveType =
+                          cfg?.interactive_type ||
+                          task.interactive_type ||
+                          'vscode';
+
+                        const getInteractiveTypeLabel = (type: string) => {
+                          switch (type) {
+                            case 'jupyter':
+                              return 'Jupyter';
+                            case 'vllm':
+                              return 'vLLM';
+                            case 'ollama':
+                              return 'Ollama';
+                            case 'ssh':
+                              return 'SSH';
+                            default:
+                              return 'VS Code';
+                          }
+                        };
+
+                        return (
+                          <ListItem
+                            key={task.id}
+                            endAction={
+                              <Stack direction="row" spacing={1}>
+                                <IconButton
+                                  size="sm"
+                                  variant="soft"
+                                  color="primary"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onQueueTask(task);
+                                    onClose();
+                                  }}
+                                  title="Launch this template"
+                                >
+                                  <PlayIcon size={16} />
+                                </IconButton>
+                                <IconButton
+                                  size="sm"
+                                  variant="plain"
+                                  color="danger"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDeleteTask(task.id);
+                                  }}
+                                >
+                                  <Trash2Icon size={16} />
+                                </IconButton>
+                              </Stack>
+                            }
+                            sx={{
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              borderRadius: 'sm',
+                              mb: 1,
+                            }}
+                          >
+                            <ListItemContent>
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                              >
+                                <Typography level="title-sm">
+                                  {task.name}
+                                </Typography>
+                                <Chip size="sm" variant="soft" color="primary">
+                                  {getInteractiveTypeLabel(interactiveType)}
+                                </Chip>
+                              </Stack>
+                            </ListItemContent>
+                          </ListItem>
+                        );
+                      })}
+                    </List>
+                    <Divider />
+                  </>
+                )}
+
+                {/* Import More Section */}
+                <Stack spacing={1}>
+                  {importedTasks.length === 0 ? (
+                    <>
+                      <Typography level="title-md">
+                        Get Started with Interactive Tasks
+                      </Typography>
+                      <Typography level="body-sm" color="neutral">
+                        Select an interactive task type to import. Start with VS
+                        Code, Jupyter, or vLLM.
+                      </Typography>
+                    </>
+                  ) : null}
+                </Stack>
+                {importedTasks.length > 0 && (
+                  <Button
+                    variant="soft"
+                    color="success"
+                    startDecorator={<LibraryIcon size={18} />}
+                    onClick={() => {
+                      onClose();
+                      navigate('/tasks-gallery?tab=interactive');
+                    }}
+                    sx={{ alignSelf: 'flex-start', mt: 1 }}
+                  >
+                    Import More Interactive Tasks
+                  </Button>
+                )}
+
+                {importedTasks.length === 0 ? (
+                  // Show first 3 gallery items for new users
+                  <>
+                    {(galleryIsLoading || !galleryData) && (
+                      <Grid container spacing={2}>
+                        {[1, 2, 3].map((i) => (
+                          <Grid xs={12} sm={6} md={4} key={i}>
+                            <Card variant="outlined">
+                              <CardContent>
+                                <Skeleton
+                                  variant="rectangular"
+                                  width={32}
+                                  height={28}
+                                />
+                                <Skeleton
+                                  variant="text"
+                                  level="title-md"
+                                  sx={{ mt: 1 }}
+                                />
+                                <Skeleton
+                                  variant="text"
+                                  level="body-sm"
+                                  sx={{ mt: 1 }}
+                                />
+                                <Skeleton
+                                  variant="text"
+                                  level="body-sm"
+                                  width="60%"
+                                />
+                              </CardContent>
+                            </Card>
+                          </Grid>
+                        ))}
                       </Grid>
-                    ))}
-                  </Grid>
-                )}
-                {!galleryIsLoading && galleryData && gallery.length === 0 && (
-                  <Typography level="body-sm" color="danger">
-                    No interactive task templates available.
-                  </Typography>
-                )}
-                {!galleryIsLoading && galleryData && gallery.length > 0 && (
-                  <Grid container spacing={2}>
-                    {gallery.map((template) => (
-                      <Grid xs={12} sm={6} md={4} key={template.id}>
-                        <Card
-                          variant="outlined"
-                          sx={{
-                            cursor: 'pointer',
-                            '&:hover': {
-                              boxShadow: 'md',
-                              borderColor: 'primary.500',
-                            },
-                          }}
-                          onClick={() => handleTemplateSelect(template)}
-                        >
-                          <CardContent>
-                            {template.icon && (
-                              <img
-                                src={template.icon}
-                                alt={`${template.name} icon`}
-                                width={32}
-                                height={32}
-                              />
-                            )}
-                            <Typography level="title-md">
-                              {template.name}
-                            </Typography>
-                            <Typography level="body-sm" sx={{ mt: 1 }}>
-                              {template.description}
-                            </Typography>
-                          </CardContent>
-                        </Card>
+                    )}
+                    {!galleryIsLoading &&
+                      galleryData &&
+                      gallery.length === 0 && (
+                        <Typography level="body-sm" color="danger">
+                          No interactive task templates available.
+                        </Typography>
+                      )}
+                    {!galleryIsLoading && galleryData && gallery.length > 0 && (
+                      <Grid container spacing={2}>
+                        {gallery.slice(0, 3).map((template) => (
+                          <Grid xs={12} sm={6} md={4} key={template.id}>
+                            <Card
+                              variant="outlined"
+                              sx={{
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  boxShadow: 'md',
+                                  borderColor: 'primary.500',
+                                },
+                              }}
+                              onClick={() => handleTemplateSelect(template)}
+                            >
+                              <CardContent>
+                                {template.icon && (
+                                  <img
+                                    src={template.icon}
+                                    alt={`${template.name} icon`}
+                                    width={32}
+                                    height={32}
+                                  />
+                                )}
+                                <Typography level="title-md">
+                                  {template.name}
+                                </Typography>
+                                <Typography level="body-sm" sx={{ mt: 1 }}>
+                                  {template.description}
+                                </Typography>
+                              </CardContent>
+                            </Card>
+                          </Grid>
+                        ))}
                       </Grid>
-                    ))}
-                  </Grid>
-                )}
+                    )}
+                  </>
+                ) : null}
               </Stack>
             ) : (
               <Stack spacing={3}>
