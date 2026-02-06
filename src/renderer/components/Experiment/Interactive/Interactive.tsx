@@ -642,6 +642,10 @@ export default function Interactive() {
         isSubmitting={isSubmitting}
         providers={providers}
         isProvidersLoading={providersIsLoading}
+        importedTasks={tasks}
+        onDeleteTask={handleDeleteTask}
+        onQueueTask={handleQueue}
+        onRefreshTasks={templatesMutate}
       />
       {taskBeingEdited && (
         <EditInteractiveTaskModal
@@ -709,10 +713,10 @@ export default function Interactive() {
       >
         <Typography level="title-md">Running Services</Typography>
         <Button
-          startDecorator={<LibraryIcon size={16} />}
-          onClick={() => navigate('/tasks-gallery?tab=interactive')}
+          startDecorator={<PlusIcon size={16} />}
+          onClick={() => setInteractiveModalOpen(true)}
         >
-          Import from Gallery
+          New
         </Button>
       </Stack>
       <Sheet
