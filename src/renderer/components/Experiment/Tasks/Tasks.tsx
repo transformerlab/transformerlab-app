@@ -16,7 +16,6 @@ import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import { analytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
-import NewTaskModal from './NewTaskModal/NewTaskModal';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveVSCodeModal from './InteractiveVSCodeModal';
 import InteractiveJupyterModal from './InteractiveJupyterModal';
@@ -999,15 +998,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }}
     >
       {!isInteractivePage && (
-        // <NewTaskModal
-        //   open={modalOpen}
-        //   onClose={handleClose}
-        //   experimentId={experimentInfo?.id}
-        //   onSubmit={handleSubmit}
-        //   isSubmitting={isSubmitting}
-        //   providers={providers}
-        //   isProvidersLoading={providersIsLoading}
-        // />
         <NewTaskModal2
           open={modalOpen}
           onClose={handleClose}
