@@ -1119,6 +1119,9 @@ async def launch_template_on_provider(
     if aws_access_key_id and aws_secret_access_key:
         aws_setup = _generate_aws_credentials_setup(aws_access_key_id, aws_secret_access_key, aws_profile)
         setup_commands.append(aws_setup)
+
+    if request.file_mounts is True and request.task_id:
+        setup_commands.append(COPY_FILE_MOUNTS_SETUP)
     # Ensure transformerlab SDK is available on remote machines for live_status tracking and other helpers.
     # This runs after AWS credentials are configured so we have access to any remote storage if needed.
     if provider.type != ProviderType.LOCAL.value:
@@ -1127,8 +1130,6 @@ async def launch_template_on_provider(
         setup_commands.append("git checkout add/remote-trap")
         setup_commands.append("pip install -q -e .")
         setup_commands.append("cd ../..")
-    if request.file_mounts is True and request.task_id:
-        setup_commands.append(COPY_FILE_MOUNTS_SETUP)
 
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
