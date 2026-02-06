@@ -4,7 +4,7 @@ import { Sparklines, SparklinesLine } from 'react-sparklines';
 import { Box, LinearProgress, Stack, Tooltip, Typography } from '@mui/joy';
 import {
   useServerStats,
-  apiHealthz,
+  useConnectionHealth,
 } from 'renderer/lib/transformerlab-api-sdk';
 import { useEffect, useState } from 'react';
 import { Link2Icon } from 'lucide-react';
@@ -336,67 +336,14 @@ function StatsBar({ connection, setConnection }) {
 
 export default function Header({ connection, setConnection }) {
   const { experimentInfo } = useExperimentInfo();
-  const { isError, server } = useServerStats();
-  const [connectionLost, setConnectionLost] = useState(false);
-
-  // Check connection health when we have a connection URL set
-  useEffect(() => {
-    if (!connection || connection === '') {
-      setConnectionLost(false);
-      return;
-    }
-
-    let isMounted = true;
-    let checkInterval: NodeJS.Timeout | null = null;
-
-    const checkConnectionHealth = async () => {
-      try {
-        const healthz = await apiHealthz();
-        if (isMounted) {
-          // Connection is healthy if healthz returns non-null
-          if (healthz !== null) {
-            setConnectionLost(false);
-          } else {
-            // Connection is lost (apiHealthz returns null on error)
-            setConnectionLost(true);
-          }
-        }
-      } catch (error) {
-        // Connection is lost
-        if (isMounted) {
-          setConnectionLost(true);
-        }
-      }
-    };
-
-    // Check immediately
-    checkConnectionHealth();
-
-    // Then check every 2 seconds for faster detection
-    checkInterval = setInterval(() => {
-      checkConnectionHealth();
-    }, 2000);
-
-    return () => {
-      isMounted = false;
-      if (checkInterval) {
-        clearInterval(checkInterval);
-      }
-    };
-  }, [connection]);
-
-  // Also check if useServerStats reports an error (as a backup detection method)
-  // Note: The direct apiHealthz check above is the primary method, this is just a backup
-  useEffect(() => {
-    if (connection && connection !== '' && isError) {
-      // If useServerStats reports an error, also mark as lost
-      setConnectionLost(true);
-    }
-    // Don't override connectionLost=false here because the direct check above handles that
-  }, [connection, isError]);
+  const { isError: connectionHealthError, isLoading: connectionHealthLoading } =
+    useConnectionHealth(connection);
 
   const isLocalMode = window?.platform?.multiuser !== true;
-  // Show connection lost modal when we have a connection but it's lost
+  // Use connection health (with timeout) so we get a definite fail when server is down;
+  // useServerStats can hang and never set error
+  const connectionLost =
+    connection !== '' && !connectionHealthLoading && !!connectionHealthError;
   const showConnectionLostModal = connection !== '' && connectionLost;
 
   return (

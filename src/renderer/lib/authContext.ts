@@ -237,14 +237,18 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     mutate: userMutate,
   } = useSWR(userKey, (url) => fetchWithAuth(url).then((r) => r.json()));
 
-  // Once we know the user result, derive isAuthenticated from it
+  // Once we know the user result, derive isAuthenticated from it.
+  // Only clear auth on 401 (unauthorized); network/connection errors keep the user
+  // "authenticated" so the app can show Connection Lost modal instead of LoginPage.
   useEffect(() => {
     if (user && !userError) {
       if (!isAuthenticated) {
         setIsAuthenticated(true);
       }
     } else if (userError) {
-      if (isAuthenticated) {
+      const isUnauthorized =
+        userError?.status === 401 || userError?.status === 'unauthorized';
+      if (isUnauthorized && isAuthenticated) {
         setIsAuthenticated(false);
       }
     }
