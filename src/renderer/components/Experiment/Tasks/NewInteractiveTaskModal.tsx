@@ -375,7 +375,7 @@ export default function NewInteractiveTaskModal({
                     startDecorator={<LibraryIcon size={18} />}
                     onClick={() => {
                       onClose();
-                      navigate('/tasks-gallery', { state: { tab: 'interactive' } });
+                      navigate('/tasks-gallery?tab=interactive');
                     }}
                     sx={{ alignSelf: 'flex-start', mt: 1 }}
                   >
