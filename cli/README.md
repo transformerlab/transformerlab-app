@@ -32,6 +32,10 @@
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## Command Reference
+
+For a full list of all commands with detailed options and example usage, see [COMMANDS.md](COMMANDS.md).
+
 # Development
 
 ## Run (DEV):
@@ -58,6 +62,14 @@ Adds a `lab` command to your terminal
 pip install -e .
 uv run textual run --dev src/transformerlab_cli/commands/job_monitor/job_monitor.py
 ```
+
+and then in another window do:
+
+```
+textual console -x SYSTEM -x EVENT -x INFO
+```
+
+## Run Textual in Browser
 
 Run in browser (for fun?)
 ```

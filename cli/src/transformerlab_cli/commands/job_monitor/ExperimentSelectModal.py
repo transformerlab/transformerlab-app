@@ -36,6 +36,20 @@ class ExperimentSelectModal(ModalScreen):
         align: center middle;
         margin-bottom: 1;
     }
+    Select {
+        width: 100%;
+        height: auto;
+        min-height: 3;
+    }
+    Select > SelectCurrent {
+        width: 1fr;
+        height: auto;
+        min-height: 1;
+        padding: 0 1;
+    }
+    Select > SelectCurrent > Static {
+        width: 1fr;
+    }
     """
 
     BINDINGS = [("escape", "dismiss", "Close")]
