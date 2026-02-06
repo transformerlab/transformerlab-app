@@ -27,7 +27,13 @@ import {
   ListItemContent,
   Chip,
 } from '@mui/joy';
-import { ArrowLeftIcon, ArrowRightIcon, Trash2Icon, PlayIcon, LibraryIcon } from 'lucide-react';
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  Trash2Icon,
+  PlayIcon,
+  LibraryIcon,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -266,9 +272,7 @@ export default function NewInteractiveTaskModal({
                 {importedTasks.length > 0 && (
                   <>
                     <Stack spacing={1}>
-                      <Typography level="title-md">
-                        Your Templates
-                      </Typography>
+                      <Typography level="title-md">Your Templates</Typography>
                     </Stack>
                     <List
                       sx={{
@@ -282,15 +286,22 @@ export default function NewInteractiveTaskModal({
                             ? JSON.parse(task.config)
                             : task.config;
                         const interactiveType =
-                          cfg?.interactive_type || task.interactive_type || 'vscode';
+                          cfg?.interactive_type ||
+                          task.interactive_type ||
+                          'vscode';
 
                         const getInteractiveTypeLabel = (type: string) => {
                           switch (type) {
-                            case 'jupyter': return 'Jupyter';
-                            case 'vllm': return 'vLLM';
-                            case 'ollama': return 'Ollama';
-                            case 'ssh': return 'SSH';
-                            default: return 'VS Code';
+                            case 'jupyter':
+                              return 'Jupyter';
+                            case 'vllm':
+                              return 'vLLM';
+                            case 'ollama':
+                              return 'Ollama';
+                            case 'ssh':
+                              return 'SSH';
+                            default:
+                              return 'VS Code';
                           }
                         };
 
@@ -333,13 +344,15 @@ export default function NewInteractiveTaskModal({
                             }}
                           >
                             <ListItemContent>
-                              <Stack direction="row" spacing={1} alignItems="center">
-                                <Typography level="title-sm">{task.name}</Typography>
-                                <Chip
-                                  size="sm"
-                                  variant="soft"
-                                  color="primary"
-                                >
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                              >
+                                <Typography level="title-sm">
+                                  {task.name}
+                                </Typography>
+                                <Chip size="sm" variant="soft" color="primary">
                                   {getInteractiveTypeLabel(interactiveType)}
                                 </Chip>
                               </Stack>
@@ -360,7 +373,8 @@ export default function NewInteractiveTaskModal({
                         Get Started with Interactive Tasks
                       </Typography>
                       <Typography level="body-sm" color="neutral">
-                        Select an interactive task type to import. Start with VS Code, Jupyter, or vLLM.
+                        Select an interactive task type to import. Start with VS
+                        Code, Jupyter, or vLLM.
                       </Typography>
                     </>
                   ) : null}
@@ -415,11 +429,13 @@ export default function NewInteractiveTaskModal({
                         ))}
                       </Grid>
                     )}
-                    {!galleryIsLoading && galleryData && gallery.length === 0 && (
-                      <Typography level="body-sm" color="danger">
-                        No interactive task templates available.
-                      </Typography>
-                    )}
+                    {!galleryIsLoading &&
+                      galleryData &&
+                      gallery.length === 0 && (
+                        <Typography level="body-sm" color="danger">
+                          No interactive task templates available.
+                        </Typography>
+                      )}
                     {!galleryIsLoading && galleryData && gallery.length > 0 && (
                       <Grid container spacing={2}>
                         {gallery.slice(0, 3).map((template) => (

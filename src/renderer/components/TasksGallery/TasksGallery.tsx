@@ -138,13 +138,13 @@ function TaskCard({
   onSelect?: (taskId: string, selected: boolean) => void;
 }) {
   const taskId = task?.id || task?.title || galleryIdentifier.toString();
-  
+
   // Interactive tasks use 'name' field instead of 'title'
   const taskTitle = task.title || task.name || 'Untitled Task';
-  
+
   // Interactive tasks may have icon URLs
   const hasIconUrl = !!task?.icon;
-  
+
   return (
     <Card variant="outlined" sx={{ height: '100%' }}>
       <CardContent
@@ -167,11 +167,11 @@ function TaskCard({
                 component="img"
                 src={task.icon}
                 alt={taskTitle}
-                sx={{ 
-                  width: 32, 
-                  height: 32, 
+                sx={{
+                  width: 32,
+                  height: 32,
                   objectFit: 'contain',
-                  borderRadius: '4px'
+                  borderRadius: '4px',
                 }}
               />
             ) : (
@@ -186,9 +186,7 @@ function TaskCard({
             )}
           </Box>
           <Box>
-            <Typography level="title-lg">
-              {taskTitle}
-            </Typography>
+            <Typography level="title-lg">{taskTitle}</Typography>
             {task?.description && (
               <Typography level="body-sm" sx={{ mt: 1 }}>
                 {task.description}
@@ -307,7 +305,9 @@ export default function TasksGallery() {
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const [searchText, setSearchText] = useState('');
-  const [activeTab, setActiveTab] = useState<'global' | 'team' | 'interactive'>('global');
+  const [activeTab, setActiveTab] = useState<'global' | 'team' | 'interactive'>(
+    'global',
+  );
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const navigate = useNavigate();
@@ -375,8 +375,8 @@ export default function TasksGallery() {
         activeTab === 'team'
           ? chatAPI.Endpoints.Task.ImportFromTeamGallery(experimentInfo.id)
           : activeTab === 'interactive'
-          ? chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id)
-          : chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id);
+            ? chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id)
+            : chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id);
       const response = await chatAPI.authenticatedFetch(endpoint, {
         method: 'POST',
         headers: {
@@ -572,8 +572,18 @@ export default function TasksGallery() {
   const globalGallery = data?.data || [];
   const teamGallery = teamData?.data || [];
   const interactiveGallery = interactiveData?.data || [];
-  const gallery = activeTab === 'team' ? teamGallery : activeTab === 'interactive' ? interactiveGallery : globalGallery;
-  const isActiveLoading = activeTab === 'team' ? teamLoading : activeTab === 'interactive' ? interactiveLoading : isLoading;
+  const gallery =
+    activeTab === 'team'
+      ? teamGallery
+      : activeTab === 'interactive'
+        ? interactiveGallery
+        : globalGallery;
+  const isActiveLoading =
+    activeTab === 'team'
+      ? teamLoading
+      : activeTab === 'interactive'
+        ? interactiveLoading
+        : isLoading;
 
   return (
     <Sheet
