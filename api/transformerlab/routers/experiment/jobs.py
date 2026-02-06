@@ -556,10 +556,10 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
     if is_remote_path:
         # Use S3 polling watcher for remote filesystems
         # This handles file rewrites better by comparing content lengths
-        from transformerlab.routers.serverinfo import watch_s3_file
+        from transformerlab.routers.serverinfo import watch_remote_file
 
         return StreamingResponse(
-            watch_s3_file(output_file_name, start_from_beginning=True, poll_interval_ms=100),
+            watch_remote_file(output_file_name, start_from_beginning=True, poll_interval_ms=100),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
         )
