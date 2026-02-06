@@ -4,14 +4,15 @@
   "description": "A plugin for fine-tuning Stable Diffusion using LoRA adapters.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "git": "",
   "url": "",
   "model_architectures": [
     "StableDiffusionPipeline",
     "StableDiffusionXLPipeline",
     "StableDiffusion3Pipeline",
-    "FluxPipeline"
+    "FluxPipeline",
+    "ZImagePipeline"
   ],
   "files": ["main.py", "setup.sh"],
   "supported_hardware_architectures": ["cuda", "amd"],
