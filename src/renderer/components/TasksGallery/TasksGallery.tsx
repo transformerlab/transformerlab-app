@@ -1,6 +1,6 @@
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
   Button,
@@ -38,11 +38,11 @@ import { fetcher } from '../../lib/transformerlab-api-sdk';
 import { useNotification } from '../Shared/NotificationSystem';
 import NewTeamTaskModal from './NewTeamTaskModal';
 
-// Custom filter function for tasks gallery (uses 'title' instead of 'name')
+// Custom filter function for tasks gallery (uses 'title' or 'name' field)
 function filterTasksGallery(data: any[], searchText: string = '') {
   const lowerSearch = searchText.toLowerCase();
   const filteredData = data.filter((task) => {
-    const title = task.title || '';
+    const title = task.title || task.name || '';
     const description = task.description || '';
     return (
       title.toLowerCase().includes(lowerSearch) ||
@@ -138,6 +138,13 @@ function TaskCard({
   onSelect?: (taskId: string, selected: boolean) => void;
 }) {
   const taskId = task?.id || task?.title || galleryIdentifier.toString();
+  
+  // Interactive tasks use 'name' field instead of 'title'
+  const taskTitle = task.title || task.name || 'Untitled Task';
+  
+  // Interactive tasks may have icon URLs
+  const hasIconUrl = !!task?.icon;
+  
   return (
     <Card variant="outlined" sx={{ height: '100%' }}>
       <CardContent
@@ -155,7 +162,21 @@ function TaskCard({
               alignItems: 'flex-start',
             }}
           >
-            <TaskIcon category={task?.metadata?.category} />
+            {hasIconUrl ? (
+              <Box
+                component="img"
+                src={task.icon}
+                alt={taskTitle}
+                sx={{ 
+                  width: 32, 
+                  height: 32, 
+                  objectFit: 'contain',
+                  borderRadius: '4px'
+                }}
+              />
+            ) : (
+              <TaskIcon category={task?.metadata?.category} />
+            )}
             {showCheckbox && (
               <Checkbox
                 checked={isSelected || false}
@@ -166,7 +187,7 @@ function TaskCard({
           </Box>
           <Box>
             <Typography level="title-lg">
-              {task?.title || 'Untitled Task'}
+              {taskTitle}
             </Typography>
             {task?.description && (
               <Typography level="body-sm" sx={{ mt: 1 }}>
@@ -283,8 +304,10 @@ function TaskCard({
 }
 
 export default function TasksGallery() {
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
   const [searchText, setSearchText] = useState('');
-  const [activeTab, setActiveTab] = useState<'global' | 'team'>('global');
+  const [activeTab, setActiveTab] = useState<'global' | 'team' | 'interactive'>('global');
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const navigate = useNavigate();
@@ -295,6 +318,17 @@ export default function TasksGallery() {
   const [isSubmittingTeamTask, setIsSubmittingTeamTask] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Set active tab based on URL parameter
+  useEffect(() => {
+    if (tabParam === 'interactive') {
+      setActiveTab('interactive');
+    } else if (tabParam === 'team') {
+      setActiveTab('team');
+    } else if (tabParam === 'global') {
+      setActiveTab('global');
+    }
+  }, [tabParam]);
 
   const { data, isLoading, mutate } = useSWR(
     experimentInfo?.id
@@ -310,6 +344,16 @@ export default function TasksGallery() {
   } = useSWR(
     experimentInfo?.id
       ? chatAPI.Endpoints.Task.TeamGallery(experimentInfo.id)
+      : null,
+    fetcher,
+  );
+  const {
+    data: interactiveData,
+    isLoading: interactiveLoading,
+    mutate: interactiveMutate,
+  } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Task.InteractiveGallery(experimentInfo.id)
       : null,
     fetcher,
   );
@@ -330,6 +374,8 @@ export default function TasksGallery() {
       const endpoint =
         activeTab === 'team'
           ? chatAPI.Endpoints.Task.ImportFromTeamGallery(experimentInfo.id)
+          : activeTab === 'interactive'
+          ? chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id)
           : chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id);
       const response = await chatAPI.authenticatedFetch(endpoint, {
         method: 'POST',
@@ -339,6 +385,7 @@ export default function TasksGallery() {
         body: JSON.stringify({
           gallery_id: galleryIdentifier.toString(),
           experiment_id: experimentInfo.id,
+          is_interactive: activeTab === 'interactive',
         }),
       });
 
@@ -359,12 +406,18 @@ export default function TasksGallery() {
 
       if (activeTab === 'team') {
         teamMutate();
+      } else if (activeTab === 'interactive') {
+        interactiveMutate();
       } else {
         mutate();
       }
 
-      // Navigate to the tasks page for the experiment
-      navigate(`/experiment/tasks`);
+      // Navigate to the appropriate page
+      if (activeTab === 'interactive') {
+        navigate(`/experiment/interactive`);
+      } else {
+        navigate(`/experiment/tasks`);
+      }
     } catch (err: any) {
       console.error('Error importing template:', err);
       addNotification({
@@ -518,8 +571,9 @@ export default function TasksGallery() {
 
   const globalGallery = data?.data || [];
   const teamGallery = teamData?.data || [];
-  const gallery = activeTab === 'team' ? teamGallery : globalGallery;
-  const isActiveLoading = activeTab === 'team' ? teamLoading : isLoading;
+  const interactiveGallery = interactiveData?.data || [];
+  const gallery = activeTab === 'team' ? teamGallery : activeTab === 'interactive' ? interactiveGallery : globalGallery;
+  const isActiveLoading = activeTab === 'team' ? teamLoading : activeTab === 'interactive' ? interactiveLoading : isLoading;
 
   return (
     <Sheet
@@ -549,7 +603,7 @@ export default function TasksGallery() {
           value={activeTab}
           onChange={(_e, val) => {
             if (val) {
-              setActiveTab(val as 'global' | 'team');
+              setActiveTab(val as 'global' | 'team' | 'interactive');
               // Clear selection when switching tabs
               setSelectedTasks(new Set());
             }
@@ -557,6 +611,7 @@ export default function TasksGallery() {
         >
           <TabList>
             <Tab value="global">Tasks Gallery</Tab>
+            <Tab value="interactive">Interactive Gallery</Tab>
             <Tab value="team">Team Specific Tasks</Tab>
           </TabList>
         </Tabs>
