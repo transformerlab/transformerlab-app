@@ -371,7 +371,7 @@ export default function NewInteractiveTaskModal({
                 {importedTasks.length > 0 && (
                   <Button
                     variant="soft"
-                    color="primary"
+                    color="success"
                     startDecorator={<LibraryIcon size={18} />}
                     onClick={() => {
                       onClose();
