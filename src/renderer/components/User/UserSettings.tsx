@@ -234,7 +234,10 @@ export default function UserSettings(): JSX.Element {
             <Typography>
               Email: <b>{userInfo?.email}</b>
             </Typography>
-            <Button variant="outlined" onClick={() => setIsNameChangeOpen(true)}>
+            <Button
+              variant="outlined"
+              onClick={() => setIsNameChangeOpen(true)}
+            >
               Change Name
             </Button>
             <Button
@@ -260,16 +263,12 @@ export default function UserSettings(): JSX.Element {
             originalLastName={userInfo?.last_name || ''}
           />
           <Box mt={4}>
-            <Typography level="title-lg">
-              Teams you belong to:
-            </Typography>
+            <Typography level="title-lg">Teams you belong to:</Typography>
             {teams?.teams && (
               <List>
                 {teams.teams.map((team: any) => (
                   <ListItem key={team.id}>
-                    <ListItemButton
-                      selected={authContext.team?.id === team.id}
-                    >
+                    <ListItemButton selected={authContext.team?.id === team.id}>
                       <ListItemContent>
                         <Typography level="title-md">
                           {team.name}

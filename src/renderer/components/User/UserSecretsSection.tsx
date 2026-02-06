@@ -269,8 +269,8 @@ export default function UserSecretsSection() {
         User Secrets
       </Typography>
       <Typography level="body-sm" color="neutral" mb={2}>
-        User-specific secrets override team secrets. User secrets take precedence
-        over team secrets with the same name.
+        User-specific secrets override team secrets. User secrets take
+        precedence over team secrets with the same name.
       </Typography>
 
       {/* Special Secrets Section */}
@@ -282,10 +282,10 @@ export default function UserSecretsSection() {
           Custom Secrets
         </Typography>
         <Typography level="body-sm" color="neutral" mb={2}>
-          Custom secrets can be referenced in task configurations using the syntax{' '}
-          <code>{'{{secret.<secret_name>}}'}</code>. The system will automatically
-          replace these placeholders with the actual secret values when launching
-          tasks.
+          Custom secrets can be referenced in task configurations using the
+          syntax <code>{'{{secret.<secret_name>}}'}</code>. The system will
+          automatically replace these placeholders with the actual secret values
+          when launching tasks.
         </Typography>
         <Alert color="primary" variant="soft" sx={{ mb: 2 }}>
           <Typography level="body-sm">
@@ -300,8 +300,9 @@ export default function UserSecretsSection() {
             <br />• In Python code: <code>lab.get_secret("API_KEY")</code>
             <br />
             <br />
-            <strong>Note:</strong> Special secrets (_GITHUB_PAT_TOKEN, _HF_TOKEN, _WANDB_API_KEY)
-            cannot be set here. Use the Special Secrets section above.
+            <strong>Note:</strong> Special secrets (_GITHUB_PAT_TOKEN,
+            _HF_TOKEN, _WANDB_API_KEY) cannot be set here. Use the Special
+            Secrets section above.
           </Typography>
         </Alert>
 
@@ -312,133 +313,139 @@ export default function UserSecretsSection() {
         )}
 
         <Card variant="outlined" sx={{ p: 2, mb: 3 }}>
-        {secrets.length === 0 ? (
-          <Alert color="neutral" variant="soft" sx={{ mb: 2 }}>
-            No secrets configured. Click "Add Secret" to add one.
-          </Alert>
-        ) : (
-          <Table sx={{ tableLayout: 'auto', width: '100%' }}>
-            <thead>
-              <tr>
-                <th style={{ width: '20%' }}>Secret Key</th>
-                <th style={{ width: '40%' }}>Value</th>
-                <th style={{ width: '40%' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {secrets.map((secret, index) => (
-                <tr key={index}>
-                  <td>
-                    <Input
-                      value={secret.key}
-                      onChange={(e) =>
-                        handleUpdateSecret(index, 'key', e.target.value)
-                      }
-                      placeholder="e.g. API_KEY"
-                      disabled={saving || (!secret.isNew && !secret.isEditing)}
-                      sx={{ width: '100%', maxWidth: '100%' }}
-                    />
-                  </td>
-                  <td>
-                    {secret.isNew || secret.isEditing ? (
+          {secrets.length === 0 ? (
+            <Alert color="neutral" variant="soft" sx={{ mb: 2 }}>
+              No secrets configured. Click "Add Secret" to add one.
+            </Alert>
+          ) : (
+            <Table sx={{ tableLayout: 'auto', width: '100%' }}>
+              <thead>
+                <tr>
+                  <th style={{ width: '20%' }}>Secret Key</th>
+                  <th style={{ width: '40%' }}>Value</th>
+                  <th style={{ width: '40%' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {secrets.map((secret, index) => (
+                  <tr key={index}>
+                    <td>
                       <Input
-                        type="password"
-                        value={secret.value}
+                        value={secret.key}
                         onChange={(e) =>
-                          handleUpdateSecret(index, 'value', e.target.value)
+                          handleUpdateSecret(index, 'key', e.target.value)
                         }
-                        placeholder="Enter secret value"
-                        disabled={saving}
+                        placeholder="e.g. API_KEY"
+                        disabled={
+                          saving || (!secret.isNew && !secret.isEditing)
+                        }
                         sx={{ width: '100%', maxWidth: '100%' }}
                       />
-                    ) : (
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Input value="••••••••" disabled sx={{ flex: 1 }} />
-                        <IconButton
-                          size="sm"
-                          variant="plain"
-                          onClick={() => handleViewSecret(secret.key)}
+                    </td>
+                    <td>
+                      {secret.isNew || secret.isEditing ? (
+                        <Input
+                          type="password"
+                          value={secret.value}
+                          onChange={(e) =>
+                            handleUpdateSecret(index, 'value', e.target.value)
+                          }
+                          placeholder="Enter secret value"
                           disabled={saving}
-                        >
-                          <EyeIcon size={16} />
-                        </IconButton>
-                      </Stack>
-                    )}
-                  </td>
-                  <td>
-                    <Stack direction="row" spacing={0.5} sx={{ width: '100%' }}>
-                      {!secret.isNew && !secret.isEditing && (
-                        <>
+                          sx={{ width: '100%', maxWidth: '100%' }}
+                        />
+                      ) : (
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Input value="••••••••" disabled sx={{ flex: 1 }} />
                           <IconButton
                             size="sm"
                             variant="plain"
-                            onClick={() => handleEditSecret(index)}
+                            onClick={() => handleViewSecret(secret.key)}
                             disabled={saving}
                           >
-                            <EditIcon size={16} />
+                            <EyeIcon size={16} />
                           </IconButton>
-                          <IconButton
-                            size="sm"
-                            color="danger"
-                            variant="plain"
-                            onClick={() => handleRemoveSecret(index)}
-                            disabled={saving}
-                          >
-                            <Trash2Icon size={16} />
-                          </IconButton>
-                        </>
+                        </Stack>
                       )}
-                      {(secret.isNew || secret.isEditing) && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="solid"
-                            onClick={() => handleSaveSecret(index)}
-                            disabled={
-                              saving ||
-                              !secret.key.trim() ||
-                              !secret.value.trim()
-                            }
-                            loading={saving}
-                            sx={{ minWidth: 60 }}
-                          >
-                            Save
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="plain"
-                            onClick={() => {
-                              if (secret.isNew) {
-                                handleRemoveSecret(index);
-                              } else {
-                                handleCancelEdit(index);
+                    </td>
+                    <td>
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        sx={{ width: '100%' }}
+                      >
+                        {!secret.isNew && !secret.isEditing && (
+                          <>
+                            <IconButton
+                              size="sm"
+                              variant="plain"
+                              onClick={() => handleEditSecret(index)}
+                              disabled={saving}
+                            >
+                              <EditIcon size={16} />
+                            </IconButton>
+                            <IconButton
+                              size="sm"
+                              color="danger"
+                              variant="plain"
+                              onClick={() => handleRemoveSecret(index)}
+                              disabled={saving}
+                            >
+                              <Trash2Icon size={16} />
+                            </IconButton>
+                          </>
+                        )}
+                        {(secret.isNew || secret.isEditing) && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="solid"
+                              onClick={() => handleSaveSecret(index)}
+                              disabled={
+                                saving ||
+                                !secret.key.trim() ||
+                                !secret.value.trim()
                               }
-                            }}
-                            disabled={saving}
-                            sx={{ minWidth: 60 }}
-                          >
-                            Cancel
-                          </Button>
-                        </>
-                      )}
-                    </Stack>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
+                              loading={saving}
+                              sx={{ minWidth: 60 }}
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="plain"
+                              onClick={() => {
+                                if (secret.isNew) {
+                                  handleRemoveSecret(index);
+                                } else {
+                                  handleCancelEdit(index);
+                                }
+                              }}
+                              disabled={saving}
+                              sx={{ minWidth: 60 }}
+                            >
+                              Cancel
+                            </Button>
+                          </>
+                        )}
+                      </Stack>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
 
-        <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-          <Button
-            startDecorator={<PlusIcon />}
-            onClick={handleAddSecret}
-            disabled={saving}
-            variant="outlined"
-          >
-            Add Secret
-          </Button>
-        </Stack>
+          <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+            <Button
+              startDecorator={<PlusIcon />}
+              onClick={handleAddSecret}
+              disabled={saving}
+              variant="outlined"
+            >
+              Add Secret
+            </Button>
+          </Stack>
         </Card>
       </Box>
 

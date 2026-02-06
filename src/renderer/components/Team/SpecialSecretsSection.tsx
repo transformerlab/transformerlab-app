@@ -32,7 +32,8 @@ export default function SpecialSecretsSection({
   isUser = false,
 }: SpecialSecretsSectionProps) {
   const { fetchWithAuth } = useAuth();
-  const [selectedSecretType, setSelectedSecretType] = useState<string>('_GITHUB_PAT_TOKEN');
+  const [selectedSecretType, setSelectedSecretType] =
+    useState<string>('_GITHUB_PAT_TOKEN');
   const [secretValue, setSecretValue] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -174,12 +175,16 @@ export default function SpecialSecretsSection({
 
   return (
     <Box sx={{ mt: 2 }}>
-      <Typography level="title-md" mb={2} startDecorator={<KeyIcon size={16} />}>
+      <Typography
+        level="title-md"
+        mb={2}
+        startDecorator={<KeyIcon size={16} />}
+      >
         Special Secrets
       </Typography>
       <Typography level="body-sm" color="neutral" mb={2}>
-        Manage special secrets that integrate with external services. These secrets
-        are stored securely and can be referenced in tasks using{' '}
+        Manage special secrets that integrate with external services. These
+        secrets are stored securely and can be referenced in tasks using{' '}
         <code>{'{{secret.<secret_name>}}'}</code>.
       </Typography>
       <Alert color="primary" variant="soft" sx={{ mb: 2 }}>
@@ -187,10 +192,12 @@ export default function SpecialSecretsSection({
           <strong>Reference these secrets in your tasks:</strong>
           <br />• GitHub PAT: <code>{'{{secret._GITHUB_PAT_TOKEN}}'}</code>
           <br />• HuggingFace Token: <code>{'{{secret._HF_TOKEN}}'}</code>
-          <br />• Weights & Biases API Key: <code>{'{{secret._WANDB_API_KEY}}'}</code>
+          <br />• Weights & Biases API Key:{' '}
+          <code>{'{{secret._WANDB_API_KEY}}'}</code>
           <br />
           <br />
-          Example: <code>huggingface-cli login --token {'{{secret._HF_TOKEN}}'}</code>
+          Example:{' '}
+          <code>huggingface-cli login --token {'{{secret._HF_TOKEN}}'}</code>
         </Typography>
       </Alert>
 
@@ -221,14 +228,22 @@ export default function SpecialSecretsSection({
 
         {currentSecret?.exists && (
           <Alert color="success" variant="soft">
-            {SPECIAL_SECRET_TYPES[selectedSecretType as keyof typeof SPECIAL_SECRET_TYPES]} is
-            configured. Last 4 characters: {currentSecret.masked_value}
+            {
+              SPECIAL_SECRET_TYPES[
+                selectedSecretType as keyof typeof SPECIAL_SECRET_TYPES
+              ]
+            }{' '}
+            is configured. Last 4 characters: {currentSecret.masked_value}
           </Alert>
         )}
 
         <FormControl>
           <FormLabel>
-            {SPECIAL_SECRET_TYPES[selectedSecretType as keyof typeof SPECIAL_SECRET_TYPES]}
+            {
+              SPECIAL_SECRET_TYPES[
+                selectedSecretType as keyof typeof SPECIAL_SECRET_TYPES
+              ]
+            }
           </FormLabel>
           <Input
             type="password"
