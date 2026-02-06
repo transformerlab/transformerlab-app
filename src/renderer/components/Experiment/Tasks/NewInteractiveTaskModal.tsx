@@ -28,6 +28,7 @@ import {
   Chip,
 } from '@mui/joy';
 import { ArrowLeftIcon, ArrowRightIcon, Trash2Icon, PlayIcon, LibraryIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
@@ -101,6 +102,7 @@ export default function NewInteractiveTaskModal({
   onRefreshTasks,
 }: NewInteractiveTaskModalProps) {
   const { experimentInfo } = useExperimentInfo();
+  const navigate = useNavigate();
   const [step, setStep] = React.useState<'gallery' | 'config'>('gallery');
   const [selectedTemplate, setSelectedTemplate] =
     React.useState<InteractiveTemplate | null>(null);
@@ -362,24 +364,24 @@ export default function NewInteractiveTaskModal({
                       </Typography>
                     </>
                   ) : (
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <Typography level="body-sm" color="neutral">
-                        Want more tasks?
-                      </Typography>
-                      <Button
-                        variant="plain"
-                        size="sm"
-                        onClick={() => {
-                          window.location.href = '/tasks-gallery?tab=interactive';
-                        }}
-                        sx={{ px: 0, textDecoration: 'underline' }}
-                        endDecorator={<LibraryIcon size={14} />}
-                      >
-                        Import more
-                      </Button>
-                    </Stack>
+                    <Divider />
                   )}
                 </Stack>
+
+                {importedTasks.length > 0 && (
+                  <Button
+                    variant="soft"
+                    color="primary"
+                    startDecorator={<LibraryIcon size={18} />}
+                    onClick={() => {
+                      onClose();
+                      navigate('/tasks-gallery', { state: { tab: 'interactive' } });
+                    }}
+                    sx={{ alignSelf: 'flex-start', mt: 1 }}
+                  >
+                    Import More Interactive Tasks
+                  </Button>
+                )}
 
                 {importedTasks.length === 0 ? (
                   // Show first 3 gallery items for new users
