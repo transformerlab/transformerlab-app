@@ -1288,6 +1288,7 @@ def train_diffusion_lora():
         },
         "tlab_trainer_used": True,
     }
+
     async def _write_adaptor_info() -> None:
         async with await storage.open(
             storage.join(save_directory, "tlab_adaptor_info.json"),
