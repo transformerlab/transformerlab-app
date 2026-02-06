@@ -552,11 +552,12 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
 
     # Check if this is a remote path (S3, GCS, etc.) and use appropriate watcher
     is_remote_path = storage.is_remote_path(output_file_name)
-    
+
     if is_remote_path:
         # Use S3 polling watcher for remote filesystems
         # This handles file rewrites better by comparing content lengths
         from transformerlab.routers.serverinfo import watch_s3_file
+
         return StreamingResponse(
             watch_s3_file(output_file_name, start_from_beginning=True, poll_interval_ms=100),
             media_type="text/event-stream",
