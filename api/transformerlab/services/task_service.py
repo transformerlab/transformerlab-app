@@ -4,8 +4,14 @@ This replaces the database-based task operations with filesystem-based ones.
 """
 
 import uuid
+from datetime import datetime
 from typing import List, Dict, Any, Optional
 from lab.task_template import TaskTemplate as TaskTemplateService
+
+# Keys that are never removed when syncing from task.yaml (system-owned).
+# Any other key in stored metadata that is not in the parsed task_data is
+# removed, so we don't need to maintain a list of YAML field names.
+_PROTECTED_METADATA_KEYS = frozenset({"id", "experiment_id", "type", "plugin", "created_at"})
 
 
 class TaskService:
@@ -81,6 +87,32 @@ class TaskService:
 
             if update_data:
                 await task.set_metadata(**update_data)
+            return True
+        except FileNotFoundError:
+            return False
+
+    async def update_task_from_yaml(self, task_id: str, task_data: Dict[str, Any]) -> bool:
+        """Update task metadata from parsed task.yaml so it matches the YAML exactly.
+        Keeps only protected (system) keys from existing metadata, then applies
+        task_data; any other key not in task_data is removed (so removing a
+        field in the editor actually removes it).
+        """
+        try:
+            task = await self.task_service.get(str(task_id))
+            data = await task.get_json_data()
+
+            # Start from existing protected keys only; then apply parsed YAML
+            out = {k: data[k] for k in _PROTECTED_METADATA_KEYS if k in data}
+            out.update(task_data)
+
+            # Preserve file_mounts when YAML omits it and existing has a value
+            if "file_mounts" not in task_data:
+                existing_mounts = data.get("file_mounts")
+                if existing_mounts is True or (isinstance(existing_mounts, dict) and len(existing_mounts) > 0):
+                    out["file_mounts"] = existing_mounts
+
+            out["updated_at"] = datetime.utcnow().isoformat()
+            await task._set_json_data(out)
             return True
         except FileNotFoundError:
             return False
