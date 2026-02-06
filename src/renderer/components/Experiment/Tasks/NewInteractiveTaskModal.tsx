@@ -363,11 +363,8 @@ export default function NewInteractiveTaskModal({
                         Select an interactive task type to import. Start with VS Code, Jupyter, or vLLM.
                       </Typography>
                     </>
-                  ) : (
-                    <Divider />
-                  )}
+                  ) : null}
                 </Stack>
-
                 {importedTasks.length > 0 && (
                   <Button
                     variant="soft"
