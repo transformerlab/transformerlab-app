@@ -165,6 +165,12 @@ async def get_macmon_data():
 @router.get("/info")
 async def get_computer_information():
     # start with our static system information and add current performance details
+    if os.getenv("TFL_API_STORAGE_URI") == "true":
+        return {
+            "message": "OK",
+            "mode": "s3",
+        }
+
     r = system_info
 
     # Get the current disk usage if its a mac
