@@ -262,6 +262,17 @@ export default function JobProgress({
               <StopCircleIcon size="20px" />
             </IconButton>
           </Stack>
+          {/* For remote provider-backed jobs in LAUNCHING state, show live_status if available */}
+          {job?.status === 'LAUNCHING' && job?.job_data?.live_status === 'started' && (
+            <Typography level="body-xs" color="neutral">
+              Remote command started on compute provider&hellip;
+            </Typography>
+          )}
+          {job?.status === 'LAUNCHING' && job?.job_data?.live_status === 'crashed' && (
+            <Typography level="body-xs" color="danger">
+              Remote command crashed. Check provider logs for details.
+            </Typography>
+          )}
           {/* Add smaller sweep subprogress bar when job.progress is -1 */}
           {job.progress === '-1' &&
             Object.prototype.hasOwnProperty.call(

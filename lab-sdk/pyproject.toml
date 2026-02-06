@@ -25,6 +25,9 @@ dependencies = [
 "Homepage" = "https://github.com/transformerlab/transformerlab-app"
 "Bug Tracker" = "https://github.com/transformerlab/transformerlab-app/issues"
 
+[project.scripts]
+tfl-remote-trap = "lab.remote_trap:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
