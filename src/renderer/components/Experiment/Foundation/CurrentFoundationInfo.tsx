@@ -48,28 +48,27 @@ const fetchWithPost = (key) => {
   if (!key) {
     return Promise.resolve([]);
   }
-  
+
   if (!key.url || !key.post) {
     return Promise.resolve([]);
   }
-  
+
   const { url, post } = key;
-  
+
   return fetchWithAuth(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(post),
-  })
-    .then((res) => {
-      if (!res.ok) {
-        return res.text().then(text => {
-          throw new Error(`HTTP ${res.status}: ${text}`);
-        });
-      }
-      return res.json();
-    });
+  }).then((res) => {
+    if (!res.ok) {
+      return res.text().then((text) => {
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      });
+    }
+    return res.json();
+  });
 };
 
 function modelNameIsInHuggingfaceFormat(modelName: string) {
@@ -110,7 +109,7 @@ export default function CurrentFoundationInfo({
   setLogsDrawerOpen = null,
 }) {
   const foundationModel = experimentInfo?.config?.foundation;
-  
+
   // Use useMemo to create a stable key object for SWR
   const swrKey = useMemo(() => {
     if (!foundationModel) {
@@ -122,14 +121,15 @@ export default function CurrentFoundationInfo({
     };
   }, [foundationModel]);
 
-  const { data: peftData, mutate: peftMutate, error: peftError, isLoading: peftIsLoading } = useSWR(
-    swrKey,
-    fetchWithPost,
-    {
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-    }
-  );
+  const {
+    data: peftData,
+    mutate: peftMutate,
+    error: peftError,
+    isLoading: peftIsLoading,
+  } = useSWR(swrKey, fetchWithPost, {
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+  });
 
   const { mutate: experimentInfoMutate } = useSWR(
     chatAPI.Endpoints.Experiment.Get(experimentInfo?.id),
@@ -597,17 +597,20 @@ export default function CurrentFoundationInfo({
             <Stack direction="column" gap={1}>
               {!foundationModel && (
                 <Typography level="body-sm" color="neutral">
-                  No foundation model selected. Please select a foundation model first.
+                  No foundation model selected. Please select a foundation model
+                  first.
                 </Typography>
               )}
               {foundationModel && !peftData && !peftIsLoading && !peftError && (
                 <Typography level="body-sm" color="neutral">
-                  No adaptors found. The request may not have been triggered. Check console for details.
+                  No adaptors found. The request may not have been triggered.
+                  Check console for details.
                 </Typography>
               )}
               {foundationModel && !peftData && !peftIsLoading && peftError && (
                 <Typography level="body-sm" color="danger">
-                  Error loading adaptors: {peftError?.message || String(peftError)}
+                  Error loading adaptors:{' '}
+                  {peftError?.message || String(peftError)}
                 </Typography>
               )}
               {peftIsLoading && (
@@ -617,7 +620,8 @@ export default function CurrentFoundationInfo({
               )}
               {peftError && (
                 <Typography level="body-sm" color="danger">
-                  Error loading adaptors: {peftError?.message || String(peftError)}
+                  Error loading adaptors:{' '}
+                  {peftError?.message || String(peftError)}
                 </Typography>
               )}
               {Array.isArray(peftData) && peftData.length === 0 && (
