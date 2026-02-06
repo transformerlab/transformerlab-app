@@ -432,7 +432,7 @@ def train_diffusion_lora():
 
     if eval_prompt:
         eval_images_dir = storage.join(workspace_dir, "temp", f"eval_images_{job_id}")
-        storage.makedirs(eval_images_dir, exist_ok=True)
+        asyncio.run(storage.makedirs(eval_images_dir, exist_ok=True))
         print(f"Evaluation images will be saved to: {eval_images_dir}")
 
         # Add eval images directory to job data
@@ -1270,7 +1270,7 @@ def train_diffusion_lora():
 
     print(f"Saving LoRA weights to {save_directory}")
 
-    storage.makedirs(save_directory, exist_ok=True)
+    asyncio.run(storage.makedirs(save_directory, exist_ok=True))
 
     # Primary method: Use the original working approach that was perfect for SD 1.5
     # Try architecture-specific save methods first, then fall back to universal methods
@@ -1288,8 +1288,15 @@ def train_diffusion_lora():
         },
         "tlab_trainer_used": True,
     }
-    with storage.open(storage.join(save_directory, "tlab_adaptor_info.json"), "w", encoding="utf-8") as f:
-        json.dump(save_info, f, indent=4)
+    async def _write_adaptor_info() -> None:
+        async with await storage.open(
+            storage.join(save_directory, "tlab_adaptor_info.json"),
+            "w",
+            encoding="utf-8",
+        ) as f:
+            await f.write(json.dumps(save_info, indent=4))
+
+    asyncio.run(_write_adaptor_info())
 
     # Method 0: Z-Image PEFT safetensors save
     if is_zimage:
