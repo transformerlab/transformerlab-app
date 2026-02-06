@@ -566,7 +566,7 @@ async def import_task_from_gallery(
     if request.is_interactive:
         # Import from interactive gallery
         gallery = await galleries.get_interactive_gallery()
-        
+
         # Find the gallery entry by index or ID
         try:
             gallery_index = int(request.gallery_id)
@@ -581,11 +581,11 @@ async def import_task_from_gallery(
                     break
             if not gallery_entry:
                 raise HTTPException(status_code=404, detail="Gallery entry not found")
-        
+
         # Create interactive task template
         task_name = gallery_entry.get("name", "Interactive Task")
         interactive_type = gallery_entry.get("interactive_type", "vscode")
-        
+
         # Resolve provider
         task_data = {
             "name": secure_filename(task_name),
@@ -598,14 +598,14 @@ async def import_task_from_gallery(
             "interactive_type": interactive_type,
             "subtype": "interactive",
         }
-        
+
         await _resolve_provider(task_data, user_and_team, session)
-        
+
         # Create the task
         task_id = await task_service.add_task(task_data)
-        
+
         return {"status": "success", "message": f"Interactive task '{task_name}' imported successfully", "id": task_id}
-    
+
     # Regular task import (existing logic)
     gallery = await galleries.get_tasks_gallery()
 
