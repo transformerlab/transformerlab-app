@@ -58,14 +58,14 @@ async def initialize_dirs():
         await storage.makedirs(FASTCHAT_LOGS_DIR, exist_ok=True)
 
     # Ensure STATIC_FILES_DIR exists
-    STATIC_FILES_DIR = storage.join(HOME_DIR, "webapp")
-    await storage.makedirs(STATIC_FILES_DIR, exist_ok=True)
+    STATIC_FILES_DIR = os.path.join(HOME_DIR, "webapp")
+    os.makedirs(STATIC_FILES_DIR, exist_ok=True)
 
     # Create default index.html if missing
-    index_html_path = storage.join(STATIC_FILES_DIR, "index.html")
-    if not await storage.exists(index_html_path):
-        async with await storage.open(index_html_path, "w") as f:
-            await f.write(
+    index_html_path = os.path.join(STATIC_FILES_DIR, "index.html")
+    if not os.path.exists(index_html_path):
+        with open(index_html_path, "w") as f:
+            f.write(
                 "<html><body><p>Transformer Lab Cloud App Files Missing. Run <pre>curl https://raw.githubusercontent.com/transformerlab/transformerlab-app/main/api/install.sh | bash</pre> to install.</p></body></html>"
             )
 
