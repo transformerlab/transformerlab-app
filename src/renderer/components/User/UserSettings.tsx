@@ -22,6 +22,7 @@ import {
   Alert,
   Card,
   Chip,
+  Table,
 } from '@mui/joy';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
@@ -175,6 +176,11 @@ export default function UserSettings(): JSX.Element {
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
   const { data: userInfo, mutate: userInfoMutate } = useAPI('users', ['me']);
   const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
+  const { data: invitations, mutate: invitationsMutate } = useAPI(
+    'invitations',
+    ['me'],
+    {},
+  );
 
   return (
     <Sheet sx={{ overflowY: 'auto', p: 2 }}>
@@ -248,6 +254,10 @@ export default function UserSettings(): JSX.Element {
           </List>
         )}
       </Box>
+      <TeamInvitationsSection
+        invitations={invitations?.invitations || []}
+        onRefresh={invitationsMutate}
+      />
       <ApiKeysSection teams={teams?.teams || []} />
       <QuotaReportSection />
     </Sheet>
@@ -633,6 +643,158 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
           </DialogActions>
         </ModalDialog>
       </Modal>
+    </Box>
+  );
+}
+
+function TeamInvitationsSection({
+  invitations,
+  onRefresh,
+}: {
+  invitations: any[];
+  onRefresh?: () => void;
+}) {
+  const { fetchWithAuth } = useAuth();
+
+  const handleAccept = async (invitationId: string) => {
+    try {
+      const response = await fetchWithAuth(
+        `invitations/${invitationId}/accept`,
+        {
+          method: 'POST',
+        },
+      );
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        console.error(
+          'Failed to accept invitation',
+          error?.detail || response.statusText,
+        );
+        return;
+      }
+      if (onRefresh) onRefresh();
+    } catch (error: any) {
+      console.error('Error accepting invitation:', error);
+    }
+  };
+
+  const handleReject = async (invitationId: string) => {
+    try {
+      const response = await fetchWithAuth(
+        `invitations/${invitationId}/reject`,
+        {
+          method: 'POST',
+        },
+      );
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        console.error(
+          'Failed to reject invitation',
+          error?.detail || response.statusText,
+        );
+        return;
+      }
+      if (onRefresh) onRefresh();
+    } catch (error: any) {
+      console.error('Error rejecting invitation:', error);
+    }
+  };
+
+  return (
+    <Box mt={4}>
+      <Typography level="title-lg" mb={1}>
+        Team Invitations
+      </Typography>
+      {(!invitations || invitations.length === 0) && (
+        <Typography level="body-sm" color="neutral">
+          You have no pending team invitations.
+        </Typography>
+      )}
+      {invitations && invitations.length > 0 && (
+        <Table variant="soft" sx={{ mt: 1 }}>
+          <thead>
+            <tr>
+              <th>Team</th>
+              <th>Invited By</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Expires</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {invitations.map((invitation: any) => (
+              <tr key={invitation.id}>
+                <td>
+                  <Typography level="body-sm">
+                    {invitation.team_name || invitation.team_id}
+                  </Typography>
+                </td>
+                <td>
+                  <Typography level="body-sm">
+                    {invitation.invited_by_email}
+                  </Typography>
+                </td>
+                <td>
+                  <Chip size="sm" variant="soft">
+                    {invitation.role}
+                  </Chip>
+                </td>
+                <td>
+                  <Chip
+                    size="sm"
+                    variant="soft"
+                    color={
+                      invitation.status === 'pending'
+                        ? 'primary'
+                        : invitation.status === 'accepted'
+                          ? 'success'
+                          : invitation.status === 'rejected' ||
+                              invitation.status === 'cancelled'
+                            ? 'danger'
+                            : 'neutral'
+                    }
+                  >
+                    {invitation.status}
+                  </Chip>
+                </td>
+                <td>
+                  <Typography level="body-xs">
+                    {invitation.expires_at
+                      ? new Date(invitation.expires_at).toLocaleDateString()
+                      : '—'}
+                  </Typography>
+                </td>
+                <td>
+                  {invitation.status === 'pending' && (
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      justifyContent="flex-end"
+                    >
+                      <Button
+                        size="sm"
+                        variant="soft"
+                        onClick={() => handleAccept(invitation.id)}
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outlined"
+                        color="neutral"
+                        onClick={() => handleReject(invitation.id)}
+                      >
+                        Reject
+                      </Button>
+                    </Stack>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
     </Box>
   );
 }

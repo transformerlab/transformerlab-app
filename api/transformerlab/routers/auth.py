@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Header, Request
+from fastapi import APIRouter, Depends, HTTPException, Header, Request, Cookie
 from fastapi_users import exceptions
 from transformerlab.shared.models.user_model import get_async_session, create_personal_team
 from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole
 from transformerlab.models.users import (
     fastapi_users,
     auth_backend,
+    cookie_auth_backend,
     oauth_backend,
     current_active_user,
     UserRead,
@@ -18,6 +19,8 @@ from transformerlab.models.users import (
     GITHUB_OAUTH_ENABLED,
     EMAIL_AUTH_ENABLED,
     SECRET,
+    TOKEN_LIFETIME,
+    REFRESH_LIFETIME,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -41,9 +44,16 @@ class RefreshTokenRequest(BaseModel):
 # Include Auth and Registration Routers only if EMAIL_AUTH_ENABLED is True
 if EMAIL_AUTH_ENABLED:
     # Require user verification before login (is_verified must be True)
+    # JWT Bearer token auth (for API clients)
     router.include_router(
         fastapi_users.get_auth_router(auth_backend, requires_verification=True),
         prefix="/auth/jwt",
+        tags=["auth"],
+    )
+    # Cookie-based auth (for browser clients)
+    router.include_router(
+        fastapi_users.get_auth_router(cookie_auth_backend, requires_verification=True),
+        prefix="/auth/cookie",
         tags=["auth"],
     )
     # User starts with is_verified=False by default, must verify email
@@ -94,7 +104,7 @@ async def _get_user_from_jwt_or_api_key(
     session: AsyncSession,
 ) -> tuple[User, Optional[str], str]:
     """
-    Try to authenticate user via JWT or API key.
+    Try to authenticate user via JWT (header or cookie) or API key.
     Returns (user, api_key_team_id, auth_method)
     """
     # Check if request has an API key (starts with "tl-")
@@ -108,38 +118,45 @@ async def _get_user_from_jwt_or_api_key(
         except HTTPException as e:
             raise e
 
-    # Try JWT authentication - check if there's a Bearer token that's not an API key
+    # Try JWT authentication from Authorization header
+    from transformerlab.utils.api_key_utils import validate_api_key_format
+
+    token = None
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header[7:]  # Remove "Bearer " prefix
-        # If it's not an API key format, try JWT validation
-        from transformerlab.utils.api_key_utils import validate_api_key_format
+        # Skip if it looks like an API key
+        if validate_api_key_format(token):
+            token = None
 
-        if not validate_api_key_format(token):
-            # This looks like a JWT token, try to validate it
-            from transformerlab.models.users import auth_backend
+    # If no Bearer token, try to get JWT from cookie
+    if not token:
+        token = request.cookies.get("tlab_auth")
 
-            # Create user_db and user_manager directly using the existing session
-            from transformerlab.shared.models.models import User, OAuthAccount
-            from transformerlab.shared.models.user_model import SQLAlchemyUserDatabaseWithOAuth
-            from transformerlab.models.users import UserManager
+    if token:
+        from transformerlab.models.users import auth_backend
 
-            try:
-                # Create user_db instance
-                user_db = SQLAlchemyUserDatabaseWithOAuth(session, User, OAuthAccount)
+        # Create user_db and user_manager directly using the existing session
+        from transformerlab.shared.models.models import User, OAuthAccount
+        from transformerlab.shared.models.user_model import SQLAlchemyUserDatabaseWithOAuth
+        from transformerlab.models.users import UserManager
 
-                # Create user_manager instance
-                user_manager = UserManager(user_db)
+        try:
+            # Create user_db instance
+            user_db = SQLAlchemyUserDatabaseWithOAuth(session, User, OAuthAccount)
 
-                # Validate JWT token
-                strategy = auth_backend.get_strategy()
-                user = await strategy.read_token(token, user_manager)
-                if user and user.is_active:
-                    return user, None, "jwt"
-            except Exception:
-                # Token validation failed (expired, invalid, etc.)
-                # Continue to raise 401 below
-                pass
+            # Create user_manager instance
+            user_manager = UserManager(user_db)
+
+            # Validate JWT token
+            strategy = auth_backend.get_strategy()
+            user = await strategy.read_token(token, user_manager)
+            if user and user.is_active:
+                return user, None, "jwt"
+        except Exception:
+            # Token validation failed (expired, invalid, etc.)
+            # Continue to raise 401 below
+            pass
 
     # If we get here, neither API key nor JWT worked
     raise HTTPException(status_code=401, detail="Authentication required")
@@ -161,6 +178,7 @@ if GITHUB_OAUTH_ENABLED:
 async def get_user_and_team(
     request: Request,
     x_team: str | None = Header(None, alias="X-Team-Id"),
+    team_cookie: str | None = Cookie(None, alias="tlab_team_id"),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
@@ -190,10 +208,15 @@ async def get_user_and_team(
             # API key works for all teams, but no X-Team-Id - use personal team
             team_id = await get_user_personal_team_id(session, user)
     else:
-        # JWT authentication - requires X-Team-Id
-        if not x_team:
-            raise HTTPException(status_code=400, detail="X-Team-Id header required for JWT authentication")
-        team_id = x_team
+        # JWT authentication - prefer X-Team-Id, fall back to team cookie if present
+        if x_team:
+            team_id = x_team
+        elif team_cookie:
+            team_id = team_cookie
+        else:
+            raise HTTPException(
+                status_code=400, detail="X-Team-Id header or team cookie required for JWT authentication"
+            )
 
     # Context should already be set by middleware, but ensure it's correct
     # (in case middleware couldn't determine it, or for consistency)
@@ -221,19 +244,21 @@ async def get_user_and_team(
 async def require_team_owner(
     user: User = Depends(current_active_user),
     x_team: str | None = Header(None, alias="X-Team-Id"),
+    team_cookie: str | None = Cookie(None, alias="tlab_team_id"),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
     Dependency to validate user authentication and ensure user is an owner of the team.
-    Extracts X-Team-Id header and verifies user has owner role.
+    Uses X-Team-Id header when present, otherwise falls back to team cookie.
     """
-    if not x_team:
-        raise HTTPException(status_code=400, detail="X-Team-Id header missing")
+    team_id = x_team or team_cookie
+    if not team_id:
+        raise HTTPException(status_code=400, detail="X-Team-Id header or team cookie missing")
 
     # Verify user is an owner of the team
     stmt = select(UserTeam).where(
         UserTeam.user_id == str(user.id),
-        UserTeam.team_id == x_team,
+        UserTeam.team_id == team_id,
     )
     result = await session.execute(stmt)
     user_team = result.scalar_one_or_none()
@@ -303,6 +328,78 @@ async def refresh_access_token(
     except Exception as e:
         print(f"Refresh Error: {e}")
         raise HTTPException(status_code=401, detail="Could not refresh token")
+
+
+@router.post("/auth/cookie/refresh")
+async def refresh_cookie_tokens(
+    request: Request,
+    user_manager=Depends(get_user_manager),
+):
+    """
+    Cookie-based token refresh. Reads refresh token from cookie and sets new cookies.
+    """
+    from fastapi.responses import JSONResponse
+    import os
+
+    refresh_token = request.cookies.get("tlab_refresh")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="No refresh token cookie found")
+
+    try:
+        refresh_strategy = get_refresh_strategy()
+        user = await refresh_strategy.read_token(refresh_token, user_manager)
+
+        if user is None or not user.is_active:
+            raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+
+        access_strategy = auth_backend.get_strategy()
+        new_access_token = await access_strategy.write_token(user)
+        new_refresh_token = await refresh_strategy.write_token(user)
+
+        response = JSONResponse(
+            content={"access_token": new_access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
+        )
+
+        cookie_secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+
+        response.set_cookie(
+            key="tlab_auth",
+            value=new_access_token,
+            max_age=TOKEN_LIFETIME,
+            httponly=True,
+            secure=cookie_secure,
+            samesite="lax",
+        )
+
+        response.set_cookie(
+            key="tlab_refresh",
+            value=new_refresh_token,
+            max_age=REFRESH_LIFETIME,
+            httponly=True,
+            secure=cookie_secure,
+            samesite="lax",
+        )
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Cookie Refresh Error: {e}")
+        raise HTTPException(status_code=401, detail="Could not refresh token")
+
+
+@router.post("/auth/cookie/logout")
+async def logout_cookie():
+    """
+    Clear authentication cookies.
+    """
+    from fastapi.responses import JSONResponse
+
+    response = JSONResponse(content={"detail": "Logged out"})
+    response.delete_cookie("tlab_auth")
+    response.delete_cookie("tlab_refresh")
+    return response
 
 
 @router.get("/users/me", response_model=UserRead)

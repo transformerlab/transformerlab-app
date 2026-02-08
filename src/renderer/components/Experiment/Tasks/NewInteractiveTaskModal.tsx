@@ -19,7 +19,7 @@ import {
   Card,
   CardContent,
   Grid,
-  LinearProgress,
+  Skeleton,
 } from '@mui/joy';
 import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -48,6 +48,7 @@ type InteractiveTemplate = {
   name: string;
   description: string;
   env_parameters?: ConfigField[];
+  icon?: string;
 };
 
 type NewInteractiveTaskModalProps = {
@@ -241,13 +242,44 @@ export default function NewInteractiveTaskModal({
                 <Typography level="body-sm">
                   Select an interactive task type to get started.
                 </Typography>
-                {galleryIsLoading ? (
-                  <LinearProgress />
-                ) : gallery.length === 0 ? (
+                {(galleryIsLoading || !galleryData) && (
+                  <Grid container spacing={2}>
+                    {[1, 2, 3].map((i) => (
+                      <Grid xs={12} sm={6} md={4} key={i}>
+                        <Card variant="outlined">
+                          <CardContent>
+                            <Skeleton
+                              variant="rectangular"
+                              width={32}
+                              height={28}
+                            />
+                            <Skeleton
+                              variant="text"
+                              level="title-md"
+                              sx={{ mt: 1 }}
+                            />
+                            <Skeleton
+                              variant="text"
+                              level="body-sm"
+                              sx={{ mt: 1 }}
+                            />
+                            <Skeleton
+                              variant="text"
+                              level="body-sm"
+                              width="60%"
+                            />
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                )}
+                {!galleryIsLoading && galleryData && gallery.length === 0 && (
                   <Typography level="body-sm" color="danger">
                     No interactive task templates available.
                   </Typography>
-                ) : (
+                )}
+                {!galleryIsLoading && galleryData && gallery.length > 0 && (
                   <Grid container spacing={2}>
                     {gallery.map((template) => (
                       <Grid xs={12} sm={6} md={4} key={template.id}>
@@ -263,7 +295,7 @@ export default function NewInteractiveTaskModal({
                           onClick={() => handleTemplateSelect(template)}
                         >
                           <CardContent>
-                            {template?.icon && (
+                            {template.icon && (
                               <img
                                 src={template.icon}
                                 alt={`${template.name} icon`}

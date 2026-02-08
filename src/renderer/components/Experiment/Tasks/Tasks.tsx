@@ -16,7 +16,6 @@ import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import { analytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
-import NewTaskModal from './NewTaskModal/NewTaskModal';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveVSCodeModal from './InteractiveVSCodeModal';
 import InteractiveJupyterModal from './InteractiveJupyterModal';
@@ -31,6 +30,7 @@ import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
+import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
 
@@ -981,7 +981,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   };
 
   const handleEditTask = (task: any) => {
-    if (isInteractivePage && (task as any)?.interactive_type) {
+    const config =
+      typeof task?.config === 'string'
+        ? SafeJSONParse(task.config, {})
+        : (task?.config ?? {});
+    const isInteractive =
+      (task as any)?.interactive_type || config?.interactive_type;
+    if (isInteractive) {
       setTaskBeingEdited(task);
       setEditModalOpen(true);
     } else {
@@ -999,15 +1005,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }}
     >
       {!isInteractivePage && (
-        // <NewTaskModal
-        //   open={modalOpen}
-        //   onClose={handleClose}
-        //   experimentId={experimentInfo?.id}
-        //   onSubmit={handleSubmit}
-        //   isSubmitting={isSubmitting}
-        //   providers={providers}
-        //   isProvidersLoading={providersIsLoading}
-        // />
         <NewTaskModal2
           open={modalOpen}
           onClose={handleClose}
@@ -1038,8 +1035,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         />
       )}
       {taskBeingEdited &&
-        (taskBeingEdited as any).interactive_type &&
-        isInteractivePage && (
+        ((taskBeingEdited as any).interactive_type ||
+          SafeJSONParse((taskBeingEdited as any)?.config, {})
+            ?.interactive_type) && (
           <EditInteractiveTaskModal
             open={editModalOpen}
             onClose={handleEditClose}

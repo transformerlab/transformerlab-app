@@ -6,7 +6,7 @@ import React, {
   useEffect,
   useCallback,
 } from 'react';
-import { API_URL, fetcher } from './transformerlab-api-sdk';
+import { API_URL } from './transformerlab-api-sdk';
 import useSWR from 'swr';
 import { getAPIFullPath, getPath } from './api-client/urls';
 import {
@@ -21,8 +21,6 @@ export type Team = {
 
 // export the AuthContextValue so consumers get correct types
 export interface AuthContextValue {
-  token: string | null;
-  setToken: React.Dispatch<React.SetStateAction<string | null>>;
   user: any;
   userError: any;
   userIsLoading: boolean;
@@ -67,38 +65,8 @@ function notifyListeners() {
   });
 }
 
-export function getAccessToken() {
-  return localStorage.getItem('access_token');
-}
-
-export function getRefreshToken() {
-  return localStorage.getItem('refresh_token');
-}
-
 export function getCurrentTeam(): Team | null {
   return _currentTeam;
-}
-
-export function updateAccessToken(token: string | null) {
-  try {
-    if (token) localStorage.setItem('access_token', token);
-    else localStorage.removeItem('access_token');
-  } catch (e) {
-    /* ignore storage errors */
-  }
-  notifyListeners();
-}
-
-// Refresh token storage
-export function updateRefreshToken(token: string | null) {
-  try {
-    if (token) localStorage.setItem('refresh_token', token);
-    else localStorage.removeItem('refresh_token');
-  } catch (e) {
-    /* ignore storage errors */
-  }
-  // We usually don't need to notify listeners for refresh token changes,
-  // but strictly speaking, auth state has changed.
 }
 
 export function updateCurrentTeam(team: Team | null) {
@@ -113,70 +81,44 @@ export function updateCurrentTeam(team: Team | null) {
 }
 
 export function logoutUser() {
-  updateAccessToken(null);
-  updateRefreshToken(null); // Clear refresh token
   updateCurrentTeam(null);
 }
 
 // allow components to re-render when auth changes
 export function subscribeAuthChange(cb: () => void) {
   listeners.add(cb);
-  return () => listeners.delete(cb);
+  return () => {
+    listeners.delete(cb);
+  };
 }
 
 // --- 2. Refresh Logic (Singleton Pattern) ---
 
 // We use a promise variable to ensure we only run ONE refresh request at a time,
 // even if 5 API calls fail simultaneously.
-let refreshPromise: Promise<string> | null = null;
+let refreshPromise: Promise<void> | null = null;
 
-async function handleRefresh(): Promise<string> {
+async function handleRefresh(): Promise<void> {
   // If a refresh is already in progress, return the existing promise
   if (refreshPromise) {
-    const currentToken = getRefreshToken();
-    if (!currentToken) {
-      console.warn(
-        '[REFRESH] WARNING: Returning existing promise but token is MISSING - this promise will likely fail',
-      );
-    }
     return refreshPromise;
-  }
-
-  const refreshTokenAtCreation = getRefreshToken();
-
-  // Check token BEFORE creating promise - fail fast if missing
-  if (!refreshTokenAtCreation) {
-    console.error(
-      '[REFRESH] No refresh token available - cannot create refresh promise',
-    );
-    throw new Error('No refresh token available');
   }
 
   refreshPromise = (async () => {
     try {
-      // Double-check token inside promise (it might have been cleared)
-      const refreshToken = getRefreshToken();
-      if (!refreshToken) {
-        console.error(
-          '[REFRESH] No refresh token available - token was cleared after promise creation',
-        );
-        throw new Error('No refresh token available');
-      }
-
       const url = getAPIFullPath('auth', ['refresh'], {});
 
+      // Cookie-based refresh: cookies are sent/set automatically with credentials: 'include'
       const refreshResponse = await fetch(url, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          refresh_token: refreshToken,
-        }),
       });
 
       if (!refreshResponse.ok) {
-        // If refresh fails (e.g. 401), the refresh token is invalid.
+        // If refresh fails (e.g. 401), the refresh token cookie is invalid.
         console.error(
           '[REFRESH] Refresh failed with status:',
           refreshResponse.status,
@@ -184,21 +126,7 @@ async function handleRefresh(): Promise<string> {
         throw new Error('Refresh failed');
       }
 
-      const data = await refreshResponse.json();
-
-      // 1. Update Access Token
-      const newAccessToken = data.access_token;
-      updateAccessToken(newAccessToken);
-
-      // 2. Update Refresh Token (Rotation)
-      // The backend should return a new refresh token.
-      if (data.refresh_token) {
-        updateRefreshToken(data.refresh_token);
-      } else {
-        console.warn('[REFRESH] No new refresh token in response');
-      }
-
-      return newAccessToken;
+      // Cookies are refreshed by the server response, nothing to store locally
     } catch (error) {
       console.error('[REFRESH] Token refresh failed. Logging out.', error);
       logoutUser();
@@ -214,7 +142,6 @@ async function handleRefresh(): Promise<string> {
 
 // --- 3. Wrapper Fetch Function ---
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const token = getAccessToken();
   const currentTeam = getCurrentTeam();
 
   // Handle cases where url might be partial or full
@@ -248,13 +175,11 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
       : {}),
   };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
+  // Cookie-based auth: credentials: 'include' sends cookies automatically
   const response = await fetch(fullUrl, {
     ...options,
     headers,
+    credentials: 'include',
   });
 
   // If Unauthorized (401)
@@ -264,19 +189,17 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
       fullUrl,
     );
     try {
-      // Attempt to refresh token
-      const newAccessToken = await handleRefresh();
+      // Attempt to refresh token via cookie-based refresh
+      await handleRefresh();
       console.log(
         '[FETCH_WITH_AUTH] Refresh successful, retrying original request',
       );
 
-      // Retry the original request with new token
+      // Retry the original request (cookies are refreshed automatically)
       return fetch(fullUrl, {
         ...options,
-        headers: {
-          ...headers,
-          Authorization: `Bearer ${newAccessToken}`,
-        },
+        headers,
+        credentials: 'include',
       });
     } catch (e) {
       // Refresh failed (and user was logged out inside handleRefresh)
@@ -289,67 +212,49 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
 }
 
 export function AuthProvider({ connection, children }: AuthProviderProps) {
-  const [token, setToken] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [initializing, setInitializing] = useState<boolean>(true);
   const [team, setTeamState] = useState<Team | null>(null);
 
   useEffect(() => {
-    // Initialize
-    setToken(getAccessToken());
+    // Initialize team from localStorage
     setTeamState(getCurrentTeam());
     setInitializing(false);
 
-    // Check for OAuth callback tokens in URL
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const accessToken = urlParams.get('access_token');
-      const refreshToken = urlParams.get('refresh_token');
-
-      if (accessToken) {
-        updateAccessToken(accessToken);
-        setToken(accessToken);
-      }
-      if (refreshToken) {
-        updateRefreshToken(refreshToken);
-      }
-
-      // Clean up URL if tokens were found
-      if (accessToken || refreshToken) {
-        // Remove the query params
-        const newUrl = window.location.pathname + window.location.hash;
-        window.history.replaceState({}, document.title, newUrl);
-      }
-    }
-
-    // Subscribe
+    // Subscribe to team changes
     const unsub = subscribeAuthChange(() => {
-      setToken(getAccessToken());
       setTeamState(getCurrentTeam());
     });
     return unsub;
   }, []);
 
+  // Fetch user data using cookie-based auth; presence of a valid user implies authentication
+  const userKey = getAPIFullPath('users', ['me'], {}) ?? null;
   const {
     data: user,
     error: userError,
     isLoading: userIsLoading,
     mutate: userMutate,
-  } = useSWR(
-    token ? (getAPIFullPath('users', ['me'], {}) ?? null) : null,
-    token
-      ? (endpoint) =>
-          fetcher(endpoint, {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-      : null,
-  );
+  } = useSWR(userKey, (url) => fetchWithAuth(url).then((r) => r.json()));
 
-  // Get a list of teams this user belongs to
-  // using useSWR directly or your hook (assuming your hook uses fetchWithAuth internally or similar logic)
-  // Since useAPI in your snippet calls fetchWithAuth, it will auto-refresh too!
-  const { data: teamsData, mutate: teamsMutate } = useSWR(
-    token ? getAPIFullPath('teams', ['list'], {}) : null,
-    token ? (url) => fetchWithAuth(url).then((r) => r.json()) : null,
+  // Once we know the user result, derive isAuthenticated from it
+  useEffect(() => {
+    if (user && !userError) {
+      if (!isAuthenticated) {
+        setIsAuthenticated(true);
+      }
+    } else if (userError) {
+      if (isAuthenticated) {
+        setIsAuthenticated(false);
+      }
+    }
+  }, [user, userError, isAuthenticated]);
+
+  // Get a list of teams this user belongs to (only after user is known)
+  const teamsKey =
+    user && !userError ? getAPIFullPath('teams', ['list'], {}) : null;
+  const { data: teamsData, mutate: teamsMutate } = useSWR(teamsKey, (url) =>
+    fetchWithAuth(url).then((r) => r.json()),
   );
 
   useEffect(() => {
@@ -365,23 +270,26 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           // Current team doesn't belong to this user - clear it and select first team
           updateCurrentTeam(teams[0]);
           setTeamState(teams[0]);
+          document.cookie = `tlab_team_id=${teams[0].id}; path=/; SameSite=Lax`;
         } else if (updated.name !== current.name) {
           // Team name changed (e.g., rename) - update it
           const next = { id: updated.id, name: updated.name };
           updateCurrentTeam(next);
           setTeamState(next);
+          document.cookie = `tlab_team_id=${next.id}; path=/; SameSite=Lax`;
         }
       } else {
         // No team selected - select the first team
         updateCurrentTeam(teams[0]);
         setTeamState(teams[0]);
+        document.cookie = `tlab_team_id=${teams[0].id}; path=/; SameSite=Lax`;
       }
     } else if (teams && teams.length === 0) {
       // No teams available
       updateCurrentTeam(null);
       setTeamState(null);
     }
-  }, [teamsData, token, team]);
+  }, [teamsData, isAuthenticated, team]);
 
   // Identify user in analytics when user data is available
   useEffect(() => {
@@ -402,10 +310,12 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           password: password,
         }).toString();
 
+        // Cookie-based login: credentials: 'include' allows cookies to be set
         const res = await fetch(getAPIFullPath('auth', ['login'], {}), {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: form,
+          credentials: 'include',
         });
 
         const data = await (async () => {
@@ -426,27 +336,13 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           return error;
         }
 
-        const newToken =
-          data.access_token ?? data.token ?? data.accessToken ?? null;
-        const newRefreshToken = data.refresh_token ?? data.refreshToken ?? null;
+        // Login successful - cookies are set by the server
+        // Set authenticated state to trigger user/teams data fetch
+        setIsAuthenticated(true);
 
-        if (newToken) {
-          updateAccessToken(newToken);
-          setToken(newToken);
-
-          // Store refresh token if present
-          if (newRefreshToken) {
-            updateRefreshToken(newRefreshToken);
-          }
-
-          // Revalidate user/teams data
-          if (userMutate) userMutate();
-          if (teamsMutate) teamsMutate();
-        } else {
-          console.error(
-            `Login succeeded but no token returned: ${JSON.stringify(data)}`,
-          );
-        }
+        // Revalidate user/teams data
+        if (userMutate) userMutate();
+        if (teamsMutate) teamsMutate();
       } catch (e) {
         console.error(
           `Login error: ${e instanceof Error ? e.message : String(e)}`,
@@ -489,10 +385,12 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   // Logout handler
   const handleLogout = useCallback(async () => {
     try {
+      // Cookie-based logout: clears auth cookies on server
       await fetch(
-        getAPIFullPath('auth', ['logout'], {}) || '/auth/jwt/logout',
+        getAPIFullPath('auth', ['logout'], {}) || '/auth/cookie/logout',
         {
           method: 'POST',
+          credentials: 'include',
         },
       );
     } catch {
@@ -500,8 +398,10 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     }
     logoutUser();
     resetUser();
-    setToken(null);
+    setIsAuthenticated(false);
     setTeamState(null);
+    // Clear team cookie
+    document.cookie = 'tlab_team_id=; Max-Age=0; path=/; SameSite=Lax';
     if (userMutate) userMutate(null, false);
   }, [userMutate]);
 
@@ -513,6 +413,12 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           : value;
       updateCurrentTeam(next);
       setTeamState(next);
+      // Persist team selection in cookie so non-fetch requests (e.g. <img>) have team context
+      if (next?.id) {
+        document.cookie = `tlab_team_id=${next.id}; path=/; SameSite=Lax`;
+      } else {
+        document.cookie = 'tlab_team_id=; Max-Age=0; path=/; SameSite=Lax';
+      }
       // If the team changes, we reload the app to ensure all components pick up new team context
       // But only do this if the team actually changed
       if (next?.id !== team?.id) {
@@ -524,28 +430,26 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
 
   const contextValue = useMemo(
     () => ({
-      token,
-      setToken,
       user,
       userError,
       userIsLoading,
       userMutate,
       login: handleLogin,
       logout: handleLogout,
-      isAuthenticated: !!token,
+      isAuthenticated,
       initializing,
       fetchWithAuth,
       team,
       setTeam: handleSetTeam,
     }),
     [
-      token,
       user,
       userError,
       userIsLoading,
       userMutate,
       handleLogin,
       handleLogout,
+      isAuthenticated,
       initializing,
       team,
       handleSetTeam,

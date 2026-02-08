@@ -158,6 +158,7 @@ def db_record_to_provider_config(record: TeamComputeProvider) -> ComputeProvider
         default_network_volume_id=config_dict.get("default_network_volume_id"),
         extra_config=config_dict.get("extra_config", {}),
     )
+    # Local provider has no extra required config; workspace_dir is set at launch from get_workspace_dir()
 
     return provider_config
 

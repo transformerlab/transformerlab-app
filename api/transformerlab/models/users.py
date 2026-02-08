@@ -1,9 +1,9 @@
 import uuid
 from typing import Optional
 from fastapi import Depends, Request, Response, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas, exceptions
-from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy, Strategy
+from fastapi_users.authentication import AuthenticationBackend, BearerTransport, CookieTransport, JWTStrategy, Strategy
 from fastapi_users.db import SQLAlchemyUserDatabase
 from httpx_oauth.clients.google import GoogleOAuth2
 from httpx_oauth.clients.github import GitHubOAuth2
@@ -198,6 +198,17 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
 
 bearer_transport = BearerTransport(tokenUrl="auth/jwt/login")
 
+# Cookie transport for browser-based authentication
+# cookie_secure=False allows cookies over HTTP (for local development)
+# Set cookie_secure=True in production with HTTPS
+cookie_transport = CookieTransport(
+    cookie_name="tlab_auth",
+    cookie_max_age=TOKEN_LIFETIME,
+    cookie_secure=os.getenv("COOKIE_SECURE", "false").lower() == "true",
+    cookie_httponly=True,
+    cookie_samesite="lax",
+)
+
 
 def get_jwt_strategy() -> JWTStrategy:
     # Access token lasts for 3600 seconds (1 hour)
@@ -277,7 +288,7 @@ class RefreshTokenBackend(AuthenticationBackend):
         )
 
 
-# Use the Custom Backend
+# Use the Custom Backend (Bearer transport for API clients)
 auth_backend = RefreshTokenBackend(
     name="jwt",
     transport=bearer_transport,
@@ -285,10 +296,66 @@ auth_backend = RefreshTokenBackend(
 )
 
 
+# Cookie-based authentication backend for browser clients
+class CookieAuthBackend(AuthenticationBackend):
+    """
+    Cookie-based authentication backend that sets both access and refresh tokens as cookies.
+    """
+
+    async def login(self, strategy: Strategy, user: User) -> Response:
+        access_token = await strategy.write_token(user)
+        refresh_token = await get_refresh_strategy().write_token(user)
+
+        response = JSONResponse(
+            content={"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+        )
+
+        # Set access token cookie
+        response.set_cookie(
+            key="tlab_auth",
+            value=access_token,
+            max_age=TOKEN_LIFETIME,
+            httponly=True,
+            secure=os.getenv("COOKIE_SECURE", "false").lower() == "true",
+            samesite="lax",
+        )
+
+        # Set refresh token cookie
+        response.set_cookie(
+            key="tlab_refresh",
+            value=refresh_token,
+            max_age=REFRESH_LIFETIME,
+            httponly=True,
+            secure=os.getenv("COOKIE_SECURE", "false").lower() == "true",
+            samesite="lax",
+        )
+
+        return response
+
+    async def logout(self, strategy: Strategy, user: User, token: str) -> Response:
+        response = JSONResponse(content={"detail": "Logged out"})
+        response.delete_cookie("tlab_auth")
+        response.delete_cookie("tlab_refresh")
+        return response
+
+
+cookie_auth_backend = CookieAuthBackend(
+    name="cookie",
+    transport=cookie_transport,
+    get_strategy=get_jwt_strategy,
+)
+
+
 # OAuth backend
 class OAuthBackend(AuthenticationBackend):
     """
-    OAuth backend that redirects to frontend callback with tokens in URL.
+    OAuth backend that redirects back to the frontend.
+
+    Behavior:
+    - If FRONTEND_URL is set: issue cookie-based auth (tlab_auth/tlab_refresh)
+      and redirect cleanly to the frontend root.
+    - If FRONTEND_URL is not set: fall back to legacy behavior and include
+      tokens in the redirect URL query string (for non-UI clients).
     """
 
     async def login(self, strategy: Strategy, user: User) -> Response:
@@ -296,17 +363,45 @@ class OAuthBackend(AuthenticationBackend):
         access_token = await strategy.write_token(user)
         refresh_token = await get_refresh_strategy().write_token(user)
 
-        # Redirect to frontend home page with tokens in URL
-        # The frontend reads tokens from window.location.search, so any path works
-        # Redirecting to home page (/) is simpler and works regardless of URL configuration
-        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
-        frontend_url_normalized = frontend_url.rstrip("/")
+        frontend_url = os.getenv("FRONTEND_URL")
 
-        callback_url = (
-            f"{frontend_url_normalized}/?access_token={access_token}&refresh_token={refresh_token}&token_type=bearer"
+        # FRONTEND_URL not configured: legacy behavior with tokens in URL
+        if not frontend_url:
+            legacy_frontend_url = "http://localhost:1212"
+            frontend_url_normalized = legacy_frontend_url.rstrip("/")
+            callback_url = (
+                f"{frontend_url_normalized}/?access_token={access_token}"
+                f"&refresh_token={refresh_token}&token_type=bearer"
+            )
+            return RedirectResponse(url=callback_url, status_code=302)
+
+        # FRONTEND_URL configured: cookie-based auth + clean redirect
+        frontend_url_normalized = frontend_url.rstrip("/")
+        response = RedirectResponse(url=f"{frontend_url_normalized}/", status_code=302)
+
+        cookie_secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+
+        # Set access token cookie
+        response.set_cookie(
+            key="tlab_auth",
+            value=access_token,
+            max_age=TOKEN_LIFETIME,
+            httponly=True,
+            secure=cookie_secure,
+            samesite="lax",
         )
 
-        return Response(status_code=302, headers={"Location": callback_url})
+        # Set refresh token cookie
+        response.set_cookie(
+            key="tlab_refresh",
+            value=refresh_token,
+            max_age=REFRESH_LIFETIME,
+            httponly=True,
+            secure=cookie_secure,
+            samesite="lax",
+        )
+
+        return response
 
 
 oauth_backend = OAuthBackend(
@@ -318,18 +413,18 @@ oauth_backend = OAuthBackend(
 # --- FastAPIUsers Instance ---
 fastapi_users = FastAPIUsers[User, uuid.UUID](
     get_user_manager,
-    [auth_backend, oauth_backend],
+    [auth_backend, cookie_auth_backend, oauth_backend],
 )
 
 
-# Custom current_active_user that supports both JWT and API key authentication
+# Custom current_active_user that supports JWT (header and cookie) and API key authentication
 async def current_active_user(
     request: Request,
     session: AsyncSession = Depends(get_async_session),
 ) -> User:
     """
-    Custom authentication dependency that supports both JWT and API key authentication.
-    This replaces the default fastapi_users.current_user() to add API key support.
+    Custom authentication dependency that supports JWT (via Bearer token or cookie) and API key authentication.
+    This replaces the default fastapi_users.current_user() to add API key and cookie support.
     """
     # Import here to avoid circular dependency
     from transformerlab.shared.api_key_auth import extract_api_key_from_request, validate_api_key_and_get_user
@@ -349,34 +444,41 @@ async def current_active_user(
             # Re-raise the specific HTTPException from API key validation
             raise e
 
-    # Try JWT authentication
+    # Try JWT authentication from Authorization header
+    token = None
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header[7:]  # Remove "Bearer " prefix
+        # Skip if it looks like an API key
+        if validate_api_key_format(token):
+            token = None
 
-        # If it's not an API key format, try JWT validation
-        if not validate_api_key_format(token):
-            from transformerlab.shared.models.models import OAuthAccount
-            from transformerlab.shared.models.user_model import SQLAlchemyUserDatabaseWithOAuth
+    # If no Bearer token, try to get JWT from cookie
+    if not token:
+        token = request.cookies.get("tlab_auth")
 
-            try:
-                # Create user_db instance
-                user_db = SQLAlchemyUserDatabaseWithOAuth(session, User, OAuthAccount)
+    if token:
+        from transformerlab.shared.models.models import OAuthAccount
+        from transformerlab.shared.models.user_model import SQLAlchemyUserDatabaseWithOAuth
 
-                # Create user_manager instance
-                user_manager = UserManager(user_db)
+        try:
+            # Create user_db instance
+            user_db = SQLAlchemyUserDatabaseWithOAuth(session, User, OAuthAccount)
 
-                # Validate JWT token
-                strategy = auth_backend.get_strategy()
-                user = await strategy.read_token(token, user_manager)
+            # Create user_manager instance
+            user_manager = UserManager(user_db)
 
-                if user and user.is_active:
-                    return user
-                elif user and not user.is_active:
-                    raise HTTPException(status_code=401, detail="User is not active")
-            except Exception:
-                # Token validation failed (expired, invalid, etc.)
-                pass
+            # Validate JWT token
+            strategy = auth_backend.get_strategy()
+            user = await strategy.read_token(token, user_manager)
+
+            if user and user.is_active:
+                return user
+            elif user and not user.is_active:
+                raise HTTPException(status_code=401, detail="User is not active")
+        except Exception:
+            # Token validation failed (expired, invalid, etc.)
+            pass
 
     # If we get here, neither API key nor JWT worked
     raise HTTPException(status_code=401, detail="Authentication required")
