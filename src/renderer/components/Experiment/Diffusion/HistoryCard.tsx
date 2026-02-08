@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import {
   Card,
   CardContent,
@@ -12,7 +12,6 @@ import {
 import { Trash2Icon } from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-import { fetchWithAuth } from 'renderer/lib/authContext';
 import { HistoryImage } from './types';
 
 interface HistoryCardProps {
@@ -37,61 +36,6 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
   const numImages = item.num_images || item.metadata?.num_images || 1;
   const hasMultipleImages = numImages > 1;
   const { experimentId } = useExperimentInfo();
-  const [imageBlobUrls, setImageBlobUrls] = useState<string[]>([]);
-  const blobUrlsRef = useRef<string[]>([]);
-
-  // Fetch images with authentication and convert to blob URLs
-  useEffect(() => {
-    // Cleanup previous blob URLs
-    blobUrlsRef.current.forEach((url) => {
-      if (url.startsWith('blob:')) {
-        URL.revokeObjectURL(url);
-      }
-    });
-    blobUrlsRef.current = [];
-
-    const fetchImages = async () => {
-      const maxDisplayImages = hasMultipleImages ? Math.min(4, numImages) : 1;
-      const blobUrls: string[] = [];
-
-      for (let i = 0; i < maxDisplayImages; i++) {
-        const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
-          imageId: item.id,
-          index: i,
-          experimentId,
-        });
-        try {
-          const response = await fetchWithAuth(imageUrl);
-          if (response.ok) {
-            const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            blobUrls.push(blobUrl);
-            blobUrlsRef.current.push(blobUrl);
-          } else {
-            // Fallback to URL if fetch fails
-            blobUrls.push(imageUrl);
-          }
-        } catch (e) {
-          // Fallback to URL if fetch fails
-          blobUrls.push(imageUrl);
-        }
-      }
-
-      setImageBlobUrls(blobUrls);
-    };
-
-    fetchImages();
-
-    // Cleanup blob URLs on unmount or when dependencies change
-    return () => {
-      blobUrlsRef.current.forEach((url) => {
-        if (url.startsWith('blob:')) {
-          URL.revokeObjectURL(url);
-        }
-      });
-      blobUrlsRef.current = [];
-    };
-  }, [item.id, experimentId, numImages, hasMultipleImages]);
 
   // Function to render multiple images in a grid
   const renderImages = () => {
@@ -113,14 +57,11 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
           {Array.from({ length: maxDisplayImages }, (_, index) => (
             <img
               key={index}
-              src={
-                imageBlobUrls[index] ||
-                getAPIFullPath('diffusion', ['getImage'], {
-                  imageId: item.id,
-                  index,
-                  experimentId,
-                })
-              }
+              src={getAPIFullPath('diffusion', ['getImage'], {
+                imageId: item.id,
+                index,
+                experimentId,
+              })}
               alt={`Generated image ${index + 1}`}
               style={{
                 width: '100%',
@@ -155,14 +96,11 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
       // Single image display
       return (
         <img
-          src={
-            imageBlobUrls[0] ||
-            getAPIFullPath('diffusion', ['getImage'], {
-              imageId: item.id,
-              index: 0,
-              experimentId,
-            })
-          }
+          src={getAPIFullPath('diffusion', ['getImage'], {
+            imageId: item.id,
+            index: 0,
+            experimentId,
+          })}
           alt="generated"
           style={{
             borderRadius: '6px',
