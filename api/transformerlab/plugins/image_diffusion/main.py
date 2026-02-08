@@ -1163,7 +1163,7 @@ async def diffusion_generate_job():
         if is_diffusion_pipeline_model(request.model):
             print(f"Detected video-style pipeline for model {request.model}, invoking video generator")
             try:
-                result = await run_video_diffusion_genration(
+                result = await run_video_diffusion_generation_for_images(
                     request,
                     generation_id,
                     images_folder,
