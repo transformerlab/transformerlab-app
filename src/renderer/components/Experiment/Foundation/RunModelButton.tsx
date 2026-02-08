@@ -51,6 +51,7 @@ export default function RunModelButton({
 }) {
   const [jobId, setJobId] = useState(null);
   const [stopping, setStopping] = useState(false);
+  const [stopRequested, setStopRequested] = useState(false);
   const [showRunSettings, setShowRunSettings] = useState(false);
   const [inferenceSettings, setInferenceSettings] = useState({
     inferenceEngine: null,
@@ -83,6 +84,31 @@ export default function RunModelButton({
   const pipelineTag = pipelineTagData?.data || null;
 
   const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
+  const stopRequestedKey = experimentInfo?.id
+    ? `tfl.stopInProgress.${experimentInfo.id}`
+    : null;
+
+  useEffect(() => {
+    if (!stopRequestedKey) return;
+    const stored = window?.sessionStorage?.getItem(stopRequestedKey);
+    setStopRequested(stored === '1');
+  }, [stopRequestedKey]);
+
+  const { data: loadJobs } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(
+          experimentInfo.id,
+          'LOAD_MODEL',
+          'STARTED',
+        )
+      : null,
+    fetcher,
+    {
+      refreshInterval: 2000,
+    },
+  );
+
+  const hasPendingLoadJob = Array.isArray(loadJobs) && loadJobs.length > 0;
 
   // Fetch suggested compatible loader plugin from API (platform-aware)
   const { data: suggestedLoaderPlugin, isLoading: suggestedPluginLoading } =
@@ -151,6 +177,14 @@ export default function RunModelButton({
 
   // Prevent transient UI while we determine/commit inference engine defaults
   const [inferenceLoading, setInferenceLoading] = useState(true);
+
+  useEffect(() => {
+    if (!stopRequestedKey) return;
+    if (models === null) {
+      window?.sessionStorage?.removeItem(stopRequestedKey);
+      setStopRequested(false);
+    }
+  }, [models, stopRequestedKey]);
 
   function isPossibleToRunAModel() {
     return (
@@ -302,13 +336,20 @@ export default function RunModelButton({
   }, [experimentInfo?.config?.foundation]);
 
   function Engine() {
+    const isStarting = jobId === -1 || hasPendingLoadJob;
+    const runLabel = isStarting
+      ? 'Starting...'
+      : isPossibleToRunAModel()
+        ? 'Run'
+        : 'No Available Engine';
+
     return (
       <>
         {models === null ? (
           <>
             <Button
               startDecorator={
-                jobId === -1 ? (
+                isStarting ? (
                   <CircularProgress size="sm" thickness={2} />
                 ) : (
                   <PlayCircleIcon />
@@ -318,6 +359,7 @@ export default function RunModelButton({
               size="lg"
               sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
               onClick={async (e) => {
+                if (isStarting) return;
                 if (inferenceSettings?.inferenceEngine === null) {
                   setShowRunSettings(!showRunSettings);
                   return;
@@ -358,15 +400,19 @@ export default function RunModelButton({
                 setJobId(job_id);
                 mutate();
               }}
-              disabled={!isPossibleToRunAModel()}
+              disabled={!isPossibleToRunAModel() || isStarting}
             >
-              {isPossibleToRunAModel() ? 'Run' : 'No Available Engine'}
+              {runLabel}
             </Button>
           </>
         ) : (
           <Button
             onClick={async () => {
               if (stopping) return;
+              if (stopRequestedKey) {
+                window?.sessionStorage?.setItem(stopRequestedKey, '1');
+              }
+              setStopRequested(true);
               setStopping(true);
               try {
                 await killWorker();
@@ -386,7 +432,7 @@ export default function RunModelButton({
               }
             }}
             startDecorator={
-              stopping || models?.length == 0 ? (
+              stopping || stopRequested || models?.length == 0 ? (
                 <CircularProgress size="sm" thickness={2} />
               ) : (
                 <StopCircleIcon />
@@ -396,13 +442,13 @@ export default function RunModelButton({
             size="lg"
             sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
           >
-            {stopping ? 'Stopping...' : 'Stop'}
+            {stopping || stopRequested ? 'Stopping...' : 'Stop'}
           </Button>
         )}
         <Button
           variant="plain"
           onClick={() => setShowRunSettings(!showRunSettings)}
-          disabled={models?.length > 0 || jobId == -1 || inferenceLoading}
+          disabled={models?.length > 0 || jobId == -1 || inferenceLoading || hasPendingLoadJob}
         >
           using{' '}
           {removeServerFromEndOfString(
