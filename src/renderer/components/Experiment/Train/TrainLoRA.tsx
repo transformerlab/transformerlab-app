@@ -268,10 +268,10 @@ export default function TrainLoRA({}) {
                       key={plugin.uniqueId}
                       disabled={
                         plugin.train_type !== 'embedding'
-                          ? !plugin.model_architectures.includes(
+                          ? !plugin.model_architectures?.includes(
                               modelArchitecture,
                             ) &&
-                            !plugin.model_architectures.includes(
+                            !plugin.model_architectures?.includes(
                               embeddingModelArchitecture,
                             )
                           : false
