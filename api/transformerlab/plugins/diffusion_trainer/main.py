@@ -13,10 +13,9 @@ from peft.utils import get_peft_model_state_dict
 from torchvision import transforms
 from diffsynth import ModelConfig
 from diffsynth.pipelines.z_image import ZImagePipeline
-from diffsynth.diffusion.loss import FlowMatchSFTLoss, TrajectoryImitationLoss
+from diffsynth.diffusion.loss import FlowMatchSFTLoss
 import os
 import glob
-import accelerate
 
 from diffusers import AutoPipelineForText2Image, StableDiffusionPipeline
 
