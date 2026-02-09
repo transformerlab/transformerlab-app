@@ -266,7 +266,9 @@ async def get_provider_job_logs(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        team_id = user_and_team["team_id"]
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
 
@@ -394,7 +396,9 @@ async def get_tunnel_info_for_job(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        team_id = user_and_team["team_id"]
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
 
@@ -550,12 +554,28 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
         )
 
-    return StreamingResponse(
-        # we force polling because i can't get this to work otherwise -- changes aren't detected
-        watch_file(output_file_name, start_from_beginning=True, force_polling=True),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
-    )
+    # Check if this is a remote path (S3, GCS, etc.) and use appropriate watcher
+    is_remote_path = storage.is_remote_path(output_file_name)
+
+    if is_remote_path:
+        # Use S3 polling watcher for remote filesystems
+        # This handles file rewrites better by comparing content lengths
+        from transformerlab.routers.serverinfo import watch_remote_file
+
+        return StreamingResponse(
+            watch_remote_file(output_file_name, start_from_beginning=True, poll_interval_ms=100),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+        )
+    else:
+        # Use local file watcher for local filesystems
+        # watch_file is already imported at the top
+        return StreamingResponse(
+            # we force polling because i can't get this to work otherwise -- changes aren't detected
+            watch_file(output_file_name, start_from_beginning=True, force_polling=True),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+        )
 
 
 @router.get("/{job_id}/stream_detailed_json_report")

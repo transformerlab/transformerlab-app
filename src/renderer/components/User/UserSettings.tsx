@@ -34,6 +34,7 @@ import { CopyIcon, TrashIcon, PlusIcon } from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/api-client/urls';
 import QuotaReportSection from './QuotaReportSection';
 import UserSecretsSection from './UserSecretsSection';
+import ProviderSettingsSection from './ProviderSettingsSection';
 
 function PasswordChangeForm({ open, onClose }) {
   const [newPassword, setNewPassword] = useState('');
@@ -210,6 +211,7 @@ export default function UserSettings(): JSX.Element {
           <Tab>Secrets</Tab>
           <Tab>API Keys</Tab>
           <Tab>Team Invitations</Tab>
+          <Tab>Provider Settings</Tab>
           <Tab>Quota</Tab>
         </TabList>
 
@@ -320,9 +322,20 @@ export default function UserSettings(): JSX.Element {
           />
         </TabPanel>
 
-        {/* Quota Tab */}
+        {/* Provider Settings Tab */}
         <TabPanel
           value={4}
+          sx={{
+            p: 2,
+            overflowY: 'auto',
+          }}
+        >
+          <ProviderSettingsSection />
+        </TabPanel>
+
+        {/* Quota Tab */}
+        <TabPanel
+          value={5}
           sx={{
             p: 2,
             overflowY: 'auto',
