@@ -241,3 +241,158 @@ def command_task_info(
         console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
         raise typer.Exit(1)
     info_task(task_id, current_experiment)
+
+
+def fetch_providers() -> list[dict]:
+    """Fetch available compute providers."""
+    try:
+        response = api.get("/compute_provider/")
+        if response.status_code == 200:
+            return response.json()
+    except Exception:
+        pass
+    return []
+
+
+def build_launch_payload(task: dict, provider_name: str, param_values: dict | None = None) -> dict:
+    """Build the payload for launching a task on a provider."""
+    return {
+        "experiment_id": task.get("experiment_id"),
+        "task_id": task.get("id"),
+        "task_name": task.get("name"),
+        "command": task.get("command"),
+        "setup": task.get("setup"),
+        "accelerators": task.get("accelerators"),
+        "env_vars": task.get("env_vars", {}),
+        "parameters": task.get("parameters", {}),
+        "config": param_values if param_values else None,
+        "provider_name": provider_name,
+        "github_repo_url": task.get("github_repo_url"),
+        "github_directory": task.get("github_directory"),
+    }
+
+
+def launch_task_on_provider(provider_id: str, payload: dict) -> dict:
+    """Launch a task on a provider. Returns the response JSON or raises."""
+    response = api.post_json(f"/compute_provider/{provider_id}/task/launch", payload)
+    if response.status_code == 200:
+        return response.json()
+    try:
+        detail = response.json().get("detail", response.text)
+    except Exception:
+        detail = response.text
+    raise RuntimeError(f"Failed to queue task: {detail}")
+
+
+def _prompt_provider(providers: list[dict]) -> dict:
+    """Prompt user to select a provider from the list."""
+    console.print("\n[bold cyan]Available Providers:[/bold cyan]")
+    for i, provider in enumerate(providers, 1):
+        console.print(f"  [bold]{i}[/bold]. {provider.get('name', provider.get('id'))}")
+
+    while True:
+        choice = typer.prompt("\nSelect a provider", default="1")
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(providers):
+                return providers[idx]
+            console.print(f"[red]Please enter a number between 1 and {len(providers)}[/red]")
+        except ValueError:
+            console.print("[red]Please enter a valid number[/red]")
+
+
+def _prompt_parameters(parameters: dict) -> dict:
+    """Prompt user for each parameter value, showing defaults."""
+    if not parameters:
+        return {}
+
+    console.print("\n[bold cyan]Task Parameters:[/bold cyan]")
+    values = {}
+
+    for key, raw_value in parameters.items():
+        if isinstance(raw_value, dict) and "type" in raw_value:
+            schema = raw_value
+            title = schema.get("title", key)
+            default = schema.get("default", "")
+            param_type = schema.get("type", "string")
+            options = schema.get("options", schema.get("enum", []))
+
+            hint_parts = [f"type: {param_type}"]
+            if schema.get("min") is not None:
+                hint_parts.append(f"min: {schema['min']}")
+            if schema.get("max") is not None:
+                hint_parts.append(f"max: {schema['max']}")
+            if options:
+                hint_parts.append(f"options: {', '.join(str(o) for o in options)}")
+
+            hint = f" ({', '.join(hint_parts)})" if hint_parts else ""
+            result = typer.prompt(f"  {title}{hint}", default=str(default) if default != "" else "", show_default=True)
+        else:
+            default = raw_value
+            result = typer.prompt(f"  {key}", default=str(default) if default != "" else "", show_default=True)
+
+        values[key] = result
+
+    return values
+
+
+def queue_task(task_id: str, experiment_id: str, interactive: bool = True) -> None:
+    """Queue a task on a compute provider."""
+    with console.status("[bold green]Fetching task...[/bold green]", spinner="dots"):
+        response = api.get(f"/experiment/{experiment_id}/task/{task_id}/get")
+
+    if response.status_code != 200:
+        console.print(f"[red]Error:[/red] Failed to fetch task. Status code: {response.status_code}")
+        raise typer.Exit(1)
+
+    task = response.json()
+    console.print(f"\n[bold]Task:[/bold] {task.get('name', 'Unknown')}")
+
+    with console.status("[bold green]Fetching providers...[/bold green]", spinner="dots"):
+        providers = fetch_providers()
+
+    if not providers:
+        console.print("[red]Error:[/red] No compute providers available. Add one in team settings first.")
+        raise typer.Exit(1)
+
+    if interactive:
+        provider = _prompt_provider(providers)
+    else:
+        task_provider_id = task.get("provider_id")
+        provider = next((p for p in providers if p.get("id") == task_provider_id), None)
+        if not provider:
+            provider = providers[0]
+        console.print(f"[dim]Using provider: {provider.get('name')}[/dim]")
+
+    parameters = task.get("parameters", {})
+    if interactive and parameters:
+        param_values = _prompt_parameters(parameters)
+    else:
+        param_values = {k: (v.get("default", "") if isinstance(v, dict) else v) for k, v in parameters.items()}
+
+    payload = build_launch_payload(task, provider.get("name"), param_values)
+    provider_id = provider.get("id")
+
+    with console.status("[bold green]Queuing task...[/bold green]", spinner="dots"):
+        try:
+            data = launch_task_on_provider(provider_id, payload)
+            job_id = data.get("job_id", "unknown")
+            console.print(f"[green]✓[/green] Task queued successfully. Job ID: [bold]{job_id}[/bold]")
+        except RuntimeError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            raise typer.Exit(1)
+
+
+@app.command("queue")
+def command_task_queue(
+    task_id: str = typer.Argument(..., help="Task ID to queue"),
+    no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip interactive prompts, use defaults"),
+):
+    """Queue a task on a compute provider."""
+    check_configs()
+    current_experiment = get_config("current_experiment")
+    if not current_experiment or not str(current_experiment).strip():
+        console.print("[yellow]current_experiment is not set in config.[/yellow]")
+        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
+        raise typer.Exit(1)
+    queue_task(task_id, experiment_id=current_experiment, interactive=not no_interactive)
