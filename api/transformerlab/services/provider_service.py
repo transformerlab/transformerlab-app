@@ -126,7 +126,7 @@ async def list_team_providers(session: AsyncSession, team_id: str) -> list[TeamC
 def db_record_to_provider_config(
     record: TeamComputeProvider,
     user_slurm_user: Optional[str] = None,
-    org_ssh_key_path: Optional[str] = None,
+    user_ssh_key_path: Optional[str] = None,
 ) -> ComputeProviderConfig:
     """
     Convert a database TeamComputeProvider record to a ComputeProviderConfig object.
@@ -134,7 +134,7 @@ def db_record_to_provider_config(
     Args:
         record: TeamComputeProvider database record
         user_slurm_user: Optional user-specific SLURM username to override provider's ssh_user
-        org_ssh_key_path: Optional path to org's SSH private key (used for SLURM when team has org key)
+        user_ssh_key_path: Optional path to user's SSH private key (used for SLURM when user has uploaded a key)
 
     Returns:
         ComputeProviderConfig object ready for create_compute_provider()
@@ -144,8 +144,8 @@ def db_record_to_provider_config(
     # Use user-specific slurm_user if provided, otherwise use provider's default
     ssh_user = user_slurm_user if user_slurm_user else config_dict.get("ssh_user")
 
-    # Use org key path when provided (so "add this public key to authorized_keys" works); else provider config
-    ssh_key_path = org_ssh_key_path if org_ssh_key_path else config_dict.get("ssh_key_path")
+    # Use user's key path when provided (user uploaded private key in Provider Settings); else provider config
+    ssh_key_path = user_ssh_key_path if user_ssh_key_path else config_dict.get("ssh_key_path")
 
     # Build ComputeProviderConfig from database record
     provider_config = ComputeProviderConfig(
@@ -187,21 +187,21 @@ async def get_provider_instance(
     the user's SLURM username from config (User Settings → Provider Settings)
     and uses it instead of the provider's default ssh_user.
 
-    When team_id is provided and the provider is SLURM (SSH mode), uses the
-    team's org SSH private key so that connections use the same key whose
-    public key users add to their SLURM node's authorized_keys.
+    When user_id and team_id are provided and the provider is SLURM (SSH mode),
+    uses the user's uploaded SSH private key (User Settings → Provider Settings)
+    if present; otherwise falls back to provider config ssh_key_path.
 
     Args:
         record: TeamComputeProvider database record
-        user_id: Optional user ID; if set with team_id and provider is SLURM, user's slurm_user is used
-        team_id: Optional team ID; required with user_id for slurm_user lookup; also used for org SSH key
+        user_id: Optional user ID; if set with team_id and provider is SLURM, user's slurm_user and SSH key are used
+        team_id: Optional team ID; required with user_id for slurm_user and SSH key lookup
 
     Returns:
         Instantiated ComputeProvider object
     """
 
     user_slurm_user = None
-    org_ssh_key_path = None
+    user_ssh_key_path = None
 
     if record.type == "slurm":
         if user_id and team_id:
@@ -210,19 +210,20 @@ async def get_provider_instance(
             config_key = f"provider:{record.id}:slurm_user"
             user_slurm_user = await db.config_get(key=config_key, user_id=user_id, team_id=team_id)
 
-        # Use org's SSH private key when we have team context (SSH mode); matches public key we tell users to add
-        if team_id and record.config and record.config.get("mode") == "ssh":
-            try:
-                from transformerlab.services.ssh_key_service import get_or_create_org_ssh_key_pair
+            # Use user's uploaded SSH private key (SSH mode) when available
+            if record.config and record.config.get("mode") == "ssh":
+                try:
+                    from transformerlab.services.user_slurm_key_service import (
+                        get_user_slurm_key_path,
+                        user_slurm_key_exists,
+                    )
 
-                private_key_path, _ = await get_or_create_org_ssh_key_pair(team_id)
-                if private_key_path:
-                    org_ssh_key_path = private_key_path
-            except Exception:
-                # Fall back to provider config ssh_key_path if org key unavailable
-                pass
+                    if await user_slurm_key_exists(team_id, record.id, user_id):
+                        user_ssh_key_path = await get_user_slurm_key_path(team_id, record.id, user_id)
+                except Exception:
+                    pass
 
-    config = db_record_to_provider_config(record, user_slurm_user=user_slurm_user, org_ssh_key_path=org_ssh_key_path)
+    config = db_record_to_provider_config(record, user_slurm_user=user_slurm_user, user_ssh_key_path=user_ssh_key_path)
     return create_compute_provider(config)
 
 

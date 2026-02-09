@@ -260,9 +260,7 @@ export default function UserSettings(): JSX.Element {
         onRefresh={invitationsMutate}
       />
       <ApiKeysSection teams={teams?.teams || []} />
-      {authContext.team?.id && (
-        <ProviderSettingsSection teamId={authContext.team.id} />
-      )}
+      {authContext.team?.id && <ProviderSettingsSection />}
       <QuotaReportSection />
     </Sheet>
   );

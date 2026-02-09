@@ -440,26 +440,30 @@ async def get_user_provider_settings(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Get user-specific settings for a provider (e.g., SLURM username).
+    Get user-specific settings for a provider (e.g., SLURM username, SSH key status).
     Requires X-Team-Id header and team membership.
     """
     import transformerlab.db.db as db
+    from transformerlab.services.user_slurm_key_service import user_slurm_key_exists
 
     team_id = user_and_team["team_id"]
     user_id = str(user_and_team["user"].id)
 
-    # Verify provider exists and user has access
     provider = await get_team_provider(session, team_id, provider_id)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
-    # Get user-specific slurm_user setting
     config_key = f"provider:{provider_id}:slurm_user"
     slurm_user = await db.config_get(key=config_key, user_id=user_id, team_id=team_id)
+
+    has_ssh_key = False
+    if provider.type == ProviderType.SLURM.value:
+        has_ssh_key = await user_slurm_key_exists(team_id, provider_id, user_id)
 
     return {
         "provider_id": provider_id,
         "slurm_user": slurm_user,
+        "has_ssh_key": has_ssh_key,
     }
 
 
@@ -500,13 +504,102 @@ async def set_user_provider_settings(
     if slurm_user:
         await db.config_set(key=config_key, value=slurm_user, user_id=user_id, team_id=team_id)
     else:
-        # Delete the setting if slurm_user is None or empty
         await db.config_set(key=config_key, value="", user_id=user_id, team_id=team_id)
+
+    has_ssh_key = False
+    if provider.type == ProviderType.SLURM.value:
+        from transformerlab.services.user_slurm_key_service import user_slurm_key_exists
+
+        has_ssh_key = await user_slurm_key_exists(team_id, provider_id, user_id)
 
     return {
         "provider_id": provider_id,
         "slurm_user": slurm_user,
+        "has_ssh_key": has_ssh_key,
     }
+
+
+@router.post("/user-settings/{provider_id}/ssh-key")
+async def upload_user_slurm_ssh_key(
+    provider_id: str,
+    body: dict = Body(...),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Upload a user's SLURM SSH private key for a provider.
+    Requires X-Team-Id header and team membership.
+    """
+    from transformerlab.services.user_slurm_key_service import save_user_slurm_key
+
+    team_id = user_and_team["team_id"]
+    user_id = str(user_and_team["user"].id)
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if provider.type != ProviderType.SLURM.value:
+        raise HTTPException(
+            status_code=400,
+            detail="SSH key upload is only available for SLURM providers",
+        )
+
+    private_key = body.get("private_key")
+    if not private_key or not isinstance(private_key, str):
+        raise HTTPException(status_code=400, detail="private_key is required and must be a string")
+    private_key = private_key.strip()
+    if not private_key:
+        raise HTTPException(status_code=400, detail="private_key cannot be empty")
+    if not (private_key.startswith("-----BEGIN") or "PRIVATE KEY" in private_key or "BEGIN RSA" in private_key):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid private key format. Expected PEM or OpenSSH format starting with '-----BEGIN'",
+        )
+
+    try:
+        await save_user_slurm_key(team_id, provider_id, user_id, private_key)
+        return {
+            "status": "success",
+            "provider_id": provider_id,
+            "message": "SSH private key uploaded successfully",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save SSH key: {str(e)}")
+
+
+@router.delete("/user-settings/{provider_id}/ssh-key")
+async def delete_user_slurm_ssh_key(
+    provider_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Delete a user's SLURM SSH private key for a provider.
+    Requires X-Team-Id header and team membership.
+    """
+    from transformerlab.services.user_slurm_key_service import delete_user_slurm_key
+
+    team_id = user_and_team["team_id"]
+    user_id = str(user_and_team["user"].id)
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if provider.type != ProviderType.SLURM.value:
+        raise HTTPException(
+            status_code=400,
+            detail="SSH key deletion is only available for SLURM providers",
+        )
+
+    try:
+        await delete_user_slurm_key(team_id, provider_id, user_id)
+        return {
+            "status": "success",
+            "provider_id": provider_id,
+            "message": "SSH private key deleted successfully",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete SSH key: {str(e)}")
 
 
 @router.get("/{provider_id}", response_model=ProviderRead)
