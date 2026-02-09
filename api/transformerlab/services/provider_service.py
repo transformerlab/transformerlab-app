@@ -123,17 +123,23 @@ async def list_team_providers(session: AsyncSession, team_id: str) -> list[TeamC
     return list(result.scalars().all())
 
 
-def db_record_to_provider_config(record: TeamComputeProvider) -> ComputeProviderConfig:
+def db_record_to_provider_config(
+    record: TeamComputeProvider, user_slurm_user: Optional[str] = None
+) -> ComputeProviderConfig:
     """
     Convert a database TeamComputeProvider record to a ComputeProviderConfig object.
 
     Args:
         record: TeamComputeProvider database record
+        user_slurm_user: Optional user-specific SLURM username to override provider's ssh_user
 
     Returns:
         ComputeProviderConfig object ready for create_compute_provider()
     """
     config_dict = record.config or {}
+
+    # Use user-specific slurm_user if provided, otherwise use provider's default
+    ssh_user = user_slurm_user if user_slurm_user else config_dict.get("ssh_user")
 
     # Build ComputeProviderConfig from database record
     provider_config = ComputeProviderConfig(
@@ -146,7 +152,7 @@ def db_record_to_provider_config(record: TeamComputeProvider) -> ComputeProvider
         mode=config_dict.get("mode"),
         rest_url=config_dict.get("rest_url"),
         ssh_host=config_dict.get("ssh_host"),
-        ssh_user=config_dict.get("ssh_user"),
+        ssh_user=ssh_user,
         ssh_key_path=config_dict.get("ssh_key_path"),
         ssh_port=config_dict.get("ssh_port", 22),
         # Runpod-specific config
@@ -163,17 +169,18 @@ def db_record_to_provider_config(record: TeamComputeProvider) -> ComputeProvider
     return provider_config
 
 
-def get_provider_instance(record: TeamComputeProvider) -> ComputeProvider:
+def get_provider_instance(record: TeamComputeProvider, user_slurm_user: Optional[str] = None) -> ComputeProvider:
     """
     Get an instantiated ComputeProvider from a database record.
 
     Args:
         record: TeamComputeProvider database record
+        user_slurm_user: Optional user-specific SLURM username to override provider's ssh_user
 
     Returns:
         Instantiated ComputeProvider object
     """
-    config = db_record_to_provider_config(record)
+    config = db_record_to_provider_config(record, user_slurm_user=user_slurm_user)
     return create_compute_provider(config)
 
 
