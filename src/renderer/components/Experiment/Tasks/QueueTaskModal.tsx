@@ -94,6 +94,14 @@ export default function QueueTaskModal({
     Record<number, string>
   >({});
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
+  const [runSweeps, setRunSweeps] = React.useState(false);
+  const [sweepConfig, setSweepConfig] = React.useState<Record<string, any[]>>(
+    {},
+  );
+  const [sweepMetric, setSweepMetric] = React.useState('eval/loss');
+  const [lowerIsBetter, setLowerIsBetter] = React.useState(true);
+  const [newSweepParam, setNewSweepParam] = React.useState('');
+  const [newSweepValues, setNewSweepValues] = React.useState('');
 
   // Fetch available models and datasets from the API
   const { data: modelsData } = useSWR(
@@ -193,6 +201,30 @@ export default function QueueTaskModal({
       setSelectedProviderId(
         taskProviderInList ? taskProviderId : (providers[0]?.id ?? ''),
       );
+
+      // Initialize sweep configuration from task
+      setRunSweeps(cfg.run_sweeps ?? task.run_sweeps ?? false);
+      if (cfg.sweep_config || task.sweep_config) {
+        const sweepCfg =
+          typeof cfg.sweep_config === 'string'
+            ? JSON.parse(cfg.sweep_config)
+            : cfg.sweep_config || task.sweep_config;
+        setSweepConfig(sweepCfg || {});
+      } else {
+        setSweepConfig({});
+      }
+      setSweepMetric(
+        cfg.sweep_metric ||
+          task.sweep_metric ||
+          (cfg.run_sweeps || task.run_sweeps ? 'eval/loss' : 'eval/loss'),
+      );
+      setLowerIsBetter(
+        cfg.lower_is_better !== undefined
+          ? cfg.lower_is_better
+          : task.lower_is_better !== undefined
+            ? task.lower_is_better
+            : true,
+      );
     }
   }, [open, task, providers]);
 
@@ -248,6 +280,14 @@ export default function QueueTaskModal({
       return;
     }
 
+    // Validate sweep configuration if enabled
+    if (runSweeps && Object.keys(sweepConfig).length === 0) {
+      alert(
+        'Please add at least one parameter to sweep, or disable hyperparameter sweeps.',
+      );
+      return;
+    }
+
     // Convert parameters array to object for config
     const config: Record<string, any> = {};
     parameters.forEach(({ key, value }) => {
@@ -263,6 +303,16 @@ export default function QueueTaskModal({
     const provider = providers.find((p) => p.id === selectedProviderId);
     if (provider) {
       config.provider_name = provider.name;
+    }
+
+    // Add sweep configuration if enabled
+    if (runSweeps) {
+      config.run_sweeps = true;
+      if (Object.keys(sweepConfig).length > 0) {
+        config.sweep_config = sweepConfig;
+      }
+      config.sweep_metric = sweepMetric;
+      config.lower_is_better = lowerIsBetter;
     }
 
     onSubmit(config);
@@ -770,6 +820,180 @@ export default function QueueTaskModal({
                 Parameters can be accessed in your task script using{' '}
                 <code>lab.get_config()</code>
               </Typography>
+            </Stack>
+
+            <Divider />
+
+            {/* Sweep Configuration Section */}
+            <Stack spacing={2}>
+              <Typography level="title-sm">Hyperparameter Sweeps</Typography>
+              <FormControl>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <FormLabel>Run Hyperparameter Sweeps</FormLabel>
+                  <Switch
+                    checked={runSweeps}
+                    onChange={(e) => setRunSweeps(e.target.checked)}
+                    color={runSweeps ? 'success' : 'neutral'}
+                  />
+                </Stack>
+                <FormHelperText>
+                  Enable this to perform hyperparameter sweeps. Multiple jobs
+                  will be created with different parameter combinations.
+                </FormHelperText>
+              </FormControl>
+
+              {runSweeps && (
+                <Stack spacing={2}>
+                  {/* Add Sweep Parameter */}
+                  <Stack spacing={2}>
+                    <FormLabel>Add Parameter Sweep</FormLabel>
+                    <FormHelperText>
+                      Define parameters to sweep. Each parameter can have
+                      multiple values to try. The system will create a job for
+                      each combination.
+                    </FormHelperText>
+                    <Stack direction="row" spacing={2} alignItems="flex-start">
+                      <FormControl sx={{ minWidth: 200 }}>
+                        <FormLabel>Parameter</FormLabel>
+                        <Select
+                          placeholder="Select a parameter"
+                          value={newSweepParam || null}
+                          onChange={(_, value) => setNewSweepParam(value || '')}
+                        >
+                          {parameters
+                            .filter(
+                              (param) =>
+                                param.key &&
+                                !Object.keys(sweepConfig).includes(param.key),
+                            )
+                            .map((param) => (
+                              <Option key={param.key} value={param.key}>
+                                {param.schema?.title || param.key}
+                              </Option>
+                            ))}
+                        </Select>
+                      </FormControl>
+                      <FormControl sx={{ flex: 1 }}>
+                        <FormLabel>Sweep Values (comma separated)</FormLabel>
+                        <Input
+                          value={newSweepValues}
+                          onChange={(e) => setNewSweepValues(e.target.value)}
+                          placeholder="e.g. 1e-5, 3e-5, 5e-5"
+                        />
+                        <FormHelperText>
+                          Enter values separated by commas
+                        </FormHelperText>
+                      </FormControl>
+                      <Button
+                        sx={{ mt: 3 }}
+                        onClick={() => {
+                          if (newSweepParam && newSweepValues.trim()) {
+                            const valuesArray = newSweepValues
+                              .split(',')
+                              .map((val) => {
+                                const trimmedValue = val.trim();
+                                // Try to convert to number if possible
+                                const numValue = Number(trimmedValue);
+                                return isNaN(numValue)
+                                  ? trimmedValue
+                                  : numValue;
+                              });
+                            setSweepConfig((prev) => ({
+                              ...prev,
+                              [newSweepParam]: valuesArray,
+                            }));
+                            setNewSweepParam('');
+                            setNewSweepValues('');
+                          }
+                        }}
+                        disabled={!newSweepParam || !newSweepValues.trim()}
+                      >
+                        Add Parameter
+                      </Button>
+                    </Stack>
+                  </Stack>
+
+                  {/* Current Sweep Configuration */}
+                  {Object.keys(sweepConfig).length > 0 && (
+                    <Stack spacing={2}>
+                      <FormLabel>Current Sweep Configuration</FormLabel>
+                      <Stack spacing={1}>
+                        {Object.entries(sweepConfig).map(([param, values]) => (
+                          <Stack
+                            key={param}
+                            direction="row"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            sx={{
+                              p: 1.5,
+                              borderRadius: 'sm',
+                              bgcolor: 'background.level1',
+                            }}
+                          >
+                            <Stack>
+                              <FormLabel>{param}</FormLabel>
+                              <FormHelperText>
+                                Values: {values.join(', ')}
+                              </FormHelperText>
+                            </Stack>
+                            <Button
+                              color="danger"
+                              variant="soft"
+                              size="sm"
+                              onClick={() => {
+                                setSweepConfig((prev) => {
+                                  const updated = { ...prev };
+                                  delete updated[param];
+                                  return updated;
+                                });
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          </Stack>
+                        ))}
+                      </Stack>
+                    </Stack>
+                  )}
+
+                  {/* Sweep Metric Configuration */}
+                  <Stack spacing={2}>
+                    <FormControl>
+                      <FormLabel>Sweep Metric</FormLabel>
+                      <Input
+                        value={sweepMetric}
+                        onChange={(e) => setSweepMetric(e.target.value)}
+                        placeholder="eval/loss"
+                      />
+                      <FormHelperText>
+                        Metric name to use for determining best configuration.
+                        Should match a metric logged by the task.
+                      </FormHelperText>
+                    </FormControl>
+                    <FormControl>
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
+                        <FormLabel>Lower is Better</FormLabel>
+                        <Switch
+                          checked={lowerIsBetter}
+                          onChange={(e) => setLowerIsBetter(e.target.checked)}
+                        />
+                      </Stack>
+                      <FormHelperText>
+                        Whether lower values of the sweep metric are better. If
+                        disabled, higher values are better.
+                      </FormHelperText>
+                    </FormControl>
+                  </Stack>
+                </Stack>
+              )}
             </Stack>
           </Stack>
         </DialogContent>
