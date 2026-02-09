@@ -306,34 +306,24 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   );
 
   useEffect(() => {
-    // Logic to auto-select team, prioritizing per-user preference
+    // Logic to auto-select team on login/user change, prioritizing per-user preference only
     const teams = teamsData?.teams as Team[] | undefined;
     const userId = user?.id as string | undefined;
 
     if (teams && teams.length > 0 && userId) {
-      const globalCurrent = getCurrentTeam();
       const preferred = getUserPreferredTeam(userId);
+      const hadPreferred = !!preferred;
 
-      // Decide desired team:
       // 1. If preferred is still in this user's teams, use it.
-      // 2. Else if globalCurrent is in this user's teams, use it.
-      // 3. Else fall back to the first available team.
+      // 2. Otherwise, fall back to the first available team.
       let desired: Team | null = null;
+      let usedPreferred = false;
 
       if (preferred) {
         const preferredInList = teams.find((t) => t.id === preferred.id);
         if (preferredInList) {
           desired = { id: preferredInList.id, name: preferredInList.name };
-        }
-      }
-
-      if (!desired && globalCurrent) {
-        const currentInList = teams.find((t) => t.id === globalCurrent.id);
-        if (currentInList) {
-          desired = {
-            id: currentInList.id,
-            name: currentInList.name,
-          };
+          usedPreferred = true;
         }
       }
 
@@ -342,16 +332,22 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
         desired = { id: first.id, name: first.name };
       }
 
-      // If desired differs from the current state, update everything
+      // Only update state/caches if we actually need to change
       if (!team || team.id !== desired.id || team.name !== desired.name) {
         updateCurrentTeam(desired);
         setTeamState(desired);
       }
 
-      setUserPreferredTeam(userId, desired);
+      // Only update the stored preference when:
+      // - we successfully used an existing preferred team, or
+      // - the user had no prior preference (first login) and we're initializing it.
+      // This avoids overwriting an explicit user choice with a fallback (team[0]).
+      if (usedPreferred || !hadPreferred) {
+        setUserPreferredTeam(userId, desired);
+      }
       document.cookie = `tlab_team_id=${desired.id}; path=/; SameSite=Lax`;
     } else if (teams && teams.length === 0) {
-      // No teams available
+      // No teams available for this user
       updateCurrentTeam(null);
       setTeamState(null);
       setUserPreferredTeam(userId, null);
