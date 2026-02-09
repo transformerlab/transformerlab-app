@@ -13,6 +13,21 @@ from lab.dirs import HOME_DIR
 SLURM_KEYS_ROOT = os.path.normpath(os.path.join(HOME_DIR, "slurm_keys"))
 
 
+def _ensure_under_slurm_root(path: str) -> str:
+    """
+    Normalize a path and ensure it is located under SLURM_KEYS_ROOT.
+
+    Raises:
+        ValueError: If the normalized path is not within SLURM_KEYS_ROOT.
+    """
+    normalized = os.path.normpath(path)
+    # os.path.commonpath will raise ValueError if paths are on different drives
+    common = os.path.commonpath([SLURM_KEYS_ROOT, normalized])
+    if common != SLURM_KEYS_ROOT:
+        raise ValueError("Invalid path for SLURM SSH key")
+    return normalized
+
+
 async def get_user_slurm_key_path(team_id: str, provider_id: str, user_id: str) -> str:
     """
     Get the path where a user's SLURM SSH private key is stored.
@@ -25,14 +40,13 @@ async def get_user_slurm_key_path(team_id: str, provider_id: str, user_id: str) 
     Returns:
         Path to the private key file
     """
-    # Build and normalize the key directory path to prevent path traversal.
-    key_dir = os.path.normpath(os.path.join(SLURM_KEYS_ROOT, team_id, provider_id, user_id))
-
-    # Ensure the resulting path is still within the SLURM_KEYS_ROOT directory.
-    if os.path.commonpath([SLURM_KEYS_ROOT, key_dir]) != SLURM_KEYS_ROOT:
-        raise ValueError("Invalid path for SLURM SSH key")
-
-    return os.path.join(key_dir, "id_rsa")
+    # Build the key directory path and ensure it stays within SLURM_KEYS_ROOT.
+    raw_key_dir = os.path.join(SLURM_KEYS_ROOT, team_id, provider_id, user_id)
+    key_dir = _ensure_under_slurm_root(raw_key_dir)
+    # Build the full key file path and validate it as well.
+    raw_key_path = os.path.join(key_dir, "id_rsa")
+    key_path = _ensure_under_slurm_root(raw_key_path)
+    return key_path
 
 
 async def save_user_slurm_key(team_id: str, provider_id: str, user_id: str, private_key_content: str) -> str:
@@ -49,7 +63,8 @@ async def save_user_slurm_key(team_id: str, provider_id: str, user_id: str, priv
         Path to the saved key file
     """
     key_path = await get_user_slurm_key_path(team_id, provider_id, user_id)
-    key_dir = os.path.dirname(key_path)
+    # Derive and validate the directory to ensure it is still under SLURM_KEYS_ROOT.
+    key_dir = _ensure_under_slurm_root(os.path.dirname(key_path))
 
     os.makedirs(key_dir, exist_ok=True)
 
