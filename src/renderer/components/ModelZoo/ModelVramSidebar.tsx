@@ -105,8 +105,11 @@ export default function ModelVramSidebar({
     );
   }, [modelId, model?.huggingface_filename]);
 
-  const { data: vramResponse, isLoading: vramLoading, isError: vramError } =
-    useSWR(vramUrl);
+  const {
+    data: vramResponse,
+    isLoading: vramLoading,
+    isError: vramError,
+  } = useSWR(vramUrl);
 
   const vramData = (vramResponse as VramEstimateResponse | undefined)?.data;
   const rawBreakdown =
@@ -257,28 +260,28 @@ export default function ModelVramSidebar({
           !vramLoading && (
             <Typography
               level="body-sm"
-              color={isUnauthorized ? 'warning' : isUnsupported ? 'neutral' : 'danger'}
+              color={
+                isUnauthorized
+                  ? 'warning'
+                  : isUnsupported
+                    ? 'neutral'
+                    : 'danger'
+              }
             >
               {vramMessage ||
                 (isUnauthorized
                   ? 'This model requires a Hugging Face token.'
                   : isUnsupported
                     ? 'Unable to estimate VRAM for this model.'
-                  : 'Failed to estimate VRAM.')}
+                    : 'Failed to estimate VRAM.')}
             </Typography>
           )}
 
         {model && hasModelId && vramStatus === 'success' && vramData && (
           <Stack spacing={1}>
             <StatRow label="Total" value={formatGigabytes(totalGb)} />
-            <StatRow
-              label="Weights"
-              value={formatGigabytes(weightsGb)}
-            />
-            <StatRow
-              label="KV cache"
-              value={formatGigabytes(kvCacheGb)}
-            />
+            <StatRow label="Weights" value={formatGigabytes(weightsGb)} />
+            <StatRow label="KV cache" value={formatGigabytes(kvCacheGb)} />
             <StatRow
               label="Activations"
               value={formatGigabytes(activationsGb)}
@@ -325,9 +328,7 @@ export default function ModelVramSidebar({
               <>
                 <StatRow
                   label="Largest GPU (total)"
-                  value={
-                    maxTotalBytes > 0 ? formatBytes(maxTotalBytes) : '—'
-                  }
+                  value={maxTotalBytes > 0 ? formatBytes(maxTotalBytes) : '—'}
                 />
                 <StatRow
                   label="Largest GPU (free)"

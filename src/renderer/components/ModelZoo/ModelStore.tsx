@@ -109,8 +109,9 @@ export default function ModelStore() {
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
   const [canceling, setCanceling] = useState(false);
   const [modelDetailsId, setModelDetailsId] = useState(null);
-  const [selectedModel, setSelectedModel] =
-    useState<ModelGalleryEntry | null>(null);
+  const [selectedModel, setSelectedModel] = useState<ModelGalleryEntry | null>(
+    null,
+  );
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({ archived: false });
   const navigate = useNavigate();

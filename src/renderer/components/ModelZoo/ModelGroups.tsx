@@ -177,8 +177,9 @@ export default function ModelGroups({ experimentInfo }) {
     architecture: 'All',
   });
   const [selectedGroup, setSelectedGroup] = useState(null);
-  const [selectedModel, setSelectedModel] =
-    useState<ModelGalleryEntry | null>(null);
+  const [selectedModel, setSelectedModel] = useState<ModelGalleryEntry | null>(
+    null,
+  );
   const [modelDetailsId, setModelDetailsId] = useState(null);
   const [jobId, setJobId] = useState(null);
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
@@ -610,182 +611,178 @@ export default function ModelGroups({ experimentInfo }) {
                 p: 1,
               }}
             >
-                <Table
-                  hoverRow
-                  stickyHeader
-                  sx={{
-                    width: '100%',
-                    tableLayout: 'fixed',
-                    '& th, & td': {
-                      wordBreak: 'break-word',
-                      whiteSpace: 'normal',
-                      padding: '8px',
-                    },
-                  }}
-                >
-                  <thead>
-                    <tr>
-                      <th>
-                        <Link
-                          underline="none"
-                          color="primary"
-                          component="button"
-                          onClick={() => {
-                            setOrder(order === 'asc' ? 'desc' : 'asc');
-                            setOrderBy('name');
-                          }}
-                          fontWeight="lg"
-                          endDecorator={
-                            orderBy === 'name' && (
-                              <ChevronUpIcon
-                                color="var(--joy-palette-primary-plainColor)"
-                                style={{
-                                  transition: '0.2s',
-                                  transform:
-                                    order === 'asc'
-                                      ? 'rotate(180deg)'
-                                      : 'rotate(0deg)',
-                                }}
-                              />
-                            )
-                          }
-                        >
-                          Name
-                        </Link>
-                      </th>
-                      <th className="license-col">
-                        <Link
-                          underline="none"
-                          color="primary"
-                          component="button"
-                          onClick={() => {
-                            setOrder(order === 'asc' ? 'desc' : 'asc');
-                            setOrderBy('license');
-                          }}
-                          fontWeight="lg"
-                          endDecorator={
-                            orderBy === 'license' && (
-                              <ChevronUpIcon
-                                color="var(--joy-palette-primary-plainColor)"
-                                style={{
-                                  transition: '0.2s',
-                                  transform:
-                                    order === 'asc'
-                                      ? 'rotate(180deg)'
-                                      : 'rotate(0deg)',
-                                }}
-                              />
-                            )
-                          }
-                        >
-                          License
-                        </Link>
-                      </th>
-                      <th>
-                        <Link
-                          underline="none"
-                          color="primary"
-                          component="button"
-                          onClick={() => {
-                            setOrder(order === 'asc' ? 'desc' : 'asc');
-                            setOrderBy('architecture');
-                          }}
-                          fontWeight="lg"
-                          endDecorator={
-                            orderBy === 'architecture' && (
-                              <ChevronUpIcon
-                                color="var(--joy-palette-primary-plainColor)"
-                                style={{
-                                  transition: '0.2s',
-                                  transform:
-                                    order === 'asc'
-                                      ? 'rotate(180deg)'
-                                      : 'rotate(0deg)',
-                                }}
-                              />
-                            )
-                          }
-                        >
-                          Engine
-                        </Link>
-                      </th>
-                      <th style={{ width: 80 }}>
-                        <Link
-                          underline="none"
-                          color="primary"
-                          component="button"
-                          onClick={() => {
-                            setOrder(order === 'asc' ? 'desc' : 'asc');
-                            setOrderBy('size_of_model_in_mb');
-                          }}
-                          fontWeight="lg"
-                          endDecorator={
-                            orderBy === 'size_of_model_in_mb' && (
-                              <ChevronUpIcon
-                                color="var(--joy-palette-primary-plainColor)"
-                                style={{
-                                  transition: '0.2s',
-                                  transform:
-                                    order === 'asc'
-                                      ? 'rotate(180deg)'
-                                      : 'rotate(0deg)',
-                                }}
-                              />
-                            )
-                          }
-                        >
-                          Size
-                        </Link>
-                      </th>
-                      <th>&nbsp;</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stableSort(
-                      filterByFilters(
-                        selectedGroup.models,
-                        searchText,
-                        filters,
-                      ),
-                      getComparator(order, orderBy),
-                    ).map((row: ModelGalleryEntry) => (
-                      <tr
-                        key={row.uniqueID}
-                        onClick={() => setSelectedModel(row)}
-                        style={{
-                          cursor: 'pointer',
-                          backgroundColor:
-                            selectedModel?.uniqueID === row.uniqueID
-                              ? 'var(--joy-palette-background-level1)'
-                              : undefined,
+              <Table
+                hoverRow
+                stickyHeader
+                sx={{
+                  width: '100%',
+                  tableLayout: 'fixed',
+                  '& th, & td': {
+                    wordBreak: 'break-word',
+                    whiteSpace: 'normal',
+                    padding: '8px',
+                  },
+                }}
+              >
+                <thead>
+                  <tr>
+                    <th>
+                      <Link
+                        underline="none"
+                        color="primary"
+                        component="button"
+                        onClick={() => {
+                          setOrder(order === 'asc' ? 'desc' : 'asc');
+                          setOrderBy('name');
                         }}
+                        fontWeight="lg"
+                        endDecorator={
+                          orderBy === 'name' && (
+                            <ChevronUpIcon
+                              color="var(--joy-palette-primary-plainColor)"
+                              style={{
+                                transition: '0.2s',
+                                transform:
+                                  order === 'asc'
+                                    ? 'rotate(180deg)'
+                                    : 'rotate(0deg)',
+                              }}
+                            />
+                          )
+                        }
                       >
-                        <td>
-                          <Typography level="body-sm">
-                            {row.new && (
-                              <Chip size="sm" color="warning">
-                                New!
+                        Name
+                      </Link>
+                    </th>
+                    <th className="license-col">
+                      <Link
+                        underline="none"
+                        color="primary"
+                        component="button"
+                        onClick={() => {
+                          setOrder(order === 'asc' ? 'desc' : 'asc');
+                          setOrderBy('license');
+                        }}
+                        fontWeight="lg"
+                        endDecorator={
+                          orderBy === 'license' && (
+                            <ChevronUpIcon
+                              color="var(--joy-palette-primary-plainColor)"
+                              style={{
+                                transition: '0.2s',
+                                transform:
+                                  order === 'asc'
+                                    ? 'rotate(180deg)'
+                                    : 'rotate(0deg)',
+                              }}
+                            />
+                          )
+                        }
+                      >
+                        License
+                      </Link>
+                    </th>
+                    <th>
+                      <Link
+                        underline="none"
+                        color="primary"
+                        component="button"
+                        onClick={() => {
+                          setOrder(order === 'asc' ? 'desc' : 'asc');
+                          setOrderBy('architecture');
+                        }}
+                        fontWeight="lg"
+                        endDecorator={
+                          orderBy === 'architecture' && (
+                            <ChevronUpIcon
+                              color="var(--joy-palette-primary-plainColor)"
+                              style={{
+                                transition: '0.2s',
+                                transform:
+                                  order === 'asc'
+                                    ? 'rotate(180deg)'
+                                    : 'rotate(0deg)',
+                              }}
+                            />
+                          )
+                        }
+                      >
+                        Engine
+                      </Link>
+                    </th>
+                    <th style={{ width: 80 }}>
+                      <Link
+                        underline="none"
+                        color="primary"
+                        component="button"
+                        onClick={() => {
+                          setOrder(order === 'asc' ? 'desc' : 'asc');
+                          setOrderBy('size_of_model_in_mb');
+                        }}
+                        fontWeight="lg"
+                        endDecorator={
+                          orderBy === 'size_of_model_in_mb' && (
+                            <ChevronUpIcon
+                              color="var(--joy-palette-primary-plainColor)"
+                              style={{
+                                transition: '0.2s',
+                                transform:
+                                  order === 'asc'
+                                    ? 'rotate(180deg)'
+                                    : 'rotate(0deg)',
+                              }}
+                            />
+                          )
+                        }
+                      >
+                        Size
+                      </Link>
+                    </th>
+                    <th>&nbsp;</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stableSort(
+                    filterByFilters(selectedGroup.models, searchText, filters),
+                    getComparator(order, orderBy),
+                  ).map((row: ModelGalleryEntry) => (
+                    <tr
+                      key={row.uniqueID}
+                      onClick={() => setSelectedModel(row)}
+                      style={{
+                        cursor: 'pointer',
+                        backgroundColor:
+                          selectedModel?.uniqueID === row.uniqueID
+                            ? 'var(--joy-palette-background-level1)'
+                            : undefined,
+                      }}
+                    >
+                      <td>
+                        <Typography level="body-sm">
+                          {row.new && (
+                            <Chip size="sm" color="warning">
+                              New!
+                            </Chip>
+                          )}
+                          {row.name}&nbsp;
+                          <a
+                            href={getModelHuggingFaceURL(row)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {row.gated ? (
+                              <Chip
+                                size="sm"
+                                color="warning"
+                                endDecorator={<LockKeyholeIcon size="13px" />}
+                              >
+                                Gated
                               </Chip>
+                            ) : (
+                              <ExternalLinkIcon size="14px" />
                             )}
-                            {row.name}&nbsp;
-                            <a
-                              href={getModelHuggingFaceURL(row)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {row.gated ? (
-                                <Chip
-                                  size="sm"
-                                  color="warning"
-                                  endDecorator={<LockKeyholeIcon size="13px" />}
-                                >
-                                  Gated
-                                </Chip>
-                              ) : (
-                                <ExternalLinkIcon size="14px" />
-                              )}
-                            </a>
-                            {/* {row.tags?.map((tag) => (
+                          </a>
+                          {/* {row.tags?.map((tag) => (
                               <Chip
                                 key={tag}
                                 size="sm"
@@ -795,129 +792,124 @@ export default function ModelGroups({ experimentInfo }) {
                                 {tag}
                               </Chip>
                             ))} */}
-                          </Typography>
-                        </td>
-                        <td className="license-col">
-                          <Chip size="sm" variant="soft" color="neutral">
-                            {row.license}
-                          </Chip>
-                        </td>
-                        <td
-                          style={{
-                            width: 170,
-                            maxWidth: 170,
-                            wordBreak: 'break-all',
-                            whiteSpace: 'normal',
+                        </Typography>
+                      </td>
+                      <td className="license-col">
+                        <Chip size="sm" variant="soft" color="neutral">
+                          {row.license}
+                        </Chip>
+                      </td>
+                      <td
+                        style={{
+                          width: 170,
+                          maxWidth: 170,
+                          wordBreak: 'break-all',
+                          whiteSpace: 'normal',
+                        }}
+                      >
+                        <Typography
+                          level="body-sm"
+                          startDecorator={
+                            row.architecture === 'MLX' && <TinyMLXLogo />
+                          }
+                          sx={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            maxWidth: 150, // adjust as needed to fit your column
+                            display: 'block',
                           }}
                         >
-                          <Typography
-                            level="body-sm"
-                            startDecorator={
-                              row.architecture === 'MLX' && <TinyMLXLogo />
-                            }
-                            sx={{
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              maxWidth: 150, // adjust as needed to fit your column
-                              display: 'block',
+                          {row.architecture}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Typography level="body-sm">
+                          {formatBytes(row?.size_of_model_in_mb * 1024 * 1024)}
+                        </Typography>
+                      </td>
+
+                      <td style={{ textAlign: 'right' }}>
+                        {row.gated && !isHFAccessTokenSet ? (
+                          <Button
+                            size="sm"
+                            endDecorator={<LockKeyholeIcon />}
+                            color="warning"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (
+                                confirm(
+                                  'To access gated Hugging Face models you must first create a token. Go to settings',
+                                )
+                              ) {
+                                navigate('/settings');
+                              }
                             }}
                           >
-                            {row.architecture}
-                          </Typography>
-                        </td>
-                        <td>
-                          <Typography level="body-sm">
-                            {formatBytes(
-                              row?.size_of_model_in_mb * 1024 * 1024,
-                            )}
-                          </Typography>
-                        </td>
-
-                        <td style={{ textAlign: 'right' }}>
-                          {row.gated && !isHFAccessTokenSet ? (
-                            <Button
-                              size="sm"
-                              endDecorator={<LockKeyholeIcon />}
-                              color="warning"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                if (
-                                  confirm(
-                                    'To access gated Hugging Face models you must first create a token. Go to settings',
-                                  )
-                                ) {
-                                  navigate('/settings');
-                                }
-                              }}
-                            >
-                              Unlock
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="soft"
-                              color="success"
-                              disabled={row.downloaded || jobId !== null}
-                              sx={{
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
-                              onClick={async (event) => {
-                                event.stopPropagation();
-                                setJobId(-1);
-                                setCurrentlyDownloading(row.name);
-                                try {
-                                  let response =
-                                    await chatAPI.authenticatedFetch(
-                                      chatAPI.Endpoints.Jobs.Create(
-                                        experimentInfo.id,
-                                      ),
-                                    );
-                                  const newJobId = await response.json();
-                                  setJobId(newJobId);
-                                  response = await downloadModelFromGallery(
-                                    row?.uniqueID,
-                                    newJobId,
+                            Unlock
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="soft"
+                            color="success"
+                            disabled={row.downloaded || jobId !== null}
+                            sx={{
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                            onClick={async (event) => {
+                              event.stopPropagation();
+                              setJobId(-1);
+                              setCurrentlyDownloading(row.name);
+                              try {
+                                let response = await chatAPI.authenticatedFetch(
+                                  chatAPI.Endpoints.Jobs.Create(
+                                    experimentInfo.id,
+                                  ),
+                                );
+                                const newJobId = await response.json();
+                                setJobId(newJobId);
+                                response = await downloadModelFromGallery(
+                                  row?.uniqueID,
+                                  newJobId,
+                                );
+                                if (response?.status !== 'success') {
+                                  alert(
+                                    `Failed to download: ${response.message}`,
                                   );
-                                  if (response?.status !== 'success') {
-                                    alert(
-                                      `Failed to download: ${response.message}`,
-                                    );
-                                    setCurrentlyDownloading(null);
-                                    setJobId(null);
-                                  } else {
-                                    const updatedData = await mutate();
-                                    const updatedGroup = updatedData?.find(
-                                      (g) => g.name === selectedGroup?.name,
-                                    );
-                                    if (updatedGroup) {
-                                      setSelectedGroup(updatedGroup);
-                                    }
-                                  }
-                                } catch (e) {
-                                  alert('Failed to download');
                                   setCurrentlyDownloading(null);
                                   setJobId(null);
+                                } else {
+                                  const updatedData = await mutate();
+                                  const updatedGroup = updatedData?.find(
+                                    (g) => g.name === selectedGroup?.name,
+                                  );
+                                  if (updatedGroup) {
+                                    setSelectedGroup(updatedGroup);
+                                  }
                                 }
-                              }}
-                              startDecorator={<DownloadIcon size="18px" />}
-                              endDecorator={
-                                row.downloaded ? (
-                                  <CheckIcon size="18px" />
-                                ) : null
+                              } catch (e) {
+                                alert('Failed to download');
+                                setCurrentlyDownloading(null);
+                                setJobId(null);
                               }
-                            >
-                              Download{row.downloaded ? 'ed' : ''}
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </Box>
+                            }}
+                            startDecorator={<DownloadIcon size="18px" />}
+                            endDecorator={
+                              row.downloaded ? <CheckIcon size="18px" /> : null
+                            }
+                          >
+                            Download{row.downloaded ? 'ed' : ''}
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </Box>
           </>
         </Box>
       </Sheet>
