@@ -95,8 +95,8 @@ export default function InviteUserModal({
         {invitationUrl ? (
           <>
             <Alert color="success" sx={{ mb: 2 }}>
-              Invitation sent successfully! An email has been sent to {email}. You
-              can also copy the invitation link below to share it manually.
+              Invitation sent successfully! An email has been sent to {email}.
+              You can also copy the invitation link below to share it manually.
             </Alert>
             <FormControl>
               <FormLabel>Invitation Link</FormLabel>
