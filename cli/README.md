@@ -32,6 +32,10 @@
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## Command Reference
+
+For a full list of all commands with detailed options and example usage, see [COMMANDS.md](COMMANDS.md).
+
 # Development
 
 ## Run (DEV):
