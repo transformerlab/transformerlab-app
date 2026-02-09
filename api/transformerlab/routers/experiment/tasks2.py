@@ -213,7 +213,7 @@ async def update_task_yaml(experimentId: str, task_id: str, request: Request):
         raise
     # Don't overwrite task id
     task_data.pop("id", None)
-    success = await task_service.update_task(task_id, task_data)
+    success = await task_service.update_task_from_yaml(task_id, task_data)
     if not success:
         raise HTTPException(status_code=404, detail="Task not found")
     return {"message": "OK"}
