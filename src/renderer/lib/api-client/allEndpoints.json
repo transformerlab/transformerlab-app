@@ -356,6 +356,22 @@
       "method": "GET",
       "path": "compute_provider/usage-report"
     },
+    "user-settings": {
+      "method": "GET",
+      "path": "compute_provider/user-settings/{providerId}"
+    },
+    "user-settings-update": {
+      "method": "PUT",
+      "path": "compute_provider/user-settings/{providerId}"
+    },
+    "user-settings-ssh-key": {
+      "method": "POST",
+      "path": "compute_provider/user-settings/{providerId}/ssh-key"
+    },
+    "user-settings-ssh-key-delete": {
+      "method": "DELETE",
+      "path": "compute_provider/user-settings/{providerId}/ssh-key"
+    },
     "downloadSshKey": {
       "method": "GET",
       "path": "ssh-key/download"
