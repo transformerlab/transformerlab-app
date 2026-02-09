@@ -241,6 +241,10 @@ app = fastapi.FastAPI(
     openapi_tags=tags_metadata,
 )
 
+# Add tracing middle only if setup and enabled
+if TRACE_MIDDLEWARE is not None:
+    app.add_middleware(TRACE_MIDDLEWARE)
+
 # CORS configuration
 # When using cookies, allow_credentials must be True and allow_origins cannot be ["*"]
 # Use FRONTEND_URL env var to specify allowed origins (comma-separated), or default to "*" without credentials
