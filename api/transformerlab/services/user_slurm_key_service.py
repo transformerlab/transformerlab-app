@@ -9,6 +9,9 @@ import os
 import stat
 from lab.dirs import HOME_DIR
 
+# Root directory under which all SLURM SSH keys are stored.
+SLURM_KEYS_ROOT = os.path.normpath(os.path.join(HOME_DIR, "slurm_keys"))
+
 
 async def get_user_slurm_key_path(team_id: str, provider_id: str, user_id: str) -> str:
     """
@@ -22,7 +25,13 @@ async def get_user_slurm_key_path(team_id: str, provider_id: str, user_id: str) 
     Returns:
         Path to the private key file
     """
-    key_dir = os.path.join(HOME_DIR, "slurm_keys", team_id, provider_id, user_id)
+    # Build and normalize the key directory path to prevent path traversal.
+    key_dir = os.path.normpath(os.path.join(SLURM_KEYS_ROOT, team_id, provider_id, user_id))
+
+    # Ensure the resulting path is still within the SLURM_KEYS_ROOT directory.
+    if os.path.commonpath([SLURM_KEYS_ROOT, key_dir]) != SLURM_KEYS_ROOT:
+        raise ValueError("Invalid path for SLURM SSH key")
+
     return os.path.join(key_dir, "id_rsa")
 
 
