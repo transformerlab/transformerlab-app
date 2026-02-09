@@ -623,3 +623,8 @@ Endpoints.Teams = {
   GetSecrets: (teamId: string) => `${API_URL()}teams/${teamId}/secrets`,
   SetSecrets: (teamId: string) => `${API_URL()}teams/${teamId}/secrets`,
 };
+
+Endpoints.Users = {
+  GetSecrets: () => `${API_URL()}users/me/secrets`,
+  SetSecrets: () => `${API_URL()}users/me/secrets`,
+};
