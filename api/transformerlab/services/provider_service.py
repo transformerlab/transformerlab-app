@@ -199,6 +199,7 @@ async def get_provider_instance(
     Returns:
         Instantiated ComputeProvider object
     """
+
     user_slurm_user = None
     org_ssh_key_path = None
 
