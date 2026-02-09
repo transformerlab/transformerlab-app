@@ -274,7 +274,9 @@ async def get_provider_job_logs(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        team_id = user_and_team["team_id"]
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
 
@@ -402,7 +404,9 @@ async def get_tunnel_info_for_job(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        team_id = user_and_team["team_id"]
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
 
