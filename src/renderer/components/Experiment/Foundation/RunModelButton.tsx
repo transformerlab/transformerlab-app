@@ -89,6 +89,8 @@ export default function RunModelButton({
     : null;
 
   useEffect(() => {
+    // Persist "Stopping..." state across reloads/navigation in the same app session.
+    // sessionStorage clears on app exit, so we don't carry this beyond the session.
     if (!stopRequestedKey) return;
     const stored = window?.sessionStorage?.getItem(stopRequestedKey);
     setStopRequested(stored === '1');
