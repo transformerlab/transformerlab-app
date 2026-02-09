@@ -169,17 +169,33 @@ def db_record_to_provider_config(
     return provider_config
 
 
-def get_provider_instance(record: TeamComputeProvider, user_slurm_user: Optional[str] = None) -> ComputeProvider:
+async def get_provider_instance(
+    record: TeamComputeProvider,
+    user_id: Optional[str] = None,
+    team_id: Optional[str] = None,
+) -> ComputeProvider:
     """
     Get an instantiated ComputeProvider from a database record.
 
+    When user_id and team_id are provided and the provider is SLURM, looks up
+    the user's SLURM username from config (User Settings → Provider Settings)
+    and uses it instead of the provider's default ssh_user.
+
     Args:
         record: TeamComputeProvider database record
-        user_slurm_user: Optional user-specific SLURM username to override provider's ssh_user
+        user_id: Optional user ID; if set with team_id and provider is SLURM, user's slurm_user is used
+        team_id: Optional team ID; required with user_id for slurm_user lookup
 
     Returns:
         Instantiated ComputeProvider object
     """
+    user_slurm_user = None
+    if user_id and team_id and record.type == "slurm":
+        import transformerlab.db.db as db
+
+        config_key = f"provider:{record.id}:slurm_user"
+        user_slurm_user = await db.config_get(key=config_key, user_id=user_id, team_id=team_id)
+
     config = db_record_to_provider_config(record, user_slurm_user=user_slurm_user)
     return create_compute_provider(config)
 

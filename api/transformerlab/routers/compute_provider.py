@@ -627,8 +627,6 @@ async def check_provider(
     Returns:
         {"status": True} if the provider is active, {"status": False} otherwise
     """
-    import transformerlab.db.db as db
-
     team_id = user_and_team["team_id"]
     user_id_str = str(user_and_team["user"].id)
 
@@ -636,16 +634,8 @@ async def check_provider(
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
-    # Use user-specific slurm_user for SLURM provider check if set
-    user_slurm_user = None
-    if provider.type == ProviderType.SLURM.value:
-        config_key = f"provider:{provider.id}:slurm_user"
-        user_slurm_user = await db.config_get(key=config_key, user_id=user_id_str, team_id=team_id)
-
     try:
-        # Try to instantiate the provider (with user's slurm_user for SLURM)
-        print(f"user_slurm_user: {user_slurm_user}")
-        provider_instance = get_provider_instance(provider, user_slurm_user=user_slurm_user)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Call the check method
         is_active = provider_instance.check()
@@ -854,17 +844,9 @@ async def _launch_sweep_jobs(
                 print(f"Provider {provider_id} not found for sweep job {parent_job_id}")
                 return
 
-            # Check for user-specific slurm_user setting
-            import transformerlab.db.db as db
-
+            # Get provider instance (resolves user's slurm_user for SLURM when user_id/team_id set)
             user_id_str = str(user.id)
-            user_slurm_user = None
-            if provider.type == ProviderType.SLURM.value:
-                config_key = f"provider:{provider.id}:slurm_user"
-                user_slurm_user = await db.config_get(key=config_key, user_id=user_id_str, team_id=team_id)
-
-            # Get provider instance with user-specific settings
-            provider_instance = get_provider_instance(provider, user_slurm_user=user_slurm_user)
+            provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
             # Generate user_info
             user_info = {}
@@ -1173,17 +1155,9 @@ async def launch_template_on_provider(
         if not has_quota:
             raise HTTPException(status_code=403, detail=message)
 
-    # Check for user-specific slurm_user setting
-    import transformerlab.db.db as db
-
+    # Get provider instance (resolves user's slurm_user for SLURM when user_id/team_id set)
     user_id_str = str(user.id)
-    user_slurm_user = None
-    if provider.type == ProviderType.SLURM.value:
-        config_key = f"provider:{provider.id}:slurm_user"
-        user_slurm_user = await db.config_get(key=config_key, user_id=user_id_str, team_id=team_id)
-
-    # Get provider instance with user-specific settings
-    provider_instance = get_provider_instance(provider, user_slurm_user=user_slurm_user)
+    provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
     # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING,
     # except for LOCAL providers where we introduce a WAITING status while queued.
@@ -1544,7 +1518,8 @@ async def check_provider_job_status(
         }
 
     try:
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
     except Exception as exc:
         print(f"Failed to instantiate provider: {exc}")
         return {
@@ -2132,18 +2107,10 @@ async def resume_from_checkpoint(
         if value is not None:
             await job_service.job_update_job_data_insert_key_value(new_job_id, field, value, experimentId)
 
-    # Check for user-specific slurm_user setting
-    import transformerlab.db.db as db
-
+    # Relaunch via provider (uses current user's slurm_user for SLURM)
     user_id_str = str(user_and_team["user"].id)
-    user_slurm_user = None
-    if provider.type == ProviderType.SLURM.value:
-        config_key = f"provider:{provider.id}:slurm_user"
-        user_slurm_user = await db.config_get(key=config_key, user_id=user_id_str, team_id=team_id)
-
-    # Relaunch via provider - replicate launch logic from compute_provider.py
     try:
-        provider_instance = get_provider_instance(provider, user_slurm_user=user_slurm_user)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
     except Exception as exc:
         await job_service.job_update_status(new_job_id, "FAILED", experimentId, error_msg=str(exc))
         raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
@@ -2289,8 +2256,8 @@ async def stop_cluster(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Stop cluster
         result = provider_instance.stop_cluster(cluster_name)
@@ -2319,8 +2286,8 @@ async def get_cluster_status(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Get cluster status
         status = provider_instance.get_cluster_status(cluster_name)
@@ -2349,8 +2316,8 @@ async def get_cluster_resources(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Get cluster resources
         resources = provider_instance.get_cluster_resources(cluster_name)
@@ -2378,8 +2345,8 @@ async def list_clusters_detailed(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Get detailed clusters
         clusters = provider_instance.get_clusters_detailed()
@@ -2414,8 +2381,8 @@ async def submit_job(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Submit job
         result = provider_instance.submit_job(cluster_name, job_config)
@@ -2456,8 +2423,8 @@ async def list_jobs(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # List jobs
         jobs = provider_instance.list_jobs(cluster_name)
@@ -2494,8 +2461,8 @@ async def get_job_info(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # List jobs and find the specific one
         try:
@@ -2553,8 +2520,8 @@ async def get_job_logs(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Local provider needs workspace_dir (job dir) to read logs
         if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
@@ -2645,8 +2612,8 @@ async def cancel_job(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Local provider needs workspace_dir (job dir) to cancel the correct process
         if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
