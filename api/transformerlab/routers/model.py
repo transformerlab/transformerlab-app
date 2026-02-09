@@ -26,6 +26,8 @@ from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 import transformerlab.services.job_service as job_service
 from transformerlab.services.job_service import job_update_status
+from transformerlab.services import vram_service
+from transformerlab.schemas.vram import VramEstimateResponse
 from lab.dirs import get_workspace_dir
 from lab.model import Model as ModelService
 from lab import storage
@@ -214,6 +216,29 @@ async def model_gallery(model_id: str):
     model_id = model_id.replace("~~~", "/")
 
     return await get_model_details_from_gallery(model_id)
+
+
+@router.get("/model/vram_estimate", response_model=VramEstimateResponse)
+async def model_vram_estimate(
+    model_id: str,
+    dtype: str = "float16",
+    batch: int = 1,
+    seq_len: int = 4096,
+    no_kv: bool = False,
+    x_team_id: str | None = Header(None, alias="X-Team-Id"),
+    user: User = Depends(current_active_user),
+) -> VramEstimateResponse:
+    model_id = model_id.replace("~~~", "/")
+    user_id = str(user.id) if user else None
+    return await vram_service.estimate_vram(
+        model_id=model_id,
+        dtype=dtype,
+        batch=batch,
+        seq_len=seq_len,
+        no_kv=no_kv,
+        user_id=user_id,
+        team_id=x_team_id,
+    )
 
 
 # Should this be a POST request?

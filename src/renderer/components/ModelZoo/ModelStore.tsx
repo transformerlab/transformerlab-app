@@ -38,6 +38,7 @@ import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import ModelDetailsModal from './ModelDetailsModal';
 import ImportModelsBar from './ImportModelsBar';
+import ModelVramSidebar, { ModelGalleryEntry } from './ModelVramSidebar';
 import DownloadProgressBox from '../Shared/DownloadProgressBox';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
@@ -108,6 +109,8 @@ export default function ModelStore() {
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
   const [canceling, setCanceling] = useState(false);
   const [modelDetailsId, setModelDetailsId] = useState(null);
+  const [selectedModel, setSelectedModel] =
+    useState<ModelGalleryEntry | null>(null);
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({ archived: false });
   const navigate = useNavigate();
@@ -416,8 +419,18 @@ export default function ModelStore() {
                 stableSort(
                   filterByFilters(modelGalleryData, searchText, filters),
                   getComparator(order, orderBy),
-                ).map((row) => (
-                  <tr key={row.uniqueID}>
+                ).map((row: ModelGalleryEntry) => (
+                  <tr
+                    key={row.uniqueID}
+                    onClick={() => setSelectedModel(row)}
+                    style={{
+                      cursor: 'pointer',
+                      backgroundColor:
+                        selectedModel?.uniqueID === row.uniqueID
+                          ? 'var(--joy-palette-background-level1)'
+                          : undefined,
+                    }}
+                  >
                     <td>
                       <Typography level="body-sm" marginLeft={2}>
                         {row.new && (
@@ -513,7 +526,9 @@ export default function ModelStore() {
 
                     <td style={{ textAlign: 'right' }}>
                       <InfoIcon
-                        onClick={() => {
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedModel(row);
                           setModelDetailsId(row.uniqueID);
                         }}
                       />
@@ -527,7 +542,8 @@ export default function ModelStore() {
                             size="sm"
                             endDecorator={<LockKeyholeIcon />}
                             color="warning"
-                            onClick={() => {
+                            onClick={(event) => {
+                              event.stopPropagation();
                               const confirm_result = confirm(
                                 'To access gated Hugging Face models you must first:\r\r' +
                                   '1. Create a READ access token in your Hugging Face account.\r\r' +
@@ -548,7 +564,8 @@ export default function ModelStore() {
                             variant="soft"
                             color="success"
                             disabled={row.downloaded || jobId !== null}
-                            onClick={async () => {
+                            onClick={async (event) => {
+                              event.stopPropagation();
                               setJobId(-1);
                               setCurrentlyDownloading(row.name);
                               try {
@@ -718,6 +735,11 @@ export default function ModelStore() {
           </Table>
         )}
       </Sheet>
+      <ModelVramSidebar
+        model={selectedModel}
+        open={Boolean(selectedModel)}
+        onClose={() => setSelectedModel(null)}
+      />
       <ImportModelsBar jobId={jobId} setJobId={setJobId} />
     </Sheet>
   );
