@@ -952,8 +952,9 @@ async def _launch_sweep_jobs(
 
             provider_display_name = request.provider_name or provider.name
 
-            # Load team secrets for template replacement
-            team_secrets = await load_team_secrets()
+            # Load team secrets and user secrets for template replacement (user secrets override team secrets)
+            user_id = str(user_and_team["user"].id)
+            team_secrets = await load_team_secrets(user_id=user_id)
 
             # Generate all parameter combinations
             param_names = list(sweep_config.keys())
@@ -992,6 +993,7 @@ async def _launch_sweep_jobs(
 
                 env_vars["_TFL_JOB_ID"] = str(child_job_id)
                 env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
+                env_vars["_TFL_USER_ID"] = user_id
 
                 # Get TFL_STORAGE_URI
                 tfl_storage_uri = None
@@ -1023,7 +1025,7 @@ async def _launch_sweep_jobs(
 
                 if request.github_repo_url:
                     workspace_dir = await get_workspace_dir()
-                    github_pat = read_github_pat_from_workspace(workspace_dir)
+                    github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
                     github_setup = generate_github_clone_setup(
                         repo_url=request.github_repo_url,
                         directory=request.github_directory,
@@ -1293,8 +1295,9 @@ async def launch_template_on_provider(
 
     provider_display_name = request.provider_name or provider.name
 
-    # Load team secrets for template replacement
-    team_secrets = await load_team_secrets()
+    # Load team secrets and user secrets for template replacement (user secrets override team secrets)
+    user_id = str(user_and_team["user"].id)
+    team_secrets = await load_team_secrets(user_id=user_id)
 
     # Prepare environment variables - start with a copy of requested env_vars
     env_vars = request.env_vars.copy() if request.env_vars else {}
@@ -1321,7 +1324,7 @@ async def launch_template_on_provider(
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
         workspace_dir = await get_workspace_dir()
-        github_pat = await read_github_pat_from_workspace(workspace_dir)
+        github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
         github_setup = generate_github_clone_setup(
             repo_url=request.github_repo_url,
             directory=request.github_directory,
@@ -1368,6 +1371,7 @@ async def launch_template_on_provider(
     # Add default environment variables
     env_vars["_TFL_JOB_ID"] = str(job_id)
     env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
+    env_vars["_TFL_USER_ID"] = user_id
 
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
@@ -2229,6 +2233,8 @@ async def resume_from_checkpoint(
     env_vars = (job_data.get("env_vars") or {}).copy()
     env_vars["_TFL_JOB_ID"] = str(new_job_id)
     env_vars["_TFL_EXPERIMENT_ID"] = experimentId
+    if user:
+        env_vars["_TFL_USER_ID"] = str(user.id)
 
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
@@ -2249,7 +2255,8 @@ async def resume_from_checkpoint(
     github_repo_url = job_data.get("github_repo_url")
     if github_repo_url:
         workspace_dir = await get_workspace_dir()
-        github_pat = read_github_pat_from_workspace(workspace_dir)
+        user_id_for_pat = str(user.id) if user else None
+        github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id_for_pat)
         github_setup = generate_github_clone_setup(
             repo_url=github_repo_url,
             directory=job_data.get("github_directory"),

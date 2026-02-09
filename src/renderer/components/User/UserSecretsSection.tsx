@@ -23,14 +23,13 @@ import {
   PlusIcon,
   Trash2Icon,
   EyeIcon,
-  EyeOffIcon,
   EditIcon,
   CopyIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from 'renderer/lib/authContext';
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import SpecialSecretsSection from './SpecialSecretsSection';
+import { API_URL } from 'renderer/lib/api-client/urls';
+import SpecialSecretsSection from '../Team/SpecialSecretsSection';
 
 interface SecretEntry {
   key: string;
@@ -40,7 +39,7 @@ interface SecretEntry {
   isViewing?: boolean;
 }
 
-export default function TeamSecretsSection({ teamId }: { teamId: string }) {
+export default function UserSecretsSection() {
   const { fetchWithAuth } = useAuth();
   const [secrets, setSecrets] = useState<SecretEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,16 +53,10 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
 
   useEffect(() => {
     const fetchSecrets = async () => {
-      if (!teamId) {
-        setLoading(false);
-        return;
-      }
       try {
         setLoading(true);
         setError(null);
-        const res = await fetchWithAuth(
-          chatAPI.Endpoints.Teams.GetSecrets(teamId),
-        );
+        const res = await fetchWithAuth(`${API_URL()}users/me/secrets`);
 
         if (res.ok) {
           const data = await res.json();
@@ -77,18 +70,18 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
           setSecrets(secretEntries);
         } else {
           const errorData = await res.json();
-          setError(errorData.detail || 'Failed to load team secrets');
+          setError(errorData.detail || 'Failed to load user secrets');
         }
       } catch (err: any) {
         console.error('Error fetching secrets:', err);
-        setError('Failed to load team secrets');
+        setError('Failed to load user secrets');
       } finally {
         setLoading(false);
       }
     };
 
     fetchSecrets();
-  }, [teamId, fetchWithAuth]);
+  }, [fetchWithAuth]);
 
   const handleAddSecret = () => {
     setSecrets([...secrets, { key: '', value: '', isNew: true }]);
@@ -109,21 +102,10 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
   };
 
   const handleViewSecret = async (secretKey: string) => {
-    // Show confirmation modal first
-    setViewSecretModal({
-      open: true,
-      secretKey,
-      secretValue: '',
-    });
-  };
-
-  const confirmViewSecret = async () => {
-    const { secretKey } = viewSecretModal;
-
-    // Fetch from API (team owners can retrieve values)
+    // Fetch from API (users can always view their own secrets)
     try {
       const res = await fetchWithAuth(
-        `${chatAPI.Endpoints.Teams.GetSecrets(teamId)}?include_values=true`,
+        `${API_URL()}users/me/secrets?include_values=true`,
       );
       if (res.ok) {
         const data = await res.json();
@@ -135,9 +117,7 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
             secretValue: actualValue,
           });
         } else {
-          alert(
-            'Unable to retrieve secret value. You may need to be a team owner to view secrets.',
-          );
+          alert('Unable to retrieve secret value.');
           setViewSecretModal({ open: false, secretKey: '', secretValue: '' });
         }
       } else {
@@ -202,7 +182,7 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
       let currentSecrets: Record<string, string> = {};
       try {
         const getRes = await fetchWithAuth(
-          `${chatAPI.Endpoints.Teams.GetSecrets(teamId)}?include_values=true`,
+          `${API_URL()}users/me/secrets?include_values=true`,
         );
         if (getRes.ok) {
           const getData = await getRes.json();
@@ -226,22 +206,17 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
         }
       });
 
-      const res = await fetchWithAuth(
-        chatAPI.Endpoints.Teams.SetSecrets(teamId),
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ secrets: secretsObj }),
-        },
-      );
+      const res = await fetchWithAuth(`${API_URL()}users/me/secrets`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secrets: secretsObj }),
+      });
 
       if (res.ok) {
         const data = await res.json();
 
         // Refresh the secrets list from API to get all current secrets
-        const getRes = await fetchWithAuth(
-          chatAPI.Endpoints.Teams.GetSecrets(teamId),
-        );
+        const getRes = await fetchWithAuth(`${API_URL()}users/me/secrets`);
         if (getRes.ok) {
           const getData = await getRes.json();
           const updatedSecrets: SecretEntry[] = (getData.secret_keys || []).map(
@@ -281,7 +256,7 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
     return (
       <Box sx={{ mt: 4 }}>
         <Typography level="title-lg" mb={1} startDecorator={<KeyIcon />}>
-          Team Secrets
+          User Secrets
         </Typography>
         <CircularProgress />
       </Box>
@@ -291,11 +266,15 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
   return (
     <Box sx={{ mt: 4 }}>
       <Typography level="title-lg" mb={2} startDecorator={<KeyIcon />}>
-        Team Secrets
+        User Secrets
+      </Typography>
+      <Typography level="body-sm" color="neutral" mb={2}>
+        User-specific secrets override team secrets. User secrets take
+        precedence over team secrets with the same name.
       </Typography>
 
       {/* Special Secrets Section */}
-      <SpecialSecretsSection teamId={teamId} />
+      <SpecialSecretsSection isUser={true} />
 
       {/* Custom Secrets Section */}
       <Box sx={{ mt: 4 }}>
@@ -469,44 +448,6 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
           </Stack>
         </Card>
       </Box>
-
-      {/* View Secret Confirmation Modal */}
-      <Modal
-        open={viewSecretModal.open && !viewSecretModal.secretValue}
-        onClose={() =>
-          setViewSecretModal({ open: false, secretKey: '', secretValue: '' })
-        }
-      >
-        <ModalDialog>
-          <ModalClose />
-          <DialogTitle>View Secret</DialogTitle>
-          <DialogContent>
-            <Typography level="body-md" sx={{ mb: 2 }}>
-              Are you sure you want to view the secret value for{' '}
-              <strong>{viewSecretModal.secretKey}</strong>?
-            </Typography>
-            <Typography level="body-sm" color="warning">
-              Warning: Secret values are sensitive. Make sure you're in a secure
-              environment before viewing.
-            </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button
-              variant="plain"
-              onClick={() =>
-                setViewSecretModal({
-                  open: false,
-                  secretKey: '',
-                  secretValue: '',
-                })
-              }
-            >
-              Cancel
-            </Button>
-            <Button onClick={confirmViewSecret}>View Secret</Button>
-          </DialogActions>
-        </ModalDialog>
-      </Modal>
 
       {/* View Secret Value Modal */}
       <Modal
