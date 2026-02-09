@@ -19,6 +19,54 @@ export type Team = {
   name: string;
 };
 
+type UserTeamMap = Record<string, Team>;
+const USER_TEAM_MAP_KEY = 'user_team_map';
+
+let _userTeamMap: UserTeamMap = {};
+if (typeof window !== 'undefined') {
+  try {
+    const raw = localStorage.getItem(USER_TEAM_MAP_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === 'object') {
+        _userTeamMap = parsed as UserTeamMap;
+      }
+    }
+  } catch {
+    _userTeamMap = {};
+  }
+}
+
+function persistUserTeamMap() {
+  try {
+    localStorage.setItem(USER_TEAM_MAP_KEY, JSON.stringify(_userTeamMap));
+  } catch {
+    /* ignore */
+  }
+}
+
+function getUserPreferredTeam(userId: string | undefined | null): Team | null {
+  if (!userId) return null;
+  const t = _userTeamMap[userId];
+  if (!t || typeof t.id !== 'string' || typeof t.name !== 'string') {
+    return null;
+  }
+  return { id: t.id, name: t.name };
+}
+
+function setUserPreferredTeam(
+  userId: string | undefined | null,
+  team: Team | null,
+) {
+  if (!userId) return;
+  if (team) {
+    _userTeamMap[userId] = { id: team.id, name: team.name };
+  } else {
+    delete _userTeamMap[userId];
+  }
+  persistUserTeamMap();
+}
+
 // export the AuthContextValue so consumers get correct types
 export interface AuthContextValue {
   user: any;
@@ -258,38 +306,58 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   );
 
   useEffect(() => {
-    // Logic to auto-select team if none selected
-    const teams = teamsData?.teams;
-    if (teams && teams.length > 0) {
-      const current = getCurrentTeam();
+    // Logic to auto-select team, prioritizing per-user preference
+    const teams = teamsData?.teams as Team[] | undefined;
+    const userId = user?.id as string | undefined;
 
-      // Validate that the current team belongs to the current user
-      if (current) {
-        const updated = teams.find((t: Team) => t.id === current.id);
-        if (!updated) {
-          // Current team doesn't belong to this user - clear it and select first team
-          updateCurrentTeam(teams[0]);
-          setTeamState(teams[0]);
-          document.cookie = `tlab_team_id=${teams[0].id}; path=/; SameSite=Lax`;
-        } else if (updated.name !== current.name) {
-          // Team name changed (e.g., rename) - update it
-          const next = { id: updated.id, name: updated.name };
-          updateCurrentTeam(next);
-          setTeamState(next);
-          document.cookie = `tlab_team_id=${next.id}; path=/; SameSite=Lax`;
+    if (teams && teams.length > 0 && userId) {
+      const globalCurrent = getCurrentTeam();
+      const preferred = getUserPreferredTeam(userId);
+
+      // Decide desired team:
+      // 1. If preferred is still in this user's teams, use it.
+      // 2. Else if globalCurrent is in this user's teams, use it.
+      // 3. Else fall back to the first available team.
+      let desired: Team | null = null;
+
+      if (preferred) {
+        const preferredInList = teams.find((t) => t.id === preferred.id);
+        if (preferredInList) {
+          desired = { id: preferredInList.id, name: preferredInList.name };
         }
-      } else {
-        // No team selected - select the first team
-        updateCurrentTeam(teams[0]);
-        setTeamState(teams[0]);
-        document.cookie = `tlab_team_id=${teams[0].id}; path=/; SameSite=Lax`;
       }
+
+      if (!desired && globalCurrent) {
+        const currentInList = teams.find((t) => t.id === globalCurrent.id);
+        if (currentInList) {
+          desired = {
+            id: currentInList.id,
+            name: currentInList.name,
+          };
+        }
+      }
+
+      if (!desired) {
+        const first = teams[0];
+        desired = { id: first.id, name: first.name };
+      }
+
+      // If desired differs from the current state, update everything
+      if (!team || team.id !== desired.id || team.name !== desired.name) {
+        updateCurrentTeam(desired);
+        setTeamState(desired);
+      }
+
+      setUserPreferredTeam(userId, desired);
+      document.cookie = `tlab_team_id=${desired.id}; path=/; SameSite=Lax`;
     } else if (teams && teams.length === 0) {
       // No teams available
       updateCurrentTeam(null);
       setTeamState(null);
+      setUserPreferredTeam(userId, null);
+      document.cookie = 'tlab_team_id=; Max-Age=0; path=/; SameSite=Lax';
     }
-  }, [teamsData, isAuthenticated, team]);
+  }, [teamsData, user, team]);
 
   // Identify user in analytics when user data is available
   useEffect(() => {
@@ -413,6 +481,8 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           : value;
       updateCurrentTeam(next);
       setTeamState(next);
+      // Persist per-user team preference so we can restore it next login
+      setUserPreferredTeam(user?.id as string | undefined, next);
       // Persist team selection in cookie so non-fetch requests (e.g. <img>) have team context
       if (next?.id) {
         document.cookie = `tlab_team_id=${next.id}; path=/; SameSite=Lax`;
@@ -425,7 +495,7 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
         window.location.reload();
       }
     },
-    [team],
+    [team, user],
   );
 
   const contextValue = useMemo(
