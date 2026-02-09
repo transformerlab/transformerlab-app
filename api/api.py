@@ -29,6 +29,24 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+# Optional Datadog APM (does nothing unless enabled + installed)
+def _maybe_enable_datadog():
+    if not os.getenv("DD_SERVICE"):
+        return
+
+    try:
+        from ddtrace import patch_all
+        from ddtrace.contrib.asgi import TraceMiddleware
+    except ImportError:
+        return None
+
+    patch_all(fastapi=True, httpx=True)
+    return TraceMiddleware
+
+
+TRACE_MIDDLEWARE = _maybe_enable_datadog()
+
+
 from fastchat.constants import (  # noqa: E402
     ErrorCode,
 )
