@@ -355,7 +355,7 @@ export default function ProviderSettingsSection() {
                       <br />
                       3. Paste your <strong>private key</strong> (
                       <code>~/.ssh/id_rsa</code>) in the upload dialog.
-                      TransformerLab will use it to connect to your SLURM
+                      Transformer Lab will use it to connect to your SLURM
                       account.
                     </Typography>
                   </Alert>
