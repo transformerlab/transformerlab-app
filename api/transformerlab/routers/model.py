@@ -225,6 +225,7 @@ async def model_vram_estimate(
     batch: int = 1,
     seq_len: int = 4096,
     no_kv: bool = False,
+    filename: str | None = None,
     x_team_id: str | None = Header(None, alias="X-Team-Id"),
     user: User = Depends(current_active_user),
 ) -> VramEstimateResponse:
@@ -236,6 +237,7 @@ async def model_vram_estimate(
         batch=batch,
         seq_len=seq_len,
         no_kv=no_kv,
+        filename=filename,
         user_id=user_id,
         team_id=x_team_id,
     )

@@ -23,6 +23,7 @@ export type ModelGalleryEntry = {
   uniqueID: string;
   name: string;
   huggingface_repo?: string;
+  huggingface_filename?: string;
   gated?: boolean;
   id?: string;
   new?: boolean;
@@ -47,7 +48,7 @@ type VramEstimateData = {
 };
 
 type VramEstimateResponse = {
-  status: 'success' | 'error' | 'unauthorized';
+  status: 'success' | 'error' | 'unauthorized' | 'unsupported';
   data?: VramEstimateData;
   message?: string;
 };
@@ -100,8 +101,9 @@ export default function ModelVramSidebar({
       DEFAULT_SETTINGS.batch,
       DEFAULT_SETTINGS.seqLen,
       DEFAULT_SETTINGS.noKv,
+      model?.huggingface_filename,
     );
-  }, [modelId]);
+  }, [modelId, model?.huggingface_filename]);
 
   const { data: vramResponse, isLoading: vramLoading, isError: vramError } =
     useSWR(vramUrl);
@@ -130,6 +132,7 @@ export default function ModelVramSidebar({
   const vramMessage = (vramResponse as VramEstimateResponse | undefined)
     ?.message;
   const isUnauthorized = vramStatus === 'unauthorized';
+  const isUnsupported = vramStatus === 'unsupported';
 
   const hasServerStats = Boolean(server);
   const maxTotalBytes =
@@ -254,11 +257,13 @@ export default function ModelVramSidebar({
           !vramLoading && (
             <Typography
               level="body-sm"
-              color={isUnauthorized ? 'warning' : 'danger'}
+              color={isUnauthorized ? 'warning' : isUnsupported ? 'neutral' : 'danger'}
             >
               {vramMessage ||
                 (isUnauthorized
                   ? 'This model requires a Hugging Face token.'
+                  : isUnsupported
+                    ? 'Unable to estimate VRAM for this model.'
                   : 'Failed to estimate VRAM.')}
             </Typography>
           )}

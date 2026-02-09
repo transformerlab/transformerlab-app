@@ -262,10 +262,13 @@ Endpoints.Models = {
     batch: number = 1,
     seqLen: number = 4096,
     noKv: boolean = false,
+    filename?: string,
   ) =>
     `${API_URL()}model/vram_estimate?model_id=${encodeURIComponent(
       modelId,
-    )}&dtype=${encodeURIComponent(dtype)}&batch=${batch}&seq_len=${seqLen}&no_kv=${noKv}`,
+    )}&dtype=${encodeURIComponent(dtype)}&batch=${batch}&seq_len=${seqLen}&no_kv=${noKv}${
+      filename ? `&filename=${encodeURIComponent(filename)}` : ''
+    }`,
   ModelDetailsFromFilesystem: (modelId: string) =>
     `${API_URL()}model/details/${convertSlashInUrl(modelId)}`,
   ModelProvenance: (modelId: string) =>

@@ -178,7 +178,7 @@
     },
     "vramEstimate": {
       "method": "GET",
-      "path": "model/vram_estimate?model_id={modelId}&dtype={dtype}&batch={batch}&seq_len={seqLen}&no_kv={noKv}"
+      "path": "model/vram_estimate?model_id={modelId}&dtype={dtype}&batch={batch}&seq_len={seqLen}&no_kv={noKv}&filename={filename}"
     }
   },
   "jobs": {
