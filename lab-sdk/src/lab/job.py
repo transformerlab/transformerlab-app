@@ -158,8 +158,8 @@ class Job(BaseLabResource):
     async def log_info(self, message):
         """
         Save info message to output log file and display to terminal.
-
-        TODO: Figure out a better way to do logging that doesn't rewrite the file!
+        Uses append mode for local files (prevents flickering) and read-modify-write
+        for remote files (S3/GCS don't support true append efficiently).
         """
         # Always print to console
         logger.info(message)
@@ -173,26 +173,34 @@ class Job(BaseLabResource):
         if not message_str.endswith("\n"):
             message_str = message_str + "\n"
 
-        # Read existing content, append new message, and write back to log file
         try:
             log_path = await self.get_log_path()
             await storage.makedirs(posixpath.dirname(log_path), exist_ok=True)
 
-            # Read existing content if file exists
-            existing_content = ""
-            if await storage.exists(log_path):
-                async with await storage.open(log_path, "r", encoding="utf-8") as f:
-                    existing_content = await f.read()
+            # Check if this is a remote path (S3, GCS, etc.)
+            is_remote = storage.is_remote_path(log_path)
 
-            # Append new message to existing content on a new line
-            if existing_content and not existing_content.endswith("\n"):
-                existing_content += "\n"
-            new_content = existing_content + message_str
+            if is_remote:
+                # For remote storage, use read-modify-write since true append
+                # may not work efficiently with S3/GCS filesystems
+                existing_content = ""
+                if await storage.exists(log_path):
+                    async with await storage.open(log_path, "r", encoding="utf-8") as f:
+                        existing_content = await f.read()
 
-            # Write back the complete content
-            async with await storage.open(log_path, "w", encoding="utf-8") as f:
-                await f.write(new_content)
-                # Note: async file objects may not have flush()
+                # Append new message to existing content on a new line
+                if existing_content and not existing_content.endswith("\n"):
+                    existing_content += "\n"
+                new_content = existing_content + message_str
+
+                # Write back the complete content
+                async with await storage.open(log_path, "w", encoding="utf-8") as f:
+                    await f.write(new_content)
+            else:
+                # For local files, use append mode - this is much more efficient
+                # and prevents flickering in the frontend when viewing output
+                async with await storage.open(log_path, "a", encoding="utf-8") as f:
+                    await f.write(message_str)
         except Exception:
             # Best-effort file logging; ignore file errors to avoid crashing job
             pass
