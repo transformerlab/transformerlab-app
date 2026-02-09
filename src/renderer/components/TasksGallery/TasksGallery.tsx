@@ -374,9 +374,7 @@ export default function TasksGallery() {
       const endpoint =
         activeTab === 'team'
           ? chatAPI.Endpoints.Task.ImportFromTeamGallery(experimentInfo.id)
-          : activeTab === 'interactive'
-            ? chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id)
-            : chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id);
+          : chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id);
       const response = await chatAPI.authenticatedFetch(endpoint, {
         method: 'POST',
         headers: {
