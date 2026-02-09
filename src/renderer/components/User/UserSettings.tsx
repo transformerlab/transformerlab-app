@@ -29,6 +29,7 @@ import { useAPI, useAuth } from 'renderer/lib/authContext';
 import { CopyIcon, TrashIcon, PlusIcon } from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/api-client/urls';
 import QuotaReportSection from './QuotaReportSection';
+import ProviderSettingsSection from './ProviderSettingsSection';
 
 function PasswordChangeForm({ open, onClose }) {
   const [newPassword, setNewPassword] = useState('');
@@ -259,6 +260,7 @@ export default function UserSettings(): JSX.Element {
         onRefresh={invitationsMutate}
       />
       <ApiKeysSection teams={teams?.teams || []} />
+      {authContext.team?.id && <ProviderSettingsSection />}
       <QuotaReportSection />
     </Sheet>
   );
