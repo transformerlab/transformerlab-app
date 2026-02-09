@@ -72,9 +72,7 @@ async def _run_command(command: list[str], env: dict[str, str]) -> tuple[int, st
         env=env,
     )
     try:
-        stdout, stderr = await asyncio.wait_for(
-            process.communicate(), timeout=_DEFAULT_TIMEOUT_SECONDS
-        )
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=_DEFAULT_TIMEOUT_SECONDS)
     except asyncio.TimeoutError:
         process.kill()
         await process.wait()
@@ -177,9 +175,7 @@ def _extract_summary(raw: Any) -> dict[str, Optional[float]]:
     if total_gb is None and isinstance(memory_breakdown, dict):
         total_gb = _as_float(memory_breakdown.get("total"))
 
-    if total_gb is None and any(
-        value is not None for value in (weights_gb, kv_cache_gb, activations_gb)
-    ):
+    if total_gb is None and any(value is not None for value in (weights_gb, kv_cache_gb, activations_gb)):
         total_gb = sum(value or 0 for value in (weights_gb, kv_cache_gb, activations_gb))
 
     return {
@@ -208,13 +204,9 @@ def _looks_like_auth_error(message: Optional[str]) -> bool:
     )
 
 
-async def _resolve_hf_token(
-    user_id: Optional[str], team_id: Optional[str]
-) -> Optional[str]:
+async def _resolve_hf_token(user_id: Optional[str], team_id: Optional[str]) -> Optional[str]:
     try:
-        return await db.config_get(
-            "HuggingfaceUserAccessToken", user_id=user_id, team_id=team_id
-        )
+        return await db.config_get("HuggingfaceUserAccessToken", user_id=user_id, team_id=team_id)
     except Exception:
         return None
 
@@ -258,10 +250,7 @@ async def estimate_vram(
     if not base_commands:
         return VramEstimateResponse(
             status="error",
-            message=(
-                "do-i-have-the-vram is not installed. Install it with pip before "
-                "using this endpoint."
-            ),
+            message=("do-i-have-the-vram is not installed. Install it with pip before using this endpoint."),
         )
 
     hf_token = await _resolve_hf_token(user_id=user_id, team_id=team_id)
@@ -272,9 +261,7 @@ async def estimate_vram(
 
     last_error: Optional[str] = None
     for base_command in base_commands:
-        command = _build_command(
-            base_command, model_id, normalized_dtype, batch, seq_len, no_kv
-        )
+        command = _build_command(base_command, model_id, normalized_dtype, batch, seq_len, no_kv)
         returncode, stdout, stderr = await _run_command(command, env)
         if returncode == 0:
             try:
@@ -305,15 +292,9 @@ async def estimate_vram(
             _cache_set(cache_key, data)
             return VramEstimateResponse(status="success", data=data)
 
-        last_error = (
-            stderr.strip()
-            or stdout.strip()
-            or f"Command failed with exit code {returncode}"
-        )
+        last_error = stderr.strip() or stdout.strip() or f"Command failed with exit code {returncode}"
 
     if _looks_like_auth_error(last_error):
         return VramEstimateResponse(status="unauthorized", message=last_error)
 
-    return VramEstimateResponse(
-        status="error", message=last_error or "Failed to estimate VRAM"
-    )
+    return VramEstimateResponse(status="error", message=last_error or "Failed to estimate VRAM")
