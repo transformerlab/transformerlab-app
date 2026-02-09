@@ -82,7 +82,9 @@ export default function ProviderSettingsSection({
   const loadPublicKey = async () => {
     setPublicKeyLoading(true);
     try {
-      const response = await fetchWithAuth('compute_provider/org-ssh-public-key');
+      const response = await fetchWithAuth(
+        'compute_provider/org-ssh-public-key',
+      );
       if (response.ok) {
         const data = await response.json();
         if (data.public_key) {
@@ -91,7 +93,9 @@ export default function ProviderSettingsSection({
           console.error('No public_key in response:', data);
         }
       } else {
-        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        const errorData = await response
+          .json()
+          .catch(() => ({ detail: response.statusText }));
         console.error('Failed to load public key:', errorData);
       }
     } catch (error) {
@@ -158,8 +162,8 @@ export default function ProviderSettingsSection({
       <Box mt={4}>
         <Typography level="title-lg">Provider Settings</Typography>
         <Typography level="body-sm" color="neutral" mt={1}>
-          No SLURM providers configured for this team. Ask your team owner to add
-          a SLURM provider in Team Settings.
+          No SLURM providers configured for this team. Ask your team owner to
+          add a SLURM provider in Team Settings.
         </Typography>
       </Box>
     );
@@ -181,9 +185,9 @@ export default function ProviderSettingsSection({
           <Typography level="title-sm">Organization SSH Public Key</Typography>
           <Typography level="body-sm" color="neutral">
             Copy this public key and add it to{' '}
-            <code>~/.ssh/authorized_keys</code> on your SLURM login node for
-            the user account you specify below. This allows the API server to
-            SSH into your SLURM account to launch jobs.
+            <code>~/.ssh/authorized_keys</code> on your SLURM login node for the
+            user account you specify below. This allows the API server to SSH
+            into your SLURM account to launch jobs.
           </Typography>
           {publicKeyLoading ? (
             <Typography level="body-sm" color="neutral">

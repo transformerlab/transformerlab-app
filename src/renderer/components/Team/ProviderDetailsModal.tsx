@@ -61,7 +61,7 @@ export default function ProviderDetailsModal({
   const [type, setType] = useState('');
   const [config, setConfig] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   // SLURM-specific form fields
   const [slurmMode, setSlurmMode] = useState<'ssh' | 'rest'>('ssh');
   const [slurmSshHost, setSlurmSshHost] = useState('');
@@ -70,7 +70,7 @@ export default function ProviderDetailsModal({
   const [slurmSshKeyPath, setSlurmSshKeyPath] = useState('');
   const [slurmRestUrl, setSlurmRestUrl] = useState('');
   const [slurmApiToken, setSlurmApiToken] = useState('');
-  
+
   const { fetchWithAuth } = useAuth();
   const { data: providerData, isLoading: providerDataLoading } = useAPI(
     'compute_provider',
@@ -101,7 +101,7 @@ export default function ProviderDetailsModal({
     const configObj: any = {
       mode: slurmMode,
     };
-    
+
     if (slurmMode === 'ssh') {
       configObj.ssh_host = slurmSshHost;
       configObj.ssh_user = slurmSshUser;
@@ -119,7 +119,7 @@ export default function ProviderDetailsModal({
         configObj.ssh_user = slurmSshUser;
       }
     }
-    
+
     return configObj;
   };
 
@@ -134,12 +134,12 @@ export default function ProviderDetailsModal({
         typeof providerData.config === 'string'
           ? JSON.parse(providerData.config || '{}')
           : providerData.config || {};
-      
+
       // Parse SLURM-specific fields if this is a SLURM provider
       if (providerData.type === 'slurm') {
         parseSlurmConfig(configObj);
       }
-      
+
       setConfig(JSON.stringify(configObj, null, 2));
     } else if (!providerId) {
       // Reset form when in "add" mode (no providerId)
@@ -175,9 +175,10 @@ export default function ProviderDetailsModal({
   // Populate default config when provider type changes (only when adding new provider)
   useEffect(() => {
     if (!providerId && type && type in DEFAULT_CONFIGS) {
-      const defaultConfig = DEFAULT_CONFIGS[type as keyof typeof DEFAULT_CONFIGS];
+      const defaultConfig =
+        DEFAULT_CONFIGS[type as keyof typeof DEFAULT_CONFIGS];
       setConfig(defaultConfig);
-      
+
       // Parse SLURM defaults
       if (type === 'slurm') {
         try {
@@ -197,7 +198,17 @@ export default function ProviderDetailsModal({
       const configObj = buildSlurmConfig();
       setConfig(JSON.stringify(configObj, null, 2));
     }
-  }, [slurmMode, slurmSshHost, slurmSshUser, slurmSshPort, slurmSshKeyPath, slurmRestUrl, slurmApiToken, type, providerId]);
+  }, [
+    slurmMode,
+    slurmSshHost,
+    slurmSshUser,
+    slurmSshPort,
+    slurmSshKeyPath,
+    slurmRestUrl,
+    slurmApiToken,
+    type,
+    providerId,
+  ]);
 
   async function createProvider(name: String, type: String, config: String) {
     return await fetchWithAuth(
@@ -234,8 +245,7 @@ export default function ProviderDetailsModal({
         parsedConfig = buildSlurmConfig();
       } else {
         // The API expects an object for config, not a JSON string
-        parsedConfig =
-          typeof config === 'string' ? JSON.parse(config) : config;
+        parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
       }
 
       const response = providerId
@@ -309,17 +319,20 @@ export default function ProviderDetailsModal({
                   </Typography>
                 )}
               </FormControl>
-              
+
               {/* SLURM-specific form fields */}
               {type === 'slurm' && (
                 <>
                   <Alert color="primary" variant="soft" sx={{ mt: 2 }}>
                     <Typography level="body-sm">
-                      <strong>SLURM User ID:</strong> All jobs launched through this provider will run as the specified SLURM user. 
-                      Make sure your team's SSH key (from Team Settings → SSH Key) is added to that user's authorized_keys on the SLURM login node.
+                      <strong>SLURM User ID:</strong> All jobs launched through
+                      this provider will run as the specified SLURM user. Make
+                      sure your team's SSH key (from Team Settings → SSH Key) is
+                      added to that user's authorized_keys on the SLURM login
+                      node.
                     </Typography>
                   </Alert>
-                  
+
                   <FormControl sx={{ mt: 2 }}>
                     <FormLabel>Connection Mode</FormLabel>
                     <Select
@@ -338,7 +351,9 @@ export default function ProviderDetailsModal({
                         <FormLabel>SSH Host *</FormLabel>
                         <Input
                           value={slurmSshHost}
-                          onChange={(event) => setSlurmSshHost(event.currentTarget.value)}
+                          onChange={(event) =>
+                            setSlurmSshHost(event.currentTarget.value)
+                          }
                           placeholder="slurm-login.example.com"
                           fullWidth
                         />
@@ -347,11 +362,16 @@ export default function ProviderDetailsModal({
                         <FormLabel>SLURM User ID *</FormLabel>
                         <Input
                           value={slurmSshUser}
-                          onChange={(event) => setSlurmSshUser(event.currentTarget.value)}
+                          onChange={(event) =>
+                            setSlurmSshUser(event.currentTarget.value)
+                          }
                           placeholder="your_slurm_username"
                           fullWidth
                         />
-                        <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>
+                        <Typography
+                          level="body-sm"
+                          sx={{ mt: 0.5, color: 'text.tertiary' }}
+                        >
                           All jobs will run as this user on SLURM
                         </Typography>
                       </FormControl>
@@ -359,7 +379,9 @@ export default function ProviderDetailsModal({
                         <FormLabel>SSH Port</FormLabel>
                         <Input
                           value={slurmSshPort}
-                          onChange={(event) => setSlurmSshPort(event.currentTarget.value)}
+                          onChange={(event) =>
+                            setSlurmSshPort(event.currentTarget.value)
+                          }
                           placeholder="22"
                           type="number"
                           fullWidth
@@ -369,12 +391,18 @@ export default function ProviderDetailsModal({
                         <FormLabel>SSH Key Path (Optional)</FormLabel>
                         <Input
                           value={slurmSshKeyPath}
-                          onChange={(event) => setSlurmSshKeyPath(event.currentTarget.value)}
+                          onChange={(event) =>
+                            setSlurmSshKeyPath(event.currentTarget.value)
+                          }
                           placeholder="Leave empty to use team SSH key"
                           fullWidth
                         />
-                        <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>
-                          Path to private key on API server. If empty, will use your team's SSH key.
+                        <Typography
+                          level="body-sm"
+                          sx={{ mt: 0.5, color: 'text.tertiary' }}
+                        >
+                          Path to private key on API server. If empty, will use
+                          your team's SSH key.
                         </Typography>
                       </FormControl>
                     </>
@@ -384,7 +412,9 @@ export default function ProviderDetailsModal({
                         <FormLabel>REST API URL *</FormLabel>
                         <Input
                           value={slurmRestUrl}
-                          onChange={(event) => setSlurmRestUrl(event.currentTarget.value)}
+                          onChange={(event) =>
+                            setSlurmRestUrl(event.currentTarget.value)
+                          }
                           placeholder="https://slurm-api.example.com"
                           fullWidth
                         />
@@ -393,11 +423,16 @@ export default function ProviderDetailsModal({
                         <FormLabel>SLURM User ID *</FormLabel>
                         <Input
                           value={slurmSshUser}
-                          onChange={(event) => setSlurmSshUser(event.currentTarget.value)}
+                          onChange={(event) =>
+                            setSlurmSshUser(event.currentTarget.value)
+                          }
                           placeholder="your_slurm_username"
                           fullWidth
                         />
-                        <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>
+                        <Typography
+                          level="body-sm"
+                          sx={{ mt: 0.5, color: 'text.tertiary' }}
+                        >
                           All jobs will run as this user on SLURM
                         </Typography>
                       </FormControl>
@@ -405,7 +440,9 @@ export default function ProviderDetailsModal({
                         <FormLabel>API Token (Optional)</FormLabel>
                         <Input
                           value={slurmApiToken}
-                          onChange={(event) => setSlurmApiToken(event.currentTarget.value)}
+                          onChange={(event) =>
+                            setSlurmApiToken(event.currentTarget.value)
+                          }
                           placeholder="Your SLURM REST API token"
                           type="password"
                           fullWidth
@@ -422,7 +459,9 @@ export default function ProviderDetailsModal({
                   <FormLabel>Configuration</FormLabel>
                   <Textarea
                     value={
-                      typeof config === 'string' ? config : JSON.stringify(config)
+                      typeof config === 'string'
+                        ? config
+                        : JSON.stringify(config)
                     }
                     onChange={(event) => setConfig(event.currentTarget.value)}
                     placeholder="JSON sent to provider"
@@ -431,14 +470,16 @@ export default function ProviderDetailsModal({
                   />
                 </FormControl>
               )}
-              
+
               {/* Show JSON for SLURM providers in edit mode for advanced users */}
               {type === 'slurm' && providerId && (
                 <FormControl sx={{ mt: 1 }}>
                   <FormLabel>Advanced: Raw Configuration (JSON)</FormLabel>
                   <Textarea
                     value={
-                      typeof config === 'string' ? config : JSON.stringify(config)
+                      typeof config === 'string'
+                        ? config
+                        : JSON.stringify(config)
                     }
                     onChange={(event) => {
                       setConfig(event.currentTarget.value);
@@ -454,8 +495,12 @@ export default function ProviderDetailsModal({
                     minRows={3}
                     maxRows={5}
                   />
-                  <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>
-                    Edit JSON directly for advanced configuration. Changes will sync to form fields above.
+                  <Typography
+                    level="body-sm"
+                    sx={{ mt: 0.5, color: 'text.tertiary' }}
+                  >
+                    Edit JSON directly for advanced configuration. Changes will
+                    sync to form fields above.
                   </Typography>
                 </FormControl>
               )}

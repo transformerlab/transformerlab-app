@@ -148,7 +148,7 @@ async def get_org_ssh_public_key(team_id: str) -> str:
 
     Returns:
         Public key as a string (OpenSSH format)
-    
+
     Raises:
         ValueError: If the key doesn't exist and can't be created
         FileNotFoundError: If the key file doesn't exist after creation attempt
