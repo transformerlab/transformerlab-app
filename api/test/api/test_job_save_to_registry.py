@@ -1,6 +1,3 @@
-import os
-from pathlib import Path
-
 import pytest
 
 import lab.dirs as lab_dirs
