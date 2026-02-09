@@ -109,7 +109,11 @@ async def get_user_slurm_key(team_id: str, provider_id: str, user_id: str) -> st
     Returns:
         Private key content as string, or None if not found
     """
-    key_path = await get_user_slurm_key_path(team_id, provider_id, user_id)
+    # Sanitize individual path components to prevent traversal or invalid names.
+    safe_team_id = _sanitize_path_component("team_id", team_id)
+    safe_provider_id = _sanitize_path_component("provider_id", provider_id)
+    safe_user_id = _sanitize_path_component("user_id", user_id)
+    key_path = await get_user_slurm_key_path(safe_team_id, safe_provider_id, safe_user_id)
     if os.path.exists(key_path):
         with open(key_path, "r") as f:
             return f.read()
@@ -125,7 +129,11 @@ async def delete_user_slurm_key(team_id: str, provider_id: str, user_id: str) ->
         provider_id: Provider ID
         user_id: User ID
     """
-    key_path = await get_user_slurm_key_path(team_id, provider_id, user_id)
+    # Sanitize individual path components to prevent traversal or invalid names.
+    safe_team_id = _sanitize_path_component("team_id", team_id)
+    safe_provider_id = _sanitize_path_component("provider_id", provider_id)
+    safe_user_id = _sanitize_path_component("user_id", user_id)
+    key_path = await get_user_slurm_key_path(safe_team_id, safe_provider_id, safe_user_id)
     if os.path.exists(key_path):
         os.remove(key_path)
 
@@ -142,5 +150,9 @@ async def user_slurm_key_exists(team_id: str, provider_id: str, user_id: str) ->
     Returns:
         True if key exists, False otherwise
     """
-    key_path = await get_user_slurm_key_path(team_id, provider_id, user_id)
+    # Sanitize individual path components to prevent traversal or invalid names.
+    safe_team_id = _sanitize_path_component("team_id", team_id)
+    safe_provider_id = _sanitize_path_component("provider_id", provider_id)
+    safe_user_id = _sanitize_path_component("user_id", user_id)
+    key_path = await get_user_slurm_key_path(safe_team_id, safe_provider_id, safe_user_id)
     return os.path.exists(key_path)
