@@ -6,11 +6,28 @@ The key is stored at: <workspace_dir>/slurm_keys/<team_id>/<provider_id>/<user_i
 """
 
 import os
+import re
 import stat
 from lab.dirs import HOME_DIR
 
 # Root directory under which all SLURM SSH keys are stored.
 SLURM_KEYS_ROOT = os.path.normpath(os.path.join(HOME_DIR, "slurm_keys"))
+
+
+def _sanitize_path_component(name: str, value: str) -> str:
+    """
+    Validate a single path component used for storing SLURM SSH keys.
+
+    Only allow simple directory names consisting of letters, digits, dashes and underscores.
+
+    Raises:
+        ValueError: If the component is empty or contains invalid characters.
+    """
+    if not value or not isinstance(value, str):
+        raise ValueError(f"Invalid {name} for SLURM SSH key path")
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", value):
+        raise ValueError(f"Invalid {name} for SLURM SSH key path")
+    return value
 
 
 def _ensure_under_slurm_root(path: str) -> str:
@@ -40,8 +57,12 @@ async def get_user_slurm_key_path(team_id: str, provider_id: str, user_id: str) 
     Returns:
         Path to the private key file
     """
+    # Sanitize individual path components to prevent traversal or invalid names.
+    safe_team_id = _sanitize_path_component("team_id", team_id)
+    safe_provider_id = _sanitize_path_component("provider_id", provider_id)
+    safe_user_id = _sanitize_path_component("user_id", user_id)
     # Build the key directory path and ensure it stays within SLURM_KEYS_ROOT.
-    raw_key_dir = os.path.join(SLURM_KEYS_ROOT, team_id, provider_id, user_id)
+    raw_key_dir = os.path.join(SLURM_KEYS_ROOT, safe_team_id, safe_provider_id, safe_user_id)
     key_dir = _ensure_under_slurm_root(raw_key_dir)
     # Build the full key file path and validate it as well.
     raw_key_path = os.path.join(key_dir, "id_rsa")
