@@ -266,7 +266,6 @@ elif GITHUB_OAUTH_ENABLED and MULTIUSER_MODE:
     print("✅ GitHub OAuth configured and ready.")
 
 
-# --- Generic OIDC providers (any OpenID Connect IdP) ---
 def _load_oidc_providers() -> list[dict]:
     """
     Load OIDC providers from environment.
