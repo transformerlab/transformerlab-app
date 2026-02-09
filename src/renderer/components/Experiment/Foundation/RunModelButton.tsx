@@ -450,7 +450,12 @@ export default function RunModelButton({
         <Button
           variant="plain"
           onClick={() => setShowRunSettings(!showRunSettings)}
-          disabled={models?.length > 0 || jobId == -1 || inferenceLoading || hasPendingLoadJob}
+          disabled={
+            models?.length > 0 ||
+            jobId == -1 ||
+            inferenceLoading ||
+            hasPendingLoadJob
+          }
         >
           using{' '}
           {removeServerFromEndOfString(
