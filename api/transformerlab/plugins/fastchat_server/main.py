@@ -78,6 +78,32 @@ if device is None or device == "":
         device = "cpu"
         num_gpus = 0
 
+gpu_split_strategy = parameters.get("gpu_split_strategy", "Auto (VRAM)")
+max_gpu_memory_input = (parameters.get("max_gpu_memory") or "").strip()
+max_gpu_memory_arg = None
+if device == "cuda" and num_gpus:
+    if gpu_split_strategy == "Split evenly":
+        if num_gpus > 1:
+            selected_gpu_ids = []
+            if gpu_ids:
+                selected_gpu_ids = [
+                    int(gpu_id.strip())
+                    for gpu_id in gpu_ids.split(",")
+                    if gpu_id.strip().isdigit()
+                ]
+            if not selected_gpu_ids:
+                selected_gpu_ids = list(range(torch.cuda.device_count()))
+            if selected_gpu_ids:
+                min_bytes = min(
+                    torch.cuda.get_device_properties(i).total_memory
+                    for i in selected_gpu_ids
+                )
+                min_gib = int(min_bytes // (1024**3))
+                if min_gib > 0:
+                    max_gpu_memory_arg = f"{min_gib}GiB"
+    elif gpu_split_strategy == "Custom max GPU memory" and max_gpu_memory_input:
+        max_gpu_memory_arg = max_gpu_memory_input
+
 
 llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 PLUGIN_DIR = args.plugin_dir
@@ -97,6 +123,8 @@ if model_dtype is not None and model_dtype != "" and model_dtype != "auto":
 if num_gpus:
     popen_args.extend(["--gpus", gpu_ids])
     popen_args.extend(["--num-gpus", str(num_gpus)])
+if max_gpu_memory_arg:
+    popen_args.extend(["--max-gpu-memory", max_gpu_memory_arg])
 if eight_bit:
     popen_args.append("--load-8bit")
 if four_bit:
