@@ -1053,7 +1053,7 @@ async def _launch_sweep_jobs(
                 from lab.storage import REMOTE_WORKSPACE_HOST
 
                 if os.getenv("TFL_API_STORAGE_URI"):
-                    if not REMOTE_WORKSPACE_HOST == "gcp":
+                    if REMOTE_WORKSPACE_HOST != "gcp":
                         aws_profile = "transformerlab-s3"
                         aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
                         if aws_access_key_id and aws_secret_access_key:
