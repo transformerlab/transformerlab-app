@@ -1004,8 +1004,8 @@ async def _launch_sweep_jobs(
                         if storage.is_remote_path(storage_root):
                             # Remote cloud storage (S3/GCS/etc.)
                             tfl_storage_uri = storage_root
-                        elif STORAGE_PROVIDER == "nfs":
-                            # NFS: expose the local mount path to the remote worker
+                        elif STORAGE_PROVIDER == "localfs":
+                            # localfs: expose the local mount path to the remote worker
                             tfl_storage_uri = storage_root
                 except Exception:
                     pass
@@ -1386,8 +1386,8 @@ async def launch_template_on_provider(
             if storage.is_remote_path(storage_root):
                 # Remote cloud storage (S3/GCS/etc.)
                 tfl_storage_uri = storage_root
-            elif STORAGE_PROVIDER == "nfs":
-                # NFS: expose the local mount path to the remote worker
+            elif STORAGE_PROVIDER == "localfs":
+                # localfs: expose the local mount path to the remote worker
                 tfl_storage_uri = storage_root
     except Exception:
         pass
@@ -2254,8 +2254,8 @@ async def resume_from_checkpoint(
             if storage.is_remote_path(storage_root):
                 # Remote cloud storage (S3/GCS/etc.)
                 tfl_storage_uri = storage_root
-            elif STORAGE_PROVIDER == "nfs":
-                # NFS: expose the local mount path to the remote worker
+            elif STORAGE_PROVIDER == "localfs":
+                # localfs: expose the local mount path to the remote worker
                 tfl_storage_uri = storage_root
     except Exception:
         pass

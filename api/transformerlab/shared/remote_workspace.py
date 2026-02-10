@@ -23,7 +23,7 @@ def validate_cloud_credentials() -> None:
         SystemExit: If cloud storage is enabled but credentials are missing
     """
     # If NFS or other non-cloud storage is configured, skip validation
-    if STORAGE_PROVIDER == "nfs":
+    if STORAGE_PROVIDER == "localfs":
         return
 
     # Check if cloud storage is enabled
@@ -174,8 +174,8 @@ def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3"
     """
 
     # If NFS or other non-cloud storage is configured, skip bucket creation
-    if STORAGE_PROVIDER == "nfs":
-        print("TFL_STORAGE_PROVIDER=nfs, skipping cloud bucket creation")
+    if STORAGE_PROVIDER == "localfs":
+        print("TFL_STORAGE_PROVIDER=localfs, skipping cloud bucket creation")
         return False
 
     # Check if TFL_API_STORAGE_URI is set
@@ -329,9 +329,9 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
     from transformerlab.shared.models.models import Team
 
     # If NFS or other non-cloud storage is configured, skip bucket creation
-    if STORAGE_PROVIDER == "nfs":
-        print("TFL_STORAGE_PROVIDER=nfs, skipping bucket creation for all teams")
-        return (0, 0, ["TFL_STORAGE_PROVIDER is 'nfs', skipping bucket creation"])
+    if STORAGE_PROVIDER == "localfs":
+        print("TFL_STORAGE_PROVIDER=localfs, skipping bucket creation for all teams")
+        return (0, 0, ["TFL_STORAGE_PROVIDER is 'localfs', skipping bucket creation"])
 
     # Check if TFL_API_STORAGE_URI is set
     tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")

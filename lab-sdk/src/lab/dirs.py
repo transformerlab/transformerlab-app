@@ -21,7 +21,9 @@ if "TFL_HOME_DIR" in os.environ and not (_current_tfl_storage_uri.get() or os.ge
     logger.info("Home directory is set to: %s", HOME_DIR)
 else:
     # For remote storage, this is a placeholder - actual value resolved via async functions
-    if _current_tfl_storage_uri.get() or (os.getenv("TFL_STORAGE_URI") and os.getenv("TFL_STORAGE_PROVIDER") != "nfs"):
+    if _current_tfl_storage_uri.get() or (
+        os.getenv("TFL_STORAGE_URI") and os.getenv("TFL_STORAGE_PROVIDER") != "localfs"
+    ):
         HOME_DIR = os.getenv("TFL_STORAGE_URI", "")
     else:
         HOME_DIR = os.path.join(os.path.expanduser("~"), ".transformerlab")

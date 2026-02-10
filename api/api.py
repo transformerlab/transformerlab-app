@@ -586,11 +586,11 @@ async def healthz():
     tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
     storage_provider = os.getenv("TFL_STORAGE_PROVIDER", "").lower()
 
-    # Determine mode: s3 (or other cloud) vs nfs vs local
+    # Determine mode: s3 (or other cloud) vs localfs vs local
     if tfl_api_storage_uri:
         mode = "s3"
-    elif storage_provider == "nfs":
-        mode = "nfs"
+    elif storage_provider == "localfs":
+        mode = "localfs"
     else:
         mode = "local"
 

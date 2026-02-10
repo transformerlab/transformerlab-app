@@ -4,12 +4,12 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_storage_debug_info_nfs(monkeypatch, tmp_path):
-    # Configure NFS-style storage: provider flag + local mount path
-    monkeypatch.setenv("TFL_STORAGE_PROVIDER", "nfs")
-    nfs_root = tmp_path / "nfs_root"
-    nfs_root.mkdir()
-    monkeypatch.setenv("TFL_STORAGE_URI", str(nfs_root))
+async def test_storage_debug_info_localfs(monkeypatch, tmp_path):
+    # Configure localfs storage: provider flag + local mount path
+    monkeypatch.setenv("TFL_STORAGE_PROVIDER", "localfs")
+    localfs_root = tmp_path / "localfs_root"
+    localfs_root.mkdir()
+    monkeypatch.setenv("TFL_STORAGE_URI", str(localfs_root))
 
     # Ensure fresh import so env is re-read
     if "lab.storage" in list(importlib.sys.modules.keys()):
@@ -18,13 +18,13 @@ async def test_storage_debug_info_nfs(monkeypatch, tmp_path):
     from lab import storage
 
     info = await storage.debug_info()
-    # Root URI should be our NFS root path
-    assert info["root_uri"] == str(nfs_root)
-    # Provider should be reported as nfs
-    assert info["STORAGE_PROVIDER"] == "nfs"
+    # Root URI should be our localfs root path
+    assert info["root_uri"] == str(localfs_root)
+    # Provider should be reported as localfs
+    assert info["STORAGE_PROVIDER"] == "localfs"
 
     fs = await storage.filesystem()
-    # NFS is mounted as a local filesystem, so we expect LocalFileSystem
+    # localfs is mounted as a local filesystem, so we expect LocalFileSystem
     from fsspec.implementations.local import LocalFileSystem
 
     assert isinstance(fs, LocalFileSystem)
