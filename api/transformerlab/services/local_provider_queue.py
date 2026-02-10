@@ -76,7 +76,7 @@ async def _local_launch_worker() -> None:
                         await session.commit()
                     continue
 
-                provider_instance = get_provider_instance(provider)
+                provider_instance = await get_provider_instance(provider)
 
                 # Transition from WAITING -> initial_status (LAUNCHING / INTERACTIVE)
                 await job_service.job_update_status(
