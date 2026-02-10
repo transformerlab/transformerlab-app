@@ -277,7 +277,18 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   }, []);
 
   // Fetch user data using cookie-based auth; presence of a valid user implies authentication
-  const userKey = getAPIFullPath('users', ['me'], {}) ?? null;
+  const hasConnectionProp = typeof connection === 'string';
+  const connectionBase =
+    hasConnectionProp && connection.trim() !== '' ? connection.trim() : null;
+  const normalizedConnection =
+    connectionBase && !connectionBase.endsWith('/')
+      ? `${connectionBase}/`
+      : connectionBase;
+  const userKey = hasConnectionProp
+    ? normalizedConnection !== null
+      ? `${normalizedConnection}${getPath('users', ['me'], {})}`
+      : null
+    : (getAPIFullPath('users', ['me'], {}) ?? null);
   const {
     data: user,
     error: userError,
