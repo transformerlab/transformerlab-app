@@ -1067,93 +1067,14 @@ export default function UserLoginTest(): JSX.Element {
               }}
             >
               <TabList>
-                <Tab>GitHub PAT</Tab>
                 <Tab>Team Secrets</Tab>
                 <Tab>Quota Settings</Tab>
                 <Tab>Organization SSH Key</Tab>
               </TabList>
 
-              {/* GitHub PAT Tab */}
-              <TabPanel
-                value={0}
-                sx={{
-                  p: 2,
-                  overflowY: 'auto',
-                }}
-              >
-                <Typography
-                  level="title-lg"
-                  mb={2}
-                  startDecorator={<GithubIcon />}
-                >
-                  GitHub Integration
-                </Typography>
-                <Stack spacing={2} maxWidth={500}>
-                  <Alert color="neutral" variant="soft">
-                    Set a GitHub Personal Access Token (PAT) to enable cloning
-                    private repositories in tasks. The PAT is stored securely in
-                    your team's workspace and shared across all team members.
-                  </Alert>
-                  {loadingPAT ? (
-                    <CircularProgress size="sm" />
-                  ) : (
-                    <>
-                      {githubPATExists && (
-                        <Alert color="success" variant="soft">
-                          GitHub PAT is configured. Last 4 characters:{' '}
-                          {githubPATMasked}
-                        </Alert>
-                      )}
-                      <FormControl>
-                        <Input
-                          type="password"
-                          placeholder={
-                            githubPATExists
-                              ? 'Enter new PAT to update'
-                              : 'Enter GitHub Personal Access Token'
-                          }
-                          value={githubPAT}
-                          onChange={(e) => setGithubPAT(e.target.value)}
-                          disabled={!iAmOwner || savingPAT}
-                          sx={{ fontFamily: 'monospace' }}
-                        />
-                        <Typography level="body-sm" sx={{ mt: 0.5 }}>
-                          {iAmOwner
-                            ? 'Only team owners can set or update the GitHub PAT.'
-                            : 'Only team owners can manage the GitHub PAT.'}
-                        </Typography>
-                      </FormControl>
-                      <Stack direction="row" spacing={2}>
-                        <Button
-                          variant="solid"
-                          onClick={handleSaveGitHubPAT}
-                          disabled={!iAmOwner || savingPAT || loadingPAT}
-                          loading={savingPAT}
-                        >
-                          {githubPATExists ? 'Update PAT' : 'Save PAT'}
-                        </Button>
-                        {githubPATExists && (
-                          <Button
-                            variant="outlined"
-                            color="danger"
-                            onClick={async () => {
-                              setGithubPAT('');
-                              await handleSaveGitHubPAT();
-                            }}
-                            disabled={!iAmOwner || savingPAT || loadingPAT}
-                          >
-                            Remove PAT
-                          </Button>
-                        )}
-                      </Stack>
-                    </>
-                  )}
-                </Stack>
-              </TabPanel>
-
               {/* Team Secrets Tab */}
               <TabPanel
-                value={1}
+                value={0}
                 sx={{
                   p: 2,
                   overflowY: 'auto',
@@ -1164,7 +1085,7 @@ export default function UserLoginTest(): JSX.Element {
 
               {/* Quota Settings Tab */}
               <TabPanel
-                value={2}
+                value={1}
                 sx={{
                   p: 2,
                   overflowY: 'auto',
@@ -1175,7 +1096,7 @@ export default function UserLoginTest(): JSX.Element {
 
               {/* SSH Key Tab */}
               <TabPanel
-                value={3}
+                value={2}
                 sx={{
                   p: 2,
                   overflowY: 'auto',
