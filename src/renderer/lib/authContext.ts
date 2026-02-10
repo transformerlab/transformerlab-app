@@ -171,7 +171,10 @@ async function handleRefresh(): Promise<void> {
           '[REFRESH] Refresh failed with status:',
           refreshResponse.status,
         );
-        throw new Error('Refresh failed');
+        const error: any = new Error('Refresh failed');
+        // Mark this specifically as an auth failure so callers can distinguish it
+        error.status = 'unauthorized';
+        throw error;
       }
 
       // Cookies are refreshed by the server response, nothing to store locally
@@ -291,8 +294,15 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       if (!isAuthenticated) {
         setIsAuthenticated(true);
       }
-    } else if (userError) {
-      if (isAuthenticated) {
+      return;
+    }
+
+    if (userError) {
+      const status = (userError as any).status;
+      // Only treat explicit auth failures as a signal to log the user out.
+      // Network / connectivity errors should NOT flip isAuthenticated to false,
+      // so the UI can continue to show the main app + connection lost modal.
+      if ((status === 401 || status === 'unauthorized') && isAuthenticated) {
         setIsAuthenticated(false);
       }
     }
