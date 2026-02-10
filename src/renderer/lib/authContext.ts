@@ -21,6 +21,10 @@ export type Team = {
 
 type UserTeamMap = Record<string, Team>;
 const USER_TEAM_MAP_KEY = 'user_team_map';
+const API_READY_CHECK_PATH = 'server/info';
+const API_READY_TIMEOUT_MS = 1500;
+const API_READY_POLL_MS = 1000;
+const USER_FETCH_TIMEOUT_MS = 2000;
 
 let _userTeamMap: UserTeamMap = {};
 if (typeof window !== 'undefined') {
@@ -263,6 +267,7 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [initializing, setInitializing] = useState<boolean>(true);
   const [team, setTeamState] = useState<Team | null>(null);
+  const [apiReady, setApiReady] = useState<boolean>(false);
 
   useEffect(() => {
     // Initialize team from localStorage
@@ -284,17 +289,97 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     connectionBase && !connectionBase.endsWith('/')
       ? `${connectionBase}/`
       : connectionBase;
-  const userKey = hasConnectionProp
-    ? normalizedConnection !== null
-      ? `${normalizedConnection}${getPath('users', ['me'], {})}`
-      : null
-    : (getAPIFullPath('users', ['me'], {}) ?? null);
+
+  // Gate auth fetches on a quick health check to avoid long initial stalls.
+  useEffect(() => {
+    let isMounted = true;
+    let pollTimeout: number | null = null;
+
+    if (!normalizedConnection) {
+      setApiReady(true);
+      return () => {};
+    }
+
+    setApiReady(false);
+
+    const checkOnce = async () => {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => {
+        controller.abort();
+      }, API_READY_TIMEOUT_MS);
+
+      try {
+        const res = await fetch(
+          `${normalizedConnection}${API_READY_CHECK_PATH}`,
+          {
+            method: 'GET',
+            credentials: 'include',
+            signal: controller.signal,
+          },
+        );
+
+        if (!isMounted) return;
+        if (res.ok || res.status === 401) {
+          setApiReady(true);
+          return;
+        }
+      } catch {
+        // Ignore; we'll retry below.
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      if (isMounted) {
+        pollTimeout = window.setTimeout(checkOnce, API_READY_POLL_MS);
+      }
+    };
+
+    checkOnce();
+
+    return () => {
+      isMounted = false;
+      if (pollTimeout) {
+        window.clearTimeout(pollTimeout);
+      }
+    };
+  }, [normalizedConnection]);
+  const userKey = apiReady
+    ? hasConnectionProp
+      ? normalizedConnection !== null
+        ? `${normalizedConnection}${getPath('users', ['me'], {})}`
+        : null
+      : (getAPIFullPath('users', ['me'], {}) ?? null)
+    : null;
   const {
     data: user,
     error: userError,
     isLoading: userIsLoading,
     mutate: userMutate,
-  } = useSWR(userKey, (url) => fetchWithAuth(url).then((r) => r.json()));
+  } = useSWR(userKey, async (url) => {
+    const timerLabel = '[AUTH] /users/me';
+    console.time(timerLabel);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      controller.abort();
+    }, USER_FETCH_TIMEOUT_MS);
+
+    try {
+      const response = await fetchWithAuth(url, {
+        signal: controller.signal,
+      });
+      return await response.json();
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn(
+          `[AUTH] /users/me timed out after ${USER_FETCH_TIMEOUT_MS}ms`,
+        );
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+      console.timeEnd(timerLabel);
+    }
+  });
 
   // Once we know the user result, derive isAuthenticated from it
   useEffect(() => {

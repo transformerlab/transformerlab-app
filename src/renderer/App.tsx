@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { CssVarsProvider } from '@mui/joy/styles';
 import CssBaseline from '@mui/joy/CssBaseline';
 import Box from '@mui/joy/Box';
@@ -66,6 +66,21 @@ function AppContent({
     (authContext.isAuthenticated || Boolean(authContext.user));
 
   const isLocalMode = window?.platform?.multiuser !== true;
+  const authLoadStartRef = useRef<number | null>(null);
+  const authLoadLoggedRef = useRef(false);
+
+  if (authLoadStartRef.current === null) {
+    authLoadStartRef.current = performance.now();
+  }
+
+  useEffect(() => {
+    if (!isAuthLoading && !authLoadLoggedRef.current) {
+      const start = authLoadStartRef.current ?? performance.now();
+      const elapsedMs = Math.round(performance.now() - start);
+      console.log(`[AUTH] Initial auth resolution in ${elapsedMs}ms`);
+      authLoadLoggedRef.current = true;
+    }
+  }, [isAuthLoading]);
 
   // Show LoginPage when:
   // 1. Multi-user mode is enabled AND user is not authenticated

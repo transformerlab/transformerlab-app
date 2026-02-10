@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Button,
@@ -74,12 +74,17 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
 export default function LoginPage() {
   const [verifyMessage, setVerifyMessage] = useState('');
   const [hash, setHash] = useState(window.location.hash);
+  const autoLoginAttemptedRef = useRef(false);
 
   const authContext = useAuth();
 
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (autoLoginAttemptedRef.current || authContext.isAuthenticated) {
+      return;
+    }
+
     const autoLogin = async () => {
       // Only attempt auto-login if we have a valid API URL (connection is established)
       const apiUrl = API_URL();
@@ -90,6 +95,7 @@ export default function LoginPage() {
         return;
       }
 
+      autoLoginAttemptedRef.current = true;
       try {
         console.log('Attempting auto-login for single user mode');
         await authContext.login('admin@example.com', 'admin123');
@@ -98,10 +104,16 @@ export default function LoginPage() {
       }
     };
 
-    if (process.env.MULTIUSER !== 'true') {
+    const isMultiUserMode =
+      (window as any).platform?.multiuser === true ||
+      (typeof process !== 'undefined' &&
+        process.env &&
+        process.env.MULTIUSER === 'true');
+
+    if (!isMultiUserMode) {
       autoLogin();
     }
-  }, [authContext]); // Include authContext in dependencies
+  }, [authContext.isAuthenticated, authContext.login]);
 
   useEffect(() => {
     const handleHashChange = () => {
