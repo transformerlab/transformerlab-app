@@ -1,8 +1,7 @@
-import asyncio
 import time
 import traceback
 
-from transformerlab.sdk.v1.tlab_plugin import TLabPlugin, DotDict
+from transformerlab.sdk.v1.tlab_plugin import TLabPlugin, DotDict, _run_async_from_sync
 
 
 class ExportTLabPlugin(TLabPlugin):
@@ -53,16 +52,18 @@ class ExportTLabPlugin(TLabPlugin):
                 self.add_job_data("model_name", self.params.model_name)
 
                 # Update starting progress
-                asyncio.run(self.job.update_progress(progress_start))
+                _run_async_from_sync(self.job.update_progress(progress_start))
 
                 try:
                     # Call the wrapped function
                     result = func(*args, **kwargs)
 
                     # Update final progress and success status
-                    asyncio.run(self.job.update_progress(progress_end))
-                    asyncio.run(self.job.update_job_data_field("completion_status", "success"))
-                    asyncio.run(self.job.update_job_data_field("completion_details", "Export completed successfully"))
+                    _run_async_from_sync(self.job.update_progress(progress_end))
+                    _run_async_from_sync(self.job.update_job_data_field("completion_status", "success"))
+                    _run_async_from_sync(
+                        self.job.update_job_data_field("completion_details", "Export completed successfully")
+                    )
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
 
                     return result
@@ -73,8 +74,10 @@ class ExportTLabPlugin(TLabPlugin):
                     print(error_msg)
 
                     # Log the error
-                    asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
-                    asyncio.run(self.job.update_job_data_field("completion_details", f"Error occured: {str(e)}"))
+                    _run_async_from_sync(self.job.update_job_data_field("completion_status", "failed"))
+                    _run_async_from_sync(
+                        self.job.update_job_data_field("completion_details", f"Error occured: {str(e)}")
+                    )
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
 
                     raise
