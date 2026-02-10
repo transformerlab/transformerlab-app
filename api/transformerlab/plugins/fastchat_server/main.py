@@ -86,18 +86,11 @@ if device == "cuda" and num_gpus:
         if num_gpus > 1:
             selected_gpu_ids = []
             if gpu_ids:
-                selected_gpu_ids = [
-                    int(gpu_id.strip())
-                    for gpu_id in gpu_ids.split(",")
-                    if gpu_id.strip().isdigit()
-                ]
+                selected_gpu_ids = [int(gpu_id.strip()) for gpu_id in gpu_ids.split(",") if gpu_id.strip().isdigit()]
             if not selected_gpu_ids:
                 selected_gpu_ids = list(range(torch.cuda.device_count()))
             if selected_gpu_ids:
-                min_bytes = min(
-                    torch.cuda.get_device_properties(i).total_memory
-                    for i in selected_gpu_ids
-                )
+                min_bytes = min(torch.cuda.get_device_properties(i).total_memory for i in selected_gpu_ids)
                 min_gib = int(min_bytes // (1024**3))
                 if min_gib > 0:
                     max_gpu_memory_arg = f"{min_gib}GiB"
