@@ -260,11 +260,13 @@ def train_model():
         eval_data = None
 
     # Create trainer
+    # Note: `model` is already a `PeftModel` (wrapped via `get_peft_model` above),
+    # so we must NOT also pass `peft_config` to `SFTTrainer`, otherwise TRL will
+    # raise: "You passed a `PeftModel` instance together with a `peft_config`".
     trainer = SFTTrainer(
         model=model,
         train_dataset=train_data,
         eval_dataset=eval_data,
-        peft_config=peft_config,
         processing_class=tokenizer,
         formatting_func=formatting_func,
         args=args,
