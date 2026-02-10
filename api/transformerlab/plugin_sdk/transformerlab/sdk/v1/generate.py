@@ -1,9 +1,8 @@
-import asyncio
 import json
 import os
 import time
 from pathlib import Path
-from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
+from transformerlab.sdk.v1.tlab_plugin import TLabPlugin, _run_async_from_sync
 from lab import storage
 from lab import dirs
 from lab.dataset import Dataset as dataset_service
@@ -64,7 +63,7 @@ class GenTLabPlugin(TLabPlugin):
         else:
             output_dir = self.get_output_file_path(dir_only=True)
 
-        asyncio.run(storage.makedirs(output_dir, exist_ok=True))
+        _run_async_from_sync(storage.makedirs(output_dir, exist_ok=True))
 
         if is_image:
             lines = True
@@ -104,13 +103,13 @@ class GenTLabPlugin(TLabPlugin):
                 async with await storage.open(metadata_file, "w", encoding="utf-8") as f:
                     await f.write(json.dumps(metadata, indent=2))
 
-            asyncio.run(_save_metadata())
+            _run_async_from_sync(_save_metadata())
 
         async def _save_data():
             async with await storage.open(output_file, "w", encoding="utf-8") as f:
                 await f.write(df.to_json(orient="records", lines=lines))
 
-        asyncio.run(_save_data())
+        _run_async_from_sync(_save_data())
         print(f"Generated data saved to {output_file}")
 
         # Upload to Transformer Lab as a dataset
@@ -190,7 +189,7 @@ class GenTLabPlugin(TLabPlugin):
                 print(f"Error uploading to TransformerLab: {e}")
                 raise
 
-        return asyncio.run(_upload())
+        return _run_async_from_sync(_upload())
 
     def get_output_file_path(self, suffix="", dataset_id=None, dir_only=False):
         """Get path for saving generated outputs
@@ -220,7 +219,7 @@ class GenTLabPlugin(TLabPlugin):
             await storage.makedirs(gen_dir, exist_ok=True)
             return gen_dir
 
-        gen_dir = asyncio.run(_get_dir())
+        gen_dir = _run_async_from_sync(_get_dir())
 
         if dir_only:
             return gen_dir
