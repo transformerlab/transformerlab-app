@@ -198,6 +198,22 @@
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/artifact/{filename}"
     },
+    "getJobDatasets": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/datasets"
+    },
+    "getJobModels": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/models"
+    },
+    "saveDatasetToRegistry": {
+      "method": "POST",
+      "path": "experiment/{experimentId}/jobs/{jobId}/datasets/{datasetName}/save_to_registry"
+    },
+    "saveModelToRegistry": {
+      "method": "POST",
+      "path": "experiment/{experimentId}/jobs/{jobId}/models/{modelName}/save_to_registry"
+    },
     "getJobsOfType": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/list?type={type}&status={status}"
@@ -289,6 +305,14 @@
     "inviteMember": {
       "method": "POST",
       "path": "teams/{teamId}/members"
+    },
+    "getInvitations": {
+      "method": "GET",
+      "path": "teams/{teamId}/invitations"
+    },
+    "cancelInvitation": {
+      "method": "DELETE",
+      "path": "teams/{teamId}/invitations/{invitationId}"
     }
   },
   "compute_provider": {
@@ -347,6 +371,22 @@
     "usage-report": {
       "method": "GET",
       "path": "compute_provider/usage-report"
+    },
+    "user-settings": {
+      "method": "GET",
+      "path": "compute_provider/user-settings/{providerId}"
+    },
+    "user-settings-update": {
+      "method": "PUT",
+      "path": "compute_provider/user-settings/{providerId}"
+    },
+    "user-settings-ssh-key": {
+      "method": "POST",
+      "path": "compute_provider/user-settings/{providerId}/ssh-key"
+    },
+    "user-settings-ssh-key-delete": {
+      "method": "DELETE",
+      "path": "compute_provider/user-settings/{providerId}/ssh-key"
     },
     "downloadSshKey": {
       "method": "GET",
@@ -422,9 +462,21 @@
     }
   },
   "invitations": {
+    "me": {
+      "method": "GET",
+      "path": "invitations/me"
+    },
     "accept": {
       "method": "POST",
       "path": "invitations/accept"
+    },
+    "acceptById": {
+      "method": "POST",
+      "path": "invitations/{invitationId}/accept"
+    },
+    "reject": {
+      "method": "POST",
+      "path": "invitations/{invitationId}/reject"
     }
   },
   "experiment": {

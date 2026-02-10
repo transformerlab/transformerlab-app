@@ -9,7 +9,7 @@ from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
 from transformerlab.shared.remote_workspace import create_bucket_for_team
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr
 from typing import Optional
 from sqlalchemy import select, delete, update, func, and_
 from datetime import datetime, timedelta
@@ -22,6 +22,12 @@ import logging
 from lab import Experiment
 from lab.dirs import set_organization_id, get_workspace_dir
 from lab import storage
+from transformerlab.schemas.secrets import (
+    TeamSecretsRequest,
+    SpecialSecretRequest,
+    SPECIAL_SECRET_TYPES,
+    SPECIAL_SECRET_KEYS,
+)
 
 
 class TeamCreate(BaseModel):
@@ -70,10 +76,6 @@ class AcceptInvitationRequest(BaseModel):
 
 class GitHubPATRequest(BaseModel):
     pat: Optional[str] = None
-
-
-class TeamSecretsRequest(BaseModel):
-    secrets: dict[str, str] = Field(..., description="Team secrets as key-value pairs")
 
 
 router = APIRouter(tags=["teams"])
@@ -697,6 +699,72 @@ async def accept_invitation(
     }
 
 
+@router.post("/invitations/{invitation_id}/accept")
+async def accept_invitation_by_id(
+    invitation_id: str,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Accept a team invitation using the invitation ID.
+
+    This is primarily intended for in-app acceptance of invitations that are
+    shown in the UI (e.g. user settings). The user must be authenticated and
+    the invitation must match their email address.
+    """
+    # Find the invitation by ID
+    stmt = select(TeamInvitation).where(TeamInvitation.id == invitation_id)
+    result = await session.execute(stmt)
+    invitation = result.scalar_one_or_none()
+
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+
+    # Verify the invitation is for this user
+    if invitation.email != user.email:
+        raise HTTPException(status_code=403, detail="This invitation is not for your email address")
+
+    # Check if invitation is still pending
+    if invitation.status != InvitationStatus.PENDING.value:
+        raise HTTPException(status_code=400, detail=f"Invitation is no longer pending (status: {invitation.status})")
+
+    # Check if expired
+    if invitation.expires_at < datetime.utcnow():
+        invitation.status = InvitationStatus.EXPIRED.value
+        await session.commit()
+        raise HTTPException(status_code=400, detail="Invitation has expired")
+
+    # Check if user is already in the team
+    stmt = select(UserTeam).where(UserTeam.user_id == str(user.id), UserTeam.team_id == invitation.team_id)
+    result = await session.execute(stmt)
+    if result.scalar_one_or_none():
+        # Mark invitation as accepted anyway
+        invitation.status = InvitationStatus.ACCEPTED.value
+        await session.commit()
+        raise HTTPException(status_code=400, detail="You are already a member of this team")
+
+    # Add user to team
+    user_team = UserTeam(user_id=str(user.id), team_id=invitation.team_id, role=invitation.role)
+    session.add(user_team)
+
+    # Update invitation status
+    invitation.status = InvitationStatus.ACCEPTED.value
+
+    await session.commit()
+
+    # Get team info
+    stmt = select(Team).where(Team.id == invitation.team_id)
+    result = await session.execute(stmt)
+    team = result.scalar_one_or_none()
+
+    return {
+        "message": "Invitation accepted successfully",
+        "team_id": invitation.team_id,
+        "team_name": team.name if team else None,
+        "role": invitation.role,
+    }
+
+
 @router.post("/invitations/{invitation_id}/reject")
 async def reject_invitation(
     invitation_id: str,
@@ -827,7 +895,8 @@ async def get_github_pat(
     user_and_team=Depends(get_user_and_team),
 ):
     """
-    Get GitHub PAT for the team's workspace.
+    Get GitHub PAT for the team's workspace (DEPRECATED - use special_secrets endpoint instead).
+    Only reads from secrets (team_secrets.json).
     Only team members can view (but it will be masked for security).
     """
     # Verify team_id matches the one in header
@@ -835,18 +904,20 @@ async def get_github_pat(
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
     workspace_dir = await get_workspace_dir()
-    pat_path = storage.join(workspace_dir, "github_pat.txt")
 
-    if await storage.exists(pat_path):
+    # Check secrets only
+    secrets_path = storage.join(workspace_dir, "team_secrets.json")
+    if await storage.exists(secrets_path):
         try:
-            async with await storage.open(pat_path, "r") as f:
-                pat = (await f.read()).strip()
-                if pat:
-                    # Return masked version for security (only show last 4 chars)
-                    masked_pat = mask_key(pat)
-                    return {"status": "success", "pat_exists": True, "masked_pat": masked_pat}
+            async with await storage.open(secrets_path, "r") as f:
+                secrets = json.loads(await f.read())
+                if "_GITHUB_PAT_TOKEN" in secrets and secrets["_GITHUB_PAT_TOKEN"]:
+                    pat = secrets["_GITHUB_PAT_TOKEN"].strip()
+                    if pat:
+                        masked_pat = mask_key(pat)
+                        return {"status": "success", "pat_exists": True, "masked_pat": masked_pat}
         except Exception as e:
-            print(f"Error reading GitHub PAT: {e}")
+            print(f"Error reading GitHub PAT from secrets: {e}")
             return {"status": "error", "message": "Failed to read GitHub PAT"}
 
     return {"status": "error", "message": "GitHub PAT not found"}
@@ -859,28 +930,40 @@ async def set_github_pat(
     owner_info=Depends(require_team_owner),
 ):
     """
-    Set GitHub PAT for the team's workspace.
+    Set GitHub PAT for the team's workspace (DEPRECATED - use special_secrets endpoint instead).
+    Only stores in secrets (team_secrets.json).
     Only team owners can set/update the PAT.
-    Stored in workspace/github_pat.txt file.
     """
     # Verify team_id matches the one in header
     if team_id != owner_info["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
     workspace_dir = await get_workspace_dir()
-    pat_path = storage.join(workspace_dir, "github_pat.txt")
+    secrets_path = storage.join(workspace_dir, "team_secrets.json")
 
     try:
         pat = pat_data.pat
         if pat and pat.strip():
-            # Store the PAT
-            async with await storage.open(pat_path, "w") as f:
-                await f.write(pat.strip())
+            # Store in secrets only
+            existing_secrets = {}
+            if await storage.exists(secrets_path):
+                async with await storage.open(secrets_path, "r") as f:
+                    existing_secrets = json.loads(await f.read())
+
+            existing_secrets["_GITHUB_PAT_TOKEN"] = pat.strip()
+            await storage.makedirs(workspace_dir, exist_ok=True)
+            async with await storage.open(secrets_path, "w") as f:
+                await f.write(json.dumps(existing_secrets, indent=2))
+
             return {"status": "success", "message": "GitHub PAT saved successfully"}
         else:
             # Remove the PAT if empty string is provided
-            if await storage.exists(pat_path):
-                await storage.rm(pat_path)
+            if await storage.exists(secrets_path):
+                async with await storage.open(secrets_path, "r") as f:
+                    existing_secrets = json.loads(await f.read())
+                existing_secrets.pop("_GITHUB_PAT_TOKEN", None)
+                async with await storage.open(secrets_path, "w") as f:
+                    await f.write(json.dumps(existing_secrets, indent=2))
             return {"status": "success", "message": "GitHub PAT removed successfully"}
     except Exception as e:
         print(f"Error saving GitHub PAT: {e}")
@@ -1096,11 +1179,17 @@ async def set_team_secrets(
         import re
 
         valid_key_pattern = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
         for key in secrets_data.secrets.keys():
             if not valid_key_pattern.match(key):
                 raise HTTPException(
                     status_code=400,
                     detail=f"Invalid secret key '{key}'. Secret keys must start with a letter or underscore and contain only letters, numbers, and underscores.",
+                )
+            if key in SPECIAL_SECRET_KEYS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Secret key '{key}' is a special secret and can only be set via the Special Secrets section.",
                 )
 
         # Ensure workspace directory exists
@@ -1120,3 +1209,111 @@ async def set_team_secrets(
     except Exception as e:
         print(f"Error saving team secrets: {e}")
         raise HTTPException(status_code=500, detail="Failed to save team secrets")
+
+
+@router.get("/teams/{team_id}/special_secrets")
+async def get_team_special_secrets(
+    team_id: str,
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Get team special secrets.
+    - Team members can view which special secrets are configured (values are masked).
+    - Team owners can view actual values by setting include_values=true.
+    """
+    # Verify team_id matches the one in header
+    if team_id != user_and_team["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, "team_secrets.json")
+
+    result = {}
+    try:
+        if await storage.exists(secrets_path):
+            async with await storage.open(secrets_path, "r") as f:
+                all_secrets = json.loads(await f.read())
+                # Filter only special secrets
+                for key in SPECIAL_SECRET_TYPES.keys():
+                    if key in all_secrets:
+                        result[key] = {
+                            "name": SPECIAL_SECRET_TYPES[key],
+                            "exists": True,
+                            "masked_value": mask_key(all_secrets[key]) if all_secrets[key] else None,
+                        }
+                    else:
+                        result[key] = {
+                            "name": SPECIAL_SECRET_TYPES[key],
+                            "exists": False,
+                            "masked_value": None,
+                        }
+        else:
+            # No secrets file, return all as not configured
+            for key in SPECIAL_SECRET_TYPES.keys():
+                result[key] = {
+                    "name": SPECIAL_SECRET_TYPES[key],
+                    "exists": False,
+                    "masked_value": None,
+                }
+    except Exception as e:
+        print(f"Error reading team special secrets: {e}")
+        raise HTTPException(status_code=500, detail="Failed to read team special secrets")
+
+    return {"status": "success", "special_secrets": result}
+
+
+@router.put("/teams/{team_id}/special_secrets")
+async def set_team_special_secret(
+    team_id: str,
+    secret_data: SpecialSecretRequest,
+    owner_info=Depends(require_team_owner),
+):
+    """
+    Set a team special secret. Only team owners can set/update special secrets.
+    Stored in workspace/team_secrets.json file.
+    """
+    # Verify team_id matches the one in header
+    if team_id != owner_info["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    # Validate secret type
+    if secret_data.secret_type not in SPECIAL_SECRET_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid secret type '{secret_data.secret_type}'. Must be one of: {', '.join(SPECIAL_SECRET_TYPES.keys())}",
+        )
+
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, "team_secrets.json")
+
+    try:
+        # Load existing secrets
+        existing_secrets = {}
+        if await storage.exists(secrets_path):
+            async with await storage.open(secrets_path, "r") as f:
+                existing_secrets = json.loads(await f.read())
+
+        # Update or remove the special secret
+        if secret_data.value and secret_data.value.strip():
+            existing_secrets[secret_data.secret_type] = secret_data.value.strip()
+        else:
+            # Remove if empty
+            existing_secrets.pop(secret_data.secret_type, None)
+
+        # Ensure workspace directory exists
+        await storage.makedirs(workspace_dir, exist_ok=True)
+
+        # Write secrets to file
+        async with await storage.open(secrets_path, "w") as f:
+            await f.write(json.dumps(existing_secrets, indent=2))
+
+        return {
+            "status": "success",
+            "message": f"{SPECIAL_SECRET_TYPES[secret_data.secret_type]} saved successfully",
+            "secret_type": secret_data.secret_type,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving team special secret: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save team special secret")

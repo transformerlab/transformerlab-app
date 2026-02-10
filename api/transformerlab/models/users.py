@@ -1,12 +1,14 @@
 import uuid
 from typing import Optional
 from fastapi import Depends, Request, Response, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas, exceptions
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, CookieTransport, JWTStrategy, Strategy
 from fastapi_users.db import SQLAlchemyUserDatabase
 from httpx_oauth.clients.google import GoogleOAuth2
 from httpx_oauth.clients.github import GitHubOAuth2
+from httpx_oauth.clients.openid import OpenID
+from httpx_oauth.clients.openid import OpenIDConfigurationError
 from transformerlab.shared.models.user_model import get_async_session, create_personal_team, get_user_db
 from transformerlab.shared.models.models import User, UserTeam, TeamRole
 from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
@@ -264,6 +266,45 @@ elif GITHUB_OAUTH_ENABLED and MULTIUSER_MODE:
     print("✅ GitHub OAuth configured and ready.")
 
 
+def _load_oidc_providers() -> list[dict]:
+    """
+    Load OIDC providers from environment.
+    For each N=0,1,2,... if OIDC_N_DISCOVERY_URL, OIDC_N_CLIENT_ID, OIDC_N_CLIENT_SECRET are set,
+    create an OpenID client. Discovery URL is the full URL to .well-known/openid-configuration.
+    """
+    providers: list[dict] = []
+    n = 0
+    while True:
+        base = f"OIDC_{n}"
+        discovery_url = os.getenv(f"{base}_DISCOVERY_URL", "").strip()
+        client_id = os.getenv(f"{base}_CLIENT_ID", "").strip()
+        client_secret = os.getenv(f"{base}_CLIENT_SECRET", "").strip()
+        name = os.getenv(f"{base}_NAME", "").strip() or f"OpenID #{n + 1}"
+        if not discovery_url or not client_id or not client_secret:
+            if n == 0:
+                pass  # No OIDC providers configured
+            break
+        try:
+            client = OpenID(
+                client_id=client_id,
+                client_secret=client_secret,
+                openid_configuration_endpoint=discovery_url,
+                name=f"oidc-{n}",
+            )
+            providers.append({"id": f"oidc-{n}", "name": name, "client": client})
+        except OpenIDConfigurationError as e:
+            print(f"⚠️  OIDC provider {n} ({discovery_url}): discovery failed: {e}")
+        except Exception as e:
+            print(f"⚠️  OIDC provider {n}: failed to load: {e}")
+        n += 1
+    return providers
+
+
+OIDC_PROVIDERS: list[dict] = _load_oidc_providers()
+if OIDC_PROVIDERS and MULTIUSER_MODE:
+    print(f"✅ {len(OIDC_PROVIDERS)} OIDC provider(s) configured.")
+
+
 EMAIL_AUTH_ENABLED = os.getenv("EMAIL_AUTH_ENABLED", "true").lower() == "true"
 
 # --- Custom Authentication Backend ---
@@ -349,7 +390,13 @@ cookie_auth_backend = CookieAuthBackend(
 # OAuth backend
 class OAuthBackend(AuthenticationBackend):
     """
-    OAuth backend that redirects to frontend callback with tokens in URL.
+    OAuth backend that redirects back to the frontend.
+
+    Behavior:
+    - If FRONTEND_URL is set: issue cookie-based auth (tlab_auth/tlab_refresh)
+      and redirect cleanly to the frontend root.
+    - If FRONTEND_URL is not set: fall back to legacy behavior and include
+      tokens in the redirect URL query string (for non-UI clients).
     """
 
     async def login(self, strategy: Strategy, user: User) -> Response:
@@ -357,17 +404,45 @@ class OAuthBackend(AuthenticationBackend):
         access_token = await strategy.write_token(user)
         refresh_token = await get_refresh_strategy().write_token(user)
 
-        # Redirect to frontend home page with tokens in URL
-        # The frontend reads tokens from window.location.search, so any path works
-        # Redirecting to home page (/) is simpler and works regardless of URL configuration
-        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
-        frontend_url_normalized = frontend_url.rstrip("/")
+        frontend_url = os.getenv("FRONTEND_URL")
 
-        callback_url = (
-            f"{frontend_url_normalized}/?access_token={access_token}&refresh_token={refresh_token}&token_type=bearer"
+        # FRONTEND_URL not configured: legacy behavior with tokens in URL
+        if not frontend_url:
+            legacy_frontend_url = "http://localhost:1212"
+            frontend_url_normalized = legacy_frontend_url.rstrip("/")
+            callback_url = (
+                f"{frontend_url_normalized}/?access_token={access_token}"
+                f"&refresh_token={refresh_token}&token_type=bearer"
+            )
+            return RedirectResponse(url=callback_url, status_code=302)
+
+        # FRONTEND_URL configured: cookie-based auth + clean redirect
+        frontend_url_normalized = frontend_url.rstrip("/")
+        response = RedirectResponse(url=f"{frontend_url_normalized}/", status_code=302)
+
+        cookie_secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+
+        # Set access token cookie
+        response.set_cookie(
+            key="tlab_auth",
+            value=access_token,
+            max_age=TOKEN_LIFETIME,
+            httponly=True,
+            secure=cookie_secure,
+            samesite="lax",
         )
 
-        return Response(status_code=302, headers={"Location": callback_url})
+        # Set refresh token cookie
+        response.set_cookie(
+            key="tlab_refresh",
+            value=refresh_token,
+            max_age=REFRESH_LIFETIME,
+            httponly=True,
+            secure=cookie_secure,
+            samesite="lax",
+        )
+
+        return response
 
 
 oauth_backend = OAuthBackend(

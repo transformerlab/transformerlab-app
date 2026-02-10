@@ -17,7 +17,7 @@ import {
   ChevronRight,
   ArrowRight,
 } from 'lucide-react';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetchWithAuth } from 'renderer/lib/authContext';
@@ -40,8 +40,6 @@ export default function HistoryImageViewModal({
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [numImages, setNumImages] = useState(1);
   const { experimentId } = useExperimentInfo();
-  const blobUrlsRef = useRef<string[]>([]);
-  // const [hoveringMainImage, setHoveringMainImage] = useState(false);
 
   // Load all images for the selected item when modal opens
   useEffect(() => {
@@ -52,16 +50,8 @@ export default function HistoryImageViewModal({
       setNumImages(imageCount);
       setCurrentImageIndex(0);
 
-      // Cleanup previous blob URLs
-      blobUrlsRef.current.forEach((url) => {
-        if (url.startsWith('blob:')) {
-          URL.revokeObjectURL(url);
-        }
-      });
-      blobUrlsRef.current = [];
-
       const fetchImages = async () => {
-        const blobUrls: string[] = [];
+        const urls: string[] = [];
 
         // Fetch generated images
         for (let i = 0; i < imageCount; i++) {
@@ -70,21 +60,7 @@ export default function HistoryImageViewModal({
             index: i,
             experimentId,
           });
-          try {
-            const response = await fetchWithAuth(imageUrl);
-            if (response.ok) {
-              const blob = await response.blob();
-              const blobUrl = URL.createObjectURL(blob);
-              blobUrls.push(blobUrl);
-              blobUrlsRef.current.push(blobUrl);
-            } else {
-              // Fallback to URL if fetch fails
-              blobUrls.push(imageUrl);
-            }
-          } catch (e) {
-            // Fallback to URL if fetch fails
-            blobUrls.push(imageUrl);
-          }
+          urls.push(imageUrl);
         }
 
         // Append input and processed ControlNet images if present
@@ -98,19 +74,7 @@ export default function HistoryImageViewModal({
                 experimentId,
               },
             );
-            try {
-              const response = await fetchWithAuth(inputImageUrl);
-              if (response.ok) {
-                const blob = await response.blob();
-                const blobUrl = URL.createObjectURL(blob);
-                blobUrls.push(blobUrl);
-                blobUrlsRef.current.push(blobUrl);
-              } else {
-                blobUrls.push(inputImageUrl);
-              }
-            } catch (e) {
-              blobUrls.push(inputImageUrl);
-            }
+            urls.push(inputImageUrl);
           }
 
           if (selectedImage.metadata.processed_image) {
@@ -123,37 +87,15 @@ export default function HistoryImageViewModal({
                 experimentId,
               },
             );
-            try {
-              const response = await fetchWithAuth(processedImageUrl);
-              if (response.ok) {
-                const blob = await response.blob();
-                const blobUrl = URL.createObjectURL(blob);
-                blobUrls.push(blobUrl);
-                blobUrlsRef.current.push(blobUrl);
-              } else {
-                blobUrls.push(processedImageUrl);
-              }
-            } catch (e) {
-              blobUrls.push(processedImageUrl);
-            }
+            urls.push(processedImageUrl);
           }
         }
 
-        console.log('URLs: ', blobUrls);
-        setImageUrls(blobUrls);
+        console.log('URLs: ', urls);
+        setImageUrls(urls);
       };
 
       fetchImages();
-
-      // Cleanup blob URLs on unmount or when modal closes
-      return () => {
-        blobUrlsRef.current.forEach((url) => {
-          if (url.startsWith('blob:')) {
-            URL.revokeObjectURL(url);
-          }
-        });
-        blobUrlsRef.current = [];
-      };
     }
   }, [selectedImage, imageModalOpen, experimentId]);
 

@@ -19,6 +19,54 @@ export type Team = {
   name: string;
 };
 
+type UserTeamMap = Record<string, Team>;
+const USER_TEAM_MAP_KEY = 'user_team_map';
+
+let _userTeamMap: UserTeamMap = {};
+if (typeof window !== 'undefined') {
+  try {
+    const raw = localStorage.getItem(USER_TEAM_MAP_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === 'object') {
+        _userTeamMap = parsed as UserTeamMap;
+      }
+    }
+  } catch {
+    _userTeamMap = {};
+  }
+}
+
+function persistUserTeamMap() {
+  try {
+    localStorage.setItem(USER_TEAM_MAP_KEY, JSON.stringify(_userTeamMap));
+  } catch {
+    /* ignore */
+  }
+}
+
+function getUserPreferredTeam(userId: string | undefined | null): Team | null {
+  if (!userId) return null;
+  const t = _userTeamMap[userId];
+  if (!t || typeof t.id !== 'string' || typeof t.name !== 'string') {
+    return null;
+  }
+  return { id: t.id, name: t.name };
+}
+
+function setUserPreferredTeam(
+  userId: string | undefined | null,
+  team: Team | null,
+) {
+  if (!userId) return;
+  if (team) {
+    _userTeamMap[userId] = { id: team.id, name: team.name };
+  } else {
+    delete _userTeamMap[userId];
+  }
+  persistUserTeamMap();
+}
+
 // export the AuthContextValue so consumers get correct types
 export interface AuthContextValue {
   user: any;
@@ -87,7 +135,9 @@ export function logoutUser() {
 // allow components to re-render when auth changes
 export function subscribeAuthChange(cb: () => void) {
   listeners.add(cb);
-  return () => listeners.delete(cb);
+  return () => {
+    listeners.delete(cb);
+  };
 }
 
 // --- 2. Refresh Logic (Singleton Pattern) ---
@@ -121,7 +171,10 @@ async function handleRefresh(): Promise<void> {
           '[REFRESH] Refresh failed with status:',
           refreshResponse.status,
         );
-        throw new Error('Refresh failed');
+        const error: any = new Error('Refresh failed');
+        // Mark this specifically as an auth failure so callers can distinguish it
+        error.status = 'unauthorized';
+        throw error;
       }
 
       // Cookies are refreshed by the server response, nothing to store locally
@@ -226,54 +279,91 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     return unsub;
   }, []);
 
-  // Fetch user data - will succeed if cookies are valid
+  // Fetch user data using cookie-based auth; presence of a valid user implies authentication
+  const userKey = getAPIFullPath('users', ['me'], {}) ?? null;
   const {
     data: user,
     error: userError,
     isLoading: userIsLoading,
     mutate: userMutate,
-  } = useSWR(
-    isAuthenticated ? (getAPIFullPath('users', ['me'], {}) ?? null) : null,
-    // Use fetchWithAuth which includes credentials: 'include' for cookie auth
-    (url) => fetchWithAuth(url).then((r) => r.json()),
-  );
+  } = useSWR(userKey, (url) => fetchWithAuth(url).then((r) => r.json()));
 
-  // Get a list of teams this user belongs to
-  const { data: teamsData, mutate: teamsMutate } = useSWR(
-    isAuthenticated ? getAPIFullPath('teams', ['list'], {}) : null,
-    (url) => fetchWithAuth(url).then((r) => r.json()),
+  // Once we know the user result, derive isAuthenticated from it
+  useEffect(() => {
+    if (user && !userError) {
+      if (!isAuthenticated) {
+        setIsAuthenticated(true);
+      }
+      return;
+    }
+
+    if (userError) {
+      const status = (userError as any).status;
+      // Only treat explicit auth failures as a signal to log the user out.
+      // Network / connectivity errors should NOT flip isAuthenticated to false,
+      // so the UI can continue to show the main app + connection lost modal.
+      if ((status === 401 || status === 'unauthorized') && isAuthenticated) {
+        setIsAuthenticated(false);
+      }
+    }
+  }, [user, userError, isAuthenticated]);
+
+  // Get a list of teams this user belongs to (only after user is known)
+  const teamsKey =
+    user && !userError ? getAPIFullPath('teams', ['list'], {}) : null;
+  const { data: teamsData, mutate: teamsMutate } = useSWR(teamsKey, (url) =>
+    fetchWithAuth(url).then((r) => r.json()),
   );
 
   useEffect(() => {
-    // Logic to auto-select team if none selected
-    const teams = teamsData?.teams;
-    if (teams && teams.length > 0) {
-      const current = getCurrentTeam();
+    // Logic to auto-select team on login/user change, prioritizing per-user preference only
+    const teams = teamsData?.teams as Team[] | undefined;
+    const userId = user?.id as string | undefined;
 
-      // Validate that the current team belongs to the current user
-      if (current) {
-        const updated = teams.find((t: Team) => t.id === current.id);
-        if (!updated) {
-          // Current team doesn't belong to this user - clear it and select first team
-          updateCurrentTeam(teams[0]);
-          setTeamState(teams[0]);
-        } else if (updated.name !== current.name) {
-          // Team name changed (e.g., rename) - update it
-          const next = { id: updated.id, name: updated.name };
-          updateCurrentTeam(next);
-          setTeamState(next);
+    if (teams && teams.length > 0 && userId) {
+      const preferred = getUserPreferredTeam(userId);
+      const hadPreferred = !!preferred;
+
+      // 1. If preferred is still in this user's teams, use it.
+      // 2. Otherwise, fall back to the first available team.
+      let desired: Team | null = null;
+      let usedPreferred = false;
+
+      if (preferred) {
+        const preferredInList = teams.find((t) => t.id === preferred.id);
+        if (preferredInList) {
+          desired = { id: preferredInList.id, name: preferredInList.name };
+          usedPreferred = true;
         }
-      } else {
-        // No team selected - select the first team
-        updateCurrentTeam(teams[0]);
-        setTeamState(teams[0]);
       }
+
+      if (!desired) {
+        const first = teams[0];
+        desired = { id: first.id, name: first.name };
+      }
+
+      // Only update state/caches if we actually need to change
+      if (!team || team.id !== desired.id || team.name !== desired.name) {
+        updateCurrentTeam(desired);
+        setTeamState(desired);
+      }
+
+      // Only update the stored preference when:
+      // - we successfully used an existing preferred team, or
+      // - the user had no prior preference (first login) and we're initializing it.
+      // This avoids overwriting an explicit user choice with a fallback (team[0]).
+      if (usedPreferred || !hadPreferred) {
+        setUserPreferredTeam(userId, desired);
+      }
+      document.cookie = `tlab_team_id=${desired.id}; path=/; SameSite=Lax`;
     } else if (teams && teams.length === 0) {
-      // No teams available
+      // No teams available for this user
       updateCurrentTeam(null);
       setTeamState(null);
+      setUserPreferredTeam(userId, null);
+      document.cookie = 'tlab_team_id=; Max-Age=0; path=/; SameSite=Lax';
     }
-  }, [teamsData, isAuthenticated, team]);
+  }, [teamsData, user, team]);
 
   // Identify user in analytics when user data is available
   useEffect(() => {
@@ -384,6 +474,8 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     resetUser();
     setIsAuthenticated(false);
     setTeamState(null);
+    // Clear team cookie
+    document.cookie = 'tlab_team_id=; Max-Age=0; path=/; SameSite=Lax';
     if (userMutate) userMutate(null, false);
   }, [userMutate]);
 
@@ -395,13 +487,21 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           : value;
       updateCurrentTeam(next);
       setTeamState(next);
+      // Persist per-user team preference so we can restore it next login
+      setUserPreferredTeam(user?.id as string | undefined, next);
+      // Persist team selection in cookie so non-fetch requests (e.g. <img>) have team context
+      if (next?.id) {
+        document.cookie = `tlab_team_id=${next.id}; path=/; SameSite=Lax`;
+      } else {
+        document.cookie = 'tlab_team_id=; Max-Age=0; path=/; SameSite=Lax';
+      }
       // If the team changes, we reload the app to ensure all components pick up new team context
       // But only do this if the team actually changed
       if (next?.id !== team?.id) {
         window.location.reload();
       }
     },
-    [team],
+    [team, user],
   );
 
   const contextValue = useMemo(

@@ -40,7 +40,7 @@ def get(path: str, timeout: float = 10.0, follow_redirects: bool = True) -> http
     return response
 
 
-def post(path: str, data: dict = None, files: dict = None) -> httpx.Response:
+def post(path: str, data: dict = None, files: dict = None, timeout: float = 60.0) -> httpx.Response:
     """
     Makes a POST HTTP request to the specified URL with the given data and files.
 
@@ -48,17 +48,40 @@ def post(path: str, data: dict = None, files: dict = None) -> httpx.Response:
         url (str): The URL to send the request to.
         data (dict, optional): The data to include in the POST request. Default is None.
         files (dict, optional): The files to include in the POST request. Default is None.
+        timeout (float): Request timeout in seconds. Default is 60.0.
 
     Returns:
         httpx.Response: The response object from the HTTP request.
     """
-    with httpx.Client(timeout=10.0) as client:
+    with httpx.Client(timeout=timeout) as client:
         response = client.request(
             method="POST",
             url=f"{BASE_URL()}{path}",
             headers=_request_headers(),
             data=data,
             files=files,
+        )
+    return response
+
+
+def post_json(path: str, json_data: dict = None, timeout: float = 60.0) -> httpx.Response:
+    """
+    Makes a POST HTTP request with JSON body.
+
+    Args:
+        path (str): The API path to send the request to.
+        json_data (dict, optional): The JSON data to include in the POST request.
+        timeout (float): Request timeout in seconds. Default is 60.0.
+
+    Returns:
+        httpx.Response: The response object from the HTTP request.
+    """
+    with httpx.Client(timeout=timeout) as client:
+        response = client.request(
+            method="POST",
+            url=f"{BASE_URL()}{path}",
+            headers=_request_headers(),
+            json=json_data,
         )
     return response
 

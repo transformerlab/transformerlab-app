@@ -22,12 +22,19 @@ import {
   Alert,
   Card,
   Chip,
+  Table,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanel,
 } from '@mui/joy';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import { CopyIcon, TrashIcon, PlusIcon } from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/api-client/urls';
 import QuotaReportSection from './QuotaReportSection';
+import UserSecretsSection from './UserSecretsSection';
+import ProviderSettingsSection from './ProviderSettingsSection';
 
 function PasswordChangeForm({ open, onClose }) {
   const [newPassword, setNewPassword] = useState('');
@@ -175,81 +182,168 @@ export default function UserSettings(): JSX.Element {
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
   const { data: userInfo, mutate: userInfoMutate } = useAPI('users', ['me']);
   const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
+  const { data: invitations, mutate: invitationsMutate } = useAPI(
+    'invitations',
+    ['me'],
+    {},
+  );
+  const [activeTab, setActiveTab] = useState<number>(0);
 
   return (
     <Sheet sx={{ overflowY: 'auto', p: 2 }}>
       <Typography level="h2" mb={2}>
         User Settings
       </Typography>
-      <Typography level="title-lg" mt={3}>
-        User Profile:
-      </Typography>
-      <Stack gap={1} mt={1} maxWidth={400}>
-        <Typography>
-          Name:{' '}
-          <b>
-            {userInfo?.first_name} {userInfo?.last_name}
-          </b>
-        </Typography>
-        <Typography>
-          Email: <b>{userInfo?.email}</b>
-        </Typography>
-        <Button variant="outlined" onClick={() => setIsNameChangeOpen(true)}>
-          Change Name
-        </Button>
-        {/* <Button variant="outlined">Change Profile Icon</Button> */}
-        <Button
-          variant="outlined"
-          onClick={() => {
-            setIsPasswordChangeOpen(true);
+
+      <Tabs
+        aria-label="User settings tabs"
+        value={activeTab}
+        onChange={(event, value) => setActiveTab(value as number)}
+        sx={{
+          mt: 2,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <TabList>
+          <Tab>Profile</Tab>
+          <Tab>Secrets</Tab>
+          <Tab>API Keys</Tab>
+          <Tab>Team Invitations</Tab>
+          <Tab>Provider Settings</Tab>
+          <Tab>Quota</Tab>
+        </TabList>
+
+        {/* Profile Tab */}
+        <TabPanel
+          value={0}
+          sx={{
+            p: 2,
+            overflowY: 'auto',
           }}
         >
-          Change Password
-        </Button>
-        <PasswordChangeForm
-          open={isPasswordChangeOpen}
-          onClose={() => setIsPasswordChangeOpen(false)}
-        />
-      </Stack>
-      <UserNameChangeForm
-        open={isNameChangeOpen}
-        onClose={() => {
-          setIsNameChangeOpen(false);
-          userInfoMutate();
-        }}
-        originalFirstName={userInfo?.first_name || ''}
-        originalLastName={userInfo?.last_name || ''}
-      />
-      <Box>
-        <Typography level="title-lg" mt={3}>
-          Teams you belong to:
-        </Typography>
-        {/* {JSON.stringify(authContext, null, 2)} */}
-        {teams?.teams && (
-          <List>
-            {teams.teams.map((team: any) => (
-              <ListItem key={team.id}>
-                <ListItemButton
-                  // onClick={() => {
-                  //   authContext.setTeam({ id: team.id, name: team.name });
-                  // }}
-                  selected={authContext.team?.id === team.id}
-                >
-                  <ListItemContent>
-                    <Typography level="title-md">
-                      {team.name}
-                      {authContext.team?.id === team.id ? ' (current)' : ''}
-                    </Typography>
-                    <Typography level="body-xs">{team.id}</Typography>
-                  </ListItemContent>
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-        )}
-      </Box>
-      <ApiKeysSection teams={teams?.teams || []} />
-      <QuotaReportSection />
+          <Typography level="title-lg" mt={1}>
+            User Profile:
+          </Typography>
+          <Stack gap={1} mt={1} maxWidth={400}>
+            <Typography>
+              Name:{' '}
+              <b>
+                {userInfo?.first_name} {userInfo?.last_name}
+              </b>
+            </Typography>
+            <Typography>
+              Email: <b>{userInfo?.email}</b>
+            </Typography>
+            <Button
+              variant="outlined"
+              onClick={() => setIsNameChangeOpen(true)}
+            >
+              Change Name
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setIsPasswordChangeOpen(true);
+              }}
+            >
+              Change Password
+            </Button>
+            <PasswordChangeForm
+              open={isPasswordChangeOpen}
+              onClose={() => setIsPasswordChangeOpen(false)}
+            />
+          </Stack>
+          <UserNameChangeForm
+            open={isNameChangeOpen}
+            onClose={() => {
+              setIsNameChangeOpen(false);
+              userInfoMutate();
+            }}
+            originalFirstName={userInfo?.first_name || ''}
+            originalLastName={userInfo?.last_name || ''}
+          />
+          <Box mt={4}>
+            <Typography level="title-lg">Teams you belong to:</Typography>
+            {teams?.teams && (
+              <List>
+                {teams.teams.map((team: any) => (
+                  <ListItem key={team.id}>
+                    <ListItemButton selected={authContext.team?.id === team.id}>
+                      <ListItemContent>
+                        <Typography level="title-md">
+                          {team.name}
+                          {authContext.team?.id === team.id ? ' (current)' : ''}
+                        </Typography>
+                        <Typography level="body-xs">{team.id}</Typography>
+                      </ListItemContent>
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </Box>
+        </TabPanel>
+
+        {/* Secrets Tab */}
+        <TabPanel
+          value={1}
+          sx={{
+            p: 2,
+            overflowY: 'auto',
+          }}
+        >
+          <UserSecretsSection />
+        </TabPanel>
+
+        {/* API Keys Tab */}
+        <TabPanel
+          value={2}
+          sx={{
+            p: 2,
+            overflowY: 'auto',
+          }}
+        >
+          <ApiKeysSection teams={teams?.teams || []} />
+        </TabPanel>
+
+        {/* Team Invitations Tab */}
+        <TabPanel
+          value={3}
+          sx={{
+            p: 2,
+            overflowY: 'auto',
+          }}
+        >
+          <TeamInvitationsSection
+            invitations={invitations?.invitations || []}
+            onRefresh={invitationsMutate}
+          />
+        </TabPanel>
+
+        {/* Provider Settings Tab */}
+        <TabPanel
+          value={4}
+          sx={{
+            p: 2,
+            overflowY: 'auto',
+          }}
+        >
+          <ProviderSettingsSection />
+        </TabPanel>
+
+        {/* Quota Tab */}
+        <TabPanel
+          value={5}
+          sx={{
+            p: 2,
+            overflowY: 'auto',
+          }}
+        >
+          <QuotaReportSection />
+        </TabPanel>
+      </Tabs>
     </Sheet>
   );
 }
@@ -633,6 +727,158 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
           </DialogActions>
         </ModalDialog>
       </Modal>
+    </Box>
+  );
+}
+
+function TeamInvitationsSection({
+  invitations,
+  onRefresh,
+}: {
+  invitations: any[];
+  onRefresh?: () => void;
+}) {
+  const { fetchWithAuth } = useAuth();
+
+  const handleAccept = async (invitationId: string) => {
+    try {
+      const response = await fetchWithAuth(
+        `invitations/${invitationId}/accept`,
+        {
+          method: 'POST',
+        },
+      );
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        console.error(
+          'Failed to accept invitation',
+          error?.detail || response.statusText,
+        );
+        return;
+      }
+      if (onRefresh) onRefresh();
+    } catch (error: any) {
+      console.error('Error accepting invitation:', error);
+    }
+  };
+
+  const handleReject = async (invitationId: string) => {
+    try {
+      const response = await fetchWithAuth(
+        `invitations/${invitationId}/reject`,
+        {
+          method: 'POST',
+        },
+      );
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        console.error(
+          'Failed to reject invitation',
+          error?.detail || response.statusText,
+        );
+        return;
+      }
+      if (onRefresh) onRefresh();
+    } catch (error: any) {
+      console.error('Error rejecting invitation:', error);
+    }
+  };
+
+  return (
+    <Box mt={4}>
+      <Typography level="title-lg" mb={1}>
+        Team Invitations
+      </Typography>
+      {(!invitations || invitations.length === 0) && (
+        <Typography level="body-sm" color="neutral">
+          You have no pending team invitations.
+        </Typography>
+      )}
+      {invitations && invitations.length > 0 && (
+        <Table variant="soft" sx={{ mt: 1 }}>
+          <thead>
+            <tr>
+              <th>Team</th>
+              <th>Invited By</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Expires</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {invitations.map((invitation: any) => (
+              <tr key={invitation.id}>
+                <td>
+                  <Typography level="body-sm">
+                    {invitation.team_name || invitation.team_id}
+                  </Typography>
+                </td>
+                <td>
+                  <Typography level="body-sm">
+                    {invitation.invited_by_email}
+                  </Typography>
+                </td>
+                <td>
+                  <Chip size="sm" variant="soft">
+                    {invitation.role}
+                  </Chip>
+                </td>
+                <td>
+                  <Chip
+                    size="sm"
+                    variant="soft"
+                    color={
+                      invitation.status === 'pending'
+                        ? 'primary'
+                        : invitation.status === 'accepted'
+                          ? 'success'
+                          : invitation.status === 'rejected' ||
+                              invitation.status === 'cancelled'
+                            ? 'danger'
+                            : 'neutral'
+                    }
+                  >
+                    {invitation.status}
+                  </Chip>
+                </td>
+                <td>
+                  <Typography level="body-xs">
+                    {invitation.expires_at
+                      ? new Date(invitation.expires_at).toLocaleDateString()
+                      : '—'}
+                  </Typography>
+                </td>
+                <td>
+                  {invitation.status === 'pending' && (
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      justifyContent="flex-end"
+                    >
+                      <Button
+                        size="sm"
+                        variant="soft"
+                        onClick={() => handleAccept(invitation.id)}
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outlined"
+                        color="neutral"
+                        onClick={() => handleReject(invitation.id)}
+                      >
+                        Reject
+                      </Button>
+                    </Stack>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
     </Box>
   );
 }
