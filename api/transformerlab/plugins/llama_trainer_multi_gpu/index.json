@@ -4,7 +4,7 @@
   "description": "A training script adapted from https://www.philschmid.de/instruction-tune-llama-2 for training Llama2 using PeFT",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.1.24",
+  "version": "0.1.25",
   "model_architectures": [
     "LlamaForCausalLM",
     "Qwen2ForCausalLM",
