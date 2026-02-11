@@ -49,9 +49,7 @@ def set_organization_id(organization_id: str | None) -> None:
             _current_tfl_storage_uri.set(f"{protocol}workspace-{organization_id}")
         elif os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI"):
             # Localfs: root_uri() should be org-scoped so set context to TFL_STORAGE_URI/orgs/<org_id>
-            _current_tfl_storage_uri.set(
-                storage.join(os.getenv("TFL_STORAGE_URI", ""), "orgs", organization_id)
-            )
+            _current_tfl_storage_uri.set(storage.join(os.getenv("TFL_STORAGE_URI", ""), "orgs", organization_id))
         else:
             _current_tfl_storage_uri.set(None)
     else:
@@ -91,10 +89,7 @@ async def get_workspace_dir() -> str:
     if os.getenv("TFL_STORAGE_URI") and os.getenv("TFL_STORAGE_PROVIDER") != "localfs":
         return await storage.root_uri()
 
-    if os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI"):
-        path = storage.join(os.getenv("TFL_STORAGE_URI", ""), "workspace")
-    else:
-        path = storage.join(HOME_DIR, "workspace")
+    path = storage.join(HOME_DIR, "workspace")
     await storage.makedirs(path, exist_ok=True)
     return path
 
