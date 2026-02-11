@@ -1,5 +1,3 @@
-from unittest.mock import patch, AsyncMock
-import pytest
 
 from transformerlab.schemas.task import (
     ImportTaskFromGalleryRequest,
