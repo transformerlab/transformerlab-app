@@ -21,6 +21,8 @@ if "TFL_HOME_DIR" in os.environ and not (_current_tfl_storage_uri.get() or os.ge
     logger.info("Home directory is set to: %s", HOME_DIR)
 else:
     # For remote storage, this is a placeholder - actual value resolved via async functions
+    # In localfs mode we keep HOME_DIR as the app home (~/.transformerlab) so STATIC_FILES_DIR etc. stay correct;
+    # workspace_dir is TFL_STORAGE_URI/orgs/<org_id>/workspace (see get_workspace_dir).
     if _current_tfl_storage_uri.get() or (
         os.getenv("TFL_STORAGE_URI") and os.getenv("TFL_STORAGE_PROVIDER") != "localfs"
     ):
@@ -45,6 +47,11 @@ def set_organization_id(organization_id: str | None) -> None:
 
             # Use cloud://workspace_<team_id> format
             _current_tfl_storage_uri.set(f"{protocol}workspace-{organization_id}")
+        elif os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI"):
+            # Localfs: root_uri() should be org-scoped so set context to TFL_STORAGE_URI/orgs/<org_id>
+            _current_tfl_storage_uri.set(
+                storage.join(os.getenv("TFL_STORAGE_URI", ""), "orgs", organization_id)
+            )
         else:
             _current_tfl_storage_uri.set(None)
     else:
@@ -54,7 +61,8 @@ def set_organization_id(organization_id: str | None) -> None:
 async def get_workspace_dir() -> str:
     # Remote SkyPilot workspace override (highest precedence)
     # Only return container workspace path when value is exactly "true"
-    if os.getenv("TFL_STORAGE_URI") is not None:
+    # In localfs mode, workspace is TFL_STORAGE_URI/orgs/<org_id>/workspace; HOME_DIR stays app home
+    if os.getenv("TFL_STORAGE_URI") is not None and os.getenv("TFL_STORAGE_PROVIDER") != "localfs":
         return await storage.root_uri()
 
     # Explicit override wins
@@ -70,17 +78,23 @@ async def get_workspace_dir() -> str:
     org_id = _current_org_id.get()
 
     if org_id:
-        # If the storage URI is set, use it for the org workspace
-        if _current_tfl_storage_uri.get() is not None:
+        # Cloud: _current_tfl_storage_uri is the org workspace root. Localfs: TFL_STORAGE_URI/orgs/org_id/workspace
+        if _current_tfl_storage_uri.get() is not None and os.getenv("TFL_STORAGE_PROVIDER") != "localfs":
             return _current_tfl_storage_uri.get()
-        path = storage.join(HOME_DIR, "orgs", org_id, "workspace")
+        if os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI"):
+            path = storage.join(os.getenv("TFL_STORAGE_URI", ""), "orgs", org_id, "workspace")
+        else:
+            path = storage.join(HOME_DIR, "orgs", org_id, "workspace")
         await storage.makedirs(path, exist_ok=True)
         return path
 
-    if os.getenv("TFL_STORAGE_URI"):
+    if os.getenv("TFL_STORAGE_URI") and os.getenv("TFL_STORAGE_PROVIDER") != "localfs":
         return await storage.root_uri()
 
-    path = storage.join(HOME_DIR, "workspace")
+    if os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI"):
+        path = storage.join(os.getenv("TFL_STORAGE_URI", ""), "workspace")
+    else:
+        path = storage.join(HOME_DIR, "workspace")
     await storage.makedirs(path, exist_ok=True)
     return path
 
