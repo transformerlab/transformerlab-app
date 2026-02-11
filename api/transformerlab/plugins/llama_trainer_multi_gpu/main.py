@@ -9,8 +9,19 @@ import asyncio
 
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import get_python_executable, format_template
-from lab.dirs import get_workspace_dir
+from lab.dirs import get_workspace_dir, set_organization_id
 from lab import storage
+
+
+# Ensure organization context is set when this module is executed directly
+# (e.g., via `accelerate launch`), since that path bypasses `plugin_harness.py`.
+_ORG_ID = os.environ.get("_TFL_ORG_ID")
+if _ORG_ID:
+    try:
+        set_organization_id(_ORG_ID)
+    except Exception as e:
+        # Do not crash training if org context cannot be set; just log a warning.
+        print(f"Warning: Could not set organization context in multi-GPU trainer: {e}")
 
 
 # Add custom arguments
@@ -249,11 +260,13 @@ def train_model():
         eval_data = None
 
     # Create trainer
+    # Note: `model` is already a `PeftModel` (wrapped via `get_peft_model` above),
+    # so we must NOT also pass `peft_config` to `SFTTrainer`, otherwise TRL will
+    # raise: "You passed a `PeftModel` instance together with a `peft_config`".
     trainer = SFTTrainer(
         model=model,
         train_dataset=train_data,
         eval_dataset=eval_data,
-        peft_config=peft_config,
         processing_class=tokenizer,
         formatting_func=formatting_func,
         args=args,
