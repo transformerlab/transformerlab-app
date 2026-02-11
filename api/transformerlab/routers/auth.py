@@ -17,6 +17,7 @@ from transformerlab.models.users import (
     GOOGLE_OAUTH_ENABLED,
     github_oauth_client,
     GITHUB_OAUTH_ENABLED,
+    OIDC_PROVIDERS,
     EMAIL_AUTH_ENABLED,
     SECRET,
     TOKEN_LIFETIME,
@@ -176,6 +177,31 @@ async def _get_user_from_jwt_or_api_key(
 @router.get("/auth/github/status")
 async def github_oauth_status():
     return {"enabled": GITHUB_OAUTH_ENABLED}
+
+
+@router.get("/auth/oidc/providers")
+async def oidc_providers_list():
+    """
+    Returns the list of configured OIDC providers for the login page.
+    Each provider has id (route prefix, e.g. oidc-0) and name (display label).
+    """
+    return {
+        "enabled": len(OIDC_PROVIDERS) > 0,
+        "providers": [{"id": p["id"], "name": p["name"]} for p in OIDC_PROVIDERS],
+    }
+
+
+for _oidc in OIDC_PROVIDERS:
+    _oidc_router = fastapi_users.get_oauth_router(
+        _oidc["client"],
+        oauth_backend,
+        SECRET,
+    )
+    router.include_router(
+        _oidc_router,
+        prefix=f"/auth/{_oidc['id']}",
+        tags=["auth"],
+    )
 
 
 if GITHUB_OAUTH_ENABLED:

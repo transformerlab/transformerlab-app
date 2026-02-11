@@ -23,6 +23,9 @@ export default function LoginForm() {
 
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
   const [githubOAuthEnabled, setGithubOAuthEnabled] = useState(false);
+  const [oidcProviders, setOidcProviders] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
 
   const { login } = useAuth();
   const { addNotification } = useNotification();
@@ -86,6 +89,18 @@ export default function LoginForm() {
       } catch (err) {
         console.warn('Failed to check GitHub OAuth status:', err);
       }
+
+      try {
+        const response = await fetch(`${apiUrl}auth/oidc/providers`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.enabled && Array.isArray(data.providers)) {
+            setOidcProviders(data.providers);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to check OIDC providers:', err);
+      }
     };
 
     checkOAuthStatus();
@@ -98,10 +113,10 @@ export default function LoginForm() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleOAuthLogin = async (provider: 'google' | 'github') => {
+  const handleOAuthLogin = async (provider: string) => {
     const apiUrl = (window as any).TransformerLab?.API_URL;
     if (!apiUrl) {
-      setError(`Unable to initialize ${provider} login. Please try again.`);
+      setError(`Unable to initialize login. Please try again.`);
       return;
     }
 
@@ -167,7 +182,8 @@ export default function LoginForm() {
   }
 
   const showDivider =
-    (googleOAuthEnabled || githubOAuthEnabled) && emailAuthEnabled;
+    (googleOAuthEnabled || githubOAuthEnabled || oidcProviders.length > 0) &&
+    emailAuthEnabled;
 
   return (
     <Box
@@ -219,6 +235,24 @@ export default function LoginForm() {
                 Continue with GitHub
               </Button>
             )}
+
+            {oidcProviders.map((p) => (
+              <Button
+                key={p.id}
+                variant="outlined"
+                color="neutral"
+                fullWidth
+                onClick={() => handleOAuthLogin(p.id)}
+                loading={loadingState === p.id}
+                disabled={loadingState !== null && loadingState !== p.id}
+                sx={{
+                  borderColor: 'neutral.300',
+                  '&:hover': { bg: 'neutral.100', borderColor: 'neutral.400' },
+                }}
+              >
+                Continue with {p.name}
+              </Button>
+            ))}
           </Stack>
 
           {showDivider && (

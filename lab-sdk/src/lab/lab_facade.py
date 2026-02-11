@@ -525,8 +525,8 @@ class Lab:
                   (will be prefixed with job_id for uniqueness).
             type: Optional type of artifact.
                   - If "evals", saves to eval_results directory and updates job data accordingly.
-                  - If "dataset", saves as a dataset and tracks dataset_id in job data.
-                  - If "model", saves to workspace models directory and creates Model Zoo metadata.
+                  - If "dataset", saves to job-specific datasets directory and tracks dataset_id in job data.
+                  - If "model", saves to job-specific models directory and tracks in job data.
                   - Otherwise saves to artifacts directory.
             config: Optional configuration dict.
                    When type="eval", can contain column mappings under "evals" key, e.g.:
@@ -537,6 +537,7 @@ class Lab:
                    When type="model", can contain:
                    {"model": {"architecture": "...", "pipeline_tag": "...", "parent_model": "..."}}
                    or top-level keys: {"architecture": "...", "pipeline_tag": "...", "parent_model": "..."}
+                   Note: Model metadata is stored in job data but no longer creates Model Zoo entries.
 
         Returns:
             The destination path on disk.
@@ -546,64 +547,156 @@ class Lab:
         job_id = self._job.id  # type: ignore[union-attr]
 
         # Handle DataFrame input when type="dataset"
-        if type == "dataset" and hasattr(source_path, "to_json"):
-            # Normalize input: convert Hugging Face datasets.Dataset to pandas DataFrame
-            df = source_path
-            try:
-                if hasattr(df, "to_pandas") and callable(getattr(df, "to_pandas")):
-                    df = df.to_pandas()
-            except Exception:
-                pass
+        if type == "dataset":
+            # Check if source is a DataFrame (pandas or HuggingFace dataset)
+            if hasattr(source_path, "to_json"):
+                # Normalize input: convert Hugging Face datasets.Dataset to pandas DataFrame
+                df = source_path
+                try:
+                    if hasattr(df, "to_pandas") and callable(getattr(df, "to_pandas")):
+                        df = df.to_pandas()
+                except Exception:
+                    pass
 
-            # Use name as dataset_id, or generate one if not provided
-            if name is None or (isinstance(name, str) and name.strip() == ""):
-                import time
+                # Use name as dataset_id, or generate one if not provided
+                if name is None or (isinstance(name, str) and name.strip() == ""):
+                    import time
 
-                timestamp = time.strftime("%Y%m%d_%H%M%S")
-                dataset_id = f"generated_dataset_{job_id}_{timestamp}"
+                    timestamp = time.strftime("%Y%m%d_%H%M%S")
+                    dataset_id = f"generated_dataset_{job_id}_{timestamp}"
+                else:
+                    dataset_id = name.strip()
+
+                # Get additional metadata from config if provided
+                additional_metadata = {}
+                if config and isinstance(config, dict) and "dataset" in config:
+                    additional_metadata = config["dataset"]
+
+                # Get other parameters from config
+                suffix = None
+                is_image = False
+                if config and isinstance(config, dict):
+                    if "suffix" in config:
+                        suffix = config["suffix"]
+                    if "is_image" in config:
+                        is_image = config["is_image"]
+
+                # Use the existing save_dataset method with job_id parameter
+                output_path = await self.async_save_dataset(
+                    df=df,
+                    dataset_id=dataset_id,
+                    additional_metadata=additional_metadata if additional_metadata else None,
+                    suffix=suffix,
+                    is_image=is_image,
+                    job_id=job_id,
+                )
+
+                # Extract the actual dataset_id with prefix from the path
+                # The dataset_id with prefix is used in the path/filename
+                dataset_id_with_prefix = f"{job_id}_{dataset_id}"
+
+                # Track dataset_id in job_data
+                try:
+                    job_data = await self._job.get_job_data()
+                    generated_datasets_list = []
+                    if isinstance(job_data, dict):
+                        existing = job_data.get("generated_datasets", [])
+                        if isinstance(existing, list):
+                            generated_datasets_list = existing
+                    generated_datasets_list.append(dataset_id_with_prefix)
+                    await self._job.update_job_data_field("generated_datasets", generated_datasets_list)
+                except Exception:
+                    pass
+
+                await self._job.log_info(
+                    f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_with_prefix}'"
+                )  # type: ignore[union-attr]
+                return output_path
+
+            # Handle file path input for datasets
             else:
-                dataset_id = name.strip()
+                if not isinstance(source_path, str) or source_path.strip() == "":
+                    raise ValueError("source_path must be a non-empty string when type='dataset'")
+                src = source_path
+                # For local paths, resolve to absolute path; for remote paths (s3://, etc.) or URLs, use as-is
+                is_remote = storage.is_remote_path(src) or src.startswith(("http://", "https://"))
+                if not is_remote:
+                    src = os.path.abspath(src)
 
-            # Get additional metadata from config if provided
-            additional_metadata = {}
-            if config and isinstance(config, dict) and "dataset" in config:
-                additional_metadata = config["dataset"]
+                # Check source existence: use local filesystem for local paths, storage backend for remote
+                if is_remote:
+                    if not await storage.exists(src):
+                        raise FileNotFoundError(f"Dataset source does not exist: {src}")
+                else:
+                    if not os.path.exists(src):
+                        raise FileNotFoundError(f"Dataset source does not exist: {src}")
 
-            # Get other parameters from config
-            suffix = None
-            is_image = False
-            if config and isinstance(config, dict):
-                if "suffix" in config:
-                    suffix = config["suffix"]
-                if "is_image" in config:
-                    is_image = config["is_image"]
+                # Get dataset-specific parameters from config
+                # dataset_config = {}
+                # if config and isinstance(config, dict) and "dataset" in config:
+                #     dataset_config = config["dataset"]
 
-            # Use the existing save_dataset method
-            output_path = await self.async_save_dataset(
-                df=df,
-                dataset_id=dataset_id,
-                additional_metadata=additional_metadata if additional_metadata else None,
-                suffix=suffix,
-                is_image=is_image,
-            )
+                # Determine base name with job_id prefix
+                if isinstance(name, str) and name.strip() != "":
+                    base_name_original = name.strip()
+                else:
+                    base_name_original = posixpath.basename(src)
 
-            # Track dataset_id in job_data
-            try:
-                job_data = await self._job.get_job_data()
-                generated_datasets_list = []
-                if isinstance(job_data, dict):
-                    existing = job_data.get("generated_datasets", [])
-                    if isinstance(existing, list):
-                        generated_datasets_list = existing
-                generated_datasets_list.append(dataset_id)
-                await self._job.update_job_data_field("generated_datasets", generated_datasets_list)
-            except Exception:
-                pass
+                # Add job_id prefix to avoid conflicts between jobs (like models)
+                base_name = f"{job_id}_{base_name_original}"
 
-            await self._job.log_info(
-                f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id}'"
-            )  # type: ignore[union-attr]
-            return output_path
+                # Save to job-specific datasets directory (not a subdirectory per dataset)
+                datasets_dir = await dirs.get_job_datasets_dir(job_id)
+                dest = storage.join(datasets_dir, base_name)
+
+                # Create parent directories
+                await storage.makedirs(datasets_dir, exist_ok=True)
+
+                # Handle duplicate names within the same job by adding suffix
+                if await storage.exists(dest):
+                    counter = 1
+                    while True:
+                        base_name_with_suffix = f"{job_id}_{base_name_original}"
+                        # Insert counter before extension if it exists
+                        name_parts = base_name_original.rsplit(".", 1)
+                        if len(name_parts) > 1:
+                            base_name_with_suffix = f"{job_id}_{name_parts[0]}_{counter}.{name_parts[1]}"
+                        else:
+                            base_name_with_suffix = f"{job_id}_{base_name_original}_{counter}"
+
+                        dest = storage.join(datasets_dir, base_name_with_suffix)
+                        if not await storage.exists(dest):
+                            base_name = base_name_with_suffix
+                            break
+                        counter += 1
+
+                # Copy file or directory
+                # Check if source is directory: use local filesystem for local paths, storage backend for remote
+                if is_remote:
+                    src_is_dir = await storage.isdir(src)
+                else:
+                    src_is_dir = os.path.isdir(src)
+
+                if src_is_dir:
+                    await storage.copy_dir(src, dest)
+                else:
+                    await storage.copy_file(src, dest)
+
+                # Track in job_data
+                try:
+                    job_data = await self._job.get_job_data()
+                    dataset_list = []
+                    if isinstance(job_data, dict):
+                        existing = job_data.get("generated_datasets", [])
+                        if isinstance(existing, list):
+                            dataset_list = existing
+                    dataset_list.append(dest)
+                    await self._job.update_job_data_field("generated_datasets", dataset_list)
+                except Exception:
+                    pass
+
+                await self._job.log_info(f"Dataset saved to '{dest}'")  # type: ignore[union-attr]
+                return dest
 
         # Handle DataFrame input when type="evals"
         if type == "eval" and hasattr(source_path, "to_csv"):
@@ -733,18 +826,55 @@ class Lab:
                 pipeline_tag = model_config.get("pipeline_tag") or pipeline_tag
                 parent_model = model_config.get("parent_model") or parent_model
 
-            # Determine base name with job_id prefix for uniqueness
+            # Determine base name with job_id prefix
             if isinstance(name, str) and name.strip() != "":
-                base_name = f"{job_id}_{name}"
+                base_name_original = name.strip()
             else:
-                base_name = f"{job_id}_{posixpath.basename(src)}"
+                base_name_original = posixpath.basename(src)
 
-            # Save to main workspace models directory for Model Zoo visibility
-            models_dir = await dirs.get_models_dir()
+            # For single file models, remove the extension from the directory name
+            base_name_without_ext = base_name_original
+            if not (is_remote and await storage.isdir(src)) and not (not is_remote and os.path.isdir(src)):
+                # It's a file, remove extension for directory name
+                name_parts = base_name_original.rsplit(".", 1)
+                if len(name_parts) > 1:
+                    base_name_without_ext = name_parts[0]
+
+            # Add job_id prefix to avoid conflicts between jobs
+            base_name = f"{job_id}_{base_name_without_ext}"
+
+            # Save to job-specific models directory
+            models_dir = await dirs.get_job_models_dir(job_id)
             dest = storage.join(models_dir, base_name)
 
-            # Create parent directories
-            await storage.makedirs(models_dir, exist_ok=True)
+            # Create model directory
+            await storage.makedirs(dest, exist_ok=True)
+
+            # Handle duplicate names within the same job by adding suffix
+            if await storage.exists(dest):
+                # Check if there are any files in the directory (not just the directory exists)
+                try:
+                    contents = await storage.ls(dest, detail=False)
+                    if contents:  # Directory exists and has contents
+                        counter = 1
+                        while True:
+                            base_name_with_suffix = f"{job_id}_{base_name_without_ext}_{counter}"
+                            dest = storage.join(models_dir, base_name_with_suffix)
+                            if not await storage.exists(dest):
+                                base_name = base_name_with_suffix
+                                await storage.makedirs(dest, exist_ok=True)
+                                break
+                            # Check if this directory has contents
+                            try:
+                                contents = await storage.ls(dest, detail=False)
+                                if not contents:  # Empty directory, we can use it
+                                    base_name = base_name_with_suffix
+                                    break
+                            except Exception:
+                                pass
+                            counter += 1
+                except Exception:
+                    pass
 
             # Copy file or directory
             # Check if source is directory: use local filesystem for local paths, storage backend for remote
@@ -754,17 +884,16 @@ class Lab:
                 src_is_dir = os.path.isdir(src)
 
             if src_is_dir:
-                if await storage.exists(dest):
-                    await storage.rm_tree(dest)
                 await storage.copy_dir(src, dest)
             else:
-                await storage.copy_file(src, dest)
+                dest_file = storage.join(dest, base_name_original)
+                await storage.copy_file(src, dest_file)
 
-            # Initialize model service for metadata creation
-            model_service = ModelService(base_name)
-
-            # Create Model metadata so it appears in Model Zoo
+            # Create model metadata JSON file alongside the model
             try:
+                # Initialize model service
+                model_service = ModelService(base_name)
+
                 # Use provided architecture or detect it
                 if architecture is None:
                     architecture = await model_service.detect_architecture(dest)
@@ -775,7 +904,29 @@ class Lab:
                     pipeline_tag = model_service.fetch_pipeline_tag(parent_model)
 
                 # Determine model_filename for single-file models
-                model_filename = "" if await storage.isdir(dest) else posixpath.basename(dest)
+                # Check if dest contains a single model file
+                model_filename = ""
+                try:
+                    contents = await storage.ls(dest, detail=False)
+                    # Filter out metadata files
+                    model_files = [
+                        f
+                        for f in contents
+                        if not posixpath.basename(str(f) if not isinstance(f, dict) else f.get("name", "")).startswith(
+                            "."
+                        )
+                        and not posixpath.basename(str(f) if not isinstance(f, dict) else f.get("name", "")).endswith(
+                            ".json"
+                        )
+                    ]
+                    if len(model_files) == 1:
+                        # Single file model
+                        file_path = (
+                            model_files[0] if isinstance(model_files[0], str) else model_files[0].get("name", "")
+                        )
+                        model_filename = posixpath.basename(file_path)
+                except Exception:
+                    pass
 
                 # Prepare json_data with basic info
                 json_data = {
@@ -793,7 +944,7 @@ class Lab:
                     model_filename=model_filename,
                     json_data=json_data,
                 )
-                await self._job.log_info(f"Model saved to Model Zoo as '{base_name}'")  # type: ignore[union-attr]
+                await self._job.log_info(f"Model saved to '{dest}'")  # type: ignore[union-attr]
             except Exception as e:
                 self.log(f"Warning: Model saved but metadata creation failed: {str(e)}")
 
@@ -888,6 +1039,7 @@ class Lab:
         additional_metadata: Optional[Dict[str, Any]] = None,
         suffix: Optional[str] = None,
         is_image: bool = False,
+        job_id: Optional[str] = None,
     ) -> str:
         """
         Save a dataset under the workspace datasets directory (sync version).
@@ -895,7 +1047,10 @@ class Lab:
         This is a sync wrapper around the async implementation.
         Use a_save_dataset() if you're already in an async context.
         """
-        return _run_async(self.async_save_dataset(df, dataset_id, additional_metadata, suffix, is_image))
+        # Auto-fill job_id if not provided and lab is initialized
+        if job_id is None and self._job is not None:
+            job_id = self._job.id
+        return _run_async(self.async_save_dataset(df, dataset_id, additional_metadata, suffix, is_image, job_id))
 
     async def async_save_dataset(
         self,
@@ -904,9 +1059,10 @@ class Lab:
         additional_metadata: Optional[Dict[str, Any]] = None,
         suffix: Optional[str] = None,
         is_image: bool = False,
+        job_id: Optional[str] = None,
     ) -> str:
         """
-        Save a dataset under the workspace datasets directory and mark it as generated.
+        Save a dataset under the job-specific datasets directory.
 
         Args:
             df: A pandas DataFrame or a Hugging Face datasets.Dataset to serialize to disk.
@@ -914,6 +1070,7 @@ class Lab:
             additional_metadata: Optional dict to merge into dataset json_data.
             suffix: Optional suffix to append to the output filename stem.
             is_image: If True, save JSON Lines (for image metadata-style rows).
+            job_id: Required job ID. Datasets are saved to job-specific directory.
 
         Returns:
             The path to the saved dataset file on disk.
@@ -931,24 +1088,67 @@ class Lab:
 
         # Prepare dataset directory
         dataset_id_safe = dataset_id.strip()
-        dataset_dir = await dirs.dataset_dir_by_id(dataset_id_safe)
-        # If exists, then raise an error
-        if await storage.exists(dataset_dir):
-            raise FileExistsError(f"Dataset with ID {dataset_id_safe} already exists")
+
+        # Always use job-specific directory
+        if not job_id:
+            raise ValueError("job_id is required for saving datasets")
+
+        # Add job_id prefix to dataset_id to avoid conflicts between jobs
+        dataset_id_with_prefix = f"{job_id}_{dataset_id_safe}"
+
+        dataset_dir = await dirs.get_job_datasets_dir(job_id)
         await storage.makedirs(dataset_dir, exist_ok=True)
 
         # Determine output filename
         if is_image:
             lines = True
+            stem = dataset_id_with_prefix
+            if isinstance(suffix, str) and suffix.strip() != "":
+                stem = f"{stem}_{suffix.strip()}"
             output_filename = "metadata.jsonl"
+            # For image datasets, create subdirectory with prefixed name
+            dataset_subdir = storage.join(dataset_dir, stem)
+            await storage.makedirs(dataset_subdir, exist_ok=True)
+            output_path = storage.join(dataset_subdir, output_filename)
         else:
             lines = False
-            stem = dataset_id_safe
+            stem = dataset_id_with_prefix
             if isinstance(suffix, str) and suffix.strip() != "":
                 stem = f"{stem}_{suffix.strip()}"
             output_filename = f"{stem}.json"
+            output_path = storage.join(dataset_dir, output_filename)
 
-        output_path = storage.join(dataset_dir, output_filename)
+        # Handle duplicate names within the same job by adding suffix
+        if await storage.exists(output_path):
+            counter = 1
+            while True:
+                if is_image:
+                    stem_with_suffix = f"{dataset_id_with_prefix}_{counter}"
+                    if isinstance(suffix, str) and suffix.strip() != "":
+                        stem_with_suffix = f"{stem_with_suffix}_{suffix.strip()}"
+                    dataset_subdir = storage.join(dataset_dir, stem_with_suffix)
+                    output_path = storage.join(dataset_subdir, "metadata.jsonl")
+                else:
+                    stem_with_suffix = f"{dataset_id_with_prefix}_{counter}"
+                    if isinstance(suffix, str) and suffix.strip() != "":
+                        stem_with_suffix = f"{stem_with_suffix}_{suffix.strip()}"
+                    output_filename = f"{stem_with_suffix}.json"
+                    output_path = storage.join(dataset_dir, output_filename)
+
+                if not await storage.exists(output_path):
+                    stem = stem_with_suffix
+                    output_filename = f"{stem}.json" if not is_image else "metadata.jsonl"
+                    dataset_id_with_prefix = (
+                        stem_with_suffix.split("_")[0] + "_" + stem_with_suffix.split("_", 1)[1]
+                        if "_" in stem_with_suffix
+                        else stem_with_suffix
+                    )
+                    break
+                counter += 1
+
+            # Create directory for image datasets with new name
+            if is_image:
+                await storage.makedirs(dataset_subdir, exist_ok=True)
 
         # Persist dataframe
         try:
@@ -964,18 +1164,20 @@ class Lab:
         except Exception as e:
             raise RuntimeError(f"Failed to save dataset to {output_path}: {str(e)}")
 
-        # Create or update filesystem metadata so it appears under generated datasets
+        # Create or update filesystem metadata using Dataset object (works for both global and job-specific)
         try:
             try:
-                ds = await Dataset.get(dataset_id_safe)
+                ds = await Dataset.get(dataset_id_with_prefix, job_id=job_id)
             except FileNotFoundError:
-                ds = await Dataset.create(dataset_id_safe)
+                ds = await Dataset.create(dataset_id_with_prefix, job_id=job_id)
 
             # Base json_data with generated flag for UI filtering
             json_data: Dict[str, Any] = {
                 "generated": True,
                 "sample_count": len(df) if hasattr(df, "__len__") else -1,
                 "files": [output_filename],
+                "job_id": job_id,
+                "original_dataset_id": dataset_id_safe,  # Keep original ID for reference
             }
             if additional_metadata and isinstance(additional_metadata, dict):
                 json_data.update(additional_metadata)
@@ -996,11 +1198,11 @@ class Lab:
 
         # Track dataset on the job for provenance
         try:
-            await self._job.update_job_data_field("dataset_id", dataset_id_safe)  # type: ignore[union-attr]
+            await self._job.update_job_data_field("dataset_id", dataset_id_with_prefix)  # type: ignore[union-attr]
         except Exception:
-            logger.warning("Failed to track dataset in job_data", exc_info=True)
+            logger.warning("Warning: Failed to track dataset in job_data", exc_info=True)
 
-        logger.info(f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_safe}'")
+        logger.info(f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_with_prefix}'")
         return output_path
 
     def save_checkpoint(self, source_path: str, name: Optional[str] = None) -> str:
@@ -1081,7 +1283,7 @@ class Lab:
         parent_model: Optional[str] = None,
     ) -> str:
         """
-        Save a model file or directory to the workspace models directory (sync version).
+        Save a model file or directory to the job-specific models directory (sync version).
 
         This is a sync wrapper around the async implementation.
         Use async_save_model() if you're already in an async context.
@@ -1097,8 +1299,7 @@ class Lab:
         parent_model: Optional[str] = None,
     ) -> str:
         """
-        Save a model file or directory to the workspace models directory.
-        The model will automatically appear in the Model Zoo's Local Models list.
+        Save a model file or directory to the job-specific models directory.
 
         This method is a convenience wrapper around save_artifact with type="model".
         For new code, consider using save_artifact directly with type="model".
