@@ -583,10 +583,10 @@ async def healthz():
     """
     Health check endpoint to verify server status and mode.
     """
-    tfl_api_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "")
+    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "")
 
     # Determine mode: s3 or local
-    if tfl_api_storage_uri:
+    if tfl_remote_storage_enabled:
         mode = "s3"
     else:
         mode = "local"

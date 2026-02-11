@@ -36,8 +36,8 @@ def set_organization_id(organization_id: str | None) -> None:
     _current_org_id.set(organization_id)
     if organization_id is not None:
         # If TFL_REMOTE_STORAGE_ENABLED is set, use <cloud_protocol>://workspace_<team_id> instead of the value itself
-        tfl_api_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED")
-        if tfl_api_storage_uri:
+        tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED")
+        if tfl_remote_storage_enabled:
             # Determine protocol based on REMOTE_WORKSPACE_HOST
             protocol = "gs://" if REMOTE_WORKSPACE_HOST == "gcp" else "s3://"
 

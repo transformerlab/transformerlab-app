@@ -67,8 +67,8 @@ async def document_view(experimentId: str, document_name: str, folder: str = Non
 @router.get("/list", summary="List available documents.")
 async def document_list(experimentId: str, folder: str = None):
     documents = []
-    tfl_api_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "")
-    use_detail = not bool(tfl_api_storage_uri)  # no size/mtime when remote
+    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "")
+    use_detail = not bool(tfl_remote_storage_enabled)  # no size/mtime when remote
     # List the files that are in the experiment/<experiment_name>/documents directory:
     exp_obj = Experiment(experimentId)
     experiment_dir = await exp_obj.get_dir()
