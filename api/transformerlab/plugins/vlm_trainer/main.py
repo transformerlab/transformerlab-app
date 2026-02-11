@@ -160,6 +160,7 @@ def train_vlm():
         args=args,
         train_dataset=dataset,
         data_collator=collate_fn,
+        peft_config=peft_config,
         processing_class=processor.tokenizer,
         callbacks=[progress_callback],
     )
