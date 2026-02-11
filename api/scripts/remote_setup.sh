@@ -67,20 +67,26 @@ detect_os() {
     OS="$(uname -s)"
     ARCH="$(uname -m)"
 
+    # Use sudo only when not running as root
+    SUDO="sudo"
+    if [ "$(id -u)" -eq 0 ]; then
+        SUDO=""
+    fi
+
     if [ "${OS}" = "Linux" ]; then
         # Detect Linux distribution
         if command -v apt-get >/dev/null 2>&1; then
             PKG_MANAGER="apt"
-            INSTALL_CMD="sudo apt-get install -y"
-            UPDATE_CMD="sudo apt-get update"
+            INSTALL_CMD="${SUDO} apt-get install -y"
+            UPDATE_CMD="${SUDO} apt-get update"
         elif command -v yum >/dev/null 2>&1; then
             PKG_MANAGER="yum"
-            INSTALL_CMD="sudo yum install -y"
-            UPDATE_CMD="sudo yum check-update || true"
+            INSTALL_CMD="${SUDO} yum install -y"
+            UPDATE_CMD="${SUDO} yum check-update || true"
         elif command -v dnf >/dev/null 2>&1; then
             PKG_MANAGER="dnf"
-            INSTALL_CMD="sudo dnf install -y"
-            UPDATE_CMD="sudo dnf check-update || true"
+            INSTALL_CMD="${SUDO} dnf install -y"
+            UPDATE_CMD="${SUDO} dnf check-update || true"
         else
             error "Unsupported Linux distribution. Please install dependencies manually."
             exit 1
