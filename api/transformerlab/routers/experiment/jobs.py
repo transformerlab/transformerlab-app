@@ -535,12 +535,17 @@ async def get_tunnel_info_for_job(
         raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
 
     try:
-        raw_logs = provider_instance.get_job_logs(
-            cluster_name,
-            provider_job_id,
-            tail_lines=tail_lines or None,
-            follow=False,
-        )
+        if provider.type == ProviderType.RUNPOD.value:
+            raw_logs = await _fetch_runpod_provider_logs(
+                provider_instance, cluster_name, user_and_team["team_id"], tail_lines
+            )
+        else:
+            raw_logs = provider_instance.get_job_logs(
+                cluster_name,
+                provider_job_id,
+                tail_lines=tail_lines or None,
+                follow=False,
+            )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
 
