@@ -7,6 +7,8 @@ from fastapi_users.authentication import AuthenticationBackend, BearerTransport,
 from fastapi_users.db import SQLAlchemyUserDatabase
 from httpx_oauth.clients.google import GoogleOAuth2
 from httpx_oauth.clients.github import GitHubOAuth2
+from httpx_oauth.clients.openid import OpenID
+from httpx_oauth.clients.openid import OpenIDConfigurationError
 from transformerlab.shared.models.user_model import get_async_session, create_personal_team, get_user_db
 from transformerlab.shared.models.models import User, UserTeam, TeamRole
 from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
@@ -262,6 +264,45 @@ if not GITHUB_OAUTH_ENABLED and MULTIUSER_MODE:
     )
 elif GITHUB_OAUTH_ENABLED and MULTIUSER_MODE:
     print("✅ GitHub OAuth configured and ready.")
+
+
+def _load_oidc_providers() -> list[dict]:
+    """
+    Load OIDC providers from environment.
+    For each N=0,1,2,... if OIDC_N_DISCOVERY_URL, OIDC_N_CLIENT_ID, OIDC_N_CLIENT_SECRET are set,
+    create an OpenID client. Discovery URL is the full URL to .well-known/openid-configuration.
+    """
+    providers: list[dict] = []
+    n = 0
+    while True:
+        base = f"OIDC_{n}"
+        discovery_url = os.getenv(f"{base}_DISCOVERY_URL", "").strip()
+        client_id = os.getenv(f"{base}_CLIENT_ID", "").strip()
+        client_secret = os.getenv(f"{base}_CLIENT_SECRET", "").strip()
+        name = os.getenv(f"{base}_NAME", "").strip() or f"OpenID #{n + 1}"
+        if not discovery_url or not client_id or not client_secret:
+            if n == 0:
+                pass  # No OIDC providers configured
+            break
+        try:
+            client = OpenID(
+                client_id=client_id,
+                client_secret=client_secret,
+                openid_configuration_endpoint=discovery_url,
+                name=f"oidc-{n}",
+            )
+            providers.append({"id": f"oidc-{n}", "name": name, "client": client})
+        except OpenIDConfigurationError as e:
+            print(f"⚠️  OIDC provider {n} ({discovery_url}): discovery failed: {e}")
+        except Exception as e:
+            print(f"⚠️  OIDC provider {n}: failed to load: {e}")
+        n += 1
+    return providers
+
+
+OIDC_PROVIDERS: list[dict] = _load_oidc_providers()
+if OIDC_PROVIDERS and MULTIUSER_MODE:
+    print(f"✅ {len(OIDC_PROVIDERS)} OIDC provider(s) configured.")
 
 
 EMAIL_AUTH_ENABLED = os.getenv("EMAIL_AUTH_ENABLED", "true").lower() == "true"

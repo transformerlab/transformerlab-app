@@ -202,6 +202,22 @@
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/artifact/{filename}"
     },
+    "getJobDatasets": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/datasets"
+    },
+    "getJobModels": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/models"
+    },
+    "saveDatasetToRegistry": {
+      "method": "POST",
+      "path": "experiment/{experimentId}/jobs/{jobId}/datasets/{datasetName}/save_to_registry"
+    },
+    "saveModelToRegistry": {
+      "method": "POST",
+      "path": "experiment/{experimentId}/jobs/{jobId}/models/{modelName}/save_to_registry"
+    },
     "getJobsOfType": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/list?type={type}&status={status}"
