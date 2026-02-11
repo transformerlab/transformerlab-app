@@ -390,7 +390,7 @@ setup_uv_venv() {
             PYTHON_CMD="python"
         fi
 
-        $UV_CMD venv "$HOME/.venv" --python "$PYTHON_CMD" || {
+        $UV_CMD venv ~/.venv --seed --python "$PYTHON_CMD" || {
             error "Failed to create virtual environment"
             exit 1
         }
