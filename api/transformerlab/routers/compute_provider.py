@@ -6,7 +6,7 @@ import json
 import configparser
 from pathlib import Path
 import asyncio
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request, Body
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, List, Optional, Union, Tuple
@@ -411,6 +411,197 @@ async def get_usage_report(
     }
 
 
+@router.get("/org-ssh-public-key")
+async def get_org_ssh_public_key_endpoint(
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Get the organization's SSH public key for users to add to their SLURM account.
+    Requires X-Team-Id header and team membership.
+    """
+    from transformerlab.services.ssh_key_service import get_org_ssh_public_key
+
+    team_id = user_and_team["team_id"]
+
+    try:
+        public_key = await get_org_ssh_public_key(team_id)
+        return {
+            "public_key": public_key,
+            "instructions": "Add this public key to ~/.ssh/authorized_keys on your SLURM login node for the user account you specify in Provider Settings.",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get SSH public key: {str(e)}")
+
+
+@router.get("/user-settings/{provider_id}")
+async def get_user_provider_settings(
+    provider_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get user-specific settings for a provider (e.g., SLURM username, SSH key status).
+    Requires X-Team-Id header and team membership.
+    """
+    import transformerlab.db.db as db
+    from transformerlab.services.user_slurm_key_service import user_slurm_key_exists
+
+    team_id = user_and_team["team_id"]
+    user_id = str(user_and_team["user"].id)
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    config_key = f"provider:{provider_id}:slurm_user"
+    slurm_user = await db.config_get(key=config_key, user_id=user_id, team_id=team_id)
+
+    has_ssh_key = False
+    if provider.type == ProviderType.SLURM.value:
+        has_ssh_key = await user_slurm_key_exists(team_id, provider_id, user_id)
+
+    return {
+        "provider_id": provider_id,
+        "slurm_user": slurm_user,
+        "has_ssh_key": has_ssh_key,
+    }
+
+
+@router.put("/user-settings/{provider_id}")
+async def set_user_provider_settings(
+    provider_id: str,
+    body: Optional[dict] = Body(None),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Set user-specific settings for a provider (e.g., SLURM username).
+    Requires X-Team-Id header and team membership.
+    """
+    import transformerlab.db.db as db
+
+    team_id = user_and_team["team_id"]
+    user_id = str(user_and_team["user"].id)
+
+    # Verify provider exists and user has access
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    # Only allow SLURM providers to have slurm_user setting
+    if provider.type != ProviderType.SLURM.value:
+        raise HTTPException(status_code=400, detail="slurm_user setting is only available for SLURM providers")
+
+    # Read slurm_user from request body (frontend sends JSON body)
+    slurm_user = (body or {}).get("slurm_user")
+    if isinstance(slurm_user, str):
+        slurm_user = slurm_user.strip() or None
+    elif slurm_user is not None and not isinstance(slurm_user, str):
+        slurm_user = str(slurm_user).strip() or None
+
+    # Set user-specific slurm_user setting
+    config_key = f"provider:{provider_id}:slurm_user"
+    if slurm_user:
+        await db.config_set(key=config_key, value=slurm_user, user_id=user_id, team_id=team_id)
+    else:
+        await db.config_set(key=config_key, value="", user_id=user_id, team_id=team_id)
+
+    has_ssh_key = False
+    if provider.type == ProviderType.SLURM.value:
+        from transformerlab.services.user_slurm_key_service import user_slurm_key_exists
+
+        has_ssh_key = await user_slurm_key_exists(team_id, provider_id, user_id)
+
+    return {
+        "provider_id": provider_id,
+        "slurm_user": slurm_user,
+        "has_ssh_key": has_ssh_key,
+    }
+
+
+@router.post("/user-settings/{provider_id}/ssh-key")
+async def upload_user_slurm_ssh_key(
+    provider_id: str,
+    body: dict = Body(...),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Upload a user's SLURM SSH private key for a provider.
+    Requires X-Team-Id header and team membership.
+    """
+    from transformerlab.services.user_slurm_key_service import save_user_slurm_key
+
+    team_id = user_and_team["team_id"]
+    user_id = str(user_and_team["user"].id)
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if provider.type != ProviderType.SLURM.value:
+        raise HTTPException(
+            status_code=400,
+            detail="SSH key upload is only available for SLURM providers",
+        )
+
+    private_key = body.get("private_key")
+    if not private_key or not isinstance(private_key, str):
+        raise HTTPException(status_code=400, detail="private_key is required and must be a string")
+    private_key = private_key.strip()
+    if not private_key:
+        raise HTTPException(status_code=400, detail="private_key cannot be empty")
+    if not (private_key.startswith("-----BEGIN") or "PRIVATE KEY" in private_key or "BEGIN RSA" in private_key):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid private key format. Expected PEM or OpenSSH format starting with '-----BEGIN'",
+        )
+
+    try:
+        await save_user_slurm_key(team_id, provider_id, user_id, private_key)
+        return {
+            "status": "success",
+            "provider_id": provider_id,
+            "message": "SSH private key uploaded successfully",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save SSH key: {str(e)}")
+
+
+@router.delete("/user-settings/{provider_id}/ssh-key")
+async def delete_user_slurm_ssh_key(
+    provider_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Delete a user's SLURM SSH private key for a provider.
+    Requires X-Team-Id header and team membership.
+    """
+    from transformerlab.services.user_slurm_key_service import delete_user_slurm_key
+
+    team_id = user_and_team["team_id"]
+    user_id = str(user_and_team["user"].id)
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if provider.type != ProviderType.SLURM.value:
+        raise HTTPException(
+            status_code=400,
+            detail="SSH key deletion is only available for SLURM providers",
+        )
+
+    try:
+        await delete_user_slurm_key(team_id, provider_id, user_id)
+        return {
+            "status": "success",
+            "provider_id": provider_id,
+            "message": "SSH private key deleted successfully",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete SSH key: {str(e)}")
+
+
 @router.get("/{provider_id}", response_model=ProviderRead)
 async def get_provider(
     provider_id: str,
@@ -524,19 +715,20 @@ async def check_provider(
     """
     Check if a compute provider is active and accessible.
     Requires X-Team-Id header and team membership.
+    For SLURM providers, uses the current user's SLURM username if set in Provider Settings.
 
     Returns:
         {"status": True} if the provider is active, {"status": False} otherwise
     """
     team_id = user_and_team["team_id"]
+    user_id_str = str(user_and_team["user"].id)
 
     provider = await get_team_provider(session, team_id, provider_id)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Try to instantiate the provider
-        provider_instance = get_provider_instance(provider)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Call the check method
         is_active = provider_instance.check()
@@ -756,7 +948,9 @@ async def _launch_sweep_jobs(
                 print(f"Provider {provider_id} not found for sweep job {parent_job_id}")
                 return
 
-            provider_instance = get_provider_instance(provider)
+            # Get provider instance (resolves user's slurm_user for SLURM when user_id/team_id set)
+            user_id_str = str(user.id)
+            provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
             # Generate user_info
             user_info = {}
@@ -769,8 +963,9 @@ async def _launch_sweep_jobs(
 
             provider_display_name = request.provider_name or provider.name
 
-            # Load team secrets for template replacement
-            team_secrets = await load_team_secrets()
+            # Load team secrets and user secrets for template replacement (user secrets override team secrets)
+            user_id = str(user_and_team["user"].id)
+            team_secrets = await load_team_secrets(user_id=user_id)
 
             # Generate all parameter combinations
             param_names = list(sweep_config.keys())
@@ -809,6 +1004,7 @@ async def _launch_sweep_jobs(
 
                 env_vars["_TFL_JOB_ID"] = str(child_job_id)
                 env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
+                env_vars["_TFL_USER_ID"] = user_id
 
                 # Get TFL_STORAGE_URI
                 tfl_storage_uri = None
@@ -848,7 +1044,7 @@ async def _launch_sweep_jobs(
 
                 if request.github_repo_url:
                     workspace_dir = await get_workspace_dir()
-                    github_pat = read_github_pat_from_workspace(workspace_dir)
+                    github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
                     github_setup = generate_github_clone_setup(
                         repo_url=request.github_repo_url,
                         directory=request.github_directory,
@@ -1073,7 +1269,9 @@ async def launch_template_on_provider(
         if not has_quota:
             raise HTTPException(status_code=403, detail=message)
 
-    provider_instance = get_provider_instance(provider)
+    # Get provider instance (resolves user's slurm_user for SLURM when user_id/team_id set)
+    user_id_str = str(user.id)
+    provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
     # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING,
     # except for LOCAL providers where we introduce a WAITING status while queued.
@@ -1116,8 +1314,9 @@ async def launch_template_on_provider(
 
     provider_display_name = request.provider_name or provider.name
 
-    # Load team secrets for template replacement
-    team_secrets = await load_team_secrets()
+    # Load team secrets and user secrets for template replacement (user secrets override team secrets)
+    user_id = str(user_and_team["user"].id)
+    team_secrets = await load_team_secrets(user_id=user_id)
 
     # Prepare environment variables - start with a copy of requested env_vars
     env_vars = request.env_vars.copy() if request.env_vars else {}
@@ -1149,7 +1348,7 @@ async def launch_template_on_provider(
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
         workspace_dir = await get_workspace_dir()
-        github_pat = await read_github_pat_from_workspace(workspace_dir)
+        github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
         github_setup = generate_github_clone_setup(
             repo_url=request.github_repo_url,
             directory=request.github_directory,
@@ -1216,6 +1415,7 @@ async def launch_template_on_provider(
     # Add default environment variables
     env_vars["_TFL_JOB_ID"] = str(job_id)
     env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
+    env_vars["_TFL_USER_ID"] = user_id
 
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
@@ -1459,7 +1659,8 @@ async def check_provider_job_status(
         }
 
     try:
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
     except Exception as exc:
         print(f"Failed to instantiate provider: {exc}")
         return {
@@ -2047,9 +2248,10 @@ async def resume_from_checkpoint(
         if value is not None:
             await job_service.job_update_job_data_insert_key_value(new_job_id, field, value, experimentId)
 
-    # Relaunch via provider - replicate launch logic from compute_provider.py
+    # Relaunch via provider (uses current user's slurm_user for SLURM)
+    user_id_str = str(user_and_team["user"].id)
     try:
-        provider_instance = get_provider_instance(provider)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
     except Exception as exc:
         await job_service.job_update_status(new_job_id, "FAILED", experimentId, error_msg=str(exc))
         raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
@@ -2075,6 +2277,8 @@ async def resume_from_checkpoint(
     env_vars = (job_data.get("env_vars") or {}).copy()
     env_vars["_TFL_JOB_ID"] = str(new_job_id)
     env_vars["_TFL_EXPERIMENT_ID"] = experimentId
+    if user:
+        env_vars["_TFL_USER_ID"] = str(user.id)
 
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
@@ -2095,7 +2299,8 @@ async def resume_from_checkpoint(
     github_repo_url = job_data.get("github_repo_url")
     if github_repo_url:
         workspace_dir = await get_workspace_dir()
-        github_pat = read_github_pat_from_workspace(workspace_dir)
+        user_id_for_pat = str(user.id) if user else None
+        github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id_for_pat)
         github_setup = generate_github_clone_setup(
             repo_url=github_repo_url,
             directory=job_data.get("github_directory"),
@@ -2195,8 +2400,8 @@ async def stop_cluster(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Stop cluster
         result = provider_instance.stop_cluster(cluster_name)
@@ -2225,8 +2430,8 @@ async def get_cluster_status(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Get cluster status
         status = provider_instance.get_cluster_status(cluster_name)
@@ -2255,8 +2460,8 @@ async def get_cluster_resources(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Get cluster resources
         resources = provider_instance.get_cluster_resources(cluster_name)
@@ -2284,8 +2489,8 @@ async def list_clusters_detailed(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Get detailed clusters
         clusters = provider_instance.get_clusters_detailed()
@@ -2320,8 +2525,8 @@ async def submit_job(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Submit job
         result = provider_instance.submit_job(cluster_name, job_config)
@@ -2362,8 +2567,8 @@ async def list_jobs(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # List jobs
         jobs = provider_instance.list_jobs(cluster_name)
@@ -2400,8 +2605,8 @@ async def get_job_info(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # List jobs and find the specific one
         try:
@@ -2459,8 +2664,8 @@ async def get_job_logs(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Local provider needs workspace_dir (job dir) to read logs
         if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
@@ -2551,8 +2756,8 @@ async def cancel_job(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Local provider needs workspace_dir (job dir) to cancel the correct process
         if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):

@@ -28,9 +28,17 @@ from transformerlab.compute_providers.models import JobState
 from transformerlab.shared.tunnel_parser import get_tunnel_info
 from transformerlab.shared.models.models import ProviderType
 from lab import Job
-from lab.dirs import get_workspace_dir, get_local_provider_job_dir
+from lab.dirs import (
+    get_workspace_dir,
+    get_local_provider_job_dir,
+    get_job_datasets_dir,
+    get_datasets_dir,
+    get_job_models_dir,
+    get_models_dir,
+)
 from transformerlab.shared import zip_utils
 from transformerlab.shared.ssh_policy import get_add_if_verified_policy
+from datetime import datetime
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -357,7 +365,9 @@ async def get_provider_job_logs(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        team_id = user_and_team["team_id"]
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
 
@@ -491,7 +501,9 @@ async def get_tunnel_info_for_job(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        team_id = user_and_team["team_id"]
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
 
@@ -647,12 +659,28 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
         )
 
-    return StreamingResponse(
-        # we force polling because i can't get this to work otherwise -- changes aren't detected
-        watch_file(output_file_name, start_from_beginning=True, force_polling=True),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
-    )
+    # Check if this is a remote path (S3, GCS, etc.) and use appropriate watcher
+    is_remote_path = storage.is_remote_path(output_file_name)
+
+    if is_remote_path:
+        # Use S3 polling watcher for remote filesystems
+        # This handles file rewrites better by comparing content lengths
+        from transformerlab.routers.serverinfo import watch_remote_file
+
+        return StreamingResponse(
+            watch_remote_file(output_file_name, start_from_beginning=True, poll_interval_ms=100),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+        )
+    else:
+        # Use local file watcher for local filesystems
+        # watch_file is already imported at the top
+        return StreamingResponse(
+            # we force polling because i can't get this to work otherwise -- changes aren't detected
+            watch_file(output_file_name, start_from_beginning=True, force_polling=True),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+        )
 
 
 @router.get("/{job_id}/stream_detailed_json_report")
@@ -1355,3 +1383,139 @@ async def sweep_results(job_id: str):
     except Exception as e:
         print(f"Error loading sweep results for job {job_id}: {e}")
         return {"status": "error", "message": "An internal error has occurred!"}
+
+
+@router.get("/{job_id}/datasets")
+async def get_job_datasets(job_id: str, request: Request):
+    """Get list of datasets in the job's datasets directory"""
+
+    if not job_id or job_id in ("", "-1"):
+        return {"datasets": []}
+
+    try:
+        from lab.dirs import get_job_datasets_dir
+
+        datasets_dir = await get_job_datasets_dir(job_id)
+        datasets = await job_service.get_datasets_from_directory(datasets_dir, storage)
+    except Exception as e:
+        print(f"Error getting datasets for job {job_id}: {e}")
+        datasets = []
+
+    datasets.sort(key=lambda x: x["name"], reverse=True)
+
+    return {"datasets": datasets}
+
+
+@router.get("/{job_id}/models")
+async def get_job_models(job_id: str, request: Request):
+    """Get list of models in the job's models directory"""
+
+    if not job_id or job_id in ("", "-1"):
+        return {"models": []}
+
+    try:
+        from lab.dirs import get_job_models_dir
+
+        models_dir = await get_job_models_dir(job_id)
+        models = await job_service.get_models_from_directory(models_dir, storage)
+    except Exception as e:
+        print(f"Error getting models for job {job_id}: {e}")
+        models = []
+
+    models.sort(key=lambda x: x["name"], reverse=True)
+
+    return {"models": models}
+
+
+@router.post("/{job_id}/datasets/{dataset_name}/save_to_registry")
+async def save_dataset_to_registry(
+    job_id: str,
+    dataset_name: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Copy a dataset from job's datasets directory to the global datasets registry"""
+
+    try:
+        # Secure the dataset name
+        dataset_name_secure = secure_filename(dataset_name)
+
+        # Get source path (job's datasets directory)
+        job_datasets_dir = await get_job_datasets_dir(job_id)
+        source_path = storage.join(job_datasets_dir, dataset_name_secure)
+
+        if not await storage.exists(source_path):
+            raise HTTPException(status_code=404, detail=f"Dataset '{dataset_name}' not found in job directory")
+
+        # Get destination path (global datasets registry)
+        datasets_registry_dir = await get_datasets_dir()
+        dest_path = storage.join(datasets_registry_dir, dataset_name_secure)
+
+        # Check if dataset already exists in registry and generate a unique name if needed
+        if await storage.exists(dest_path):
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            dataset_name_secure = f"{dataset_name_secure}_{timestamp}"
+            dest_path = storage.join(datasets_registry_dir, dataset_name_secure)
+
+        # Copy the dataset to the registry
+        # Try local copy first (if both are local paths)
+        try:
+            await storage.copy_dir(source_path, dest_path)
+        except Exception as copy_err:
+            # If shutil fails, fallback to storage.copy_dir
+            print(f"Storage.copy_dir failed: {copy_err}")
+
+        return {"status": "success", "message": f"Dataset saved to registry as '{dataset_name_secure}'"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving dataset to registry for job {job_id}: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to save dataset to registry: {str(e)}")
+
+
+@router.post("/{job_id}/models/{model_name}/save_to_registry")
+async def save_model_to_registry(job_id: str, model_name: str):
+    """Copy a model from job's models directory to the global models registry"""
+
+    try:
+        # Secure the model name
+        model_name_secure = secure_filename(model_name)
+
+        # Get source path (job's models directory)
+        job_models_dir = await get_job_models_dir(job_id)
+        source_path = storage.join(job_models_dir, model_name_secure)
+
+        if not await storage.exists(source_path):
+            raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found in job directory")
+
+        # Get destination path (global models registry)
+        models_registry_dir = await get_models_dir()
+        dest_path = storage.join(models_registry_dir, model_name_secure)
+
+        # Check if model already exists in registry
+        if await storage.exists(dest_path):
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            model_name_secure = f"{model_name_secure}_{timestamp}"
+            dest_path = storage.join(models_registry_dir, model_name_secure)
+
+        # Copy the model directory to the registry
+        try:
+            await storage.copy_dir(source_path, dest_path)
+        except Exception as copy_err:
+            print(f"storage.copy_dir failed: {copy_err}")
+            await storage.copy_dir(source_path, dest_path)
+
+        return {"status": "success", "message": f"Model saved to registry as '{model_name_secure}'"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving model to registry for job {job_id}: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to save model to registry: {str(e)}")

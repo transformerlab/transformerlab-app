@@ -91,9 +91,9 @@ async def generate_ssh_key_pair(team_id: str, key_id: str) -> Tuple[str, str]:
     async with await storage.open(private_key_path, "wb") as f:
         await f.write(private_pem)
 
-    # Write public key
-    async with await storage.open(public_key_path, "wb") as f:
-        await f.write(public_ssh)
+    # Write public key (as text, not binary)
+    async with await storage.open(public_key_path, "w") as f:
+        await f.write(public_ssh.decode("utf-8"))
 
     # Set permissions on private key (if local filesystem)
     # Note: For cloud storage, permissions are handled differently
@@ -148,13 +148,40 @@ async def get_org_ssh_public_key(team_id: str) -> str:
 
     Returns:
         Public key as a string (OpenSSH format)
+
+    Raises:
+        ValueError: If the key doesn't exist and can't be created
+        FileNotFoundError: If the key file doesn't exist after creation attempt
     """
-    _, public_key_path = await get_or_create_org_ssh_key_pair(team_id)
+    status = await load_status(team_id)
+    if not status or not status.get("key_id"):
+        raise ValueError("No SSH key found for this team. Please create one in Team Settings → SSH Key.")
 
-    async with await storage.open(public_key_path, "r") as f:
-        public_key_content = await f.read()
+    key_id = status["key_id"]
+    _, public_key_path = await get_org_ssh_key_paths(team_id, key_id)
 
-    return public_key_content.strip()
+    # Verify the file exists
+    if not await storage.exists(public_key_path):
+        # Try to regenerate the key pair
+        await generate_ssh_key_pair(team_id, key_id)
+        if not await storage.exists(public_key_path):
+            raise FileNotFoundError(f"SSH public key file not found at {public_key_path} after regeneration attempt")
+
+    # Try reading as text first, then binary if that fails
+    try:
+        async with await storage.open(public_key_path, "r") as f:
+            public_key_content = await f.read()
+    except (UnicodeDecodeError, TypeError):
+        # If text read fails, try binary and decode
+        async with await storage.open(public_key_path, "rb") as f:
+            public_key_bytes = await f.read()
+            public_key_content = public_key_bytes.decode("utf-8")
+
+    public_key = public_key_content.strip()
+    if not public_key:
+        raise ValueError(f"SSH public key file is empty at {public_key_path}")
+
+    return public_key
 
 
 async def get_org_ssh_private_key(team_id: str) -> bytes:
@@ -199,9 +226,9 @@ async def create_ssh_key(team_id: str, name: Optional[str], created_by_user_id: 
         old_key_id = old_status["key_id"]
         private_key_path, public_key_path = await get_org_ssh_key_paths(team_id, old_key_id)
         if await storage.exists(private_key_path):
-            await storage.remove(private_key_path)
+            await storage.rm(private_key_path)
         if await storage.exists(public_key_path):
-            await storage.remove(public_key_path)
+            await storage.rm(public_key_path)
 
     # Create new key
     key_id = str(uuid.uuid4())
@@ -265,14 +292,14 @@ async def delete_ssh_key(team_id: str) -> None:
     # Delete key files
     private_key_path, public_key_path = await get_org_ssh_key_paths(team_id, key_id)
     if await storage.exists(private_key_path):
-        await storage.remove(private_key_path)
+        await storage.rm(private_key_path)
     if await storage.exists(public_key_path):
-        await storage.remove(public_key_path)
+        await storage.rm(public_key_path)
 
     # Delete status file
     status_path = await get_status_file_path(team_id)
     if await storage.exists(status_path):
-        await storage.remove(status_path)
+        await storage.rm(status_path)
 
 
 async def org_ssh_key_exists(team_id: str) -> bool:
