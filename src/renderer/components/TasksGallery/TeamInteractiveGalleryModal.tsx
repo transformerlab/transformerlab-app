@@ -369,10 +369,18 @@ export default function TeamInteractiveGalleryModal({
                               )}
                             </Box>
                             {task?.metadata?.framework && (
-                              <Stack direction="row" spacing={1} flexWrap="wrap">
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                flexWrap="wrap"
+                              >
                                 {task.metadata.framework.map(
                                   (fw: string, fwIndex: number) => (
-                                    <Chip key={fwIndex} size="sm" variant="soft">
+                                    <Chip
+                                      key={fwIndex}
+                                      size="sm"
+                                      variant="soft"
+                                    >
                                       {fw}
                                     </Chip>
                                   ),

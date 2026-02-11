@@ -390,7 +390,8 @@ export default function TasksGallery() {
         body: JSON.stringify({
           gallery_id: galleryIdentifier.toString(),
           experiment_id: experimentInfo.id,
-          is_interactive: activeTab === 'interactive' || activeTab === 'team-interactive',
+          is_interactive:
+            activeTab === 'interactive' || activeTab === 'team-interactive',
         }),
       });
 
@@ -579,11 +580,11 @@ export default function TasksGallery() {
   const globalGallery = data?.data || [];
   const teamGallery = teamData?.data || [];
   const interactiveGallery = interactiveData?.data || [];
-  
+
   // Determine which gallery to display
   let gallery;
   let isActiveLoading;
-  
+
   if (activeTab === 'team') {
     gallery = teamGallery;
     isActiveLoading = teamLoading;
