@@ -37,6 +37,7 @@ import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { fetcher } from '../../lib/transformerlab-api-sdk';
 import { useNotification } from '../Shared/NotificationSystem';
 import NewTeamTaskModal from './NewTeamTaskModal';
+import TeamInteractiveGalleryModal from './TeamInteractiveGalleryModal';
 
 // Custom filter function for tasks gallery (uses 'title' or 'name' field)
 function filterTasksGallery(data: any[], searchText: string = '') {
@@ -305,9 +306,9 @@ export default function TasksGallery() {
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const [searchText, setSearchText] = useState('');
-  const [activeTab, setActiveTab] = useState<'global' | 'team' | 'interactive'>(
-    'global',
-  );
+  const [activeTab, setActiveTab] = useState<
+    'global' | 'interactive' | 'team' | 'team-interactive'
+  >('global');
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const navigate = useNavigate();
@@ -318,6 +319,8 @@ export default function TasksGallery() {
   const [isSubmittingTeamTask, setIsSubmittingTeamTask] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const [teamInteractiveGalleryModalOpen, setTeamInteractiveGalleryModalOpen] =
+    useState(false);
 
   // Set active tab based on URL parameter
   useEffect(() => {
@@ -325,6 +328,8 @@ export default function TasksGallery() {
       setActiveTab('interactive');
     } else if (tabParam === 'team') {
       setActiveTab('team');
+    } else if (tabParam === 'team-interactive') {
+      setActiveTab('team-interactive');
     } else if (tabParam === 'global') {
       setActiveTab('global');
     }
@@ -374,7 +379,9 @@ export default function TasksGallery() {
       const endpoint =
         activeTab === 'team'
           ? chatAPI.Endpoints.Task.ImportFromTeamGallery(experimentInfo.id)
-          : chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id);
+          : activeTab === 'team-interactive'
+            ? chatAPI.Endpoints.Task.ImportFromTeamGallery(experimentInfo.id)
+            : chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id);
       const response = await chatAPI.authenticatedFetch(endpoint, {
         method: 'POST',
         headers: {
@@ -383,7 +390,7 @@ export default function TasksGallery() {
         body: JSON.stringify({
           gallery_id: galleryIdentifier.toString(),
           experiment_id: experimentInfo.id,
-          is_interactive: activeTab === 'interactive',
+          is_interactive: activeTab === 'interactive' || activeTab === 'team-interactive',
         }),
       });
 
@@ -404,6 +411,8 @@ export default function TasksGallery() {
 
       if (activeTab === 'team') {
         teamMutate();
+      } else if (activeTab === 'team-interactive') {
+        teamMutate();
       } else if (activeTab === 'interactive') {
         interactiveMutate();
       } else {
@@ -411,7 +420,7 @@ export default function TasksGallery() {
       }
 
       // Navigate to the appropriate page
-      if (activeTab === 'interactive') {
+      if (activeTab === 'interactive' || activeTab === 'team-interactive') {
         navigate(`/experiment/interactive`);
       } else {
         navigate(`/experiment/tasks`);
@@ -570,18 +579,25 @@ export default function TasksGallery() {
   const globalGallery = data?.data || [];
   const teamGallery = teamData?.data || [];
   const interactiveGallery = interactiveData?.data || [];
-  const gallery =
-    activeTab === 'team'
-      ? teamGallery
-      : activeTab === 'interactive'
-        ? interactiveGallery
-        : globalGallery;
-  const isActiveLoading =
-    activeTab === 'team'
-      ? teamLoading
-      : activeTab === 'interactive'
-        ? interactiveLoading
-        : isLoading;
+  
+  // Determine which gallery to display
+  let gallery;
+  let isActiveLoading;
+  
+  if (activeTab === 'team') {
+    gallery = teamGallery;
+    isActiveLoading = teamLoading;
+  } else if (activeTab === 'team-interactive') {
+    // Team interactive shows empty gallery, open modal with button instead
+    gallery = [];
+    isActiveLoading = false;
+  } else if (activeTab === 'interactive') {
+    gallery = interactiveGallery;
+    isActiveLoading = interactiveLoading;
+  } else {
+    gallery = globalGallery;
+    isActiveLoading = isLoading;
+  }
 
   return (
     <Sheet
@@ -598,6 +614,14 @@ export default function TasksGallery() {
         onSubmit={handleAddTeamTask}
         isSubmitting={isSubmittingTeamTask}
       />
+      <TeamInteractiveGalleryModal
+        open={teamInteractiveGalleryModalOpen}
+        onClose={() => setTeamInteractiveGalleryModalOpen(false)}
+        tasks={interactiveGallery}
+        isLoading={interactiveLoading}
+        onImport={handleImport}
+        importingIndex={importingIndex}
+      />
       <Box
         sx={{
           display: 'flex',
@@ -611,7 +635,9 @@ export default function TasksGallery() {
           value={activeTab}
           onChange={(_e, val) => {
             if (val) {
-              setActiveTab(val as 'global' | 'team' | 'interactive');
+              setActiveTab(
+                val as 'global' | 'interactive' | 'team' | 'team-interactive',
+              );
               // Clear selection when switching tabs
               setSelectedTasks(new Set());
             }
@@ -620,7 +646,8 @@ export default function TasksGallery() {
           <TabList>
             <Tab value="global">Tasks Gallery</Tab>
             <Tab value="interactive">Interactive Gallery</Tab>
-            <Tab value="team">Team Specific Tasks</Tab>
+            <Tab value="team">Team Tasks</Tab>
+            <Tab value="team-interactive">Team Interactive</Tab>
           </TabList>
         </Tabs>
         {activeTab === 'team' && (
@@ -643,6 +670,29 @@ export default function TasksGallery() {
               size="sm"
             >
               Add Team Task
+            </Button>
+          </Stack>
+        )}
+        {activeTab === 'team-interactive' && (
+          <Stack direction="row" spacing={1}>
+            {selectedTasks.size > 0 && (
+              <Button
+                startDecorator={<Trash2Icon size={16} />}
+                onClick={handleDeleteSelected}
+                size="sm"
+                color="danger"
+                variant="soft"
+                loading={isDeleting}
+              >
+                Delete Selected ({selectedTasks.size})
+              </Button>
+            )}
+            <Button
+              startDecorator={<PlusIcon size={16} />}
+              onClick={() => setTeamInteractiveGalleryModalOpen(true)}
+              size="sm"
+            >
+              Add Team Interactive Task
             </Button>
           </Stack>
         )}
@@ -726,14 +776,22 @@ export default function TasksGallery() {
         )}
         {!isActiveLoading && gallery.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 8 }}>
-            <Typography level="body-lg" color="neutral">
-              No tasks available in the gallery.
-            </Typography>
-            {teamError && activeTab === 'team' && (
-              <Typography level="body-sm" color="danger" sx={{ mt: 1 }}>
-                Failed to load team tasks. Check workspace
-                team_specific_tasks.json.
+            {activeTab === 'team-interactive' ? (
+              <Typography level="body-lg" color="neutral">
+                No tasks available in the gallery.
               </Typography>
+            ) : (
+              <>
+                <Typography level="body-lg" color="neutral">
+                  No tasks available in the gallery.
+                </Typography>
+                {teamError && activeTab === 'team' && (
+                  <Typography level="body-sm" color="danger" sx={{ mt: 1 }}>
+                    Failed to load team tasks. Check workspace
+                    team_specific_tasks.json.
+                  </Typography>
+                )}
+              </>
             )}
           </Box>
         )}
@@ -788,7 +846,9 @@ export default function TasksGallery() {
                       disableImport={
                         !experimentInfo?.id || importingIndex !== null
                       }
-                      showCheckbox={activeTab === 'team'}
+                      showCheckbox={
+                        activeTab === 'team' || activeTab === 'team-interactive'
+                      }
                       isSelected={selectedTasks.has(taskId)}
                       onSelect={handleSelectTask}
                     />
