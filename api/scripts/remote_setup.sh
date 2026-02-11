@@ -339,19 +339,20 @@ install_uv() {
         info "Downloading and installing uv..."
         curl -LsSf https://astral.sh/uv/install.sh | sh
 
-        # Add uv to PATH for current session
-        export PATH="$HOME/.cargo/bin:$PATH"
+        # Add uv to PATH for current session (newer versions install to .local/bin, older to .cargo/bin)
+        export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
         # Also add to shell profile for future sessions
-        if [ -f "$HOME/.bashrc" ] && ! grep -q '\.cargo/bin' "$HOME/.bashrc"; then
-            echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> "$HOME/.bashrc"
+        UV_PATH_LINE='export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"'
+        if [ -f "$HOME/.bashrc" ] && ! grep -q '\.local/bin.*\.cargo/bin' "$HOME/.bashrc"; then
+            echo "$UV_PATH_LINE" >> "$HOME/.bashrc"
         fi
-        if [ -f "$HOME/.zshrc" ] && ! grep -q '\.cargo/bin' "$HOME/.zshrc"; then
-            echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> "$HOME/.zshrc"
+        if [ -f "$HOME/.zshrc" ] && ! grep -q '\.local/bin.*\.cargo/bin' "$HOME/.zshrc"; then
+            echo "$UV_PATH_LINE" >> "$HOME/.zshrc"
         fi
 
         # Verify installation
-        if command_exists uv || "$HOME/.cargo/bin/uv" --version >/dev/null 2>&1; then
+        if command_exists uv || "$HOME/.local/bin/uv" --version >/dev/null 2>&1 || "$HOME/.cargo/bin/uv" --version >/dev/null 2>&1; then
             success "uv installed successfully"
         else
             error "Failed to install uv"
@@ -364,13 +365,17 @@ install_uv() {
 setup_uv_venv() {
     info "Setting up uv virtual environment at ~/.venv..."
 
-    # Ensure uv is in PATH
-    export PATH="$HOME/.cargo/bin:$PATH"
+    # Ensure uv is in PATH (newer versions install to .local/bin, older to .cargo/bin)
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
-    # Use uv directly if in PATH, otherwise use full path
+    # Use uv directly if in PATH, otherwise try known locations
     UV_CMD="uv"
     if ! command_exists uv; then
-        UV_CMD="$HOME/.cargo/bin/uv"
+        if [ -x "$HOME/.local/bin/uv" ]; then
+            UV_CMD="$HOME/.local/bin/uv"
+        else
+            UV_CMD="$HOME/.cargo/bin/uv"
+        fi
     fi
 
     # Check if venv already exists
@@ -404,13 +409,17 @@ setup_uv_venv() {
 install_transformerlab() {
     info "Installing transformerlab package..."
 
-    # Ensure uv is in PATH
-    export PATH="$HOME/.cargo/bin:$PATH"
+    # Ensure uv is in PATH (newer versions install to .local/bin, older to .cargo/bin)
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
-    # Use uv directly if in PATH, otherwise use full path
+    # Use uv directly if in PATH, otherwise try known locations
     UV_CMD="uv"
     if ! command_exists uv; then
-        UV_CMD="$HOME/.cargo/bin/uv"
+        if [ -x "$HOME/.local/bin/uv" ]; then
+            UV_CMD="$HOME/.local/bin/uv"
+        else
+            UV_CMD="$HOME/.cargo/bin/uv"
+        fi
     fi
 
     # Install transformerlab using uv pip with the venv's python
@@ -466,7 +475,7 @@ setup_copy_file_mounts() {
     if [ -z "${_TFL_JOB_ID}" ]; then
         warn "_TFL_JOB_ID is not set; copy_file_mounts may fail or no-op. Set it when running at launch."
     fi
-    export PATH="$HOME/.cargo/bin:$PATH"
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
     if [ -x "$HOME/.venv/bin/python" ]; then
         "$HOME/.venv/bin/python" -c "from lab import lab; lab.copy_file_mounts()" || {
             error "copy_file_mounts failed"

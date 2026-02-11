@@ -826,7 +826,7 @@ def _generate_aws_credentials_setup(
         f"echo 'aws_access_key_id={escaped_access_key}' >> {cred_file}; "
         f"echo 'aws_secret_access_key={escaped_secret_key}' >> {cred_file}; "
         f"chmod 600 {cred_file}; "
-        f"echo 'AWS credentials configured successfully'"
+        f"echo 'AWS credentials configured successfully at {cred_file}';"
     )
     return setup_script
 
