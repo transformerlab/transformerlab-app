@@ -8,8 +8,7 @@
 #   curl -sSL https://lab.cloud/remote_setup.sh | sh -s -- [OPTIONS]
 #
 # Core steps (run every time): OS detection, essential tools, Python 3.11+, pip,
-# uv, venv at ~/.venv, and transformerlab package. This matches what launch-time
-# setup expects (e.g. copy_file_mounts runs "pip install -q transformerlab && ...").
+# uv, and transformerlab package (installed into system Python, no venv).
 #
 # Optional steps (run only when flags are passed):
 #   --aws                  Set up ~/.aws and write credentials. Credentials from
@@ -25,6 +24,12 @@
 #   --help                 Show this usage and exit.
 
 set -e
+
+# Resolve absolute home directory once at startup.
+# On some providers (e.g. RunPod) HOME may change between the setup phase
+# and later SSH sessions (/root -> /workspace). Pinning it here ensures
+# all paths created during setup are referenced consistently.
+SETUP_HOME="$(cd "$HOME" && pwd)"
 
 # Colors for output
 RED='\033[0;31m'
@@ -225,16 +230,16 @@ install_python() {
                 success "Created python symlink in /usr/local/bin"
             } || {
                 warn "Failed to create symlink in /usr/local/bin, trying ~/.local/bin"
-                mkdir -p "$HOME/.local/bin"
-                ln -sf "$PYTHON3_PATH" "$HOME/.local/bin/python" 2>/dev/null && {
+                mkdir -p "$SETUP_HOME/.local/bin"
+                ln -sf "$PYTHON3_PATH" "$SETUP_HOME/.local/bin/python" 2>/dev/null && {
                     success "Created python symlink in ~/.local/bin"
-                    export PATH="$HOME/.local/bin:$PATH"
+                    export PATH="$SETUP_HOME/.local/bin:$PATH"
                     # Add to shell profile for future sessions
-                    if [ -f "$HOME/.bashrc" ] && ! grep -q '\.local/bin' "$HOME/.bashrc"; then
-                        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+                    if [ -f "$SETUP_HOME/.bashrc" ] && ! grep -q '\.local/bin' "$SETUP_HOME/.bashrc"; then
+                        echo "export PATH=\"$SETUP_HOME/.local/bin:\$PATH\"" >> "$SETUP_HOME/.bashrc"
                     fi
-                    if [ -f "$HOME/.zshrc" ] && ! grep -q '\.local/bin' "$HOME/.zshrc"; then
-                        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"
+                    if [ -f "$SETUP_HOME/.zshrc" ] && ! grep -q '\.local/bin' "$SETUP_HOME/.zshrc"; then
+                        echo "export PATH=\"$SETUP_HOME/.local/bin:\$PATH\"" >> "$SETUP_HOME/.zshrc"
                     fi
                 } || {
                     warn "Could not create python symlink. You may need to use 'python3' instead of 'python'"
@@ -242,16 +247,16 @@ install_python() {
             }
         else
             # Try ~/.local/bin if /usr/local/bin is not writable
-            mkdir -p "$HOME/.local/bin"
-            ln -sf "$PYTHON3_PATH" "$HOME/.local/bin/python" 2>/dev/null && {
+            mkdir -p "$SETUP_HOME/.local/bin"
+            ln -sf "$PYTHON3_PATH" "$SETUP_HOME/.local/bin/python" 2>/dev/null && {
                 success "Created python symlink in ~/.local/bin"
-                export PATH="$HOME/.local/bin:$PATH"
+                export PATH="$SETUP_HOME/.local/bin:$PATH"
                 # Add to shell profile for future sessions
-                if [ -f "$HOME/.bashrc" ] && ! grep -q '\.local/bin' "$HOME/.bashrc"; then
-                    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+                if [ -f "$SETUP_HOME/.bashrc" ] && ! grep -q '\.local/bin' "$SETUP_HOME/.bashrc"; then
+                    echo "export PATH=\"$SETUP_HOME/.local/bin:\$PATH\"" >> "$SETUP_HOME/.bashrc"
                 fi
-                if [ -f "$HOME/.zshrc" ] && ! grep -q '\.local/bin' "$HOME/.zshrc"; then
-                    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"
+                if [ -f "$SETUP_HOME/.zshrc" ] && ! grep -q '\.local/bin' "$SETUP_HOME/.zshrc"; then
+                    echo "export PATH=\"$SETUP_HOME/.local/bin:\$PATH\"" >> "$SETUP_HOME/.zshrc"
                 fi
             } || {
                 warn "Could not create python symlink. You may need to use 'python3' instead of 'python'"
@@ -336,23 +341,25 @@ install_uv() {
         success "uv is already installed: $UV_VERSION"
     else
         # Install uv using the official installer
+        # The uv installer may call 'source' to update PATH which fails in POSIX sh;
+        # we add || true because we manually set PATH below and verify the binary.
         info "Downloading and installing uv..."
-        curl -LsSf https://astral.sh/uv/install.sh | sh
+        curl -LsSf https://astral.sh/uv/install.sh | sh || true
 
         # Add uv to PATH for current session (newer versions install to .local/bin, older to .cargo/bin)
-        export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+        export PATH="$SETUP_HOME/.local/bin:$SETUP_HOME/.cargo/bin:$PATH"
 
         # Also add to shell profile for future sessions
-        UV_PATH_LINE='export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"'
-        if [ -f "$HOME/.bashrc" ] && ! grep -q '\.local/bin.*\.cargo/bin' "$HOME/.bashrc"; then
-            echo "$UV_PATH_LINE" >> "$HOME/.bashrc"
+        UV_PATH_LINE="export PATH=\"$SETUP_HOME/.local/bin:$SETUP_HOME/.cargo/bin:\$PATH\""
+        if [ -f "$SETUP_HOME/.bashrc" ] && ! grep -q '\.local/bin.*\.cargo/bin' "$SETUP_HOME/.bashrc"; then
+            echo "$UV_PATH_LINE" >> "$SETUP_HOME/.bashrc"
         fi
-        if [ -f "$HOME/.zshrc" ] && ! grep -q '\.local/bin.*\.cargo/bin' "$HOME/.zshrc"; then
-            echo "$UV_PATH_LINE" >> "$HOME/.zshrc"
+        if [ -f "$SETUP_HOME/.zshrc" ] && ! grep -q '\.local/bin.*\.cargo/bin' "$SETUP_HOME/.zshrc"; then
+            echo "$UV_PATH_LINE" >> "$SETUP_HOME/.zshrc"
         fi
 
         # Verify installation
-        if command_exists uv || "$HOME/.local/bin/uv" --version >/dev/null 2>&1 || "$HOME/.cargo/bin/uv" --version >/dev/null 2>&1; then
+        if command_exists uv || "$SETUP_HOME/.local/bin/uv" --version >/dev/null 2>&1 || "$SETUP_HOME/.cargo/bin/uv" --version >/dev/null 2>&1; then
             success "uv installed successfully"
         else
             error "Failed to install uv"
@@ -361,78 +368,37 @@ install_uv() {
     fi
 }
 
-# Setup uv virtual environment
-setup_uv_venv() {
-    info "Setting up uv virtual environment at ~/.venv..."
-
-    # Ensure uv is in PATH (newer versions install to .local/bin, older to .cargo/bin)
-    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
-
-    # Use uv directly if in PATH, otherwise try known locations
-    UV_CMD="uv"
-    if ! command_exists uv; then
-        if [ -x "$HOME/.local/bin/uv" ]; then
-            UV_CMD="$HOME/.local/bin/uv"
-        else
-            UV_CMD="$HOME/.cargo/bin/uv"
-        fi
-    fi
-
-    # Check if venv already exists
-    if [ -d "$HOME/.venv" ]; then
-        warn "Virtual environment already exists at ~/.venv"
-        info "Skipping venv creation. To recreate, delete ~/.venv first."
-    else
-        info "Creating virtual environment..."
-        # Get Python path
-        PYTHON_CMD="python3"
-        if command_exists python && python --version >/dev/null 2>&1; then
-            PYTHON_CMD="python"
-        fi
-
-        $UV_CMD venv ~/.venv --seed --python "$PYTHON_CMD" || {
-            error "Failed to create virtual environment"
-            exit 1
-        }
-        success "Virtual environment created at ~/.venv"
-    fi
-
-    # Display activation instructions
-    info "To activate the virtual environment, run:"
-    echo "  source ~/.venv/bin/activate"
-    echo ""
-    echo "Or use uv directly:"
-    echo "  uv run <command>"
-}
-
-# Install transformerlab package
+# Install transformerlab package (into system Python, no venv)
 install_transformerlab() {
     info "Installing transformerlab package..."
 
     # Ensure uv is in PATH (newer versions install to .local/bin, older to .cargo/bin)
-    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+    export PATH="$SETUP_HOME/.local/bin:$SETUP_HOME/.cargo/bin:$PATH"
 
-    # Use uv directly if in PATH, otherwise try known locations
-    UV_CMD="uv"
-    if ! command_exists uv; then
-        if [ -x "$HOME/.local/bin/uv" ]; then
-            UV_CMD="$HOME/.local/bin/uv"
-        else
-            UV_CMD="$HOME/.cargo/bin/uv"
+    # Try uv pip --system first (fast), fall back to plain pip
+    if command_exists uv || [ -x "$SETUP_HOME/.local/bin/uv" ] || [ -x "$SETUP_HOME/.cargo/bin/uv" ]; then
+        UV_CMD="uv"
+        if ! command_exists uv; then
+            if [ -x "$SETUP_HOME/.local/bin/uv" ]; then
+                UV_CMD="$SETUP_HOME/.local/bin/uv"
+            else
+                UV_CMD="$SETUP_HOME/.cargo/bin/uv"
+            fi
         fi
-    fi
-
-    # Install transformerlab using uv pip with the venv's python
-    if [ -d "$HOME/.venv" ]; then
-        $UV_CMD pip install --python "$HOME/.venv/bin/python" transformerlab || {
+        $UV_CMD pip install --system transformerlab || {
+            warn "uv pip install failed, falling back to pip"
+            pip install transformerlab || pip3 install transformerlab || {
+                error "Failed to install transformerlab"
+                exit 1
+            }
+        }
+    else
+        pip install transformerlab || pip3 install transformerlab || {
             error "Failed to install transformerlab"
             exit 1
         }
-        success "transformerlab installed successfully"
-    else
-        error "Virtual environment not found at ~/.venv"
-        exit 1
     fi
+    success "transformerlab installed successfully"
 }
 
 # ----- Optional steps (match launch-time setup) -----
@@ -447,25 +413,25 @@ setup_aws() {
     SK="${AWS_SECRET_ACCESS_KEY:-$AWS_SECRET_ACCESS_KEY_ARG}"
     if [ -z "$AK" ] || [ -z "$SK" ]; then
         warn "AWS credentials not set. Use env (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY) or --aws-access-key-id=, --aws-secret-access-key= with --aws"
-        mkdir -p "$HOME/.aws"
-        chmod 700 "$HOME/.aws"
+        mkdir -p "$SETUP_HOME/.aws"
+        chmod 700 "$SETUP_HOME/.aws"
         return 0
     fi
     # Strip newlines/carriage returns (safe for credentials file)
     AK=$(echo "$AK" | tr -d '\n\r')
     SK=$(echo "$SK" | tr -d '\n\r')
-    mkdir -p "$HOME/.aws"
-    chmod 700 "$HOME/.aws"
-    if [ -f "$HOME/.aws/credentials" ]; then
+    mkdir -p "$SETUP_HOME/.aws"
+    chmod 700 "$SETUP_HOME/.aws"
+    if [ -f "$SETUP_HOME/.aws/credentials" ]; then
         # Remove existing profile section (same logic as _generate_aws_credentials_setup)
         awk -v p="$PROFILE" 'BEGIN{in_profile=0} $0=="["p"]"{in_profile=1;next} /^\[/{in_profile=0} !in_profile{print}' \
-            "$HOME/.aws/credentials" > "$HOME/.aws/credentials.new" 2>/dev/null && \
-            mv "$HOME/.aws/credentials.new" "$HOME/.aws/credentials" || true
+            "$SETUP_HOME/.aws/credentials" > "$SETUP_HOME/.aws/credentials.new" 2>/dev/null && \
+            mv "$SETUP_HOME/.aws/credentials.new" "$SETUP_HOME/.aws/credentials" || true
     fi
-    echo "[${PROFILE}]" >> "$HOME/.aws/credentials"
-    echo "aws_access_key_id=${AK}" >> "$HOME/.aws/credentials"
-    echo "aws_secret_access_key=${SK}" >> "$HOME/.aws/credentials"
-    chmod 600 "$HOME/.aws/credentials"
+    echo "[${PROFILE}]" >> "$SETUP_HOME/.aws/credentials"
+    echo "aws_access_key_id=${AK}" >> "$SETUP_HOME/.aws/credentials"
+    echo "aws_secret_access_key=${SK}" >> "$SETUP_HOME/.aws/credentials"
+    chmod 600 "$SETUP_HOME/.aws/credentials"
     success "AWS profile '${PROFILE}' configured successfully"
 }
 
@@ -475,18 +441,12 @@ setup_copy_file_mounts() {
     if [ -z "${_TFL_JOB_ID}" ]; then
         warn "_TFL_JOB_ID is not set; copy_file_mounts may fail or no-op. Set it when running at launch."
     fi
-    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
-    if [ -x "$HOME/.venv/bin/python" ]; then
-        "$HOME/.venv/bin/python" -c "from lab import lab; lab.copy_file_mounts()" || {
-            error "copy_file_mounts failed"
-            exit 1
-        }
-    else
-        pip install -q transformerlab && python -c "from lab import lab; lab.copy_file_mounts()" || {
-            error "copy_file_mounts failed"
-            exit 1
-        }
-    fi
+    export PATH="$SETUP_HOME/.local/bin:$SETUP_HOME/.cargo/bin:$PATH"
+    python -c "from lab import lab; lab.copy_file_mounts()" 2>/dev/null || \
+    python3 -c "from lab import lab; lab.copy_file_mounts()" || {
+        error "copy_file_mounts failed"
+        exit 1
+    }
     success "copy_file_mounts completed"
 }
 
@@ -546,17 +506,17 @@ setup_ssh_authorized_key() {
         return 0
     fi
     info "Adding SSH authorized key..."
-    mkdir -p "$HOME/.ssh"
-    chmod 700 "$HOME/.ssh"
-    if [ ! -f "$HOME/.ssh/authorized_keys" ]; then
-        touch "$HOME/.ssh/authorized_keys"
-        chmod 600 "$HOME/.ssh/authorized_keys"
+    mkdir -p "$SETUP_HOME/.ssh"
+    chmod 700 "$SETUP_HOME/.ssh"
+    if [ ! -f "$SETUP_HOME/.ssh/authorized_keys" ]; then
+        touch "$SETUP_HOME/.ssh/authorized_keys"
+        chmod 600 "$SETUP_HOME/.ssh/authorized_keys"
     fi
     KEY_LINE=$(echo "$SSH_AUTHORIZED_KEY" | tr -d '\n\r')
-    if grep -qF "$KEY_LINE" "$HOME/.ssh/authorized_keys" 2>/dev/null; then
+    if grep -qF "$KEY_LINE" "$SETUP_HOME/.ssh/authorized_keys" 2>/dev/null; then
         success "SSH key already present in authorized_keys"
     else
-        echo "$KEY_LINE" >> "$HOME/.ssh/authorized_keys"
+        echo "$KEY_LINE" >> "$SETUP_HOME/.ssh/authorized_keys"
         success "SSH key added to authorized_keys"
     fi
 }
@@ -564,7 +524,7 @@ setup_ssh_authorized_key() {
 show_usage() {
     echo "Usage: curl -sSL https://lab.cloud/remote_setup.sh | sh -s -- [OPTIONS]"
     echo ""
-    echo "Core (always run): essential tools, Python 3.11+, uv, ~/.venv, transformerlab."
+    echo "Core (always run): essential tools, Python 3.11+, uv, transformerlab."
     echo ""
     echo "Optional (run only when specified):"
     echo "  --aws                      Set up ~/.aws and write credentials (env or args below)"
@@ -660,7 +620,6 @@ main() {
     install_build_tools
     install_python
     install_uv
-    setup_uv_venv
     install_transformerlab
 
     # Optional steps (only when flags were passed)
@@ -681,9 +640,6 @@ main() {
     echo "=========================================="
     success "Transformer Lab setup completed successfully!"
     echo "=========================================="
-    echo ""
-    echo "  Activate the virtual environment:"
-    echo "     source ~/.venv/bin/activate"
     echo ""
 }
 
