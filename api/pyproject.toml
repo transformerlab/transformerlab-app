@@ -50,7 +50,7 @@ nvidia = [
   "torch==2.9.1",
   "torchaudio==2.9.1",
   "torchvision==0.24.1",
-  "nvidia-ml-py==12.575.51",
+  "nvidia-ml-py==13.590.48",
   # Packages with versions (using no-gpu/nvidia versions)
   "accelerate==1.3.0",
   "aiosqlite==0.20.0",
@@ -100,7 +100,7 @@ cpu = [
   "einops==0.8.0",
   "fastapi==0.115.7",
   "mcp[cli]==1.8.1",
-  "nvidia-ml-py==12.575.51",
+  "nvidia-ml-py==13.590.48",
   "peft==0.14.0",
   "psutil==6.1.1",
   "python-dotenv==1.0.1",
