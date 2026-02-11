@@ -150,7 +150,8 @@ async def lifespan(app: FastAPI):
     if "--reload" in sys.argv:
         await install_all_plugins()
 
-    if not os.getenv("TFL_API_STORAGE_URI"):
+    if not os.getenv("MULTIUSER") == "true":
+        print("RUNNING IT")
         asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
