@@ -516,6 +516,7 @@ async def get_tunnel_info_for_job(
             provider_job_id = provider_job_ids[-1]
 
     if provider_job_id is None:
+        provider_jobs = None
         try:
             provider_jobs = provider_instance.list_jobs(cluster_name)
         except NotImplementedError:
