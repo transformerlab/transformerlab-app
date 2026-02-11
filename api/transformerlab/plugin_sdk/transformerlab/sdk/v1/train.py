@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 import json
 import time
@@ -7,11 +6,11 @@ import posixpath
 
 try:
     from transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
-    from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
+    from transformerlab.sdk.v1.tlab_plugin import TLabPlugin, _run_async_from_sync
 
 except ModuleNotFoundError:
     from transformerlab.plugin_sdk.transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
-    from transformerlab.plugin_sdk.transformerlab.sdk.v1.tlab_plugin import TLabPlugin
+    from transformerlab.plugin_sdk.transformerlab.sdk.v1.tlab_plugin import TLabPlugin, _run_async_from_sync
 from lab import storage
 
 
@@ -179,7 +178,7 @@ class TrainerTLabPlugin(TLabPlugin):
                 async with await storage.open(self.params.input_file, "r", encoding="utf-8") as json_file:
                     return json.loads(await json_file.read())
 
-            input_config = asyncio.run(_load_config())
+            input_config = _run_async_from_sync(_load_config())
 
             if "config" in input_config:
                 self.params._config = input_config["config"]
@@ -194,8 +193,8 @@ class TrainerTLabPlugin(TLabPlugin):
         except Exception as e:
             error_msg = f"Error loading configuration: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)
-            asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
-            asyncio.run(self.job.update_job_data_field("completion_details", "Error loading configuration"))
+            _run_async_from_sync(self.job.update_job_data_field("completion_status", "failed"))
+            _run_async_from_sync(self.job.update_job_data_field("completion_details", "Error loading configuration"))
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
@@ -228,7 +227,7 @@ class TrainerTLabPlugin(TLabPlugin):
             print("Writing tensorboard logs to:", output_dir)
 
         # Ensure directory exists
-        asyncio.run(storage.makedirs(self.params.tensorboard_output_dir, exist_ok=True))
+        _run_async_from_sync(storage.makedirs(self.params.tensorboard_output_dir, exist_ok=True))
 
         self.writer = SummaryWriter(self.params.tensorboard_output_dir)
 
@@ -307,7 +306,7 @@ class TrainerTLabPlugin(TLabPlugin):
                 else:
                     print(f"Output directory not found or not specified: {output_dir}")
 
-            asyncio.run(_save_metrics())
+            _run_async_from_sync(_save_metrics())
         except Exception as e:
             print(f"Error saving metrics to file: {str(e)}")
 
@@ -362,7 +361,7 @@ class TrainerTLabPlugin(TLabPlugin):
                         return posixpath.basename(fused_model_location)
                 return "."
 
-            model_filename = asyncio.run(_check_gguf())
+            model_filename = _run_async_from_sync(_check_gguf())
             # If GGUF file doesn't exist yet, the export process will set the filename
 
         if generate_json:
@@ -418,7 +417,7 @@ class TrainerTLabPlugin(TLabPlugin):
 
             return md5_objects
 
-        return asyncio.run(_create_checksums())
+        return _run_async_from_sync(_create_checksums())
 
     def create_provenance_file(self, model_location, model_name, model_architecture, md5_objects):
         """Create a _tlab_provenance.json file containing model provenance data"""
@@ -447,7 +446,7 @@ class TrainerTLabPlugin(TLabPlugin):
                 await f.write(json.dumps(provenance_data, indent=2))
             return provenance_path
 
-        return asyncio.run(_write_provenance())
+        return _run_async_from_sync(_write_provenance())
 
 
 # Create an instance of the TrainerTLabPlugin class

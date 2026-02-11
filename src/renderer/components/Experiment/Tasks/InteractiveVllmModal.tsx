@@ -73,6 +73,7 @@ export default function InteractiveVllmModal({
 
   const vllmUrl = data?.vllm_url || null;
   const tunnelUrl = data?.tunnel_url || null;
+  const openwebuiUrl = data?.openwebui_url || null;
   const isReady = Boolean(data?.is_ready);
 
   return (
@@ -205,6 +206,59 @@ export default function InteractiveVllmModal({
               Tip: If the URL never appears, check the job output and provider
               logs to ensure vLLM and ngrok started correctly.
             </Typography>
+          </Box>
+
+          <Box>
+            <Typography level="title-md" sx={{ mt: 2 }}>
+              Access Open WebUI
+            </Typography>
+            <Typography level="body-sm" sx={{ mt: 0.5 }}>
+              Once the second tunnel is ready, use the URL below to open Open
+              WebUI connected to this vLLM server. This provides a browser-based
+              chat UI backed by the same vLLM API.
+            </Typography>
+
+            <Box
+              sx={{
+                mt: 1,
+                p: 1.5,
+                borderRadius: 'sm',
+                border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1,
+                flexWrap: 'wrap',
+              }}
+            >
+              {openwebuiUrl ? (
+                <>
+                  <Link
+                    href={openwebuiUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    level="title-md"
+                    sx={{ wordBreak: 'break-all', flex: 1, minWidth: 0 }}
+                  >
+                    {openwebuiUrl}
+                  </Link>
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      size="sm"
+                      variant="soft"
+                      onClick={() => handleCopy(openwebuiUrl)}
+                    >
+                      Copy URL
+                    </Button>
+                  </Stack>
+                </>
+              ) : (
+                <Typography level="body-sm" sx={{ flex: 1 }}>
+                  Waiting for the second tunnel to start. The Open WebUI URL
+                  will appear here once ngrok creates the tunnel...
+                </Typography>
+              )}
+            </Box>
           </Box>
         </Box>
       </ModalDialog>
