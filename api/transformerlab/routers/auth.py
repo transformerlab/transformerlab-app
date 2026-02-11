@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Header, Request, Cookie
+from fastapi import APIRouter, Depends, HTTPException, Header, Request, Cookie, Query
 from fastapi_users import exceptions
 from transformerlab.shared.models.user_model import get_async_session, create_personal_team
 from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole
@@ -17,6 +17,7 @@ from transformerlab.models.users import (
     GOOGLE_OAUTH_ENABLED,
     github_oauth_client,
     GITHUB_OAUTH_ENABLED,
+    OIDC_PROVIDERS,
     EMAIL_AUTH_ENABLED,
     SECRET,
     TOKEN_LIFETIME,
@@ -26,11 +27,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from typing import Optional
+import json
+import re
 
 from transformerlab.shared.api_key_auth import (
     extract_api_key_from_request,
     validate_api_key_and_get_user,
     get_user_personal_team_id,
+)
+from transformerlab.utils.api_key_utils import mask_key
+from lab.dirs import get_workspace_dir
+from lab import storage
+from transformerlab.schemas.secrets import (
+    UserSecretsRequest,
+    SpecialSecretRequest,
+    SPECIAL_SECRET_TYPES,
+    SPECIAL_SECRET_KEYS,
 )
 
 router = APIRouter(tags=["users"])
@@ -165,6 +177,31 @@ async def _get_user_from_jwt_or_api_key(
 @router.get("/auth/github/status")
 async def github_oauth_status():
     return {"enabled": GITHUB_OAUTH_ENABLED}
+
+
+@router.get("/auth/oidc/providers")
+async def oidc_providers_list():
+    """
+    Returns the list of configured OIDC providers for the login page.
+    Each provider has id (route prefix, e.g. oidc-0) and name (display label).
+    """
+    return {
+        "enabled": len(OIDC_PROVIDERS) > 0,
+        "providers": [{"id": p["id"], "name": p["name"]} for p in OIDC_PROVIDERS],
+    }
+
+
+for _oidc in OIDC_PROVIDERS:
+    _oidc_router = fastapi_users.get_oauth_router(
+        _oidc["client"],
+        oauth_backend,
+        SECRET,
+    )
+    router.include_router(
+        _oidc_router,
+        prefix=f"/auth/{_oidc['id']}",
+        tags=["auth"],
+    )
 
 
 if GITHUB_OAUTH_ENABLED:
@@ -490,3 +527,192 @@ async def get_user_teams(user: User = Depends(current_active_user), session: Asy
     ]
 
     return {"user_id": str(user.id), "teams": teams_with_roles}
+
+
+@router.get("/users/me/secrets")
+async def get_user_secrets(
+    user: User = Depends(current_active_user),
+    include_values: bool = Query(False, description="Include actual secret values"),
+):
+    """
+    Get user-specific secrets.
+    - Users can view their own secret keys and values.
+    - Values are always included since users own their secrets.
+    """
+    user_id = str(user.id)
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, f"user_secrets_{user_id}.json")
+
+    try:
+        if not await storage.exists(secrets_path):
+            return {"status": "success", "secrets": {}, "secret_keys": []}
+
+        async with await storage.open(secrets_path, "r") as f:
+            secrets = json.loads(await f.read())
+
+        if include_values:
+            # Return actual values
+            return {
+                "status": "success",
+                "secrets": secrets,
+                "secret_keys": list(secrets.keys()),
+            }
+        else:
+            # Mask all secret values
+            masked_secrets = {key: "***" for key in secrets.keys()}
+            return {
+                "status": "success",
+                "secrets": masked_secrets,
+                "secret_keys": list(secrets.keys()),
+            }
+    except Exception as e:
+        print(f"Error reading user secrets: {e}")
+        raise HTTPException(status_code=500, detail="Failed to read user secrets")
+
+
+@router.put("/users/me/secrets")
+async def set_user_secrets(
+    secrets_data: UserSecretsRequest,
+    user: User = Depends(current_active_user),
+):
+    """
+    Set user-specific secrets. Users can set/update their own secrets.
+    Stored in workspace/user_secrets_{user_id}.json file.
+    """
+    user_id = str(user.id)
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, f"user_secrets_{user_id}.json")
+
+    try:
+        # Validate that all keys are valid environment variable names
+        # Environment variable names can contain letters, numbers, and underscores
+        valid_key_pattern = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+        for key in secrets_data.secrets.keys():
+            if not valid_key_pattern.match(key):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid secret key '{key}'. Secret keys must start with a letter or underscore and contain only letters, numbers, and underscores.",
+                )
+            if key in SPECIAL_SECRET_KEYS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Secret key '{key}' is a special secret and can only be set via the Special Secrets section.",
+                )
+
+        # Ensure workspace directory exists
+        await storage.makedirs(workspace_dir, exist_ok=True)
+
+        # Write secrets to file
+        async with await storage.open(secrets_path, "w") as f:
+            await f.write(json.dumps(secrets_data.secrets, indent=2))
+
+        return {
+            "status": "success",
+            "message": "User secrets saved successfully",
+            "secret_keys": list(secrets_data.secrets.keys()),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving user secrets: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save user secrets")
+
+
+@router.get("/users/me/special_secrets")
+async def get_user_special_secrets(
+    user: User = Depends(current_active_user),
+):
+    """
+    Get user special secrets.
+    Users can view which special secrets are configured (values are masked).
+    """
+    user_id = str(user.id)
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, f"user_secrets_{user_id}.json")
+
+    result = {}
+    try:
+        if await storage.exists(secrets_path):
+            async with await storage.open(secrets_path, "r") as f:
+                all_secrets = json.loads(await f.read())
+                # Filter only special secrets
+                for key in SPECIAL_SECRET_TYPES.keys():
+                    if key in all_secrets:
+                        result[key] = {
+                            "name": SPECIAL_SECRET_TYPES[key],
+                            "exists": True,
+                            "masked_value": mask_key(all_secrets[key]) if all_secrets[key] else None,
+                        }
+                    else:
+                        result[key] = {
+                            "name": SPECIAL_SECRET_TYPES[key],
+                            "exists": False,
+                            "masked_value": None,
+                        }
+        else:
+            # No secrets file, return all as not configured
+            for key in SPECIAL_SECRET_TYPES.keys():
+                result[key] = {
+                    "name": SPECIAL_SECRET_TYPES[key],
+                    "exists": False,
+                    "masked_value": None,
+                }
+    except Exception as e:
+        print(f"Error reading user special secrets: {e}")
+        raise HTTPException(status_code=500, detail="Failed to read user special secrets")
+
+    return {"status": "success", "special_secrets": result}
+
+
+@router.put("/users/me/special_secrets")
+async def set_user_special_secret(
+    secret_data: SpecialSecretRequest,
+    user: User = Depends(current_active_user),
+):
+    """
+    Set a user special secret. Users can set/update their own special secrets.
+    Stored in workspace/user_secrets_{user_id}.json file.
+    """
+    # Validate secret type
+    if secret_data.secret_type not in SPECIAL_SECRET_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid secret type '{secret_data.secret_type}'. Must be one of: {', '.join(SPECIAL_SECRET_TYPES.keys())}",
+        )
+
+    user_id = str(user.id)
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, f"user_secrets_{user_id}.json")
+
+    try:
+        # Load existing secrets
+        existing_secrets = {}
+        if await storage.exists(secrets_path):
+            async with await storage.open(secrets_path, "r") as f:
+                existing_secrets = json.loads(await f.read())
+
+        # Update or remove the special secret
+        if secret_data.value and secret_data.value.strip():
+            existing_secrets[secret_data.secret_type] = secret_data.value.strip()
+        else:
+            # Remove if empty
+            existing_secrets.pop(secret_data.secret_type, None)
+
+        # Ensure workspace directory exists
+        await storage.makedirs(workspace_dir, exist_ok=True)
+
+        # Write secrets to file
+        async with await storage.open(secrets_path, "w") as f:
+            await f.write(json.dumps(existing_secrets, indent=2))
+
+        return {
+            "status": "success",
+            "message": f"{SPECIAL_SECRET_TYPES[secret_data.secret_type]} saved successfully",
+            "secret_type": secret_data.secret_type,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving user special secret: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save user special secret")
