@@ -77,7 +77,7 @@ def _get_uv_pip_install_flags() -> str:
     if _check_nvidia_gpu():
         cuda_index = "cu130" if _is_dgx_spark() else "cu128"
         if cuda_index == "cu130":
-            return "--index https://download.pytorch.org/whl/cu130"
+            return "--index https://download.pytorch.org/whl/cu130 --index-strategy unsafe-best-match"
         else:
             return ""
     if not sys.platform == "darwin":

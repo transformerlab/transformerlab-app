@@ -366,7 +366,7 @@ async def install_plugin(plugin_id: str):
             print(f"NVIDIA GPU detected, using nvidia extra (PyTorch index: {cuda_index}).")
             extra = "[nvidia]"
             if cuda_index == "cu130":
-                additional_flags = "--index https://download.pytorch.org/whl/cu130"
+                additional_flags = "--index https://download.pytorch.org/whl/cu130 --index-strategy unsafe-best-match"
             else:
                 additional_flags = ""
         elif check_amd_gpu():

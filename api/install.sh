@@ -443,7 +443,7 @@ install_dependencies() {
       echo "Installing requirements with NVIDIA support (PyTorch index: $TLAB_CUDA_INDEX):"
       cd "$PROJECT_DIR"
       if [ "$TLAB_CUDA_INDEX" = "cu130" ]; then
-        PIP_WHEEL_FLAGS+="--index https://download.pytorch.org/whl/${TLAB_CUDA_INDEX}"
+        PIP_WHEEL_FLAGS+="--index https://download.pytorch.org/whl/${TLAB_CUDA_INDEX} --index-strategy unsafe-best-match"
       fi
 
       uv pip install ${PIP_WHEEL_FLAGS} .[nvidia]
