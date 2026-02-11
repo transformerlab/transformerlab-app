@@ -169,8 +169,11 @@ export default function QueueTaskModal({
     // provider_name looks like an accelerator spec (e.g. "Name:Count").
     if (!accelerators) {
       const computeProvider =
-        cfg.compute_provider || task.compute_provider ||
-        cfg.provider_name || task.provider_name || null;
+        cfg.compute_provider ||
+        task.compute_provider ||
+        cfg.provider_name ||
+        task.provider_name ||
+        null;
       if (computeProvider && /^.+:\d+$/.test(String(computeProvider))) {
         accelerators = String(computeProvider);
       }
@@ -210,12 +213,14 @@ export default function QueueTaskModal({
           (g: any) =>
             g.name &&
             g.name !== 'cpu' &&
-            g.name
-              .toLowerCase()
-              .includes(requiredGpuName.toLowerCase()),
+            g.name.toLowerCase().includes(requiredGpuName.toLowerCase()),
         );
 
-        if (deviceType === 'cpu' || gpuList.length === 0 || (gpuList.length === 1 && gpuList[0]?.name === 'cpu')) {
+        if (
+          deviceType === 'cpu' ||
+          gpuList.length === 0 ||
+          (gpuList.length === 1 && gpuList[0]?.name === 'cpu')
+        ) {
           issues.push({
             type: 'error',
             label: 'GPU',
@@ -223,14 +228,21 @@ export default function QueueTaskModal({
             available: 'No GPU detected',
           });
         } else if (matchingGpus.length === 0) {
-          const availableNames = [...new Set(gpuList.map((g: any) => g.name).filter((n: string) => n && n !== 'cpu'))];
+          const availableNames = [
+            ...new Set(
+              gpuList
+                .map((g: any) => g.name)
+                .filter((n: string) => n && n !== 'cpu'),
+            ),
+          ];
           issues.push({
             type: 'warning',
             label: 'GPU',
             required: `${requiredGpuName} ×${requiredCount}`,
-            available: availableNames.length > 0
-              ? `${availableNames.join(', ')} ×${gpuList.filter((g: any) => g.name !== 'cpu').length}`
-              : 'None',
+            available:
+              availableNames.length > 0
+                ? `${availableNames.join(', ')} ×${gpuList.filter((g: any) => g.name !== 'cpu').length}`
+                : 'None',
           });
         } else if (matchingGpus.length < requiredCount) {
           issues.push({
@@ -244,13 +256,18 @@ export default function QueueTaskModal({
         // Just a count or a name without count
         const requiredCount = parseInt(accStr, 10);
         if (!isNaN(requiredCount) && requiredCount > 0) {
-          const realGpus = gpuList.filter((g: any) => g.name && g.name !== 'cpu');
+          const realGpus = gpuList.filter(
+            (g: any) => g.name && g.name !== 'cpu',
+          );
           if (realGpus.length < requiredCount) {
             issues.push({
               type: realGpus.length === 0 ? 'error' : 'warning',
               label: 'GPU',
               required: `${requiredCount} GPU(s)`,
-              available: realGpus.length === 0 ? 'No GPU detected' : `${realGpus.length} GPU(s)`,
+              available:
+                realGpus.length === 0
+                  ? 'No GPU detected'
+                  : `${realGpus.length} GPU(s)`,
             });
           }
         }
@@ -261,7 +278,11 @@ export default function QueueTaskModal({
     if (taskResources.cpus) {
       const requiredCpus = parseInt(String(taskResources.cpus), 10);
       const availableCpus = serverInfoData.cpu_count || 0;
-      if (!isNaN(requiredCpus) && requiredCpus > 0 && availableCpus < requiredCpus) {
+      if (
+        !isNaN(requiredCpus) &&
+        requiredCpus > 0 &&
+        availableCpus < requiredCpus
+      ) {
         issues.push({
           type: 'warning',
           label: 'CPUs',
@@ -276,7 +297,11 @@ export default function QueueTaskModal({
       const requiredMemoryGB = parseFloat(String(taskResources.memory));
       const availableMemoryBytes = serverInfoData.memory?.total || 0;
       const availableMemoryGB = availableMemoryBytes / (1024 * 1024 * 1024);
-      if (!isNaN(requiredMemoryGB) && requiredMemoryGB > 0 && availableMemoryGB < requiredMemoryGB) {
+      if (
+        !isNaN(requiredMemoryGB) &&
+        requiredMemoryGB > 0 &&
+        availableMemoryGB < requiredMemoryGB
+      ) {
         issues.push({
           type: 'warning',
           label: 'Memory',
@@ -936,56 +961,74 @@ export default function QueueTaskModal({
               </FormControl>
 
               {/* Local Provider Resource Validation */}
-              {isLocalProvider && resourceValidation && !resourceValidation.isCompatible && (
-                <Alert
-                  variant="soft"
-                  color={resourceValidation.hasErrors ? 'danger' : 'warning'}
-                  startDecorator={<AlertTriangleIcon size={18} />}
-                  sx={{ mt: 1 }}
-                >
-                  <Stack spacing={1}>
-                    <Typography level="title-sm" color={resourceValidation.hasErrors ? 'danger' : 'warning'}>
-                      {resourceValidation.hasErrors
-                        ? 'Local provider cannot meet task requirements'
-                        : 'Local provider may not meet task requirements'}
-                    </Typography>
-                    <Stack spacing={0.5}>
-                      {resourceValidation.issues.map((issue, idx) => (
-                        <Stack key={idx} direction="row" spacing={1} alignItems="center">
-                          <Chip
-                            size="sm"
-                            variant="solid"
-                            color={issue.type === 'error' ? 'danger' : 'warning'}
-                          >
-                            {issue.label}
-                          </Chip>
-                          <Typography level="body-xs">
-                            Required: <strong>{issue.required}</strong> — Available: <strong>{issue.available}</strong>
-                          </Typography>
-                        </Stack>
-                      ))}
-                    </Stack>
-                    {resourceValidation.hasErrors && (
-                      <Typography level="body-xs" color="danger">
-                        Consider selecting a different provider with the required resources.
+              {isLocalProvider &&
+                resourceValidation &&
+                !resourceValidation.isCompatible && (
+                  <Alert
+                    variant="soft"
+                    color={resourceValidation.hasErrors ? 'danger' : 'warning'}
+                    startDecorator={<AlertTriangleIcon size={18} />}
+                    sx={{ mt: 1 }}
+                  >
+                    <Stack spacing={1}>
+                      <Typography
+                        level="title-sm"
+                        color={
+                          resourceValidation.hasErrors ? 'danger' : 'warning'
+                        }
+                      >
+                        {resourceValidation.hasErrors
+                          ? 'Local provider cannot meet task requirements'
+                          : 'Local provider may not meet task requirements'}
                       </Typography>
-                    )}
-                  </Stack>
-                </Alert>
-              )}
+                      <Stack spacing={0.5}>
+                        {resourceValidation.issues.map((issue, idx) => (
+                          <Stack
+                            key={idx}
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                          >
+                            <Chip
+                              size="sm"
+                              variant="solid"
+                              color={
+                                issue.type === 'error' ? 'danger' : 'warning'
+                              }
+                            >
+                              {issue.label}
+                            </Chip>
+                            <Typography level="body-xs">
+                              Required: <strong>{issue.required}</strong> —
+                              Available: <strong>{issue.available}</strong>
+                            </Typography>
+                          </Stack>
+                        ))}
+                      </Stack>
+                      {resourceValidation.hasErrors && (
+                        <Typography level="body-xs" color="danger">
+                          Consider selecting a different provider with the
+                          required resources.
+                        </Typography>
+                      )}
+                    </Stack>
+                  </Alert>
+                )}
 
-              {isLocalProvider && resourceValidation?.isCompatible && taskResources && (
-                <Alert
-                  variant="soft"
-                  color="success"
-                  startDecorator={<CheckCircleIcon size={18} />}
-                  sx={{ mt: 1 }}
-                >
-                  <Typography level="body-sm" color="success">
-                    Local provider meets the task resource requirements.
-                  </Typography>
-                </Alert>
-              )}
+              {isLocalProvider &&
+                resourceValidation?.isCompatible &&
+                taskResources && (
+                  <Alert
+                    variant="soft"
+                    color="success"
+                    startDecorator={<CheckCircleIcon size={18} />}
+                    sx={{ mt: 1 }}
+                  >
+                    <Typography level="body-sm" color="success">
+                      Local provider meets the task resource requirements.
+                    </Typography>
+                  </Alert>
+                )}
             </Stack>
 
             <Divider />
