@@ -67,7 +67,7 @@ async def document_view(experimentId: str, document_name: str, folder: str = Non
 @router.get("/list", summary="List available documents.")
 async def document_list(experimentId: str, folder: str = None):
     documents = []
-    tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
+    tfl_api_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "")
     use_detail = not bool(tfl_api_storage_uri)  # no size/mtime when remote
     # List the files that are in the experiment/<experiment_name>/documents directory:
     exp_obj = Experiment(experimentId)
@@ -141,7 +141,7 @@ async def delete_document(experimentId: str, document_name: str, folder: str = N
 async def document_upload(experimentId: str, folder: str, files: list[UploadFile]):
     fileNames = []
     md = MarkItDown(enable_plugins=False)
-    tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
+    tfl_api_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "")
 
     # Adding secure filename to the folder name as well
     folder = secure_filename(folder)
@@ -217,7 +217,7 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
                 print(f"Error uploading file: {e}")
                 raise HTTPException(status_code=403, detail="There was a problem uploading the file")
         else:
-            # Restricted file type: when TFL_API_STORAGE_URI is set, save as-is (no conversion).
+            # Restricted file type: when TFL_REMOTE_STORAGE_ENABLED is set, save as-is (no conversion).
             # Otherwise try to convert to .md using MarkItDown for viewing.
             try:
                 content = await file.read()
@@ -271,7 +271,7 @@ async def create_folder(experimentId: str, name: str):
 async def document_upload_links(experimentId: str, folder: str = None, data: dict = Body(...)):
     urls = data.get("urls")
     folder = secure_filename(folder)
-    tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
+    tfl_api_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "")
     exp_obj = Experiment(experimentId)
     experiment_dir = await exp_obj.get_dir()
     documents_dir = storage.join(experiment_dir, "documents")

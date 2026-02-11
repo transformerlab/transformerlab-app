@@ -127,8 +127,8 @@ async def lifespan(app: FastAPI):
     # Cancel any running jobs
     await cancel_in_progress_jobs()
 
-    # Create buckets for all existing teams if TFL_API_STORAGE_URI is enabled
-    if os.getenv("TFL_API_STORAGE_URI"):
+    # Create buckets for all existing teams if TFL_REMOTE_STORAGE_ENABLED
+    if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
         print("✅ CHECKING BUCKETS FOR EXISTING TEAMS")
         try:
             from transformerlab.db.session import async_session
@@ -150,7 +150,7 @@ async def lifespan(app: FastAPI):
     if "--reload" in sys.argv:
         await install_all_plugins()
 
-    if not os.getenv("TFL_API_STORAGE_URI"):
+    if not os.getenv("MULTIUSER"):
         asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
@@ -583,7 +583,7 @@ async def healthz():
     """
     Health check endpoint to verify server status and mode.
     """
-    tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
+    tfl_api_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "")
 
     # Determine mode: s3 or local
     if tfl_api_storage_uri:

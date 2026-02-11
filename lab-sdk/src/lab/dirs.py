@@ -35,8 +35,8 @@ _current_org_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("cu
 def set_organization_id(organization_id: str | None) -> None:
     _current_org_id.set(organization_id)
     if organization_id is not None:
-        # If TFL_API_STORAGE_URI is set, use <cloud_protocol>://workspace_<team_id> instead of the value itself
-        tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI")
+        # If TFL_REMOTE_STORAGE_ENABLED is set, use <cloud_protocol>://workspace_<team_id> instead of the value itself
+        tfl_api_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED")
         if tfl_api_storage_uri:
             # Determine protocol based on REMOTE_WORKSPACE_HOST
             protocol = "gs://" if REMOTE_WORKSPACE_HOST == "gcp" else "s3://"
@@ -320,7 +320,7 @@ def _get_local_provider_runs_root() -> str:
     Return the root directory for all local provider runs.
 
     This is intentionally kept on the local filesystem and does NOT depend on
-    TFL_API_STORAGE_URI or the storage abstraction so that things like PIDs,
+    TFL_REMOTE_STORAGE_ENABLED or the storage abstraction so that things like PIDs,
     stdout/stderr logs, and virtual environments are always available locally,
     even when the main workspace is configured to use remote storage.
 

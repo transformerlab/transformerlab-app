@@ -99,8 +99,8 @@ async def create_team(
     session.add(user_team)
     await session.commit()
 
-    # Create S3 bucket if TFL_API_STORAGE_URI is set
-    if getenv("TFL_API_STORAGE_URI"):
+    # Create S3 bucket if TFL_REMOTE_STORAGE_ENABLED is set
+    if getenv("TFL_REMOTE_STORAGE_ENABLED"):
         try:
             create_bucket_for_team(team.id, profile_name="transformerlab-s3")
         except Exception as e:

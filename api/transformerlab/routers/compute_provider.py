@@ -1011,7 +1011,7 @@ async def _launch_sweep_jobs(
                 # Build setup script (add copy_file_mounts when file_mounts is True, after AWS credentials)
                 setup_commands = []
                 aws_profile = "transformerlab-s3"
-                if os.getenv("TFL_API_STORAGE_URI"):
+                if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
                     aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
                     if aws_access_key_id and aws_secret_access_key:
                         aws_setup = _generate_aws_credentials_setup(
@@ -1308,7 +1308,7 @@ async def launch_template_on_provider(
 
     # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
     aws_profile = "transformerlab-s3"
-    if os.getenv("TFL_API_STORAGE_URI"):
+    if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
         aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
     else:
         aws_access_key_id, aws_secret_access_key = None, None
@@ -1415,7 +1415,7 @@ async def launch_template_on_provider(
     if provider.type == ProviderType.LOCAL.value:
         # Use a dedicated local-only job directory for the local provider.
         # This directory is always on the host filesystem and does not depend
-        # on TFL_API_STORAGE_URI / remote storage configuration.
+        # on TFL_REMOTE_STORAGE_ENABLED / remote storage configuration.
         job_dir = get_local_provider_job_dir(job_id, org_id=team_id)
         provider_config_dict["workspace_dir"] = job_dir
 
