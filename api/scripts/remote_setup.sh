@@ -341,10 +341,11 @@ install_uv() {
         success "uv is already installed: $UV_VERSION"
     else
         # Install uv using the official installer
-        # The uv installer may call 'source' to update PATH which fails in POSIX sh;
-        # we add || true because we manually set PATH below and verify the binary.
+        # The uv installer may call 'source' and 'uv' during PATH setup, which fails under POSIX sh.
+        # We silence those non-fatal errors (stderr to /dev/null) and add || true because we
+        # manually set PATH below and verify the binary explicitly.
         info "Downloading and installing uv..."
-        curl -LsSf https://astral.sh/uv/install.sh | sh || true
+        curl -LsSf https://astral.sh/uv/install.sh | sh 2>/dev/null || true
 
         # Add uv to PATH for current session (newer versions install to .local/bin, older to .cargo/bin)
         export PATH="$SETUP_HOME/.local/bin:$SETUP_HOME/.cargo/bin:$PATH"
