@@ -20,7 +20,7 @@ def _check_local_installation() -> bool:
         console.print(
             "[red]Error:[/red] Transformer Lab is not installed locally.\n"
             f"  Expected installation at: {TLAB_DIR}\n"
-            "  Run the installer first: curl -fsSL https://raw.githubusercontent.com/transformerlab/transformerlab-app/main/api/install.sh | bash"
+            "  Run the installer first: curl -fsSL https://lab.cloud/install.sh | bash"
         )
         return False
 
