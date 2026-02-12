@@ -11,7 +11,7 @@ import re
 from typing import List, Tuple
 import sys
 
-from lab.storage import REMOTE_WORKSPACE_HOST
+from lab.storage import REMOTE_WORKSPACE_HOST, STORAGE_PROVIDER
 
 
 def validate_cloud_credentials() -> None:
@@ -22,6 +22,10 @@ def validate_cloud_credentials() -> None:
     Raises:
         SystemExit: If cloud storage is enabled but credentials are missing
     """
+    # If NFS or other non-cloud storage is configured, skip validation
+    if STORAGE_PROVIDER == "localfs":
+        return
+
     # Check if cloud storage is enabled
     tfl_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED")
 
@@ -168,6 +172,21 @@ def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3"
     Returns:
         True if bucket was created successfully or already exists, False otherwise
     """
+
+    # If localfs storage is configured, create local folder structure instead of a cloud bucket
+    if STORAGE_PROVIDER == "localfs":
+        storage_uri = os.getenv("TFL_STORAGE_URI")
+        if not storage_uri:
+            print("TFL_STORAGE_PROVIDER=localfs but TFL_STORAGE_URI is not set, skipping folder creation")
+            return False
+        workspace_path = os.path.join(storage_uri, "orgs", team_id, "workspace")
+        try:
+            os.makedirs(workspace_path, exist_ok=True)
+            print(f"✅ Created local workspace folder for team {team_id}: {workspace_path}")
+            return True
+        except Exception as e:
+            print(f"❌ Failed to create local workspace folder for team {team_id}: {e}")
+            return False
 
     # Check if TFL_REMOTE_STORAGE_ENABLED is set
     tfl_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED")
@@ -319,6 +338,7 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
     """
     from transformerlab.shared.models.models import Team
 
+<<<<<<< HEAD
     # Check if TFL_REMOTE_STORAGE_ENABLED is set
     tfl_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED")
     if not tfl_storage_uri:
@@ -330,6 +350,24 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
     print(
         f"Creating buckets for all teams using {remote_workspace_host} (REMOTE_WORKSPACE_HOST={REMOTE_WORKSPACE_HOST})"
     )
+=======
+    # Check if storage is configured
+    if STORAGE_PROVIDER == "localfs":
+        if not os.getenv("TFL_STORAGE_URI"):
+            print("TFL_STORAGE_PROVIDER=localfs but TFL_STORAGE_URI is not set, skipping")
+            return (0, 0, ["TFL_STORAGE_URI is not set"])
+        print("Initialising local workspaces for all teams (localfs mode)")
+    else:
+        tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")
+        if not tfl_storage_uri:
+            print("TFL_API_STORAGE_URI is not set, skipping bucket creation for existing teams")
+            return (0, 0, ["TFL_API_STORAGE_URI is not set"])
+        remote_workspace_host = "GCS" if REMOTE_WORKSPACE_HOST == "gcp" else "S3"
+        print(
+            f"Creating buckets for all teams using {remote_workspace_host}"
+            f" (REMOTE_WORKSPACE_HOST={REMOTE_WORKSPACE_HOST})"
+        )
+>>>>>>> 58beca1bda7156fa33f9d49734cf5470a042fc7b
 
     from sqlalchemy import select
 
@@ -344,20 +382,35 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
 
     for team in teams:
         try:
-            success = create_bucket_for_team(team.id, profile_name=profile_name)
-            if success:
-                success_count += 1
-                print(f"✅ Created/verified bucket for team '{team.name}' (id={team.id})")
+            if STORAGE_PROVIDER == "localfs":
+                # In localfs mode, set org context and seed default experiments
+                # which also creates the workspace directory structure.
+                from lab.dirs import set_organization_id
+                from transformerlab.services.experiment_init import seed_default_experiments
+
+                set_organization_id(team.id)
+                try:
+                    await seed_default_experiments()
+                    success_count += 1
+                    print(f"✅ Initialised workspace for team '{team.name}' (id={team.id})")
+                finally:
+                    set_organization_id(None)
             else:
-                failure_count += 1
-                error_msg = f"Failed to create bucket for team '{team.name}' (id={team.id})"
-                error_messages.append(error_msg)
-                print(f"❌ {error_msg}")
+                success = create_bucket_for_team(team.id, profile_name=profile_name)
+                if success:
+                    success_count += 1
+                    print(f"✅ Created/verified bucket for team '{team.name}' (id={team.id})")
+                else:
+                    failure_count += 1
+                    error_msg = f"Failed to create bucket for team '{team.name}' (id={team.id})"
+                    error_messages.append(error_msg)
+                    print(f"❌ {error_msg}")
         except Exception as e:
             failure_count += 1
-            error_msg = f"Error creating bucket for team '{team.name}' (id={team.id}): {e}"
+            error_msg = f"Error initialising storage for team '{team.name}' (id={team.id}): {e}"
             error_messages.append(error_msg)
             print(f"❌ {error_msg}")
 
-    print(f"Bucket creation summary: {success_count} succeeded, {failure_count} failed")
+    storage_type = "workspace" if STORAGE_PROVIDER == "localfs" else "bucket"
+    print(f"Storage init summary: {success_count} {storage_type}(s) succeeded, {failure_count} failed")
     return (success_count, failure_count, error_messages)

@@ -86,3 +86,18 @@ def test_healthz_s3_mode(client, monkeypatch):
     data = response.json()
     assert data["message"] == "OK"
     assert data["mode"] == "s3"
+
+
+def test_healthz_localfs_mode(client, monkeypatch, tmp_path):
+    """Test healthz endpoint in localfs mode"""
+    # Ensure cloud mode is disabled
+    monkeypatch.delenv("TFL_API_STORAGE_URI", raising=False)
+    # Configure NFS-style storage provider pointing at a temp dir
+    monkeypatch.setenv("TFL_STORAGE_PROVIDER", "localfs")
+    monkeypatch.setenv("TFL_STORAGE_URI", str(tmp_path / "localfs_root"))
+
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "OK"
+    assert data["mode"] == "localfs"

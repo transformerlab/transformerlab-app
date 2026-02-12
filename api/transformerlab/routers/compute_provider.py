@@ -43,6 +43,7 @@ from transformerlab.services import job_service
 from transformerlab.services import quota_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
 from lab import storage
+from lab.storage import STORAGE_PROVIDER
 from lab.dirs import get_workspace_dir, get_local_provider_job_dir
 from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
@@ -1035,14 +1036,18 @@ async def _launch_sweep_jobs(
                 tfl_storage_uri = None
                 try:
                     storage_root = await storage.root_uri()
-                    if storage_root and storage.is_remote_path(storage_root):
-                        tfl_storage_uri = storage_root
+                    if storage_root:
+                        if storage.is_remote_path(storage_root):
+                            # Remote cloud storage (S3/GCS/etc.)
+                            tfl_storage_uri = storage_root
+                        elif STORAGE_PROVIDER == "localfs":
+                            # localfs: expose the local mount path to the remote worker
+                            tfl_storage_uri = storage_root
                 except Exception:
                     pass
 
                 if tfl_storage_uri:
                     env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
-                    env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
 
                 # Build setup script (add copy_file_mounts when file_mounts is True, after cloud credentials)
                 setup_commands = []
@@ -1427,16 +1432,21 @@ async def launch_template_on_provider(
     tfl_storage_uri = None
     try:
         storage_root = await storage.root_uri()
-        # Check if it's a remote URI (not a local path)
-        if storage_root and storage.is_remote_path(storage_root):
-            tfl_storage_uri = storage_root
+        if storage_root:
+            if storage.is_remote_path(storage_root):
+                # Remote cloud storage (S3/GCS/etc.)
+                tfl_storage_uri = storage_root
+            elif STORAGE_PROVIDER == "localfs":
+                # localfs: expose the local mount path to the remote worker
+                tfl_storage_uri = storage_root
     except Exception:
         pass
 
     if tfl_storage_uri:
         env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
-        env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
-        env_vars["AWS_PROFILE"] = aws_profile
+        # Only mark as remote SkyPilot workspace and set AWS profile for true remote URIs
+        if storage.is_remote_path(tfl_storage_uri):
+            env_vars["AWS_PROFILE"] = aws_profile
         # env_vars["AWS_ACCESS_KEY_ID"] = aws_access_key_id
         # env_vars["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
 
@@ -2289,15 +2299,19 @@ async def resume_from_checkpoint(
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
     try:
-        storage_root = storage.root_uri()
-        if storage_root and storage.is_remote_path(storage_root):
-            tfl_storage_uri = storage_root
+        storage_root = await storage.root_uri()
+        if storage_root:
+            if storage.is_remote_path(storage_root):
+                # Remote cloud storage (S3/GCS/etc.)
+                tfl_storage_uri = storage_root
+            elif STORAGE_PROVIDER == "localfs":
+                # localfs: expose the local mount path to the remote worker
+                tfl_storage_uri = storage_root
     except Exception:
         pass
 
     if tfl_storage_uri:
         env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
-        env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
 
     # Build setup script
     setup_commands = []

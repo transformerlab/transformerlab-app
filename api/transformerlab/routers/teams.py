@@ -99,13 +99,15 @@ async def create_team(
     session.add(user_team)
     await session.commit()
 
-    # Create S3 bucket if TFL_REMOTE_STORAGE_ENABLED is set
-    if getenv("TFL_REMOTE_STORAGE_ENABLED"):
+    # Create storage (cloud bucket or local folder) for the new team
+    if getenv("TFL_REMOTE_STORAGE_ENABLED") or (
+        getenv("TFL_STORAGE_PROVIDER") == "localfs" and getenv("TFL_STORAGE_URI")
+    ):
         try:
             create_bucket_for_team(team.id, profile_name="transformerlab-s3")
         except Exception as e:
-            # Log error but don't fail team creation if bucket creation fails
-            print(f"Warning: Failed to create S3 bucket for team {team.id}: {e}")
+            # Log error but don't fail team creation if storage creation fails
+            print(f"Warning: Failed to create storage for team {team.id}: {e}")
 
     # Create default experiment "alpha" for the new team
     # Temporarily set the organization context to the new team ID
