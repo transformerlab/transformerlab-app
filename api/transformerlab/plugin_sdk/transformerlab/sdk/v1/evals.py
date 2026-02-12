@@ -1,10 +1,9 @@
-import asyncio
 import json
 import os
 import time
 
 from transformerlab.plugin import test_wandb_login
-from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
+from transformerlab.sdk.v1.tlab_plugin import TLabPlugin, _run_async_from_sync
 from lab import storage
 
 
@@ -78,7 +77,7 @@ class EvalsTLabPlugin(TLabPlugin):
             await storage.makedirs(output_dir, exist_ok=True)
             return output_dir
 
-        output_dir = asyncio.run(_setup_dirs())
+        output_dir = _run_async_from_sync(_setup_dirs())
 
         # Store the writer and output directory as instance variables
         self.params["tensorboard_output_dir"] = output_dir
@@ -158,7 +157,7 @@ class EvalsTLabPlugin(TLabPlugin):
         experiment_dir = storage.join(workspace_dir, "experiments", self.params.experiment_name)
         eval_dir = storage.join(experiment_dir, "evals", self.params.eval_name, self.params.job_id)
 
-        asyncio.run(storage.makedirs(eval_dir, exist_ok=True))
+        _run_async_from_sync(storage.makedirs(eval_dir, exist_ok=True))
 
         if dir_only:
             return eval_dir
@@ -221,10 +220,10 @@ class EvalsTLabPlugin(TLabPlugin):
 
             return output_path, plot_data_path
 
-        output_path, plot_data_path = asyncio.run(_save_results())
+        output_path, plot_data_path = _run_async_from_sync(_save_results())
 
-        asyncio.run(self.job.update_job_data_field("additional_output_path", output_path))
-        asyncio.run(self.job.update_job_data_field("plot_data_path", plot_data_path))
+        _run_async_from_sync(self.job.update_job_data_field("additional_output_path", output_path))
+        _run_async_from_sync(self.job.update_job_data_field("plot_data_path", plot_data_path))
 
         # Add evaluation data to existing provenance file
         self.add_evaluation_to_provenance_file(metrics_df)
@@ -337,7 +336,7 @@ class EvalsTLabPlugin(TLabPlugin):
 
             print(f"Evaluation data added to provenance file: {provenance_path}")
 
-        asyncio.run(_add_to_provenance())
+        _run_async_from_sync(_add_to_provenance())
 
 
 tlab_evals = EvalsTLabPlugin()

@@ -175,6 +175,10 @@
     "getModelDetailsFromGallery": {
       "method": "GET",
       "path": "model/gallery/{modelId}"
+    },
+    "vramEstimate": {
+      "method": "GET",
+      "path": "model/vram_estimate?model_id={modelId}&dtype={dtype}&batch={batch}&seq_len={seqLen}&no_kv={noKv}&filename={filename}"
     }
   },
   "jobs": {
@@ -197,6 +201,22 @@
     "getArtifact": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/artifact/{filename}"
+    },
+    "getJobDatasets": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/datasets"
+    },
+    "getJobModels": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/models"
+    },
+    "saveDatasetToRegistry": {
+      "method": "POST",
+      "path": "experiment/{experimentId}/jobs/{jobId}/datasets/{datasetName}/save_to_registry"
+    },
+    "saveModelToRegistry": {
+      "method": "POST",
+      "path": "experiment/{experimentId}/jobs/{jobId}/models/{modelName}/save_to_registry"
     },
     "getJobsOfType": {
       "method": "GET",
