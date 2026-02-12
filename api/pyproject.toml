@@ -19,6 +19,7 @@ dependencies = [
   "boto3==1.40.70",
   "datasets==3.6.0",
   "diffusers==0.36.0",
+  "do-i-have-the-vram==0.1.0",
   "evaluate==0.4.3",
   "fastapi-users[sqlalchemy,oauth]==15.0.1",
   "hf_xet==1.1.4",
