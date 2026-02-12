@@ -50,6 +50,15 @@ def _check_amd_gpu() -> bool:
         return False
 
 
+def _is_dgx_spark() -> bool:
+    """Return True if running on NVIDIA DGX Spark (use cu130 PyTorch index)."""
+    try:
+        with open("/etc/dgx-release", encoding="utf-8") as f:
+            return "dgx spark" in f.read().lower()
+    except (OSError, FileNotFoundError):
+        return False
+
+
 def _get_pyproject_extra() -> str:
     """Return the pyproject extra for the current platform (same as plugin install)."""
     if _check_nvidia_gpu():
@@ -62,10 +71,16 @@ def _get_pyproject_extra() -> str:
 
 
 def _get_uv_pip_install_flags() -> str:
-    """Return extra flags for uv pip install (e.g. ROCm index)."""
+    """Return extra flags for uv pip install (e.g. ROCm/CUDA index)."""
     if _check_amd_gpu():
         return "--index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match"
-    if not _check_nvidia_gpu() and not sys.platform == "darwin":
+    if _check_nvidia_gpu():
+        cuda_index = "cu130" if _is_dgx_spark() else "cu128"
+        if cuda_index == "cu130":
+            return "--index https://download.pytorch.org/whl/cu130 --index-strategy unsafe-best-match"
+        else:
+            return ""
+    if not sys.platform == "darwin":
         return "--index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
     return ""
 
