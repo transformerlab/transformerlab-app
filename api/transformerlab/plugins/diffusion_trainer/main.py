@@ -459,6 +459,17 @@ def train_diffusion_lora():
 
     is_zimage = "ZImagePipeline" in model_architecture
 
+    # Some model cards expose generic architecture strings. Fallback to model id/path hints for Z-Image.
+    if not is_zimage:
+        model_name_hint = str(args.get("model_name") or "")
+        model_path_hint = str(args.get("model_path") or "")
+        model_hint = f"{model_name_hint} {model_path_hint}".lower()
+        if "z-image" in model_hint or "zimage" in model_hint:
+            is_zimage = True
+            print(
+                "Detected Z-Image model from model name/path hint; forcing ZImagePipeline training path."
+            )
+
     print(f"Architecture detection - SDXL: {is_sdxl}, SD3: {is_sd3}, Flux: {is_flux}, ZImage: {is_zimage}")
 
     #  Mixed Precision
@@ -1025,7 +1036,16 @@ def train_diffusion_lora():
                 timesteps = torch.randint(
                     0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device
                 ).long()
-                noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
+                if hasattr(noise_scheduler, "add_noise"):
+                    noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
+                elif hasattr(noise_scheduler, "scale_noise"):
+                    # Flow-matching schedulers (for example FlowMatchEulerDiscreteScheduler) expose scale_noise.
+                    noisy_latents = noise_scheduler.scale_noise(latents, timesteps, noise)
+                else:
+                    raise AttributeError(
+                        f"Unsupported scheduler {type(noise_scheduler).__name__}: "
+                        "expected add_noise(...) or scale_noise(...)."
+                    )
 
                 # Enhanced text encoding - always use encode_prompt for SDXL
                 if is_sdxl:
