@@ -820,6 +820,42 @@ def _generate_aws_credentials_setup(
     return setup_script
 
 
+def _generate_gcp_credentials_setup(service_account_json: str, credentials_path: Optional[str] = None) -> str:
+    """
+    Generate bash script to set up GCP service account credentials on the remote host.
+
+    This writes the provided service account JSON to a file and points
+    GOOGLE_APPLICATION_CREDENTIALS at it so that google-cloud libraries and
+    ADC can pick it up.
+
+    Args:
+        service_account_json: The service account JSON contents.
+        credentials_path: Optional path on the remote host where the JSON
+            should be written. Defaults to ~/.config/gcloud/tfl-service-account.json
+
+    Returns:
+        Bash script to configure GCP credentials.
+    """
+    target_path = credentials_path or "$HOME/.config/gcloud/tfl-service-account.json"
+
+    def escape_bash_single_quoted(s: str) -> str:
+        # Safely embed arbitrary JSON into a single-quoted string in bash:
+        # close quote, escape single quote, reopen.
+        return s.replace("'", "'\"'\"'")
+
+    escaped_json = escape_bash_single_quoted(service_account_json)
+
+    setup_script = (
+        "echo 'Setting up GCP service account credentials...'; "
+        'mkdir -p "$HOME/.config/gcloud"; '
+        f"echo '{escaped_json}' > {target_path}; "
+        f"chmod 600 {target_path}; "
+        f"export GOOGLE_APPLICATION_CREDENTIALS={target_path}; "
+        "echo 'GCP credentials configured successfully'"
+    )
+    return setup_script
+
+
 async def _create_sweep_parent_job(
     provider_id: str,
     request: ProviderTemplateLaunchRequest,
@@ -1008,8 +1044,9 @@ async def _launch_sweep_jobs(
                     env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
                     env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
 
-                # Build setup script (add copy_file_mounts when file_mounts is True, after AWS credentials)
+                # Build setup script (add copy_file_mounts when file_mounts is True, after cloud credentials)
                 setup_commands = []
+<<<<<<< update/remote_storage_env
                 aws_profile = "transformerlab-s3"
                 if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
                     aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
@@ -1019,6 +1056,31 @@ async def _launch_sweep_jobs(
                         )
                         setup_commands.append(aws_setup)
                         env_vars["AWS_PROFILE"] = aws_profile
+=======
+
+                # Cloud credentials setup:
+                # - For AWS (REMOTE_WORKSPACE_HOST=aws), inject ~/.aws/credentials profile if available.
+                # - For GCP (REMOTE_WORKSPACE_HOST=gcp), optionally inject a service account JSON if provided.
+                from lab.storage import REMOTE_WORKSPACE_HOST
+
+                if os.getenv("TFL_API_STORAGE_URI"):
+                    if REMOTE_WORKSPACE_HOST != "gcp":
+                        aws_profile = "transformerlab-s3"
+                        aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
+                        if aws_access_key_id and aws_secret_access_key:
+                            aws_setup = _generate_aws_credentials_setup(
+                                aws_access_key_id, aws_secret_access_key, aws_profile
+                            )
+                            setup_commands.append(aws_setup)
+                            env_vars["AWS_PROFILE"] = aws_profile
+                    elif REMOTE_WORKSPACE_HOST == "gcp":
+                        # If a GCP service account JSON is provided via env, write it on the remote host
+                        # and set GOOGLE_APPLICATION_CREDENTIALS so ADC can find it.
+                        gcp_sa_json = os.getenv("TFL_GCP_SERVICE_ACCOUNT_JSON")
+                        if gcp_sa_json:
+                            gcp_setup = _generate_gcp_credentials_setup(gcp_sa_json)
+                            setup_commands.append(gcp_setup)
+>>>>>>> main
 
                 if request.file_mounts is True and request.task_id:
                     setup_commands.append(COPY_FILE_MOUNTS_SETUP)
