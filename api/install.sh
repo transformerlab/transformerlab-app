@@ -414,6 +414,14 @@ install_dependencies() {
   echo "HAS_NVIDIA=$HAS_NVIDIA, HAS_AMD=$HAS_AMD"
   PIP_WHEEL_FLAGS=""
 
+  # Detect DGX Spark for CUDA 13.0 PyTorch index (cu130); otherwise use cu128
+  # /etc/dgx-release exists only on DGX systems; DGX_NAME="DGX Spark" identifies Spark
+  TLAB_CUDA_INDEX="cu128"
+  if [ -r /etc/dgx-release ] && grep -qi 'DGX Spark' /etc/dgx-release 2>/dev/null; then
+    TLAB_CUDA_INDEX="cu130"
+    echo "DGX Spark detected (/etc/dgx-release); using PyTorch index $TLAB_CUDA_INDEX"
+  fi
+
   # Determine the directory containing pyproject.toml
   if [ -e "$RUN_DIR/pyproject.toml" ]; then
     PROJECT_DIR="$RUN_DIR"
@@ -426,10 +434,18 @@ install_dependencies() {
 
   if [ "$HAS_NVIDIA" = true ]; then
       echo "Your computer has a GPU; installing cuda:"
-      conda install -y cuda==12.8.1 --force-reinstall -c nvidia/label/cuda-12.8.1
+      if [ "$TLAB_CUDA_INDEX" = "cu130" ]; then
+        conda install -y cuda==13.0.0 --force-reinstall -c nvidia/label/cuda-13.0.0
+      else
+        conda install -y cuda==12.8.1 --force-reinstall -c nvidia/label/cuda-12.8.1
+      fi
 
-      echo "Installing requirements with NVIDIA support:"
+      echo "Installing requirements with NVIDIA support (PyTorch index: $TLAB_CUDA_INDEX):"
       cd "$PROJECT_DIR"
+      if [ "$TLAB_CUDA_INDEX" = "cu130" ]; then
+        PIP_WHEEL_FLAGS+="--index https://download.pytorch.org/whl/${TLAB_CUDA_INDEX} --index-strategy unsafe-best-match"
+      fi
+
       uv pip install ${PIP_WHEEL_FLAGS} .[nvidia]
 
   elif [ "$HAS_AMD" = true ]; then
