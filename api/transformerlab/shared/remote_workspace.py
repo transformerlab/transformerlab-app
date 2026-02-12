@@ -145,7 +145,7 @@ def _validate_gcp_credentials() -> None:
     except DefaultCredentialsError:
         print(
             "❌ ERROR: GCP credentials not found.\n"
-            "   Cloud storage is enabled (TFL_API_STORAGE_URL=true) but GCP credentials are missing.\n"
+            "   Cloud storage is enabled (TFL_REMOTE_STORAGE_ENABLED=true) but GCP credentials are missing.\n"
             "   Please configure GCP credentials:\n"
             "   1. Set GOOGLE_APPLICATION_CREDENTIALS environment variable to path of service account key\n"
             "   2. Or run 'gcloud auth application-default login'",
