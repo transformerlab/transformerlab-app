@@ -10,8 +10,19 @@ import gc
 from lab.dirs import get_workspace_dir
 from lab import storage
 from diffusers import (
+    StableDiffusionPipeline,
+    StableDiffusionImg2ImgPipeline,
+    StableDiffusionInpaintPipeline,
     StableDiffusionUpscalePipeline,
     StableDiffusionLatentUpscalePipeline,
+    StableDiffusionXLPipeline,
+    StableDiffusionXLImg2ImgPipeline,
+    StableDiffusionXLInpaintPipeline,
+    StableDiffusionXLInstructPix2PixPipeline,
+    StableDiffusionXLKDiffusionPipeline,
+    StableDiffusion3Pipeline,
+    LatentConsistencyModelPipeline,
+    LatentConsistencyModelImg2ImgPipeline,
     AutoPipelineForText2Image,
     AutoPipelineForImage2Image,
     AutoPipelineForInpainting,
@@ -55,6 +66,125 @@ scheduler_map = {
     "EulerAncestralDiscreteScheduler": EulerAncestralDiscreteScheduler,
     "DPMSolverMultistepScheduler": DPMSolverMultistepScheduler,
 }
+
+# Single-file diffusion support
+SINGLE_FILE_EXTENSIONS = (".ckpt", ".safetensors")
+
+
+def _looks_like_path(value: str) -> bool:
+    return "/" in value or "\\" in value
+
+
+def _is_single_file_path(value: str) -> bool:
+    if not value:
+        return False
+    lower = value.lower()
+    if lower.startswith(("http://", "https://")):
+        return any(lower.endswith(ext) for ext in SINGLE_FILE_EXTENSIONS)
+    if not any(lower.endswith(ext) for ext in SINGLE_FILE_EXTENSIONS):
+        return False
+    if _looks_like_path(value):
+        return True
+    try:
+        if os.path.isfile(value):
+            return True
+    except Exception:
+        pass
+    try:
+        return run_async_from_sync(storage.isfile(value))
+    except Exception:
+        return False
+
+
+def _extract_architecture(json_data: dict) -> str | None:
+    if not isinstance(json_data, dict):
+        return None
+    arch = json_data.get("architecture")
+    if not arch:
+        model_index = json_data.get("model_index", {}) if isinstance(json_data.get("model_index", {}), dict) else {}
+        arch = model_index.get("_class_name")
+    if isinstance(arch, list):
+        arch = arch[0] if arch else None
+    if isinstance(arch, str):
+        if arch.strip() and arch.strip().lower() != "unknown":
+            return arch
+    return None
+
+
+def _infer_single_file_architecture(model_path: str) -> str:
+    name = os.path.basename(model_path or "").lower()
+    if "sdxl" in name or "stable-diffusion-xl" in name or "sd_xl" in name:
+        return "StableDiffusionXLPipeline"
+    if "sd3" in name or "stable-diffusion-3" in name or "stable-diffusion3" in name:
+        return "StableDiffusion3Pipeline"
+    if "lcm" in name or "latent-consistency" in name:
+        return "LatentConsistencyModelPipeline"
+    return "StableDiffusionPipeline"
+
+
+def _find_original_config_file(model_path: str) -> str | None:
+    if not model_path or model_path.startswith(("http://", "https://")):
+        return None
+    if not os.path.isfile(model_path):
+        return None
+    directory = os.path.dirname(model_path)
+    if not directory or not os.path.isdir(directory):
+        return None
+    try:
+        for entry in os.listdir(directory):
+            lower = entry.lower()
+            if lower.endswith((".yaml", ".yml")):
+                return os.path.join(directory, entry)
+    except Exception:
+        return None
+    return None
+
+
+def _resolve_model_reference(model_id: str) -> tuple[str, str | None, bool]:
+    """
+    Resolve model_id to a local path when possible, and return (resolved_model, architecture, is_single_file).
+    """
+    if _is_single_file_path(model_id) or os.path.isdir(model_id):
+        return (
+            model_id,
+            _infer_single_file_architecture(model_id) if _is_single_file_path(model_id) else None,
+            _is_single_file_path(model_id),
+        )
+
+    try:
+        from lab.model import Model as ModelService
+
+        model_service = run_async_from_sync(ModelService.get(model_id))
+        model_data = run_async_from_sync(model_service.get_metadata())
+        json_data = model_data.get("json_data", {}) if model_data else {}
+
+        architecture = _extract_architecture(json_data)
+        source = json_data.get("source", "")
+        source_path = json_data.get("source_id_or_path", "")
+        model_filename = json_data.get("model_filename", "")
+
+        resolved_model = model_id
+        if source == "local" and source_path:
+            resolved_model = source_path
+        elif model_filename and _looks_like_path(model_filename):
+            resolved_model = model_filename
+        else:
+            try:
+                model_dir = run_async_from_sync(model_service.get_dir())
+                if model_dir and run_async_from_sync(storage.exists(model_dir)):
+                    resolved_model = model_dir
+            except Exception:
+                pass
+
+        is_single_file = _is_single_file_path(resolved_model)
+        if is_single_file and not architecture:
+            architecture = _infer_single_file_architecture(resolved_model)
+
+        return resolved_model, architecture, is_single_file
+    except Exception:
+        is_single_file = _is_single_file_path(model_id)
+        return model_id, _infer_single_file_architecture(model_id) if is_single_file else None, is_single_file
+
 
 # Fixed upscaling models
 UPSCALE_MODEL_STANDARD = "stabilityai/stable-diffusion-x4-upscaler"
@@ -335,6 +465,10 @@ def get_pipeline(
     # cache_key = get_pipeline_key(model, adaptor, is_img2img, is_inpainting)
 
     with _PIPELINES_LOCK:
+        resolved_model, architecture, is_single_file = _resolve_model_reference(model)
+        if isinstance(architecture, list):
+            architecture = architecture[0] if architecture else None
+
         # Detect Z-Image architecture (non-controlnet path)
         is_zimage = is_zimage_model(model)
 
@@ -359,13 +493,20 @@ def get_pipeline(
 
             print(f"Loading ControlNet pipeline ({controlnet_id}) for model: {model}")
 
-            try:
-                info = model_info(model)
-                config = getattr(info, "config", {})
-                diffusers_config = config.get("diffusers", {})
-                architecture = diffusers_config.get("_class_name", "")
-            except Exception as e:
-                raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+            if not architecture and not is_single_file and not _looks_like_path(resolved_model):
+                try:
+                    info = model_info(model)
+                    config = getattr(info, "config", {})
+                    diffusers_config = config.get("diffusers", {})
+                    architecture = diffusers_config.get("_class_name", "")
+                except Exception as e:
+                    raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+
+            if isinstance(architecture, list):
+                architecture = architecture[0] if architecture else None
+
+            if not architecture:
+                architecture = _infer_single_file_architecture(resolved_model)
 
             controlnet_model = load_controlnet_model(controlnet_id, device)
             if controlnet_model is None:
@@ -376,44 +517,116 @@ def get_pipeline(
                 raise ValueError("ControlNet architecture not supported")
 
             print(f"Loaded ControlNet pipeline {controlnet_pipeline} for model {model}")
-            pipe = controlnet_pipeline.from_pretrained(
-                model,
-                controlnet=controlnet_model,
-                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-                safety_checker=None,
-                requires_safety_checker=False,
-                use_safetensors=True,
-            )
+            pipeline_kwargs = {
+                "controlnet": controlnet_model,
+                "torch_dtype": torch.float16 if device != "cpu" else torch.float32,
+                "safety_checker": None,
+                "requires_safety_checker": False,
+            }
+            if is_single_file:
+                original_config = _find_original_config_file(resolved_model)
+                if original_config:
+                    pipeline_kwargs["original_config_file"] = original_config
+                pipe = controlnet_pipeline.from_single_file(resolved_model, **pipeline_kwargs)
+            else:
+                pipeline_kwargs["use_safetensors"] = True
+                pipe = controlnet_pipeline.from_pretrained(resolved_model, **pipeline_kwargs)
         elif is_inpainting:
-            pipe = AutoPipelineForInpainting.from_pretrained(
-                model,
-                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-                safety_checker=None,
-                requires_safety_checker=False,
-            )
+            if is_single_file:
+                if architecture and "stablediffusion3" in architecture.lower():
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Single-file Stable Diffusion 3 checkpoints are only supported for text-to-image.",
+                    )
+                pipeline_class = {
+                    "StableDiffusionPipeline": StableDiffusionInpaintPipeline,
+                    "StableDiffusionInpaintPipeline": StableDiffusionInpaintPipeline,
+                    "StableDiffusionXLPipeline": StableDiffusionXLInpaintPipeline,
+                    "StableDiffusionXLInpaintPipeline": StableDiffusionXLInpaintPipeline,
+                }.get(architecture, StableDiffusionInpaintPipeline)
+
+                original_config = _find_original_config_file(resolved_model)
+                pipe = pipeline_class.from_single_file(
+                    resolved_model,
+                    torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                    safety_checker=None,
+                    requires_safety_checker=False,
+                    **({"original_config_file": original_config} if original_config else {}),
+                )
+            else:
+                pipe = AutoPipelineForInpainting.from_pretrained(
+                    resolved_model,
+                    torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                    safety_checker=None,
+                    requires_safety_checker=False,
+                )
             print(f"Loaded inpainting pipeline for model: {model}")
         elif is_img2img:
-            pipe = AutoPipelineForImage2Image.from_pretrained(
-                model,
-                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-                safety_checker=None,
-                requires_safety_checker=False,
-            )
+            if is_single_file:
+                if architecture and "stablediffusion3" in architecture.lower():
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Single-file Stable Diffusion 3 checkpoints are only supported for text-to-image.",
+                    )
+                pipeline_class = {
+                    "StableDiffusionPipeline": StableDiffusionImg2ImgPipeline,
+                    "StableDiffusionImg2ImgPipeline": StableDiffusionImg2ImgPipeline,
+                    "StableDiffusionXLPipeline": StableDiffusionXLImg2ImgPipeline,
+                    "StableDiffusionXLImg2ImgPipeline": StableDiffusionXLImg2ImgPipeline,
+                    "StableDiffusionXLInstructPix2PixPipeline": StableDiffusionXLInstructPix2PixPipeline,
+                    "LatentConsistencyModelPipeline": LatentConsistencyModelImg2ImgPipeline,
+                    "LatentConsistencyModelImg2ImgPipeline": LatentConsistencyModelImg2ImgPipeline,
+                }.get(architecture, StableDiffusionImg2ImgPipeline)
+
+                original_config = _find_original_config_file(resolved_model)
+                pipe = pipeline_class.from_single_file(
+                    resolved_model,
+                    torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                    safety_checker=None,
+                    requires_safety_checker=False,
+                    **({"original_config_file": original_config} if original_config else {}),
+                )
+            else:
+                pipe = AutoPipelineForImage2Image.from_pretrained(
+                    resolved_model,
+                    torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                    safety_checker=None,
+                    requires_safety_checker=False,
+                )
             print(f"Loaded image-to-image pipeline for model: {model}")
         elif is_zimage:
             pipe = DiffusionPipeline.from_pretrained(
-                model,
+                resolved_model,
                 torch_dtype=torch.bfloat16 if device != "cpu" else torch.float32,
                 low_cpu_mem_usage=False,
             )
             print(f"Loaded Z-Image pipeline for model: {model} with dtype {pipe.dtype}")
         else:
-            pipe = AutoPipelineForText2Image.from_pretrained(
-                model,
-                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-                safety_checker=None,
-                requires_safety_checker=False,
-            )
+            if is_single_file:
+                pipeline_class = {
+                    "StableDiffusionPipeline": StableDiffusionPipeline,
+                    "StableDiffusionXLPipeline": StableDiffusionXLPipeline,
+                    "StableDiffusion3Pipeline": StableDiffusion3Pipeline,
+                    "LatentConsistencyModelPipeline": LatentConsistencyModelPipeline,
+                    "StableDiffusionXLInstructPix2PixPipeline": StableDiffusionXLInstructPix2PixPipeline,
+                    "StableDiffusionXLKDiffusionPipeline": StableDiffusionXLKDiffusionPipeline,
+                }.get(architecture, DiffusionPipeline)
+
+                original_config = _find_original_config_file(resolved_model)
+                pipe = pipeline_class.from_single_file(
+                    resolved_model,
+                    torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                    safety_checker=None,
+                    requires_safety_checker=False,
+                    **({"original_config_file": original_config} if original_config else {}),
+                )
+            else:
+                pipe = AutoPipelineForText2Image.from_pretrained(
+                    resolved_model,
+                    torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                    safety_checker=None,
+                    requires_safety_checker=False,
+                )
             print(f"Loaded text-to-image pipeline for model: {model} with dtype {pipe.dtype}")
         pipe = pipe.to(device)
 
@@ -624,6 +837,15 @@ def should_use_diffusion_worker(model) -> bool:
     """Use the diffusion worker only for FLUX models"""
     # return use_multi_gpu and torch.cuda.device_count() > 1
     try:
+        resolved_model, architecture, is_single_file = _resolve_model_reference(model)
+
+        if architecture and "flux" in architecture.lower():
+            return True
+
+        # Avoid HF lookups for local single-file paths
+        if is_single_file or (resolved_model != model and _looks_like_path(resolved_model)):
+            return False
+
         # Check if model has FLUX components by looking for config
         from huggingface_hub import model_info
 
@@ -660,9 +882,15 @@ async def run_multi_gpu_generation(
     else:
         seed = request.seed
 
+    resolved_model, architecture, is_single_file = _resolve_model_reference(request.model)
+    if is_single_file and not architecture:
+        architecture = _infer_single_file_architecture(resolved_model)
+
     # Prepare configuration for worker
     config = {
-        "model": request.model,
+        "model": resolved_model,
+        "model_architecture": architecture,
+        "is_single_file": is_single_file,
         "adaptor": request.adaptor,
         "adaptor_scale": request.adaptor_scale,
         "prompt": request.prompt,

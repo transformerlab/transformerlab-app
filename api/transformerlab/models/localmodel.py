@@ -150,6 +150,20 @@ class LocalModelStore(modelstore.ModelStore):
             model_filename = model.get("json_data", {}).get("model_filename", "")
             is_huggingface = model.get("json_data", {}).get("source", "") == "huggingface"
             has_model_filename = model_filename != ""
+            source = model.get("json_data", {}).get("source", "")
+            source_path = model.get("json_data", {}).get("source_id_or_path", "")
+
+            # If a local source path is provided and exists, prefer it directly.
+            # This supports single-file models stored outside workspace/models.
+            if source in ("local", "transformerlab") and source_path:
+                try:
+                    if await storage.exists(source_path):
+                        model["stored_in_filesystem"] = True
+                        model["local_path"] = source_path
+                        continue
+                except Exception:
+                    # Fall back to existing logic if path checks fail
+                    pass
 
             # Determine the potential model directory path
             # This applies to both HuggingFace models stored locally and local models

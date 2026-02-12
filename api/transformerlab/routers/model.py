@@ -1210,7 +1210,14 @@ async def model_import_local_path(model_path: str):
     if os.path.isdir(abs_model_path):
         model = filesystemmodel.FilesystemModel(abs_model_path)
     elif os.path.isfile(abs_model_path):
-        model = filesystemmodel.FilesystemGGUFModel(abs_model_path)
+        _, ext = os.path.splitext(abs_model_path)
+        ext = ext.lower()
+        if ext in [".gguf", ".ggml"]:
+            model = filesystemmodel.FilesystemGGUFModel(abs_model_path)
+        elif ext in [".ckpt", ".safetensors"]:
+            model = filesystemmodel.FilesystemDiffusionSingleFileModel(abs_model_path)
+        else:
+            return {"status": "error", "message": f"Unsupported model file type: {ext}"}
     else:
         return {"status": "error", "message": f"Invalid model path {model_path}."}
 
