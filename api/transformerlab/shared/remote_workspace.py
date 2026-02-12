@@ -343,7 +343,7 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
         if not os.getenv("TFL_STORAGE_URI"):
             print("TFL_STORAGE_PROVIDER=localfs but TFL_STORAGE_URI is not set, skipping")
             return (0, 0, ["TFL_STORAGE_URI is not set"])
-        print("Creating local workspace folders for all teams (localfs mode)")
+        print("Initialising local workspaces for all teams (localfs mode)")
     else:
         tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")
         if not tfl_storage_uri:
@@ -368,20 +368,35 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
 
     for team in teams:
         try:
-            success = create_bucket_for_team(team.id, profile_name=profile_name)
-            if success:
-                success_count += 1
-                print(f"✅ Created/verified bucket for team '{team.name}' (id={team.id})")
+            if STORAGE_PROVIDER == "localfs":
+                # In localfs mode, set org context and seed default experiments
+                # which also creates the workspace directory structure.
+                from lab.dirs import set_organization_id
+                from transformerlab.services.experiment_init import seed_default_experiments
+
+                set_organization_id(team.id)
+                try:
+                    await seed_default_experiments()
+                    success_count += 1
+                    print(f"✅ Initialised workspace for team '{team.name}' (id={team.id})")
+                finally:
+                    set_organization_id(None)
             else:
-                failure_count += 1
-                error_msg = f"Failed to create bucket for team '{team.name}' (id={team.id})"
-                error_messages.append(error_msg)
-                print(f"❌ {error_msg}")
+                success = create_bucket_for_team(team.id, profile_name=profile_name)
+                if success:
+                    success_count += 1
+                    print(f"✅ Created/verified bucket for team '{team.name}' (id={team.id})")
+                else:
+                    failure_count += 1
+                    error_msg = f"Failed to create bucket for team '{team.name}' (id={team.id})"
+                    error_messages.append(error_msg)
+                    print(f"❌ {error_msg}")
         except Exception as e:
             failure_count += 1
-            error_msg = f"Error creating bucket for team '{team.name}' (id={team.id}): {e}"
+            error_msg = f"Error initialising storage for team '{team.name}' (id={team.id}): {e}"
             error_messages.append(error_msg)
             print(f"❌ {error_msg}")
 
-    print(f"Bucket creation summary: {success_count} succeeded, {failure_count} failed")
+    storage_type = "workspace" if STORAGE_PROVIDER == "localfs" else "bucket"
+    print(f"Storage init summary: {success_count} {storage_type}(s) succeeded, {failure_count} failed")
     return (success_count, failure_count, error_messages)
