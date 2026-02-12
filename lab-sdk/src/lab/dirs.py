@@ -56,6 +56,19 @@ def set_organization_id(organization_id: str | None) -> None:
         _current_tfl_storage_uri.set(None)
 
 
+def get_orgs_base_dir() -> str:
+    """Return the base directory containing org subdirectories.
+
+    In localfs mode this is ``TFL_STORAGE_URI/orgs``; otherwise ``HOME_DIR/orgs``.
+    Functions that iterate over all orgs (e.g. to scan jobs) must use this
+    instead of hard-coding ``HOME_DIR/orgs`` so that the correct storage
+    location is consulted.
+    """
+    if os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI"):
+        return storage.join(os.getenv("TFL_STORAGE_URI", ""), "orgs")
+    return storage.join(HOME_DIR, "orgs")
+
+
 async def get_workspace_dir() -> str:
     # Remote SkyPilot workspace override (highest precedence)
     # Only return container workspace path when value is exactly "true"
