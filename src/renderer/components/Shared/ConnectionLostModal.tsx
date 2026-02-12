@@ -8,12 +8,35 @@ import {
   Box,
 } from '@mui/joy';
 import React, { useState, useEffect, useRef } from 'react';
-import { apiHealthz } from 'renderer/lib/transformerlab-api-sdk';
 import { AlertCircle } from 'lucide-react';
+
+const HEALTHZ_TIMEOUT_MS = 10000;
+const MAX_ATTEMPTS = 16;
+const RETRY_INTERVAL_MS = 5000;
 
 interface ConnectionLostModalProps {
   connection: string;
   setConnection: (conn: string) => void;
+}
+
+/** Direct fetch to healthz with timeout; no auth/context to avoid hanging. */
+async function fetchHealthz(baseUrl: string): Promise<unknown | null> {
+  const base = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  const url = `${base}healthz`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), HEALTHZ_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      credentials: 'include',
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    clearTimeout(timeoutId);
+    return null;
+  }
 }
 
 export default function ConnectionLostModal({
@@ -23,84 +46,61 @@ export default function ConnectionLostModal({
   const [isChecking, setIsChecking] = useState(false);
   const [checkCount, setCheckCount] = useState(0);
   const checkCountRef = useRef(0);
-  const MAX_ATTEMPTS = 16;
 
-  // Poll apiHealthz every 5 seconds to check if connection is restored
   useEffect(() => {
-    if (!connection || connection === '') {
-      return;
-    }
+    if (!connection || connection === '') return () => {};
 
-    // Reset check count when connection changes
     checkCountRef.current = 0;
     setCheckCount(0);
-
-    let interval: NodeJS.Timeout | null = null;
+    let interval: ReturnType<typeof setInterval> | null = null;
 
     const checkConnection = async () => {
-      // Stop if we've reached max attempts
       if (checkCountRef.current >= MAX_ATTEMPTS) {
-        if (interval) {
-          clearInterval(interval);
-        }
+        if (interval) clearInterval(interval);
         return;
       }
-
       setIsChecking(true);
       try {
-        const healthz = await apiHealthz();
+        const healthz = await fetchHealthz(connection);
         if (healthz !== null) {
-          // Connection restored - the parent component will detect this
-          // and close the modal
           setIsChecking(false);
-          if (interval) {
-            clearInterval(interval);
-          }
+          if (interval) clearInterval(interval);
           return;
         }
-      } catch (error) {
-        // Connection still lost
-        console.log('Connection check failed:', error);
+      } catch {
+        // ignore
       } finally {
         setIsChecking(false);
         checkCountRef.current += 1;
-        const newCount = checkCountRef.current;
-        setCheckCount(newCount);
-
-        // After MAX_ATTEMPTS, give up and clear the connection
-        if (newCount >= MAX_ATTEMPTS) {
-          console.log(
-            `Connection check failed after ${MAX_ATTEMPTS} attempts. Clearing connection.`,
-          );
-          // Clear the API URL
-          if ((window as any).TransformerLab) {
+        const n = checkCountRef.current;
+        setCheckCount(n);
+        if (n >= MAX_ATTEMPTS) {
+          if (typeof window !== 'undefined' && (window as any).TransformerLab) {
             (window as any).TransformerLab.API_URL = null;
           }
           setConnection('');
-          if (interval) {
-            clearInterval(interval);
-          }
+          if (interval) clearInterval(interval);
         }
       }
     };
 
-    // Check immediately
     checkConnection();
-
-    // Then check every 5 seconds
-    interval = setInterval(() => {
-      checkConnection();
-    }, 5000);
-
+    interval = setInterval(checkConnection, RETRY_INTERVAL_MS);
     return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
+      if (interval) clearInterval(interval);
     };
   }, [connection, setConnection]);
 
+  let statusText = 'Retrying in 5 seconds...';
+  if (isChecking) statusText = 'Checking connection...';
+  else if (checkCount >= MAX_ATTEMPTS) {
+    statusText = `Failed after ${MAX_ATTEMPTS} attempts. Closing...`;
+  } else {
+    statusText = `Retrying in 5 seconds... (Attempt ${checkCount + 1}/${MAX_ATTEMPTS})`;
+  }
+
   return (
-    <Modal open={true} hideBackdrop={false}>
+    <Modal open hideBackdrop={false}>
       <ModalDialog
         variant="soft"
         color="danger"
@@ -141,13 +141,7 @@ export default function ConnectionLostModal({
             }}
           >
             {isChecking && <CircularProgress size="sm" />}
-            <Typography level="body-sm">
-              {isChecking
-                ? 'Checking connection...'
-                : checkCount >= MAX_ATTEMPTS
-                  ? `Failed after ${MAX_ATTEMPTS} attempts. Closing...`
-                  : `Retrying in 5 seconds... (Attempt ${checkCount + 1}/${MAX_ATTEMPTS})`}
-            </Typography>
+            <Typography level="body-sm">{statusText}</Typography>
           </Box>
           <Typography level="body-sm" sx={{ mt: 2, opacity: 0.7 }}>
             {checkCount >= MAX_ATTEMPTS
