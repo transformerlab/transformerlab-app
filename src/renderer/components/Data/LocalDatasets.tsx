@@ -237,7 +237,7 @@ export default function LocalDatasets() {
               </Box>
             </FormControl>
           )}
-          <>
+          {isLocalMode && (
             <Button
               size="sm"
               sx={{ height: '30px' }}
@@ -248,7 +248,7 @@ export default function LocalDatasets() {
             >
               New
             </Button>
-          </>
+          )}
         </>
       </Box>
     </Sheet>
