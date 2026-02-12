@@ -118,7 +118,9 @@ async def create_personal_team(session: AsyncSession, user) -> Team:
     await session.refresh(team)
 
     # Create storage (cloud bucket or local folder) for the new team
-    if getenv("TFL_API_STORAGE_URI") or (getenv("TFL_STORAGE_PROVIDER") == "localfs" and getenv("TFL_STORAGE_URI")):
+    if getenv("TFL_REMOTE_STORAGE_ENABLED") or (
+        getenv("TFL_STORAGE_PROVIDER") == "localfs" and getenv("TFL_STORAGE_URI")
+    ):
         try:
             create_bucket_for_team(team.id, profile_name="transformerlab-s3")
         except Exception as e:

@@ -91,7 +91,7 @@ def test_healthz_s3_mode(client, monkeypatch):
 def test_healthz_localfs_mode(client, monkeypatch, tmp_path):
     """Test healthz endpoint in localfs mode"""
     # Ensure cloud mode is disabled
-    monkeypatch.delenv("TFL_API_STORAGE_URI", raising=False)
+    monkeypatch.delenv("TFL_REMOTE_STORAGE_ENABLED", raising=False)
     # Configure NFS-style storage provider pointing at a temp dir
     monkeypatch.setenv("TFL_STORAGE_PROVIDER", "localfs")
     monkeypatch.setenv("TFL_STORAGE_URI", str(tmp_path / "localfs_root"))

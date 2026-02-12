@@ -338,19 +338,6 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
     """
     from transformerlab.shared.models.models import Team
 
-<<<<<<< HEAD
-    # Check if TFL_REMOTE_STORAGE_ENABLED is set
-    tfl_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED")
-    if not tfl_storage_uri:
-        print("TFL_REMOTE_STORAGE_ENABLED is not set, skipping bucket creation for existing teams")
-        return (0, 0, ["TFL_REMOTE_STORAGE_ENABLED is not set"])
-
-    # Log which remote host will be used
-    remote_workspace_host = "GCS" if REMOTE_WORKSPACE_HOST == "gcp" else "S3"
-    print(
-        f"Creating buckets for all teams using {remote_workspace_host} (REMOTE_WORKSPACE_HOST={REMOTE_WORKSPACE_HOST})"
-    )
-=======
     # Check if storage is configured
     if STORAGE_PROVIDER == "localfs":
         if not os.getenv("TFL_STORAGE_URI"):
@@ -358,16 +345,15 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
             return (0, 0, ["TFL_STORAGE_URI is not set"])
         print("Initialising local workspaces for all teams (localfs mode)")
     else:
-        tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")
+        tfl_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED")
         if not tfl_storage_uri:
-            print("TFL_API_STORAGE_URI is not set, skipping bucket creation for existing teams")
-            return (0, 0, ["TFL_API_STORAGE_URI is not set"])
+            print("TFL_REMOTE_STORAGE_ENABLED is not set, skipping bucket creation for existing teams")
+            return (0, 0, ["TFL_REMOTE_STORAGE_ENABLED is not set"])
         remote_workspace_host = "GCS" if REMOTE_WORKSPACE_HOST == "gcp" else "S3"
         print(
             f"Creating buckets for all teams using {remote_workspace_host}"
             f" (REMOTE_WORKSPACE_HOST={REMOTE_WORKSPACE_HOST})"
         )
->>>>>>> 58beca1bda7156fa33f9d49734cf5470a042fc7b
 
     from sqlalchemy import select
 

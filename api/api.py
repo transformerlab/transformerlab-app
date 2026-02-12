@@ -128,7 +128,7 @@ async def lifespan(app: FastAPI):
     await cancel_in_progress_jobs()
 
     # Create buckets/folders for all existing teams if cloud or localfs storage is enabled
-    if os.getenv("TFL_API_STORAGE_URI") or (
+    if os.getenv("TFL_REMOTE_STORAGE_ENABLED") or (
         os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI")
     ):
         print("✅ CHECKING STORAGE FOR EXISTING TEAMS")
