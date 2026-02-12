@@ -127,9 +127,11 @@ async def lifespan(app: FastAPI):
     # Cancel any running jobs
     await cancel_in_progress_jobs()
 
-    # Create buckets for all existing teams if TFL_API_STORAGE_URI is enabled
-    if os.getenv("TFL_API_STORAGE_URI"):
-        print("✅ CHECKING BUCKETS FOR EXISTING TEAMS")
+    # Create buckets/folders for all existing teams if cloud or localfs storage is enabled
+    if os.getenv("TFL_API_STORAGE_URI") or (
+        os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI")
+    ):
+        print("✅ CHECKING STORAGE FOR EXISTING TEAMS")
         try:
             from transformerlab.db.session import async_session
             from transformerlab.shared.remote_workspace import create_buckets_for_all_teams
@@ -139,13 +141,13 @@ async def lifespan(app: FastAPI):
                     session, profile_name="transformerlab-s3"
                 )
                 if success_count > 0:
-                    print(f"✅ Created/verified buckets for {success_count} team(s)")
+                    print(f"✅ Created/verified storage for {success_count} team(s)")
                 if failure_count > 0:
-                    print(f"⚠️  Failed to create buckets for {failure_count} team(s)")
+                    print(f"⚠️  Failed to create storage for {failure_count} team(s)")
                     for error in error_messages:
                         print(f"   - {error}")
         except Exception as e:
-            print(f"⚠️  Error creating buckets for existing teams: {e}")
+            print(f"⚠️  Error creating storage for existing teams: {e}")
 
     if "--reload" in sys.argv:
         await install_all_plugins()

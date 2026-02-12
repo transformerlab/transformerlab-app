@@ -173,10 +173,20 @@ def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3"
         True if bucket was created successfully or already exists, False otherwise
     """
 
-    # If NFS or other non-cloud storage is configured, skip bucket creation
+    # If localfs storage is configured, create local folder structure instead of a cloud bucket
     if STORAGE_PROVIDER == "localfs":
-        print("TFL_STORAGE_PROVIDER=localfs, skipping cloud bucket creation")
-        return False
+        storage_uri = os.getenv("TFL_STORAGE_URI")
+        if not storage_uri:
+            print("TFL_STORAGE_PROVIDER=localfs but TFL_STORAGE_URI is not set, skipping folder creation")
+            return False
+        workspace_path = os.path.join(storage_uri, "orgs", team_id, "workspace")
+        try:
+            os.makedirs(workspace_path, exist_ok=True)
+            print(f"✅ Created local workspace folder for team {team_id}: {workspace_path}")
+            return True
+        except Exception as e:
+            print(f"❌ Failed to create local workspace folder for team {team_id}: {e}")
+            return False
 
     # Check if TFL_API_STORAGE_URI is set
     tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")
@@ -328,22 +338,22 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
     """
     from transformerlab.shared.models.models import Team
 
-    # If NFS or other non-cloud storage is configured, skip bucket creation
+    # Check if storage is configured
     if STORAGE_PROVIDER == "localfs":
-        print("TFL_STORAGE_PROVIDER=localfs, skipping bucket creation for all teams")
-        return (0, 0, ["TFL_STORAGE_PROVIDER is 'localfs', skipping bucket creation"])
-
-    # Check if TFL_API_STORAGE_URI is set
-    tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")
-    if not tfl_storage_uri:
-        print("TFL_API_STORAGE_URI is not set, skipping bucket creation for existing teams")
-        return (0, 0, ["TFL_API_STORAGE_URI is not set"])
-
-    # Log which remote host will be used
-    remote_workspace_host = "GCS" if REMOTE_WORKSPACE_HOST == "gcp" else "S3"
-    print(
-        f"Creating buckets for all teams using {remote_workspace_host} (REMOTE_WORKSPACE_HOST={REMOTE_WORKSPACE_HOST})"
-    )
+        if not os.getenv("TFL_STORAGE_URI"):
+            print("TFL_STORAGE_PROVIDER=localfs but TFL_STORAGE_URI is not set, skipping")
+            return (0, 0, ["TFL_STORAGE_URI is not set"])
+        print("Creating local workspace folders for all teams (localfs mode)")
+    else:
+        tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")
+        if not tfl_storage_uri:
+            print("TFL_API_STORAGE_URI is not set, skipping bucket creation for existing teams")
+            return (0, 0, ["TFL_API_STORAGE_URI is not set"])
+        remote_workspace_host = "GCS" if REMOTE_WORKSPACE_HOST == "gcp" else "S3"
+        print(
+            f"Creating buckets for all teams using {remote_workspace_host}"
+            f" (REMOTE_WORKSPACE_HOST={REMOTE_WORKSPACE_HOST})"
+        )
 
     from sqlalchemy import select
 
