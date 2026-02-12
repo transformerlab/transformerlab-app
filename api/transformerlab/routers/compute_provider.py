@@ -1046,24 +1046,13 @@ async def _launch_sweep_jobs(
 
                 # Build setup script (add copy_file_mounts when file_mounts is True, after cloud credentials)
                 setup_commands = []
-<<<<<<< update/remote_storage_env
-                aws_profile = "transformerlab-s3"
-                if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
-                    aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
-                    if aws_access_key_id and aws_secret_access_key:
-                        aws_setup = _generate_aws_credentials_setup(
-                            aws_access_key_id, aws_secret_access_key, aws_profile
-                        )
-                        setup_commands.append(aws_setup)
-                        env_vars["AWS_PROFILE"] = aws_profile
-=======
 
                 # Cloud credentials setup:
                 # - For AWS (REMOTE_WORKSPACE_HOST=aws), inject ~/.aws/credentials profile if available.
                 # - For GCP (REMOTE_WORKSPACE_HOST=gcp), optionally inject a service account JSON if provided.
                 from lab.storage import REMOTE_WORKSPACE_HOST
 
-                if os.getenv("TFL_API_STORAGE_URI"):
+                if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
                     if REMOTE_WORKSPACE_HOST != "gcp":
                         aws_profile = "transformerlab-s3"
                         aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
@@ -1080,7 +1069,6 @@ async def _launch_sweep_jobs(
                         if gcp_sa_json:
                             gcp_setup = _generate_gcp_credentials_setup(gcp_sa_json)
                             setup_commands.append(gcp_setup)
->>>>>>> main
 
                 if request.file_mounts is True and request.task_id:
                     setup_commands.append(COPY_FILE_MOUNTS_SETUP)
