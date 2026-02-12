@@ -14,10 +14,10 @@ def test_plugins_gallery(client):
         assert "name" in plugin or "description" in plugin
 
 
-def test_plugins_gallery_remote_mode(client, monkeypatch):
-    """Test that plugins/gallery returns empty list in remote mode (TFL_REMOTE_STORAGE_ENABLED is set)"""
-    # Set TFL_REMOTE_STORAGE_ENABLED to enable remote mode
-    monkeypatch.setenv("TFL_REMOTE_STORAGE_ENABLED", "true")
+def test_plugins_gallery_multiuser_mode(client, monkeypatch):
+    """Test that plugins/gallery returns empty list in multiuser mode (MULTIUSER is set)"""
+    # Set MULTIUSER to enable remote mode
+    monkeypatch.setenv("MULTIUSER", "true")
 
     # The endpoint reads env vars at request time, so monkeypatch should work
     resp = client.get("/plugins/gallery")
@@ -37,10 +37,10 @@ def test_plugins_list(client):
         assert "name" in plugin or "description" in plugin
 
 
-def test_plugins_list_remote_mode(client, monkeypatch):
-    """Test that plugins/list returns empty list in remote mode (TFL_REMOTE_STORAGE_ENABLED is set)"""
-    # Set TFL_REMOTE_STORAGE_ENABLED to enable remote mode
-    monkeypatch.setenv("TFL_REMOTE_STORAGE_ENABLED", "true")
+def test_plugins_list_multiuser_mode(client, monkeypatch):
+    """Test that plugins/list returns empty list in remote mode (MULTIUSER is set)"""
+    # Set MULTIUSER to enable remote mode
+    monkeypatch.setenv("MULTIUSER", "true")
 
     # The endpoint reads env vars at request time, so monkeypatch should work
     resp = client.get("/plugins/list")
