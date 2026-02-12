@@ -165,11 +165,8 @@ async def get_macmon_data():
 @router.get("/info")
 async def get_computer_information():
     # start with our static system information and add current performance details
-    if os.getenv("TFL_API_STORAGE_URI") == "true":
-        return {
-            "message": "OK",
-            "mode": "s3",
-        }
+    if os.environ.get("TFL_API_STORAGE_URI"):
+        return {"status": "success", "data": system_info}
 
     r = system_info
 
