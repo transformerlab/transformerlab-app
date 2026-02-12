@@ -117,13 +117,13 @@ async def create_personal_team(session: AsyncSession, user) -> Team:
     await session.commit()
     await session.refresh(team)
 
-    # Create S3 bucket if TFL_API_STORAGE_URI is set
-    if getenv("TFL_API_STORAGE_URI"):
+    # Create storage (cloud bucket or local folder) for the new team
+    if getenv("TFL_API_STORAGE_URI") or (getenv("TFL_STORAGE_PROVIDER") == "localfs" and getenv("TFL_STORAGE_URI")):
         try:
             create_bucket_for_team(team.id, profile_name="transformerlab-s3")
         except Exception as e:
-            # Log error but don't fail team creation if bucket creation fails
-            print(f"Warning: Failed to create S3 bucket for team {team.id}: {e}")
+            # Log error but don't fail team creation if storage creation fails
+            print(f"Warning: Failed to create storage for team {team.id}: {e}")
 
     return team
 
