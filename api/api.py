@@ -152,7 +152,7 @@ async def lifespan(app: FastAPI):
     if "--reload" in sys.argv:
         await install_all_plugins()
 
-    if not os.getenv("MULTIUSER"):
+    if os.getenv("MULTIUSER", "").lower() != "true":
         asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
@@ -585,7 +585,7 @@ async def healthz():
     """
     Health check endpoint to verify server status and mode.
     """
-    tfl_remote_storage_enabled = os.getenv("MULTIUSER", "")
+    tfl_remote_storage_enabled = os.getenv("MULTIUSER", "").lower() == "true"
 
     # Determine mode: multiuser or local
     if tfl_remote_storage_enabled:
