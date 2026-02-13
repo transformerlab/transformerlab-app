@@ -417,7 +417,7 @@ async def get_provider_job_logs(
         raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
 
     # For local provider, set workspace_dir (job dir) so LocalProvider can read logs.
-    # Use the dedicated local-only directory so this works even when TFL_API_STORAGE_URI is set.
+    # Use the dedicated local-only directory so this works even when TFL_REMOTE_STORAGE_ENABLED is set.
     if getattr(provider, "type", None) == "local" and hasattr(provider_instance, "extra_config"):
         job_dir = get_local_provider_job_dir(job_id, org_id=user_and_team["team_id"])
         provider_instance.extra_config["workspace_dir"] = job_dir

@@ -175,12 +175,6 @@ async def _find_org_id_for_job(job_id: str) -> Optional[str]:
     Find which organization a job belongs to by searching all org directories.
     Returns the org_id if found, None otherwise.
     """
-    # Get HOME_DIR
-    try:
-        home_dir = lab_dirs.HOME_DIR
-    except AttributeError:
-        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
-
     # Check if context is set correctly already
     from lab.dirs import get_workspace_dir
 
@@ -188,8 +182,8 @@ async def _find_org_id_for_job(job_id: str) -> Optional[str]:
     if "/orgs/" in workspace_dir:
         return workspace_dir.split("/orgs/")[-1].split("/")[0]
 
-    # Check all org directories
-    orgs_dir = storage.join(home_dir, "orgs")
+    # Check all org directories (localfs-aware)
+    orgs_dir = lab_dirs.get_orgs_base_dir()
     if await storage.exists(orgs_dir) and await storage.isdir(orgs_dir):
         try:
             org_entries = await storage.ls(orgs_dir, detail=False)
@@ -223,14 +217,8 @@ async def job_count_running_across_all_orgs() -> int:
     """
     count = 0
 
-    # Get HOME_DIR
-    try:
-        home_dir = lab_dirs.HOME_DIR
-    except AttributeError:
-        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
-
-    # Check all org directories
-    orgs_dir = storage.join(home_dir, "orgs")
+    # Check all org directories (localfs-aware)
+    orgs_dir = lab_dirs.get_orgs_base_dir()
     if await storage.exists(orgs_dir) and await storage.isdir(orgs_dir):
         try:
             org_entries = await storage.ls(orgs_dir, detail=False)
