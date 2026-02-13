@@ -585,7 +585,7 @@ async def healthz():
     """
     Health check endpoint to verify server status and mode.
     """
-    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "")
+    tfl_remote_storage_enabled = os.getenv("MULTIUSER", "")
     storage_provider = os.getenv("TFL_STORAGE_PROVIDER", "").lower()
 
     # Determine mode: s3 or local
