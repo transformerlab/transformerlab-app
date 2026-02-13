@@ -121,6 +121,7 @@ _current_tfl_storage_uri: contextvars.ContextVar[str | None] = contextvars.Conte
 )
 
 REMOTE_WORKSPACE_HOST = os.getenv("REMOTE_WORKSPACE_HOST", "aws")
+STORAGE_PROVIDER = os.getenv("TFL_STORAGE_PROVIDER", "").lower()
 _AWS_PROFILE = os.getenv("AWS_PROFILE", "transformerlab-s3")
 _GCP_PROJECT = os.getenv("GCP_PROJECT", "transformerlab-workspace")
 
@@ -235,6 +236,7 @@ async def debug_info() -> dict:
         "TFL_STORAGE_URI_env": env_uri,
         "AWS_PROFILE": _AWS_PROFILE,
         "GCP_PROJECT": _GCP_PROJECT,
+        "STORAGE_PROVIDER": STORAGE_PROVIDER,
         "REMOTE_WORKSPACE_HOST": REMOTE_WORKSPACE_HOST,
         "root_uri": root,
         "filesystem_type": type(fs).__name__,
