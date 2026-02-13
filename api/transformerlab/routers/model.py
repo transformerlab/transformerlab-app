@@ -1264,12 +1264,7 @@ def _is_url_allowed(url: str) -> bool:
         except ValueError:
             return False
 
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_multicast
-        ):
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast:
             return False
 
     return True
