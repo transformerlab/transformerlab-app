@@ -1,10 +1,6 @@
 name: Check lab-sdk SDK version matches API dependency
 
 on:
-  push:
-    paths:
-      - "lab-sdk/pyproject.toml"
-      - "api/pyproject.toml"
   pull_request:
     paths:
       - "lab-sdk/pyproject.toml"
