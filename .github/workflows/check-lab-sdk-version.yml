@@ -1,0 +1,56 @@
+name: Check lab-sdk SDK version matches API dependency
+
+on:
+  push:
+    paths:
+      - "lab-sdk/**"
+  pull_request:
+    paths:
+      - "lab-sdk/**"
+
+jobs:
+  check-version-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compare lab-sdk and API transformerlab versions
+        run: |
+          set -euo pipefail
+
+          if [ ! -f "lab-sdk/pyproject.toml" ]; then
+            echo "ERROR: lab-sdk/pyproject.toml not found"
+            exit 1
+          fi
+
+          if [ ! -f "api/pyproject.toml" ]; then
+            echo "ERROR: api/pyproject.toml not found"
+            exit 1
+          fi
+
+          # Extract version from lab-sdk/pyproject.toml [project] table
+          sdk_version=$(awk -F '"' '/^\s*version\s*=\s*"/ {print $2; exit}' lab-sdk/pyproject.toml)
+
+          if [ -z "${sdk_version:-}" ]; then
+            echo "ERROR: Unable to read lab-sdk [project].version from lab-sdk/pyproject.toml"
+            exit 1
+          fi
+
+          # Extract transformerlab dependency version from api/pyproject.toml
+          api_version=$(awk -F 'transformerlab==' '/^\s*"transformerlab==/ {sub(/".*/, "", $2); print $2; exit}' api/pyproject.toml)
+
+          if [ -z "${api_version:-}" ]; then
+            echo "ERROR: Could not find \"transformerlab==<version>\" in api/pyproject.toml [project].dependencies"
+            exit 1
+          fi
+
+          if [ "$sdk_version" != "$api_version" ]; then
+            echo "Version mismatch between lab-sdk and API transformerlab dependency:"
+            echo "  lab-sdk/pyproject.toml [project].version: $sdk_version"
+            echo "  api/pyproject.toml transformerlab dependency version: $api_version"
+            exit 1
+          fi
+
+          echo "Versions match between lab-sdk and API transformerlab dependency."
