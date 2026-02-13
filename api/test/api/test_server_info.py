@@ -78,7 +78,7 @@ def test_healthz_local_mode(client, monkeypatch):
 def test_healthz_s3_mode(client, monkeypatch):
     """Test healthz endpoint in s3 mode"""
     # Set TFL_REMOTE_STORAGE_ENABLED to enable s3 mode
-    monkeypatch.setenv("TFL_REMOTE_STORAGE_ENABLED", "true")
+    monkeypatch.setenv("MULTIUSER", "true")
 
     # The healthz endpoint reads env vars at request time, so monkeypatch should work
     response = client.get("/healthz")
