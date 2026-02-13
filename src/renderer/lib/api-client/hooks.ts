@@ -114,7 +114,9 @@ export function usePluginStatus(experimentInfo: any) {
 
 export function useServerStats() {
   const api_url = API_URL();
-  const url: string | null = api_url ? API_URL() + 'server/info' : null;
+  const isLocalMode = window?.platform?.multiuser !== true;
+  const url: string | null =
+    api_url && isLocalMode ? API_URL() + 'server/info' : null;
 
   // Poll every 1 seconds
   const options = { refreshInterval: 2000 };
@@ -176,7 +178,8 @@ const fetchAndGetErrorStatus = async (url: string) => {
  * Check your localhost to see if the server is active
  */
 export function useCheckLocalConnection() {
-  const url = 'http://localhost:8338/' + 'server/info';
+  const isLocalMode = window?.platform?.multiuser !== true;
+  const url = isLocalMode ? 'http://localhost:8338/' + 'server/info' : null;
 
   // Poll every 2 seconds
   const options = {

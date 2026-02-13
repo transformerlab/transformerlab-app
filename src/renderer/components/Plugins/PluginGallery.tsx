@@ -33,10 +33,11 @@ export default function PluginGallery({
     fetcher,
   );
 
-  const { data: serverInfo } = useSWR(
-    chatAPI.Endpoints.ServerInfo.Get(),
-    fetcher,
-  );
+  const serverInfoKey =
+    window?.platform?.multiuser === true
+      ? null
+      : chatAPI.Endpoints.ServerInfo.Get();
+  const { data: serverInfo } = useSWR(serverInfoKey, fetcher);
 
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({});
