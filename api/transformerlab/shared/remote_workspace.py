@@ -11,7 +11,7 @@ import re
 from typing import List, Tuple
 import sys
 
-from lab.storage import REMOTE_WORKSPACE_HOST, STORAGE_PROVIDER
+from lab.storage import STORAGE_PROVIDER
 
 
 def validate_cloud_credentials() -> None:
@@ -34,9 +34,9 @@ def validate_cloud_credentials() -> None:
         return
 
     # If cloud storage is enabled, check credentials based on provider
-    if REMOTE_WORKSPACE_HOST == "aws":
+    if STORAGE_PROVIDER == "aws":
         _validate_aws_credentials()
-    elif REMOTE_WORKSPACE_HOST == "gcp":
+    elif STORAGE_PROVIDER == "gcp":
         _validate_gcp_credentials()
 
 
@@ -213,14 +213,16 @@ def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3"
         print(f"Team ID '{team_id}' cannot be converted to a valid bucket name")
         return False
 
-    if REMOTE_WORKSPACE_HOST == "aws":
+    if STORAGE_PROVIDER == "aws":
         print(f"Creating S3 bucket for team {team_id} (bucket: {bucket_name})")
         return _create_s3_bucket(bucket_name, team_id, profile_name)
-    elif REMOTE_WORKSPACE_HOST == "gcp":
+    elif STORAGE_PROVIDER == "gcp":
         print(f"Creating GCS bucket for team {team_id} (bucket: {bucket_name})")
         return _create_gcs_bucket(bucket_name, team_id)
     else:
-        print(f"Unsupported remote workspace host: {REMOTE_WORKSPACE_HOST}. Supported values: 'aws' or 'gcp'")
+        print(
+            f"Unsupported TFL_STORAGE_PROVIDER: {STORAGE_PROVIDER}. Supported values: 'aws', 'gcp', or 'localfs'"
+        )
         return False
 
 
@@ -327,7 +329,7 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
     Create buckets for all existing teams that don't have buckets yet.
 
     This is useful when TFL_REMOTE_STORAGE_ENABLED is enabled after teams already exist.
-    Supports both S3 (when REMOTE_WORKSPACE_HOST=aws) and GCS (when REMOTE_WORKSPACE_HOST=gcp).
+    Supports both S3 (when TFL_STORAGE_PROVIDER=aws) and GCS (when TFL_STORAGE_PROVIDER=gcp).
 
     Args:
         session: Database session to query teams
@@ -349,10 +351,10 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
         if not tfl_storage_uri:
             print("TFL_REMOTE_STORAGE_ENABLED is not set, skipping bucket creation for existing teams")
             return (0, 0, ["TFL_REMOTE_STORAGE_ENABLED is not set"])
-        remote_workspace_host = "GCS" if REMOTE_WORKSPACE_HOST == "gcp" else "S3"
+        remote_label = "GCS" if STORAGE_PROVIDER == "gcp" else "S3"
         print(
-            f"Creating buckets for all teams using {remote_workspace_host}"
-            f" (REMOTE_WORKSPACE_HOST={REMOTE_WORKSPACE_HOST})"
+            f"Creating buckets for all teams using {remote_label}"
+            f" (TFL_STORAGE_PROVIDER={STORAGE_PROVIDER})"
         )
 
     from sqlalchemy import select
