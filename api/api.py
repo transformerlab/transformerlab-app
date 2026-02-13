@@ -106,6 +106,9 @@ async def lifespan(app: FastAPI):
     """Docs on lifespan events: https://fastapi.tiangolo.com/advanced/events/"""
     # Do the following at API Startup:
     print_launch_message()
+    # Override env variables (if TFL_API_STORAGE_URI is set and TFL_REMOTE_STORAGE_ENABLED is not set)
+    if os.getenv("TFL_API_STORAGE_URI") and not os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
+        os.environ["TFL_REMOTE_STORAGE_ENABLED"] = True
     # Initialize directories early
     from transformerlab.shared import dirs as shared_dirs
 
