@@ -26,6 +26,10 @@ import {
   ListItem,
   ListItemContent,
   Chip,
+  Tabs,
+  TabList,
+  Tab,
+  Box,
 } from '@mui/joy';
 import {
   ArrowLeftIcon,
@@ -39,6 +43,7 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 
 type ProviderOption = {
   id: string;
@@ -109,7 +114,9 @@ export default function NewInteractiveTaskModal({
 }: NewInteractiveTaskModalProps) {
   const { experimentInfo } = useExperimentInfo();
   const navigate = useNavigate();
-  const [step, setStep] = React.useState<'gallery' | 'config'>('gallery');
+  const [step, setStep] = React.useState<'gallery' | 'config' | 'existing'>(
+    'gallery',
+  );
   const [selectedTemplate, setSelectedTemplate] =
     React.useState<InteractiveTemplate | null>(null);
   const [title, setTitle] = React.useState('');
@@ -120,11 +127,26 @@ export default function NewInteractiveTaskModal({
   const [configFieldValues, setConfigFieldValues] = React.useState<
     Record<string, string>
   >({});
+  const [activeGalleryTab, setActiveGalleryTab] = React.useState<
+    'interactive' | 'team-interactive'
+  >('interactive');
+  const [importingTeamTaskId, setImportingTeamTaskId] = React.useState<
+    string | number | null
+  >(null);
+  const { addNotification } = useNotification();
 
   // Fetch interactive gallery
   const { data: galleryData, isLoading: galleryIsLoading } = useSWR(
     experimentInfo?.id && open
       ? chatAPI.Endpoints.Task.InteractiveGallery(experimentInfo.id)
+      : null,
+    fetcher,
+  );
+
+  // Fetch team gallery
+  const { data: teamGalleryData, isLoading: teamGalleryIsLoading } = useSWR(
+    experimentInfo?.id && open
+      ? chatAPI.Endpoints.Task.TeamGallery(experimentInfo.id)
       : null,
     fetcher,
   );
@@ -136,6 +158,16 @@ export default function NewInteractiveTaskModal({
     return [];
   }, [galleryData]);
 
+  const teamGallery = React.useMemo(() => {
+    if (
+      teamGalleryData?.status === 'success' &&
+      Array.isArray(teamGalleryData.data)
+    ) {
+      return teamGalleryData.data as any[];
+    }
+    return [];
+  }, [teamGalleryData]);
+
   React.useEffect(() => {
     if (!open) {
       setStep('gallery');
@@ -146,6 +178,7 @@ export default function NewInteractiveTaskModal({
       setAccelerators('');
       setConfigFieldValues({});
       setSelectedProviderId(providers[0]?.id || '');
+      setActiveGalleryTab('interactive');
     } else if (open && providers.length && !selectedProviderId) {
       setSelectedProviderId(providers[0].id);
     }
@@ -189,6 +222,59 @@ export default function NewInteractiveTaskModal({
       ...prev,
       [envVar]: value,
     }));
+  };
+
+  const handleImportTeamTask = async (galleryIdentifier: string | number) => {
+    if (!experimentInfo?.id) {
+      addNotification({
+        type: 'warning',
+        message: 'Please select an experiment first.',
+      });
+      return;
+    }
+
+    setImportingTeamTaskId(galleryIdentifier);
+    try {
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Task.ImportFromTeamGallery(experimentInfo.id),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            gallery_id: galleryIdentifier.toString(),
+            experiment_id: experimentInfo.id,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        addNotification({
+          type: 'danger',
+          message: `Failed to import task: ${errorText}`,
+        });
+        return;
+      }
+
+      const result = await response.json();
+      addNotification({
+        type: 'success',
+        message: result.message || 'Task imported successfully!',
+      });
+
+      // Refresh the imported tasks list
+      onRefreshTasks();
+    } catch (err: any) {
+      console.error('Error importing team task:', err);
+      addNotification({
+        type: 'danger',
+        message: `Failed to import task: ${err?.message || String(err)}`,
+      });
+    } finally {
+      setImportingTeamTaskId(null);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent, shouldLaunch: boolean = false) => {
@@ -260,222 +346,17 @@ export default function NewInteractiveTaskModal({
       >
         <ModalClose />
         <DialogTitle>
-          {step === 'gallery' ? 'New Interactive Task' : 'Configure Task'}
+          {step === 'gallery'
+            ? 'New Interactive Task'
+            : step === 'config'
+              ? 'Configure Task'
+              : 'Launch from Existing Tasks'}
         </DialogTitle>
         <form onSubmit={(e) => handleSubmit(e, false)}>
           <DialogContent
             sx={{ maxHeight: '60vh', overflow: 'auto', padding: 1 }}
           >
-            {step === 'gallery' ? (
-              <Stack spacing={3}>
-                {/* Imported Tasks Section */}
-                {importedTasks.length > 0 && (
-                  <>
-                    <Stack spacing={1}>
-                      <Typography level="title-md">Your Templates</Typography>
-                    </Stack>
-                    <List
-                      sx={{
-                        '--ListItem-paddingY': '12px',
-                        '--ListItem-paddingX': '16px',
-                      }}
-                    >
-                      {importedTasks.map((task) => {
-                        const cfg =
-                          typeof task.config === 'string'
-                            ? JSON.parse(task.config)
-                            : task.config;
-                        const interactiveType =
-                          cfg?.interactive_type ||
-                          task.interactive_type ||
-                          'vscode';
-
-                        const getInteractiveTypeLabel = (type: string) => {
-                          switch (type) {
-                            case 'jupyter':
-                              return 'Jupyter';
-                            case 'vllm':
-                              return 'vLLM';
-                            case 'ollama':
-                              return 'Ollama';
-                            case 'ssh':
-                              return 'SSH';
-                            default:
-                              return 'VS Code';
-                          }
-                        };
-
-                        return (
-                          <ListItem
-                            key={task.id}
-                            endAction={
-                              <Stack direction="row" spacing={1}>
-                                <IconButton
-                                  size="sm"
-                                  variant="soft"
-                                  color="primary"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onQueueTask(task);
-                                    onClose();
-                                  }}
-                                  title="Launch this template"
-                                >
-                                  <PlayIcon size={16} />
-                                </IconButton>
-                                <IconButton
-                                  size="sm"
-                                  variant="plain"
-                                  color="danger"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onDeleteTask(task.id);
-                                  }}
-                                >
-                                  <Trash2Icon size={16} />
-                                </IconButton>
-                              </Stack>
-                            }
-                            sx={{
-                              border: '1px solid',
-                              borderColor: 'divider',
-                              borderRadius: 'sm',
-                              mb: 1,
-                            }}
-                          >
-                            <ListItemContent>
-                              <Stack
-                                direction="row"
-                                spacing={1}
-                                alignItems="center"
-                              >
-                                <Typography level="title-sm">
-                                  {task.name}
-                                </Typography>
-                                <Chip size="sm" variant="soft" color="primary">
-                                  {getInteractiveTypeLabel(interactiveType)}
-                                </Chip>
-                              </Stack>
-                            </ListItemContent>
-                          </ListItem>
-                        );
-                      })}
-                    </List>
-                    <Divider />
-                  </>
-                )}
-
-                {/* Import More Section */}
-                <Stack spacing={1}>
-                  {importedTasks.length === 0 ? (
-                    <>
-                      <Typography level="title-md">
-                        Get Started with Interactive Tasks
-                      </Typography>
-                      <Typography level="body-sm" color="neutral">
-                        Select an interactive task type to import. Start with VS
-                        Code, Jupyter, or vLLM.
-                      </Typography>
-                    </>
-                  ) : null}
-                </Stack>
-                {importedTasks.length > 0 && (
-                  <Button
-                    variant="soft"
-                    color="success"
-                    startDecorator={<LibraryIcon size={18} />}
-                    onClick={() => {
-                      onClose();
-                      navigate('/tasks-gallery?tab=interactive');
-                    }}
-                    sx={{ alignSelf: 'flex-start', mt: 1 }}
-                  >
-                    Import More Interactive Tasks
-                  </Button>
-                )}
-
-                {importedTasks.length === 0 ? (
-                  // Show first 3 gallery items for new users
-                  <>
-                    {(galleryIsLoading || !galleryData) && (
-                      <Grid container spacing={2}>
-                        {[1, 2, 3].map((i) => (
-                          <Grid xs={12} sm={6} md={4} key={i}>
-                            <Card variant="outlined">
-                              <CardContent>
-                                <Skeleton
-                                  variant="rectangular"
-                                  width={32}
-                                  height={28}
-                                />
-                                <Skeleton
-                                  variant="text"
-                                  level="title-md"
-                                  sx={{ mt: 1 }}
-                                />
-                                <Skeleton
-                                  variant="text"
-                                  level="body-sm"
-                                  sx={{ mt: 1 }}
-                                />
-                                <Skeleton
-                                  variant="text"
-                                  level="body-sm"
-                                  width="60%"
-                                />
-                              </CardContent>
-                            </Card>
-                          </Grid>
-                        ))}
-                      </Grid>
-                    )}
-                    {!galleryIsLoading &&
-                      galleryData &&
-                      gallery.length === 0 && (
-                        <Typography level="body-sm" color="danger">
-                          No interactive task templates available.
-                        </Typography>
-                      )}
-                    {!galleryIsLoading && galleryData && gallery.length > 0 && (
-                      <Grid container spacing={2}>
-                        {gallery.slice(0, 3).map((template) => (
-                          <Grid xs={12} sm={6} md={4} key={template.id}>
-                            <Card
-                              variant="outlined"
-                              sx={{
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  boxShadow: 'md',
-                                  borderColor: 'primary.500',
-                                },
-                              }}
-                              onClick={() => handleTemplateSelect(template)}
-                            >
-                              <CardContent>
-                                {template.icon && (
-                                  <img
-                                    src={template.icon}
-                                    alt={`${template.name} icon`}
-                                    width={32}
-                                    height={32}
-                                  />
-                                )}
-                                <Typography level="title-md">
-                                  {template.name}
-                                </Typography>
-                                <Typography level="body-sm" sx={{ mt: 1 }}>
-                                  {template.description}
-                                </Typography>
-                              </CardContent>
-                            </Card>
-                          </Grid>
-                        ))}
-                      </Grid>
-                    )}
-                  </>
-                ) : null}
-              </Stack>
-            ) : (
+            {step === 'config' && (
               <Stack spacing={3}>
                 <FormControl required>
                   <FormLabel>Title</FormLabel>
@@ -605,6 +486,363 @@ export default function NewInteractiveTaskModal({
                   Setup and command are pre-populated based on the selected
                   interactive type.
                 </FormHelperText>
+              </Stack>
+            )}
+            {step === 'gallery' && (
+              <Stack spacing={3}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Typography level="title-md">
+                    Choose an interactive source
+                  </Typography>
+                </Box>
+                <Tabs
+                  size="sm"
+                  value={activeGalleryTab}
+                  onChange={(_e, val) => {
+                    if (val) {
+                      setActiveGalleryTab(
+                        val as 'interactive' | 'team-interactive',
+                      );
+                    }
+                  }}
+                >
+                  <TabList>
+                    <Tab value="interactive">Interactive Gallery</Tab>
+                    <Tab value="team-interactive">Team Interactive Gallery</Tab>
+                  </TabList>
+                </Tabs>
+
+                {activeGalleryTab === 'interactive' && (
+                  <>
+                    <Stack spacing={1}>
+                      {importedTasks.length === 0 ? (
+                        <>
+                          <Typography level="title-md">
+                            Get Started with Interactive Tasks
+                          </Typography>
+                          <Typography level="body-sm" color="neutral">
+                            Select an interactive task type to configure. Start
+                            with VS Code, Jupyter, or vLLM.
+                          </Typography>
+                        </>
+                      ) : (
+                        <Typography level="body-sm" color="neutral">
+                          Pick an interactive template from the gallery to
+                          configure a new task.
+                        </Typography>
+                      )}
+                    </Stack>
+
+                    {(galleryIsLoading || !galleryData) && (
+                      <Grid container spacing={2}>
+                        {[1, 2, 3].map((i) => (
+                          <Grid xs={12} sm={6} md={4} key={i}>
+                            <Card variant="outlined">
+                              <CardContent>
+                                <Skeleton
+                                  variant="rectangular"
+                                  width={32}
+                                  height={28}
+                                />
+                                <Skeleton
+                                  variant="text"
+                                  level="title-md"
+                                  sx={{ mt: 1 }}
+                                />
+                                <Skeleton
+                                  variant="text"
+                                  level="body-sm"
+                                  sx={{ mt: 1 }}
+                                />
+                                <Skeleton
+                                  variant="text"
+                                  level="body-sm"
+                                  width="60%"
+                                />
+                              </CardContent>
+                            </Card>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    )}
+                    {!galleryIsLoading &&
+                      galleryData &&
+                      gallery.length === 0 && (
+                        <Typography level="body-sm" color="danger">
+                          No interactive task templates available.
+                        </Typography>
+                      )}
+                    {!galleryIsLoading && galleryData && gallery.length > 0 && (
+                      <Grid container spacing={2}>
+                        {gallery.map((template) => (
+                          <Grid xs={12} sm={6} md={4} key={template.id}>
+                            <Card
+                              variant="outlined"
+                              sx={{
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  boxShadow: 'md',
+                                  borderColor: 'primary.500',
+                                },
+                              }}
+                              onClick={() => handleTemplateSelect(template)}
+                            >
+                              <CardContent>
+                                {template.icon && (
+                                  <img
+                                    src={template.icon}
+                                    alt={`${template.name} icon`}
+                                    width={32}
+                                    height={32}
+                                  />
+                                )}
+                                <Typography level="title-md">
+                                  {template.name}
+                                </Typography>
+                                <Typography level="body-sm" sx={{ mt: 1 }}>
+                                  {template.description}
+                                </Typography>
+                              </CardContent>
+                            </Card>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    )}
+                  </>
+                )}
+
+                {activeGalleryTab === 'team-interactive' && (
+                  <>
+                    <Stack spacing={1}>
+                      <Typography level="title-md">
+                        Team Interactive Gallery
+                      </Typography>
+                      <Typography level="body-sm" color="neutral">
+                        Import interactive task templates shared by your team.
+                      </Typography>
+                    </Stack>
+
+                    {teamGalleryIsLoading && (
+                      <Grid container spacing={2}>
+                        {[1, 2, 3].map((i) => (
+                          <Grid xs={12} sm={6} md={4} key={i}>
+                            <Card variant="outlined">
+                              <CardContent>
+                                <Skeleton
+                                  variant="rectangular"
+                                  width={32}
+                                  height={28}
+                                />
+                                <Skeleton
+                                  variant="text"
+                                  level="title-md"
+                                  sx={{ mt: 1 }}
+                                />
+                                <Skeleton
+                                  variant="text"
+                                  level="body-sm"
+                                  sx={{ mt: 1 }}
+                                />
+                                <Skeleton
+                                  variant="text"
+                                  level="body-sm"
+                                  width="60%"
+                                />
+                              </CardContent>
+                            </Card>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    )}
+
+                    {!teamGalleryIsLoading &&
+                      teamGalleryData &&
+                      teamGallery.length === 0 && (
+                        <Typography level="body-sm" color="neutral">
+                          No team interactive tasks available.
+                        </Typography>
+                      )}
+
+                    {!teamGalleryIsLoading &&
+                      teamGalleryData &&
+                      teamGallery.length > 0 && (
+                        <Grid container spacing={2}>
+                          {teamGallery.map((task: any, index: number) => {
+                            const taskTitle = task.title || task.name || 'Untitled Task';
+                            const taskId =
+                              task?.id || task?.name || task?.title || index.toString();
+                            let galleryIdentifier: string | number;
+                            if (task?.id) {
+                              galleryIdentifier = task.id;
+                            } else if (task?.name) {
+                              galleryIdentifier = task.name;
+                            } else if (task?.title) {
+                              galleryIdentifier = task.title;
+                            } else {
+                              galleryIdentifier = index;
+                            }
+
+                            return (
+                              <Grid xs={12} sm={6} md={4} key={taskId}>
+                                <Card
+                                  variant="outlined"
+                                  sx={{
+                                    cursor: 'pointer',
+                                    '&:hover': {
+                                      boxShadow: 'md',
+                                      borderColor: 'primary.500',
+                                    },
+                                  }}
+                                  onClick={() =>
+                                    handleImportTeamTask(galleryIdentifier)
+                                  }
+                                >
+                                  <CardContent>
+                                    {task.icon && (
+                                      <img
+                                        src={task.icon}
+                                        alt={`${taskTitle} icon`}
+                                        width={32}
+                                        height={32}
+                                      />
+                                    )}
+                                    <Typography level="title-md">
+                                      {taskTitle}
+                                    </Typography>
+                                    <Typography level="body-sm" sx={{ mt: 1 }}>
+                                      {task.description || 'No description'}
+                                    </Typography>
+                                    {importingTeamTaskId === galleryIdentifier && (
+                                      <Typography
+                                        level="body-xs"
+                                        color="primary"
+                                        sx={{ mt: 1 }}
+                                      >
+                                        Importing...
+                                      </Typography>
+                                    )}
+                                  </CardContent>
+                                </Card>
+                              </Grid>
+                            );
+                          })}
+                        </Grid>
+                      )}
+                  </>
+                )}
+
+                {importedTasks.length > 0 && (
+                  <>
+                    <Divider />
+                    <Button
+                      variant="plain"
+                      color="neutral"
+                      onClick={() => setStep('existing')}
+                      sx={{ alignSelf: 'flex-start' }}
+                    >
+                      Launch from existing tasks
+                    </Button>
+                  </>
+                )}
+              </Stack>
+            )}
+            {step === 'existing' && (
+              <Stack spacing={3}>
+                <Stack spacing={1}>
+                  <Typography level="title-md">Your Templates</Typography>
+                  <Typography level="body-sm" color="neutral">
+                    Launch or manage interactive tasks you have already created.
+                  </Typography>
+                </Stack>
+                <List
+                  sx={{
+                    '--ListItem-paddingY': '12px',
+                    '--ListItem-paddingX': '16px',
+                  }}
+                >
+                  {importedTasks.map((task) => {
+                    const cfg =
+                      typeof task.config === 'string'
+                        ? JSON.parse(task.config)
+                        : task.config;
+                    const interactiveType =
+                      cfg?.interactive_type || task.interactive_type || 'vscode';
+
+                    const getInteractiveTypeLabel = (type: string) => {
+                      switch (type) {
+                        case 'jupyter':
+                          return 'Jupyter';
+                        case 'vllm':
+                          return 'vLLM';
+                        case 'ollama':
+                          return 'Ollama';
+                        case 'ssh':
+                          return 'SSH';
+                        default:
+                          return 'VS Code';
+                      }
+                    };
+
+                    return (
+                      <ListItem
+                        key={task.id}
+                        endAction={
+                          <Stack direction="row" spacing={1}>
+                            <IconButton
+                              size="sm"
+                              variant="soft"
+                              color="primary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onQueueTask(task);
+                                onClose();
+                              }}
+                              title="Launch this template"
+                            >
+                              <PlayIcon size={16} />
+                            </IconButton>
+                            <IconButton
+                              size="sm"
+                              variant="plain"
+                              color="danger"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteTask(task.id);
+                              }}
+                            >
+                              <Trash2Icon size={16} />
+                            </IconButton>
+                          </Stack>
+                        }
+                        sx={{
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 'sm',
+                          mb: 1,
+                        }}
+                      >
+                        <ListItemContent>
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                          >
+                            <Typography level="title-sm">{task.name}</Typography>
+                            <Chip size="sm" variant="soft" color="primary">
+                              {getInteractiveTypeLabel(interactiveType)}
+                            </Chip>
+                          </Stack>
+                        </ListItemContent>
+                      </ListItem>
+                    );
+                  })}
+                </List>
               </Stack>
             )}
           </DialogContent>
