@@ -150,7 +150,7 @@ export default function LocalDatasets() {
                   .
                 </>
               ) : (
-                'No datasets are currently available. Please run a task that generates datasets.'
+                'No datasets are currently available. Datasets saved from jobs in this experiment will be available here.'
               )}
             </Typography>
           )}

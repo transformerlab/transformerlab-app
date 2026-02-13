@@ -477,7 +477,7 @@ const LocalModelsTable = ({
                     margin={5}
                   >
                     {window?.platform?.multiuser === true ? (
-                      'No models are currently available. Please run a task that generates models.'
+                      'No models are currently available. Models saved from jobs in this experiment will be available here.'
                     ) : (
                       <>
                         You do not have any models on your local machine. You
