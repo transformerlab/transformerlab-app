@@ -66,7 +66,7 @@ def test_is_wsl_false(monkeypatch):
 def test_healthz_local_mode(client, monkeypatch):
     """Test healthz endpoint in local mode"""
     # Ensure TFL_REMOTE_STORAGE_ENABLED is not set
-    monkeypatch.delenv("TFL_REMOTE_STORAGE_ENABLED", raising=False)
+    monkeypatch.delenv("MULTIUSER", raising=False)
 
     response = client.get("/healthz")
     assert response.status_code == 200
