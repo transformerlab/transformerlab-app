@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
@@ -17,11 +17,7 @@ import {
   Typography,
 } from '@mui/joy';
 
-import {
-  ArrowRightFromLineIcon,
-  FolderXIcon,
-  FolderPlusIcon,
-} from 'lucide-react';
+import { ArrowRightFromLineIcon, FolderXIcon, Link2Icon, UploadIcon } from 'lucide-react';
 
 // fetcher used by SWR
 import { fetcher } from '../../lib/transformerlab-api-sdk';
@@ -30,6 +26,10 @@ import { fetchWithAuth } from 'renderer/lib/authContext';
 export default function ImportModelsModal({ open, setOpen }) {
   const [importing, setImporting] = useState(false);
   const [modelFolder, setModelFolder] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+  const [importingUrl, setImportingUrl] = useState(false);
+  const [modelUrl, setModelUrl] = useState('');
 
   const {
     data: modelsData,
@@ -104,6 +104,72 @@ export default function ImportModelsModal({ open, setOpen }) {
     return;
   }
 
+  async function uploadSingleFileModel() {
+    if (!fileToUpload) {
+      alert('Select a .safetensors or .ckpt file first.');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', fileToUpload);
+
+      const response = await fetchWithAuth(
+        chatAPI.Endpoints.Models.UploadSingleFile(),
+        {
+          method: 'POST',
+          body: formData,
+        },
+      );
+
+      const result = await response.json();
+      if (response.ok && result?.status === 'success') {
+        alert(`Model imported: ${result.data}`);
+        setFileToUpload(null);
+        setOpen(false);
+      } else {
+        alert(result?.message || 'Failed to upload and import model.');
+      }
+    } catch (e) {
+      alert(`Upload failed: ${e}`);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function importSingleFileFromUrl() {
+    const url = modelUrl.trim();
+    if (!url) {
+      alert('Enter a model URL first.');
+      return;
+    }
+
+    setImportingUrl(true);
+    try {
+      const response = await fetchWithAuth(
+        chatAPI.Endpoints.Models.ImportSingleFileFromUrl(),
+        {
+          method: 'POST',
+          body: JSON.stringify({ model_url: url }),
+        },
+      );
+
+      const result = await response.json();
+      if (response.ok && result?.status === 'success') {
+        alert(`Model imported: ${result.data}`);
+        setModelUrl('');
+        setOpen(false);
+      } else {
+        alert(result?.message || 'Failed to import model from URL.');
+      }
+    } catch (e) {
+      alert(`URL import failed: ${e}`);
+    } finally {
+      setImportingUrl(false);
+    }
+  }
+
   function prettyModelSourceName(source: str) {
     switch (source) {
       case 'huggingface':
@@ -142,76 +208,134 @@ export default function ImportModelsModal({ open, setOpen }) {
             setOpen(false);
           }}
         >
-          {
-            <FormControl>
-              <Typography>
-                <b>Search Local Directory: </b>
-              </Typography>
-              <div>
-                <Input
-                  type="text"
-                  size="40"
-                  for="modelFolderSelector"
-                  class="btn"
-                  readOnly
-                  sx={{ width: '85%', float: 'left' }}
-                  value={modelFolder ? modelFolder.toString() : '(none)'}
+          <FormControl>
+            <Typography>
+              <b>Upload Single-File Model (.safetensors/.ckpt): </b>
+            </Typography>
+            <Stack direction="row" spacing={1}>
+              <input
+                type="file"
+                accept=".safetensors,.ckpt,.gguf,.ggml"
+                onChange={(event: FormEvent<HTMLFormElement>) => {
+                  const input = event.target as HTMLInputElement;
+                  const selectedFile =
+                    input.files && input.files.length > 0
+                      ? input.files[0]
+                      : null;
+                  setFileToUpload(selectedFile);
+                }}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outlined"
+                startDecorator={
+                  uploading ? <CircularProgress size="sm" /> : <UploadIcon />
+                }
+                disabled={!fileToUpload || uploading || importing || importingUrl}
+                onClick={uploadSingleFileModel}
+              >
+                {uploading ? 'Uploading...' : 'Upload & Import'}
+              </Button>
+            </Stack>
+          </FormControl>
+
+          <FormControl>
+            <Typography>
+              <b>Import Single-File Model from URL: </b>
+            </Typography>
+            <Stack direction="row" spacing={1}>
+              <Input
+                placeholder="https://.../model.safetensors"
+                value={modelUrl}
+                onChange={(event) => setModelUrl(event.target.value)}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outlined"
+                startDecorator={
+                  importingUrl ? (
+                    <CircularProgress size="sm" />
+                  ) : (
+                    <Link2Icon size={16} />
+                  )
+                }
+                disabled={!modelUrl.trim() || uploading || importing || importingUrl}
+                onClick={importSingleFileFromUrl}
+              >
+                {importingUrl ? 'Importing...' : 'Import URL'}
+              </Button>
+            </Stack>
+          </FormControl>
+
+          <FormControl>
+            <Typography>
+              <b>Search Local Directory (Server Path): </b>
+            </Typography>
+            <div>
+              <Input
+                type="text"
+                size="40"
+                for="modelFolderSelector"
+                class="btn"
+                readOnly
+                sx={{ width: '85%', float: 'left' }}
+                value={modelFolder ? modelFolder.toString() : '(none)'}
+              />
+              {modelFolder && (
+                <Button
+                  size="sm"
+                  sx={{ height: '30px' }}
+                  variant="plain"
+                  disabled={modelFolder == ''}
+                  startDecorator={<FolderXIcon />}
+                  onClick={() => setModelFolder('')}
                 />
-                {modelFolder && (
-                  <Button
-                    size="sm"
-                    sx={{ height: '30px' }}
-                    variant="plain"
-                    disabled={modelFolder == ''}
-                    startDecorator={<FolderXIcon />}
-                    onClick={() => setModelFolder('')}
-                  />
-                )}
-              </div>
-              <div>
-                <label htmlFor="modelFolderSelector">
-                  <Button
-                    component="span"
-                    size="sm"
-                    sx={{ height: '30px' }}
-                    variant="outlined"
-                  >
-                    Select Folder
-                  </Button>
-                </label>
-                <input
-                  directory=""
-                  webkitdirectory=""
-                  style={{ display: 'none' }}
-                  type="file"
-                  id="modelFolderSelector"
-                  onChange={async (event: FormEvent<HTMLFormElement>) => {
-                    // The input returns a list of files under the selected folder.
-                    // NOT the folder. But you can figure out the folder based on
-                    // the difference between path and webkitRelativePath.
-                    // The path we want includes the first directory in webkitRelativePath.
-                    const filelist: FileList | null = event.target.files;
-                    if (filelist && filelist.length > 0) {
-                      const firstfile = filelist[0];
-                      const firstfilepath = firstfile.path;
-                      const webkitRelativePath = firstfile.webkitRelativePath;
-                      const parentPath = firstfilepath.slice(
-                        0,
-                        -1 * webkitRelativePath.length,
-                      );
-                      const topRelativePathDir =
-                        webkitRelativePath.split('/')[0];
-                      const fullPath = parentPath + topRelativePathDir;
-                      setModelFolder(fullPath);
-                    } else {
-                      setModelFolder('');
-                    }
-                  }}
-                />
-              </div>
-              <br />
-            </FormControl>
-          }
+              )}
+            </div>
+            <div>
+              <label htmlFor="modelFolderSelector">
+                <Button
+                  component="span"
+                  size="sm"
+                  sx={{ height: '30px' }}
+                  variant="outlined"
+                >
+                  Select Folder
+                </Button>
+              </label>
+              <input
+                directory=""
+                webkitdirectory=""
+                style={{ display: 'none' }}
+                type="file"
+                id="modelFolderSelector"
+                onChange={async (event: FormEvent<HTMLFormElement>) => {
+                  // The input returns a list of files under the selected folder.
+                  // NOT the folder. But you can figure out the folder based on
+                  // the difference between path and webkitRelativePath.
+                  // The path we want includes the first directory in webkitRelativePath.
+                  const filelist: FileList | null = event.target.files;
+                  if (filelist && filelist.length > 0) {
+                    const firstfile = filelist[0];
+                    const firstfilepath = firstfile.path;
+                    const webkitRelativePath = firstfile.webkitRelativePath;
+                    const parentPath = firstfilepath.slice(
+                      0,
+                      -1 * webkitRelativePath.length,
+                    );
+                    const topRelativePathDir = webkitRelativePath.split('/')[0];
+                    const fullPath = parentPath + topRelativePathDir;
+                    setModelFolder(fullPath);
+                  } else {
+                    setModelFolder('');
+                  }
+                }}
+              />
+            </div>
+            <br />
+          </FormControl>
 
           <Box sx={{ maxHeight: '450px', overflow: 'auto' }}>
             <Table

@@ -3,8 +3,12 @@ import asyncio
 import datetime
 import dateutil.relativedelta
 from typing import Annotated
+from urllib.parse import urlparse, unquote
+from uuid import uuid4
 import transformerlab.db.db as db
-from fastapi import APIRouter, Body, Depends, Header
+from fastapi import APIRouter, Body, Depends, Header, File, UploadFile
+from pydantic import BaseModel
+import httpx
 from transformerlab.models.users import current_active_user
 from transformerlab.shared.models.models import User
 from fastchat.model.model_adapter import get_conversation_template
@@ -34,6 +38,13 @@ from werkzeug.utils import secure_filename
 
 
 router = APIRouter(tags=["model"])
+
+SINGLE_FILE_DIFFUSION_EXTENSIONS = {".ckpt", ".safetensors"}
+GGUF_EXTENSIONS = {".gguf", ".ggml"}
+
+
+class SingleFileUrlImportRequest(BaseModel):
+    model_url: str
 
 
 def _today() -> date:
@@ -1172,6 +1183,40 @@ async def models_search_for_local_uninstalled():
     return models
 
 
+def _build_filesystem_model_for_path(model_path: str):
+    _, ext = os.path.splitext(model_path)
+    ext = ext.lower()
+
+    if ext in GGUF_EXTENSIONS:
+        return filesystemmodel.FilesystemGGUFModel(model_path)
+    if ext in SINGLE_FILE_DIFFUSION_EXTENSIONS:
+        return filesystemmodel.FilesystemDiffusionSingleFileModel(model_path)
+
+    return None
+
+
+def _normalize_single_file_url(url: str) -> str:
+    if "huggingface.co" in url and "/blob/" in url:
+        return url.replace("/blob/", "/resolve/", 1)
+    return url
+
+
+def _extract_filename_from_url(url: str) -> str:
+    parsed = urlparse(url)
+    filename = unquote(os.path.basename(parsed.path))
+    return secure_filename(filename)
+
+
+async def _download_url_to_path(url: str, path: str):
+    async with httpx.AsyncClient(follow_redirects=True, timeout=None) as client:
+        async with client.stream("GET", url) as response:
+            response.raise_for_status()
+            async with await storage.open(path, "wb") as f:
+                async for chunk in response.aiter_bytes(1024 * 1024):
+                    if chunk:
+                        await f.write(chunk)
+
+
 @router.get("/model/import_from_source")
 async def model_import_local_source(model_source: str, model_id: str):
     """
@@ -1222,6 +1267,112 @@ async def model_import_local_path(model_path: str):
         return {"status": "error", "message": f"Invalid model path {model_path}."}
 
     return await model_import(model)
+
+
+@router.post("/model/upload_single_file")
+async def model_upload_single_file(file: UploadFile = File(...)):
+    """
+    Upload a single model file to workspace and import it immediately.
+    Supports .safetensors, .ckpt, .gguf and .ggml.
+    """
+    if file is None or not file.filename:
+        return {"status": "error", "message": "No file provided."}
+
+    filename = secure_filename(file.filename)
+    if not filename:
+        return {"status": "error", "message": "Invalid filename."}
+
+    _, ext = os.path.splitext(filename)
+    ext = ext.lower()
+    if ext not in SINGLE_FILE_DIFFUSION_EXTENSIONS and ext not in GGUF_EXTENSIONS:
+        return {"status": "error", "message": f"Unsupported model file type: {ext}"}
+
+    workspace_dir = await get_workspace_dir()
+    upload_dir = storage.join(workspace_dir, "models", "single_file_uploads")
+    await storage.makedirs(upload_dir, exist_ok=True)
+
+    output_filename = filename
+    output_path = storage.join(upload_dir, output_filename)
+    if await storage.exists(output_path):
+        stem, suffix = os.path.splitext(filename)
+        output_filename = f"{stem}_{uuid4().hex[:8]}{suffix}"
+        output_path = storage.join(upload_dir, output_filename)
+
+    try:
+        async with await storage.open(output_path, "wb") as out_file:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                await out_file.write(chunk)
+    except Exception as e:
+        print(f"Error saving uploaded model file: {e}")
+        return {"status": "error", "message": "Failed to save uploaded file."}
+    finally:
+        await file.close()
+
+    model = _build_filesystem_model_for_path(output_path)
+    if not model:
+        return {"status": "error", "message": f"Unsupported model file type: {ext}"}
+
+    result = await model_import(model)
+    if result.get("status") == "success":
+        result["path"] = output_path
+    return result
+
+
+@router.post("/model/import_single_file_url")
+async def model_import_single_file_url(request: SingleFileUrlImportRequest):
+    """
+    Download a single-file model from URL to workspace and import it.
+    Supports .safetensors, .ckpt, .gguf and .ggml URLs.
+    """
+    model_url = (request.model_url or "").strip()
+    if model_url == "":
+        return {"status": "error", "message": "model_url is required."}
+    if not model_url.startswith("http://") and not model_url.startswith("https://"):
+        return {"status": "error", "message": "Only http/https URLs are supported."}
+
+    normalized_url = _normalize_single_file_url(model_url)
+    filename = _extract_filename_from_url(normalized_url)
+    if filename == "":
+        return {"status": "error", "message": "Unable to determine filename from URL."}
+
+    _, ext = os.path.splitext(filename)
+    ext = ext.lower()
+    if ext not in SINGLE_FILE_DIFFUSION_EXTENSIONS and ext not in GGUF_EXTENSIONS:
+        return {"status": "error", "message": f"Unsupported model file type: {ext}"}
+
+    workspace_dir = await get_workspace_dir()
+    import_dir = storage.join(workspace_dir, "models", "single_file_imports")
+    await storage.makedirs(import_dir, exist_ok=True)
+
+    output_filename = filename
+    output_path = storage.join(import_dir, output_filename)
+    if await storage.exists(output_path):
+        stem, suffix = os.path.splitext(filename)
+        output_filename = f"{stem}_{uuid4().hex[:8]}{suffix}"
+        output_path = storage.join(import_dir, output_filename)
+
+    try:
+        await _download_url_to_path(normalized_url, output_path)
+    except Exception as e:
+        print(f"Error downloading model from URL {normalized_url}: {e}")
+        try:
+            if await storage.exists(output_path):
+                await storage.rm(output_path)
+        except Exception:
+            pass
+        return {"status": "error", "message": "Failed to download model from URL."}
+
+    model = _build_filesystem_model_for_path(output_path)
+    if not model:
+        return {"status": "error", "message": f"Unsupported model file type: {ext}"}
+
+    result = await model_import(model)
+    if result.get("status") == "success":
+        result["path"] = output_path
+    return result
 
 
 def import_error(message: str):

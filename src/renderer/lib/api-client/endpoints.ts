@@ -271,6 +271,8 @@ Endpoints.Models = {
 
   ImportFromLocalPath: (modelPath: string) =>
     `${API_URL()}model/import_from_local_path?model_path=${modelPath}`,
+  UploadSingleFile: () => `${API_URL()}model/upload_single_file`,
+  ImportSingleFileFromUrl: () => `${API_URL()}model/import_single_file_url`,
   HuggingFaceLogin: () => `${API_URL()}model/login_to_huggingface`,
   HuggingFaceLogout: () => `${API_URL()}model/logout_from_huggingface`,
   Delete: (modelId: string, deleteCache: boolean = false) =>
