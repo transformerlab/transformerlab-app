@@ -588,9 +588,9 @@ async def healthz():
     tfl_remote_storage_enabled = os.getenv("MULTIUSER", "")
     storage_provider = os.getenv("TFL_STORAGE_PROVIDER", "").lower()
 
-    # Determine mode: s3 or local
+    # Determine mode: multiuser or local
     if tfl_remote_storage_enabled:
-        mode = "s3"
+        mode = "multiuser"
     elif storage_provider == "localfs":
         mode = "localfs"
     else:
