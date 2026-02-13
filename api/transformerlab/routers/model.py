@@ -5,6 +5,8 @@ import dateutil.relativedelta
 from typing import Annotated
 from urllib.parse import urlparse, unquote
 from uuid import uuid4
+import ipaddress
+import socket
 import transformerlab.db.db as db
 from fastapi import APIRouter, Body, Depends, Header, File, UploadFile
 from pydantic import BaseModel
@@ -1228,6 +1230,51 @@ def _normalize_single_file_url(url: str) -> str:
     return url
 
 
+def _is_url_allowed(url: str) -> bool:
+    """
+    Basic SSRF protection: ensure URL uses http/https and does not resolve to
+    private, loopback, link-local, or multicast IP ranges.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return False
+
+    host = parsed.hostname
+    if not host:
+        return False
+
+    try:
+        addrinfo_list = socket.getaddrinfo(host, None)
+    except OSError:
+        # Failed to resolve host; treat as disallowed
+        return False
+
+    for family, _, _, _, sockaddr in addrinfo_list:
+        ip_str = None
+        if family == socket.AF_INET:
+            ip_str = sockaddr[0]
+        elif family == socket.AF_INET6:
+            ip_str = sockaddr[0]
+
+        if not ip_str:
+            continue
+
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            return False
+
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+        ):
+            return False
+
+    return True
+
+
 def _extract_filename_from_url(url: str) -> str:
     parsed = urlparse(url)
     filename = unquote(os.path.basename(parsed.path))
@@ -1380,6 +1427,12 @@ async def model_import_single_file_url(request: SingleFileUrlImportRequest):
         stem, suffix = os.path.splitext(filename)
         output_filename = f"{stem}_{uuid4().hex[:8]}{suffix}"
         output_path = storage.join(import_dir, output_filename)
+
+    if not _is_url_allowed(normalized_url):
+        return {
+            "status": "error",
+            "message": "The specified URL is not allowed.",
+        }
 
     try:
         await _download_url_to_path(normalized_url, output_path)
