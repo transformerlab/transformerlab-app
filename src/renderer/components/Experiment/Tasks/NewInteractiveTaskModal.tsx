@@ -21,24 +21,12 @@ import {
   Grid,
   Skeleton,
   IconButton,
-  Divider,
-  List,
-  ListItem,
-  ListItemContent,
-  Chip,
   Tabs,
   TabList,
   Tab,
   Box,
 } from '@mui/joy';
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  Trash2Icon,
-  PlayIcon,
-  LibraryIcon,
-} from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
@@ -113,10 +101,7 @@ export default function NewInteractiveTaskModal({
   onRefreshTasks,
 }: NewInteractiveTaskModalProps) {
   const { experimentInfo } = useExperimentInfo();
-  const navigate = useNavigate();
-  const [step, setStep] = React.useState<'gallery' | 'config' | 'existing'>(
-    'gallery',
-  );
+  const [step, setStep] = React.useState<'gallery' | 'config'>('gallery');
   const [selectedTemplate, setSelectedTemplate] =
     React.useState<InteractiveTemplate | null>(null);
   const [title, setTitle] = React.useState('');
@@ -346,11 +331,7 @@ export default function NewInteractiveTaskModal({
       >
         <ModalClose />
         <DialogTitle>
-          {step === 'gallery'
-            ? 'New Interactive Task'
-            : step === 'config'
-              ? 'Configure Task'
-              : 'Launch from Existing Tasks'}
+          {step === 'gallery' ? 'New Interactive Task' : 'Configure Task'}
         </DialogTitle>
         <form onSubmit={(e) => handleSubmit(e, false)}>
           <DialogContent
@@ -741,117 +722,6 @@ export default function NewInteractiveTaskModal({
                       )}
                   </>
                 )}
-
-                {importedTasks.length > 0 && (
-                  <>
-                    <Divider />
-                    <Button
-                      variant="plain"
-                      color="neutral"
-                      onClick={() => setStep('existing')}
-                      sx={{ alignSelf: 'flex-start' }}
-                    >
-                      Launch from existing tasks
-                    </Button>
-                  </>
-                )}
-              </Stack>
-            )}
-            {step === 'existing' && (
-              <Stack spacing={3}>
-                <Stack spacing={1}>
-                  <Typography level="title-md">Your Templates</Typography>
-                  <Typography level="body-sm" color="neutral">
-                    Launch or manage interactive tasks you have already created.
-                  </Typography>
-                </Stack>
-                <List
-                  sx={{
-                    '--ListItem-paddingY': '12px',
-                    '--ListItem-paddingX': '16px',
-                  }}
-                >
-                  {importedTasks.map((task) => {
-                    const cfg =
-                      typeof task.config === 'string'
-                        ? JSON.parse(task.config)
-                        : task.config;
-                    const interactiveType =
-                      cfg?.interactive_type ||
-                      task.interactive_type ||
-                      'vscode';
-
-                    const getInteractiveTypeLabel = (type: string) => {
-                      switch (type) {
-                        case 'jupyter':
-                          return 'Jupyter';
-                        case 'vllm':
-                          return 'vLLM';
-                        case 'ollama':
-                          return 'Ollama';
-                        case 'ssh':
-                          return 'SSH';
-                        default:
-                          return 'VS Code';
-                      }
-                    };
-
-                    return (
-                      <ListItem
-                        key={task.id}
-                        endAction={
-                          <Stack direction="row" spacing={1}>
-                            <IconButton
-                              size="sm"
-                              variant="soft"
-                              color="primary"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onQueueTask(task);
-                                onClose();
-                              }}
-                              title="Launch this template"
-                            >
-                              <PlayIcon size={16} />
-                            </IconButton>
-                            <IconButton
-                              size="sm"
-                              variant="plain"
-                              color="danger"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDeleteTask(task.id);
-                              }}
-                            >
-                              <Trash2Icon size={16} />
-                            </IconButton>
-                          </Stack>
-                        }
-                        sx={{
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          borderRadius: 'sm',
-                          mb: 1,
-                        }}
-                      >
-                        <ListItemContent>
-                          <Stack
-                            direction="row"
-                            spacing={1}
-                            alignItems="center"
-                          >
-                            <Typography level="title-sm">
-                              {task.name}
-                            </Typography>
-                            <Chip size="sm" variant="soft" color="primary">
-                              {getInteractiveTypeLabel(interactiveType)}
-                            </Chip>
-                          </Stack>
-                        </ListItemContent>
-                      </ListItem>
-                    );
-                  })}
-                </List>
               </Stack>
             )}
           </DialogContent>
