@@ -100,4 +100,4 @@ def test_healthz_localfs_mode(client, monkeypatch, tmp_path):
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "OK"
-    assert data["mode"] == "localfs"
+    assert data["mode"] == "local"

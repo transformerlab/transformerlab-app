@@ -586,13 +586,10 @@ async def healthz():
     Health check endpoint to verify server status and mode.
     """
     tfl_remote_storage_enabled = os.getenv("MULTIUSER", "")
-    storage_provider = os.getenv("TFL_STORAGE_PROVIDER", "").lower()
 
     # Determine mode: multiuser or local
     if tfl_remote_storage_enabled:
         mode = "multiuser"
-    elif storage_provider == "localfs":
-        mode = "localfs"
     else:
         mode = "local"
 
