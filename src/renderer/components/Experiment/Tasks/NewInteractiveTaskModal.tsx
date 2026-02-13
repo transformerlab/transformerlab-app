@@ -674,9 +674,13 @@ export default function NewInteractiveTaskModal({
                       teamGallery.length > 0 && (
                         <Grid container spacing={2}>
                           {teamGallery.map((task: any, index: number) => {
-                            const taskTitle = task.title || task.name || 'Untitled Task';
+                            const taskTitle =
+                              task.title || task.name || 'Untitled Task';
                             const taskId =
-                              task?.id || task?.name || task?.title || index.toString();
+                              task?.id ||
+                              task?.name ||
+                              task?.title ||
+                              index.toString();
                             let galleryIdentifier: string | number;
                             if (task?.id) {
                               galleryIdentifier = task.id;
@@ -718,7 +722,8 @@ export default function NewInteractiveTaskModal({
                                     <Typography level="body-sm" sx={{ mt: 1 }}>
                                       {task.description || 'No description'}
                                     </Typography>
-                                    {importingTeamTaskId === galleryIdentifier && (
+                                    {importingTeamTaskId ===
+                                      galleryIdentifier && (
                                       <Typography
                                         level="body-xs"
                                         color="primary"
@@ -772,7 +777,9 @@ export default function NewInteractiveTaskModal({
                         ? JSON.parse(task.config)
                         : task.config;
                     const interactiveType =
-                      cfg?.interactive_type || task.interactive_type || 'vscode';
+                      cfg?.interactive_type ||
+                      task.interactive_type ||
+                      'vscode';
 
                     const getInteractiveTypeLabel = (type: string) => {
                       switch (type) {
@@ -833,7 +840,9 @@ export default function NewInteractiveTaskModal({
                             spacing={1}
                             alignItems="center"
                           >
-                            <Typography level="title-sm">{task.name}</Typography>
+                            <Typography level="title-sm">
+                              {task.name}
+                            </Typography>
                             <Chip size="sm" variant="soft" color="primary">
                               {getInteractiveTypeLabel(interactiveType)}
                             </Chip>
