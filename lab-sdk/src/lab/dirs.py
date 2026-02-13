@@ -23,9 +23,7 @@ else:
     # For remote storage, this is a placeholder - actual value resolved via async functions
     # In localfs mode we keep HOME_DIR as the app home (~/.transformerlab) so STATIC_FILES_DIR etc. stay correct;
     # workspace_dir is TFL_STORAGE_URI/orgs/<org_id>/workspace (see get_workspace_dir).
-    if _current_tfl_storage_uri.get() or (
-        os.getenv("TFL_STORAGE_URI") and STORAGE_PROVIDER != "localfs"
-    ):
+    if _current_tfl_storage_uri.get() or (os.getenv("TFL_STORAGE_URI") and STORAGE_PROVIDER != "localfs"):
         HOME_DIR = os.getenv("TFL_STORAGE_URI", "")
     else:
         HOME_DIR = os.path.join(os.path.expanduser("~"), ".transformerlab")

@@ -220,9 +220,7 @@ def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3"
         print(f"Creating GCS bucket for team {team_id} (bucket: {bucket_name})")
         return _create_gcs_bucket(bucket_name, team_id)
     else:
-        print(
-            f"Unsupported TFL_STORAGE_PROVIDER: {STORAGE_PROVIDER}. Supported values: 'aws', 'gcp', or 'localfs'"
-        )
+        print(f"Unsupported TFL_STORAGE_PROVIDER: {STORAGE_PROVIDER}. Supported values: 'aws', 'gcp', or 'localfs'")
         return False
 
 
@@ -352,10 +350,7 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
             print("TFL_REMOTE_STORAGE_ENABLED is not set, skipping bucket creation for existing teams")
             return (0, 0, ["TFL_REMOTE_STORAGE_ENABLED is not set"])
         remote_label = "GCS" if STORAGE_PROVIDER == "gcp" else "S3"
-        print(
-            f"Creating buckets for all teams using {remote_label}"
-            f" (TFL_STORAGE_PROVIDER={STORAGE_PROVIDER})"
-        )
+        print(f"Creating buckets for all teams using {remote_label} (TFL_STORAGE_PROVIDER={STORAGE_PROVIDER})")
 
     from sqlalchemy import select
 
