@@ -553,6 +553,16 @@ export function useAPI(
 ) {
   let path: string | null = getPath(majorEntity, pathArray, params) as any;
 
+  // Skip server/info requests in multiuser mode
+  if (
+    typeof window !== 'undefined' &&
+    window?.platform?.multiuser === true &&
+    majorEntity === 'server' &&
+    pathArray[0] === 'info'
+  ) {
+    path = null;
+  }
+
   const fetcher = async (url: string) => {
     // Use fetchWithAuth which handles the token injection and 401 refresh logic
     const res = await fetchWithAuth(url);
