@@ -65,8 +65,8 @@ def test_is_wsl_false(monkeypatch):
 
 def test_healthz_local_mode(client, monkeypatch):
     """Test healthz endpoint in local mode"""
-    # Ensure TFL_API_STORAGE_URI is not set
-    monkeypatch.delenv("TFL_API_STORAGE_URI", raising=False)
+    # Ensure TFL_REMOTE_STORAGE_ENABLED is not set
+    monkeypatch.delenv("MULTIUSER", raising=False)
 
     response = client.get("/healthz")
     assert response.status_code == 200
@@ -76,22 +76,22 @@ def test_healthz_local_mode(client, monkeypatch):
 
 
 def test_healthz_s3_mode(client, monkeypatch):
-    """Test healthz endpoint in s3 mode"""
-    # Set TFL_API_STORAGE_URI to enable s3 mode
-    monkeypatch.setenv("TFL_API_STORAGE_URI", "true")
+    """Test healthz endpoint in multiuser mode"""
+    # Set TFL_REMOTE_STORAGE_ENABLED to enable multiuser mode
+    monkeypatch.setenv("MULTIUSER", "true")
 
     # The healthz endpoint reads env vars at request time, so monkeypatch should work
     response = client.get("/healthz")
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "OK"
-    assert data["mode"] == "s3"
+    assert data["mode"] == "multiuser"
 
 
 def test_healthz_localfs_mode(client, monkeypatch, tmp_path):
     """Test healthz endpoint in localfs mode"""
     # Ensure cloud mode is disabled
-    monkeypatch.delenv("TFL_API_STORAGE_URI", raising=False)
+    monkeypatch.delenv("TFL_REMOTE_STORAGE_ENABLED", raising=False)
     # Configure NFS-style storage provider pointing at a temp dir
     monkeypatch.setenv("TFL_STORAGE_PROVIDER", "localfs")
     monkeypatch.setenv("TFL_STORAGE_URI", str(tmp_path / "localfs_root"))
@@ -100,4 +100,4 @@ def test_healthz_localfs_mode(client, monkeypatch, tmp_path):
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "OK"
-    assert data["mode"] == "localfs"
+    assert data["mode"] == "local"

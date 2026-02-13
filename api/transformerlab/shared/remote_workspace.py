@@ -2,7 +2,7 @@
 Bucket creation utilities for TransformerLab.
 
 This module provides functions to create buckets for teams when
-TFL_API_STORAGE_URI is enabled. Supports both S3 and GCS.
+TFL_REMOTE_STORAGE_ENABLED is enabled. Supports both S3 and GCS.
 """
 
 import logging
@@ -27,7 +27,7 @@ def validate_cloud_credentials() -> None:
         return
 
     # Check if cloud storage is enabled
-    tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")
+    tfl_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED")
 
     # If neither is set, no validation needed
     if not tfl_storage_uri:
@@ -84,7 +84,7 @@ def _validate_aws_credentials() -> None:
         except NoCredentialsError:
             print(
                 f"❌ ERROR: AWS profile '{profile_name}' not found and no default credentials available.\n"
-                f"   Cloud storage is enabled (TFL_API_STORAGE_URI) but AWS credentials are missing.\n"
+                f"   Cloud storage is enabled (TFL_REMOTE_STORAGE_ENABLED) but AWS credentials are missing.\n"
                 f"   Please configure AWS credentials:\n"
                 f"   1. Create ~/.aws/credentials file with the following:\n"
                 f"      [{profile_name}]\n"
@@ -98,7 +98,7 @@ def _validate_aws_credentials() -> None:
     except NoCredentialsError:
         print(
             f"❌ ERROR: AWS credentials not found.\n"
-            f"   Cloud storage is enabled (TFL_API_STORAGE_URI) but AWS credentials are missing.\n"
+            f"   Cloud storage is enabled (TFL_REMOTE_STORAGE_ENABLED) but AWS credentials are missing.\n"
             f"   Please configure AWS credentials:\n"
             f"   1. Create ~/.aws/credentials file with profile '{profile_name}':\n"
             f"      [{profile_name}]\n"
@@ -145,7 +145,7 @@ def _validate_gcp_credentials() -> None:
     except DefaultCredentialsError:
         print(
             "❌ ERROR: GCP credentials not found.\n"
-            "   Cloud storage is enabled (TFL_API_STORAGE_URL=true) but GCP credentials are missing.\n"
+            "   Cloud storage is enabled (TFL_REMOTE_STORAGE_ENABLED=true) but GCP credentials are missing.\n"
             "   Please configure GCP credentials:\n"
             "   1. Set GOOGLE_APPLICATION_CREDENTIALS environment variable to path of service account key\n"
             "   2. Or run 'gcloud auth application-default login'",
@@ -188,10 +188,10 @@ def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3"
             print(f"❌ Failed to create local workspace folder for team {team_id}: {e}")
             return False
 
-    # Check if TFL_API_STORAGE_URI is set
-    tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")
+    # Check if TFL_REMOTE_STORAGE_ENABLED is set
+    tfl_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED")
     if not tfl_storage_uri:
-        print("TFL_API_STORAGE_URI is not set, skipping bucket creation")
+        print("TFL_REMOTE_STORAGE_ENABLED is not set, skipping bucket creation")
         return False
 
     # Validate bucket name (common rules for S3 and GCS)
@@ -326,7 +326,7 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
     """
     Create buckets for all existing teams that don't have buckets yet.
 
-    This is useful when TFL_API_STORAGE_URI is enabled after teams already exist.
+    This is useful when TFL_REMOTE_STORAGE_ENABLED is enabled after teams already exist.
     Supports both S3 (when REMOTE_WORKSPACE_HOST=aws) and GCS (when REMOTE_WORKSPACE_HOST=gcp).
 
     Args:
@@ -345,10 +345,10 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
             return (0, 0, ["TFL_STORAGE_URI is not set"])
         print("Initialising local workspaces for all teams (localfs mode)")
     else:
-        tfl_storage_uri = os.getenv("TFL_API_STORAGE_URI")
+        tfl_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED")
         if not tfl_storage_uri:
-            print("TFL_API_STORAGE_URI is not set, skipping bucket creation for existing teams")
-            return (0, 0, ["TFL_API_STORAGE_URI is not set"])
+            print("TFL_REMOTE_STORAGE_ENABLED is not set, skipping bucket creation for existing teams")
+            return (0, 0, ["TFL_REMOTE_STORAGE_ENABLED is not set"])
         remote_workspace_host = "GCS" if REMOTE_WORKSPACE_HOST == "gcp" else "S3"
         print(
             f"Creating buckets for all teams using {remote_workspace_host}"

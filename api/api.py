@@ -128,7 +128,7 @@ async def lifespan(app: FastAPI):
     await cancel_in_progress_jobs()
 
     # Create buckets/folders for all existing teams if cloud or localfs storage is enabled
-    if os.getenv("TFL_API_STORAGE_URI") or (
+    if os.getenv("TFL_REMOTE_STORAGE_ENABLED") or (
         os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI")
     ):
         print("✅ CHECKING STORAGE FOR EXISTING TEAMS")
@@ -152,8 +152,7 @@ async def lifespan(app: FastAPI):
     if "--reload" in sys.argv:
         await install_all_plugins()
 
-    if not os.getenv("MULTIUSER") == "true":
-        print("RUNNING IT")
+    if os.getenv("MULTIUSER", "").lower() != "true":
         asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
@@ -586,14 +585,11 @@ async def healthz():
     """
     Health check endpoint to verify server status and mode.
     """
-    tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
-    storage_provider = os.getenv("TFL_STORAGE_PROVIDER", "").lower()
+    tfl_remote_storage_enabled = os.getenv("MULTIUSER", "").lower() == "true"
 
-    # Determine mode: s3 (or other cloud) vs localfs vs local
-    if tfl_api_storage_uri:
-        mode = "s3"
-    elif storage_provider == "localfs":
-        mode = "localfs"
+    # Determine mode: multiuser or local
+    if tfl_remote_storage_enabled:
+        mode = "multiuser"
     else:
         mode = "local"
 

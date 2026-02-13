@@ -26,7 +26,7 @@ async def plugin_gallery():
 
     # In remote mode (MULTIUSER is set), plugins are not available
     # Return empty list to match sidebar behavior where plugins menu is hidden
-    if os.getenv("MULTIUSER") == "true":
+    if os.getenv("MULTIUSER", "").lower() == "true":
         return []
 
     local_workspace_gallery_directory = dirs.PLUGIN_PRELOADED_GALLERY
@@ -440,7 +440,7 @@ async def list_plugins() -> list[object]:
 
     # In remote mode (MULTIUSER is set), plugins are not available
     # Return empty list to match sidebar behavior where plugins menu is hidden
-    if os.getenv("MULTIUSER") == "true":
+    if os.getenv("MULTIUSER", "").lower() == "true":
         return []
 
     from lab.dirs import get_plugin_dir
