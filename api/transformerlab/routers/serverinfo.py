@@ -166,7 +166,7 @@ async def get_macmon_data():
 async def get_computer_information():
     # start with our static system information and add current performance details
     if os.environ.get("MULTIUSER"):
-        return {"status": "success", "data": system_info}
+        return system_info
 
     r = system_info
 
