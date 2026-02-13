@@ -165,7 +165,7 @@ async def get_macmon_data():
 @router.get("/info")
 async def get_computer_information():
     # start with our static system information and add current performance details
-    if os.environ.get("TFL_API_STORAGE_URI"):
+    if os.environ.get("MULTIUSER"):
         return {"status": "success", "data": system_info}
 
     r = system_info
