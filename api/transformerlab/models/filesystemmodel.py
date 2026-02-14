@@ -11,6 +11,29 @@ import json
 from transformerlab.models import basemodel
 
 
+SINGLE_FILE_DIFFUSION_EXTENSIONS = {".ckpt", ".safetensors"}
+
+
+def _infer_diffusion_architecture_from_filename(filename: str) -> str:
+    """Infer diffusion pipeline architecture from filename heuristics."""
+    name = filename.lower()
+
+    # SDXL
+    if "sdxl" in name or "stable-diffusion-xl" in name or "sd_xl" in name:
+        return "StableDiffusionXLPipeline"
+
+    # SD3
+    if "sd3" in name or "stable-diffusion-3" in name or "stable-diffusion3" in name:
+        return "StableDiffusion3Pipeline"
+
+    # Latent Consistency Models
+    if "lcm" in name or "latent-consistency" in name:
+        return "LatentConsistencyModelPipeline"
+
+    # Default to SD 1.x style
+    return "StableDiffusionPipeline"
+
+
 async def list_models(path: str):
     """
     This function recursively calls itself to generate a list of models under path.
@@ -43,6 +66,9 @@ async def list_models(path: str):
                 _, fileext = os.path.splitext(entry.path)
                 if fileext.lower() == ".gguf" or fileext.lower() == ".ggml":
                     model = FilesystemGGUFModel(entry.path)
+                    models.append(model)
+                elif fileext.lower() in SINGLE_FILE_DIFFUSION_EXTENSIONS:
+                    model = FilesystemDiffusionSingleFileModel(entry.path)
                     models.append(model)
 
         dirlist.close()
@@ -117,5 +143,31 @@ class FilesystemGGUFModel(basemodel.BaseModel):
 
         json_data["architecture"] = architecture
         json_data["formats"] = formats
+
+        return json_data
+
+
+class FilesystemDiffusionSingleFileModel(basemodel.BaseModel):
+    def __init__(self, model_path):
+        # The ID for this model will be the filename without path
+        model_id = os.path.basename(model_path)
+
+        super().__init__(model_id)
+
+        self.model_filename = os.path.basename(model_path)
+        self.source_id_or_path = model_path
+        self.source = "local"
+        self.model_path = model_path
+
+    async def get_json_data(self):
+        json_data = await super().get_json_data()
+
+        # Basic metadata for single-file diffusion models
+        json_data["architecture"] = _infer_diffusion_architecture_from_filename(self.model_filename)
+        json_data["model_type"] = "diffusion"
+
+        # Detect format from extension
+        format_name = basemodel.get_model_file_format(self.model_filename)
+        json_data["formats"] = [format_name] if format_name else []
 
         return json_data
