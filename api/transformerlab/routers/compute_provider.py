@@ -780,21 +780,32 @@ def _get_aws_credentials_from_file(profile_name: str = "transformerlab-s3") -> T
 COPY_FILE_MOUNTS_SETUP = 'pip install -q transformerlab && python -c "from lab import lab; lab.copy_file_mounts()"'
 
 
+# RunPod (and similar) use /workspace as a writable persistent path; ~/.aws may be wrong user or not visible over SSH
+RUNPOD_AWS_CREDENTIALS_DIR = "/workspace/.aws"
+
+
 def _generate_aws_credentials_setup(
-    aws_access_key_id: str, aws_secret_access_key: str, aws_profile: Optional[str] = None
+    aws_access_key_id: str,
+    aws_secret_access_key: str,
+    aws_profile: Optional[str] = None,
+    aws_credentials_dir: Optional[str] = None,
 ) -> str:
     """
-    Generate bash script to set up AWS credentials in ~/.aws/credentials.
+    Generate bash script to set up AWS credentials.
 
     Args:
         aws_access_key_id: AWS access key ID
         aws_secret_access_key: AWS secret access key
         aws_profile: AWS profile name (defaults to 'transformerlab-s3' if not provided)
+        aws_credentials_dir: If set (e.g. /workspace/.aws), write credentials here instead of ~/.aws.
+            Caller should set AWS_SHARED_CREDENTIALS_FILE to <dir>/credentials so processes use this file.
 
     Returns:
         Bash script to configure AWS credentials
     """
     profile_name = aws_profile or os.getenv("AWS_PROFILE", "transformerlab-s3")
+    cred_dir = aws_credentials_dir if aws_credentials_dir else "~/.aws"
+    cred_file = f"{cred_dir}/credentials" if aws_credentials_dir else "~/.aws/credentials"
 
     # Escape for bash: single quotes and special characters
     def escape_bash(s: str) -> str:
@@ -807,16 +818,16 @@ def _generate_aws_credentials_setup(
     # Simple approach: create dir, remove old profile section directly, append new profile
     setup_script = (
         f"echo 'Setting up AWS credentials for profile: {profile_name}'; "
-        f"mkdir -p ~/.aws; "
-        f"chmod 700 ~/.aws; "
-        f"if [ -f ~/.aws/credentials ]; then "
-        f"  awk 'BEGIN{{in_profile=0}} /^\\[{escaped_profile}\\]/{{in_profile=1; next}} /^\\[/{{in_profile=0}} !in_profile{{print}}' ~/.aws/credentials > ~/.aws/credentials.new && mv ~/.aws/credentials.new ~/.aws/credentials || true; "
+        f"mkdir -p {cred_dir}; "
+        f"chmod 700 {cred_dir}; "
+        f"if [ -f {cred_file} ]; then "
+        f"  awk 'BEGIN{{in_profile=0}} /^\\[{escaped_profile}\\]/{{in_profile=1; next}} /^\\[/{{in_profile=0}} !in_profile{{print}}' {cred_file} > {cred_file}.new && mv {cred_file}.new {cred_file} || true; "
         f"fi; "
-        f"echo '[{profile_name}]' >> ~/.aws/credentials; "
-        f"echo 'aws_access_key_id={escaped_access_key}' >> ~/.aws/credentials; "
-        f"echo 'aws_secret_access_key={escaped_secret_key}' >> ~/.aws/credentials; "
-        f"chmod 600 ~/.aws/credentials; "
-        f"echo 'AWS credentials configured successfully'"
+        f"echo '[{profile_name}]' >> {cred_file}; "
+        f"echo 'aws_access_key_id={escaped_access_key}' >> {cred_file}; "
+        f"echo 'aws_secret_access_key={escaped_secret_key}' >> {cred_file}; "
+        f"chmod 600 {cred_file}; "
+        f"echo 'AWS credentials configured successfully at {cred_file}';"
     )
     return setup_script
 
@@ -1057,23 +1068,31 @@ async def _launch_sweep_jobs(
                 # - For GCP (REMOTE_WORKSPACE_HOST=gcp), optionally inject a service account JSON if provided.
                 from lab.storage import REMOTE_WORKSPACE_HOST
 
-                if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
-                    if REMOTE_WORKSPACE_HOST != "gcp":
-                        aws_profile = "transformerlab-s3"
-                        aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
-                        if aws_access_key_id and aws_secret_access_key:
-                            aws_setup = _generate_aws_credentials_setup(
-                                aws_access_key_id, aws_secret_access_key, aws_profile
-                            )
-                            setup_commands.append(aws_setup)
-                            env_vars["AWS_PROFILE"] = aws_profile
-                    elif REMOTE_WORKSPACE_HOST == "gcp":
-                        # If a GCP service account JSON is provided via env, write it on the remote host
-                        # and set GOOGLE_APPLICATION_CREDENTIALS so ADC can find it.
-                        gcp_sa_json = os.getenv("TFL_GCP_SERVICE_ACCOUNT_JSON")
-                        if gcp_sa_json:
-                            gcp_setup = _generate_gcp_credentials_setup(gcp_sa_json)
-                            setup_commands.append(gcp_setup)
+                if REMOTE_WORKSPACE_HOST != "gcp":
+                    aws_profile = "transformerlab-s3"
+                    aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
+                    if aws_access_key_id and aws_secret_access_key:
+                        aws_credentials_dir = (
+                            RUNPOD_AWS_CREDENTIALS_DIR if provider.type == ProviderType.RUNPOD.value else None
+                        )
+                        aws_setup = _generate_aws_credentials_setup(
+                            aws_access_key_id,
+                            aws_secret_access_key,
+                            aws_profile,
+                            aws_credentials_dir=aws_credentials_dir,
+                        )
+                        setup_commands.append(aws_setup)
+                        env_vars["AWS_PROFILE"] = aws_profile
+                        if aws_credentials_dir:
+                            env_vars["AWS_SHARED_CREDENTIALS_FILE"] = f"{aws_credentials_dir}/credentials"
+
+                elif REMOTE_WORKSPACE_HOST == "gcp":
+                    # If a GCP service account JSON is provided via env, write it on the remote host
+                    # and set GOOGLE_APPLICATION_CREDENTIALS so ADC can find it.
+                    gcp_sa_json = os.getenv("TFL_GCP_SERVICE_ACCOUNT_JSON")
+                    if gcp_sa_json:
+                        gcp_setup = _generate_gcp_credentials_setup(gcp_sa_json)
+                        setup_commands.append(gcp_setup)
 
                 if request.file_mounts is True and request.task_id:
                     setup_commands.append(COPY_FILE_MOUNTS_SETUP)
@@ -1371,8 +1390,13 @@ async def launch_template_on_provider(
     # Build setup script - add copy_file_mounts after AWS credentials when file_mounts is True (task dir -> ~/src)
     setup_commands = []
     if aws_access_key_id and aws_secret_access_key:
-        aws_setup = _generate_aws_credentials_setup(aws_access_key_id, aws_secret_access_key, aws_profile)
+        aws_credentials_dir = RUNPOD_AWS_CREDENTIALS_DIR if provider.type == ProviderType.RUNPOD.value else None
+        aws_setup = _generate_aws_credentials_setup(
+            aws_access_key_id, aws_secret_access_key, aws_profile, aws_credentials_dir=aws_credentials_dir
+        )
         setup_commands.append(aws_setup)
+        if aws_credentials_dir:
+            env_vars["AWS_SHARED_CREDENTIALS_FILE"] = f"{aws_credentials_dir}/credentials"
     if request.file_mounts is True and request.task_id:
         setup_commands.append(COPY_FILE_MOUNTS_SETUP)
 
@@ -1388,8 +1412,10 @@ async def launch_template_on_provider(
         )
         setup_commands.append(github_setup)
 
-    # Add SSH public key setup for SSH interactive tasks
-    if request.subtype == "interactive" and request.interactive_type == "ssh":
+    # Add SSH public key setup for SSH interactive tasks and for RunPod (so we can read provider logs via SSH)
+    if (
+        request.subtype == "interactive" and request.interactive_type == "ssh"
+    ) or provider.type == ProviderType.RUNPOD.value:
         from transformerlab.services.ssh_key_service import get_or_create_org_ssh_key_pair, get_org_ssh_public_key
 
         try:
@@ -1403,8 +1429,26 @@ async def launch_template_on_provider(
             public_key_clean = public_key.strip().replace("\n", "").replace("\r", "")
             # Escape single quotes in public key for use within single-quoted string
             public_key_escaped = public_key_clean.replace("'", "'\"'\"'")
-            # Create SSH setup as a single line command (no trailing semicolon - will be added by join)
-            ssh_setup = f"mkdir -p ~/.ssh && chmod 700 ~/.ssh; if [ ! -f ~/.ssh/authorized_keys ]; then touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys; fi; if ! grep -qF '{public_key_escaped}' ~/.ssh/authorized_keys; then echo '{public_key_escaped}' >> ~/.ssh/authorized_keys; fi"
+
+            if provider.type == ProviderType.RUNPOD.value:
+                # For RunPod: use RunPod's recommended SSH setup from their docs
+                # Set SSH_PUBLIC_KEY environment variable (RunPod's override env var for SSH keys)
+                # Reference: https://docs.runpod.io/pods/configuration/use-ssh
+                env_vars["SSH_PUBLIC_KEY"] = public_key_clean
+                ssh_setup = (
+                    "apt-get update -qq && "
+                    "DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openssh-server >/dev/null 2>&1 && "
+                    "mkdir -p ~/.ssh && "
+                    "cd ~/.ssh && "
+                    "chmod 700 ~/.ssh && "
+                    'echo "$SSH_PUBLIC_KEY" >> authorized_keys && '
+                    "chmod 600 authorized_keys && "
+                    "service ssh start"
+                )
+            else:
+                # For other providers (interactive SSH tasks): standard setup
+                ssh_setup = f"mkdir -p ~/.ssh && chmod 700 ~/.ssh; if [ ! -f ~/.ssh/authorized_keys ]; then touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys; fi; if ! grep -qF '{public_key_escaped}' ~/.ssh/authorized_keys; then echo '{public_key_escaped}' >> ~/.ssh/authorized_keys; fi"
+
             setup_commands.append(ssh_setup)
         except Exception as e:
             # Log error but don't fail the launch - SSH key setup is optional
