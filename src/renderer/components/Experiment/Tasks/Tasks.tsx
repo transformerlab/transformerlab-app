@@ -30,6 +30,8 @@ import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
+import ViewJobDatasetsModal from '../Train/ViewJobDatasetsModal';
+import ViewJobModelsModal from '../Train/ViewJobModelsModal';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
@@ -57,6 +59,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [viewSweepResultsFromJob, setViewSweepResultsFromJob] = useState(-1);
   const [viewEvalResultsFromJob, setViewEvalResultsFromJob] = useState(-1);
   const [interactiveJobForModal, setInteractiveJobForModal] = useState(-1);
+  const [viewJobDatasetsFromJob, setViewJobDatasetsFromJob] = useState(-1);
+  const [viewJobModelsFromJob, setViewJobModelsFromJob] = useState(-1);
   const [previewDatasetModal, setPreviewDatasetModal] = useState<{
     open: boolean;
     datasetId: string | null;
@@ -1161,6 +1165,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           onViewGeneratedDataset={(jobId, datasetId) => {
             setPreviewDatasetModal({ open: true, datasetId });
           }}
+          onViewJobDatasets={(jobId) =>
+            setViewJobDatasetsFromJob(parseInt(jobId))
+          }
+          onViewJobModels={(jobId) => setViewJobModelsFromJob(parseInt(jobId))}
           onViewSweepOutput={(jobId) => {
             setViewOutputFromSweepJob(true);
             setViewOutputFromJob(parseInt(jobId));
@@ -1268,6 +1276,16 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         }
         dataset_id={previewDatasetModal.datasetId}
         viewType="preview"
+      />
+      <ViewJobDatasetsModal
+        open={viewJobDatasetsFromJob !== -1}
+        onClose={() => setViewJobDatasetsFromJob(-1)}
+        jobId={viewJobDatasetsFromJob}
+      />
+      <ViewJobModelsModal
+        open={viewJobModelsFromJob !== -1}
+        onClose={() => setViewJobModelsFromJob(-1)}
+        jobId={viewJobModelsFromJob}
       />
     </Sheet>
   );

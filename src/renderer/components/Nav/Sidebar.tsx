@@ -78,7 +78,9 @@ function ExperimentMenuItems({
   const pipelineIsTTS = pipelineTag === 'text-to-speech';
   const pipelineIsSTT = pipelineTag === 'speech-to-text';
   const isDiffusionModel = isValidDiffusionModel === true;
-  const showInteractTab = !isDiffusionModel && !pipelineIsTTS && !pipelineIsSTT;
+  const showInteractTab =
+    (!isDiffusionModel && !pipelineIsTTS && !pipelineIsSTT) ||
+    (hasProviders && !isLocalMode);
   const showDiffusionTab = isLocalMode && isDiffusionModel;
   const showAudioTTSTab = isLocalMode && pipelineIsTTS;
   const showAudioSTTTab = isLocalMode && pipelineIsSTT;

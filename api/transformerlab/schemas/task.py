@@ -11,6 +11,7 @@ class ExportTaskToTeamGalleryRequest(BaseModel):
 class ImportTaskFromGalleryRequest(BaseModel):
     gallery_id: str  # Index or identifier in the gallery array
     experiment_id: str
+    is_interactive: Optional[bool] = False  # Whether importing from interactive gallery
 
 
 class ImportTaskFromTeamGalleryRequest(BaseModel):

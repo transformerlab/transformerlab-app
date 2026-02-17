@@ -256,6 +256,19 @@ Endpoints.Models = {
     `${API_URL()}model/install_peft?model_id=${modelId}&peft=${peft}`,
   ModelDetailsFromGallery: (modelId: string) =>
     `${API_URL()}model/gallery/${convertSlashInUrl(modelId)}`,
+  VramEstimate: (
+    modelId: string,
+    dtype: string = 'float16',
+    batch: number = 1,
+    seqLen: number = 4096,
+    noKv: boolean = false,
+    filename?: string,
+  ) =>
+    `${API_URL()}model/vram_estimate?model_id=${encodeURIComponent(
+      modelId,
+    )}&dtype=${encodeURIComponent(dtype)}&batch=${batch}&seq_len=${seqLen}&no_kv=${noKv}${
+      filename ? `&filename=${encodeURIComponent(filename)}` : ''
+    }`,
   ModelDetailsFromFilesystem: (modelId: string) =>
     `${API_URL()}model/details/${convertSlashInUrl(modelId)}`,
   ModelProvenance: (modelId: string) =>
@@ -609,4 +622,9 @@ Endpoints.Quota = {
 Endpoints.Teams = {
   GetSecrets: (teamId: string) => `${API_URL()}teams/${teamId}/secrets`,
   SetSecrets: (teamId: string) => `${API_URL()}teams/${teamId}/secrets`,
+};
+
+Endpoints.Users = {
+  GetSecrets: () => `${API_URL()}users/me/secrets`,
+  SetSecrets: () => `${API_URL()}users/me/secrets`,
 };

@@ -175,12 +175,6 @@ async def _find_org_id_for_job(job_id: str) -> Optional[str]:
     Find which organization a job belongs to by searching all org directories.
     Returns the org_id if found, None otherwise.
     """
-    # Get HOME_DIR
-    try:
-        home_dir = lab_dirs.HOME_DIR
-    except AttributeError:
-        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
-
     # Check if context is set correctly already
     from lab.dirs import get_workspace_dir
 
@@ -188,8 +182,8 @@ async def _find_org_id_for_job(job_id: str) -> Optional[str]:
     if "/orgs/" in workspace_dir:
         return workspace_dir.split("/orgs/")[-1].split("/")[0]
 
-    # Check all org directories
-    orgs_dir = storage.join(home_dir, "orgs")
+    # Check all org directories (localfs-aware)
+    orgs_dir = lab_dirs.get_orgs_base_dir()
     if await storage.exists(orgs_dir) and await storage.isdir(orgs_dir):
         try:
             org_entries = await storage.ls(orgs_dir, detail=False)
@@ -223,14 +217,8 @@ async def job_count_running_across_all_orgs() -> int:
     """
     count = 0
 
-    # Get HOME_DIR
-    try:
-        home_dir = lab_dirs.HOME_DIR
-    except AttributeError:
-        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
-
-    # Check all org directories
-    orgs_dir = storage.join(home_dir, "orgs")
+    # Check all org directories (localfs-aware)
+    orgs_dir = lab_dirs.get_orgs_base_dir()
     if await storage.exists(orgs_dir) and await storage.isdir(orgs_dir):
         try:
             org_entries = await storage.ls(orgs_dir, detail=False)
@@ -911,39 +899,6 @@ def job_mark_as_complete_if_running(job_id: int, org_id: str) -> None:
             pass
 
 
-async def get_file_metadata(file_path: str, storage) -> Dict[str, any]:
-    """
-    Extract file metadata (size, modified time) from storage or filesystem.
-    Returns dict with 'size' and 'mtime' keys, or empty values if unavailable.
-    """
-    try:
-        # Try storage.ls with detail=True first (works for S3 and local)
-        file_info_list = await storage.ls(file_path, detail=True)
-
-        # Handle dict response (some storage backends)
-        if isinstance(file_info_list, dict):
-            file_info = file_info_list.get(file_path, {})
-            return {"size": file_info.get("size", 0), "mtime": file_info.get("mtime")}
-
-        # Handle list response
-        elif isinstance(file_info_list, list) and file_info_list:
-            file_info = file_info_list[0] if isinstance(file_info_list[0], dict) else {}
-            return {"size": file_info.get("size", 0), "mtime": file_info.get("mtime")}
-    except Exception as e:
-        print(f"storage.ls failed for {file_path}: {e}")
-
-    # Fallback to os.stat for local files only (won't work for S3)
-    # Ensure file_path is a string before checking startswith
-    if isinstance(file_path, str) and not file_path.startswith("s3://"):
-        try:
-            stat = os.stat(file_path)
-            return {"size": stat.st_size, "mtime": stat.st_mtime}
-        except (OSError, AttributeError) as e:
-            print(f"os.stat failed for {file_path}: {e}")
-
-    return {"size": None, "mtime": None}
-
-
 async def format_artifact(file_path: str, storage) -> Optional[Dict[str, any]]:
     """
     Format a single artifact file into the response structure.
@@ -989,8 +944,16 @@ async def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict
     Get artifacts by listing files in the artifacts directory.
     Returns list of artifacts (empty if directory can't be read).
     """
-    if not artifacts_dir:  ## /*or not await storage.exists(artifacts_dir):
+    if not artifacts_dir:
         return []
+
+    # Check if directory exists before trying to list it
+    try:
+        if not await storage.exists(artifacts_dir):
+            return []
+    except Exception:
+        # If exists() fails, try to list anyway (some storage backends may not support exists)
+        pass
 
     artifacts = []
     try:
@@ -1046,3 +1009,123 @@ async def get_all_artifact_paths(job_id: str, storage) -> List[str]:
                 return [a.get("full_path") for a in dir_artifacts if a.get("full_path")]
 
     return []
+
+
+async def get_datasets_from_directory(datasets_dir: str, storage) -> List[Dict]:
+    """
+    Get datasets by listing both directories and files in the datasets directory.
+    Datasets can be either directories (containing multiple files) or single files (.hdf, .npy, etc.)
+    Returns list of datasets (empty if directory can't be read).
+    """
+    if not datasets_dir:
+        return []
+
+    # Check if directory exists before trying to list it
+    try:
+        if not await storage.exists(datasets_dir):
+            return []
+    except Exception:
+        # If exists() fails, try to list anyway (some storage backends may not support exists)
+        pass
+
+    datasets = []
+    try:
+        items = await storage.ls(datasets_dir, detail=False)
+
+        for item in items:
+            # Handle both string paths and dict responses from storage.ls
+            if isinstance(item, dict):
+                # Extract path from dict (some storage backends return dicts even with detail=False)
+                item_path = item.get("name") or item.get("path") or str(item)
+                # Process both directories and files
+                dataset = await format_dataset(item_path, storage)
+                if dataset:
+                    datasets.append(dataset)
+            else:
+                # For string responses, process both files and directories
+                item_path = str(item)
+                dataset = await format_dataset(item_path, storage)
+                if dataset:
+                    datasets.append(dataset)
+    except Exception as e:
+        print(f"Error reading datasets directory {datasets_dir}: {e}")
+
+    return datasets
+
+
+async def get_models_from_directory(models_dir: str, storage) -> List[Dict]:
+    """
+    Get models by listing both directories and files in the models directory.
+    Models can be either directories (containing multiple files) or single files (.pt, .safetensors, etc.)
+    Returns list of models (empty if directory can't be read).
+    """
+    if not models_dir:
+        return []
+
+    # Check if directory exists before trying to list it
+    try:
+        if not await storage.exists(models_dir):
+            return []
+    except Exception:
+        # If exists() fails, try to list anyway (some storage backends may not support exists)
+        pass
+
+    models = []
+    try:
+        items = await storage.ls(models_dir, detail=False)
+
+        for item in items:
+            # Handle both string paths and dict responses from storage.ls
+            if isinstance(item, dict):
+                # Extract path from dict (some storage backends return dicts even with detail=False)
+                item_path = item.get("name") or item.get("path") or str(item)
+                # Accept both directories and files (models can be either)
+                model = await format_model(item_path, storage)
+                if model:
+                    models.append(model)
+            else:
+                # For string responses, process all items
+                item_path = str(item)
+                model = await format_model(item_path, storage)
+                if model:
+                    models.append(model)
+    except Exception as e:
+        print(f"Error reading models directory {models_dir}: {e}")
+
+    return models
+
+
+async def format_dataset(dir_path: str, storage) -> Optional[Dict[str, any]]:
+    """
+    Format a single dataset directory into the response structure.
+    Returns None if the dataset can't be processed.
+    """
+    try:
+        dataset_name = dir_path.split("/")[-1] if "/" in dir_path else dir_path
+
+        dataset = {
+            "name": dataset_name,
+            "full_path": dir_path,
+        }
+        return dataset
+    except Exception as e:
+        print(f"Error formatting dataset {dir_path}: {e}")
+        return None
+
+
+async def format_model(dir_path: str, storage) -> Optional[Dict[str, any]]:
+    """
+    Format a single model directory into the response structure.
+    Returns None if the model can't be processed.
+    """
+    try:
+        model_name = dir_path.split("/")[-1] if "/" in dir_path else dir_path
+
+        model = {
+            "name": model_name,
+            "full_path": dir_path,
+        }
+        return model
+    except Exception as e:
+        print(f"Error formatting model {dir_path}: {e}")
+        return None
