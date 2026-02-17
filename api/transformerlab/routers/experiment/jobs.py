@@ -1,5 +1,4 @@
 import asyncio
-from fnmatch import fnmatch
 import json
 import os
 import csv
@@ -19,6 +18,7 @@ from transformerlab.routers.serverinfo import watch_file
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import transformerlab.services.job_service as job_service
+from transformerlab.services import checkpoint_service
 from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
 from transformerlab.services.provider_service import get_team_provider, get_provider_instance
 from transformerlab.routers.auth import get_user_and_team
@@ -917,99 +917,10 @@ async def get_checkpoints(job_id: str, request: Request):
     if job is None:
         return {"checkpoints": []}
 
-    job_data = job["job_data"]
-    # First try to use the new SDK method to get checkpoints
-    try:
-        from lab.job import Job
+    job_data = job.get("job_data", {})
+    checkpoints = await checkpoint_service.list_checkpoints_for_job(job_id, job_data)
 
-        # Get checkpoints using the SDK method
-        sdk_job = Job(job_id)
-        checkpoint_paths = await sdk_job.get_checkpoint_paths()
-
-        if checkpoint_paths and len(checkpoint_paths) > 0:
-            checkpoints = []
-            for checkpoint_path in checkpoint_paths:
-                try:
-                    # Get filename from path
-                    filename = checkpoint_path.split("/")[-1] if "/" in checkpoint_path else checkpoint_path
-                    checkpoints.append({"filename": filename})
-                except Exception as e:
-                    print(f"Error processing checkpoint {checkpoint_path}: {e}")
-                    continue
-
-            # Sort checkpoints by filename in reverse (descending) order for consistent ordering
-            checkpoints.sort(key=lambda x: x["filename"], reverse=True)
-            return {"checkpoints": checkpoints}
-    except Exception as e:
-        print(f"SDK checkpoint method failed for job {job_id}, falling back to legacy method: {e}")
-
-    # Fallback to the original logic if SDK method doesn't work or returns nothing
-    # Check if the job has a supports_checkpoints flag
-    # if "supports_checkpoints" not in job_data or not job_data["supports_checkpoints"]:
-    #     return {"checkpoints": []}
-
-    # By default we assume the training type is an adaptor training
-    # and the checkpoints are stored alongside the adaptors
-    # this maps to how mlx lora works, which will be the first use case
-    # but we will have to abstract this further in the future
-    config = job_data.get("config", {})
-    if not isinstance(config, dict):
-        try:
-            config = json.loads(config)
-        except Exception:
-            config = {}
-    model_name = config.get("model_name", "")
-    adaptor_name = config.get("adaptor_name", "adaptor")
-    workspace_dir = await get_workspace_dir()
-    default_adaptor_dir = storage.join(workspace_dir, "adaptors", secure_filename(model_name), adaptor_name)
-
-    # Get job directory
-    checkpoints_dir = job_data.get("checkpoints_dir")
-    if not checkpoints_dir:
-        from lab.dirs import get_job_checkpoints_dir
-
-        checkpoints_dir = await get_job_checkpoints_dir(job_id)
-    if not checkpoints_dir or not await storage.exists(checkpoints_dir):
-        return {"checkpoints": []}
-    elif await storage.isdir(checkpoints_dir):
-        checkpoints = []
-        try:
-            items = await storage.ls(checkpoints_dir, detail=False)
-            for item in items:
-                file_path = item if isinstance(item, str) else str(item)
-                filename = file_path.split("/")[-1] if "/" in file_path else file_path
-
-                if fnmatch(filename, "*_adapters.safetensors"):
-                    checkpoints.append({"filename": filename})
-                # allow directories too
-                elif await storage.isdir(file_path):
-                    checkpoints.append({"filename": filename})
-            if checkpoints:
-                return {"checkpoints": checkpoints}
-        except Exception as e:
-            print(f"Error listing checkpoints directory {checkpoints_dir}: {e}")
-
-    # Fallback to using default adaptor directory as checkpoints directory
-    checkpoints_dir = default_adaptor_dir
-    checkpoints_file_filter = job_data.get("checkpoints_file_filter", "*_adapters.safetensors")
-    if not checkpoints_file_filter:
-        checkpoints_file_filter = "*_adapters.safetensors"
-
-    checkpoints = []
-    try:
-        items = await storage.ls(checkpoints_dir, detail=False)
-        for item in items:
-            file_path = item if isinstance(item, str) else str(item)
-            filename = file_path.split("/")[-1] if "/" in file_path else file_path
-
-            if fnmatch(filename, checkpoints_file_filter):
-                checkpoints.append({"filename": filename})
-    except Exception as e:
-        print(f"Error reading checkpoints directory {checkpoints_dir}: {e}")
-
-    # Sort checkpoints by filename in reverse (descending) order for consistent ordering
-    checkpoints.sort(key=lambda x: x["filename"], reverse=True)
-
+    model_name, adaptor_name = checkpoint_service.get_model_and_adaptor_from_job_data(job_data)
     return {
         "checkpoints": checkpoints,
         "model_name": model_name,

@@ -2,6 +2,7 @@ import time
 import os
 from random import randrange
 import asyncio
+import inspect
 
 import torch
 import shutil
@@ -46,11 +47,30 @@ def find_lora_target_modules(model, keyword="proj", model_name=None):
     return sorted(module_names)
 
 
+def build_lora_config(
+    lora_alpha: int,
+    lora_dropout: float,
+    lora_r: int,
+    target_modules=None,
+) -> LoraConfig:
+    kwargs = {
+        "lora_alpha": lora_alpha,
+        "lora_dropout": lora_dropout,
+        "r": lora_r,
+        "bias": "none",
+        "task_type": "CAUSAL_LM",
+    }
+    if target_modules:
+        kwargs["target_modules"] = target_modules
+    return LoraConfig(**kwargs)
+
+
 @tlab_trainer.job_wrapper()
 def train_model():
     # Configuration is loaded automatically when tlab_trainer methods are called
     datasets = tlab_trainer.load_dataset()
     dataset = datasets["train"]
+    tlab_trainer.add_job_data("checkpoints", True)
 
     print(f"Dataset loaded successfully with {len(dataset)} examples")
     print(dataset[randrange(len(dataset))])
@@ -157,33 +177,36 @@ def train_model():
     lora_dropout = float(tlab_trainer.params.get("lora_dropout", 0.05))
     lora_r = int(tlab_trainer.params.get("lora_r", 8))
 
-    peft_config = LoraConfig(
-        lora_alpha=lora_alpha,
-        lora_dropout=lora_dropout,
-        r=lora_r,
-        bias="none",
-        task_type="CAUSAL_LM",
-    )
+    peft_config = build_lora_config(lora_alpha=lora_alpha, lora_dropout=lora_dropout, lora_r=lora_r)
+
+    if isinstance(model, PeftModel):
+        print("Loaded model is already a PEFT model. Merging existing adapters before training.")
+        model = model.merge_and_unload()
 
     # Prepare model for training
     if not HAS_AMD:
         model = prepare_model_for_kbit_training(model)
-    try:
-        model = get_peft_model(model, peft_config)
-    except ValueError as e:
-        print(f"PEFT model preparation error: {str(e)}")
-        peft_config = LoraConfig(
-            lora_alpha=lora_alpha,
-            lora_dropout=lora_dropout,
-            r=lora_r,
-            bias="none",
-            task_type="CAUSAL_LM",
-            target_modules=lora_target_modules,
-        )
-        model = get_peft_model(model, peft_config)
 
-    num_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Trainable parameters: {num_trainable}")
+    # TRL versions differ: some expect peft_config on trainer, others require pre-wrapped PeftModel.
+    trainer_supports_peft_config = "peft_config" in inspect.signature(SFTTrainer.__init__).parameters
+    if not trainer_supports_peft_config:
+        try:
+            model = get_peft_model(model, peft_config)
+        except ValueError as e:
+            print(f"PEFT model preparation error: {str(e)}")
+            peft_config = build_lora_config(
+                lora_alpha=lora_alpha,
+                lora_dropout=lora_dropout,
+                lora_r=lora_r,
+                target_modules=lora_target_modules,
+            )
+            model = get_peft_model(model, peft_config)
+
+    if isinstance(model, PeftModel):
+        num_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print(f"Trainable parameters: {num_trainable}")
+    else:
+        print("LoRA adapters will be attached by SFTTrainer.")
 
     # Get output directories - use direct attribute access
     output_dir = tlab_trainer.params.get("output_dir", "./output")
@@ -271,15 +294,33 @@ def train_model():
         eval_data = None
 
     # Create trainer
-    trainer = SFTTrainer(
-        model=model,
-        train_dataset=train_data,
-        eval_dataset=eval_data,
-        processing_class=tokenizer,
-        formatting_func=formatting_func,
-        args=training_args,
-        callbacks=callbacks,
-    )
+    trainer_kwargs = {
+        "model": model,
+        "train_dataset": train_data,
+        "eval_dataset": eval_data,
+        "processing_class": tokenizer,
+        "formatting_func": formatting_func,
+        "args": training_args,
+        "callbacks": callbacks,
+    }
+    if trainer_supports_peft_config:
+        trainer_kwargs["peft_config"] = peft_config
+
+    try:
+        trainer = SFTTrainer(**trainer_kwargs)
+    except ValueError as e:
+        if trainer_supports_peft_config:
+            print(f"SFTTrainer LoRA setup fallback: {str(e)}")
+            peft_config = build_lora_config(
+                lora_alpha=lora_alpha,
+                lora_dropout=lora_dropout,
+                lora_r=lora_r,
+                target_modules=lora_target_modules,
+            )
+            trainer_kwargs["peft_config"] = peft_config
+            trainer = SFTTrainer(**trainer_kwargs)
+        else:
+            raise
 
     # Train the model
     try:

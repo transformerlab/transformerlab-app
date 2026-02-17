@@ -2181,8 +2181,7 @@ async def resume_from_checkpoint(
     """
     import json
     from transformerlab.services import job_service
-    from lab.dirs import get_job_checkpoints_dir
-    from lab import storage
+    from transformerlab.services import checkpoint_service
     import time
 
     # Get the original job
@@ -2212,9 +2211,8 @@ async def resume_from_checkpoint(
         )
 
     # Verify checkpoint exists using workspace-aware path resolution
-    checkpoints_dir = await get_job_checkpoints_dir(job_id)
-    checkpoint_path = storage.join(checkpoints_dir, request.checkpoint)
-    if not await storage.exists(checkpoint_path):
+    checkpoint_path = await checkpoint_service.resolve_checkpoint_path(job_id, request.checkpoint, job_data)
+    if not checkpoint_path:
         raise HTTPException(status_code=404, detail=f"Checkpoint '{request.checkpoint}' not found")
 
     # Get provider

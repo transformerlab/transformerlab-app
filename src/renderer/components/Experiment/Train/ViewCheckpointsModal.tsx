@@ -8,11 +8,28 @@ import {
   Box,
 } from '@mui/joy';
 import { PlayIcon } from 'lucide-react';
-import { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { fetchWithAuth } from 'renderer/lib/authContext';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+
+function formatBytes(bytes: number): string {
+  if (!bytes || bytes < 0) {
+    return '-';
+  }
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  if (bytes < 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
 
 export default function ViewCheckpointsModal({ open, onClose, jobId }) {
   const { experimentInfo } = useExperimentInfo();
@@ -20,11 +37,27 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
   const [resumingCheckpoint, setResumingCheckpoint] = useState<string | null>(
     null,
   );
+  const [settingInferenceCheckpoint, setSettingInferenceCheckpoint] = useState<
+    string | null
+  >(null);
   const { data, isLoading: checkpointsLoading } = useAPI(
     'jobs',
     ['getCheckpoints'],
     { jobId, experimentId: experimentInfo?.id },
   );
+
+  const activeInferenceCheckpoint = useMemo(() => {
+    try {
+      const raw = experimentInfo?.config?.inferenceParams;
+      const params = raw ? JSON.parse(raw) : {};
+      if (String(params?.checkpointJobId || '') !== String(jobId)) {
+        return '';
+      }
+      return params?.checkpointName || '';
+    } catch (error) {
+      return '';
+    }
+  }, [experimentInfo?.config?.inferenceParams, jobId]);
 
   const handleRestartFromCheckpoint = async (checkpoint) => {
     if (!experimentInfo?.id) {
@@ -67,6 +100,52 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
       });
     } finally {
       setResumingCheckpoint(null);
+    }
+  };
+
+  const handleUseForInference = async (checkpoint) => {
+    if (!experimentInfo?.id) {
+      addNotification({
+        type: 'error',
+        message: 'Experiment ID is required',
+      });
+      return;
+    }
+
+    setSettingInferenceCheckpoint(checkpoint.filename);
+    try {
+      const rawInferenceParams =
+        experimentInfo?.config?.inferenceParams || '{}';
+      const currentInferenceParams = JSON.parse(rawInferenceParams);
+      const updatedInferenceParams = {
+        ...currentInferenceParams,
+        checkpointJobId: String(jobId),
+        checkpointName: checkpoint.filename,
+      };
+
+      const updateResponse = await fetchWithAuth(
+        chatAPI.Endpoints.Experiment.UpdateConfig(
+          experimentInfo.id,
+          'inferenceParams',
+          JSON.stringify(updatedInferenceParams),
+        ),
+      );
+
+      if (!updateResponse.ok) {
+        throw new Error(`HTTP ${updateResponse.status}`);
+      }
+
+      addNotification({
+        type: 'success',
+        message: `Checkpoint "${checkpoint.filename}" is now selected for inference.`,
+      });
+    } catch (error) {
+      addNotification({
+        type: 'error',
+        message: `Failed to update inference checkpoint: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
+    } finally {
+      setSettingInferenceCheckpoint(null);
     }
   };
 
@@ -164,6 +243,24 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                             disabled={resumingCheckpoint !== null}
                           >
                             Restart training from here
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={
+                              activeInferenceCheckpoint === checkpoint.filename
+                                ? 'solid'
+                                : 'soft'
+                            }
+                            sx={{ ml: 1 }}
+                            onClick={() => handleUseForInference(checkpoint)}
+                            loading={
+                              settingInferenceCheckpoint === checkpoint.filename
+                            }
+                            disabled={settingInferenceCheckpoint !== null}
+                          >
+                            {activeInferenceCheckpoint === checkpoint.filename
+                              ? 'Used for inference'
+                              : 'Use for inference'}
                           </Button>
                         </td>
                       </tr>

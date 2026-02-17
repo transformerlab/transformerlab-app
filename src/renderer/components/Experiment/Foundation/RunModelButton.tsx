@@ -411,6 +411,11 @@ export default function RunModelButton({
             inferenceSettings?.inferenceEngine ||
             'Engine'}
         </Button>
+        {inferenceSettings?.checkpointName && (
+          <Typography level="body-xs" sx={{ alignSelf: 'center', ml: 1 }}>
+            @ {inferenceSettings.checkpointName}
+          </Typography>
+        )}
       </>
     );
   }
