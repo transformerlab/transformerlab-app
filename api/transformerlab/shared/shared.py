@@ -19,8 +19,6 @@ from collections import deque
 from transformerlab.services.experiment_service import experiment_get
 from transformerlab.services.job_service import job_update_status_sync, job_update_status
 import transformerlab.services.job_service as job_service
-from transformerlab.routers.experiment.evals import run_evaluation_script
-from transformerlab.routers.experiment.generations import run_generation_script
 from lab.dirs import get_global_log_path, get_local_provider_job_dir
 from lab import dirs as lab_dirs, Job, Experiment
 from lab import storage
@@ -458,6 +456,9 @@ async def _launch_plugin_job_via_local_provider(
     """
     Helper to launch a plugin job via LocalProvider using ClusterConfig.
 
+    This function handles plugin setup (setup.sh, pyproject.toml, requirements.txt)
+    and ensures plugin dependencies are installed in the job's venv before running.
+
     Args:
         job_id: Job ID
         experiment_name: Experiment name/ID
@@ -473,14 +474,72 @@ async def _launch_plugin_job_via_local_provider(
     """
     import shlex
 
+    # Get job directory for LocalProvider
+    job_dir = await get_local_provider_job_dir(job_id, experiment_name)
+    await storage.makedirs(job_dir, exist_ok=True)
+
+    # Build setup script for plugin dependencies
+    setup_commands = []
+
+    # Check for plugin setup.sh (from index.json or directly)
+    setup_script_path = None
+    index_json_path = os.path.join(plugin_location, "index.json")
+    if os.path.exists(index_json_path):
+        try:
+            with open(index_json_path, "r") as f:
+                index_data = json.load(f)
+            setup_script_name = index_data.get("setup-script", "setup.sh")
+            setup_script_path = os.path.join(plugin_location, setup_script_name)
+        except Exception as e:
+            print(f"[{job_type}] Warning: Could not read plugin index.json: {e}")
+
+    # Fallback to setup.sh if index.json doesn't specify
+    if not setup_script_path or not os.path.exists(setup_script_path):
+        setup_script_path = os.path.join(plugin_location, "setup.sh")
+
+    if os.path.exists(setup_script_path):
+        # Normalize line endings (CRLF -> LF) like the plugin installer does
+        try:
+            with open(setup_script_path, "rb") as f:
+                data = f.read()
+            if b"\r" in data:
+                normalized = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+                with open(setup_script_path, "wb") as f:
+                    f.write(normalized)
+                # Ensure executable
+                try:
+                    os.chmod(setup_script_path, os.stat(setup_script_path).st_mode | 0o111)
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[{job_type}] Warning: Could not normalize setup.sh line endings: {e}")
+
+        # Run setup.sh from plugin directory (use script name, not full path, since we cd there)
+        # LocalProvider sets PATH to include venv/bin, so uv/pip will use the venv
+        setup_script_name = os.path.basename(setup_script_path)
+        escaped_setup_script_name = shlex.quote(setup_script_name)
+        escaped_plugin_dir = shlex.quote(plugin_location)
+        setup_commands.append(f"cd {escaped_plugin_dir} && bash {escaped_setup_script_name}")
+
+    # Also check for pyproject.toml or requirements.txt (only if no setup.sh found)
+    if not setup_commands:
+        pyproject_path = os.path.join(plugin_location, "pyproject.toml")
+        requirements_path = os.path.join(plugin_location, "requirements.txt")
+
+        escaped_plugin_dir = shlex.quote(plugin_location)
+        if os.path.exists(pyproject_path):
+            # Install in editable mode from plugin directory
+            setup_commands.append(f"cd {escaped_plugin_dir} && uv pip install -e .")
+        elif os.path.exists(requirements_path):
+            # Install from requirements.txt in plugin directory
+            setup_commands.append(f"cd {escaped_plugin_dir} && uv pip install -r requirements.txt")
+
+    setup_script = " && ".join(setup_commands) if setup_commands else None
+
     # Build command: cd to plugin_dir and run main.py with args
     escaped_plugin_dir = shlex.quote(plugin_location)
     escaped_args = " ".join(shlex.quote(str(arg)) for arg in command_args)
     command = f"cd {escaped_plugin_dir} && python main.py {escaped_args}"
-
-    # Get job directory for LocalProvider
-    job_dir = await get_local_provider_job_dir(job_id, experiment_name)
-    await storage.makedirs(job_dir, exist_ok=True)
 
     # Build env vars with secrets
     env_vars = await _build_plugin_job_env_vars(org_id, user_id, job_id, experiment_name)
@@ -490,6 +549,7 @@ async def _launch_plugin_job_via_local_provider(
         cluster_name=job_id,
         provider_name="local",
         command=command,
+        setup=setup_script,
         env_vars=env_vars,
         provider_config={"workspace_dir": job_dir},
     )
@@ -572,17 +632,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     master_job_type = job_details["type"]
     print(master_job_type)
 
-    # Get organization_id and user_id for passing to plugin subprocesses
+    # Get organization_id and user_id for passing to plugin jobs
     org_id = await _get_org_id_for_subprocess()
-    user_id = _get_user_id_for_subprocess(job_details)
-    subprocess_env = {}
-    if org_id:
-        subprocess_env["_TFL_ORG_ID"] = org_id
-    if user_id:
-        subprocess_env["_TFL_USER_ID"] = user_id
-
-    # Only pass env if it has values (empty dict is falsy, so this works)
-    subprocess_env_or_none = subprocess_env if subprocess_env else None
+    # user_id will be extracted per-job-type as needed
 
     # Handle TASK jobs separately - they are simple and don't need the common setup
     if master_job_type == "TASK":
@@ -625,88 +677,246 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_name)
         print("Running evaluation script")
 
-        evals_output_file = storage.join(output_temp_file_dir, f"output_{job_id}.txt")
-        # Create output file if it doesn't exist
-        if not await storage.exists(evals_output_file):
-            async with await storage.open(evals_output_file, "w") as f:
-                await f.write("")
-        # Pass user_id extracted from job_details if available
-        user_id_from_job = _get_user_id_for_subprocess(job_details)
-        await run_evaluation_script(
-            experiment_name, plugin_name, eval_name, job_id, org_id=org_id, user_id=user_id_from_job
-        )
-        # Check if stop button was clicked and update status accordingly
+        # Get eval_config from job_data
         job_row = await job_service.job_get(job_id)
-        job_data = job_row.get("job_data", None) if job_row else None
-        if job_data is None:
-            await job_update_status(job_id, "FAILED", experiment_id=experiment_name)
-            return {"status": "error", "job_id": job_id, "message": "Evaluation job failed: No job data found"}
-
-        if job_data.get("stop", False):
-            await job_update_status(job_id, "STOPPED", experiment_id=experiment_name)
-            return {"status": "stopped", "job_id": job_id, "message": "Evaluation job was stopped by user"}
+        job_data_raw = job_row.get("job_data", {}) if job_row else {}
+        if isinstance(job_data_raw, str):
+            try:
+                job_data = json.loads(job_data_raw)
+            except Exception:
+                job_data = {}
         else:
-            # Only set to COMPLETE if not already FAILED
-            job = await job_service.job_get(job_id)
-            current_status = job.get("status")
-            if current_status != "FAILED":
-                await job_update_status(job_id, "COMPLETE", experiment_id=experiment_name)
-            return {"status": "complete", "job_id": job_id, "message": "Evaluation job completed successfully"}
+            job_data = job_data_raw
+
+        eval_config = job_data.get("config", {})
+        template_config = eval_config.get("script_parameters", {})
+
+        # Extract model info from experiment_details
+        exp_config = (
+            experiment_details["config"]
+            if isinstance(experiment_details["config"], dict)
+            else json.loads(experiment_details["config"] or "{}")
+        )
+
+        model_name = exp_config.get("foundation", "")
+        if "model_name" in eval_config:
+            model_name = eval_config["model_name"]
+
+        model_file_path = exp_config.get("foundation_filename", "") or ""
+        model_type = exp_config.get("foundation_model_architecture", "")
+        if "model_architecture" in eval_config:
+            model_type = eval_config["model_architecture"]
+
+        model_adapter = exp_config.get("model_adapter", "")
+        if "model_adapter" in eval_config:
+            model_adapter = eval_config["model_adapter"]
+
+        # Create input file
+        from lab.dirs import get_temp_dir
+
+        temp_dir = await get_temp_dir()
+        input_file = storage.join(temp_dir, f"plugin_input_{secure_filename(str(plugin_name))}.json")
+
+        # Normalize experiment_details config for input file
+        exp_details_for_input = dict(experiment_details)
+        if "config" in exp_details_for_input:
+            exp_details_for_input["config"] = (
+                exp_details_for_input["config"]
+                if isinstance(exp_details_for_input["config"], dict)
+                else json.loads(exp_details_for_input["config"] or "{}")
+            )
+            if "inferenceParams" in exp_details_for_input["config"]:
+                if isinstance(exp_details_for_input["config"]["inferenceParams"], str):
+                    exp_details_for_input["config"]["inferenceParams"] = json.loads(
+                        exp_details_for_input["config"]["inferenceParams"]
+                    )
+            if "evaluations" in exp_details_for_input["config"]:
+                if isinstance(exp_details_for_input["config"]["evaluations"], str):
+                    exp_details_for_input["config"]["evaluations"] = json.loads(
+                        exp_details_for_input["config"]["evaluations"]
+                    )
+
+        input_contents = {"experiment": exp_details_for_input, "config": template_config}
+        async with await storage.open(input_file, "w") as outfile:
+            await outfile.write(json.dumps(input_contents, indent=4))
+
+        # Build command args (without --plugin_dir since we'll cd into plugin_dir)
+        command_args = []
+        for key in template_config:
+            command_args.append(f"--{key}")
+            if isinstance(template_config[key], list):
+                command_args.append(json.dumps(template_config[key]))
+            else:
+                command_args.append(str(template_config[key]))
+
+        command_args.extend(
+            [
+                "--experiment_name",
+                experiment_name,
+                "--eval_name",
+                eval_name,
+                "--input_file",
+                input_file,
+                "--model_name",
+                model_name,
+                "--model_path",
+                model_file_path,
+                "--model_architecture",
+                model_type,
+                "--model_adapter",
+                model_adapter,
+                "--job_id",
+                str(job_id),
+            ]
+        )
+
+        # Launch via LocalProvider
+        user_id_from_job = _get_user_id_for_subprocess(job_details)
+        result = await _launch_plugin_job_via_local_provider(
+            job_id=job_id,
+            experiment_name=experiment_name,
+            plugin_name=plugin_name,
+            plugin_location=plugin_location,
+            command_args=command_args,
+            org_id=org_id,
+            user_id=user_id_from_job,
+            job_type="EVAL",
+        )
+
+        if result.get("status") == "error":
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": result.get("message", "Evaluation job launch failed"),
+            }
+
+        # Note: Job status will be updated by polling the process status (handled elsewhere).
+        # The old synchronous status checking logic is replaced by async status polling.
+        return {"status": "running", "job_id": job_id, "message": "Evaluation job launched successfully"}
 
     elif master_job_type == "GENERATE":
-        plugin_name = job_config["plugin"]
-
-        generation_name = job_config["generator"]
+        generation_name = job_config.get("generator", "")
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_name)
         print("Running generation script")
 
-        gen_output_file = storage.join(output_temp_file_dir, f"output_{job_id}.txt")
-        # Create output file if it doesn't exist
-        if not await storage.exists(gen_output_file):
-            async with await storage.open(gen_output_file, "w") as f:
-                await f.write("")
+        # Get generation_config from job_data
+        job_row = await job_service.job_get(job_id)
+        job_data_raw = job_row.get("job_data", {}) if job_row else {}
+        if isinstance(job_data_raw, str):
+            try:
+                job_data = json.loads(job_data_raw)
+            except Exception:
+                job_data = {}
+        else:
+            job_data = job_data_raw
 
-        # Pass user_id extracted from job_details if available
-        user_id_from_job = _get_user_id_for_subprocess(job_details)
-        await run_generation_script(
-            experiment_name, plugin_name, generation_name, job_id, org_id=org_id, user_id=user_id_from_job
+        generation_config = job_data.get("config", {})
+        template_config = generation_config.get("script_parameters", {})
+
+        # Extract model info from experiment_details
+        exp_config = (
+            experiment_details["config"]
+            if isinstance(experiment_details["config"], dict)
+            else json.loads(experiment_details["config"] or "{}")
         )
 
-        # Check should_stop flag and update status accordingly
-        job_row = await job_service.job_get(job_id)
-        job_data = job_row.get("job_data", None) if job_row else None
-        if job_data is None:
-            await job_update_status(job_id, "FAILED", experiment_id=experiment_name)
-            return {"status": "error", "job_id": job_id, "message": "Generation job failed: No job data found"}
+        model_name = exp_config.get("foundation", "")
+        if "model_name" in generation_config:
+            model_name = generation_config["model_name"]
 
-        if job_data.get("stop", False):
-            await job_update_status(job_id, "STOPPED", experiment_id=experiment_name)
-            return {"status": "stopped", "job_id": job_id, "message": "Generation job was stopped by user"}
-        else:
-            # Only set to COMPLETE if not already FAILED
-            job = await job_service.job_get(job_id)
-            current_status = job.get("status")
-            if current_status != "FAILED":
-                await job_update_status(job_id, "COMPLETE", experiment_id=experiment_name)
-            return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
+        model_file_path = exp_config.get("foundation_filename", "") or ""
+        model_type = exp_config.get("foundation_model_architecture", "")
+        if "model_architecture" in generation_config:
+            model_type = generation_config["model_architecture"]
+
+        model_adapter = exp_config.get("model_adapter", "")
+        if "model_adapter" in generation_config:
+            model_adapter = generation_config["model_adapter"]
+
+        # Create input file
+        from lab.dirs import get_temp_dir
+
+        temp_dir = await get_temp_dir()
+        input_file = storage.join(temp_dir, f"plugin_input_{secure_filename(str(plugin_name))}.json")
+
+        # Normalize experiment_details config for input file
+        exp_details_for_input = dict(experiment_details)
+        if "config" in exp_details_for_input:
+            exp_details_for_input["config"] = (
+                exp_details_for_input["config"]
+                if isinstance(exp_details_for_input["config"], dict)
+                else json.loads(exp_details_for_input["config"] or "{}")
+            )
+            if "inferenceParams" in exp_details_for_input["config"]:
+                if isinstance(exp_details_for_input["config"]["inferenceParams"], str):
+                    exp_details_for_input["config"]["inferenceParams"] = json.loads(
+                        exp_details_for_input["config"]["inferenceParams"]
+                    )
+
+        input_contents = {"experiment": exp_details_for_input, "config": template_config}
+        async with await storage.open(input_file, "w") as outfile:
+            await outfile.write(json.dumps(input_contents, indent=4))
+
+        # Build command args (without --plugin_dir since we'll cd into plugin_dir)
+        command_args = []
+        for key in template_config:
+            command_args.append(f"--{key}")
+            if isinstance(template_config[key], list):
+                command_args.append(json.dumps(template_config[key]))
+            else:
+                command_args.append(str(template_config[key]))
+
+        command_args.extend(
+            [
+                "--experiment_name",
+                experiment_name,
+                "--generation_name",
+                generation_name,
+                "--input_file",
+                input_file,
+                "--model_name",
+                model_name,
+                "--model_path",
+                model_file_path,
+                "--model_architecture",
+                model_type,
+                "--model_adapter",
+                model_adapter,
+                "--job_id",
+                str(job_id),
+            ]
+        )
+
+        # Launch via LocalProvider
+        user_id_from_job = _get_user_id_for_subprocess(job_details)
+        result = await _launch_plugin_job_via_local_provider(
+            job_id=job_id,
+            experiment_name=experiment_name,
+            plugin_name=plugin_name,
+            plugin_location=plugin_location,
+            command_args=command_args,
+            org_id=org_id,
+            user_id=user_id_from_job,
+            job_type="GENERATE",
+        )
+
+        if result.get("status") == "error":
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": result.get("message", "Generation job launch failed"),
+            }
+
+        # Note: Job status will be updated by polling the process status (handled elsewhere).
+        # The old synchronous status checking logic is replaced by async status polling.
+        return {"status": "running", "job_id": job_id, "message": "Generation job launched successfully"}
 
     elif master_job_type == "EXPORT":
-        plugin_name = job_config["plugin"]
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_name)
         print("Running export script")
 
-        export_output_file = storage.join(output_temp_file_dir, f"output_{job_id}.txt")
-        # Create output file if it doesn't exist
-        if not await storage.exists(export_output_file):
-            async with await storage.open(export_output_file, "w") as f:
-                await f.write("")
-
-        # Run the export script using the existing run_exporter_script function
-        from transformerlab.routers.experiment.export import run_exporter_script
-
         config = job_config["config"]
-        # Extract parameters from the job config - note: plugin_name is already set above
-        # plugin_architecture = config["output_model_architecture"]
+        # Determine plugin architecture from plugin name
         if "gguf" in plugin_name.lower():
             plugin_architecture = "GGUF"
         elif "mlx" in plugin_name.lower():
@@ -715,35 +925,83 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             plugin_architecture = "LLAMAFILE"
         else:
             plugin_architecture = "OTHER"
-        plugin_params = json.dumps(config["params"])
 
-        # Call the existing run_exporter_script function with the existing job_id
-        # Pass user_id extracted from job_details if available
-        user_id_from_job = _get_user_id_for_subprocess(job_details)
-        result = await run_exporter_script(
-            id=experiment_name,
-            plugin_name=plugin_name,
-            plugin_architecture=plugin_architecture,
-            plugin_params=plugin_params,
-            job_id=job_id,
-            user_id=user_id_from_job,
-            org_id=org_id,
+        params = config.get("params", {})
+
+        # Extract model info from experiment_details
+        exp_config = (
+            experiment_details["config"]
+            if isinstance(experiment_details["config"], dict)
+            else json.loads(experiment_details["config"] or "{}")
         )
 
-        # Check the result and update job status accordingly
-        if result.get("status") == "success":
-            # Only set to COMPLETE if not already FAILED
-            job = await job_service.job_get(job_id)
-            current_status = job.get("status")
-            if current_status != "FAILED":
-                await job_update_status(job_id, "COMPLETE", experiment_id=experiment_name)
-                print(f"Export job {job_id} completed successfully")
-            return {"status": "complete", "job_id": job_id, "message": "Export job completed successfully"}
+        input_model_id = exp_config.get("foundation", "")
+        input_model_id_without_author = input_model_id.split("/")[-1] if "/" in input_model_id else input_model_id
+        input_model_architecture = exp_config.get("foundation_model_architecture", "")
+        input_model_path = exp_config.get("foundation_filename", "") or input_model_id
 
+        # Generate output model details
+        import time
+
+        conversion_time = int(time.time())
+        output_model_architecture = plugin_architecture
+        q_type = params.get("outtype", "") or (str(params["q_bits"]) + "bit" if params.get("q_bits") else "")
+
+        if output_model_architecture == "GGUF":
+            output_model_id = f"{input_model_id_without_author}-{conversion_time}.gguf"
+            if q_type:
+                output_model_id = f"{input_model_id_without_author}-{conversion_time}-{q_type}.gguf"
         else:
-            await job_update_status(job_id, "FAILED", experiment_id=experiment_name)
-            print(f"Export job {job_id} failed")
-            return {"status": "error", "job_id": job_id, "message": result.get("message", "Export job failed")}
+            output_model_id = f"{output_model_architecture}-{input_model_id_without_author}-{conversion_time}"
+            if q_type:
+                output_model_id = f"{output_model_id}-{q_type}"
+
+        output_model_id = secure_filename(output_model_id)
+
+        from lab.dirs import get_models_dir
+
+        models_dir = await get_models_dir()
+        output_path = storage.join(models_dir, output_model_id)
+
+        # Build command args (without --plugin_dir since we'll cd into plugin_dir)
+        command_args = [
+            "--job_id",
+            str(job_id),
+            "--model_name",
+            input_model_id,
+            "--model_path",
+            input_model_path,
+            "--model_architecture",
+            input_model_architecture,
+            "--output_dir",
+            output_path,
+            "--output_model_id",
+            output_model_id,
+        ]
+
+        # Add plugin-specific parameters
+        for key in params:
+            command_args.append(f"--{key}")
+            command_args.append(str(params[key]))
+
+        # Launch via LocalProvider
+        user_id_from_job = _get_user_id_for_subprocess(job_details)
+        result = await _launch_plugin_job_via_local_provider(
+            job_id=job_id,
+            experiment_name=experiment_name,
+            plugin_name=plugin_name,
+            plugin_location=plugin_location,
+            command_args=command_args,
+            org_id=org_id,
+            user_id=user_id_from_job,
+            job_type="EXPORT",
+        )
+
+        if result.get("status") == "error":
+            return {"status": "error", "job_id": job_id, "message": result.get("message", "Export job launch failed")}
+
+        # Note: Job status will be updated by polling the process status (handled elsewhere).
+        return {"status": "running", "job_id": job_id, "message": "Export job launched successfully"}
 
     elif master_job_type == "DIFFUSION":
         plugin_name = job_config["plugin"]
@@ -888,7 +1146,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     # Use experiment details and SDK objects for path management
     print("Experiment Details: ", experiment_details)
-    experiment_details_as_string = json.dumps(experiment_details)
     experiment_dir = await exp_obj.get_dir()
 
     # Use Job SDK for output file path
@@ -922,12 +1179,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             "tensorboards",
             template_config["template_name"],
         )
-        # Check if plugin has a venv directory
-        venv_path = os.path.join(plugin_location, "venv")
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_name)
-
-        if os.path.exists(venv_path) and os.path.isdir(venv_path):
-            venv_python = os.path.join(venv_path, "bin", "python")
 
         tempdir = storage.join(workspace_dir, "temp")
         if not await storage.exists(tempdir):
@@ -1045,61 +1297,84 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     job_id, "sweep_output_file", storage.join(sweep_dir, f"output_sweep_{job_id}.txt"), experiment_name
                 )
 
-                # Create command for this run
-                if os.path.exists(venv_path) and os.path.isdir(venv_path):
-                    print(f">Plugin has virtual environment, activating venv from {venv_path}")
-                    venv_python = os.path.join(venv_path, "bin", "python")
-                    run_command = [
-                        venv_python,
-                        dirs.PLUGIN_HARNESS,
-                        "--plugin_dir",
-                        plugin_location,
-                        "--input_file",
-                        run_input_file,
-                        "--experiment_name",
-                        experiment_name,
-                    ]
-                else:
-                    print(">Using system Python interpreter")
-                    run_command = [
-                        sys.executable,
-                        dirs.PLUGIN_HARNESS,
-                        "--plugin_dir",
-                        plugin_location,
-                        "--input_file",
-                        run_input_file,
-                        "--experiment_name",
-                        experiment_name,
-                    ]
+                # Build command: cd to plugin_dir and run main.py with --input_file
+                # Note: For sweeps, we run sequentially and wait for each to complete
+                import shlex
 
-                # Replace synchronous subprocess.run with asyncio
-                async def run_process_async(cmd, output_file):
-                    # Open file for writing
-                    async with await storage.open(output_file, "a") as f:
-                        # Create subprocess with piped stdout
-                        # Pass organization_id via environment variable
-                        process_env = {**os.environ, **subprocess_env} if subprocess_env_or_none else None
-                        process = await asyncio.create_subprocess_exec(
-                            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, env=process_env
-                        )
+                escaped_plugin_dir = shlex.quote(plugin_location)
+                escaped_input_file = shlex.quote(run_input_file)
+                escaped_experiment_name = shlex.quote(experiment_name)
+                command = f"cd {escaped_plugin_dir} && python main.py --input_file {escaped_input_file} --experiment_name {escaped_experiment_name}"
 
-                        # Process output in real-time
-                        while True:
-                            line = await process.stdout.readline()
-                            if not line:
-                                break
+                # Get job directory for this sweep run
+                sweep_job_dir = await get_local_provider_job_dir(f"{job_id}_sweep_run_{i + 1}", experiment_name)
+                await storage.makedirs(sweep_job_dir, exist_ok=True)
 
-                            # Decode and write to file
-                            decoded_line = line.decode("utf-8")
-                            await f.write(f"\n[Run {i + 1}/{total_configs}]: {decoded_line.strip()}")
-                            await f.flush()
+                # Build env vars with secrets
+                user_id_from_job = _get_user_id_for_subprocess(job_details)
+                env_vars = await _build_plugin_job_env_vars(org_id, user_id_from_job, job_id, experiment_name)
 
-                        # Wait for process to complete
-                        await process.wait()
-                        return process.returncode
+                # Build ClusterConfig
+                cluster_config = ClusterConfig(
+                    cluster_name=f"{job_id}_sweep_run_{i + 1}",
+                    provider_name="local",
+                    command=command,
+                    env_vars=env_vars,
+                    provider_config={"workspace_dir": sweep_job_dir},
+                )
 
-                # Run the process asynchronously
-                await run_process_async(run_command, run_output_file)
+                # Launch via LocalProvider and wait for completion
+                print(f"[LoRA Sweep Run {i + 1}/{total_configs}] Launching via LocalProvider: {command}")
+                try:
+                    provider = LocalProvider()
+                    launch_result = provider.launch_cluster(f"{job_id}_sweep_run_{i + 1}", cluster_config)
+                    pid = launch_result.get("pid")
+
+                    if pid:
+                        # Wait for process to complete by polling
+                        import psutil
+
+                        try:
+                            process = psutil.Process(pid)
+                            # Read stdout/stderr from job directory logs
+                            stdout_log = os.path.join(sweep_job_dir, "stdout.log")
+                            stderr_log = os.path.join(sweep_job_dir, "stderr.log")
+
+                            # Wait for process to complete
+                            process.wait(timeout=None)  # Wait indefinitely
+
+                            # Copy logs to sweep output file
+                            if os.path.exists(stdout_log):
+                                async with await storage.open(run_output_file, "a") as f:
+                                    async with await storage.open(stdout_log, "r") as log:
+                                        async for line in log:
+                                            await f.write(f"\n[Run {i + 1}/{total_configs}]: {line}")
+                            if os.path.exists(stderr_log) and os.path.getsize(stderr_log) > 0:
+                                async with await storage.open(run_output_file, "a") as f:
+                                    async with await storage.open(stderr_log, "r") as log:
+                                        async for line in log:
+                                            await f.write(f"\n[Run {i + 1}/{total_configs} ERROR]: {line}")
+
+                            returncode = process.returncode
+                        except psutil.NoSuchProcess:
+                            print(f"[LoRA Sweep Run {i + 1}] Process {pid} not found")
+                            returncode = -1
+                        except Exception as e:
+                            print(f"[LoRA Sweep Run {i + 1}] Error waiting for process: {e}")
+                            returncode = -1
+                    else:
+                        print(f"[LoRA Sweep Run {i + 1}] No PID returned from launch")
+                        returncode = -1
+
+                    if returncode != 0:
+                        print(f"[LoRA Sweep Run {i + 1}] Failed with return code {returncode}")
+
+                except Exception as e:
+                    print(f"[LoRA Sweep Run {i + 1}] Launch error: {e}")
+                    import traceback
+
+                    traceback.print_exc()
+                    # Continue to next run even if this one failed
 
                 # Delete the output adaptor directory if it exists
                 if await storage.exists(run_adaptor_dir) and await storage.isdir(run_adaptor_dir):
@@ -1192,40 +1467,44 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 async with await storage.open(final_input_file, "w") as outfile:
                     await outfile.write(json.dumps(final_input_contents, indent=4))
 
-                # Create command for final training
-                if os.path.exists(venv_path) and os.path.isdir(venv_path):
-                    venv_python = os.path.join(venv_path, "bin", "python")
-                    final_command = [
-                        venv_python,
-                        dirs.PLUGIN_HARNESS,
-                        "--plugin_dir",
-                        plugin_location,
-                        "--input_file",
-                        final_input_file,
-                        "--experiment_name",
-                        experiment_name,
-                    ]
-                else:
-                    final_command = [
-                        sys.executable,
-                        dirs.PLUGIN_HARNESS,
-                        "--plugin_dir",
-                        plugin_location,
-                        "--input_file",
-                        final_input_file,
-                        "--experiment_name",
-                        experiment_name,
-                    ]
+                # Build command for final training: cd to plugin_dir and run main.py
+                import shlex
 
-                # Run the final training synchronously
-                # Pass organization_id via environment variable
-                popen_and_call(
-                    on_train_complete,
-                    experiment_details_as_string,
-                    output_file,
-                    *final_command,
-                    env=subprocess_env_or_none,
+                escaped_plugin_dir = shlex.quote(plugin_location)
+                escaped_final_input_file = shlex.quote(final_input_file)
+                escaped_experiment_name = shlex.quote(experiment_name)
+                final_command_str = f"cd {escaped_plugin_dir} && python main.py --input_file {escaped_final_input_file} --experiment_name {escaped_experiment_name}"
+
+                # Get job directory for final training
+                final_job_dir = await get_local_provider_job_dir(f"{job_id}_final", experiment_name)
+                await storage.makedirs(final_job_dir, exist_ok=True)
+
+                # Build env vars with secrets
+                user_id_from_job = _get_user_id_for_subprocess(job_details)
+                env_vars = await _build_plugin_job_env_vars(org_id, user_id_from_job, job_id, experiment_name)
+
+                # Build ClusterConfig
+                final_cluster_config = ClusterConfig(
+                    cluster_name=f"{job_id}_final",
+                    provider_name="local",
+                    command=final_command_str,
+                    env_vars=env_vars,
+                    provider_config={"workspace_dir": final_job_dir},
                 )
+
+                # Launch via LocalProvider
+                print(f"[LoRA Final Training] Launching via LocalProvider: {final_command_str}")
+                try:
+                    provider = LocalProvider()
+                    result = provider.launch_cluster(f"{job_id}_final", final_cluster_config)
+                    print(f"[LoRA Final Training] Job launched: {result}")
+                    # Note: Job status will be updated by polling the process status (handled elsewhere).
+                except Exception as e:
+                    await job_service.job_update_status(job_id, "FAILED", experiment_id=experiment_name)
+                    print(f"[LoRA Final Training] Launch error: {e}")
+                    import traceback
+
+                    traceback.print_exc()
                 return
 
             return
