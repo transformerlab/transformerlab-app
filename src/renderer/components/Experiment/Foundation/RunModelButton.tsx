@@ -95,9 +95,7 @@ export default function RunModelButton({
       setStopRequested(false);
       return;
     }
-    setStopRequested(
-      stopRequestedStateByExperiment.get(experimentId) === true,
-    );
+    setStopRequested(stopRequestedStateByExperiment.get(experimentId) === true);
   }, [experimentId]);
 
   const { data: loadJobs } = useSWR(
