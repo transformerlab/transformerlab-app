@@ -1,6 +1,7 @@
 /**
  * SWR hooks
  */
+import useSWRRaw from 'swr';
 import {
   fetchWithAuth,
   useSWRWithAuth as useSWR,
@@ -8,6 +9,26 @@ import {
 import { API_URL, getAPIFullPath } from './urls';
 import { Endpoints } from './endpoints';
 import { authenticatedFetch } from './functions';
+
+const CONNECTION_HEALTH_TIMEOUT_MS = 10000;
+
+/** Fetcher for healthz that times out so connection-lost detection works when server is down. */
+async function healthzFetcherWithTimeout(url: string): Promise<unknown> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    CONNECTION_HEALTH_TIMEOUT_MS,
+  );
+  try {
+    const res = await fetchWithAuth(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!res.ok) throw new Error(`healthz ${res.status}`);
+    return res.json();
+  } catch (e) {
+    clearTimeout(timeoutId);
+    throw e;
+  }
+}
 
 export const fetcher = async (
   input: RequestInfo | URL,
@@ -58,16 +79,16 @@ export function useModelStatus() {
   const options = { refreshInterval: 2000 };
 
   // eslint-disable-next-line prefer-const
-  let { data, error, isLoading, mutate } = useSWR(url, fetcher, options);
+  let { data, isError, isLoading, mutate } = useSWR(url, fetcher, options);
 
-  if (error || data?.length === 0) {
+  if (isError || data?.length === 0) {
     data = null;
   }
 
   return {
     models: data,
     isLoading,
-    isError: error,
+    isError,
     mutate: mutate,
   };
 }
@@ -99,13 +120,36 @@ export function useServerStats() {
   const options = { refreshInterval: 2000 };
 
   // eslint-disable-next-line prefer-const
-  let { data, error, isLoading } = useSWR(url, fetcher, options);
+  let { data, isError, isLoading } = useSWR(url, fetcher, options);
 
   return {
     server: data,
     isLoading,
-    isError: error,
+    isError,
   };
+}
+
+/**
+ * Connection health check with timeout. Use this (not useServerStats) to decide
+ * when to show ConnectionLostModal, so we get a definite fail after ~10s when
+ * the server is down instead of hanging.
+ */
+export function useConnectionHealth(connection: string | null) {
+  const base = connection?.trim() ?? '';
+  const healthzUrl =
+    base.length > 0
+      ? (base.endsWith('/') ? base : `${base}/`) + 'healthz'
+      : null;
+  const { error, isLoading } = useSWRRaw(
+    healthzUrl,
+    healthzFetcherWithTimeout,
+    {
+      refreshInterval: 5000,
+      errorRetryInterval: 5000,
+      dedupingInterval: 2000,
+    },
+  );
+  return { isError: !!error, isLoading };
 }
 
 const fetchAndGetErrorStatus = async (url: string) => {
@@ -145,11 +189,11 @@ export function useCheckLocalConnection() {
   };
 
   // eslint-disable-next-line prefer-const
-  let { data, error, mutate } = useSWR(url, fetchAndGetErrorStatus, options);
+  let { data, isError, mutate } = useSWR(url, fetchAndGetErrorStatus, options);
 
   return {
     server: data,
-    error: error,
+    error: isError,
     mutate: mutate,
   };
 }

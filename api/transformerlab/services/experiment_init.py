@@ -364,14 +364,8 @@ async def seed_default_experiments():
 async def cancel_in_progress_jobs():
     """On startup, mark any RUNNING jobs as CANCELLED in the filesystem job store across all organizations.
     REMOTE jobs are excluded from this cancellation as they run on external compute providers."""
-    # Get HOME_DIR
-    try:
-        home_dir = HOME_DIR
-    except AttributeError:
-        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
-
-    # Check all org directories
-    orgs_dir = storage.join(home_dir, "orgs")
+    # Check all org directories (localfs-aware)
+    orgs_dir = lab_dirs.get_orgs_base_dir()
     if await storage.exists(orgs_dir) and await storage.isdir(orgs_dir):
         try:
             org_entries = await storage.ls(orgs_dir, detail=False)

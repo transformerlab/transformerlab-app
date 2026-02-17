@@ -29,6 +29,7 @@ import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
+import SweepConfigSection from './SweepConfigSection';
 
 type QueueTaskModalProps = {
   open: boolean;
@@ -94,6 +95,12 @@ export default function QueueTaskModal({
     Record<number, string>
   >({});
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
+  const [runSweeps, setRunSweeps] = React.useState(false);
+  const [sweepConfig, setSweepConfig] = React.useState<Record<string, any[]>>(
+    {},
+  );
+  const [sweepMetric, setSweepMetric] = React.useState('eval/loss');
+  const [lowerIsBetter, setLowerIsBetter] = React.useState(true);
 
   // Fetch available models and datasets from the API
   const { data: modelsData } = useSWR(
@@ -193,6 +200,30 @@ export default function QueueTaskModal({
       setSelectedProviderId(
         taskProviderInList ? taskProviderId : (providers[0]?.id ?? ''),
       );
+
+      // Initialize sweep configuration from task
+      setRunSweeps(cfg.run_sweeps ?? task.run_sweeps ?? false);
+      if (cfg.sweep_config || task.sweep_config) {
+        const sweepCfg =
+          typeof cfg.sweep_config === 'string'
+            ? JSON.parse(cfg.sweep_config)
+            : cfg.sweep_config || task.sweep_config;
+        setSweepConfig(sweepCfg || {});
+      } else {
+        setSweepConfig({});
+      }
+      setSweepMetric(
+        cfg.sweep_metric ||
+          task.sweep_metric ||
+          (cfg.run_sweeps || task.run_sweeps ? 'eval/loss' : 'eval/loss'),
+      );
+      setLowerIsBetter(
+        cfg.lower_is_better !== undefined
+          ? cfg.lower_is_better
+          : task.lower_is_better !== undefined
+            ? task.lower_is_better
+            : true,
+      );
     }
   }, [open, task, providers]);
 
@@ -248,6 +279,14 @@ export default function QueueTaskModal({
       return;
     }
 
+    // Validate sweep configuration if enabled
+    if (runSweeps && Object.keys(sweepConfig).length === 0) {
+      alert(
+        'Please add at least one parameter to sweep, or disable hyperparameter sweeps.',
+      );
+      return;
+    }
+
     // Convert parameters array to object for config
     const config: Record<string, any> = {};
     parameters.forEach(({ key, value }) => {
@@ -263,6 +302,16 @@ export default function QueueTaskModal({
     const provider = providers.find((p) => p.id === selectedProviderId);
     if (provider) {
       config.provider_name = provider.name;
+    }
+
+    // Add sweep configuration if enabled
+    if (runSweeps) {
+      config.run_sweeps = true;
+      if (Object.keys(sweepConfig).length > 0) {
+        config.sweep_config = sweepConfig;
+      }
+      config.sweep_metric = sweepMetric;
+      config.lower_is_better = lowerIsBetter;
     }
 
     onSubmit(config);
@@ -771,6 +820,21 @@ export default function QueueTaskModal({
                 <code>lab.get_config()</code>
               </Typography>
             </Stack>
+
+            <Divider />
+
+            {/* Sweep Configuration Section */}
+            <SweepConfigSection
+              runSweeps={runSweeps}
+              onRunSweepsChange={setRunSweeps}
+              sweepConfig={sweepConfig}
+              onSweepConfigChange={setSweepConfig}
+              sweepMetric={sweepMetric}
+              onSweepMetricChange={setSweepMetric}
+              lowerIsBetter={lowerIsBetter}
+              onLowerIsBetterChange={setLowerIsBetter}
+              parameters={parameters}
+            />
           </Stack>
         </DialogContent>
         <DialogActions>

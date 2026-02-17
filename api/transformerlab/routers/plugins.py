@@ -24,9 +24,9 @@ router = APIRouter(prefix="/plugins", tags=["plugins"])
 async def plugin_gallery():
     """Get list of plugins that we can access"""
 
-    # In remote mode (TFL_API_STORAGE_URI is set), plugins are not available
+    # In remote mode (MULTIUSER is set), plugins are not available
     # Return empty list to match sidebar behavior where plugins menu is hidden
-    if os.getenv("TFL_API_STORAGE_URI"):
+    if os.getenv("MULTIUSER", "").lower() == "true":
         return []
 
     local_workspace_gallery_directory = dirs.PLUGIN_PRELOADED_GALLERY
@@ -361,10 +361,14 @@ async def install_plugin(plugin_id: str):
         extra = ""
 
         if check_nvidia_gpu():
-            # If we have a GPU, use the nvidia extra
-            print("NVIDIA GPU detected, using nvidia extra.")
+            # If we have a GPU, use the nvidia extra; cu130 on DGX Spark, else cu128
+            cuda_index = "cu130" if is_dgx_spark() else "cu128"
+            print(f"NVIDIA GPU detected, using nvidia extra (PyTorch index: {cuda_index}).")
             extra = "[nvidia]"
-            additional_flags = ""
+            if cuda_index == "cu130":
+                additional_flags = "--index https://download.pytorch.org/whl/cu130 --index-strategy unsafe-best-match"
+            else:
+                additional_flags = ""
         elif check_amd_gpu():
             # If we have an AMD GPU, use the rocm extra
             print("AMD GPU detected, using rocm extra.")
@@ -434,9 +438,9 @@ async def run_installer_script(plugin_id: str):
 async def list_plugins() -> list[object]:
     """Get list of plugins that are currently installed"""
 
-    # In remote mode (TFL_API_STORAGE_URI is set), plugins are not available
+    # In remote mode (MULTIUSER is set), plugins are not available
     # Return empty list to match sidebar behavior where plugins menu is hidden
-    if os.getenv("TFL_API_STORAGE_URI"):
+    if os.getenv("MULTIUSER", "").lower() == "true":
         return []
 
     from lab.dirs import get_plugin_dir
@@ -455,6 +459,15 @@ async def list_plugins() -> list[object]:
                     workspace_gallery.append(info)
 
     return workspace_gallery
+
+
+def is_dgx_spark() -> bool:
+    """Return True if running on NVIDIA DGX Spark (use cu130 PyTorch index)."""
+    try:
+        with open("/etc/dgx-release", encoding="utf-8") as f:
+            return "dgx spark" in f.read().lower()
+    except (OSError, FileNotFoundError):
+        return False
 
 
 def check_nvidia_gpu() -> bool:
