@@ -5,8 +5,6 @@ import Stack from '@mui/joy/Stack';
 import Typography from '@mui/joy/Typography';
 import Box from '@mui/joy/Box';
 import {
-  Button,
-  IconButton,
   Sheet,
   Menu,
   MenuItem,
@@ -31,12 +29,19 @@ import {
 } from 'lucide-react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import { useNavigate } from 'react-router-dom';
+import type { NotificationsSummary } from 'renderer/lib/useNotificationsSummary';
+import { useNotificationsSummary } from 'renderer/lib/useNotificationsSummary';
 
-type Props = {};
+interface LoginChipProps {
+  /** When provided (e.g. from Sidebar), use this for badge counts; otherwise fetch via hook. */
+  notificationsSummary?: NotificationsSummary;
+}
 
 const WIDGET_HEIGHT = 44;
 
-export default function LoginChip({}: Props) {
+export default function LoginChip({
+  notificationsSummary: summaryFromProps,
+}: LoginChipProps) {
   const authContext = useAuth();
   const navigate = useNavigate();
   const loading = authContext?.userIsLoading;
@@ -48,6 +53,10 @@ export default function LoginChip({}: Props) {
   const teamName = authContext?.team?.name || '';
 
   const { data: teams } = useAPI('teams', ['list']);
+  const summaryFromHook = useNotificationsSummary(null);
+  const notificationsSummary = summaryFromProps ?? summaryFromHook;
+  const totalCount = notificationsSummary.totalCount;
+  const teamInvitesCount = notificationsSummary.byCategory.teamInvites;
   const [teamLogos, setTeamLogos] = useState<Record<string, string>>({});
 
   // Fetch logos for all teams
@@ -139,6 +148,7 @@ export default function LoginChip({}: Props) {
                   textAlign: 'left',
                   minWidth: 0,
                   justifyContent: 'space-between',
+                  flex: 1,
                 }}
               >
                 <Typography level="title-sm" noWrap>
@@ -146,9 +156,6 @@ export default function LoginChip({}: Props) {
                     ? `${user.first_name} ${user.last_name}`
                     : user?.email}
                 </Typography>
-                {/* <Typography level="body-xs" textColor="text.tertiary" noWrap>
-          {email}
-        </Typography> */}
                 {teamName ? (
                   <Stack direction="row" spacing={0.5} alignItems="center">
                     {authContext?.team?.id && teamLogos[authContext.team.id] ? (
@@ -174,6 +181,16 @@ export default function LoginChip({}: Props) {
                   </Stack>
                 ) : null}
               </Stack>
+              {totalCount > 0 && (
+                <Chip
+                  size="sm"
+                  color="danger"
+                  variant="soft"
+                  sx={{ flexShrink: 0 }}
+                >
+                  {totalCount}
+                </Chip>
+              )}
               <ChevronUpIcon size={16} />
             </MenuButton>
             <Menu>
@@ -181,11 +198,22 @@ export default function LoginChip({}: Props) {
                 onClick={() => {
                   navigate('/user');
                 }}
+                sx={{ display: 'flex', alignItems: 'center' }}
               >
                 <ListItemDecorator>
                   <UserCog2Icon size={16} />
                 </ListItemDecorator>
                 User Settings
+                {teamInvitesCount > 0 && (
+                  <Chip
+                    size="sm"
+                    color="danger"
+                    variant="soft"
+                    sx={{ marginLeft: 'auto' }}
+                  >
+                    {teamInvitesCount}
+                  </Chip>
+                )}
               </MenuItem>
               <MenuItem
                 onClick={() => {
