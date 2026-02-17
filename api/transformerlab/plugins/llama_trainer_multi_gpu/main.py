@@ -144,7 +144,7 @@ def train_model():
 
     # Import dependencies after the subprocess check
     import torch
-    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel
+    from peft import get_peft_model, prepare_model_for_kbit_training, PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoConfig
     from trl import SFTConfig, SFTTrainer
     from accelerate import Accelerator
