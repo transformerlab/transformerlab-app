@@ -136,4 +136,3 @@ def load_generation_model(config: Optional[Dict[str, Any] | str] = None) -> Gene
         f"Provider '{provider}' is not yet supported by load_generation_model. "
         "For now, only provider='local' is implemented."
     )
-

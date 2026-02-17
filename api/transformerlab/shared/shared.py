@@ -510,7 +510,9 @@ async def _launch_plugin_job_via_local_provider(
         return {"status": "error", "job_id": job_id, "message": str(e)}
 
 
-async def _build_plugin_job_env_vars(org_id: str | None, user_id: str | None, job_id: str, experiment_name: str) -> dict[str, str]:
+async def _build_plugin_job_env_vars(
+    org_id: str | None, user_id: str | None, job_id: str, experiment_name: str
+) -> dict[str, str]:
     """
     Build environment variables for a plugin job, including:
     - TransformerLab context (_TFL_JOB_ID, _TFL_EXPERIMENT_ID, _TFL_ORG_ID, _TFL_USER_ID, _TFL_SOURCE_CODE_DIR)
@@ -829,17 +831,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
         # Build command: cd to plugin_dir and run main.py directly
         # Note: plugins should use lab.init() to set org context instead of relying on plugin_harness
-        all_args = (
-            config_args
-            + [
-                "--job_id",
-                str(job_id),
-                "--experiment_name",
-                experiment_name,
-                "--run_name",
-                job_config.get("run_name", "diffused"),
-            ]
-        )
+        all_args = config_args + [
+            "--job_id",
+            str(job_id),
+            "--experiment_name",
+            experiment_name,
+            "--run_name",
+            job_config.get("run_name", "diffused"),
+        ]
         # Escape plugin_dir and args for shell
         import shlex
 
