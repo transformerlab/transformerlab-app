@@ -1562,6 +1562,39 @@ class Lab:
         model = _run_async(ModelService.get(model_id))
         return _run_async(model.get_dir())
 
+    def list_datasets(self) -> list[Dict[str, Any]]:
+        """
+        List all local datasets available in the workspace.
+
+        Returns:
+            List of dictionaries containing dataset metadata. Each dictionary includes:
+            - dataset_id: The dataset identifier
+            - location: Where the dataset is stored (e.g. \"local\")
+            - description: A human-readable description
+            - size: The dataset size (-1 if unknown)
+            - json_data: Additional dataset metadata
+        """
+        return _run_async(Dataset.list_all())
+
+    def get_dataset(self, dataset_id: str, job_id: Optional[str] = None) -> Dataset:
+        """
+        Get a specific local dataset by ID.
+
+        The lookup is automatically scoped to the current team/organization context.
+
+        Args:
+            dataset_id: The identifier of the dataset to retrieve
+            job_id: Optional job ID. If provided, looks up the dataset in the
+                    job-specific datasets directory instead of the global one.
+
+        Returns:
+            Dataset: A Dataset instance for the specified dataset
+
+        Raises:
+            FileNotFoundError: If the dataset directory doesn't exist
+        """
+        return _run_async(Dataset.get(dataset_id, job_id=job_id))
+
     @property
     def experiment(self) -> Experiment:
         self._ensure_initialized()
@@ -1576,6 +1609,16 @@ class Lab:
         """
         self._ensure_initialized()
         return _run_async(self._job.get_job_data())  # type: ignore[union-attr]
+
+    def set_job_data_field(self, key: str, value: Any) -> None:
+        """
+        Set a single key/value pair on this job's job_data (sync version).
+
+        This is a thin, synchronous wrapper around Job.update_job_data_field and is
+        intended as a replacement for plugin SDK helpers like add_job_data().
+        """
+        self._ensure_initialized()
+        _run_async(self._job.update_job_data_field(key, value))  # type: ignore[union-attr]
 
     async def async_get_job_data(self) -> Dict[str, Any]:
         """

@@ -9,6 +9,7 @@ import threading
 import time
 import unicodedata
 import math
+from typing import Any
 
 from anyio import open_process
 from anyio.streams.text import TextReceiveStream
@@ -20,11 +21,14 @@ from transformerlab.services.job_service import job_update_status_sync, job_upda
 import transformerlab.services.job_service as job_service
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
-from lab.dirs import get_global_log_path
+from lab.dirs import get_global_log_path, get_local_provider_job_dir
 from lab import dirs as lab_dirs, Job, Experiment
 from lab import storage
 from lab.dirs import get_workspace_dir
 from transformerlab.shared import dirs
+from transformerlab.shared.secret_utils import load_team_secrets
+from transformerlab.compute_providers.models import ClusterConfig
+from transformerlab.compute_providers.local import LocalProvider
 
 
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
@@ -441,6 +445,121 @@ def _get_user_id_for_subprocess(job_details: dict = None):
     return None
 
 
+async def _launch_plugin_job_via_local_provider(
+    job_id: str,
+    experiment_name: str,
+    plugin_name: str,
+    plugin_location: str,
+    command_args: list[str],
+    org_id: str | None,
+    user_id: str | None,
+    job_type: str = "plugin",
+) -> dict[str, Any]:
+    """
+    Helper to launch a plugin job via LocalProvider using ClusterConfig.
+
+    Args:
+        job_id: Job ID
+        experiment_name: Experiment name/ID
+        plugin_name: Plugin name
+        plugin_location: Path to plugin directory
+        command_args: List of command-line arguments to pass to plugin's main.py
+        org_id: Organization ID (optional)
+        user_id: User ID (optional)
+        job_type: Job type label for logging (e.g., "EVAL", "GENERATE", "LoRA")
+
+    Returns:
+        Result dict from LocalProvider.launch_cluster, or error dict on failure.
+    """
+    import shlex
+
+    # Build command: cd to plugin_dir and run main.py with args
+    escaped_plugin_dir = shlex.quote(plugin_location)
+    escaped_args = " ".join(shlex.quote(str(arg)) for arg in command_args)
+    command = f"cd {escaped_plugin_dir} && python main.py {escaped_args}"
+
+    # Get job directory for LocalProvider
+    job_dir = await get_local_provider_job_dir(job_id, experiment_name)
+    await storage.makedirs(job_dir, exist_ok=True)
+
+    # Build env vars with secrets
+    env_vars = await _build_plugin_job_env_vars(org_id, user_id, job_id, experiment_name)
+
+    # Build ClusterConfig
+    cluster_config = ClusterConfig(
+        cluster_name=job_id,
+        provider_name="local",
+        command=command,
+        env_vars=env_vars,
+        provider_config={"workspace_dir": job_dir},
+    )
+
+    # Launch via LocalProvider
+    print(f"[{job_type}] Launching via LocalProvider: {command}")
+    try:
+        provider = LocalProvider()
+        result = provider.launch_cluster(job_id, cluster_config)
+        print(f"[{job_type}] Job {job_id} launched: {result}")
+        return {"status": "running", "job_id": job_id, "result": result}
+    except Exception as e:
+        await job_service.job_update_status(job_id, "FAILED", experiment_id=experiment_name)
+        print(f"[{job_type}] Job {job_id} launch error: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return {"status": "error", "job_id": job_id, "message": str(e)}
+
+
+async def _build_plugin_job_env_vars(org_id: str | None, user_id: str | None, job_id: str, experiment_name: str) -> dict[str, str]:
+    """
+    Build environment variables for a plugin job, including:
+    - TransformerLab context (_TFL_JOB_ID, _TFL_EXPERIMENT_ID, _TFL_ORG_ID, _TFL_USER_ID, _TFL_SOURCE_CODE_DIR)
+    - Provider/API secrets (HF_TOKEN, WANDB_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)
+
+    Args:
+        org_id: Organization/team ID
+        user_id: User ID (optional)
+        job_id: Job ID
+        experiment_name: Experiment name/ID
+
+    Returns:
+        Dictionary of environment variable names to values.
+    """
+    env_vars: dict[str, str] = {}
+
+    # TransformerLab context
+    env_vars["_TFL_JOB_ID"] = str(job_id)
+    env_vars["_TFL_EXPERIMENT_ID"] = str(experiment_name)
+    if org_id:
+        env_vars["_TFL_ORG_ID"] = str(org_id)
+    if user_id:
+        env_vars["_TFL_USER_ID"] = str(user_id)
+
+    # Set _TFL_SOURCE_CODE_DIR to the api directory (where pyproject.toml lives)
+    # This is needed for LocalProvider to sync the venv
+    source_code_dir = os.environ.get("_TFL_SOURCE_CODE_DIR") or dirs.TFL_SOURCE_CODE_DIR
+    env_vars["_TFL_SOURCE_CODE_DIR"] = source_code_dir
+
+    # Load secrets from team/user secrets files
+    secrets = await load_team_secrets(user_id=user_id)
+
+    # Map secret names to environment variable names (matching what plugin_harness used to do)
+    secret_to_env_map = {
+        "HuggingfaceUserAccessToken": "HF_TOKEN",
+        "WANDB_API_KEY": "WANDB_API_KEY",
+        "OPENAI_API_KEY": "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY": "ANTHROPIC_API_KEY",
+        "CUSTOM_MODEL_API_KEY": "CUSTOM_MODEL_API_KEY",
+        "AZURE_OPENAI_DETAILS": "AZURE_OPENAI_DETAILS",
+    }
+
+    for secret_name, env_var_name in secret_to_env_map.items():
+        if secret_name in secrets and secrets[secret_name]:
+            env_vars[env_var_name] = str(secrets[secret_name])
+
+    return env_vars
+
+
 async def run_job(job_id: str, job_config, experiment_name: str = "default", job_details: dict = None):
     # This runs a specified job number defined
     # by template_id
@@ -631,7 +750,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
         # Use existing job object and output directory
         plugin_dir = await lab_dirs.plugin_dir_by_name(plugin_name)
-        plugin_main_args = ["--plugin_dir", plugin_dir]
 
         # Flatten job_config["config"] into CLI args
         config = job_config.get("config", {})
@@ -709,9 +827,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 config_args.append(f"--{k}")
                 config_args.append(str(v))
 
-        extra_args = (
-            plugin_main_args
-            + config_args
+        # Build command: cd to plugin_dir and run main.py directly
+        # Note: plugins should use lab.init() to set org context instead of relying on plugin_harness
+        all_args = (
+            config_args
             + [
                 "--job_id",
                 str(job_id),
@@ -721,48 +840,50 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 job_config.get("run_name", "diffused"),
             ]
         )
+        # Escape plugin_dir and args for shell
+        import shlex
 
-        # Check for virtual environment in plugin
-        venv_path = os.path.join(plugin_dir, "venv")
-        if os.path.exists(venv_path) and os.path.isdir(venv_path):
-            print(f"[DIFFUSION] Using venv at {venv_path}")
-            python_bin = os.path.join(venv_path, "bin", "python")
-        else:
-            print("[DIFFUSION] Using system Python interpreter")
-            python_bin = sys.executable
+        escaped_plugin_dir = shlex.quote(plugin_dir)
+        escaped_args = " ".join(shlex.quote(str(arg)) for arg in all_args)
+        command = f"cd {escaped_plugin_dir} && python main.py {escaped_args}"
 
-        subprocess_command = [python_bin, dirs.PLUGIN_HARNESS] + extra_args
-        output_path = storage.join(output_temp_file_dir, f"output_{job_id}.txt")
-        await storage.makedirs(storage.join(output_temp_file_dir), exist_ok=True)
-        print(f"[DIFFUSION] Running command: {subprocess_command}")
+        # Get job directory for LocalProvider
+        job_dir = await get_local_provider_job_dir(job_id, experiment_name)
+        await storage.makedirs(job_dir, exist_ok=True)
+
+        # Build env vars with secrets
+        user_id_from_job = _get_user_id_for_subprocess(job_details)
+        env_vars = await _build_plugin_job_env_vars(org_id, user_id_from_job, job_id, experiment_name)
+
+        # Build ClusterConfig
+        cluster_config = ClusterConfig(
+            cluster_name=job_id,
+            provider_name="local",
+            command=command,
+            env_vars=env_vars,
+            provider_config={"workspace_dir": job_dir},
+        )
+
+        # Launch via LocalProvider
+        print(f"[DIFFUSION] Launching via LocalProvider: {command}")
         try:
-            async with await storage.open(output_path, "w") as f:
-                process = await asyncio.create_subprocess_exec(
-                    *subprocess_command,
-                    stdout=f,
-                    stderr=asyncio.subprocess.STDOUT,
-                    cwd=plugin_dir,
-                    env={**os.environ, **subprocess_env} if subprocess_env_or_none else None,
-                )
-
-                await process.communicate()
-
-            if process.returncode == 0:
-                await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_name)
-                print(f"[DIFFUSION] Job {job_id} completed successfully")
-                return {
-                    "status": "complete",
-                    "job_id": job_id,
-                    "message": "Diffusion job completed successfully",
-                }
-            else:
-                await job_service.job_update_status(job_id, "FAILED", experiment_id=experiment_name)
-                print(f"[DIFFUSION] Job {job_id} failed with return code {process.returncode}")
-                return {"status": "error", "job_id": job_id, "message": "Diffusion job failed"}
+            provider = LocalProvider()
+            result = provider.launch_cluster(job_id, cluster_config)
+            print(f"[DIFFUSION] Job {job_id} launched: {result}")
+            # Note: LocalProvider.launch_cluster returns immediately. Job status will be updated
+            # by polling the process status (handled elsewhere in the codebase).
+            return {
+                "status": "running",
+                "job_id": job_id,
+                "message": "Diffusion job launched successfully",
+            }
         except Exception as e:
             await job_service.job_update_status(job_id, "FAILED", experiment_id=experiment_name)
-            print(f"[DIFFUSION] Job {job_id} execution error: {e}")
-            return {"status": "error", "job_id": job_id, "message": "Diffusion job failed"}
+            print(f"[DIFFUSION] Job {job_id} launch error: {e}")
+            import traceback
+
+            traceback.print_exc()
+            return {"status": "error", "job_id": job_id, "message": f"Diffusion job launch failed: {e}"}
 
     job_type = job_config["config"].get("type", "")
 
@@ -1135,45 +1256,47 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             start_time = time.strftime("%Y-%m-%d %H:%M:%S")
             await job_service.job_update_job_data_insert_key_value(job_id, "start_time", start_time, experiment_name)
 
-            # Check if plugin has a venv directory
-            venv_path = os.path.join(plugin_location, "venv")
-            print("No hyperparameter sweep requested, running single job")
-            if os.path.exists(venv_path) and os.path.isdir(venv_path):
-                print(f">Plugin has virtual environment, activating venv from {venv_path}")
-                venv_python = os.path.join(venv_path, "bin", "python")
-                # Construct command that first activates venv then runs script
-                training_popen_command = [
-                    venv_python,
-                    dirs.PLUGIN_HARNESS,
-                    "--plugin_dir",
-                    plugin_location,
-                    "--input_file",
-                    input_file,
-                    "--experiment_name",
-                    experiment_name,
-                ]
+            # Build command: cd to plugin_dir and run main.py with --input_file
+            # Note: plugins should use lab.init() to set org context instead of relying on plugin_harness
+            import shlex
 
-            else:
-                print(">Using system Python interpreter")
-                training_popen_command = [
-                    sys.executable,
-                    dirs.PLUGIN_HARNESS,
-                    "--plugin_dir",
-                    plugin_location,
-                    "--input_file",
-                    input_file,
-                    "--experiment_name",
-                    experiment_name,
-                ]
+            escaped_plugin_dir = shlex.quote(plugin_location)
+            escaped_input_file = shlex.quote(input_file)
+            escaped_experiment_name = shlex.quote(experiment_name)
+            command = f"cd {escaped_plugin_dir} && python main.py --input_file {escaped_input_file} --experiment_name {escaped_experiment_name}"
 
-        # Pass organization_id via environment variable
-        popen_and_call(
-            on_train_complete,
-            experiment_details_as_string,
-            output_file,
-            *training_popen_command,
-            env=subprocess_env_or_none,
-        )
+            # Get job directory for LocalProvider
+            job_dir = await get_local_provider_job_dir(job_id, experiment_name)
+            await storage.makedirs(job_dir, exist_ok=True)
+
+            # Build env vars with secrets
+            user_id_from_job = _get_user_id_for_subprocess(job_details)
+            env_vars = await _build_plugin_job_env_vars(org_id, user_id_from_job, job_id, experiment_name)
+
+            # Build ClusterConfig
+            cluster_config = ClusterConfig(
+                cluster_name=job_id,
+                provider_name="local",
+                command=command,
+                env_vars=env_vars,
+                provider_config={"workspace_dir": job_dir},
+            )
+
+            # Launch via LocalProvider
+            print(f"[LoRA] Launching via LocalProvider: {command}")
+            try:
+                provider = LocalProvider()
+                result = provider.launch_cluster(job_id, cluster_config)
+                print(f"[LoRA] Job {job_id} launched: {result}")
+                # Note: Job status will be updated by polling the process status (handled elsewhere).
+                # The on_train_complete callback is replaced by status polling.
+            except Exception as e:
+                await job_service.job_update_status(job_id, "FAILED", experiment_id=experiment_name)
+                print(f"[LoRA] Job {job_id} launch error: {e}")
+                import traceback
+
+                traceback.print_exc()
+                return
 
     elif job_type == "pretraining":
         template_config = job_config["config"]
@@ -1202,45 +1325,48 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             await outfile.write(json.dumps(input_contents, indent=4))
 
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
-        job_service.job_update_job_data_insert_key_value(job_id, "start_time", start_time, experiment_name)
+        await job_service.job_update_job_data_insert_key_value(job_id, "start_time", start_time, experiment_name)
 
-        # Check if plugin has a venv directory
-        venv_path = os.path.join(plugin_location, "venv")
-        if os.path.exists(venv_path) and os.path.isdir(venv_path):
-            print(f">Plugin has virtual environment, activating venv from {venv_path}")
-            venv_python = os.path.join(venv_path, "bin", "python")
-            # Construct command that first activates venv then runs script
-            training_popen_command = [
-                venv_python,
-                dirs.PLUGIN_HARNESS,
-                "--plugin_dir",
-                plugin_location,
-                "--input_file",
-                input_file,
-                "--experiment_name",
-                experiment_name,
-            ]
-        else:
-            print(">Using system Python interpreter")
-            training_popen_command = [
-                sys.executable,
-                dirs.PLUGIN_HARNESS,
-                "--plugin_dir",
-                plugin_location,
-                "--input_file",
-                input_file,
-                "--experiment_name",
-                experiment_name,
-            ]
+        # Build command: cd to plugin_dir and run main.py with --input_file
+        import shlex
 
-        # Pass organization_id via environment variable
-        popen_and_call(
-            on_train_complete,
-            experiment_details_as_string,
-            output_file,
-            *training_popen_command,
-            env=subprocess_env_or_none,
+        escaped_plugin_dir = shlex.quote(plugin_location)
+        escaped_input_file = shlex.quote(input_file)
+        escaped_experiment_name = shlex.quote(experiment_name)
+        command = f"cd {escaped_plugin_dir} && python main.py --input_file {escaped_input_file} --experiment_name {escaped_experiment_name}"
+
+        # Get job directory for LocalProvider
+        job_dir = await get_local_provider_job_dir(job_id, experiment_name)
+        await storage.makedirs(job_dir, exist_ok=True)
+
+        # Build env vars with secrets
+        user_id_from_job = _get_user_id_for_subprocess(job_details)
+        env_vars = await _build_plugin_job_env_vars(org_id, user_id_from_job, job_id, experiment_name)
+
+        # Build ClusterConfig
+        cluster_config = ClusterConfig(
+            cluster_name=job_id,
+            provider_name="local",
+            command=command,
+            env_vars=env_vars,
+            provider_config={"workspace_dir": job_dir},
         )
+
+        # Launch via LocalProvider
+        print(f"[pretraining] Launching via LocalProvider: {command}")
+        try:
+            provider = LocalProvider()
+            result = provider.launch_cluster(job_id, cluster_config)
+            print(f"[pretraining] Job {job_id} launched: {result}")
+            # Note: Job status will be updated by polling the process status (handled elsewhere).
+            # The on_train_complete callback is replaced by status polling.
+        except Exception as e:
+            await job_service.job_update_status(job_id, "FAILED", experiment_id=experiment_name)
+            print(f"[pretraining] Job {job_id} launch error: {e}")
+            import traceback
+
+            traceback.print_exc()
+            return
 
     elif job_type == "embedding":
         template_config = job_config["config"]
@@ -1273,45 +1399,48 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             await outfile.write(json.dumps(input_contents, indent=4))
 
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
-        job_service.job_update_job_data_insert_key_value(job_id, "start_time", start_time, experiment_name)
+        await job_service.job_update_job_data_insert_key_value(job_id, "start_time", start_time, experiment_name)
 
-        # Check if plugin has a venv directory
-        venv_path = os.path.join(plugin_location, "venv")
-        if os.path.exists(venv_path) and os.path.isdir(venv_path):
-            print(f">Plugin has virtual environment, activating venv from {venv_path}")
-            venv_python = os.path.join(venv_path, "bin", "python")
-            # Construct command that first activates venv then runs script
-            training_popen_command = [
-                venv_python,
-                dirs.PLUGIN_HARNESS,
-                "--plugin_dir",
-                plugin_location,
-                "--input_file",
-                input_file,
-                "--experiment_name",
-                experiment_name,
-            ]
-        else:
-            print(">Using system Python interpreter")
-            training_popen_command = [
-                sys.executable,
-                dirs.PLUGIN_HARNESS,
-                "--plugin_dir",
-                plugin_location,
-                "--input_file",
-                input_file,
-                "--experiment_name",
-                experiment_name,
-            ]
+        # Build command: cd to plugin_dir and run main.py with --input_file
+        import shlex
 
-        # Pass organization_id via environment variable
-        popen_and_call(
-            on_train_complete,
-            experiment_details_as_string,
-            output_file,
-            *training_popen_command,
-            env=subprocess_env_or_none,
+        escaped_plugin_dir = shlex.quote(plugin_location)
+        escaped_input_file = shlex.quote(input_file)
+        escaped_experiment_name = shlex.quote(experiment_name)
+        command = f"cd {escaped_plugin_dir} && python main.py --input_file {escaped_input_file} --experiment_name {escaped_experiment_name}"
+
+        # Get job directory for LocalProvider
+        job_dir = await get_local_provider_job_dir(job_id, experiment_name)
+        await storage.makedirs(job_dir, exist_ok=True)
+
+        # Build env vars with secrets
+        user_id_from_job = _get_user_id_for_subprocess(job_details)
+        env_vars = await _build_plugin_job_env_vars(org_id, user_id_from_job, job_id, experiment_name)
+
+        # Build ClusterConfig
+        cluster_config = ClusterConfig(
+            cluster_name=job_id,
+            provider_name="local",
+            command=command,
+            env_vars=env_vars,
+            provider_config={"workspace_dir": job_dir},
         )
+
+        # Launch via LocalProvider
+        print(f"[embedding] Launching via LocalProvider: {command}")
+        try:
+            provider = LocalProvider()
+            result = provider.launch_cluster(job_id, cluster_config)
+            print(f"[embedding] Job {job_id} launched: {result}")
+            # Note: Job status will be updated by polling the process status (handled elsewhere).
+            # The on_train_complete callback is replaced by status polling.
+        except Exception as e:
+            await job_service.job_update_status(job_id, "FAILED", experiment_id=experiment_name)
+            print(f"[embedding] Job {job_id} launch error: {e}")
+            import traceback
+
+            traceback.print_exc()
+            return
 
     else:
         print("I don't know what to do with this job type: " + job_type)

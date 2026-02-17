@@ -3,6 +3,7 @@ from .job import Job
 from .experiment import Experiment
 from .model import Model
 from .dataset import Dataset
+from .generation import GenerationModel, load_generation_model
 from .task import Task
 from .task_template import TaskTemplate
 
@@ -18,6 +19,8 @@ __all__ = [
     Experiment,
     Model,
     Dataset,
+    GenerationModel,
+    "load_generation_model",
     Task,
     TaskTemplate,
     "lab",
