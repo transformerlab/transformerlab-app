@@ -42,6 +42,10 @@ function removeServerFromEndOfString(str) {
   }
 }
 
+// Keep "Stopping..." state stable when switching pages in this app session.
+// This remains in-memory only and is not persisted to browser storage.
+const stopRequestedStateByExperiment = new Map<string, boolean>();
+
 export default function RunModelButton({
   experimentInfo,
   killWorker,
@@ -84,22 +88,22 @@ export default function RunModelButton({
   const pipelineTag = pipelineTagData?.data || null;
 
   const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
-  const stopRequestedKey = experimentInfo?.id
-    ? `tfl.stopInProgress.${experimentInfo.id}`
-    : null;
+  const experimentId = experimentInfo?.id ?? '';
 
   useEffect(() => {
-    // Persist "Stopping..." state across reloads/navigation in the same app session.
-    // sessionStorage clears on app exit, so we don't carry this beyond the session.
-    if (!stopRequestedKey) return;
-    const stored = window?.sessionStorage?.getItem(stopRequestedKey);
-    setStopRequested(stored === '1');
-  }, [stopRequestedKey]);
+    if (!experimentId) {
+      setStopRequested(false);
+      return;
+    }
+    setStopRequested(
+      stopRequestedStateByExperiment.get(experimentId) === true,
+    );
+  }, [experimentId]);
 
   const { data: loadJobs } = useSWR(
-    experimentInfo?.id
+    experimentId
       ? chatAPI.Endpoints.Jobs.GetJobsOfType(
-          experimentInfo.id,
+          experimentId,
           'LOAD_MODEL',
           'STARTED',
         )
@@ -181,12 +185,12 @@ export default function RunModelButton({
   const [inferenceLoading, setInferenceLoading] = useState(true);
 
   useEffect(() => {
-    if (!stopRequestedKey) return;
+    if (!experimentId) return;
     if (models === null) {
-      window?.sessionStorage?.removeItem(stopRequestedKey);
+      stopRequestedStateByExperiment.delete(experimentId);
       setStopRequested(false);
     }
-  }, [models, stopRequestedKey]);
+  }, [models, experimentId]);
 
   function isPossibleToRunAModel() {
     return (
@@ -209,13 +213,13 @@ export default function RunModelButton({
       {},
     );
     const inferenceEnginesJSON = await inferenceEngines.json();
-    const experimentId = experimentInfo?.id;
+    const currentExperimentId = experimentInfo?.id;
     const engine = inferenceEnginesJSON?.[0]?.uniqueId;
     const inferenceEngineFriendlyName = inferenceEnginesJSON?.[0]?.name || '';
 
     await chatAPI.authenticatedFetch(
       chatAPI.Endpoints.Experiment.UpdateConfig(
-        experimentId,
+        currentExperimentId,
         'inferenceParams',
         JSON.stringify({
           ...inferenceSettings,
@@ -411,8 +415,8 @@ export default function RunModelButton({
           <Button
             onClick={async () => {
               if (stopping) return;
-              if (stopRequestedKey) {
-                window?.sessionStorage?.setItem(stopRequestedKey, '1');
+              if (experimentId) {
+                stopRequestedStateByExperiment.set(experimentId, true);
               }
               setStopRequested(true);
               setStopping(true);
