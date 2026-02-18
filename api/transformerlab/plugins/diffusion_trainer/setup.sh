@@ -3,8 +3,8 @@
 # Keep plugin deps aligned with the base plugin venv created from api/pyproject.toml.
 # This avoids resolver-driven torch/torchvision drift (e.g. missing torchvision::nms).
 uv pip install \
-    "diffusers==0.36.0" \
-    "transformers==4.57.1" \
+    "diffusers" \
+    "transformers" \
     "peft>=0.17" \
     diffsynth
 
