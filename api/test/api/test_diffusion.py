@@ -1110,3 +1110,29 @@ def test_filter_generation_kwargs_for_pipeline_drops_unsupported():
     filtered = main.filter_generation_kwargs_for_pipeline(pipe, kwargs)
 
     assert filtered == {"prompt": "test", "guidance_scale": 7.5}
+
+
+def test_invoke_pipeline_with_safe_kwargs_retries_on_unexpected_keyword():
+    """Retry logic should remove unsupported kwargs when strict call signatures are wrapped."""
+    main = pytest.importorskip("transformerlab.plugins.image_diffusion.main")
+
+    class WrappedStrictPipeline:
+        def __call__(self, *args, **kwargs):
+            if "cross_attention_kwargs" in kwargs:
+                raise TypeError(
+                    "ZImagePipeline.__call__() got an unexpected keyword argument 'cross_attention_kwargs'"
+                )
+            return kwargs
+
+    pipe = WrappedStrictPipeline()
+    kwargs = {
+        "prompt": "test",
+        "guidance_scale": 7.5,
+        "cross_attention_kwargs": {"scale": 1.0},
+    }
+
+    result = main.invoke_pipeline_with_safe_kwargs(pipe, kwargs)
+
+    assert result["prompt"] == "test"
+    assert result["guidance_scale"] == 7.5
+    assert "cross_attention_kwargs" not in result

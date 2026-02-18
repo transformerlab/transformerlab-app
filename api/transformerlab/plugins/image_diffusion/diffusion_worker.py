@@ -9,6 +9,7 @@ from fastapi import HTTPException
 import json
 import os
 import sys
+import re
 from pathlib import Path
 import inspect
 import time
@@ -218,6 +219,34 @@ def filter_generation_kwargs_for_pipeline(pipe, generation_kwargs: dict) -> dict
         )
 
     return filtered_kwargs
+
+
+def invoke_pipeline_with_safe_kwargs(pipe, generation_kwargs: dict):
+    """
+    Call a pipeline and recover from wrapper signature mismatches.
+
+    Some pipelines expose a permissive `__call__` signature through decorators while the wrapped
+    implementation is strict. In that case, retry without the unexpected kwarg.
+    """
+    filtered_kwargs = filter_generation_kwargs_for_pipeline(pipe, generation_kwargs)
+
+    while True:
+        try:
+            return pipe(**filtered_kwargs)
+        except TypeError as exc:
+            message = str(exc)
+            match = re.search(r"unexpected keyword argument '([^']+)'", message)
+            if not match:
+                raise
+
+            unexpected_key = match.group(1)
+            if unexpected_key not in filtered_kwargs:
+                raise
+
+            print(
+                f"Retrying generation without unsupported kwarg '{unexpected_key}' for {pipe.__class__.__name__}"
+            )
+            filtered_kwargs = {key: value for key, value in filtered_kwargs.items() if key != unexpected_key}
 
 
 def load_controlnet_model(controlnet_id: str, device: str = "cuda") -> ControlNetModel:
@@ -1051,7 +1080,6 @@ def main():
             generation_kwargs["callback_on_step_end"] = decode_callback
             generation_kwargs["callback_on_step_end_tensor_inputs"] = ["latents"]
             print("Enabled intermediate image saving")
-        generation_kwargs = filter_generation_kwargs_for_pipeline(pipe, generation_kwargs)
 
         # Generate images
         print("Starting image generation...")
@@ -1108,7 +1136,7 @@ def main():
                     print(f"Using pre-generated images from sharding: {len(images)} images")
                 else:
                     # This is a normal pipeline, call it to generate images
-                    result = pipe(**generation_kwargs)
+                    result = invoke_pipeline_with_safe_kwargs(pipe, generation_kwargs)
                     images = result.images
         except RuntimeError as e:
             if "illegal memory access" in str(e) or "CUDA error" in str(e):

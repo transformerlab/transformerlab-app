@@ -41,6 +41,7 @@ from diffusers import (
 import os
 import sys
 import random
+import re
 from werkzeug.utils import secure_filename
 import json
 from datetime import datetime
@@ -471,6 +472,34 @@ def filter_generation_kwargs_for_pipeline(pipe, generation_kwargs: dict) -> dict
         )
 
     return filtered_kwargs
+
+
+def invoke_pipeline_with_safe_kwargs(pipe, generation_kwargs: dict):
+    """
+    Call a pipeline and recover from wrapper signature mismatches.
+
+    Some pipelines expose a permissive `__call__` signature through decorators while the wrapped
+    implementation is strict. In that case, retry without the unexpected kwarg.
+    """
+    filtered_kwargs = filter_generation_kwargs_for_pipeline(pipe, generation_kwargs)
+
+    while True:
+        try:
+            return pipe(**filtered_kwargs)
+        except TypeError as exc:
+            message = str(exc)
+            match = re.search(r"unexpected keyword argument '([^']+)'", message)
+            if not match:
+                raise
+
+            unexpected_key = match.group(1)
+            if unexpected_key not in filtered_kwargs:
+                raise
+
+            print(
+                f"Retrying generation without unsupported kwarg '{unexpected_key}' for {pipe.__class__.__name__}"
+            )
+            filtered_kwargs = {key: value for key, value in filtered_kwargs.items() if key != unexpected_key}
 
 
 def get_pipeline(
@@ -1277,9 +1306,7 @@ async def diffusion_generate_job():
 
                     generation_kwargs["callback_on_step_end"] = unified_callback
                     generation_kwargs["callback_on_step_end_tensor_inputs"] = ["latents"]
-                    generation_kwargs = filter_generation_kwargs_for_pipeline(pipe, generation_kwargs)
-
-                    result = pipe(**generation_kwargs)
+                    result = invoke_pipeline_with_safe_kwargs(pipe, generation_kwargs)
                     images = result.images  # Get all images
 
                     # Clean up result object to free references
