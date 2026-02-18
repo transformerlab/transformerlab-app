@@ -45,9 +45,7 @@ export function useNotificationsSummary(
   const isLocalMode = window?.platform?.multiuser !== true;
   const experimentForPluginStatus =
     isLocalMode && experimentInfo?.id ? { id: experimentInfo.id } : null;
-  const { data: outdatedPlugins } = usePluginStatus(
-    experimentForPluginStatus,
-  );
+  const { data: outdatedPlugins } = usePluginStatus(experimentForPluginStatus);
 
   const teamInvites = invitationsData?.invitations?.length ?? 0;
   const outdatedPluginsCount = outdatedPlugins?.length ?? 0;
