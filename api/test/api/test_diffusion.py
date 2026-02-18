@@ -1089,3 +1089,24 @@ def test_resolve_diffusion_model_reference_falls_back_to_hf_repo():
         resolved = main.resolve_diffusion_model_reference(local_dir)
 
     assert resolved == "Tongyi-MAI/Z-Image-Turbo"
+
+
+def test_filter_generation_kwargs_for_pipeline_drops_unsupported():
+    """Unsupported kwargs should be removed when pipeline call signature is strict."""
+    main = pytest.importorskip("transformerlab.plugins.image_diffusion.main")
+
+    class StrictPipeline:
+        def __call__(self, prompt, guidance_scale):
+            return {"prompt": prompt, "guidance_scale": guidance_scale}
+
+    pipe = StrictPipeline()
+    kwargs = {
+        "prompt": "test",
+        "guidance_scale": 7.5,
+        "cross_attention_kwargs": {"scale": 1.0},
+        "callback_on_step_end": lambda *_: None,
+    }
+
+    filtered = main.filter_generation_kwargs_for_pipeline(pipe, kwargs)
+
+    assert filtered == {"prompt": "test", "guidance_scale": 7.5}

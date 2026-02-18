@@ -2,6 +2,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, ValidationError
 from huggingface_hub import model_info
 from pathlib import Path
+import inspect
 import base64
 from io import BytesIO
 import torch
@@ -434,6 +435,42 @@ def resolve_diffusion_model_reference(model: str) -> str:
         "and no Hugging Face repo metadata could be resolved."
     )
     return model_ref
+
+
+def filter_generation_kwargs_for_pipeline(pipe, generation_kwargs: dict) -> dict:
+    """
+    Drop kwargs that are not accepted by `pipe.__call__`.
+
+    Some backends (for example ZImagePipeline) reject common diffusers kwargs like
+    `cross_attention_kwargs` and callback arguments.
+    """
+    try:
+        signature = inspect.signature(pipe.__call__)
+    except (TypeError, ValueError):
+        # If signature introspection fails, keep original kwargs.
+        return generation_kwargs
+
+    params = signature.parameters
+    supports_var_kwargs = any(param.kind == inspect.Parameter.VAR_KEYWORD for param in params.values())
+    if supports_var_kwargs:
+        return generation_kwargs
+
+    allowed_keys = {name for name in params if name != "self"}
+    filtered_kwargs = {}
+    skipped_keys = []
+
+    for key, value in generation_kwargs.items():
+        if key in allowed_keys:
+            filtered_kwargs[key] = value
+        else:
+            skipped_keys.append(key)
+
+    if skipped_keys:
+        print(
+            f"Skipping unsupported generation kwargs for {pipe.__class__.__name__}: {', '.join(sorted(skipped_keys))}"
+        )
+
+    return filtered_kwargs
 
 
 def get_pipeline(
@@ -1240,6 +1277,7 @@ async def diffusion_generate_job():
 
                     generation_kwargs["callback_on_step_end"] = unified_callback
                     generation_kwargs["callback_on_step_end_tensor_inputs"] = ["latents"]
+                    generation_kwargs = filter_generation_kwargs_for_pipeline(pipe, generation_kwargs)
 
                     result = pipe(**generation_kwargs)
                     images = result.images  # Get all images
