@@ -1567,6 +1567,15 @@ class Lab:
         self._ensure_initialized()
         return self._experiment  # type: ignore[return-value]
 
+    def set_job_data_field(self, key: str, value: Any) -> None:
+        """
+        Set a single key/value pair on this job's job_data (sync version).
+        This is a thin, synchronous wrapper around Job.update_job_data_field and is
+        intended as a replacement for plugin SDK helpers like add_job_data().
+        """
+        self._ensure_initialized()
+        _run_async(self._job.update_job_data_field(key, value))  # type: ignore[union-attr]
+
     def get_job_data(self) -> Dict[str, Any]:
         """
         Get the job data dictionary (sync version).
