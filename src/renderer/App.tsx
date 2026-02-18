@@ -63,8 +63,13 @@ function AppContent({
 
   const isLocalMode = window?.platform?.multiuser !== true;
 
-  // While auth is initializing or user info is loading, show a full-page loader
-  if (authContext.initializing || authContext.userIsLoading) {
+  // While auth is initializing or the initial user info is loading, show a full-page loader.
+  // We only block on the *first* user load (no user/error yet) so that revalidation
+  // or transient refetches don't cause the login page to briefly disappear.
+  const isInitialUserLoad =
+    authContext.userIsLoading && !authContext.user && !authContext.userError;
+
+  if (authContext.initializing || isInitialUserLoad) {
     return <FullPageLoader />;
   }
 
