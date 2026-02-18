@@ -43,8 +43,10 @@ export function useNotificationsSummary(
 ): NotificationsSummary {
   const { data: invitationsData } = useAPI('invitations', ['me'], {});
   const isLocalMode = window?.platform?.multiuser !== true;
+  const experimentForPluginStatus =
+    isLocalMode && experimentInfo?.id ? { id: experimentInfo.id } : null;
   const { data: outdatedPlugins } = usePluginStatus(
-    isLocalMode ? (experimentInfo ?? null) : null,
+    experimentForPluginStatus,
   );
 
   const teamInvites = invitationsData?.invitations?.length ?? 0;
