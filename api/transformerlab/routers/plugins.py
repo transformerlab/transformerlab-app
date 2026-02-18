@@ -24,9 +24,9 @@ router = APIRouter(prefix="/plugins", tags=["plugins"])
 async def plugin_gallery():
     """Get list of plugins that we can access"""
 
-    # In remote mode (TFL_API_STORAGE_URI is set), plugins are not available
+    # In remote mode (MULTIUSER is set), plugins are not available
     # Return empty list to match sidebar behavior where plugins menu is hidden
-    if os.getenv("TFL_API_STORAGE_URI"):
+    if os.getenv("MULTIUSER", "").lower() == "true":
         return []
 
     local_workspace_gallery_directory = dirs.PLUGIN_PRELOADED_GALLERY
@@ -438,9 +438,9 @@ async def run_installer_script(plugin_id: str):
 async def list_plugins() -> list[object]:
     """Get list of plugins that are currently installed"""
 
-    # In remote mode (TFL_API_STORAGE_URI is set), plugins are not available
+    # In remote mode (MULTIUSER is set), plugins are not available
     # Return empty list to match sidebar behavior where plugins menu is hidden
-    if os.getenv("TFL_API_STORAGE_URI"):
+    if os.getenv("MULTIUSER", "").lower() == "true":
         return []
 
     from lab.dirs import get_plugin_dir
