@@ -243,9 +243,7 @@ def invoke_pipeline_with_safe_kwargs(pipe, generation_kwargs: dict):
             if unexpected_key not in filtered_kwargs:
                 raise
 
-            print(
-                f"Retrying generation without unsupported kwarg '{unexpected_key}' for {pipe.__class__.__name__}"
-            )
+            print(f"Retrying generation without unsupported kwarg '{unexpected_key}' for {pipe.__class__.__name__}")
             filtered_kwargs = {key: value for key, value in filtered_kwargs.items() if key != unexpected_key}
 
 

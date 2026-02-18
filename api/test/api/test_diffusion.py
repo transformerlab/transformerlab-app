@@ -1119,9 +1119,7 @@ def test_invoke_pipeline_with_safe_kwargs_retries_on_unexpected_keyword():
     class WrappedStrictPipeline:
         def __call__(self, *args, **kwargs):
             if "cross_attention_kwargs" in kwargs:
-                raise TypeError(
-                    "ZImagePipeline.__call__() got an unexpected keyword argument 'cross_attention_kwargs'"
-                )
+                raise TypeError("ZImagePipeline.__call__() got an unexpected keyword argument 'cross_attention_kwargs'")
             return kwargs
 
     pipe = WrappedStrictPipeline()
