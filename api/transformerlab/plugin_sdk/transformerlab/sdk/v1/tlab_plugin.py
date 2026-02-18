@@ -169,7 +169,11 @@ class TLabPlugin:
 
                     # Update job with failure status
                     _run_async_from_sync(self.job.update_job_data_field("completion_status", "failed"))
-                    details = f"Error occurred: {str(e)}" if include_exception_in_error else "Error occurred while executing job"
+                    details = (
+                        f"Error occurred: {str(e)}"
+                        if include_exception_in_error
+                        else "Error occurred while executing job"
+                    )
                     _run_async_from_sync(self.job.update_job_data_field("completion_details", details))
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                     if manual_logging and getattr(self.params, "wandb_run") is not None:
