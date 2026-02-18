@@ -1,12 +1,17 @@
 #!/bin/bash
 
-# Keep torch stack from base plugin venv setup to avoid CUDA/NCCL mismatches.
-uv pip install diffusers transformers
+# Keep plugin deps aligned with the base plugin venv created from api/pyproject.toml.
+# This avoids resolver-driven torch/torchvision drift (e.g. missing torchvision::nms).
+uv pip install \
+    "diffusers==0.36.0" \
+    "transformers==4.57.1" \
+    "peft==0.15.2" \
+    diffsynth
 
-# Install PEFT and diffsynth
-uv pip install "peft>=0.15.0" diffsynth
-
-# Only install xformers for non-rocm instances
-if ! command -v rocminfo &> /dev/null; then
-    uv pip install xformers
+# Only install xformers for non-ROCm instances.
+# Use --no-deps so xformers cannot modify the preinstalled torch stack.
+if ! command -v rocminfo >/dev/null 2>&1; then
+    if ! uv pip install --no-deps xformers; then
+        echo "xformers wheel unavailable for this environment; continuing without it."
+    fi
 fi
