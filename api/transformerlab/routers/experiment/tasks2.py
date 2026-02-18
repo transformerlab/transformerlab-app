@@ -38,7 +38,7 @@ async def _get_task_dir_path(task_id: str) -> str:
     return await task.get_dir()
 
 
-@router.post("/blank", summary="Create a blank task with no task.yaml")
+@router.post("/blank", summary="Create a blank task template")
 async def create_blank_task(
     experimentId: str,
     user_and_team=Depends(get_user_and_team),
