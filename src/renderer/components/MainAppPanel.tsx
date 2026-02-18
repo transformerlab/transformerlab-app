@@ -51,6 +51,7 @@ import Interactive from './Experiment/Interactive/Interactive';
 import Team from './Team/Team';
 import UsageReport from './Team/UsageReport';
 import TasksGallery from './TasksGallery/TasksGallery';
+import Profiling from './Profiling';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -424,6 +425,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/tasks-gallery" element={<TasksGallery />} />
         <Route path="/computer" element={<Computer />} />
         <Route path="/compute" element={<Compute />} />
+        <Route path="/profiling" element={<Profiling />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />
         <Route path="/user" element={<UserSettings />} />

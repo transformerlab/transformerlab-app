@@ -18,6 +18,7 @@ from collections import deque
 from transformerlab.services.experiment_service import experiment_get
 from transformerlab.services.job_service import job_update_status_sync, job_update_status
 import transformerlab.services.job_service as job_service
+from transformerlab.services import profiler_service
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from lab.dirs import get_global_log_path
@@ -27,7 +28,7 @@ from lab.dirs import get_workspace_dir
 from transformerlab.shared import dirs
 
 
-def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
+def popen_and_call(onExit, input="", output_file=None, *popenArgs, onStart=None, **popenKWArgs):
     """
     Runs a subprocess.Popen, then calls onExit when it completes.
     """
@@ -77,10 +78,18 @@ def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs
         popenKWArgs["stderr"] = log
 
         proc = subprocess.Popen(popenArgs, **popenKWArgs)
+        if onStart is not None:
+            try:
+                onStart(proc.pid)
+            except Exception:
+                pass
         proc.communicate(input=input.encode("utf-8"))
         proc.wait()
 
-        onExit()
+        try:
+            onExit(proc.returncode)
+        except TypeError:
+            onExit()
 
     # Pass copies into thread
     thread = threading.Thread(target=runInThread, args=(onExit, list(popenArgs), dict(cleanedKW)))
@@ -103,6 +112,53 @@ def slugify(value, allow_unicode=False):
         value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
     value = re.sub(r"[^\w\s-]", "", value.lower())
     return re.sub(r"[-\s]+", "-", value).strip("-_")
+
+
+def _extract_profile_config(job_config: dict) -> dict | None:
+    config = job_config.get("config", {})
+    if isinstance(config, str):
+        try:
+            config = json.loads(config)
+        except Exception:
+            config = {}
+    if not isinstance(config, dict):
+        config = {}
+
+    raw_profile = config.get("_profiling")
+    if raw_profile is None:
+        return None
+    if isinstance(raw_profile, str):
+        try:
+            raw_profile = json.loads(raw_profile)
+        except Exception:
+            return None
+    if not isinstance(raw_profile, dict):
+        return None
+    if not raw_profile.get("enabled", True):
+        return None
+    return raw_profile
+
+
+async def _maybe_wrap_profiled_command(
+    *,
+    command: list[str],
+    profile_config: dict | None,
+    run_name: str,
+    source: str,
+    associated_job_id: str | None,
+) -> tuple[list[str], str | None, dict | None]:
+    if not profile_config:
+        return command, None, None
+
+    prepared = await profiler_service.prepare_managed_profile_run(
+        base_command=command,
+        profiler_id=str(profile_config.get("profiler_id", "")),
+        run_name=run_name,
+        extra_profiler_args=profile_config.get("extra_profiler_args", []),
+        source=source,
+        associated_job_id=associated_job_id,
+    )
+    return prepared["command"], prepared["run_id"], prepared["run"]
 
 
 async def async_run_python_script_and_update_status(
@@ -208,9 +264,11 @@ async def async_run_python_script_and_update_status(
         raise asyncio.CancelledError()
 
 
-async def read_process_output(process, job_id, log_handle=None):
+async def read_process_output(process, job_id, log_handle=None, profile_run_id: str | None = None):
     await process.wait()
     returncode = process.returncode
+    if profile_run_id:
+        profiler_service.mark_managed_run_finished(profile_run_id, returncode or 1)
     if returncode == 0:
         print("Worker Process completed successfully")
     elif returncode == -15:
@@ -244,7 +302,13 @@ async def read_process_output(process, job_id, log_handle=None):
 
 
 async def async_run_python_daemon_and_update_status(
-    python_script: list[str], job_id: str, begin_string: str, set_process_id_function=None, env: dict | None = None
+    python_script: list[str],
+    job_id: str,
+    begin_string: str,
+    set_process_id_function=None,
+    env: dict | None = None,
+    profile_config: dict | None = None,
+    profile_source: str = "inference_worker",
 ):
     """Use this function for daemon processes, for example setting up a model for inference.
     This function is helpful when the start of the daemon process takes a while. So you can
@@ -279,6 +343,7 @@ async def async_run_python_daemon_and_update_status(
     # so we'll use a different approach - manually enter the context manager
     log = None
     log_cm = None
+    managed_profile_run_id = None
     try:
         log_cm = await storage.open(await get_global_log_path(), "a")
         log = await log_cm.__aenter__()
@@ -307,6 +372,16 @@ async def async_run_python_daemon_and_update_status(
             print(">Using system Python interpreter")
             command = [sys.executable, *python_script]  # Skip the original Python interpreter
 
+        if profile_config:
+            command, managed_profile_run_id, profile_run = await _maybe_wrap_profiled_command(
+                command=command,
+                profile_config=profile_config,
+                run_name=f"{profile_source}_{job_id}",
+                source=profile_source,
+                associated_job_id=str(job_id),
+            )
+            await job_service.job_update_job_data_insert_key_value(job_id, "profiling", profile_run, None)
+
         # Prepare environment variables for subprocess
         # Start with current environment and merge any provided env vars
         process_env = os.environ.copy()
@@ -323,6 +398,9 @@ async def async_run_python_daemon_and_update_status(
         pid_file = storage.join(await get_temp_dir(), f"worker_job_{job_id}.pid")
         async with await storage.open(pid_file, "w") as f:
             await f.write(str(pid))
+
+        if managed_profile_run_id:
+            profiler_service.mark_managed_run_started(managed_profile_run_id, pid)
 
         # keep a tail of recent lines so we can show them on failure:
         recent_lines = deque(maxlen=10)
@@ -351,7 +429,7 @@ async def async_run_python_daemon_and_update_status(
                 log_handle_to_pass = log_cm
                 log_cm = None
                 log = None
-                asyncio.create_task(read_process_output(process, job_id, log_handle_to_pass))
+                asyncio.create_task(read_process_output(process, job_id, log_handle_to_pass, managed_profile_run_id))
 
                 return process
 
@@ -380,6 +458,8 @@ async def async_run_python_daemon_and_update_status(
     # Wait on the process and return the error
     await process.wait()
     returncode = process.returncode
+    if managed_profile_run_id:
+        profiler_service.mark_managed_run_finished(managed_profile_run_id, returncode or 1)
     if not error_msg:
         tail = "\n".join(recent_lines) if recent_lines else ""
         error_msg = f"Process terminated prematurely with exit code {returncode}."
@@ -462,6 +542,58 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     # Only pass env if it has values (empty dict is falsy, so this works)
     subprocess_env_or_none = subprocess_env if subprocess_env else None
+    profile_config = _extract_profile_config(job_config)
+    if not profile_config:
+        try:
+            profile_config = profiler_service.get_auto_profile_config()
+        except ValueError as exc:
+            print(f"Automatic training profiling unavailable for job {job_id}: {exc}")
+            profile_config = None
+
+    async def prepare_profiled_job_command(command: list[str], run_name: str) -> tuple[list[str], str | None]:
+        if not profile_config:
+            return command, None
+        try:
+            wrapped_command, profile_run_id, run_info = await _maybe_wrap_profiled_command(
+                command=command,
+                profile_config=profile_config,
+                run_name=run_name,
+                source="training_job",
+                associated_job_id=str(job_id),
+            )
+            await job_service.job_update_job_data_insert_key_value(
+                job_id,
+                "profiling_last_run",
+                run_info,
+                experiment_name,
+            )
+            return wrapped_command, profile_run_id
+        except Exception as exc:
+            await job_service.job_update_status(job_id, "FAILED", experiment_id=experiment_name)
+            raise ValueError(f"Failed to prepare profiling for job {job_id}: {exc}") from exc
+
+    def build_train_callbacks(profile_run_id: str | None):
+        def _on_start(pid: int):
+            if profile_run_id:
+                profiler_service.mark_managed_run_started(profile_run_id, pid)
+
+        def _on_exit(return_code: int = 0):
+            if profile_run_id:
+                profiler_service.mark_managed_run_finished(profile_run_id, return_code)
+
+            if return_code != 0:
+                job_update_status_sync(job_id, org_id, "FAILED")
+                return
+
+            # Safely mark COMPLETE only if still RUNNING and trigger workflows via service
+            try:
+                from transformerlab.services.job_service import job_mark_as_complete_if_running
+
+                job_mark_as_complete_if_running(job_id, org_id)
+            except Exception:
+                print(f"Failed to mark job ${job_id} as complete.")
+
+        return _on_exit, _on_start
 
     # Handle TASK jobs separately - they are simple and don't need the common setup
     if master_job_type == "TASK":
@@ -732,6 +864,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             python_bin = sys.executable
 
         subprocess_command = [python_bin, dirs.PLUGIN_HARNESS] + extra_args
+        subprocess_command, profile_run_id = await prepare_profiled_job_command(
+            subprocess_command,
+            f"diffusion_{job_id}",
+        )
         output_path = storage.join(output_temp_file_dir, f"output_{job_id}.txt")
         await storage.makedirs(storage.join(output_temp_file_dir), exist_ok=True)
         print(f"[DIFFUSION] Running command: {subprocess_command}")
@@ -744,8 +880,12 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     cwd=plugin_dir,
                     env={**os.environ, **subprocess_env} if subprocess_env_or_none else None,
                 )
+                if profile_run_id:
+                    profiler_service.mark_managed_run_started(profile_run_id, process.pid)
 
                 await process.communicate()
+            if profile_run_id:
+                profiler_service.mark_managed_run_finished(profile_run_id, process.returncode or 1)
 
             if process.returncode == 0:
                 await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_name)
@@ -760,6 +900,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 print(f"[DIFFUSION] Job {job_id} failed with return code {process.returncode}")
                 return {"status": "error", "job_id": job_id, "message": "Diffusion job failed"}
         except Exception as e:
+            if profile_run_id:
+                profiler_service.mark_managed_run_finished(profile_run_id, 1, error=str(e))
             await job_service.job_update_status(job_id, "FAILED", experiment_id=experiment_name)
             print(f"[DIFFUSION] Job {job_id} execution error: {e}")
             return {"status": "error", "job_id": job_id, "message": "Diffusion job failed"}
@@ -774,19 +916,11 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     # Use Job SDK for output file path
     output_file = await job_obj.get_log_path()
 
-    def on_train_complete():
-        print("Training Job: The process has finished")
-        # Safely mark COMPLETE only if still RUNNING and trigger workflows via service
-        try:
-            from transformerlab.services.job_service import job_mark_as_complete_if_running
-
-            job_mark_as_complete_if_running(job_id, org_id)
-        except Exception:
-            print(f"Failed to mark job ${job_id} as complete.")
-            pass
-
-    def on_job_complete():
-        job_update_status_sync(job_id, org_id, "COMPLETE")
+    def on_job_complete(return_code: int = 0):
+        if return_code == 0:
+            job_update_status_sync(job_id, org_id, "COMPLETE")
+        else:
+            job_update_status_sync(job_id, org_id, "FAILED")
 
     if job_type == "LoRA":
         template_config = job_config["config"]  # Get the config for this job type
@@ -953,33 +1087,55 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     ]
 
                 # Replace synchronous subprocess.run with asyncio
-                async def run_process_async(cmd, output_file):
+                async def run_process_async(cmd, output_file, active_profile_run_id: str | None):
                     # Open file for writing
                     async with await storage.open(output_file, "a") as f:
-                        # Create subprocess with piped stdout
-                        # Pass organization_id via environment variable
-                        process_env = {**os.environ, **subprocess_env} if subprocess_env_or_none else None
-                        process = await asyncio.create_subprocess_exec(
-                            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, env=process_env
-                        )
+                        process = None
+                        try:
+                            # Create subprocess with piped stdout
+                            # Pass organization_id via environment variable
+                            process_env = {**os.environ, **subprocess_env} if subprocess_env_or_none else None
+                            process = await asyncio.create_subprocess_exec(
+                                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, env=process_env
+                            )
+                            if active_profile_run_id:
+                                profiler_service.mark_managed_run_started(active_profile_run_id, process.pid)
 
-                        # Process output in real-time
-                        while True:
-                            line = await process.stdout.readline()
-                            if not line:
-                                break
+                            # Process output in real-time
+                            while True:
+                                line = await process.stdout.readline()
+                                if not line:
+                                    break
 
-                            # Decode and write to file
-                            decoded_line = line.decode("utf-8")
-                            await f.write(f"\n[Run {i + 1}/{total_configs}]: {decoded_line.strip()}")
-                            await f.flush()
+                                # Decode and write to file
+                                decoded_line = line.decode("utf-8")
+                                await f.write(f"\n[Run {i + 1}/{total_configs}]: {decoded_line.strip()}")
+                                await f.flush()
 
-                        # Wait for process to complete
-                        await process.wait()
-                        return process.returncode
+                            # Wait for process to complete
+                            await process.wait()
+                            if active_profile_run_id:
+                                profiler_service.mark_managed_run_finished(
+                                    active_profile_run_id,
+                                    process.returncode or 1,
+                                )
+                            return process.returncode
+                        except Exception as exc:
+                            if active_profile_run_id:
+                                profiler_service.mark_managed_run_finished(
+                                    active_profile_run_id,
+                                    1,
+                                    error=str(exc),
+                                )
+                            raise
+
+                run_command, run_profile_id = await prepare_profiled_job_command(
+                    run_command,
+                    f"sweep_{job_id}_run_{i + 1}",
+                )
 
                 # Run the process asynchronously
-                await run_process_async(run_command, run_output_file)
+                await run_process_async(run_command, run_output_file, run_profile_id)
 
                 # Delete the output adaptor directory if it exists
                 if await storage.exists(run_adaptor_dir) and await storage.isdir(run_adaptor_dir):
@@ -1097,13 +1253,20 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                         experiment_name,
                     ]
 
+                final_command, final_profile_run_id = await prepare_profiled_job_command(
+                    final_command,
+                    f"final_{job_id}",
+                )
+                on_exit, on_start = build_train_callbacks(final_profile_run_id)
+
                 # Run the final training synchronously
                 # Pass organization_id via environment variable
                 popen_and_call(
-                    on_train_complete,
+                    on_exit,
                     experiment_details_as_string,
                     output_file,
                     *final_command,
+                    onStart=on_start,
                     env=subprocess_env_or_none,
                 )
                 return
@@ -1166,12 +1329,19 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     experiment_name,
                 ]
 
+        training_popen_command, training_profile_run_id = await prepare_profiled_job_command(
+            training_popen_command,
+            f"train_{job_id}",
+        )
+        on_exit, on_start = build_train_callbacks(training_profile_run_id)
+
         # Pass organization_id via environment variable
         popen_and_call(
-            on_train_complete,
+            on_exit,
             experiment_details_as_string,
             output_file,
             *training_popen_command,
+            onStart=on_start,
             env=subprocess_env_or_none,
         )
 
@@ -1233,12 +1403,19 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 experiment_name,
             ]
 
+        training_popen_command, pretrain_profile_run_id = await prepare_profiled_job_command(
+            training_popen_command,
+            f"pretraining_{job_id}",
+        )
+        on_exit, on_start = build_train_callbacks(pretrain_profile_run_id)
+
         # Pass organization_id via environment variable
         popen_and_call(
-            on_train_complete,
+            on_exit,
             experiment_details_as_string,
             output_file,
             *training_popen_command,
+            onStart=on_start,
             env=subprocess_env_or_none,
         )
 
@@ -1304,12 +1481,19 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 experiment_name,
             ]
 
+        training_popen_command, embedding_profile_run_id = await prepare_profiled_job_command(
+            training_popen_command,
+            f"embedding_{job_id}",
+        )
+        on_exit, on_start = build_train_callbacks(embedding_profile_run_id)
+
         # Pass organization_id via environment variable
         popen_and_call(
-            on_train_complete,
+            on_exit,
             experiment_details_as_string,
             output_file,
             *training_popen_command,
+            onStart=on_start,
             env=subprocess_env_or_none,
         )
 
