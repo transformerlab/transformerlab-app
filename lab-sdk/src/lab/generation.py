@@ -92,7 +92,7 @@ def load_generation_model(config: Optional[Dict[str, Any] | str] = None) -> Gene
         /v1/chat/completions endpoint (e.g., TransformerLab inference server).
     Args:
         config: Either:
-            - dict with at least a \"provider\" field (e.g. {\"provider\": \"local\", \"model\": \"MyModel\"})
+            - dict with \"provider\" and optionally \"base_url\", \"model\", \"api_key\" (e.g. {\"provider\": \"local\", \"model\": \"MyModel\", \"base_url\": \"http://localhost:8338/v1\"})
             - JSON string representing such a dict
             - simple string provider name (e.g. \"local\")
     Returns:
@@ -117,10 +117,10 @@ def load_generation_model(config: Optional[Dict[str, Any] | str] = None) -> Gene
     provider = str(config_dict.get("provider", "local")).lower()
 
     if provider == "local":
-        # Base URL and model name can be provided in config, otherwise fallback to env vars
+        # Prefer config; fall back to env vars, then defaults
         base_url = config_dict.get("base_url") or os.environ.get("TFL_LOCAL_MODEL_BASE_URL", "http://localhost:8338/v1")
         model_name = config_dict.get("model") or os.environ.get("TFL_LOCAL_MODEL_NAME", "default")
-        api_key = os.environ.get("TFL_LOCAL_MODEL_API_KEY", "dummy")
+        api_key = config_dict.get("api_key") or os.environ.get("TFL_LOCAL_MODEL_API_KEY", "dummy")
         return LocalHTTPGenerationModel(base_url=base_url, model=model_name, api_key=api_key)
 
     raise NotImplementedError(
