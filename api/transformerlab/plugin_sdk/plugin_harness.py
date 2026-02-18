@@ -113,13 +113,14 @@ def set_config_env_vars(
     user_id: Optional[str] = None,
     team_id: Optional[str] = None,
 ) -> None:
+    target_key = target_env_var or env_var
     try:
         value = get_db_config_value(env_var, user_id=user_id, team_id=team_id)
         if value:
-            os.environ[target_env_var] = value
-            print(f"Set {target_env_var} from {'user' if user_id else 'team'} config")
+            os.environ[target_key] = value
+            print(f"Set {target_key} from {'user' if user_id else 'team'} config")
     except Exception as e:
-        print(f"Warning: Could not set {target_env_var} from {'user' if user_id else 'team'} config: {e}")
+        print(f"Warning: Could not set {target_key} from {'user' if user_id else 'team'} config: {e}")
 
 
 # Set organization context from environment variable if provided
