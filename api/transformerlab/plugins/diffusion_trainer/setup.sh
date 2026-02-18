@@ -5,7 +5,7 @@
 uv pip install \
     "diffusers==0.36.0" \
     "transformers==4.57.1" \
-    "peft==0.15.2" \
+    "peft>=0.17" \
     diffsynth
 
 # Only install xformers for non-ROCm instances.
