@@ -466,9 +466,7 @@ def train_diffusion_lora():
         model_hint = f"{model_name_hint} {model_path_hint}".lower()
         if "z-image" in model_hint or "zimage" in model_hint:
             is_zimage = True
-            print(
-                "Detected Z-Image model from model name/path hint; forcing ZImagePipeline training path."
-            )
+            print("Detected Z-Image model from model name/path hint; forcing ZImagePipeline training path.")
 
     print(f"Architecture detection - SDXL: {is_sdxl}, SD3: {is_sd3}, Flux: {is_flux}, ZImage: {is_zimage}")
 
