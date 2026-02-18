@@ -27,6 +27,7 @@ import * as chatAPI from './lib/transformerlab-api-sdk';
 import { AuthProvider, useAuth } from './lib/authContext';
 import LoginPage from './components/Login/LoginPage';
 import { AnalyticsProvider } from './components/Shared/analytics/AnalyticsContext';
+import FullPageLoader from './components/Shared/FullPageLoader';
 
 type AppContentProps = {
   connection: string;
@@ -61,6 +62,16 @@ function AppContent({
   const authContext = useAuth();
 
   const isLocalMode = window?.platform?.multiuser !== true;
+
+  // While auth is initializing or the initial user info is loading, show a full-page loader.
+  // We only block on the *first* user load (no user/error yet) so that revalidation
+  // or transient refetches don't cause the login page to briefly disappear.
+  const isInitialUserLoad =
+    authContext.userIsLoading && !authContext.user && !authContext.userError;
+
+  if (authContext.initializing || isInitialUserLoad) {
+    return <FullPageLoader />;
+  }
 
   // Show LoginPage when:
   // 1. Multi-user mode is enabled AND user is not authenticated

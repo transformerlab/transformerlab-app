@@ -127,9 +127,11 @@ async def lifespan(app: FastAPI):
     # Cancel any running jobs
     await cancel_in_progress_jobs()
 
-    # Create buckets for all existing teams if TFL_API_STORAGE_URI is enabled
-    if os.getenv("TFL_API_STORAGE_URI"):
-        print("✅ CHECKING BUCKETS FOR EXISTING TEAMS")
+    # Create buckets/folders for all existing teams if cloud or localfs storage is enabled
+    if os.getenv("TFL_REMOTE_STORAGE_ENABLED") or (
+        os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI")
+    ):
+        print("✅ CHECKING STORAGE FOR EXISTING TEAMS")
         try:
             from transformerlab.db.session import async_session
             from transformerlab.shared.remote_workspace import create_buckets_for_all_teams
@@ -139,18 +141,18 @@ async def lifespan(app: FastAPI):
                     session, profile_name="transformerlab-s3"
                 )
                 if success_count > 0:
-                    print(f"✅ Created/verified buckets for {success_count} team(s)")
+                    print(f"✅ Created/verified storage for {success_count} team(s)")
                 if failure_count > 0:
-                    print(f"⚠️  Failed to create buckets for {failure_count} team(s)")
+                    print(f"⚠️  Failed to create storage for {failure_count} team(s)")
                     for error in error_messages:
                         print(f"   - {error}")
         except Exception as e:
-            print(f"⚠️  Error creating buckets for existing teams: {e}")
+            print(f"⚠️  Error creating storage for existing teams: {e}")
 
     if "--reload" in sys.argv:
         await install_all_plugins()
 
-    if not os.getenv("TFL_API_STORAGE_URI"):
+    if os.getenv("MULTIUSER", "").lower() != "true":
         asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
@@ -583,11 +585,11 @@ async def healthz():
     """
     Health check endpoint to verify server status and mode.
     """
-    tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
+    tfl_remote_storage_enabled = os.getenv("MULTIUSER", "").lower() == "true"
 
-    # Determine mode: s3 or local
-    if tfl_api_storage_uri:
-        mode = "s3"
+    # Determine mode: multiuser or local
+    if tfl_remote_storage_enabled:
+        mode = "multiuser"
     else:
         mode = "local"
 
