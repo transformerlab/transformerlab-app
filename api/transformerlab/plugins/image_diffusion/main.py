@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from pydantic import BaseModel, ValidationError
 from huggingface_hub import model_info
+from pathlib import Path
 import base64
 from io import BytesIO
 import torch
@@ -322,6 +323,119 @@ def is_zimage_model(model: str) -> bool:
     return "z-image" in name or "zimage" in name
 
 
+def _is_probable_hf_repo_id(value: str) -> bool:
+    """Heuristic for Hugging Face repo IDs like `org/name`."""
+    if not isinstance(value, str):
+        return False
+    candidate = value.strip()
+    if not candidate:
+        return False
+    if os.path.isabs(candidate):
+        return False
+    if candidate.startswith("."):
+        return False
+    return "/" in candidate and "\\" not in candidate
+
+
+def _extract_hf_repo_from_model_metadata(model_dir: str) -> str | None:
+    """
+    Extract a Hugging Face repo id from local model metadata.
+
+    This helps recover when `model_dir` exists but is missing `model_index.json`.
+    """
+    # First try direct metadata file lookup in the model directory.
+    metadata_path = os.path.join(model_dir, "index.json")
+    candidates: list[str] = []
+
+    if os.path.isfile(metadata_path):
+        try:
+            with open(metadata_path, "r", encoding="utf-8") as f:
+                metadata = json.load(f)
+            if isinstance(metadata, dict):
+                json_data = metadata.get("json_data", {}) if isinstance(metadata.get("json_data"), dict) else {}
+                candidates.extend(
+                    [
+                        json_data.get("huggingface_repo"),
+                        json_data.get("source_id_or_path"),
+                        metadata.get("model_id"),
+                    ]
+                )
+        except Exception as e:
+            print(f"Warning: Failed to read model metadata at {metadata_path}: {e}")
+
+    # Fallback to SDK metadata lookup by directory name.
+    model_key = Path(model_dir).name
+    if model_key:
+        try:
+            from lab.model import Model as ModelService
+
+            model_service = run_async_from_sync(ModelService.get(model_key))
+            model_metadata = run_async_from_sync(model_service.get_metadata())
+            if isinstance(model_metadata, dict):
+                json_data = (
+                    model_metadata.get("json_data", {}) if isinstance(model_metadata.get("json_data"), dict) else {}
+                )
+                candidates.extend(
+                    [
+                        json_data.get("huggingface_repo"),
+                        json_data.get("source_id_or_path"),
+                        model_metadata.get("model_id"),
+                    ]
+                )
+        except Exception:
+            # Best-effort lookup only.
+            pass
+
+    seen = set()
+    for candidate in candidates:
+        if not isinstance(candidate, str):
+            continue
+        candidate = candidate.strip()
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        if _is_probable_hf_repo_id(candidate):
+            return candidate
+
+    return None
+
+
+def resolve_diffusion_model_reference(model: str) -> str:
+    """
+    Resolve model reference for diffusers loading.
+
+    If `model` is a local directory but missing `model_index.json`, try falling back
+    to the original Hugging Face repo id from local metadata.
+    """
+    if not isinstance(model, str):
+        return model
+
+    model_ref = model.strip()
+    if not model_ref:
+        return model
+
+    if not os.path.isdir(model_ref):
+        return model_ref
+
+    model_index_path = os.path.join(model_ref, "model_index.json")
+    if os.path.isfile(model_index_path):
+        return model_ref
+
+    hf_repo = _extract_hf_repo_from_model_metadata(model_ref)
+    if hf_repo:
+        print(
+            f"Local model directory is missing model_index.json at {model_index_path}. "
+            f"Falling back to Hugging Face repo: {hf_repo}"
+        )
+        return hf_repo
+
+    print(
+        f"Warning: Local model directory is missing model_index.json at {model_index_path} "
+        "and no Hugging Face repo metadata could be resolved."
+    )
+    return model_ref
+
+
 def get_pipeline(
     model: str,
     adaptor: str = "",
@@ -335,8 +449,10 @@ def get_pipeline(
     # cache_key = get_pipeline_key(model, adaptor, is_img2img, is_inpainting)
 
     with _PIPELINES_LOCK:
+        resolved_model = resolve_diffusion_model_reference(model)
+
         # Detect Z-Image architecture (non-controlnet path)
-        is_zimage = is_zimage_model(model)
+        is_zimage = is_zimage_model(resolved_model)
 
         # Load appropriate pipeline based on type
         if is_controlnet:
@@ -360,7 +476,7 @@ def get_pipeline(
             print(f"Loading ControlNet pipeline ({controlnet_id}) for model: {model}")
 
             try:
-                info = model_info(model)
+                info = model_info(resolved_model)
                 config = getattr(info, "config", {})
                 diffusers_config = config.get("diffusers", {})
                 architecture = diffusers_config.get("_class_name", "")
@@ -377,7 +493,7 @@ def get_pipeline(
 
             print(f"Loaded ControlNet pipeline {controlnet_pipeline} for model {model}")
             pipe = controlnet_pipeline.from_pretrained(
-                model,
+                resolved_model,
                 controlnet=controlnet_model,
                 torch_dtype=torch.float16 if device != "cpu" else torch.float32,
                 safety_checker=None,
@@ -386,7 +502,7 @@ def get_pipeline(
             )
         elif is_inpainting:
             pipe = AutoPipelineForInpainting.from_pretrained(
-                model,
+                resolved_model,
                 torch_dtype=torch.float16 if device != "cpu" else torch.float32,
                 safety_checker=None,
                 requires_safety_checker=False,
@@ -394,7 +510,7 @@ def get_pipeline(
             print(f"Loaded inpainting pipeline for model: {model}")
         elif is_img2img:
             pipe = AutoPipelineForImage2Image.from_pretrained(
-                model,
+                resolved_model,
                 torch_dtype=torch.float16 if device != "cpu" else torch.float32,
                 safety_checker=None,
                 requires_safety_checker=False,
@@ -402,14 +518,14 @@ def get_pipeline(
             print(f"Loaded image-to-image pipeline for model: {model}")
         elif is_zimage:
             pipe = DiffusionPipeline.from_pretrained(
-                model,
+                resolved_model,
                 torch_dtype=torch.bfloat16 if device != "cpu" else torch.float32,
                 low_cpu_mem_usage=False,
             )
             print(f"Loaded Z-Image pipeline for model: {model} with dtype {pipe.dtype}")
         else:
             pipe = AutoPipelineForText2Image.from_pretrained(
-                model,
+                resolved_model,
                 torch_dtype=torch.float16 if device != "cpu" else torch.float32,
                 safety_checker=None,
                 requires_safety_checker=False,
@@ -627,7 +743,8 @@ def should_use_diffusion_worker(model) -> bool:
         # Check if model has FLUX components by looking for config
         from huggingface_hub import model_info
 
-        info = model_info(model)
+        resolved_model = resolve_diffusion_model_reference(model)
+        info = model_info(resolved_model)
         config = getattr(info, "config", {})
         diffusers_config = config.get("diffusers", {})
         architectures = diffusers_config.get("_class_name", "")

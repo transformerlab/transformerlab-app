@@ -9,6 +9,7 @@ from fastapi import HTTPException
 import json
 import os
 import sys
+from pathlib import Path
 import time
 import gc
 from PIL import Image
@@ -69,6 +70,118 @@ scheduler_map = {
     "EulerAncestralDiscreteScheduler": EulerAncestralDiscreteScheduler,
     "DPMSolverMultistepScheduler": DPMSolverMultistepScheduler,
 }
+
+
+def _is_probable_hf_repo_id(value: str) -> bool:
+    """Heuristic for Hugging Face repo IDs like `org/name`."""
+    if not isinstance(value, str):
+        return False
+    candidate = value.strip()
+    if not candidate:
+        return False
+    if os.path.isabs(candidate):
+        return False
+    if candidate.startswith("."):
+        return False
+    return "/" in candidate and "\\" not in candidate
+
+
+def _extract_hf_repo_from_model_metadata(model_dir: str) -> str | None:
+    """
+    Extract a Hugging Face repo id from local model metadata.
+
+    This helps recover when `model_dir` exists but is missing `model_index.json`.
+    """
+    metadata_path = os.path.join(model_dir, "index.json")
+    candidates: list[str] = []
+
+    if os.path.isfile(metadata_path):
+        try:
+            with open(metadata_path, "r", encoding="utf-8") as f:
+                metadata = json.load(f)
+            if isinstance(metadata, dict):
+                json_data = metadata.get("json_data", {}) if isinstance(metadata.get("json_data"), dict) else {}
+                candidates.extend(
+                    [
+                        json_data.get("huggingface_repo"),
+                        json_data.get("source_id_or_path"),
+                        metadata.get("model_id"),
+                    ]
+                )
+        except Exception as e:
+            print(f"Warning: Failed to read model metadata at {metadata_path}: {e}")
+
+    model_key = Path(model_dir).name
+    if model_key:
+        try:
+            from lab.model import Model as ModelService
+
+            import asyncio
+
+            model_service = asyncio.run(ModelService.get(model_key))
+            model_metadata = asyncio.run(model_service.get_metadata())
+            if isinstance(model_metadata, dict):
+                json_data = (
+                    model_metadata.get("json_data", {}) if isinstance(model_metadata.get("json_data"), dict) else {}
+                )
+                candidates.extend(
+                    [
+                        json_data.get("huggingface_repo"),
+                        json_data.get("source_id_or_path"),
+                        model_metadata.get("model_id"),
+                    ]
+                )
+        except Exception:
+            pass
+
+    seen = set()
+    for candidate in candidates:
+        if not isinstance(candidate, str):
+            continue
+        candidate = candidate.strip()
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        if _is_probable_hf_repo_id(candidate):
+            return candidate
+
+    return None
+
+
+def resolve_diffusion_model_reference(model: str) -> str:
+    """
+    Resolve model reference for diffusers loading.
+
+    If `model` is a local directory but missing `model_index.json`, try falling back
+    to the original Hugging Face repo id from local metadata.
+    """
+    if not isinstance(model, str):
+        return model
+
+    model_ref = model.strip()
+    if not model_ref:
+        return model
+
+    if not os.path.isdir(model_ref):
+        return model_ref
+
+    model_index_path = os.path.join(model_ref, "model_index.json")
+    if os.path.isfile(model_index_path):
+        return model_ref
+
+    hf_repo = _extract_hf_repo_from_model_metadata(model_ref)
+    if hf_repo:
+        print(
+            f"Local model directory is missing model_index.json at {model_index_path}. "
+            f"Falling back to Hugging Face repo: {hf_repo}"
+        )
+        return hf_repo
+
+    print(
+        f"Warning: Local model directory is missing model_index.json at {model_index_path} "
+        "and no Hugging Face repo metadata could be resolved."
+    )
+    return model_ref
 
 
 def load_controlnet_model(controlnet_id: str, device: str = "cuda") -> ControlNetModel:
@@ -194,7 +307,8 @@ def is_flux_model(model_path):
         # Check if model has FLUX components by looking for config
         from huggingface_hub import model_info
 
-        info = model_info(model_path)
+        resolved_model = resolve_diffusion_model_reference(model_path)
+        info = model_info(resolved_model)
         config = getattr(info, "config", {})
         diffusers_config = config.get("diffusers", {})
         architectures = diffusers_config.get("_class_name", "")
@@ -226,6 +340,8 @@ def load_pipeline_with_sharding(
 
     print("Loading pipeline with model sharding...")
     import torch
+
+    model_path = resolve_diffusion_model_reference(model_path)
 
     # Flush memory before starting
     flush_memory()
@@ -526,6 +642,8 @@ def load_pipeline_with_device_map(
     model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet=False, controlnet_id="off"
 ):
     """Load pipeline with proper device mapping for multi-GPU"""
+
+    model_path = resolve_diffusion_model_reference(model_path)
 
     # Clean up any existing CUDA cache before loading
     if torch.cuda.is_available():

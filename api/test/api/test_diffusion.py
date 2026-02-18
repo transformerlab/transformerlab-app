@@ -1045,3 +1045,47 @@ def test_get_pipeline_key_whitespace_adaptor():
 
     # Should treat whitespace-only adaptor as no adaptor
     assert key == "test-model::   ::txt2img"
+
+
+def test_resolve_diffusion_model_reference_non_directory():
+    """Non-directory model refs should pass through unchanged."""
+    main = pytest.importorskip("transformerlab.plugins.image_diffusion.main")
+
+    with patch("transformerlab.plugins.image_diffusion.main.os.path.isdir", return_value=False):
+        resolved = main.resolve_diffusion_model_reference("Tongyi-MAI/Z-Image-Turbo")
+
+    assert resolved == "Tongyi-MAI/Z-Image-Turbo"
+
+
+def test_resolve_diffusion_model_reference_prefers_local_complete_dir():
+    """Local directory with model_index.json should stay as local path."""
+    main = pytest.importorskip("transformerlab.plugins.image_diffusion.main")
+    local_dir = "/tmp/models/Tongyi-MAI_Z-Image-Turbo"
+
+    with (
+        patch("transformerlab.plugins.image_diffusion.main.os.path.isdir", return_value=True),
+        patch("transformerlab.plugins.image_diffusion.main.os.path.isfile", return_value=True),
+        patch("transformerlab.plugins.image_diffusion.main._extract_hf_repo_from_model_metadata") as mock_extract,
+    ):
+        resolved = main.resolve_diffusion_model_reference(local_dir)
+
+    mock_extract.assert_not_called()
+    assert resolved == local_dir
+
+
+def test_resolve_diffusion_model_reference_falls_back_to_hf_repo():
+    """Incomplete local directory should fall back to Hugging Face repo id from metadata."""
+    main = pytest.importorskip("transformerlab.plugins.image_diffusion.main")
+    local_dir = "/tmp/models/Tongyi-MAI_Z-Image-Turbo"
+
+    with (
+        patch("transformerlab.plugins.image_diffusion.main.os.path.isdir", return_value=True),
+        patch("transformerlab.plugins.image_diffusion.main.os.path.isfile", return_value=False),
+        patch(
+            "transformerlab.plugins.image_diffusion.main._extract_hf_repo_from_model_metadata",
+            return_value="Tongyi-MAI/Z-Image-Turbo",
+        ),
+    ):
+        resolved = main.resolve_diffusion_model_reference(local_dir)
+
+    assert resolved == "Tongyi-MAI/Z-Image-Turbo"
