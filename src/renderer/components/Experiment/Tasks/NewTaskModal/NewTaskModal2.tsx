@@ -225,10 +225,7 @@ export default function NewTaskModal2({
                   )}
                 </Stack>
                 <Radio value="upload" label="Upload from your Computer" />
-                <Radio
-                  value="blank"
-                  label="Start from blank task.yaml template"
-                />
+                <Radio value="blank" label="Start with a blank task template" />
               </RadioGroup>
             </FormControl>
 
