@@ -3,6 +3,7 @@ import random
 import json
 import gc
 import asyncio
+from typing import Any
 
 import numpy as np
 import torch
@@ -11,9 +12,6 @@ import torch.utils.checkpoint
 from peft import LoraConfig, get_peft_model
 from peft.utils import get_peft_model_state_dict
 from torchvision import transforms
-from diffsynth import ModelConfig
-from diffsynth.pipelines.z_image import ZImagePipeline
-from diffsynth.diffusion.loss import FlowMatchSFTLoss
 import os
 import glob
 
@@ -22,18 +20,35 @@ from diffusers import AutoPipelineForText2Image, StableDiffusionPipeline
 from diffusers.optimization import get_scheduler
 from diffusers.training_utils import cast_training_params, compute_snr
 from diffusers.utils import convert_state_dict_to_diffusers
+from transformerlab.sdk.v1.train import tlab_trainer
+from lab.dirs import get_workspace_dir
+from lab import storage
+
+# diffsynth is only required for Z-Image training. Keep it optional so non-ZImage
+# workflows still run when optional low-level deps (for example xformers) are broken.
+ModelConfig = None
+ZImagePipeline = None
+FlowMatchSFTLoss = None
+diffsynth_available = False
+diffsynth_import_error = None
+try:
+    from diffsynth import ModelConfig
+    from diffsynth.pipelines.z_image import ZImagePipeline
+    from diffsynth.diffusion.loss import FlowMatchSFTLoss
+
+    diffsynth_available = True
+except Exception as e:
+    diffsynth_import_error = e
+    print(f"Warning: diffsynth is unavailable; Z-Image training will be disabled. Error: {e}")
 
 # Try to import xformers for memory optimization
 try:
     import xformers  # noqa: F401
 
     xformers_available = True
-except ImportError:
+except Exception as e:
     xformers_available = False
-
-from transformerlab.sdk.v1.train import tlab_trainer
-from lab.dirs import get_workspace_dir
-from lab import storage
+    print(f"Warning: xFormers is unavailable; continuing without it. Error: {e}")
 
 workspace_dir = asyncio.run(get_workspace_dir())
 
@@ -59,8 +74,11 @@ def cleanup_pipeline():
 cleanup_pipeline()
 
 
-def build_zimage_model_configs(model_id_or_path: str) -> tuple[list[ModelConfig], ModelConfig]:
+def build_zimage_model_configs(model_id_or_path: str) -> tuple[list[Any], Any]:
     """Build ModelConfig list + tokenizer config for Z-Image Turbo."""
+    if ModelConfig is None:
+        raise RuntimeError("diffsynth ModelConfig is unavailable.")
+
     transformer_pattern = os.path.join("transformer", "*.safetensors")
     text_encoder_pattern = os.path.join("text_encoder", "*.safetensors")
     vae_pattern = os.path.join("vae", "diffusion_pytorch_model.safetensors")
@@ -490,6 +508,14 @@ def train_diffusion_lora():
 
     pipe = None
     if is_zimage:
+        if not diffsynth_available or ZImagePipeline is None or FlowMatchSFTLoss is None:
+            raise RuntimeError(
+                "Z-Image training dependencies are unavailable. "
+                "This is commonly caused by an incompatible xformers build in the plugin venv. "
+                "Try uninstalling xformers from the diffusion_trainer venv and rerun setup. "
+                f"Original import error: {diffsynth_import_error}"
+            )
+
         # Ensure the model is downloaded locally if it's not already a directory
         if not os.path.isdir(pretrained_model_name_or_path):
             from huggingface_hub import snapshot_download

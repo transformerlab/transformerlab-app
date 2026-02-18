@@ -1136,3 +1136,15 @@ def test_invoke_pipeline_with_safe_kwargs_retries_on_unexpected_keyword():
     assert result["prompt"] == "test"
     assert result["guidance_scale"] == 7.5
     assert "cross_attention_kwargs" not in result
+
+
+def test_latents_to_rgb_supports_non_sdxl_channel_counts():
+    """Intermediate preview conversion should not fail for non-4-channel latents."""
+    main = pytest.importorskip("transformerlab.plugins.image_diffusion.main")
+    torch = pytest.importorskip("torch")
+
+    latents = torch.randn(16, 8, 8)
+    preview = main.latents_to_rgb(latents)
+
+    assert preview.mode == "RGB"
+    assert preview.size == (8, 8)

@@ -257,20 +257,49 @@ def load_controlnet_model(controlnet_id: str, device: str = "cuda") -> ControlNe
 
 
 def latents_to_rgb(latents):
-    """Convert SDXL latents (4 channels) to RGB tensors (3 channels)"""
-    weights = (
-        (60, -60, 25, -70),
-        (60, -5, 15, -50),
-        (60, 10, -5, -35),
-    )
+    """
+    Convert latent tensors to an RGB preview image.
 
-    weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(latents.device))
-    biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(latents.device)
-    rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(
-        -1
-    )
-    image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
+    Uses SDXL-style weights for 4-channel latents and a robust normalization fallback for
+    models with other latent channel counts (for example 16-channel Z-Image latents).
+    """
+    if latents.ndim == 4:
+        latents = latents[0]
 
+    if latents.ndim != 3:
+        raise ValueError(f"Expected latents shape [C,H,W] or [B,C,H,W], got {tuple(latents.shape)}")
+
+    channels = latents.shape[0]
+
+    if channels == 4:
+        weights = (
+            (60, -60, 25, -70),
+            (60, -5, 15, -50),
+            (60, 10, -5, -35),
+        )
+        weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(latents.device))
+        biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(latents.device)
+        rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(
+            -1
+        ).unsqueeze(-1)
+        image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
+        return Image.fromarray(image_array)
+
+    # Fallback for non-SDXL latent layouts: map first channels to RGB and normalize per channel.
+    rgb_tensor = latents.float()
+    if channels == 1:
+        rgb_tensor = rgb_tensor.repeat(3, 1, 1)
+    elif channels == 2:
+        rgb_tensor = torch.cat([rgb_tensor, rgb_tensor[:1]], dim=0)
+    else:
+        rgb_tensor = rgb_tensor[:3]
+
+    channel_min = rgb_tensor.amin(dim=(1, 2), keepdim=True)
+    channel_max = rgb_tensor.amax(dim=(1, 2), keepdim=True)
+    denom = (channel_max - channel_min).clamp(min=1e-6)
+    rgb_tensor = (rgb_tensor - channel_min) / denom
+
+    image_array = (rgb_tensor * 255.0).clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
     return Image.fromarray(image_array)
 
 
