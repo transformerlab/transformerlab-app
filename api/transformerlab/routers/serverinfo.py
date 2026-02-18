@@ -463,9 +463,7 @@ async def get_profilers():
     ]
 
     installed_gpu_profilers = [
-        profiler
-        for profiler in profilers
-        if profiler["available"] and profiler["category"] == "gpu_profiler"
+        profiler for profiler in profilers if profiler["available"] and profiler["category"] == "gpu_profiler"
     ]
     auto_profile_status = profiler_service.get_auto_profile_status()
 
