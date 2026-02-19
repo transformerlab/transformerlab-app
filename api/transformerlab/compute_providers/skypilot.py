@@ -165,6 +165,8 @@ class SkyPilotProvider(ComputeProvider):
 
                 response = self._server_common.make_authenticated_request(method, endpoint, **kwargs)
                 return response
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                raise ConnectionError(f"SkyPilot server at {self.server_url} is unreachable: {e}") from e
             except Exception:
                 # Fall back to manual request if SkyPilot's method fails
                 pass
@@ -175,11 +177,14 @@ class SkyPilotProvider(ComputeProvider):
         if self.api_token:
             headers["Authorization"] = f"Bearer {self.api_token}"
 
-        response = requests.request(
-            method=method, url=url, json=json_data, headers=headers, timeout=timeout, stream=stream
-        )
-        response.raise_for_status()
-        return response
+        try:
+            response = requests.request(
+                method=method, url=url, json=json_data, headers=headers, timeout=timeout, stream=stream
+            )
+            response.raise_for_status()
+            return response
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            raise ConnectionError(f"SkyPilot server at {self.server_url} is unreachable: {e}") from e
 
     def _get_request_result(self, request_id: str):
         """
@@ -421,7 +426,11 @@ class SkyPilotProvider(ComputeProvider):
 
         # Use SkyPilot's make_authenticated_request (matches SDK exactly)
         # This matches: server_common.make_authenticated_request('POST', '/launch', json=json.loads(body.model_dump_json()), timeout=5)
-        response = self._make_authenticated_request("POST", "/launch", json_data=body_json, timeout=5)
+        try:
+            response = self._make_authenticated_request("POST", "/launch", json_data=body_json, timeout=5)
+        except ConnectionError as e:
+            print(f"Failed to launch cluster {cluster_name}: {e}")
+            return {"status": "error", "message": str(e)}
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         if self._server_common:
@@ -462,7 +471,11 @@ class SkyPilotProvider(ComputeProvider):
         body_json.setdefault("override_skypilot_config", {})
 
         # Use SkyPilot's make_authenticated_request (matches SDK exactly)
-        response = self._make_authenticated_request("POST", "/down", json_data=body_json, timeout=30)
+        try:
+            response = self._make_authenticated_request("POST", "/down", json_data=body_json, timeout=30)
+        except ConnectionError as e:
+            print(f"Failed to stop cluster {cluster_name}: {e}")
+            return {"status": "error", "message": str(e)}
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         request_id = None
@@ -538,7 +551,15 @@ class SkyPilotProvider(ComputeProvider):
         body_json.setdefault("using_remote_api_server", False)
         body_json.setdefault("override_skypilot_config", {})
         # Use SkyPilot's make_authenticated_request (matches SDK exactly)
-        response = self._make_authenticated_request("POST", "/status", json_data=body_json, timeout=10)
+        try:
+            response = self._make_authenticated_request("POST", "/status", json_data=body_json, timeout=10)
+        except ConnectionError as e:
+            print(f"Failed to get status for cluster {cluster_name}: {e}")
+            return ClusterStatus(
+                cluster_name=cluster_name,
+                state=ClusterState.UNKNOWN,
+                status_message=f"Server unreachable: {e}",
+            )
 
         # Check response status
         if hasattr(response, "status_code"):
@@ -726,7 +747,11 @@ class SkyPilotProvider(ComputeProvider):
         body_json.setdefault("override_skypilot_config", {})
 
         # Use SkyPilot's make_authenticated_request (matches SDK exactly)
-        response = self._make_authenticated_request("POST", "/status", json_data=body_json, timeout=10)
+        try:
+            response = self._make_authenticated_request("POST", "/status", json_data=body_json, timeout=10)
+        except ConnectionError as e:
+            print(f"Failed to list clusters: {e}")
+            return []
 
         # Check response status
         if hasattr(response, "status_code"):
@@ -1008,7 +1033,11 @@ class SkyPilotProvider(ComputeProvider):
         body_json.setdefault("override_skypilot_config", {})
 
         # Use SkyPilot's make_authenticated_request (matches SDK exactly)
-        response = self._make_authenticated_request("POST", "/exec", json_data=body_json, timeout=5)
+        try:
+            response = self._make_authenticated_request("POST", "/exec", json_data=body_json, timeout=5)
+        except ConnectionError as e:
+            print(f"Failed to exec on cluster {cluster_name}: {e}")
+            return {"status": "error", "message": str(e)}
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         if self._server_common:
@@ -1070,7 +1099,11 @@ class SkyPilotProvider(ComputeProvider):
             timeout = (5, None)
 
         # Use SkyPilot's make_authenticated_request with streaming (matches SDK exactly)
-        response = self._make_authenticated_request("POST", "/logs", json_data=body_json, timeout=timeout, stream=True)
+        try:
+            response = self._make_authenticated_request("POST", "/logs", json_data=body_json, timeout=timeout, stream=True)
+        except ConnectionError as e:
+            print(f"Failed to get logs for job {job_id} on cluster {cluster_name}: {e}")
+            return ""
 
         # # Get request ID using SkyPilot's method (matches SDK exactly)
         # request_id = None
@@ -1146,7 +1179,11 @@ class SkyPilotProvider(ComputeProvider):
         body_json.setdefault("override_skypilot_config", {})
 
         # Use SkyPilot's make_authenticated_request (matches SDK exactly)
-        response = self._make_authenticated_request("POST", "/cancel", json_data=body_json, timeout=5)
+        try:
+            response = self._make_authenticated_request("POST", "/cancel", json_data=body_json, timeout=5)
+        except ConnectionError as e:
+            print(f"Failed to cancel job on cluster {cluster_name}: {e}")
+            return {"status": "error", "message": str(e)}
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         if self._server_common:
@@ -1187,7 +1224,11 @@ class SkyPilotProvider(ComputeProvider):
         body_json.setdefault("override_skypilot_config", {})
 
         # Use SkyPilot's make_authenticated_request (matches SDK exactly)
-        response = self._make_authenticated_request("POST", "/queue", json_data=body_json, timeout=5)
+        try:
+            response = self._make_authenticated_request("POST", "/queue", json_data=body_json, timeout=5)
+        except ConnectionError as e:
+            print(f"Failed to list jobs for cluster {cluster_name}: {e}")
+            return []
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         request_id = None
