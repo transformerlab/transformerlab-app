@@ -565,6 +565,12 @@ Endpoints.Experiment = {
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_generated_dataset`,
   GetPlotJSON: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_figure_json`,
+  GetGpuProfile: (
+    experimentId: string,
+    jobId: string,
+    task: string = 'view',
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/gpu_profile?task=${task}`,
 };
 
 Endpoints.Jobs = {

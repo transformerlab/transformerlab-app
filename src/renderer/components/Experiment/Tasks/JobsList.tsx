@@ -36,6 +36,7 @@ interface JobsListProps {
   onViewInteractive?: (jobId: string) => void;
   onViewJobDatasets?: (jobId: string) => void;
   onViewJobModels?: (jobId: string) => void;
+  onViewGpuProfile?: (jobId: string) => void;
   loading: boolean;
 }
 
@@ -54,6 +55,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewInteractive,
   onViewJobDatasets,
   onViewJobModels,
+  onViewGpuProfile,
   loading,
 }) => {
   const formatJobConfig = (job: any) => {
@@ -286,6 +288,26 @@ const JobsList: React.FC<JobsListProps> = ({
                         </Box>
                       </Button>
                     )}
+                  {job?.job_data?.gpu_profile_file && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => onViewGpuProfile?.(job?.id)}
+                      startDecorator={<LineChartIcon />}
+                    >
+                      <Box
+                        sx={{
+                          display: {
+                            xs: 'none',
+                            sm: 'none',
+                            md: 'inline-flex',
+                          },
+                        }}
+                      >
+                        GPU Profile
+                      </Box>
+                    </Button>
+                  )}
                   {(job?.job_data?.artifacts ||
                     job?.job_data?.artifacts_dir ||
                     job?.job_data?.generated_datasets) && (

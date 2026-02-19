@@ -28,6 +28,7 @@ import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
 import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
+import ViewGpuProfileModal from './ViewGpuProfileModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
 import ViewJobDatasetsModal from '../Train/ViewJobDatasetsModal';
@@ -58,6 +59,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
   const [viewSweepResultsFromJob, setViewSweepResultsFromJob] = useState(-1);
   const [viewEvalResultsFromJob, setViewEvalResultsFromJob] = useState(-1);
+  const [viewGpuProfileFromJob, setViewGpuProfileFromJob] = useState(-1);
   const [interactiveJobForModal, setInteractiveJobForModal] = useState(-1);
   const [viewJobDatasetsFromJob, setViewJobDatasetsFromJob] = useState(-1);
   const [viewJobModelsFromJob, setViewJobModelsFromJob] = useState(-1);
@@ -1162,6 +1164,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           onViewEvalResults={(jobId) =>
             setViewEvalResultsFromJob(parseInt(jobId))
           }
+          onViewGpuProfile={(jobId) =>
+            setViewGpuProfileFromJob(parseInt(jobId))
+          }
           onViewGeneratedDataset={(jobId, datasetId) => {
             setPreviewDatasetModal({ open: true, datasetId });
           }}
@@ -1204,6 +1209,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewEvalResultsFromJob !== -1}
         onClose={() => setViewEvalResultsFromJob(-1)}
         jobId={viewEvalResultsFromJob}
+      />
+      <ViewGpuProfileModal
+        open={viewGpuProfileFromJob !== -1}
+        onClose={() => setViewGpuProfileFromJob(-1)}
+        jobId={viewGpuProfileFromJob}
       />
       {(() => {
         // Find the job to determine which modal to show

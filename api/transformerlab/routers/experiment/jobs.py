@@ -1201,6 +1201,92 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
     )
 
 
+@router.get("/{job_id}/gpu_profile")
+async def get_gpu_profile(job_id: str, task: str = "view"):
+    """
+    Serve GPU profiling report files for viewing or downloading.
+
+    Args:
+        job_id: The job ID
+        task: Either "view" or "download" (default: "view")
+    """
+    job = await job_service.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
+
+    job_data = job.get("job_data", {})
+    if not isinstance(job_data, dict):
+        try:
+            job_data = json.loads(job_data) if isinstance(job_data, str) else {}
+        except (json.JSONDecodeError, TypeError):
+            job_data = {}
+
+    # Get profiling file path from job_data
+    profile_file = job_data.get("gpu_profile_file")
+    if not profile_file:
+        return Response("No GPU profiling report found for this job", status_code=404)
+
+    # Ensure the file exists
+    if not await storage.exists(profile_file):
+        return Response("GPU profiling report file not found", status_code=404)
+
+    # Get filename from path
+    filename = profile_file.split("/")[-1] if "/" in profile_file else profile_file
+
+    # Determine media type based on file extension
+    _, ext = os.path.splitext(filename.lower())
+    media_type_map = {
+        ".nsys-rep": "application/octet-stream",  # NVIDIA Nsight Systems report
+        ".rocpd": "application/octet-stream",  # ROCm profiling data
+        ".csv": "text/csv",
+        ".json": "application/json",
+    }
+
+    media_type = media_type_map.get(ext, "application/octet-stream")
+
+    # For CSV files in view mode, optionally return parsed content
+    # For now, we'll stream it as text for simplicity
+    if task == "view" and ext == ".csv":
+        # Could parse and return JSON format, but streaming CSV is simpler
+        pass
+
+    # For JSON files in view mode, return the parsed content
+    if task == "view" and ext == ".json":
+        try:
+            async with await storage.open(profile_file, "r") as f:
+                content_str = await f.read()
+                content = json.loads(content_str)
+                return content
+        except Exception as e:
+            print(f"Error reading JSON profiling file: {e}")
+            # Fall back to streaming response
+
+    # Stream the file (supports both local and remote storage)
+    async def generate():
+        async with await storage.open(profile_file, "rb") as f:
+            while True:
+                chunk = await f.read(8192)  # Read in 8KB chunks
+                if not chunk:
+                    break
+                yield chunk
+
+    headers = {}
+    if task == "download":
+        headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    else:
+        headers["Content-Disposition"] = f'inline; filename="{filename}"'
+
+    headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    headers["Pragma"] = "no-cache"
+    headers["Expires"] = "0"
+
+    return StreamingResponse(
+        generate(),
+        media_type=media_type,
+        headers=headers,
+    )
+
+
 @router.get("/{job_id}")
 async def get_training_job_by_path(job_id: str):
     return await job_service.job_get(job_id)

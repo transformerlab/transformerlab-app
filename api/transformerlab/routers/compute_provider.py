@@ -1415,6 +1415,37 @@ async def launch_template_on_provider(
             # Log error but don't fail the launch - SSH key setup is optional
             print(f"Warning: Failed to set up SSH key for organization {team_id}: {e}")
 
+    # Add GPU profiling setup if accelerators are specified
+    if request.accelerators:
+        gpu_profiling_setup = """# Detect GPU vendor and install appropriate profiler
+GPU_VENDOR="unknown"
+if command -v nvidia-smi &> /dev/null && nvidia-smi --query-gpu=name --format=csv,noheader &> /dev/null 2>&1; then
+    GPU_VENDOR="nvidia"
+elif command -v rocminfo &> /dev/null && rocminfo &> /dev/null 2>&1; then
+    GPU_VENDOR="amd"
+fi
+
+# Install NVIDIA profiler (nsys) if needed
+if [ "$GPU_VENDOR" = "nvidia" ] && ! command -v nsys &> /dev/null; then
+    if command -v apt-get &> /dev/null; then
+        apt-get update && apt-get install -y nsight-systems-cli || echo "Warning: Failed to install nsys"
+    elif command -v yum &> /dev/null; then
+        yum install -y nsight-systems-cli || echo "Warning: Failed to install nsys"
+    else
+        echo "Warning: nsys not available and no package manager found"
+    fi
+fi
+
+# Verify AMD profiler availability (rocprof/rocsys typically included with ROCm)
+if [ "$GPU_VENDOR" = "amd" ]; then
+    if ! command -v rocprof &> /dev/null && ! command -v rocsys &> /dev/null; then
+        echo "Warning: ROCm profiling tools (rocprof/rocsys) not found. Ensure ROCm is installed."
+    fi
+    # Ensure ROCm paths are accessible
+    export PATH=$PATH:/opt/rocm/bin:/opt/rocm/rocprofiler/bin
+fi"""
+        setup_commands.append(gpu_profiling_setup)
+
     # Add user-provided setup if any (replace secrets in setup)
     if request.setup:
         setup_with_secrets = replace_secret_placeholders(request.setup, team_secrets) if team_secrets else request.setup
@@ -1534,6 +1565,11 @@ async def launch_template_on_provider(
     if provider.type != ProviderType.LOCAL.value:
         # Preserve the original command in job_data but execute through the wrapper on the provider.
         wrapped_command = f"tfl-remote-trap -- {command_with_secrets}"
+    
+    # If accelerators are specified, wrap with GPU profiler
+    if request.accelerators:
+        # Wrap the command (which may already be wrapped with tfl-remote-trap) with GPU profiler
+        wrapped_command = f"tfl-gpu-profile -- {wrapped_command}"
 
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
