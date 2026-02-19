@@ -1665,9 +1665,7 @@ async def check_provider_job_status(
                 provider = await get_team_provider(session, team_id, provider_id)
                 if provider:
                     user_id_str = str(user_and_team["user"].id)
-                    provider_instance = await get_provider_instance(
-                        provider, user_id=user_id_str, team_id=team_id
-                    )
+                    provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
                     # Local provider needs workspace_dir from job_data for stop_cluster
                     if provider.type == ProviderType.LOCAL.value and job_data.get("workspace_dir"):
                         if hasattr(provider_instance, "extra_config"):
