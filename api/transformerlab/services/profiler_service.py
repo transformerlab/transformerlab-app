@@ -646,7 +646,9 @@ def _csv_lanes_from_run(
                     )
 
                 if timeline_events:
-                    lane_name = os.path.relpath(csv_path, run_directory) if run_directory else os.path.basename(csv_path)
+                    lane_name = (
+                        os.path.relpath(csv_path, run_directory) if run_directory else os.path.basename(csv_path)
+                    )
                     lanes.append(
                         {
                             "id": f"csv_{len(lanes)}",
