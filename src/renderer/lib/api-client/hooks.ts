@@ -138,7 +138,7 @@ export function useServerStats() {
  * Connection health check with timeout. Use this (not useServerStats) to decide
  * when to show ConnectionLostModal, so we get a definite fail after ~10s when
  * the server is down instead of hanging.
- * 
+ *
  * Requires multiple consecutive failures before reporting an error to avoid
  * false positives during long-running operations (e.g., provider launches).
  */
@@ -148,16 +148,16 @@ export function useConnectionHealth(connection: string | null) {
     base.length > 0
       ? (base.endsWith('/') ? base : `${base}/`) + 'healthz'
       : null;
-  
+
   // Track when error first appeared - require error to persist for 10+ seconds
   // This prevents false positives during long-running operations (2 polling cycles)
   const errorFirstSeenRef = React.useRef<number | null>(null);
-  
+
   // Reset when connection changes
   React.useEffect(() => {
     errorFirstSeenRef.current = null;
   }, [connection]);
-  
+
   const { error, isLoading, data } = useSWRRaw(
     healthzUrl,
     healthzFetcherWithTimeout,
@@ -172,7 +172,7 @@ export function useConnectionHealth(connection: string | null) {
   React.useEffect(() => {
     const hasError = error !== null && error !== undefined;
     const hasData = data !== undefined;
-    
+
     if (hasError && errorFirstSeenRef.current === null) {
       // Error just appeared - record timestamp
       errorFirstSeenRef.current = Date.now();
@@ -189,7 +189,7 @@ export function useConnectionHealth(connection: string | null) {
     errorFirstSeenRef.current !== null &&
     Date.now() - errorFirstSeenRef.current >= 10000;
   const isError = errorPersistedLongEnough && !!error;
-  
+
   return { isError, isLoading };
 }
 
