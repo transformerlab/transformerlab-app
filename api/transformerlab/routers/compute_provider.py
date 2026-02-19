@@ -1649,12 +1649,33 @@ async def check_provider_job_status(
             "message": "Job is not a REMOTE job",
         }
 
-    # If job is already in a terminal state, ensure quota is recorded
+    # If job is already in a terminal state, ensure quota is recorded and stop cluster if applicable
     job_status = job.get("status", "")
     if job_status in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
         # Ensure quota is recorded for this completed job
         # Pass team_id from user_and_team context
         await quota_service.ensure_quota_recorded_for_completed_job(session, job_id, team_id=team_id)
+
+        # Attempt to stop the cluster for this job (best-effort cleanup)
+        job_data = job.get("job_data", {}) or {}
+        provider_id = job_data.get("provider_id")
+        cluster_name = job_data.get("cluster_name")
+        if provider_id and cluster_name:
+            try:
+                provider = await get_team_provider(session, team_id, provider_id)
+                if provider:
+                    user_id_str = str(user_and_team["user"].id)
+                    provider_instance = await get_provider_instance(
+                        provider, user_id=user_id_str, team_id=team_id
+                    )
+                    # Local provider needs workspace_dir from job_data for stop_cluster
+                    if provider.type == ProviderType.LOCAL.value and job_data.get("workspace_dir"):
+                        if hasattr(provider_instance, "extra_config"):
+                            provider_instance.extra_config["workspace_dir"] = job_data["workspace_dir"]
+                    await asyncio.to_thread(provider_instance.stop_cluster, cluster_name)
+            except Exception as exc:
+                print(f"Failed to stop cluster for terminal job {job_id}: {exc}")
+
         return {
             "status": "success",
             "job_id": job_id,
