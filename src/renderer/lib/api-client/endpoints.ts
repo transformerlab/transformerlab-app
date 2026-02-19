@@ -395,7 +395,8 @@ Endpoints.ServerInfo = {
     `${API_URL()}server/profilers/runs/${runId}/timeline?max_lanes=${maxLanes}&max_events=${maxEvents}`,
   StopProfilerRun: (runId: string) =>
     `${API_URL()}server/profilers/runs/${runId}/stop`,
-  InferenceProfilerConfig: () => `${API_URL()}server/profilers/inference/config`,
+  InferenceProfilerConfig: () =>
+    `${API_URL()}server/profilers/inference/config`,
   SetInferenceProfilerConfig: () =>
     `${API_URL()}server/profilers/inference/config`,
   ClearInferenceProfilerConfig: () =>
