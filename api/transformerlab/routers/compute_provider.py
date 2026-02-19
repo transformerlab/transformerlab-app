@@ -1064,35 +1064,33 @@ async def _launch_sweep_jobs(
                 setup_commands = []
 
                 # Cloud credentials setup:
-                # - For AWS (REMOTE_WORKSPACE_HOST=aws), inject ~/.aws/credentials profile if available.
-                # - For GCP (REMOTE_WORKSPACE_HOST=gcp), optionally inject a service account JSON if provided.
-                from lab.storage import REMOTE_WORKSPACE_HOST
-
-                if REMOTE_WORKSPACE_HOST != "gcp":
-                    aws_profile = "transformerlab-s3"
-                    aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
-                    if aws_access_key_id and aws_secret_access_key:
-                        aws_credentials_dir = (
-                            RUNPOD_AWS_CREDENTIALS_DIR if provider.type == ProviderType.RUNPOD.value else None
-                        )
-                        aws_setup = _generate_aws_credentials_setup(
-                            aws_access_key_id,
-                            aws_secret_access_key,
-                            aws_profile,
-                            aws_credentials_dir=aws_credentials_dir,
-                        )
-                        setup_commands.append(aws_setup)
-                        env_vars["AWS_PROFILE"] = aws_profile
-                        if aws_credentials_dir:
-                            env_vars["AWS_SHARED_CREDENTIALS_FILE"] = f"{aws_credentials_dir}/credentials"
-
-                elif REMOTE_WORKSPACE_HOST == "gcp":
-                    # If a GCP service account JSON is provided via env, write it on the remote host
-                    # and set GOOGLE_APPLICATION_CREDENTIALS so ADC can find it.
-                    gcp_sa_json = os.getenv("TFL_GCP_SERVICE_ACCOUNT_JSON")
-                    if gcp_sa_json:
-                        gcp_setup = _generate_gcp_credentials_setup(gcp_sa_json)
-                        setup_commands.append(gcp_setup)
+                # - For AWS (TFL_STORAGE_PROVIDER=aws), inject ~/.aws/credentials profile if available.
+                # - For GCP (TFL_STORAGE_PROVIDER=gcp), optionally inject a service account JSON if provided.
+                if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
+                    if STORAGE_PROVIDER == "aws":
+                        aws_profile = "transformerlab-s3"
+                        aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
+                        if aws_access_key_id and aws_secret_access_key:
+                            aws_credentials_dir = (
+                                RUNPOD_AWS_CREDENTIALS_DIR if provider.type == ProviderType.RUNPOD.value else None
+                            )
+                            aws_setup = _generate_aws_credentials_setup(
+                                aws_access_key_id,
+                                aws_secret_access_key,
+                                aws_profile,
+                                aws_credentials_dir=aws_credentials_dir,
+                            )
+                            setup_commands.append(aws_setup)
+                            env_vars["AWS_PROFILE"] = aws_profile
+                            if aws_credentials_dir:
+                                env_vars["AWS_SHARED_CREDENTIALS_FILE"] = f"{aws_credentials_dir}/credentials"
+                    elif STORAGE_PROVIDER == "gcp":
+                        # If a GCP service account JSON is provided via env, write it on the remote host
+                        # and set GOOGLE_APPLICATION_CREDENTIALS so ADC can find it.
+                        gcp_sa_json = os.getenv("TFL_GCP_SERVICE_ACCOUNT_JSON")
+                        if gcp_sa_json:
+                            gcp_setup = _generate_gcp_credentials_setup(gcp_sa_json)
+                            setup_commands.append(gcp_setup)
 
                 if request.file_mounts is True and request.task_id:
                     setup_commands.append(COPY_FILE_MOUNTS_SETUP)
