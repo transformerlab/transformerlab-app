@@ -335,12 +335,12 @@ async def get_provider_job_logs(
             )
         else:
             raw_logs = await asyncio.to_thread(
-              provider_instance.get_job_logs,
-              cluster_name,
-              provider_job_id,
-              tail_lines=tail_lines or None,
-              follow=False,
-          )
+                provider_instance.get_job_logs,
+                cluster_name,
+                provider_job_id,
+                tail_lines=tail_lines or None,
+                follow=False,
+            )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
 
@@ -448,12 +448,12 @@ async def get_tunnel_info_for_job(
             )
         else:
             raw_logs = await asyncio.to_thread(
-              provider_instance.get_job_logs,
-              cluster_name,
-              provider_job_id,
-              tail_lines=tail_lines or None,
-              follow=False,
-          )
+                provider_instance.get_job_logs,
+                cluster_name,
+                provider_job_id,
+                tail_lines=tail_lines or None,
+                follow=False,
+            )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
 
