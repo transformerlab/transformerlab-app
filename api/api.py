@@ -14,7 +14,6 @@ import sys
 from werkzeug.utils import secure_filename
 
 import fastapi
-import httpx
 
 # Using torch to test for CUDA and MPS support.
 import uvicorn
@@ -29,6 +28,24 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+# Optional Datadog APM (does nothing unless enabled + installed)
+def _enable_datadog_if_setup():
+    if not os.getenv("DD_SERVICE"):
+        return
+
+    try:
+        from ddtrace import patch_all
+        from ddtrace.contrib.asgi import TraceMiddleware
+    except ImportError:
+        return None
+
+    patch_all(fastapi=True, httpx=True)
+    return TraceMiddleware
+
+
+TRACE_MIDDLEWARE = _enable_datadog_if_setup()
+
+import httpx  # noqa: E402
 from fastchat.constants import (  # noqa: E402
     ErrorCode,
 )
@@ -127,9 +144,11 @@ async def lifespan(app: FastAPI):
     # Cancel any running jobs
     await cancel_in_progress_jobs()
 
-    # Create buckets for all existing teams if TFL_API_STORAGE_URI is enabled
-    if os.getenv("TFL_API_STORAGE_URI"):
-        print("✅ CHECKING BUCKETS FOR EXISTING TEAMS")
+    # Create buckets/folders for all existing teams if cloud or localfs storage is enabled
+    if os.getenv("TFL_REMOTE_STORAGE_ENABLED") or (
+        os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI")
+    ):
+        print("✅ CHECKING STORAGE FOR EXISTING TEAMS")
         try:
             from transformerlab.db.session import async_session
             from transformerlab.shared.remote_workspace import create_buckets_for_all_teams
@@ -139,18 +158,18 @@ async def lifespan(app: FastAPI):
                     session, profile_name="transformerlab-s3"
                 )
                 if success_count > 0:
-                    print(f"✅ Created/verified buckets for {success_count} team(s)")
+                    print(f"✅ Created/verified storage for {success_count} team(s)")
                 if failure_count > 0:
-                    print(f"⚠️  Failed to create buckets for {failure_count} team(s)")
+                    print(f"⚠️  Failed to create storage for {failure_count} team(s)")
                     for error in error_messages:
                         print(f"   - {error}")
         except Exception as e:
-            print(f"⚠️  Error creating buckets for existing teams: {e}")
+            print(f"⚠️  Error creating storage for existing teams: {e}")
 
     if "--reload" in sys.argv:
         await install_all_plugins()
 
-    if not os.getenv("TFL_API_STORAGE_URI"):
+    if os.getenv("MULTIUSER", "").lower() != "true":
         asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
@@ -222,6 +241,10 @@ app = fastapi.FastAPI(
     lifespan=lifespan,
     openapi_tags=tags_metadata,
 )
+
+# Add tracing middleware only if setup and enabled
+if TRACE_MIDDLEWARE is not None:
+    app.add_middleware(TRACE_MIDDLEWARE)
 
 # CORS configuration
 # When using cookies, allow_credentials must be True and allow_origins cannot be ["*"]
@@ -583,11 +606,11 @@ async def healthz():
     """
     Health check endpoint to verify server status and mode.
     """
-    tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
+    tfl_remote_storage_enabled = os.getenv("MULTIUSER", "").lower() == "true"
 
-    # Determine mode: s3 or local
-    if tfl_api_storage_uri:
-        mode = "s3"
+    # Determine mode: multiuser or local
+    if tfl_remote_storage_enabled:
+        mode = "multiuser"
     else:
         mode = "local"
 

@@ -165,6 +165,9 @@ async def get_macmon_data():
 @router.get("/info")
 async def get_computer_information():
     # start with our static system information and add current performance details
+    if os.environ.get("MULTIUSER", "").lower() == "true":
+        return system_info
+
     r = system_info
 
     # Get the current disk usage if its a mac

@@ -35,12 +35,11 @@ import {
 
 import {
   useModelStatus,
-  usePluginStatus,
   getAPIFullPath,
 } from 'renderer/lib/transformerlab-api-sdk';
-
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
+import { useNotificationsSummary } from 'renderer/lib/useNotificationsSummary';
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 
 import SubNavItem from './SubNavItem';
@@ -78,7 +77,9 @@ function ExperimentMenuItems({
   const pipelineIsTTS = pipelineTag === 'text-to-speech';
   const pipelineIsSTT = pipelineTag === 'speech-to-text';
   const isDiffusionModel = isValidDiffusionModel === true;
-  const showInteractTab = !isDiffusionModel && !pipelineIsTTS && !pipelineIsSTT;
+  const showInteractTab =
+    (!isDiffusionModel && !pipelineIsTTS && !pipelineIsSTT) ||
+    (hasProviders && !isLocalMode);
   const showDiffusionTab = isLocalMode && isDiffusionModel;
   const showAudioTTSTab = isLocalMode && pipelineIsTTS;
   const showAudioSTTTab = isLocalMode && pipelineIsSTT;
@@ -408,7 +409,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const { experimentInfo } = useExperimentInfo();
   const { models } = useModelStatus();
-  const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
+  const notificationsSummary = useNotificationsSummary(experimentInfo);
 
   const navigate = useNavigate();
 
@@ -458,11 +459,13 @@ export default function Sidebar({
       <SelectExperimentMenu models={models} />
       <ExperimentMenuItems experimentInfo={experimentInfo} models={models} />
       <GlobalMenuItems
-        outdatedPluginsCount={outdatedPlugins?.length}
+        outdatedPluginsCount={notificationsSummary.byCategory.outdatedPlugins}
         hasProviders={hasProviders}
         experimentInfo={experimentInfo}
       />
-      {window?.platform?.multiuser === true && <LoginChip />}
+      {window?.platform?.multiuser === true && (
+        <LoginChip notificationsSummary={notificationsSummary} />
+      )}
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
     </Sheet>
   );

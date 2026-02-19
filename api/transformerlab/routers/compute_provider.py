@@ -43,6 +43,7 @@ from transformerlab.services import job_service
 from transformerlab.services import quota_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
 from lab import storage
+from lab.storage import STORAGE_PROVIDER
 from lab.dirs import get_workspace_dir, get_local_provider_job_dir
 from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
@@ -820,6 +821,42 @@ def _generate_aws_credentials_setup(
     return setup_script
 
 
+def _generate_gcp_credentials_setup(service_account_json: str, credentials_path: Optional[str] = None) -> str:
+    """
+    Generate bash script to set up GCP service account credentials on the remote host.
+
+    This writes the provided service account JSON to a file and points
+    GOOGLE_APPLICATION_CREDENTIALS at it so that google-cloud libraries and
+    ADC can pick it up.
+
+    Args:
+        service_account_json: The service account JSON contents.
+        credentials_path: Optional path on the remote host where the JSON
+            should be written. Defaults to ~/.config/gcloud/tfl-service-account.json
+
+    Returns:
+        Bash script to configure GCP credentials.
+    """
+    target_path = credentials_path or "$HOME/.config/gcloud/tfl-service-account.json"
+
+    def escape_bash_single_quoted(s: str) -> str:
+        # Safely embed arbitrary JSON into a single-quoted string in bash:
+        # close quote, escape single quote, reopen.
+        return s.replace("'", "'\"'\"'")
+
+    escaped_json = escape_bash_single_quoted(service_account_json)
+
+    setup_script = (
+        "echo 'Setting up GCP service account credentials...'; "
+        'mkdir -p "$HOME/.config/gcloud"; '
+        f"echo '{escaped_json}' > {target_path}; "
+        f"chmod 600 {target_path}; "
+        f"export GOOGLE_APPLICATION_CREDENTIALS={target_path}; "
+        "echo 'GCP credentials configured successfully'"
+    )
+    return setup_script
+
+
 async def _create_sweep_parent_job(
     provider_id: str,
     request: ProviderTemplateLaunchRequest,
@@ -999,26 +1036,42 @@ async def _launch_sweep_jobs(
                 tfl_storage_uri = None
                 try:
                     storage_root = await storage.root_uri()
-                    if storage_root and storage.is_remote_path(storage_root):
-                        tfl_storage_uri = storage_root
+                    if storage_root:
+                        if storage.is_remote_path(storage_root):
+                            # Remote cloud storage (S3/GCS/etc.)
+                            tfl_storage_uri = storage_root
+                        elif STORAGE_PROVIDER == "localfs":
+                            # localfs: expose the local mount path to the remote worker
+                            tfl_storage_uri = storage_root
                 except Exception:
                     pass
 
                 if tfl_storage_uri:
                     env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
-                    env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
 
-                # Build setup script (add copy_file_mounts when file_mounts is True, after AWS credentials)
+                # Build setup script (add copy_file_mounts when file_mounts is True, after cloud credentials)
                 setup_commands = []
-                aws_profile = "transformerlab-s3"
-                if os.getenv("TFL_API_STORAGE_URI"):
-                    aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
-                    if aws_access_key_id and aws_secret_access_key:
-                        aws_setup = _generate_aws_credentials_setup(
-                            aws_access_key_id, aws_secret_access_key, aws_profile
-                        )
-                        setup_commands.append(aws_setup)
-                        env_vars["AWS_PROFILE"] = aws_profile
+
+                # Cloud credentials setup:
+                # - For AWS (TFL_STORAGE_PROVIDER=aws), inject ~/.aws/credentials profile if available.
+                # - For GCP (TFL_STORAGE_PROVIDER=gcp), optionally inject a service account JSON if provided.
+                if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
+                    if STORAGE_PROVIDER == "aws":
+                        aws_profile = "transformerlab-s3"
+                        aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
+                        if aws_access_key_id and aws_secret_access_key:
+                            aws_setup = _generate_aws_credentials_setup(
+                                aws_access_key_id, aws_secret_access_key, aws_profile
+                            )
+                            setup_commands.append(aws_setup)
+                            env_vars["AWS_PROFILE"] = aws_profile
+                    elif STORAGE_PROVIDER == "gcp":
+                        # If a GCP service account JSON is provided via env, write it on the remote host
+                        # and set GOOGLE_APPLICATION_CREDENTIALS so ADC can find it.
+                        gcp_sa_json = os.getenv("TFL_GCP_SERVICE_ACCOUNT_JSON")
+                        if gcp_sa_json:
+                            gcp_setup = _generate_gcp_credentials_setup(gcp_sa_json)
+                            setup_commands.append(gcp_setup)
 
                 if request.file_mounts is True and request.task_id:
                     setup_commands.append(COPY_FILE_MOUNTS_SETUP)
@@ -1308,7 +1361,7 @@ async def launch_template_on_provider(
 
     # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
     aws_profile = "transformerlab-s3"
-    if os.getenv("TFL_API_STORAGE_URI"):
+    if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
         aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
     else:
         aws_access_key_id, aws_secret_access_key = None, None
@@ -1318,8 +1371,13 @@ async def launch_template_on_provider(
     if aws_access_key_id and aws_secret_access_key:
         aws_setup = _generate_aws_credentials_setup(aws_access_key_id, aws_secret_access_key, aws_profile)
         setup_commands.append(aws_setup)
+
     if request.file_mounts is True and request.task_id:
         setup_commands.append(COPY_FILE_MOUNTS_SETUP)
+    # Ensure transformerlab SDK is available on remote machines for live_status tracking and other helpers.
+    # This runs after AWS credentials are configured so we have access to any remote storage if needed.
+    if provider.type != ProviderType.LOCAL.value:
+        setup_commands.append("pip install -q transformerlab")
 
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
@@ -1377,16 +1435,21 @@ async def launch_template_on_provider(
     tfl_storage_uri = None
     try:
         storage_root = await storage.root_uri()
-        # Check if it's a remote URI (not a local path)
-        if storage_root and storage.is_remote_path(storage_root):
-            tfl_storage_uri = storage_root
+        if storage_root:
+            if storage.is_remote_path(storage_root):
+                # Remote cloud storage (S3/GCS/etc.)
+                tfl_storage_uri = storage_root
+            elif STORAGE_PROVIDER == "localfs":
+                # localfs: expose the local mount path to the remote worker
+                tfl_storage_uri = storage_root
     except Exception:
         pass
 
     if tfl_storage_uri:
         env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
-        env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
-        env_vars["AWS_PROFILE"] = aws_profile
+        # Only mark as remote SkyPilot workspace and set AWS profile for true remote URIs
+        if storage.is_remote_path(tfl_storage_uri):
+            env_vars["AWS_PROFILE"] = aws_profile
         # env_vars["AWS_ACCESS_KEY_ID"] = aws_access_key_id
         # env_vars["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
 
@@ -1415,7 +1478,7 @@ async def launch_template_on_provider(
     if provider.type == ProviderType.LOCAL.value:
         # Use a dedicated local-only job directory for the local provider.
         # This directory is always on the host filesystem and does not depend
-        # on TFL_API_STORAGE_URI / remote storage configuration.
+        # on TFL_REMOTE_STORAGE_ENABLED / remote storage configuration.
         job_dir = get_local_provider_job_dir(job_id, org_id=team_id)
         provider_config_dict["workspace_dir"] = job_dir
 
@@ -1459,11 +1522,22 @@ async def launch_template_on_provider(
 
     # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
     file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
+
+    # For non-local (remote) providers, wrap the user command so we can track live_status in job_data.
+    # This uses the tfl-remote-trap helper from the transformerlab SDK, which:
+    #   - sets job_data.live_status="started" when execution begins
+    #   - sets job_data.live_status="finished" on success
+    #   - sets job_data.live_status="crashed" on failure
+    wrapped_command = command_with_secrets
+    if provider.type != ProviderType.LOCAL.value:
+        # Preserve the original command in job_data but execute through the wrapper on the provider.
+        wrapped_command = f"tfl-remote-trap -- {command_with_secrets}"
+
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
         provider_id=provider.id,
-        command=command_with_secrets,
+        command=wrapped_command,
         setup=final_setup,
         env_vars=env_vars,
         cpus=request.cpus,
@@ -1594,6 +1668,37 @@ async def check_provider_job_status(
         }
 
     job_data = job.get("job_data", {}) or {}
+
+    # If the remote wrapper has already detected a crash, mark the job as FAILED immediately.
+    live_status = job_data.get("live_status")
+    if live_status == "crashed":
+        try:
+            end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+            await job_service.job_update_job_data_insert_key_value(
+                job_id, "end_time", end_time_str, job.get("experiment_id")
+            )
+            await job_service.job_update_status(
+                job_id,
+                "FAILED",
+                experiment_id=job.get("experiment_id"),
+                session=session,
+            )
+            await session.commit()
+            return {
+                "status": "success",
+                "job_id": job_id,
+                "updated": True,
+                "new_status": "FAILED",
+                "message": "Remote command crashed (live_status=crashed)",
+            }
+        except Exception as exc:
+            print(f"Failed to update job status from live_status crash: {exc}")
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": "Failed to update job status after crash",
+            }
+
     provider_id = job_data.get("provider_id")
     cluster_name = job_data.get("cluster_name")
     experiment_id = job.get("experiment_id")
@@ -2239,15 +2344,19 @@ async def resume_from_checkpoint(
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
     try:
-        storage_root = storage.root_uri()
-        if storage_root and storage.is_remote_path(storage_root):
-            tfl_storage_uri = storage_root
+        storage_root = await storage.root_uri()
+        if storage_root:
+            if storage.is_remote_path(storage_root):
+                # Remote cloud storage (S3/GCS/etc.)
+                tfl_storage_uri = storage_root
+            elif STORAGE_PROVIDER == "localfs":
+                # localfs: expose the local mount path to the remote worker
+                tfl_storage_uri = storage_root
     except Exception:
         pass
 
     if tfl_storage_uri:
         env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
-        env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
 
     # Build setup script
     setup_commands = []
