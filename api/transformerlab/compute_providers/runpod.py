@@ -1,7 +1,13 @@
 """Runpod provider implementation."""
 
-import requests
+import asyncio
+import io
 from typing import Dict, Any, Optional, Union, List
+
+import requests
+
+from transformerlab.services.ssh_key_service import get_org_ssh_private_key
+from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
 from .base import ComputeProvider
 from .models import (
@@ -12,6 +18,99 @@ from .models import (
     ResourceInfo,
     ClusterState,
 )
+
+
+# Path inside the RunPod container where we tee stdout/stderr for provider log retrieval via SSH
+RUNPOD_RUN_LOGS_PATH = "/workspace/run_logs.txt"
+
+
+async def fetch_runpod_provider_logs(
+    provider_instance: ComputeProvider,
+    cluster_name: str,
+    team_id: str,
+    tail_lines: int,
+) -> str:
+    """
+    For RunPod: get pod public IP, SSH with org key, read /workspace/run_logs.txt and return.
+    """
+    status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
+    provider_data = getattr(status, "provider_data", None) or {}
+    # RunPod API returns publicIp directly on the pod object, not nested under runtime
+    # Handle empty string case - pod might still be starting
+    host = provider_data.get("publicIp") or provider_data.get("public_ip")
+    if not host or host == "":
+        runtime = provider_data.get("runtime") or {}
+        host = runtime.get("publicIp") or runtime.get("public_ip")
+    # If still no host, check if pod is still starting (desiredStatus might indicate this)
+    if not host or host == "":
+        desired_status = provider_data.get("desiredStatus", "")
+        if desired_status == "RUNNING":
+            return "Pod is starting up - public IP not yet assigned. Please wait a moment and try again."
+        return "Pod has no public IP yet (still starting or not available)."
+
+    # Get SSH port from portMappings - RunPod maps internal port 22 to an external port
+    port_mappings = provider_data.get("portMappings") or {}
+    ssh_port = port_mappings.get("22") or port_mappings.get(22)  # Try both string and int key
+    if not ssh_port:
+        # Fallback to port 22 if no mapping found (shouldn't happen if port 22 is exposed)
+        ssh_port = 22
+
+    try:
+        key_bytes = await get_org_ssh_private_key(team_id)
+    except Exception as e:  # pragma: no cover - defensive
+        return f"Cannot load SSH key for provider logs: {e}"
+
+    def _ssh_cat_log() -> str:
+        import paramiko
+
+        try:
+            pkey = None
+            # Decode key bytes to string - paramiko's from_private_key expects string content
+            key_str = key_bytes.decode("utf-8")
+            key_file = io.StringIO(key_str)
+
+            # Try Ed25519 first (modern key type), then RSA
+            try:
+                pkey = paramiko.Ed25519Key.from_private_key(key_file)
+            except (paramiko.ssh_exception.SSHException, ValueError, TypeError, AttributeError):
+                # Reset file pointer and try RSA
+                key_file.seek(0)
+                try:
+                    pkey = paramiko.RSAKey.from_private_key(key_file)
+                except (paramiko.ssh_exception.SSHException, ValueError, TypeError, AttributeError) as exc:
+                    return f"Failed to load SSH key as Ed25519 or RSA: {exc}"
+        except Exception as exc:  # pragma: no cover - defensive
+            return f"Failed to load SSH key: {exc}"
+
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(get_add_if_verified_policy())
+        try:
+            ssh.connect(
+                hostname=host,
+                port=ssh_port,
+                username="root",
+                pkey=pkey,
+                timeout=15,
+                banner_timeout=15,
+            )
+            # Prefer tail to limit size; fallback to cat if tail fails
+            cmd = (
+                f"tail -n {tail_lines} {RUNPOD_RUN_LOGS_PATH} 2>/dev/null "
+                f"|| cat {RUNPOD_RUN_LOGS_PATH} 2>/dev/null "
+                "|| echo 'No log file found.'"
+            )
+            stdin, stdout, stderr = ssh.exec_command(cmd, timeout=10)
+            out = stdout.read().decode("utf-8", errors="replace")
+            err = stderr.read().decode("utf-8", errors="replace")
+            if err and "No such file" not in err:
+                out = out or err
+            return out.strip() or "No log output yet."
+        except Exception as exc:  # pragma: no cover - network/SSH failures
+            return f"SSH failed: {exc}"
+        finally:
+            ssh.close()
+
+    return await asyncio.to_thread(_ssh_cat_log)
 
 
 class RunpodProvider(ComputeProvider):
@@ -314,8 +413,12 @@ class RunpodProvider(ComputeProvider):
                 config.provider_config.get("network_volume_id") or self.default_network_volume_id
             )
 
+        # Expose SSH so we can later read run_logs.txt for provider logs
+        pod_data["ports"] = ["22/tcp"]
+
         # Build dockerStartCmd - Runpod expects a single command string or array
-        # that will be executed by the container's entrypoint
+        # that will be executed by the container's entrypoint.
+        # We tee stdout/stderr to RUNPOD_RUN_LOGS_PATH so provider logs can be read via SSH.
         docker_cmds = []
 
         if config.setup:
@@ -327,19 +430,21 @@ class RunpodProvider(ComputeProvider):
             docker_cmds.append(config.command)
 
         # Join commands with && so they run sequentially
-        # Wrap in sh -c so complex commands with arguments work properly
+        # Tee to a fixed path so get_job_logs can read it via SSH (no RunPod logs API)
+        # Append 'runpodctl remove pod $RUNPOD_POD_ID' to keep container from restarting.
         if docker_cmds:
-            # If we have multiple commands, join them
             combined_cmd = " && ".join(docker_cmds)
-            # Wrap in sh -c to ensure proper command execution
-            # This prevents issues with exec trying to find "echo hello" as a single executable
-            pod_data["dockerStartCmd"] = ["sh", "-c", combined_cmd]
+            # mkdir -p /workspace works with or without a network volume; tee writes run logs there
+            # Run command, tee output to log file, then always sleep to keep container alive
+            wrapped_cmd = f"mkdir -p /workspace && (({combined_cmd}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}); runpodctl remove pod $RUNPOD_POD_ID"
+            pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
         elif config.setup:
-            # Just setup, no command
-            pod_data["dockerStartCmd"] = ["sh", "-c", config.setup]
+            # For setup-only, still keep container running
+            wrapped_cmd = f"({config.setup}); runpodctl remove pod $RUNPOD_POD_ID"
+            pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
         elif config.command:
-            # Just command, no setup
-            pod_data["dockerStartCmd"] = ["sh", "-c", config.command]
+            wrapped_cmd = f"mkdir -p /workspace && (({config.command}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}); runpodctl remove pod $RUNPOD_POD_ID"
+            pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
 
         if self.default_region or config.region:
             pod_data["region"] = config.region or self.default_region
