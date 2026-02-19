@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import csv
 import json
 import os
+import re
 import shlex
 import shutil
 import sqlite3
@@ -23,6 +25,7 @@ MAX_CACHED_LOG_LINES = 400
 STOP_TIMEOUT_SECONDS = 5
 DEFAULT_TIMELINE_MAX_LANES = 12
 DEFAULT_TIMELINE_MAX_EVENTS = 2000
+_STOPPED_RETURN_CODES = {-15, -9, 130, 137, 143}
 
 _RUNS_LOCK = threading.Lock()
 _RUNS: dict[str, dict[str, Any]] = {}
@@ -219,10 +222,15 @@ def _build_profiler_prefix(profiler_id: str, output_base: str, extra_args: list[
 
 
 def _to_public_run(run: dict[str, Any]) -> dict[str, Any]:
+    status = str(run["status"])
+    return_code = run.get("return_code")
+    if status == "failed" and isinstance(return_code, int) and return_code in _STOPPED_RETURN_CODES:
+        status = "stopped"
+
     return {
         "run_id": run["run_id"],
         "profiler_id": run["profiler_id"],
-        "status": run["status"],
+        "status": status,
         "command": list(run["command"]),
         "run_directory": run["run_directory"],
         "working_directory": run["working_directory"],
@@ -231,7 +239,7 @@ def _to_public_run(run: dict[str, Any]) -> dict[str, Any]:
         "created_at": run["created_at"],
         "started_at": run["started_at"],
         "completed_at": run.get("completed_at"),
-        "return_code": run.get("return_code"),
+        "return_code": return_code,
         "pid": run.get("pid"),
         "error": run.get("error"),
         "last_lines": list(run.get("last_lines", [])),
@@ -263,6 +271,8 @@ def _mark_finished(run_id: str, return_code: int):
             run["status"] = "stopped"
         elif return_code == 0:
             run["status"] = "completed"
+        elif return_code in _STOPPED_RETURN_CODES:
+            run["status"] = "stopped"
         else:
             run["status"] = "failed"
         run["return_code"] = return_code
@@ -290,6 +300,8 @@ def mark_managed_run_finished(run_id: str, return_code: int, error: Optional[str
             return
         if return_code == 0:
             run["status"] = "completed"
+        elif return_code in _STOPPED_RETURN_CODES:
+            run["status"] = "stopped"
         else:
             run["status"] = "failed"
         run["return_code"] = return_code
@@ -422,6 +434,338 @@ def _normalize_timeline_value(value: Any, string_lookup: dict[int, str]) -> str:
     if isinstance(value, int) and value in string_lookup:
         return string_lookup[value]
     return str(value)
+
+
+_TIMELINE_NUMBER_RE = re.compile(r"^\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)([a-zA-Z]*)\s*$")
+
+
+def _parse_timeline_number(value: Any) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    text = str(value).strip()
+    if not text:
+        return None
+    text = text.replace(",", "")
+    try:
+        return float(text)
+    except ValueError:
+        pass
+
+    match = _TIMELINE_NUMBER_RE.match(text)
+    if not match:
+        return None
+    amount = float(match.group(1))
+    return amount
+
+
+def _infer_column_multiplier_to_ms(columns: list[str], sample_magnitude: float) -> float:
+    lower_columns = " ".join(column.lower() for column in columns)
+    if (
+        "nanosecond" in lower_columns
+        or "start_ns" in lower_columns
+        or "startns" in lower_columns
+        or "end_ns" in lower_columns
+        or "endns" in lower_columns
+        or "dur_ns" in lower_columns
+        or "durationns" in lower_columns
+    ):
+        return 1.0 / 1_000_000.0
+    if (
+        "microsecond" in lower_columns
+        or "start_us" in lower_columns
+        or "startus" in lower_columns
+        or "end_us" in lower_columns
+        or "endus" in lower_columns
+        or "dur_us" in lower_columns
+        or "durationus" in lower_columns
+    ):
+        return 1.0 / 1_000.0
+    if "millisecond" in lower_columns or "start_ms" in lower_columns or "end_ms" in lower_columns:
+        return 1.0
+    if " second" in lower_columns or "(s)" in lower_columns or "_sec" in lower_columns:
+        return 1000.0
+
+    if sample_magnitude >= 1_000_000_000_000:
+        return 1.0 / 1_000_000.0
+    if sample_magnitude >= 1_000_000_000:
+        return 1.0 / 1_000.0
+    return 1.0
+
+
+def _timeline_base_window_ms(run: dict[str, Any]) -> tuple[float, float]:
+    started = _parse_timeline_number(run.get("started_at"))
+    created = _parse_timeline_number(run.get("created_at"))
+    completed = _parse_timeline_number(run.get("completed_at"))
+    status = str(run.get("status", ""))
+    now = time.time()
+
+    base_seconds = started if started is not None else created
+    if base_seconds is None:
+        base_seconds = now
+
+    if completed is not None:
+        end_seconds = completed
+    elif status in {"running", "stopping", "created"}:
+        end_seconds = now
+    else:
+        end_seconds = base_seconds
+
+    if end_seconds < base_seconds:
+        end_seconds = base_seconds
+
+    duration_ms = max((end_seconds - base_seconds) * 1000.0, 1.0)
+    return base_seconds, duration_ms
+
+
+def _collect_csv_timeline_candidates(run_directory: str, output_path: str) -> list[str]:
+    candidates: list[str] = []
+    seen: set[str] = set()
+
+    def add_candidate(path: str):
+        normalized = os.path.abspath(path)
+        if normalized in seen:
+            return
+        if os.path.isfile(normalized) and normalized.lower().endswith(".csv"):
+            seen.add(normalized)
+            candidates.append(normalized)
+
+    if output_path and os.path.isfile(output_path) and output_path.lower().endswith(".csv"):
+        add_candidate(output_path)
+
+    if output_path and os.path.isdir(output_path):
+        for root, _, files in os.walk(output_path):
+            for filename in files:
+                if filename.lower().endswith(".csv"):
+                    add_candidate(os.path.join(root, filename))
+
+    if run_directory and os.path.isdir(run_directory):
+        for root, _, files in os.walk(run_directory):
+            for filename in files:
+                if filename.lower().endswith(".csv"):
+                    add_candidate(os.path.join(root, filename))
+
+    return candidates
+
+
+def _csv_lanes_from_run(
+    run_directory: str,
+    output_path: str,
+    *,
+    max_lanes: int,
+    max_events: int,
+) -> list[dict[str, Any]]:
+    if max_lanes <= 0 or max_events <= 0:
+        return []
+
+    lanes: list[dict[str, Any]] = []
+    remaining_events = max_events
+    csv_paths = _collect_csv_timeline_candidates(run_directory, output_path)
+    for csv_path in csv_paths:
+        if len(lanes) >= max_lanes or remaining_events <= 0:
+            break
+
+        try:
+            with open(csv_path, newline="", encoding="utf-8", errors="replace") as csv_file:
+                reader = csv.DictReader(csv_file)
+                if not reader.fieldnames:
+                    continue
+                fieldnames = [str(name) for name in reader.fieldnames if name is not None]
+                if not fieldnames:
+                    continue
+
+                start_col, end_col, duration_col = _select_time_columns(fieldnames)
+                if not start_col:
+                    continue
+                if not end_col and not duration_col:
+                    continue
+
+                label_col = _choose_label_column(fieldnames)
+                sample_columns = [column for column in [start_col, end_col, duration_col] if column]
+                raw_events: list[dict[str, Any]] = []
+                min_start: float | None = None
+                max_end: float | None = None
+                largest_abs_value = 0.0
+
+                for row in reader:
+                    if remaining_events <= 0:
+                        break
+                    if row is None:
+                        continue
+
+                    start_raw = _parse_timeline_number(row.get(start_col))
+                    if start_raw is None:
+                        continue
+
+                    end_raw: float | None = None
+                    if end_col:
+                        end_raw = _parse_timeline_number(row.get(end_col))
+                    if end_raw is None and duration_col:
+                        duration_raw = _parse_timeline_number(row.get(duration_col))
+                        if duration_raw is not None:
+                            end_raw = start_raw + duration_raw
+                    if end_raw is None or end_raw <= start_raw:
+                        continue
+
+                    largest_abs_value = max(largest_abs_value, abs(start_raw), abs(end_raw))
+                    if min_start is None or start_raw < min_start:
+                        min_start = start_raw
+                    if max_end is None or end_raw > max_end:
+                        max_end = end_raw
+
+                    raw_events.append(
+                        {
+                            "start_raw": start_raw,
+                            "end_raw": end_raw,
+                            "label": (str(row.get(label_col, "")).strip() if label_col else ""),
+                        }
+                    )
+                    remaining_events -= 1
+
+                if not raw_events or min_start is None or max_end is None or max_end <= min_start:
+                    continue
+
+                multiplier = _infer_column_multiplier_to_ms(sample_columns, largest_abs_value)
+                timeline_events: list[dict[str, Any]] = []
+                for index, event in enumerate(raw_events):
+                    start_ms = (event["start_raw"] - min_start) * multiplier
+                    duration_ms = (event["end_raw"] - event["start_raw"]) * multiplier
+                    if duration_ms <= 0:
+                        continue
+
+                    label = event["label"] or os.path.basename(csv_path)
+                    timeline_events.append(
+                        {
+                            "id": f"{os.path.basename(csv_path)}_{index}",
+                            "label": label[:160],
+                            "start_ms": round(max(start_ms, 0.0), 6),
+                            "duration_ms": round(max(duration_ms, 0.001), 6),
+                        }
+                    )
+
+                if timeline_events:
+                    lane_name = os.path.relpath(csv_path, run_directory) if run_directory else os.path.basename(csv_path)
+                    lanes.append(
+                        {
+                            "id": f"csv_{len(lanes)}",
+                            "name": lane_name,
+                            "events": timeline_events,
+                        }
+                    )
+        except Exception:
+            continue
+
+    lanes.sort(key=lambda lane: len(lane["events"]), reverse=True)
+    return lanes[:max_lanes]
+
+
+def _log_lane(run: dict[str, Any], *, duration_ms: float, max_events: int) -> dict[str, Any] | None:
+    if max_events <= 0:
+        return None
+
+    log_path = str(run.get("log_path", ""))
+    if not log_path or not os.path.exists(log_path):
+        return None
+
+    last_lines: deque[str] = deque(maxlen=max_events)
+    try:
+        with open(log_path, encoding="utf-8", errors="replace") as log_file:
+            for line in log_file:
+                text = line.strip()
+                if text:
+                    last_lines.append(text)
+    except Exception:
+        return None
+
+    if not last_lines:
+        return None
+
+    lines = list(last_lines)
+    step_ms = max(duration_ms / max(len(lines), 1), 0.25)
+    log_events: list[dict[str, Any]] = []
+    for index, line in enumerate(lines):
+        log_events.append(
+            {
+                "id": f"log_{index}",
+                "label": line[:160],
+                "start_ms": round(index * step_ms, 6),
+                "duration_ms": round(max(step_ms * 0.9, 0.2), 6),
+            }
+        )
+
+    return {
+        "id": "run_log",
+        "name": "Profiler log",
+        "events": log_events,
+    }
+
+
+def _extract_generic_timeline(
+    run: dict[str, Any],
+    *,
+    profiler_id: str,
+    max_lanes: int,
+    max_events: int,
+) -> dict[str, Any]:
+    _, duration_ms = _timeline_base_window_ms(run)
+    run_status = str(run.get("status", "unknown"))
+    source = str(run.get("source", "manual"))
+    run_directory = str(run.get("run_directory", ""))
+    output_path = str(run.get("output_path", ""))
+
+    if max_lanes < 1:
+        max_lanes = 1
+    if max_events < 1:
+        max_events = 1
+
+    lanes: list[dict[str, Any]] = [
+        {
+            "id": "run_lifecycle",
+            "name": "Run lifecycle",
+            "events": [
+                {
+                    "id": "run_lifecycle_0",
+                    "label": f"{profiler_id} ({run_status}) [{source}]",
+                    "start_ms": 0.0,
+                    "duration_ms": round(max(duration_ms, 0.001), 6),
+                }
+            ],
+        }
+    ]
+
+    lanes_budget = max_lanes - len(lanes)
+    events_budget = max_events - 1
+
+    if lanes_budget > 0 and events_budget > 0:
+        csv_lanes = _csv_lanes_from_run(
+            run_directory,
+            output_path,
+            max_lanes=lanes_budget,
+            max_events=events_budget,
+        )
+        lanes.extend(csv_lanes)
+        lanes_budget = max_lanes - len(lanes)
+        events_budget = max_events - sum(len(lane.get("events", [])) for lane in lanes)
+
+    if lanes_budget > 0 and events_budget > 0:
+        log_lane = _log_lane(run, duration_ms=duration_ms, max_events=events_budget)
+        if log_lane:
+            lanes.append(log_lane)
+
+    max_timeline_end = 0.0
+    for lane in lanes:
+        for event in lane.get("events", []):
+            end_ms = float(event.get("start_ms", 0.0)) + float(event.get("duration_ms", 0.0))
+            max_timeline_end = max(max_timeline_end, end_ms)
+
+    return {
+        "source": f"{profiler_id}-generic",
+        "unit": "ms",
+        "range_ms": round(max(max_timeline_end, duration_ms, 1.0), 6),
+        "lanes": lanes,
+    }
 
 
 def _try_export_nsys_sqlite(run_output_path: str, run_directory: str) -> str:
@@ -628,19 +972,37 @@ def get_profiler_run_timeline(
     run_directory = str(run_copy.get("run_directory", ""))
 
     if profiler_id == "nsys":
-        timeline = _extract_nsys_timeline(
-            output_path,
-            run_directory,
-            max_lanes=max_lanes,
-            max_events=max_events,
-        )
+        try:
+            timeline = _extract_nsys_timeline(
+                output_path,
+                run_directory,
+                max_lanes=max_lanes,
+                max_events=max_events,
+            )
+        except ValueError:
+            timeline = _extract_generic_timeline(
+                run_copy,
+                profiler_id=profiler_id,
+                max_lanes=max_lanes,
+                max_events=max_events,
+            )
         return {
             "run_id": run_id,
             "profiler_id": profiler_id,
             "timeline": timeline,
         }
 
-    raise ValueError(f"Timeline view is not yet supported for profiler '{profiler_id}'.")
+    timeline = _extract_generic_timeline(
+        run_copy,
+        profiler_id=profiler_id,
+        max_lanes=max_lanes,
+        max_events=max_events,
+    )
+    return {
+        "run_id": run_id,
+        "profiler_id": profiler_id,
+        "timeline": timeline,
+    }
 
 
 def list_profiler_runs(limit: int = 25) -> list[dict[str, Any]]:

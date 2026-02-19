@@ -6,6 +6,9 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Modal,
+  ModalClose,
+  ModalDialog,
   Sheet,
   Stack,
   Table,
@@ -115,6 +118,23 @@ function formatCommand(commandParts?: string[]) {
   return commandParts.join(' ');
 }
 
+function filterProfilersForVendor(
+  profilers: ProfilerInfo[],
+  gpuVendor?: string,
+): ProfilerInfo[] {
+  const normalizedVendor = (gpuVendor ?? '').toLowerCase();
+  if (normalizedVendor !== 'nvidia' && normalizedVendor !== 'amd') {
+    return profilers;
+  }
+
+  return profilers.filter((profiler) => {
+    const profilerVendor = profiler.vendor.toLowerCase();
+    return (
+      profilerVendor === normalizedVendor || profilerVendor === 'cross-platform'
+    );
+  });
+}
+
 export default function Profiling() {
   const [selectedView, setSelectedView] = useState<'profilers' | 'runs'>(
     'profilers',
@@ -145,6 +165,10 @@ export default function Profiling() {
     {}) as Partial<ProfilerRunsResponse>;
 
   const profilers = Array.isArray(response.profilers) ? response.profilers : [];
+  const visibleProfilers = filterProfilersForVendor(
+    profilers,
+    response.gpu_vendor,
+  );
   const recentRuns = Array.isArray(runsResponse.runs) ? runsResponse.runs : [];
   const installedGpuProfilers = Array.isArray(response.installed_gpu_profilers)
     ? response.installed_gpu_profilers
@@ -153,7 +177,7 @@ export default function Profiling() {
   const activeRun = recentRuns.find((run) => run.status === 'running') ?? null;
   const totalProfilerPages = Math.max(
     1,
-    Math.ceil(profilers.length / PROFILERS_PAGE_SIZE),
+    Math.ceil(visibleProfilers.length / PROFILERS_PAGE_SIZE),
   );
   const totalRunPages = Math.max(
     1,
@@ -168,7 +192,7 @@ export default function Profiling() {
     setRunsPage((current) => Math.min(current, totalRunPages));
   }, [totalRunPages]);
 
-  const pagedProfilers = profilers.slice(
+  const pagedProfilers = visibleProfilers.slice(
     (profilersPage - 1) * PROFILERS_PAGE_SIZE,
     profilersPage * PROFILERS_PAGE_SIZE,
   );
@@ -181,6 +205,7 @@ export default function Profiling() {
 
   const loadTimeline = async (runId: string) => {
     setTimelineRunId(runId);
+    setTimelineData(null);
     setTimelineError(null);
     setIsTimelineLoading(true);
     try {
@@ -203,6 +228,13 @@ export default function Profiling() {
     } finally {
       setIsTimelineLoading(false);
     }
+  };
+
+  const closeTimelineView = () => {
+    setTimelineRunId(null);
+    setTimelineData(null);
+    setTimelineError(null);
+    setIsTimelineLoading(false);
   };
 
   return (
@@ -263,7 +295,7 @@ export default function Profiling() {
           variant={selectedView === 'profilers' ? 'solid' : 'soft'}
           onClick={() => setSelectedView('profilers')}
         >
-          Available Profilers
+          Compatible Profilers
         </Button>
         <Button
           size="sm"
@@ -334,10 +366,10 @@ export default function Profiling() {
         </Typography>
       )}
 
-      {selectedView === 'profilers' && profilers.length > 0 && (
+      {selectedView === 'profilers' && visibleProfilers.length > 0 && (
         <Box sx={{ overflow: 'auto', minHeight: 180 }}>
           <Typography level="title-sm" sx={{ mb: 1 }}>
-            Available Profilers
+            Compatible Profilers
           </Typography>
           <Table hoverRow stickyHeader size="sm">
             <thead>
@@ -417,6 +449,12 @@ export default function Profiling() {
         </Box>
       )}
 
+      {selectedView === 'profilers' && visibleProfilers.length === 0 && (
+        <Typography level="body-sm" color="neutral">
+          No compatible profilers found for the detected accelerator vendor.
+        </Typography>
+      )}
+
       {selectedView === 'runs' && (
         <Box sx={{ overflow: 'auto', minHeight: 140 }}>
           <Typography level="title-sm" sx={{ mb: 1 }}>
@@ -466,7 +504,6 @@ export default function Profiling() {
                           loading={
                             isTimelineLoading && timelineRunId === run.run_id
                           }
-                          disabled={run.profiler_id !== 'nsys'}
                           onClick={() => loadTimeline(run.run_id)}
                         >
                           View
@@ -512,156 +549,163 @@ export default function Profiling() {
         </Box>
       )}
 
-      {selectedView === 'runs' && timelineError && (
-        <Alert color="warning">{timelineError}</Alert>
-      )}
+      <Modal open={timelineRunId !== null} onClose={closeTimelineView}>
+        <ModalDialog
+          sx={{
+            width: '85vw',
+            height: '82vh',
+            maxWidth: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <ModalClose />
+          <Typography level="title-lg" sx={{ mb: 1 }}>
+            Timeline View{timelineData ? ` (${timelineData.source})` : ''} - Run{' '}
+            {timelineRunId}
+          </Typography>
 
-      {selectedView === 'runs' && timelineData && timelineRunId && (
-        <Sheet variant="outlined" sx={{ p: 1.5, borderRadius: 'sm' }}>
-          <Stack
-            direction="row"
-            spacing={1}
-            justifyContent="space-between"
-            alignItems="center"
-            sx={{ mb: 1 }}
-          >
-            <Typography level="title-md">
-              Timeline View ({timelineData.source}) - Run {timelineRunId}
-            </Typography>
-            <Button
-              size="sm"
-              variant="outlined"
-              onClick={() => {
-                setTimelineRunId(null);
-                setTimelineData(null);
-                setTimelineError(null);
+          {isTimelineLoading && !timelineData && !timelineError && (
+            <Stack
+              alignItems="center"
+              justifyContent="center"
+              sx={{ flex: 1, minHeight: 0, gap: 1 }}
+            >
+              <CircularProgress />
+              <Typography level="body-sm">Loading timeline...</Typography>
+            </Stack>
+          )}
+
+          {timelineError && (
+            <Alert color="warning" sx={{ mb: 1 }}>
+              {timelineError}
+            </Alert>
+          )}
+
+          {timelineData && (
+            <Box
+              sx={{
+                border: '1px solid',
+                borderColor: 'neutral.outlinedBorder',
+                borderRadius: '8px',
+                overflow: 'auto',
+                p: 1,
+                bgcolor: 'background.body',
+                flex: 1,
+                minHeight: 0,
               }}
             >
-              Close
-            </Button>
-          </Stack>
+              <Box sx={{ minWidth: 1200 }}>
+                <Stack direction="row" sx={{ mb: 1 }}>
+                  <Box sx={{ width: 260, flexShrink: 0 }} />
+                  <Box
+                    sx={{
+                      position: 'relative',
+                      flex: 1,
+                      height: 24,
+                      borderBottom: '1px solid',
+                      borderColor: 'neutral.outlinedBorder',
+                    }}
+                  >
+                    {rulerTicks.map((tick) => (
+                      <Box
+                        key={tick}
+                        sx={{
+                          position: 'absolute',
+                          left: `${tick * 10}%`,
+                          top: 0,
+                          bottom: 0,
+                          borderLeft: '1px dashed',
+                          borderColor: 'neutral.outlinedBorder',
+                          fontSize: 10,
+                          color: 'text.tertiary',
+                          pl: 0.5,
+                        }}
+                      >
+                        {(timelineRangeMs * (tick / 10)).toFixed(2)} ms
+                      </Box>
+                    ))}
+                  </Box>
+                </Stack>
 
-          <Box
-            sx={{
-              border: '1px solid',
-              borderColor: 'neutral.outlinedBorder',
-              borderRadius: '8px',
-              overflow: 'auto',
-              p: 1,
-              maxHeight: 520,
-              bgcolor: 'background.body',
-            }}
-          >
-            <Box sx={{ minWidth: 1200 }}>
-              <Stack direction="row" sx={{ mb: 1 }}>
-                <Box sx={{ width: 260, flexShrink: 0 }} />
-                <Box
-                  sx={{
-                    position: 'relative',
-                    flex: 1,
-                    height: 24,
-                    borderBottom: '1px solid',
-                    borderColor: 'neutral.outlinedBorder',
-                  }}
-                >
-                  {rulerTicks.map((tick) => (
-                    <Box
-                      key={tick}
-                      sx={{
-                        position: 'absolute',
-                        left: `${tick * 10}%`,
-                        top: 0,
-                        bottom: 0,
-                        borderLeft: '1px dashed',
-                        borderColor: 'neutral.outlinedBorder',
-                        fontSize: 10,
-                        color: 'text.tertiary',
-                        pl: 0.5,
-                      }}
-                    >
-                      {(timelineRangeMs * (tick / 10)).toFixed(2)} ms
-                    </Box>
+                <Stack spacing={0.75}>
+                  {timelineData.lanes.map((lane, laneIndex) => (
+                    <Stack direction="row" key={lane.id} alignItems="center">
+                      <Typography
+                        level="body-xs"
+                        sx={{
+                          width: 260,
+                          flexShrink: 0,
+                          pr: 1,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        title={lane.name}
+                      >
+                        {lane.name}
+                      </Typography>
+                      <Box
+                        sx={{
+                          position: 'relative',
+                          flex: 1,
+                          height: 28,
+                          border: '1px solid',
+                          borderColor: 'neutral.outlinedBorder',
+                          borderRadius: '4px',
+                          bgcolor: 'neutral.softBg',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {lane.events.map((event) => {
+                          const left = Math.max(
+                            0,
+                            Math.min(
+                              100,
+                              (event.start_ms / timelineRangeMs) * 100,
+                            ),
+                          );
+                          const width = Math.max(
+                            0.2,
+                            (event.duration_ms / timelineRangeMs) * 100,
+                          );
+                          return (
+                            <Box
+                              key={event.id}
+                              title={`${event.label || lane.name} | ${event.duration_ms.toFixed(3)} ms`}
+                              sx={{
+                                position: 'absolute',
+                                left: `${left}%`,
+                                width: `${width}%`,
+                                top: 4,
+                                bottom: 4,
+                                borderRadius: '3px',
+                                bgcolor:
+                                  TIMELINE_COLORS[
+                                    laneIndex % TIMELINE_COLORS.length
+                                  ],
+                                opacity: 0.88,
+                                overflow: 'hidden',
+                                px: 0.5,
+                                fontSize: 10,
+                                color: '#111827',
+                                whiteSpace: 'nowrap',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {event.label}
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    </Stack>
                   ))}
-                </Box>
-              </Stack>
-
-              <Stack spacing={0.75}>
-                {timelineData.lanes.map((lane, laneIndex) => (
-                  <Stack direction="row" key={lane.id} alignItems="center">
-                    <Typography
-                      level="body-xs"
-                      sx={{
-                        width: 260,
-                        flexShrink: 0,
-                        pr: 1,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                      title={lane.name}
-                    >
-                      {lane.name}
-                    </Typography>
-                    <Box
-                      sx={{
-                        position: 'relative',
-                        flex: 1,
-                        height: 28,
-                        border: '1px solid',
-                        borderColor: 'neutral.outlinedBorder',
-                        borderRadius: '4px',
-                        bgcolor: 'neutral.softBg',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {lane.events.map((event) => {
-                        const left = Math.max(
-                          0,
-                          Math.min(
-                            100,
-                            (event.start_ms / timelineRangeMs) * 100,
-                          ),
-                        );
-                        const width = Math.max(
-                          0.2,
-                          (event.duration_ms / timelineRangeMs) * 100,
-                        );
-                        return (
-                          <Box
-                            key={event.id}
-                            title={`${event.label || lane.name} | ${event.duration_ms.toFixed(3)} ms`}
-                            sx={{
-                              position: 'absolute',
-                              left: `${left}%`,
-                              width: `${width}%`,
-                              top: 4,
-                              bottom: 4,
-                              borderRadius: '3px',
-                              bgcolor:
-                                TIMELINE_COLORS[
-                                  laneIndex % TIMELINE_COLORS.length
-                                ],
-                              opacity: 0.88,
-                              overflow: 'hidden',
-                              px: 0.5,
-                              fontSize: 10,
-                              color: '#111827',
-                              whiteSpace: 'nowrap',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {event.label}
-                          </Box>
-                        );
-                      })}
-                    </Box>
-                  </Stack>
-                ))}
-              </Stack>
+                </Stack>
+              </Box>
             </Box>
-          </Box>
-        </Sheet>
-      )}
+          )}
+        </ModalDialog>
+      </Modal>
     </Sheet>
   );
 }
