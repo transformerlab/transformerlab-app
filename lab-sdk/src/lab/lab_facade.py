@@ -15,6 +15,7 @@ from .model import Model as ModelService
 from . import storage
 from .dataset import Dataset
 from .task_template import TaskTemplate
+from .generation import GenerationModel, load_generation_model as _load_generation_model
 
 
 logger = logging.getLogger(__name__)
@@ -1730,6 +1731,19 @@ class Lab:
                 self.lab.update_progress(95)
 
         return LabCallback(self)
+
+    def load_generation_model(self, config: Optional[Dict[str, Any] | str] = None) -> GenerationModel:
+        """
+        Convenience wrapper to construct a simple text generation model.
+
+        This delegates to lab.generation.load_generation_model and is intentionally
+        library-agnostic. You can call it directly on the lab facade:
+
+            from lab import lab
+            gen = lab.load_generation_model({"provider": "local", "model": "MyModel"})
+            output = gen.generate("Hello")
+        """
+        return _load_generation_model(config)
 
 
 def capture_wandb_url_from_env() -> str | None:
