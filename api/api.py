@@ -242,7 +242,7 @@ app = fastapi.FastAPI(
     openapi_tags=tags_metadata,
 )
 
-# Add tracing middle only if setup and enabled
+# Add tracing middleware only if setup and enabled
 if TRACE_MIDDLEWARE is not None:
     app.add_middleware(TRACE_MIDDLEWARE)
 
