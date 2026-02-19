@@ -296,7 +296,7 @@ async def get_provider_job_logs(
 
     if provider_job_id is None:
         try:
-            provider_jobs = provider_instance.list_jobs(cluster_name)
+            provider_jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
         except NotImplementedError:
             # Provider doesn't support listing jobs (e.g., Runpod)
             # For Runpod, we can't determine a job_id, so we'll use the cluster_name as a fallback
@@ -331,7 +331,8 @@ async def get_provider_job_logs(
         provider_instance.extra_config["workspace_dir"] = job_dir
 
     try:
-        raw_logs = provider_instance.get_job_logs(
+        raw_logs = await asyncio.to_thread(
+            provider_instance.get_job_logs,
             cluster_name,
             provider_job_id,
             tail_lines=tail_lines or None,
@@ -420,7 +421,7 @@ async def get_tunnel_info_for_job(
 
     if provider_job_id is None:
         try:
-            provider_jobs = provider_instance.list_jobs(cluster_name)
+            provider_jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
         except NotImplementedError:
             # Provider doesn't support listing jobs (e.g., Runpod)
             # For Runpod, we can't determine a job_id, so we'll use the cluster_name as a fallback
@@ -437,7 +438,8 @@ async def get_tunnel_info_for_job(
         raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
 
     try:
-        raw_logs = provider_instance.get_job_logs(
+        raw_logs = await asyncio.to_thread(
+            provider_instance.get_job_logs,
             cluster_name,
             provider_job_id,
             tail_lines=tail_lines or None,
