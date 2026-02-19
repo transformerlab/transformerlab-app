@@ -33,7 +33,7 @@ async def fetch_runpod_provider_logs(
     """
     For RunPod: get pod public IP, SSH with org key, read /workspace/run_logs.txt and return.
     """
-    status = provider_instance.get_cluster_status(cluster_name)
+    status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
     provider_data = getattr(status, "provider_data", None) or {}
     # RunPod API returns publicIp directly on the pod object, not nested under runtime
     # Handle empty string case - pod might still be starting
