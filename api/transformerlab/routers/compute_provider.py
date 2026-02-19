@@ -1172,7 +1172,9 @@ async def _launch_sweep_jobs(
 
                 # Launch cluster for child job
                 try:
-                    launch_result = await asyncio.to_thread(provider_instance.launch_cluster, formatted_cluster_name, cluster_config)
+                    launch_result = await asyncio.to_thread(
+                        provider_instance.launch_cluster, formatted_cluster_name, cluster_config
+                    )
 
                     if isinstance(launch_result, dict):
                         await job_service.job_update_job_data_insert_key_value(
@@ -1560,7 +1562,9 @@ async def launch_template_on_provider(
         }
 
     try:
-        launch_result = await asyncio.to_thread(provider_instance.launch_cluster, formatted_cluster_name, cluster_config)
+        launch_result = await asyncio.to_thread(
+            provider_instance.launch_cluster, formatted_cluster_name, cluster_config
+        )
     except Exception as exc:
         print(f"Failed to launch cluster: {exc}")
         # Release quota hold if launch failed

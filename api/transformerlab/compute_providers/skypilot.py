@@ -1100,7 +1100,9 @@ class SkyPilotProvider(ComputeProvider):
 
         # Use SkyPilot's make_authenticated_request with streaming (matches SDK exactly)
         try:
-            response = self._make_authenticated_request("POST", "/logs", json_data=body_json, timeout=timeout, stream=True)
+            response = self._make_authenticated_request(
+                "POST", "/logs", json_data=body_json, timeout=timeout, stream=True
+            )
         except ConnectionError as e:
             print(f"Failed to get logs for job {job_id} on cluster {cluster_name}: {e}")
             return ""
