@@ -1746,6 +1746,35 @@ async def check_provider_job_status(
                 "message": "Failed to update job status after crash",
             }
 
+    # If the remote wrapper has already detected completion, mark the job as COMPLETE immediately.
+    if live_status == "finished":
+        try:
+            end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+            await job_service.job_update_job_data_insert_key_value(
+                job_id, "end_time", end_time_str, job.get("experiment_id")
+            )
+            await job_service.job_update_status(
+                job_id,
+                "COMPLETE",
+                experiment_id=job.get("experiment_id"),
+                session=session,
+            )
+            await session.commit()
+            return {
+                "status": "success",
+                "job_id": job_id,
+                "updated": True,
+                "new_status": "COMPLETE",
+                "message": "Remote command finished (live_status=finished)",
+            }
+        except Exception as exc:
+            print(f"Failed to update job status from live_status finished: {exc}")
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": "Failed to update job status after completion",
+            }
+
     provider_id = job_data.get("provider_id")
     cluster_name = job_data.get("cluster_name")
     experiment_id = job.get("experiment_id")
