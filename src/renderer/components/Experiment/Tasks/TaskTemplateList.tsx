@@ -151,7 +151,6 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
             <th style={{ width: '150px' }}>Name</th>
             <th>Command</th>
             <th>Resources</th>
-            <th>Provider</th>
             <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
           </tr>
         </thead>
@@ -160,9 +159,6 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
             <tr key={i}>
               <td>
                 <Skeleton variant="text" level="title-sm" />
-              </td>
-              <td>
-                <Skeleton variant="text" level="body-sm" />
               </td>
               <td>
                 <Skeleton variant="text" level="body-sm" />
@@ -192,7 +188,6 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
           <th style={{ width: '150px' }}>Name</th>
           <th>Command</th>
           <th>Resources</th>
-          <th>Provider</th>
           <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
         </tr>
       </thead>
@@ -209,9 +204,6 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
             </td>
             <td style={{ overflow: 'hidden' }}>
               <Typography level="body-sm">{getResourcesInfo(row)}</Typography>
-            </td>
-            <td style={{ overflow: 'clip' }}>
-              <Typography level="body-sm">{getProviderInfo(row)}</Typography>
             </td>
             <td
               style={{
