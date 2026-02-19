@@ -20,9 +20,11 @@ from lab.dirs import get_workspace_dir
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _run_async(coro):
     """Run an async coroutine from sync context."""
     import asyncio
+
     try:
         asyncio.get_running_loop()
         running = True
@@ -51,7 +53,7 @@ def _run_async(coro):
 # environment so that lab.init() / lab.get_config() behave identically in
 # both flows.
 # ---------------------------------------------------------------------------
-_HARNESS_CONFIG = None          # Populated by _bootstrap_from_harness()
+_HARNESS_CONFIG = None  # Populated by _bootstrap_from_harness()
 
 
 def _bootstrap_from_harness():
@@ -217,6 +219,7 @@ def _load_datasets(dataset_name, splits=None, config_name=None):
 # Main training function
 # ---------------------------------------------------------------------------
 
+
 def train_mlx_lora():
     plugin_dir = os.path.dirname(os.path.realpath(__file__))
     print("Plugin dir:", plugin_dir)
@@ -268,7 +271,9 @@ def train_mlx_lora():
             num_examples = len(datasets["train"])
             steps_per_epoch = max(num_examples // batch_size, 1)
             iters = steps_per_epoch * num_train_epochs
-            lab.log(f"Epoch-based training: {num_train_epochs} epochs, {steps_per_epoch} steps/epoch, {iters} total iterations")
+            lab.log(
+                f"Epoch-based training: {num_train_epochs} epochs, {steps_per_epoch} steps/epoch, {iters} total iterations"
+            )
 
         # LoRA parameters → config YAML file
         config_file = None
@@ -319,17 +324,27 @@ def train_mlx_lora():
             "-um",
             "mlx_lm",
             "lora",
-            "--model", model_name,
-            "--iters", str(iters),
+            "--model",
+            model_name,
+            "--iters",
+            str(iters),
             "--train",
-            "--adapter-path", adaptor_output_dir,
-            "--num-layers", str(lora_layers),
-            "--batch-size", str(batch_size),
-            "--learning-rate", str(learning_rate),
-            "--data", data_directory,
-            "--steps-per-report", str(steps_per_report),
-            "--steps-per-eval", str(steps_per_eval),
-            "--save-every", str(save_every),
+            "--adapter-path",
+            adaptor_output_dir,
+            "--num-layers",
+            str(lora_layers),
+            "--batch-size",
+            str(batch_size),
+            "--learning-rate",
+            str(learning_rate),
+            "--data",
+            data_directory,
+            "--steps-per-report",
+            str(steps_per_report),
+            "--steps-per-eval",
+            str(steps_per_eval),
+            "--save-every",
+            str(save_every),
         ]
         if config_file:
             popen_command.extend(["--config", config_file])
@@ -342,8 +357,12 @@ def train_mlx_lora():
 
         # Run the MLX LoRA training process
         with subprocess.Popen(
-            popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            bufsize=1, universal_newlines=True, env=env,
+            popen_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            bufsize=1,
+            universal_newlines=True,
+            env=env,
         ) as process:
             for line in process.stdout:
                 # Parse progress from output
@@ -403,15 +422,25 @@ def train_mlx_lora():
                 _run_async(storage.makedirs(fused_model_location))
 
             fuse_command = [
-                python_executable, "-m", "mlx_lm", "fuse",
-                "--model", model_name,
-                "--adapter-path", adaptor_output_dir,
-                "--save-path", fused_model_location,
+                python_executable,
+                "-m",
+                "mlx_lm",
+                "fuse",
+                "--model",
+                model_name,
+                "--adapter-path",
+                adaptor_output_dir,
+                "--save-path",
+                fused_model_location,
             ]
 
             with subprocess.Popen(
-                fuse_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                bufsize=1, universal_newlines=True, env=env,
+                fuse_command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                bufsize=1,
+                universal_newlines=True,
+                env=env,
             ) as fuse_proc:
                 for line in fuse_proc.stdout:
                     print(line, end="", flush=True)
@@ -435,6 +464,7 @@ def train_mlx_lora():
         lab.error("Stopped by user")
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         lab.error(str(e))
         raise
