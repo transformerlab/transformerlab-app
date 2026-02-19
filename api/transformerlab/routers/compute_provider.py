@@ -1428,9 +1428,9 @@ fi
 # Install NVIDIA profiler (nsys) if needed
 if [ "$GPU_VENDOR" = "nvidia" ] && ! command -v nsys &> /dev/null; then
     if command -v apt-get &> /dev/null; then
-        apt-get update && apt-get install -y nsight-systems-cli || echo "Warning: Failed to install nsys"
+        sudo apt-get update && sudo apt-get install -y nsight-systems || echo "Warning: Failed to install nsys"
     elif command -v yum &> /dev/null; then
-        yum install -y nsight-systems-cli || echo "Warning: Failed to install nsys"
+        sudo yum install -y nsight-systems || echo "Warning: Failed to install nsys"
     else
         echo "Warning: nsys not available and no package manager found"
     fi

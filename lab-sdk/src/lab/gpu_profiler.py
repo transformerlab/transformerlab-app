@@ -251,7 +251,7 @@ def main(argv: List[str] | None = None) -> int:
     
     # Ensure job directory exists
     try:
-        storage.makedirs(job_dir, exist_ok=True)
+        asyncio.run(storage.makedirs(job_dir, exist_ok=True))
     except Exception as e:
         print(f"Warning: Failed to create job directory: {e}", file=sys.stderr)
         # Continue anyway - storage might handle this
@@ -266,7 +266,7 @@ def main(argv: List[str] | None = None) -> int:
         # Update job_data with profiling metadata if profiling succeeded
         # Check if output file was created
         try:
-            if storage.exists(output_path):
+            if asyncio.run(storage.exists(output_path)):
                 asyncio.run(_update_job_profile_metadata(job_id, output_path, vendor, file_format))
         except Exception:
             # Best-effort metadata update
