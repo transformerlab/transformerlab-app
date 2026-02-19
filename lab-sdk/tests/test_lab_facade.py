@@ -811,6 +811,97 @@ def test_lab_ensure_initialized(tmp_path, monkeypatch):
             pass  # Expected
 
 
+def test_lab_list_datasets(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+    from lab.dataset import Dataset
+
+    # Create test datasets
+    ds1 = asyncio.run(Dataset.create("test_dataset_1"))
+    asyncio.run(ds1.set_metadata(description="First dataset"))
+
+    ds2 = asyncio.run(Dataset.create("test_dataset_2"))
+    asyncio.run(ds2.set_metadata(description="Second dataset"))
+
+    lab = Lab()
+    # list_datasets doesn't require initialization
+    datasets = lab.list_datasets()
+
+    assert len(datasets) >= 2
+    dataset_ids = [d.get("dataset_id") for d in datasets]
+    assert "test_dataset_1" in dataset_ids
+    assert "test_dataset_2" in dataset_ids
+
+
+def test_lab_list_datasets_empty(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+
+    lab = Lab()
+    datasets = lab.list_datasets()
+
+    assert isinstance(datasets, list)
+    assert len(datasets) == 0
+
+
+def test_lab_get_dataset(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+    from lab.dataset import Dataset
+
+    # Create a test dataset
+    ds = asyncio.run(Dataset.create("test_dataset_get"))
+    asyncio.run(ds.set_metadata(description="My Dataset"))
+
+    lab = Lab()
+    # get_dataset doesn't require initialization
+    retrieved_ds = lab.get_dataset("test_dataset_get")
+
+    assert retrieved_ds.id == "test_dataset_get"
+    metadata = asyncio.run(retrieved_ds.get_metadata())
+    assert metadata["description"] == "My Dataset"
+
+
+def test_lab_get_dataset_nonexistent(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+
+    lab = Lab()
+    try:
+        lab.get_dataset("nonexistent_dataset")
+        assert False, "Should have raised FileNotFoundError"
+    except FileNotFoundError:
+        pass  # Expected
+
+
 def test_lab_list_models(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
