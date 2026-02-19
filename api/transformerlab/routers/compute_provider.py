@@ -1526,7 +1526,7 @@ async def launch_template_on_provider(
         # Use a dedicated local-only job directory for the local provider.
         # This directory is always on the host filesystem and does not depend
         # on TFL_REMOTE_STORAGE_ENABLED / remote storage configuration.
-        job_dir = get_local_provider_job_dir(job_id, org_id=team_id)
+        job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id, org_id=team_id)
         provider_config_dict["workspace_dir"] = job_dir
 
     job_data = {
@@ -2812,7 +2812,7 @@ async def get_job_logs(
 
         # Local provider needs workspace_dir (job dir) to read logs
         if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
-            job_dir = get_local_provider_job_dir(job_id, org_id=team_id)
+            job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id, org_id=team_id)
             provider_instance.extra_config["workspace_dir"] = job_dir
 
         # Get job logs
@@ -2910,7 +2910,7 @@ async def cancel_job(
 
         # Local provider needs workspace_dir (job dir) to cancel the correct process
         if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
-            job_dir = get_local_provider_job_dir(job_id, org_id=team_id)
+            job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id, org_id=team_id)
             provider_instance.extra_config["workspace_dir"] = job_dir
 
         # Cancel job
