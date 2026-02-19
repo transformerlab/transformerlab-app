@@ -459,10 +459,24 @@ async def server_worker_start(
     inference_engine = engine
 
     try:
-        effective_profile_config = profiler_service.get_auto_profile_config()
+        effective_profile_config = profiler_service.get_inference_profile_config()
     except ValueError as exc:
-        print(f"Failed to resolve automatic inference profiling config: {exc}")
+        print(f"Failed to load configured inference profiling config: {exc}")
         effective_profile_config = None
+
+    if effective_profile_config:
+        try:
+            effective_profile_config = profiler_service.normalize_profile_config(effective_profile_config)
+        except ValueError as exc:
+            print(f"Configured inference profiler is invalid. Falling back to automatic selection. {exc}")
+            effective_profile_config = None
+
+    if not effective_profile_config:
+        try:
+            effective_profile_config = profiler_service.get_auto_profile_config()
+        except ValueError as exc:
+            print(f"Failed to resolve automatic inference profiling config: {exc}")
+            effective_profile_config = None
 
     model_architecture = model_architecture
 

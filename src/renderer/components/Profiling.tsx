@@ -9,6 +9,8 @@ import {
   Modal,
   ModalClose,
   ModalDialog,
+  Option,
+  Select,
   Sheet,
   Stack,
   Table,
@@ -84,6 +86,17 @@ interface RunTimelineResponse {
   timeline: RunTimeline;
 }
 
+interface InferenceProfilerConfig {
+  enabled: boolean;
+  profiler_id: string;
+  run_name?: string | null;
+  extra_profiler_args?: string[];
+}
+
+interface InferenceProfilerConfigResponse {
+  config: InferenceProfilerConfig | null;
+}
+
 const PROFILERS_PAGE_SIZE = 6;
 const RUNS_PAGE_SIZE = 10;
 const TIMELINE_COLORS = [
@@ -145,6 +158,13 @@ export default function Profiling() {
   const [timelineData, setTimelineData] = useState<RunTimeline | null>(null);
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const [isTimelineLoading, setIsTimelineLoading] = useState<boolean>(false);
+  const [inferenceProfilerSelection, setInferenceProfilerSelection] =
+    useState<string>('auto');
+  const [isApplyingInferenceProfiler, setIsApplyingInferenceProfiler] =
+    useState<boolean>(false);
+  const [inferenceProfilerError, setInferenceProfilerError] = useState<
+    string | null
+  >(null);
 
   const {
     data: profilerData,
@@ -159,20 +179,49 @@ export default function Profiling() {
     { limit: 200 },
     { refreshInterval: 5000 },
   );
+  const {
+    data: inferenceProfilerConfigData,
+    mutate: mutateInferenceProfilerConfig,
+  } = useAPI(
+    'server',
+    ['inferenceProfilerConfig'],
+    {},
+    { refreshInterval: 15000 },
+  );
 
   const response = (profilerData ?? {}) as Partial<ProfilersResponse>;
   const runsResponse = (profilerRunsData ??
     {}) as Partial<ProfilerRunsResponse>;
+  const inferenceConfigResponse = (inferenceProfilerConfigData ??
+    {}) as Partial<InferenceProfilerConfigResponse>;
 
   const profilers = Array.isArray(response.profilers) ? response.profilers : [];
   const visibleProfilers = filterProfilersForVendor(
     profilers,
     response.gpu_vendor,
   );
+  const selectableInferenceProfilers = visibleProfilers.filter(
+    (profiler) => profiler.run_supported && profiler.available,
+  );
   const recentRuns = Array.isArray(runsResponse.runs) ? runsResponse.runs : [];
   const installedGpuProfilers = Array.isArray(response.installed_gpu_profilers)
     ? response.installed_gpu_profilers
     : [];
+  const manualInferenceProfileConfig = inferenceConfigResponse.config ?? null;
+  const isManualProfilerOverride = Boolean(
+    manualInferenceProfileConfig?.enabled &&
+      manualInferenceProfileConfig?.profiler_id,
+  );
+  const manualSelectionMissingFromOptions = Boolean(
+    isManualProfilerOverride &&
+      manualInferenceProfileConfig?.profiler_id &&
+      !selectableInferenceProfilers.some(
+        (profiler) => profiler.id === manualInferenceProfileConfig.profiler_id,
+      ),
+  );
+  const activeProfilerLabel = isManualProfilerOverride
+    ? manualInferenceProfileConfig?.profiler_id
+    : (response.auto_selected_profiler ?? 'none');
 
   const activeRun = recentRuns.find((run) => run.status === 'running') ?? null;
   const totalProfilerPages = Math.max(
@@ -191,6 +240,20 @@ export default function Profiling() {
   useEffect(() => {
     setRunsPage((current) => Math.min(current, totalRunPages));
   }, [totalRunPages]);
+
+  useEffect(() => {
+    if (
+      manualInferenceProfileConfig?.enabled &&
+      manualInferenceProfileConfig.profiler_id
+    ) {
+      setInferenceProfilerSelection(manualInferenceProfileConfig.profiler_id);
+      return;
+    }
+    setInferenceProfilerSelection('auto');
+  }, [
+    manualInferenceProfileConfig?.enabled,
+    manualInferenceProfileConfig?.profiler_id,
+  ]);
 
   const pagedProfilers = visibleProfilers.slice(
     (profilersPage - 1) * PROFILERS_PAGE_SIZE,
@@ -237,6 +300,66 @@ export default function Profiling() {
     setIsTimelineLoading(false);
   };
 
+  const selectedProfilerAlreadyApplied =
+    (inferenceProfilerSelection === 'auto' && !isManualProfilerOverride) ||
+    (inferenceProfilerSelection !== 'auto' &&
+      manualInferenceProfileConfig?.enabled &&
+      manualInferenceProfileConfig.profiler_id === inferenceProfilerSelection);
+
+  const applyInferenceProfilerSelection = async () => {
+    setInferenceProfilerError(null);
+    setIsApplyingInferenceProfiler(true);
+
+    try {
+      if (inferenceProfilerSelection === 'auto') {
+        const clearResponse = await fetchWithAuth(
+          'server/profilers/inference/config',
+          { method: 'DELETE' },
+        );
+        const clearPayload = (await clearResponse.json()) as {
+          detail?: string;
+        };
+        if (!clearResponse.ok) {
+          throw new Error(
+            clearPayload?.detail ??
+              'Failed to reset inference profiler selection.',
+          );
+        }
+      } else {
+        const setResponse = await fetchWithAuth(
+          'server/profilers/inference/config',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              enabled: true,
+              profiler_id: inferenceProfilerSelection,
+              run_name: null,
+              extra_profiler_args: [],
+            }),
+          },
+        );
+        const setPayload = (await setResponse.json()) as { detail?: string };
+        if (!setResponse.ok) {
+          throw new Error(
+            setPayload?.detail ??
+              'Failed to update inference profiler selection.',
+          );
+        }
+      }
+
+      await mutateInferenceProfilerConfig();
+      await mutateProfilers();
+    } catch (selectionError: any) {
+      setInferenceProfilerError(
+        selectionError?.message ??
+          'Failed to update inference profiler selection.',
+      );
+    } finally {
+      setIsApplyingInferenceProfiler(false);
+    }
+  };
+
   return (
     <Sheet
       sx={{
@@ -257,6 +380,7 @@ export default function Profiling() {
           onClick={() => {
             mutateProfilers();
             mutateRuns();
+            mutateInferenceProfilerConfig();
             if (timelineRunId) {
               loadTimeline(timelineRunId);
             }
@@ -281,13 +405,80 @@ export default function Profiling() {
           Auto Profiling: {response.auto_profiling_enabled ? 'On' : 'Off'}
         </Chip>
         <Chip variant="soft">
-          Selected Profiler: {response.auto_selected_profiler ?? 'none'}
+          Auto Selected: {response.auto_selected_profiler ?? 'none'}
+        </Chip>
+        <Chip
+          color={isManualProfilerOverride ? 'warning' : 'success'}
+          variant="soft"
+        >
+          Active Profiler: {activeProfilerLabel}
         </Chip>
       </Stack>
 
       {!response.auto_profiling_enabled && response.auto_profile_reason && (
         <Alert color="warning">{response.auto_profile_reason}</Alert>
       )}
+
+      <Sheet variant="outlined" sx={{ p: 1.25, borderRadius: 'sm' }}>
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+          <Typography level="body-sm">Inference Profiler</Typography>
+          <Select
+            size="sm"
+            sx={{ minWidth: 260 }}
+            value={inferenceProfilerSelection}
+            onChange={(_, value) =>
+              setInferenceProfilerSelection((value as string) ?? 'auto')
+            }
+            disabled={isApplyingInferenceProfiler}
+          >
+            <Option value="auto">
+              Auto ({response.auto_selected_profiler ?? 'none'})
+            </Option>
+            {manualSelectionMissingFromOptions &&
+              manualInferenceProfileConfig?.profiler_id && (
+                <Option value={manualInferenceProfileConfig.profiler_id}>
+                  Manual ({manualInferenceProfileConfig.profiler_id})
+                </Option>
+              )}
+            {selectableInferenceProfilers.map((profiler) => (
+              <Option key={profiler.id} value={profiler.id}>
+                {profiler.name} ({profiler.id})
+              </Option>
+            ))}
+          </Select>
+          <Button
+            size="sm"
+            loading={isApplyingInferenceProfiler}
+            disabled={
+              isApplyingInferenceProfiler || selectedProfilerAlreadyApplied
+            }
+            onClick={applyInferenceProfilerSelection}
+          >
+            Apply
+          </Button>
+          {isManualProfilerOverride && (
+            <Chip size="sm" color="warning" variant="soft">
+              Manual Override: {manualInferenceProfileConfig?.profiler_id}
+            </Chip>
+          )}
+          {!isManualProfilerOverride && (
+            <Chip size="sm" color="success" variant="soft">
+              Using Auto Selection
+            </Chip>
+          )}
+        </Stack>
+        {selectableInferenceProfilers.length === 0 && (
+          <Typography level="body-xs" color="neutral" sx={{ mt: 1 }}>
+            No compatible installed profilers are available for manual
+            selection.
+          </Typography>
+        )}
+        {inferenceProfilerError && (
+          <Alert color="warning" sx={{ mt: 1 }}>
+            {inferenceProfilerError}
+          </Alert>
+        )}
+      </Sheet>
 
       <Stack direction="row" spacing={1}>
         <Button
