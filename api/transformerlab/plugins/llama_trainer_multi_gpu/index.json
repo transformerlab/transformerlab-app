@@ -26,7 +26,7 @@
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
-  "supports": ["sweeps", "chat_template_formatting"],
+  "supports": ["sweeps", "chat_template_formatting", "checkpoints"],
   "supported_hardware_architectures": ["cuda"],
   "setup-script": "setup.sh",
   "parameters": {

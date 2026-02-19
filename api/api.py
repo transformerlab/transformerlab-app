@@ -55,6 +55,7 @@ from fastchat.protocol.openai_api_protocol import (  # noqa: E402
 
 from transformerlab.services.experiment_service import experiment_get  # noqa: E402
 from transformerlab.services.job_service import job_create, job_get, job_update_status  # noqa: E402
+from transformerlab.services import checkpoint_service  # noqa: E402
 from transformerlab.services.experiment_init import (  # noqa: E402
     seed_default_experiments,
     cancel_in_progress_jobs,
@@ -416,6 +417,8 @@ async def server_worker_start(
     inference_engine: str = "default",
     experiment_id: str = None,
     inference_params: str = "",
+    checkpoint_job_id: str = "",
+    checkpoint: str = "",
     request: Request = None,
 ):
     # the first priority for inference params should be the inference params passed in, then the inference parameters in the experiment
@@ -448,6 +451,9 @@ async def server_worker_start(
     else:
         return {"status": "error", "message": "malformed inference params passed"}
 
+    if not isinstance(inference_params, dict):
+        return {"status": "error", "message": "malformed inference params passed"}
+
     engine = inference_engine
     if "inferenceEngine" in inference_params and engine == "default":
         engine = inference_params.get("inferenceEngine")
@@ -466,10 +472,27 @@ async def server_worker_start(
     if model_filename is not None and model_filename != "":
         model = model_filename
 
-    if adaptor != "":
-        # Resolve per-request workspace if multitenant
+    checkpoint_job_id = checkpoint_job_id or str(
+        inference_params.get("checkpointJobId", inference_params.get("checkpoint_job_id", ""))
+    )
+    checkpoint_name = checkpoint or str(
+        inference_params.get("checkpointName", inference_params.get("checkpoint_name", ""))
+    )
+
+    resolved_adaptor = adaptor
+    if checkpoint_job_id and checkpoint_name:
+        checkpoint_path = await checkpoint_service.resolve_checkpoint_path(checkpoint_job_id, checkpoint_name)
+        if not checkpoint_path:
+            return {
+                "status": "error",
+                "message": f"Checkpoint '{checkpoint_name}' not found for job {checkpoint_job_id}",
+            }
+        resolved_adaptor = checkpoint_path
+        print(f"Using checkpoint for inference: {checkpoint_name} (job {checkpoint_job_id})")
+    elif adaptor != "":
+        # Resolve per-request workspace if multitenant.
         workspace_dir = await get_workspace_dir()
-        adaptor = f"{workspace_dir}/adaptors/{secure_filename(model)}/{adaptor}"
+        resolved_adaptor = f"{workspace_dir}/adaptors/{secure_filename(model_name)}/{adaptor}"
 
     params = [
         dirs.PLUGIN_HARNESS,
@@ -480,7 +503,7 @@ async def server_worker_start(
         "--model-architecture",
         model_architecture,
         "--adaptor-path",
-        adaptor,
+        resolved_adaptor,
         "--parameters",
         json.dumps(inference_params),
     ]

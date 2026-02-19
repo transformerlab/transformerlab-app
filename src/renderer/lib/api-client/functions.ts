@@ -177,20 +177,24 @@ export async function activateWorker(
 ) {
   let response;
 
-  let model = modelName;
-  // if (adaptorName !== '') {
-  //   model = `workspace/adaptors/${modelName}/${adaptorName}`;
-  // }
-
-  if (modelFilename !== null) {
-    model = `${model}&model_filename=${modelFilename}`;
-  }
-
   const paramsJSON = JSON.stringify(parameters);
 
   try {
     // Pass just the path with query params - fetchWithAuth will handle prepending the base URL
-    const queryString = `server/worker_start?model_name=${model}&adaptor=${adaptorName}&model_architecture=${modelArchitecture}&engine=${engine}&experiment_id=${experimentId}&parameters=${paramsJSON}`;
+    const queryParams = new URLSearchParams({
+      model_name: modelName,
+      adaptor: adaptorName || '',
+      model_architecture: modelArchitecture || '',
+      inference_engine: engine || 'default',
+      experiment_id: experimentId || '',
+      inference_params: paramsJSON,
+    });
+
+    if (modelFilename !== null && modelFilename !== '') {
+      queryParams.set('model_filename', modelFilename);
+    }
+
+    const queryString = `server/worker_start?${queryParams.toString()}`;
     response = await authenticatedFetch(queryString);
     const result = await response.json();
     return result;

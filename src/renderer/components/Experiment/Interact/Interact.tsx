@@ -115,6 +115,15 @@ export default function Chat({
   const currentModelArchitecture =
     experimentInfo?.config?.foundation_model_architecture;
   const adaptor = experimentInfo?.config?.adaptor;
+  let selectedCheckpointName = '';
+  try {
+    const parsedInferenceParams = experimentInfo?.config?.inferenceParams
+      ? JSON.parse(experimentInfo.config.inferenceParams)
+      : {};
+    selectedCheckpointName = parsedInferenceParams?.checkpointName || '';
+  } catch (error) {
+    selectedCheckpointName = '';
+  }
 
   React.useEffect(() => {
     if (debouncedText) {
@@ -856,6 +865,7 @@ export default function Chat({
         <Typography level="title-md">
           {shortModelName} {adaptor && '- '}
           {adaptor}
+          {selectedCheckpointName && <> @ {selectedCheckpointName}</>}
         </Typography>
       </Box>
 

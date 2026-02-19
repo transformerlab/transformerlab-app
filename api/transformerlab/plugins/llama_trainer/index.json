@@ -25,7 +25,7 @@
     "GptOssForCausalLM",
     "Lfm2ForCausalLM"
   ],
-  "supports": ["sweeps", "chat_template_formatting"],
+  "supports": ["sweeps", "chat_template_formatting", "checkpoints"],
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
