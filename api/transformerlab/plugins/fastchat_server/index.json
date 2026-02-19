@@ -66,6 +66,17 @@
       "title": "Select a specific data type for the model",
       "type": "string",
       "enum": ["auto", "float16", "bfloat16", "float32"]
+    },
+    "gpu_split_strategy": {
+      "title": "GPU split strategy",
+      "type": "string",
+      "default": "Auto (VRAM)",
+      "enum": ["Auto (VRAM)", "Split evenly", "Custom max GPU memory"]
+    },
+    "max_gpu_memory": {
+      "title": "Max GPU memory per GPU (e.g. 20GiB)",
+      "type": "string",
+      "default": ""
     }
   },
   "parameters_ui": {
@@ -74,6 +85,12 @@
     },
     "model_dtype": {
       "ui:help": "Select a specific data type for the model. This might help with older GPUs that do not support bfloat16"
+    },
+    "gpu_split_strategy": {
+      "ui:help": "Auto uses available VRAM. Split evenly caps each GPU to the smallest VRAM. Custom uses the Max GPU memory value."
+    },
+    "max_gpu_memory": {
+      "ui:help": "Only used when GPU split strategy is Custom. Example: 20GiB"
     }
   }
 }
