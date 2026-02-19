@@ -1053,12 +1053,10 @@ async def _launch_sweep_jobs(
                 setup_commands = []
 
                 # Cloud credentials setup:
-                # - For AWS (REMOTE_WORKSPACE_HOST=aws), inject ~/.aws/credentials profile if available.
-                # - For GCP (REMOTE_WORKSPACE_HOST=gcp), optionally inject a service account JSON if provided.
-                from lab.storage import REMOTE_WORKSPACE_HOST
-
+                # - For AWS (TFL_STORAGE_PROVIDER=aws), inject ~/.aws/credentials profile if available.
+                # - For GCP (TFL_STORAGE_PROVIDER=gcp), optionally inject a service account JSON if provided.
                 if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
-                    if REMOTE_WORKSPACE_HOST != "gcp":
+                    if STORAGE_PROVIDER == "aws":
                         aws_profile = "transformerlab-s3"
                         aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
                         if aws_access_key_id and aws_secret_access_key:
@@ -1067,7 +1065,7 @@ async def _launch_sweep_jobs(
                             )
                             setup_commands.append(aws_setup)
                             env_vars["AWS_PROFILE"] = aws_profile
-                    elif REMOTE_WORKSPACE_HOST == "gcp":
+                    elif STORAGE_PROVIDER == "gcp":
                         # If a GCP service account JSON is provided via env, write it on the remote host
                         # and set GOOGLE_APPLICATION_CREDENTIALS so ADC can find it.
                         gcp_sa_json = os.getenv("TFL_GCP_SERVICE_ACCOUNT_JSON")
@@ -1373,8 +1371,13 @@ async def launch_template_on_provider(
     if aws_access_key_id and aws_secret_access_key:
         aws_setup = _generate_aws_credentials_setup(aws_access_key_id, aws_secret_access_key, aws_profile)
         setup_commands.append(aws_setup)
+
     if request.file_mounts is True and request.task_id:
         setup_commands.append(COPY_FILE_MOUNTS_SETUP)
+    # Ensure transformerlab SDK is available on remote machines for live_status tracking and other helpers.
+    # This runs after AWS credentials are configured so we have access to any remote storage if needed.
+    if provider.type != ProviderType.LOCAL.value:
+        setup_commands.append("pip install -q transformerlab")
 
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
@@ -1519,11 +1522,22 @@ async def launch_template_on_provider(
 
     # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
     file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
+
+    # For non-local (remote) providers, wrap the user command so we can track live_status in job_data.
+    # This uses the tfl-remote-trap helper from the transformerlab SDK, which:
+    #   - sets job_data.live_status="started" when execution begins
+    #   - sets job_data.live_status="finished" on success
+    #   - sets job_data.live_status="crashed" on failure
+    wrapped_command = command_with_secrets
+    if provider.type != ProviderType.LOCAL.value:
+        # Preserve the original command in job_data but execute through the wrapper on the provider.
+        wrapped_command = f"tfl-remote-trap -- {command_with_secrets}"
+
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
         provider_id=provider.id,
-        command=command_with_secrets,
+        command=wrapped_command,
         setup=final_setup,
         env_vars=env_vars,
         cpus=request.cpus,
@@ -1654,6 +1668,37 @@ async def check_provider_job_status(
         }
 
     job_data = job.get("job_data", {}) or {}
+
+    # If the remote wrapper has already detected a crash, mark the job as FAILED immediately.
+    live_status = job_data.get("live_status")
+    if live_status == "crashed":
+        try:
+            end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+            await job_service.job_update_job_data_insert_key_value(
+                job_id, "end_time", end_time_str, job.get("experiment_id")
+            )
+            await job_service.job_update_status(
+                job_id,
+                "FAILED",
+                experiment_id=job.get("experiment_id"),
+                session=session,
+            )
+            await session.commit()
+            return {
+                "status": "success",
+                "job_id": job_id,
+                "updated": True,
+                "new_status": "FAILED",
+                "message": "Remote command crashed (live_status=crashed)",
+            }
+        except Exception as exc:
+            print(f"Failed to update job status from live_status crash: {exc}")
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": "Failed to update job status after crash",
+            }
+
     provider_id = job_data.get("provider_id")
     cluster_name = job_data.get("cluster_name")
     experiment_id = job.get("experiment_id")

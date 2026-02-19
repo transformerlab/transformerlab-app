@@ -82,6 +82,8 @@ Endpoints.Task = {
     `${API_URL()}experiment/${experimentId}/task/fetch_task_json?url=${encodeURIComponent(url)}`,
   FromDirectory: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/task2/from_directory`,
+  BlankFromYaml: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task2/blank`,
   GetYaml: (experimentId: string, taskId: string) =>
     `${API_URL()}experiment/${experimentId}/task2/${taskId}/yaml`,
   UpdateYaml: (experimentId: string, taskId: string) =>

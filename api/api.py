@@ -14,7 +14,6 @@ import sys
 from werkzeug.utils import secure_filename
 
 import fastapi
-import httpx
 
 # Using torch to test for CUDA and MPS support.
 import uvicorn
@@ -29,6 +28,24 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+# Optional Datadog APM (does nothing unless enabled + installed)
+def _enable_datadog_if_setup():
+    if not os.getenv("DD_SERVICE"):
+        return
+
+    try:
+        from ddtrace import patch_all
+        from ddtrace.contrib.asgi import TraceMiddleware
+    except ImportError:
+        return None
+
+    patch_all(fastapi=True, httpx=True)
+    return TraceMiddleware
+
+
+TRACE_MIDDLEWARE = _enable_datadog_if_setup()
+
+import httpx  # noqa: E402
 from fastchat.constants import (  # noqa: E402
     ErrorCode,
 )
@@ -225,6 +242,10 @@ app = fastapi.FastAPI(
     lifespan=lifespan,
     openapi_tags=tags_metadata,
 )
+
+# Add tracing middleware only if setup and enabled
+if TRACE_MIDDLEWARE is not None:
+    app.add_middleware(TRACE_MIDDLEWARE)
 
 # CORS configuration
 # When using cookies, allow_credentials must be True and allow_origins cannot be ["*"]
