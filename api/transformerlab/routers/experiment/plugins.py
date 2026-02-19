@@ -202,6 +202,9 @@ async def plugin_save_file_contents(id: str, pluginId: str, filename: str, file_
 async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
     global allowed_extensions
 
+    if os.getenv("MULTIUSER", "").lower() == "true":
+        return {"message": "Multi-user mode is not supported for this endpoint"}
+
     filename = secure_filename(filename)
 
     data = await experiment_get(id)
