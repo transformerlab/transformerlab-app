@@ -1,33 +1,30 @@
 import asyncio
-import io
+import csv
+from datetime import datetime
 from fnmatch import fnmatch
 import json
 import os
-import csv
 from typing import List, Optional
+
 import pandas as pd
 from fastapi import APIRouter, Response, Request, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse, FileResponse
-from lab import storage
-
-from transformerlab.shared import shared
 from json import JSONDecodeError
-
+from lab import Job, storage
+from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.utils import secure_filename
 
-from transformerlab.routers.serverinfo import watch_file
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
-import transformerlab.services.job_service as job_service
-from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
-from transformerlab.services.provider_service import get_team_provider, get_provider_instance
-from transformerlab.routers.auth import get_user_and_team
-from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.compute_providers.models import JobState
-from transformerlab.shared.tunnel_parser import get_tunnel_info
+from transformerlab.compute_providers.runpod import fetch_runpod_provider_logs
+from transformerlab.routers.auth import get_user_and_team
+from transformerlab.routers.serverinfo import watch_file
+from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
+import transformerlab.services.job_service as job_service
+from transformerlab.services.provider_service import get_team_provider, get_provider_instance
+from transformerlab.shared import shared, zip_utils
 from transformerlab.shared.models.models import ProviderType
-from lab import Job
+from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.shared.tunnel_parser import get_tunnel_info
 from lab.dirs import (
     get_workspace_dir,
     get_local_provider_job_dir,
@@ -36,99 +33,8 @@ from lab.dirs import (
     get_job_models_dir,
     get_models_dir,
 )
-from transformerlab.shared import zip_utils
-from transformerlab.shared.ssh_policy import get_add_if_verified_policy
-from datetime import datetime
 
 router = APIRouter(prefix="/jobs", tags=["train"])
-
-
-async def _fetch_runpod_provider_logs(
-    provider_instance,
-    cluster_name: str,
-    team_id: str,
-    tail_lines: int,
-) -> str:
-    """
-    For RunPod: get pod public IP, SSH with org key, read /workspace/run_logs.txt and return.
-    """
-    from transformerlab.compute_providers.runpod import RUNPOD_RUN_LOGS_PATH
-    from transformerlab.services.ssh_key_service import get_org_ssh_private_key
-
-    status = provider_instance.get_cluster_status(cluster_name)
-    provider_data = getattr(status, "provider_data", None) or {}
-    # RunPod API returns publicIp directly on the pod object, not nested under runtime
-    # Handle empty string case - pod might still be starting
-    host = provider_data.get("publicIp") or provider_data.get("public_ip")
-    if not host or host == "":
-        runtime = provider_data.get("runtime") or {}
-        host = runtime.get("publicIp") or runtime.get("public_ip")
-    # If still no host, check if pod is still starting (desiredStatus might indicate this)
-    if not host or host == "":
-        desired_status = provider_data.get("desiredStatus", "")
-        if desired_status == "RUNNING":
-            return "Pod is starting up - public IP not yet assigned. Please wait a moment and try again."
-        return "Pod has no public IP yet (still starting or not available)."
-
-    # Get SSH port from portMappings - RunPod maps internal port 22 to an external port
-    port_mappings = provider_data.get("portMappings") or {}
-    ssh_port = port_mappings.get("22") or port_mappings.get(22)  # Try both string and int key
-    if not ssh_port:
-        # Fallback to port 22 if no mapping found (shouldn't happen if port 22 is exposed)
-        ssh_port = 22
-
-    try:
-        key_bytes = await get_org_ssh_private_key(team_id)
-    except Exception as e:
-        return f"Cannot load SSH key for provider logs: {e}"
-
-    def _ssh_cat_log() -> str:
-        import paramiko
-
-        try:
-            pkey = None
-            # Decode key bytes to string - paramiko's from_private_key expects string content
-            key_str = key_bytes.decode("utf-8")
-            key_file = io.StringIO(key_str)
-
-            # Try Ed25519 first (modern key type), then RSA
-            try:
-                pkey = paramiko.Ed25519Key.from_private_key(key_file)
-            except (paramiko.ssh_exception.SSHException, ValueError, TypeError, AttributeError):
-                # Reset file pointer and try RSA
-                key_file.seek(0)
-                try:
-                    pkey = paramiko.RSAKey.from_private_key(key_file)
-                except (paramiko.ssh_exception.SSHException, ValueError, TypeError, AttributeError) as e:
-                    return f"Failed to load SSH key as Ed25519 or RSA: {e}"
-        except Exception as e:
-            return f"Failed to load SSH key: {e}"
-
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(get_add_if_verified_policy())
-        try:
-            ssh.connect(
-                hostname=host,
-                port=ssh_port,
-                username="root",
-                pkey=pkey,
-                timeout=15,
-                banner_timeout=15,
-            )
-            # Prefer tail to limit size; fallback to cat if tail fails
-            cmd = f"tail -n {tail_lines} {RUNPOD_RUN_LOGS_PATH} 2>/dev/null || cat {RUNPOD_RUN_LOGS_PATH} 2>/dev/null || echo 'No log file found.'"
-            stdin, stdout, stderr = ssh.exec_command(cmd, timeout=10)
-            out = stdout.read().decode("utf-8", errors="replace")
-            err = stderr.read().decode("utf-8", errors="replace")
-            if err and "No such file" not in err:
-                out = out or err
-            return out.strip() or "No log output yet."
-        except Exception as e:
-            return f"SSH failed: {e}"
-        finally:
-            ssh.close()
-
-    return await asyncio.to_thread(_ssh_cat_log)
 
 
 @router.get("/list")
@@ -424,7 +330,7 @@ async def get_provider_job_logs(
 
     try:
         if provider.type == ProviderType.RUNPOD.value:
-            raw_logs = await _fetch_runpod_provider_logs(
+            raw_logs = await fetch_runpod_provider_logs(
                 provider_instance, cluster_name, user_and_team["team_id"], tail_lines
             )
         else:
@@ -536,7 +442,7 @@ async def get_tunnel_info_for_job(
 
     try:
         if provider.type == ProviderType.RUNPOD.value:
-            raw_logs = await _fetch_runpod_provider_logs(
+            raw_logs = await fetch_runpod_provider_logs(
                 provider_instance, cluster_name, user_and_team["team_id"], tail_lines
             )
         else:

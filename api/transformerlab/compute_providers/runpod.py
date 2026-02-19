@@ -1,7 +1,13 @@
 """Runpod provider implementation."""
 
-import requests
+import asyncio
+import io
 from typing import Dict, Any, Optional, Union, List
+
+import requests
+
+from transformerlab.services.ssh_key_service import get_org_ssh_private_key
+from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
 from .base import ComputeProvider
 from .models import (
@@ -16,6 +22,95 @@ from .models import (
 
 # Path inside the RunPod container where we tee stdout/stderr for provider log retrieval via SSH
 RUNPOD_RUN_LOGS_PATH = "/workspace/run_logs.txt"
+
+
+async def fetch_runpod_provider_logs(
+    provider_instance: ComputeProvider,
+    cluster_name: str,
+    team_id: str,
+    tail_lines: int,
+) -> str:
+    """
+    For RunPod: get pod public IP, SSH with org key, read /workspace/run_logs.txt and return.
+    """
+    status = provider_instance.get_cluster_status(cluster_name)
+    provider_data = getattr(status, "provider_data", None) or {}
+    # RunPod API returns publicIp directly on the pod object, not nested under runtime
+    # Handle empty string case - pod might still be starting
+    host = provider_data.get("publicIp") or provider_data.get("public_ip")
+    if not host or host == "":
+        runtime = provider_data.get("runtime") or {}
+        host = runtime.get("publicIp") or runtime.get("public_ip")
+    # If still no host, check if pod is still starting (desiredStatus might indicate this)
+    if not host or host == "":
+        desired_status = provider_data.get("desiredStatus", "")
+        if desired_status == "RUNNING":
+            return "Pod is starting up - public IP not yet assigned. Please wait a moment and try again."
+        return "Pod has no public IP yet (still starting or not available)."
+
+    # Get SSH port from portMappings - RunPod maps internal port 22 to an external port
+    port_mappings = provider_data.get("portMappings") or {}
+    ssh_port = port_mappings.get("22") or port_mappings.get(22)  # Try both string and int key
+    if not ssh_port:
+        # Fallback to port 22 if no mapping found (shouldn't happen if port 22 is exposed)
+        ssh_port = 22
+
+    try:
+        key_bytes = await get_org_ssh_private_key(team_id)
+    except Exception as e:  # pragma: no cover - defensive
+        return f"Cannot load SSH key for provider logs: {e}"
+
+    def _ssh_cat_log() -> str:
+        import paramiko
+
+        try:
+            pkey = None
+            # Decode key bytes to string - paramiko's from_private_key expects string content
+            key_str = key_bytes.decode("utf-8")
+            key_file = io.StringIO(key_str)
+
+            # Try Ed25519 first (modern key type), then RSA
+            try:
+                pkey = paramiko.Ed25519Key.from_private_key(key_file)
+            except (paramiko.ssh_exception.SSHException, ValueError, TypeError, AttributeError):
+                # Reset file pointer and try RSA
+                key_file.seek(0)
+                try:
+                    pkey = paramiko.RSAKey.from_private_key(key_file)
+                except (paramiko.ssh_exception.SSHException, ValueError, TypeError, AttributeError) as exc:
+                    return f"Failed to load SSH key as Ed25519 or RSA: {exc}"
+        except Exception as exc:  # pragma: no cover - defensive
+            return f"Failed to load SSH key: {exc}"
+
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(get_add_if_verified_policy())
+        try:
+            ssh.connect(
+                hostname=host,
+                port=ssh_port,
+                username="root",
+                pkey=pkey,
+                timeout=15,
+                banner_timeout=15,
+            )
+            # Prefer tail to limit size; fallback to cat if tail fails
+            cmd = (
+                f"tail -n {tail_lines} {RUNPOD_RUN_LOGS_PATH} 2>/dev/null "
+                f"|| cat {RUNPOD_RUN_LOGS_PATH} 2>/dev/null "
+                "|| echo 'No log file found.'"
+            )
+            stdin, stdout, stderr = ssh.exec_command(cmd, timeout=10)
+            out = stdout.read().decode("utf-8", errors="replace")
+            err = stderr.read().decode("utf-8", errors="replace")
+            if err and "No such file" not in err:
+                out = out or err
+            return out.strip() or "No log output yet."
+        except Exception as exc:  # pragma: no cover - network/SSH failures
+            return f"SSH failed: {exc}"
+        finally:
+            ssh.close()
+
+    return await asyncio.to_thread(_ssh_cat_log)
 
 
 class RunpodProvider(ComputeProvider):
