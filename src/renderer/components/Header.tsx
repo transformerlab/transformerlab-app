@@ -240,7 +240,7 @@ function StatsBar({ connection, setConnection }) {
                       <Typography level="title-lg">{connection}</Typography>
                       <Typography>
                         <b>OS: </b>
-                        {server?.os_alias[0]}
+                        {Array.isArray(server?.os_alias) && server.os_alias[0]}
                       </Typography>
                       <Typography>
                         <b>CPU: </b>
