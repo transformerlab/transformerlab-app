@@ -294,7 +294,7 @@ async def get_provider_job_logs(
     if provider_job_id is None:
         provider_jobs: List = []
         try:
-            provider_jobs = provider_instance.list_jobs(cluster_name)
+            provider_jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
         except NotImplementedError:
             # Provider doesn't support listing jobs (e.g., Runpod)
             # For Runpod, we can't determine a job_id, so we'll use the cluster_name as a fallback
@@ -334,12 +334,13 @@ async def get_provider_job_logs(
                 provider_instance, cluster_name, user_and_team["team_id"], tail_lines
             )
         else:
-            raw_logs = provider_instance.get_job_logs(
-                cluster_name,
-                provider_job_id,
-                tail_lines=tail_lines or None,
-                follow=False,
-            )
+            raw_logs = await asyncio.to_thread(
+              provider_instance.get_job_logs,
+              cluster_name,
+              provider_job_id,
+              tail_lines=tail_lines or None,
+              follow=False,
+          )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
 
@@ -424,7 +425,7 @@ async def get_tunnel_info_for_job(
     if provider_job_id is None:
         provider_jobs = None
         try:
-            provider_jobs = provider_instance.list_jobs(cluster_name)
+            provider_jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
         except NotImplementedError:
             # Provider doesn't support listing jobs (e.g., Runpod)
             # For Runpod, we can't determine a job_id, so we'll use the cluster_name as a fallback
@@ -446,12 +447,13 @@ async def get_tunnel_info_for_job(
                 provider_instance, cluster_name, user_and_team["team_id"], tail_lines
             )
         else:
-            raw_logs = provider_instance.get_job_logs(
-                cluster_name,
-                provider_job_id,
-                tail_lines=tail_lines or None,
-                follow=False,
-            )
+            raw_logs = await asyncio.to_thread(
+              provider_instance.get_job_logs,
+              cluster_name,
+              provider_job_id,
+              tail_lines=tail_lines or None,
+              follow=False,
+          )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
 
