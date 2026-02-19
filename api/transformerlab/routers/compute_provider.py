@@ -1069,7 +1069,9 @@ async def _launch_sweep_jobs(
                 if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
                     if STORAGE_PROVIDER == "aws":
                         aws_profile = "transformerlab-s3"
-                        aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
+                        aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(
+                            _get_aws_credentials_from_file, aws_profile
+                        )
                         if aws_access_key_id and aws_secret_access_key:
                             aws_credentials_dir = (
                                 RUNPOD_AWS_CREDENTIALS_DIR if provider.type == ProviderType.RUNPOD.value else None
@@ -1383,7 +1385,9 @@ async def launch_template_on_provider(
     # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
     aws_profile = "transformerlab-s3"
     if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
-        aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
+        aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(
+            _get_aws_credentials_from_file, aws_profile
+        )
     else:
         aws_access_key_id, aws_secret_access_key = None, None
 
