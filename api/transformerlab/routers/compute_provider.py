@@ -2670,7 +2670,7 @@ async def submit_job(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Submit job
-        result = provider_instance.submit_job(cluster_name, job_config)
+        result = await asyncio.to_thread(provider_instance.submit_job, cluster_name, job_config)
 
         # Extract job_id from result
         job_id = result.get("job_id") or result.get("request_id")
@@ -2712,7 +2712,7 @@ async def list_jobs(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # List jobs
-        jobs = provider_instance.list_jobs(cluster_name)
+        jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
 
         # Filter by state if provided
         if state:
@@ -2751,7 +2751,7 @@ async def get_job_info(
 
         # List jobs and find the specific one
         try:
-            jobs = provider_instance.list_jobs(cluster_name)
+            jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
         except NotImplementedError:
             # Provider doesn't support listing jobs (e.g., Runpod)
             raise HTTPException(
@@ -2815,7 +2815,13 @@ async def get_job_logs(
 
         # Get job logs
         try:
-            logs = provider_instance.get_job_logs(cluster_name, job_id, tail_lines=tail_lines, follow=follow)
+            logs = await asyncio.to_thread(
+                provider_instance.get_job_logs,
+                cluster_name,
+                job_id,
+                tail_lines=tail_lines,
+                follow=follow,
+            )
         except NotImplementedError:
             # Provider doesn't support job logs (though Runpod returns a string message, not NotImplementedError)
             logs = "Logs not available for this provider type."
