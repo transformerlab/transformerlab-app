@@ -732,7 +732,7 @@ async def check_provider(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Call the check method
-        is_active = provider_instance.check()
+        is_active = await asyncio.to_thread(provider_instance.check)
 
         return {"status": is_active}
     except Exception as e:
@@ -1172,7 +1172,7 @@ async def _launch_sweep_jobs(
 
                 # Launch cluster for child job
                 try:
-                    launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
+                    launch_result = await asyncio.to_thread(provider_instance.launch_cluster, formatted_cluster_name, cluster_config)
 
                     if isinstance(launch_result, dict):
                         await job_service.job_update_job_data_insert_key_value(
@@ -1560,7 +1560,7 @@ async def launch_template_on_provider(
         }
 
     try:
-        launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
+        launch_result = await asyncio.to_thread(provider_instance.launch_cluster, formatted_cluster_name, cluster_config)
     except Exception as exc:
         print(f"Failed to launch cluster: {exc}")
         # Release quota hold if launch failed
@@ -1693,7 +1693,7 @@ async def check_provider_job_status(
     # Local provider: single process per "cluster"; check process status
     if provider.type == ProviderType.LOCAL.value:
         try:
-            cluster_status = provider_instance.get_cluster_status(cluster_name)
+            cluster_status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
             terminal_states_local = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
             if cluster_status.state in terminal_states_local:
                 try:
@@ -1737,7 +1737,7 @@ async def check_provider_job_status(
     # Runpod doesn't have a job queue - check pod status instead
     if provider.type == ProviderType.RUNPOD.value:
         try:
-            cluster_status = provider_instance.get_cluster_status(cluster_name)
+            cluster_status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
             # For Runpod, the pod itself is the "job"
             # Check if pod is in a terminal state
             terminal_pod_states = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
@@ -1786,7 +1786,7 @@ async def check_provider_job_status(
 
     # For other providers (SkyPilot, SLURM), check jobs on the cluster
     try:
-        provider_jobs = provider_instance.list_jobs(cluster_name)
+        provider_jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
     except NotImplementedError:
         # Provider doesn't support list_jobs
         return {
@@ -2390,7 +2390,7 @@ async def resume_from_checkpoint(
 
     # Launch cluster
     try:
-        provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
+        await asyncio.to_thread(provider_instance.launch_cluster, formatted_cluster_name, cluster_config)
         return {
             "job_id": new_job_id,
             "message": "Job relaunched from checkpoint",
@@ -2424,7 +2424,7 @@ async def stop_cluster(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Stop cluster
-        result = provider_instance.stop_cluster(cluster_name)
+        result = await asyncio.to_thread(provider_instance.stop_cluster, cluster_name)
 
         # Return the result directly from the provider
         return result
@@ -2454,7 +2454,7 @@ async def get_cluster_status(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Get cluster status
-        status = provider_instance.get_cluster_status(cluster_name)
+        status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
 
         return status
     except Exception as e:
@@ -2484,7 +2484,7 @@ async def get_cluster_resources(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Get cluster resources
-        resources = provider_instance.get_cluster_resources(cluster_name)
+        resources = await asyncio.to_thread(provider_instance.get_cluster_resources, cluster_name)
 
         return resources
     except Exception as e:
@@ -2513,7 +2513,7 @@ async def list_clusters_detailed(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Get detailed clusters
-        clusters = provider_instance.get_clusters_detailed()
+        clusters = await asyncio.to_thread(provider_instance.get_clusters_detailed)
 
         return clusters
     except Exception as e:
@@ -2785,7 +2785,7 @@ async def cancel_job(
             provider_instance.extra_config["workspace_dir"] = job_dir
 
         # Cancel job
-        result = provider_instance.cancel_job(cluster_name, job_id)
+        result = await asyncio.to_thread(provider_instance.cancel_job, cluster_name, job_id)
 
         return {
             "status": "success",
