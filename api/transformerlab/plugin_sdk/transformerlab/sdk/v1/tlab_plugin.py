@@ -9,7 +9,7 @@ import traceback
 import requests
 import json
 from pydantic import BaseModel
-from typing import Any, List
+from typing import Any, List, Optional
 
 from datasets import get_dataset_split_names, get_dataset_config_names, load_dataset
 
@@ -102,6 +102,8 @@ class TLabPlugin:
         progress_end: int = 100,
         wandb_project_name: str = "TLab_Training",
         manual_logging: bool = False,
+        success_message: Optional[str] = None,
+        include_exception_in_error: bool = False,
     ):
         """Decorator for wrapping a function with job status updates"""
 
@@ -114,17 +116,19 @@ class TLabPlugin:
                 self.add_job_data("start_time", start_time)
                 self.params.start_time = start_time
                 self.add_job_data("model_name", self.params.model_name)
-                self.add_job_data("template_name", self.params.template_name)
-                self.add_job_data("model_adapter", self.params.get("model_adapter", ""))
+                plugin_type = getattr(self, "tlab_plugin_type", None)
+                if plugin_type in ("trainer", "evals"):
+                    self.add_job_data("template_name", self.params.template_name)
+                    self.add_job_data("model_adapter", self.params.get("model_adapter", ""))
 
                 # Update starting progress
                 self.progress_update(progress_start)
 
                 try:
-                    # Setup logging
-                    if self.tlab_plugin_type == "trainer":
+                    # Setup: logging for trainer/evals, or exporter hook
+                    if plugin_type == "trainer":
                         self.setup_train_logging(wandb_project_name=wandb_project_name, manual_logging=manual_logging)
-                    elif self.tlab_plugin_type == "evals":
+                    elif plugin_type == "evals":
                         self.setup_eval_logging(wandb_project_name=wandb_project_name, manual_logging=manual_logging)
 
                     # Call the wrapped function
@@ -133,15 +137,14 @@ class TLabPlugin:
                     # Update final progress and success status
                     self.progress_update(progress_end)
 
+                    completion_msg = success_message if success_message is not None else "Job completed successfully"
                     job_data = _run_async_from_sync(self.job.get_json_data())
                     if job_data.get("job_data", {}).get("completion_status", "") != "success":
                         _run_async_from_sync(self.job.update_job_data_field("completion_status", "success"))
 
                     job_data = _run_async_from_sync(self.job.get_json_data())
-                    if job_data.get("job_data", {}).get("completion_details", "") != "Job completed successfully":
-                        _run_async_from_sync(
-                            self.job.update_job_data_field("completion_details", "Job completed successfully")
-                        )
+                    if job_data.get("job_data", {}).get("completion_details", "") != completion_msg:
+                        _run_async_from_sync(self.job.update_job_data_field("completion_details", completion_msg))
 
                     job_data = _run_async_from_sync(self.job.get_json_data())
                     if (
@@ -166,9 +169,12 @@ class TLabPlugin:
 
                     # Update job with failure status
                     _run_async_from_sync(self.job.update_job_data_field("completion_status", "failed"))
-                    _run_async_from_sync(
-                        self.job.update_job_data_field("completion_details", "Error occurred while executing job")
+                    details = (
+                        f"Error occurred: {str(e)}"
+                        if include_exception_in_error
+                        else "Error occurred while executing job"
                     )
+                    _run_async_from_sync(self.job.update_job_data_field("completion_details", details))
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                     if manual_logging and getattr(self.params, "wandb_run") is not None:
                         self.wandb_run.finish()
