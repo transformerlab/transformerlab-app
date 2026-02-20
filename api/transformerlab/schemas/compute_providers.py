@@ -3,7 +3,7 @@
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
-from transformerlab.shared.models.models import ProviderType
+from transformerlab.shared.models.models import ProviderType, AcceleratorType
 
 
 class ProviderConfigBase(BaseModel):
@@ -30,6 +30,9 @@ class ProviderConfigBase(BaseModel):
     default_region: Optional[str] = None  # Default region
     default_template_id: Optional[str] = None  # Default Docker template ID
     default_network_volume_id: Optional[str] = None  # Default network volume ID
+
+    # Accelerators supported by this provider
+    supported_accelerators: Optional[List[AcceleratorType]] = Field(default=None)
 
     # Additional provider-specific config
     extra_config: Dict[str, Any] = Field(default_factory=dict)

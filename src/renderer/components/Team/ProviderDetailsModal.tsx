@@ -16,6 +16,7 @@ import {
   FormLabel,
   Textarea,
   Alert,
+  Chip,
 } from '@mui/joy';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import { getPath } from 'renderer/lib/api-client/urls';
@@ -35,21 +36,28 @@ const DEFAULT_CONFIGS = {
     "SKYPILOT_USER_ID": "<Your SkyPilot user ID>",
     "SKYPILOT_USER": "<Your SkyPilot user name>"
   },
-  "default_entrypoint_command": ""
+  "default_entrypoint_command": "",
+  "supported_accelerators": ["NVIDIA"]
 }`,
   slurm: `{
   "mode": "ssh",
   "ssh_host": "<Machine IP for the SLURM login node>",
   "ssh_user": "<Your SLURM user ID - all jobs will run as this user>",
   "ssh_key_path": "",
-  "ssh_port": 22
+  "ssh_port": 22,
+  "supported_accelerators": ["NVIDIA"]
 }`,
   runpod: `{
   "api_key": "<Your Runpod API key>",
-  "api_base_url": "https://rest.runpod.io/v1"
+  "api_base_url": "https://rest.runpod.io/v1",
+  "supported_accelerators": ["NVIDIA"]
 }`,
-  local: `{}`,
+  local: `{
+  "supported_accelerators": ["AppleSilicon", "cpu"]
+}`,
 };
+
+const ACCELERATOR_OPTIONS = ['AppleSilicon', 'NVIDIA', 'AMD', 'cpu'];
 
 export default function ProviderDetailsModal({
   open,
@@ -61,6 +69,9 @@ export default function ProviderDetailsModal({
   const [type, setType] = useState('');
   const [config, setConfig] = useState('');
   const [loading, setLoading] = useState(false);
+  const [supportedAccelerators, setSupportedAccelerators] = useState<string[]>(
+    [],
+  );
 
   // SLURM-specific form fields
   const [slurmMode, setSlurmMode] = useState<'ssh' | 'rest'>('ssh');
@@ -93,6 +104,9 @@ export default function ProviderDetailsModal({
       setSlurmSshKeyPath(configObj.ssh_key_path || '');
       setSlurmRestUrl(configObj.rest_url || '');
       setSlurmApiToken(configObj.api_token || '');
+      if (configObj.supported_accelerators) {
+        setSupportedAccelerators(configObj.supported_accelerators);
+      }
     }
   };
 
@@ -120,6 +134,10 @@ export default function ProviderDetailsModal({
       }
     }
 
+    if (supportedAccelerators && supportedAccelerators.length > 0) {
+      configObj.supported_accelerators = supportedAccelerators;
+    }
+
     return configObj;
   };
 
@@ -140,12 +158,17 @@ export default function ProviderDetailsModal({
         parseSlurmConfig(configObj);
       }
 
+      if (configObj.supported_accelerators) {
+        setSupportedAccelerators(configObj.supported_accelerators);
+      }
+
       setConfig(JSON.stringify(configObj, null, 2));
     } else if (!providerId) {
       // Reset form when in "add" mode (no providerId)
       setName('');
       setType('');
       setConfig('');
+      setSupportedAccelerators([]);
       setSlurmMode('ssh');
       setSlurmSshHost('');
       setSlurmSshUser('');
@@ -162,6 +185,7 @@ export default function ProviderDetailsModal({
       setName('');
       setType('');
       setConfig('');
+      setSupportedAccelerators([]);
       setSlurmMode('ssh');
       setSlurmSshHost('');
       setSlurmSshUser('');
@@ -179,24 +203,38 @@ export default function ProviderDetailsModal({
         DEFAULT_CONFIGS[type as keyof typeof DEFAULT_CONFIGS];
       setConfig(defaultConfig);
 
-      // Parse SLURM defaults
-      if (type === 'slurm') {
-        try {
-          const configObj = JSON.parse(defaultConfig);
-          parseSlurmConfig(configObj);
-        } catch (e) {
-          // Ignore parse errors
+      try {
+        const configObj = JSON.parse(defaultConfig);
+        if (configObj.supported_accelerators) {
+          setSupportedAccelerators(configObj.supported_accelerators);
         }
+
+        // Parse SLURM defaults
+        if (type === 'slurm') {
+          parseSlurmConfig(configObj);
+        }
+      } catch (e) {
+        // Ignore parse errors
       }
     }
   }, [type, providerId]);
 
-  // Update config JSON when SLURM form fields change
+  // Update config JSON when form fields change
   useEffect(() => {
-    if (type === 'slurm' && !providerId) {
+    if (!providerId) {
       // Only auto-update when creating new provider, not editing
-      const configObj = buildSlurmConfig();
-      setConfig(JSON.stringify(configObj, null, 2));
+      if (type === 'slurm') {
+        const configObj = buildSlurmConfig();
+        setConfig(JSON.stringify(configObj, null, 2));
+      } else if (type && type in DEFAULT_CONFIGS) {
+        try {
+          const configObj = JSON.parse(config);
+          configObj.supported_accelerators = supportedAccelerators;
+          setConfig(JSON.stringify(configObj, null, 2));
+        } catch (e) {
+          // If JSON is invalid (e.g. while typing), don't update
+        }
+      }
     }
   }, [
     slurmMode,
@@ -206,6 +244,7 @@ export default function ProviderDetailsModal({
     slurmSshKeyPath,
     slurmRestUrl,
     slurmApiToken,
+    supportedAccelerators,
     type,
     providerId,
   ]);
@@ -240,12 +279,16 @@ export default function ProviderDetailsModal({
     setLoading(true);
     try {
       // For SLURM providers, build config from form fields
-      let parsedConfig;
+      let parsedConfig: any;
       if (type === 'slurm') {
         parsedConfig = buildSlurmConfig();
       } else {
         // The API expects an object for config, not a JSON string
         parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
+        // Ensure supported_accelerators from state is included if set
+        if (supportedAccelerators.length > 0) {
+          parsedConfig.supported_accelerators = supportedAccelerators;
+        }
       }
 
       const response = providerId
@@ -269,7 +312,7 @@ export default function ProviderDetailsModal({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog sx={{ gap: 0, width: 600, height: 500, overflow: 'auto' }}>
+      <ModalDialog sx={{ gap: 0, width: 600, height: 700, overflow: 'auto' }}>
         <DialogTitle>
           {providerId ? 'Edit Compute Provider' : 'Add Compute Provider'}
         </DialogTitle>
@@ -318,6 +361,51 @@ export default function ProviderDetailsModal({
                     Provider type cannot be changed after creation
                   </Typography>
                 )}
+              </FormControl>
+
+              <FormControl sx={{ mt: 1 }}>
+                <FormLabel>Supported Accelerators</FormLabel>
+                <Select
+                  multiple
+                  value={supportedAccelerators}
+                  onChange={(event, newValue) =>
+                    setSupportedAccelerators(newValue)
+                  }
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', gap: '0.25rem' }}>
+                      {selected.map((selectedOption) => (
+                        <Chip
+                          key={selectedOption.value}
+                          variant="soft"
+                          color="primary"
+                        >
+                          {selectedOption.label}
+                        </Chip>
+                      ))}
+                    </Box>
+                  )}
+                  placeholder="Select supported accelerators"
+                  sx={{ width: '100%' }}
+                  slotProps={{
+                    listbox: {
+                      sx: {
+                        width: '100%',
+                      },
+                    },
+                  }}
+                >
+                  {ACCELERATOR_OPTIONS.map((option) => (
+                    <Option key={option} value={option}>
+                      {option}
+                    </Option>
+                  ))}
+                </Select>
+                <Typography
+                  level="body-sm"
+                  sx={{ mt: 0.5, color: 'text.tertiary' }}
+                >
+                  Select the types of hardware this provider supports.
+                </Typography>
               </FormControl>
 
               {/* SLURM-specific form fields */}
