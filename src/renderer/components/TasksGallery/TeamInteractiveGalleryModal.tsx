@@ -34,6 +34,10 @@ interface InteractiveTask {
   title?: string;
   description?: string;
   icon?: string;
+  supported_accelerators?: string;
+  config?: {
+    supported_accelerators?: string;
+  };
   metadata?: {
     category?: string;
     framework?: string[];
@@ -386,6 +390,25 @@ export default function TeamInteractiveGalleryModal({
                                   ),
                                 )}
                               </Stack>
+                            )}
+                            {(task.supported_accelerators ||
+                              task.config?.supported_accelerators) && (
+                              <Box sx={{ mt: 1.5 }}>
+                                <Stack
+                                  direction="row"
+                                  spacing={0.5}
+                                  flexWrap="wrap"
+                                >
+                                  <Chip
+                                    size="sm"
+                                    variant="soft"
+                                    color="primary"
+                                  >
+                                    {task.supported_accelerators ||
+                                      task.config?.supported_accelerators}
+                                  </Chip>
+                                </Stack>
+                              </Box>
                             )}
                           </Stack>
                           <CardActions sx={{ mt: 2 }}>
