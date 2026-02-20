@@ -157,6 +157,7 @@ def train_mlx_lora():
     org_id = os.environ.get("_TFL_ORG_ID")
     if org_id:
         from lab.dirs import set_organization_id
+
         set_organization_id(org_id)
         print(f"Set organization context: {org_id}")
 
@@ -321,9 +322,7 @@ def train_mlx_lora():
                             remaining_iters = int(iters) - iteration
                             eta_seconds = int((elapsed / iteration) * remaining_iters) if remaining_iters > 0 else 0
                             eta_str = time.strftime("%H:%M:%S", time.gmtime(eta_seconds)) if eta_seconds > 0 else "done"
-                            lab.log(
-                                f"Iter {iteration}/{iters} ({train_fraction*100:.1f}%) – ETA {eta_str}"
-                            )
+                            lab.log(f"Iter {iteration}/{iters} ({train_fraction * 100:.1f}%) – ETA {eta_str}")
 
                     # Parse training metrics
                     train_match = re.search(
