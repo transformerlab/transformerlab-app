@@ -1151,8 +1151,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 lp_command = f"python {main_py}"
 
                 # Build setup: install deps from setup.sh content.
-                # LocalProvider creates venv at job_dir/venv and adds venv/bin to PATH.
-                # We need to ensure uv pip install targets the venv correctly.
+                # LocalProvider creates venv at job_dir/venv and adds venv/bin to PATH,
+                # but uv pip install needs an *activated* venv to target the right location.
+                # We prepend `source ./venv/bin/activate` so packages land in the venv.
                 setup_sh = os.path.join(plugin_location, "setup.sh")
                 lp_setup = None
                 if os.path.exists(setup_sh):
@@ -1163,10 +1164,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     if setup_lines and setup_lines[0].startswith('#!'):
                         setup_lines = setup_lines[1:]
                     setup_content = '\n'.join(setup_lines).strip()
-                    # Wrap setup to use venv Python explicitly and set VIRTUAL_ENV for pip
-                    # LocalProvider sets PATH to include venv/bin, so 'python' should work,
-                    # but we also set VIRTUAL_ENV so pip knows where to install.
-                    lp_setup = f"export VIRTUAL_ENV=./venv && {setup_content}"
+                    # Activate the venv before running setup commands so uv pip install
+                    # targets the correct environment (mirrors _ensure_venv_and_sync behaviour).
+                    lp_setup = f"source ./venv/bin/activate && {setup_content}"
 
                 from transformerlab.compute_providers.local import LocalProvider
                 from transformerlab.compute_providers.models import ClusterConfig
