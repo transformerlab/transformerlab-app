@@ -1160,10 +1160,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     with open(setup_sh, "r") as f:
                         setup_content = f.read().strip()
                     # Remove shebang if present
-                    setup_lines = setup_content.split('\n')
-                    if setup_lines and setup_lines[0].startswith('#!'):
+                    setup_lines = setup_content.split("\n")
+                    if setup_lines and setup_lines[0].startswith("#!"):
                         setup_lines = setup_lines[1:]
-                    setup_content = '\n'.join(setup_lines).strip()
+                    setup_content = "\n".join(setup_lines).strip()
                     # Activate the venv before running setup commands so uv pip install
                     # targets the correct environment (mirrors _ensure_venv_and_sync behaviour).
                     lp_setup = f"source ./venv/bin/activate && {setup_content}"
