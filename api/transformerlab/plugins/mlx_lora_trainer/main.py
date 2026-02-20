@@ -281,9 +281,16 @@ def train_mlx_lora():
 
         lab.log(f"Running command: {' '.join(popen_command)}")
         lab.log(f"Adaptor will be saved in: {adaptor_output_dir}")
+        lab.update_progress(10)
+        lab.log("Starting training…")
+
+        # Progress mapping: training runs from 10% → 90%
+        TRAIN_PROGRESS_START = 10
+        TRAIN_PROGRESS_END = 90
 
         # Track start time for ETA
         start_time = time.time()
+        last_progress_log_iter = 0
 
         # Run the MLX LoRA training process
         with subprocess.Popen(
@@ -295,25 +302,33 @@ def train_mlx_lora():
             env=env,
         ) as process:
             for line in process.stdout:
-                # Parse progress from output
+                # Parse progress from output — MLX outputs "Iter N:" for each report
                 iter_match = re.search(r"Iter (\d+):", line)
                 if iter_match:
                     iteration = int(iter_match.group(1))
-                    percent_complete = float(iteration) / float(iters) * 100
-                    lab.update_progress(int(percent_complete))
+                    train_fraction = float(iteration) / float(iters) if iters > 0 else 1.0
+                    overall_progress = TRAIN_PROGRESS_START + int(
+                        train_fraction * (TRAIN_PROGRESS_END - TRAIN_PROGRESS_START)
+                    )
+                    lab.update_progress(min(overall_progress, TRAIN_PROGRESS_END))
 
-                    # ETA calculation
-                    if iteration > 0:
+                    # Log progress with ETA at regular intervals (every 10% of iters, at least every report)
+                    log_interval = max(iters // 10, steps_per_report)
+                    if iteration - last_progress_log_iter >= log_interval or iteration == iters:
+                        last_progress_log_iter = iteration
                         elapsed = time.time() - start_time
-                        remaining = int(iters) - iteration
-                        if remaining > 0:
-                            eta = int((elapsed / iteration) * remaining)
-                            lab.log(f"Iter {iteration}/{iters} ({percent_complete:.1f}%) – ETA {eta}s")
+                        if iteration > 0:
+                            remaining_iters = int(iters) - iteration
+                            eta_seconds = int((elapsed / iteration) * remaining_iters) if remaining_iters > 0 else 0
+                            eta_str = time.strftime("%H:%M:%S", time.gmtime(eta_seconds)) if eta_seconds > 0 else "done"
+                            lab.log(
+                                f"Iter {iteration}/{iters} ({train_fraction*100:.1f}%) – ETA {eta_str}"
+                            )
 
                     # Parse training metrics
                     train_match = re.search(
-                        r"Train loss (\d+\.\d+), Learning Rate (\d+\.[e\-\d]+), "
-                        r"It/sec (\d+\.\d+), Tokens/sec (\d+\.\d+)",
+                        r"Train loss (\d+\.\d+),\s*Learning Rate (\S+),\s*"
+                        r"It/sec (\d+\.\d+),\s*Tokens/sec (\d+\.\d+)",
                         line,
                     )
                     if train_match:
@@ -323,7 +338,7 @@ def train_mlx_lora():
                         lab.log(f"  train/loss={loss:.4f}  it/sec={it_per_sec:.2f}  tok/sec={tokens_per_sec:.2f}")
                     else:
                         # Parse validation metrics
-                        val_match = re.search(r"Val loss (\d+\.\d+), Val took (\d+\.\d+)s", line)
+                        val_match = re.search(r"Val loss (\d+\.\d+),\s*Val took (\d+\.\d+)s", line)
                         if val_match:
                             validation_loss = float(val_match.group(1))
                             lab.log(f"  eval/loss={validation_loss:.4f}")
@@ -334,15 +349,19 @@ def train_mlx_lora():
         if process.returncode and process.returncode != 0:
             raise RuntimeError("Training failed.")
 
+        lab.update_progress(TRAIN_PROGRESS_END)
         lab.log("Training completed.")
 
         # ---------------------------------------------------------------
         # Fuse model if requested
         # ---------------------------------------------------------------
         if not fuse_model:
+            lab.update_progress(92)
             lab.log(f"Adaptor training complete – saved at {adaptor_output_dir}")
             lab.save_artifact(adaptor_output_dir, f"adaptor_{adaptor_name}")
+            lab.update_progress(95)
         else:
+            lab.update_progress(91)
             lab.log("Fusing adaptor with base model…")
 
             short_name = model_name.split("/")[-1] if "/" in model_name else model_name
@@ -364,6 +383,7 @@ def train_mlx_lora():
                 fused_model_location,
             ]
 
+            lab.update_progress(92)
             with subprocess.Popen(
                 fuse_command,
                 stdout=subprocess.PIPE,
@@ -377,6 +397,8 @@ def train_mlx_lora():
                 return_code = fuse_proc.wait()
 
             if return_code == 0:
+                lab.update_progress(95)
+                lab.log("Saving fused model…")
                 lab.save_model(
                     fused_model_location,
                     name=fused_model_name,
@@ -384,6 +406,7 @@ def train_mlx_lora():
                     parent_model=model_name,
                 )
                 lab.log("Model fusion complete.")
+                lab.update_progress(98)
             else:
                 raise RuntimeError(f"Model fusion failed with return code {return_code}")
 
