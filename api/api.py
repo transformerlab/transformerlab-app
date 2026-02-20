@@ -103,6 +103,7 @@ from transformerlab.shared import galleries  # noqa: E402
 from lab.dirs import get_workspace_dir  # noqa: E402
 from lab import dirs as lab_dirs  # noqa: E402
 from transformerlab.shared import dirs  # noqa: E402
+from transformerlab.services import profiler_service  # noqa: E402
 from transformerlab.shared.request_context import set_current_org_id  # noqa: E402
 from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
 from lab import storage  # noqa: E402
@@ -457,6 +458,26 @@ async def server_worker_start(
 
     inference_engine = engine
 
+    try:
+        effective_profile_config = profiler_service.get_inference_profile_config()
+    except ValueError as exc:
+        print(f"Failed to load configured inference profiling config: {exc}")
+        effective_profile_config = None
+
+    if effective_profile_config:
+        try:
+            effective_profile_config = profiler_service.normalize_profile_config(effective_profile_config)
+        except ValueError as exc:
+            print(f"Configured inference profiler is invalid. Falling back to automatic selection. {exc}")
+            effective_profile_config = None
+
+    if not effective_profile_config:
+        try:
+            effective_profile_config = profiler_service.get_auto_profile_config()
+        except ValueError as exc:
+            print(f"Failed to resolve automatic inference profiling config: {exc}")
+            effective_profile_config = None
+
     model_architecture = model_architecture
 
     plugin_name = inference_engine
@@ -508,6 +529,8 @@ async def server_worker_start(
         begin_string="Application startup complete.",
         set_process_id_function=set_worker_process_id,
         env=subprocess_env,
+        profile_config=effective_profile_config,
+        profile_source="inference_worker",
     )
     exitcode = process.returncode
     if exitcode == 99:

@@ -382,6 +382,27 @@ Endpoints.Tools = {
 
 Endpoints.ServerInfo = {
   Get: () => `${API_URL()}server/info`,
+  Profilers: () => `${API_URL()}server/profilers`,
+  RunProfiler: () => `${API_URL()}server/profilers/run`,
+  ProfilerRuns: (limit: number = 25) =>
+    `${API_URL()}server/profilers/runs?limit=${limit}`,
+  ProfilerRun: (runId: string) => `${API_URL()}server/profilers/runs/${runId}`,
+  ProfilerRunTimeline: (
+    runId: string,
+    maxLanes: number = 12,
+    maxEvents: number = 2000,
+  ) =>
+    `${API_URL()}server/profilers/runs/${runId}/timeline?max_lanes=${maxLanes}&max_events=${maxEvents}`,
+  StopProfilerRun: (runId: string) =>
+    `${API_URL()}server/profilers/runs/${runId}/stop`,
+  InferenceProfilerConfig: () =>
+    `${API_URL()}server/profilers/inference/config`,
+  SetInferenceProfilerConfig: () =>
+    `${API_URL()}server/profilers/inference/config`,
+  ClearInferenceProfilerConfig: () =>
+    `${API_URL()}server/profilers/inference/config`,
+  ConfigureJobProfiling: (jobId: string) =>
+    `${API_URL()}server/profilers/jobs/${jobId}/configure`,
   PythonLibraries: () => `${API_URL()}server/python_libraries`,
   StreamLog: () => `${API_URL()}server/stream_log`,
 };

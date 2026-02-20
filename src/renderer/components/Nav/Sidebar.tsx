@@ -18,6 +18,7 @@ import {
   SquareStackIcon,
   FileIcon,
   ChartColumnIncreasingIcon,
+  GaugeIcon,
   AudioLinesIcon,
   StretchHorizontalIcon,
 } from 'lucide-react';
@@ -337,6 +338,7 @@ function GlobalMenuItems({
           counter={outdatedPluginsCount}
         />
       )}
+      <SubNavItem title="Profiling" path="/profiling" icon={<GaugeIcon />} />
       {!isLocalMode && (
         <SubNavItem title="Compute" path="/compute" icon={<MonitorIcon />} />
       )}

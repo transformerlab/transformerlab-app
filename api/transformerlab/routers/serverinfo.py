@@ -5,12 +5,13 @@ import platform
 import asyncio
 import sys
 import subprocess
+import shutil
 import zipfile
 import tempfile
 from datetime import datetime
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi import APIRouter, HTTPException
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional, TypedDict
 
 # Could also use https://github.com/gpuopenanalytics/pynvml but this is simpler
 import psutil
@@ -19,6 +20,8 @@ from lab.dirs import get_global_log_path
 from lab import HOME_DIR
 from lab import storage
 from transformerlab.shared import galleries
+from transformerlab.schemas.profiler import StartProfilerRunRequest, ProfilerLaunchConfig
+from transformerlab.services import profiler_service
 
 
 try:
@@ -109,6 +112,91 @@ elif torch.backends.mps.is_available():
     print("🏄 PyTorch is using MPS for Apple Metal acceleration")
 
 router = APIRouter(prefix="/server", tags=["serverinfo"])
+
+
+class ProfilerInfo(TypedDict):
+    id: str
+    name: str
+    vendor: str
+    category: str
+    command: Optional[str]
+    available: bool
+    run_supported: bool
+    version: str
+    description: str
+    launch_example: str
+
+
+def _read_first_line(value: str, fallback: str = "") -> str:
+    if not value:
+        return fallback
+    return value.strip().splitlines()[0].strip()
+
+
+def _resolve_tool_version(command: str, args_candidates: list[list[str]]) -> str:
+    for args in args_candidates:
+        try:
+            result = subprocess.run(
+                [command, *args],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=3,
+            )
+            first_line = _read_first_line(result.stdout) or _read_first_line(result.stderr)
+            if first_line:
+                return first_line
+        except Exception:
+            continue
+    return "unknown"
+
+
+def _command_profiler(
+    profiler_id: str,
+    name: str,
+    vendor: str,
+    command: str,
+    description: str,
+    launch_example: str,
+    run_supported: bool = False,
+    version_args: Optional[list[list[str]]] = None,
+) -> ProfilerInfo:
+    if version_args is None:
+        version_args = [["--version"], ["-v"], ["--help"]]
+
+    available = shutil.which(command) is not None
+    version = "not installed"
+    if available:
+        version = _resolve_tool_version(command, version_args)
+
+    return {
+        "id": profiler_id,
+        "name": name,
+        "vendor": vendor,
+        "category": "gpu_profiler",
+        "command": command,
+        "available": available,
+        "run_supported": run_supported,
+        "version": version,
+        "description": description,
+        "launch_example": launch_example,
+    }
+
+
+def _torch_profiler_info() -> ProfilerInfo:
+    profiler_available = hasattr(torch, "profiler")
+    return {
+        "id": "torch_profiler",
+        "name": "PyTorch Profiler",
+        "vendor": "cross-platform",
+        "category": "framework_profiler",
+        "command": None,
+        "available": profiler_available,
+        "run_supported": False,
+        "version": torch.__version__ if profiler_available else "not installed",
+        "description": "Built-in profiler for CPU/GPU traces with TensorBoard support.",
+        "launch_example": "Use torch.profiler in your training script and export traces to TensorBoard.",
+    }
 
 
 async def get_mac_disk_usage():
@@ -313,6 +401,160 @@ async def get_pytorch_collect_env():
     # run python -m torch.utils.collect_env and return the output
     output = subprocess.check_output(sys.executable + " -m torch.utils.collect_env", shell=True)
     return output.decode("utf-8")
+
+
+@router.get("/profilers")
+async def get_profilers():
+    profilers: list[ProfilerInfo] = [
+        _command_profiler(
+            profiler_id="nsys",
+            name="NVIDIA Nsight Systems",
+            vendor="nvidia",
+            command="nsys",
+            description="System-wide timeline profiler for CUDA and NVTX traces.",
+            launch_example="nsys profile --trace=cuda,nvtx -o nsys_report python your_script.py",
+            run_supported=True,
+        ),
+        _command_profiler(
+            profiler_id="ncu",
+            name="NVIDIA Nsight Compute",
+            vendor="nvidia",
+            command="ncu",
+            description="Kernel-level CUDA profiler focused on GPU occupancy and throughput.",
+            launch_example="ncu --set full --target-processes all python your_script.py",
+            run_supported=True,
+        ),
+        _command_profiler(
+            profiler_id="nvprof",
+            name="NVIDIA nvprof (legacy)",
+            vendor="nvidia",
+            command="nvprof",
+            description="Legacy NVIDIA CLI profiler kept for older CUDA workflows.",
+            launch_example="nvprof --print-gpu-trace python your_script.py",
+            run_supported=True,
+        ),
+        _command_profiler(
+            profiler_id="rocprof",
+            name="AMD rocprof",
+            vendor="amd",
+            command="rocprof",
+            description="ROCm profiling tool for HIP/HSA traces and kernel statistics.",
+            launch_example="rocprof --hip-trace --hsa-trace -o rocprof.csv python your_script.py",
+            run_supported=True,
+        ),
+        _command_profiler(
+            profiler_id="rocprofv2",
+            name="AMD rocprofv2",
+            vendor="amd",
+            command="rocprofv2",
+            description="Newer ROCm profiler with improved tracing and metrics collection.",
+            launch_example="rocprofv2 --hip-trace --hsa-trace -o rocprofv2 python your_script.py",
+            run_supported=True,
+        ),
+        _command_profiler(
+            profiler_id="omniperf",
+            name="AMD Omniperf",
+            vendor="amd",
+            command="omniperf",
+            description="AMD workload and kernel analytics profiler for supported GPUs.",
+            launch_example="omniperf profile -n run_name -k python your_script.py",
+        ),
+        _torch_profiler_info(),
+    ]
+
+    installed_gpu_profilers = [
+        profiler for profiler in profilers if profiler["available"] and profiler["category"] == "gpu_profiler"
+    ]
+    auto_profile_status = profiler_service.get_auto_profile_status()
+
+    return {
+        "gpu_vendor": system_info.get("device_type", "cpu"),
+        "accelerator": system_info.get("device", "cpu"),
+        "gpu_available": torch.cuda.is_available(),
+        "profilers": profilers,
+        "installed_gpu_profilers": installed_gpu_profilers,
+        "auto_profiling_enabled": auto_profile_status["enabled"],
+        "auto_selected_profiler": auto_profile_status["selected_profiler"],
+        "auto_profile_reason": auto_profile_status["reason"],
+    }
+
+
+@router.post("/profilers/run")
+async def start_profiler_run(request: StartProfilerRunRequest):
+    if os.environ.get("MULTIUSER", "").lower() == "true":
+        raise HTTPException(
+            status_code=400,
+            detail="In-app profiling runs are disabled in multiuser mode.",
+        )
+    try:
+        return await profiler_service.start_profiler_run(request)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/profilers/runs")
+async def list_profiler_runs(limit: int = 25):
+    if limit < 1:
+        raise HTTPException(status_code=400, detail="limit must be >= 1")
+    if limit > 200:
+        raise HTTPException(status_code=400, detail="limit must be <= 200")
+    return {"runs": profiler_service.list_profiler_runs(limit=limit)}
+
+
+@router.get("/profilers/runs/{run_id}")
+async def get_profiler_run(run_id: str):
+    try:
+        return profiler_service.get_profiler_run(run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/profilers/runs/{run_id}/timeline")
+async def get_profiler_run_timeline(run_id: str, max_lanes: int = 12, max_events: int = 2000):
+    try:
+        return profiler_service.get_profiler_run_timeline(run_id, max_lanes=max_lanes, max_events=max_events)
+    except ValueError as exc:
+        detail = str(exc)
+        if detail.startswith("Profiler run not found:"):
+            raise HTTPException(status_code=404, detail=detail) from exc
+        raise HTTPException(status_code=400, detail=detail) from exc
+
+
+@router.post("/profilers/runs/{run_id}/stop")
+async def stop_profiler_run(run_id: str):
+    try:
+        return profiler_service.stop_profiler_run(run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/profilers/inference/config")
+async def get_inference_profiling_config():
+    return {"config": profiler_service.get_inference_profile_config()}
+
+
+@router.post("/profilers/inference/config")
+async def set_inference_profiling_config(config: ProfilerLaunchConfig):
+    try:
+        saved = profiler_service.set_inference_profile_config(config.model_dump())
+        return {"config": saved}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/profilers/inference/config")
+async def clear_inference_profiling_config():
+    profiler_service.set_inference_profile_config(None)
+    return {"config": None}
+
+
+@router.post("/profilers/jobs/{job_id}/configure")
+async def configure_job_profiling(job_id: str, config: ProfilerLaunchConfig):
+    try:
+        saved = await profiler_service.configure_job_profile(job_id, config.model_dump())
+        return {"job_id": job_id, "profiling": saved}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 async def watch_remote_file(
