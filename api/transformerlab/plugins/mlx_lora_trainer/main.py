@@ -16,6 +16,7 @@ from lab import lab
 from lab import storage
 from lab.dirs import get_workspace_dir
 
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -36,80 +37,6 @@ def _run_async(coro):
     if loop.is_closed():
         return asyncio.run(coro)
     return loop.run_until_complete(coro)
-
-
-# ---------------------------------------------------------------------------
-# Compatibility shim: bridge the plugin-harness CLI flow with the lab facade.
-#
-# The traditional plugin harness (shared.py → plugin_harness.py → main.py)
-# passes --input_file / --experiment_name as CLI args and does NOT set the
-# _TFL_JOB_ID / _TFL_EXPERIMENT_ID environment variables that lab.init()
-# expects.
-#
-# The LocalProvider flow already sets these env vars and stores parameters in
-# job_data["parameters"], so lab.init() + lab.get_config() work out of the box.
-#
-# _bootstrap_from_harness() detects the harness path and patches the
-# environment so that lab.init() / lab.get_config() behave identically in
-# both flows.
-# ---------------------------------------------------------------------------
-_HARNESS_CONFIG = None  # Populated by _bootstrap_from_harness()
-
-
-def _bootstrap_from_harness():
-    """Parse CLI args from the plugin harness and set env vars for lab.init().
-
-    Returns the training config dict read from --input_file so we can inject
-    it into job_data["parameters"] after lab.init().
-    """
-    global _HARNESS_CONFIG
-
-    # If _TFL_JOB_ID is already in the environment (LocalProvider), skip.
-    if os.environ.get("_TFL_JOB_ID"):
-        return
-
-    # ---- Parse --input_file and --experiment_name from sys.argv ----
-    input_file = None
-    experiment_name = None
-    argv = sys.argv[1:]  # skip script name
-    for i, arg in enumerate(argv):
-        if arg == "--input_file" and i + 1 < len(argv):
-            input_file = argv[i + 1]
-        elif arg == "--experiment_name" and i + 1 < len(argv):
-            experiment_name = argv[i + 1]
-
-    if not input_file:
-        return  # Nothing to bootstrap
-
-    # ---- Read the JSON config written by shared.py ----
-    with open(input_file, "r") as f:
-        input_contents = json.load(f)
-
-    config = input_contents.get("config", input_contents)
-
-    # Extract job_id – shared.py stores it as template_config["job_id"]
-    job_id = config.get("job_id")
-    if job_id:
-        os.environ["_TFL_JOB_ID"] = str(job_id)
-
-    if experiment_name:
-        os.environ["_TFL_EXPERIMENT_ID"] = experiment_name
-    elif "experiment_name" in config:
-        os.environ["_TFL_EXPERIMENT_ID"] = config["experiment_name"]
-
-    _HARNESS_CONFIG = config
-
-
-# Run bootstrap immediately on import so env vars are ready before lab.init()
-_bootstrap_from_harness()
-
-
-def _get_python_executable(plugin_dir):
-    """Return python from plugin venv if available, else sys.executable."""
-    venv_python = os.path.join(plugin_dir, "venv", "bin", "python")
-    if os.path.exists(venv_python):
-        return venv_python
-    return sys.executable
 
 
 def _prepare_dataset_files(
@@ -221,22 +148,21 @@ def _load_datasets(dataset_name, splits=None, config_name=None):
 
 
 def train_mlx_lora():
-    plugin_dir = os.path.dirname(os.path.realpath(__file__))
-    print("Plugin dir:", plugin_dir)
+    print("MLX LoRA Trainer starting…")
 
-    # Initialize lab facade – picks up _TFL_JOB_ID / _TFL_EXPERIMENT_ID from env.
-    # _bootstrap_from_harness() has already set these from CLI args if needed.
+    # Set organization context before lab.init() so that the lab SDK
+    # resolves get_workspace_dir() to the correct org-scoped path.
+    # This is necessary because LocalProvider runs in a separate process
+    # where the org context var is not inherited.
+    org_id = os.environ.get("_TFL_ORG_ID")
+    if org_id:
+        from lab.dirs import set_organization_id
+        set_organization_id(org_id)
+        print(f"Set organization context: {org_id}")
+
     lab.init()
 
-    # If we came through the plugin harness, inject the config from --input_file
-    # into job_data["parameters"] so that lab.get_config() returns it.
-    if _HARNESS_CONFIG is not None:
-        lab.set_config({"parameters": _HARNESS_CONFIG})
-
     try:
-        # Get configuration – comes from job_data["parameters"] which is populated
-        # by either the plugin harness (via _bootstrap_from_harness) or the
-        # LocalProvider launch flow.
         config = lab.get_config()
 
         # Extract configuration parameters
@@ -275,10 +201,15 @@ def train_mlx_lora():
                 f"Epoch-based training: {num_train_epochs} epochs, {steps_per_epoch} steps/epoch, {iters} total iterations"
             )
 
+        # Workspace directory for output paths
+        workspace_dir = _run_async(get_workspace_dir())
+
         # LoRA parameters → config YAML file
         config_file = None
         if lora_rank or lora_alpha:
-            config_file = os.path.join(plugin_dir, "config.yaml")
+            config_dir = os.path.join(workspace_dir, "plugins", "mlx_lora_trainer")
+            _run_async(storage.makedirs(config_dir, exist_ok=True))
+            config_file = os.path.join(config_dir, "config.yaml")
             lora_scale = int(lora_alpha) / int(lora_rank) if lora_alpha and lora_rank else 1
             lora_config = {
                 "lora_parameters": {
@@ -293,7 +224,6 @@ def train_mlx_lora():
             lab.log(f"LoRA config: {lora_config}")
 
         # Directory for formatted dataset files
-        workspace_dir = _run_async(get_workspace_dir())
         data_directory = storage.join(workspace_dir, "plugins", "mlx_lora_trainer", "data")
 
         _prepare_dataset_files(
@@ -313,10 +243,10 @@ def train_mlx_lora():
         if not _run_async(storage.exists(adaptor_output_dir)):
             _run_async(storage.makedirs(adaptor_output_dir))
 
-        # Python executable (from plugin venv if available)
-        python_executable = _get_python_executable(plugin_dir)
+        # Python executable – LocalProvider manages the venv, so sys.executable
+        # is already the correct interpreter.
+        python_executable = sys.executable
         env = os.environ.copy()
-        env["PATH"] = os.path.dirname(python_executable) + os.pathsep + env.get("PATH", "")
 
         # Build the MLX LoRA training command
         popen_command = [
