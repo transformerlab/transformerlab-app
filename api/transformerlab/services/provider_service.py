@@ -168,6 +168,7 @@ def db_record_to_provider_config(
         default_region=config_dict.get("default_region"),
         default_template_id=config_dict.get("default_template_id"),
         default_network_volume_id=config_dict.get("default_network_volume_id"),
+        supported_accelerators=config_dict.get("supported_accelerators"),
         extra_config=config_dict.get("extra_config", {}),
     )
     # Local provider has no extra required config; workspace_dir is set at launch from get_workspace_dir()

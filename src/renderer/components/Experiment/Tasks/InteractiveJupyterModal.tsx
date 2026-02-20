@@ -93,8 +93,7 @@ export default function InteractiveJupyterModal({
             Jupyter Notebook Interactive Session (Job {jobId})
           </Typography>
           <Typography level="body-sm" color="neutral">
-            Access your Jupyter notebook through the tunnel URL below. The
-            tunnel URL provides secure access without requiring a token.
+            Access your Jupyter notebook through the URL below.
           </Typography>
         </Stack>
         <Divider />
@@ -110,12 +109,12 @@ export default function InteractiveJupyterModal({
         >
           <Stack direction="row" spacing={1} alignItems="center">
             <Chip color={isReady ? 'success' : 'warning'} variant="soft">
-              {isReady ? 'Ready' : 'Waiting for tunnel'}
+              {isReady ? 'Ready' : 'Waiting for connection'}
             </Chip>
             {isLoading && <CircularProgress size="sm" />}
             {error && (
               <Typography level="body-xs" color="danger">
-                Failed to load tunnel info
+                Failed to load connection info
               </Typography>
             )}
           </Stack>
@@ -123,9 +122,8 @@ export default function InteractiveJupyterModal({
           <Box>
             <Typography level="title-md">Access Jupyter Notebook</Typography>
             <Typography level="body-sm" sx={{ mt: 0.5 }}>
-              Once the tunnel is ready, click the link below to open your
-              Jupyter notebook in your browser. The tunnel URL provides secure
-              access without requiring a token.
+              Once ready, click the link below to open your
+              Jupyter notebook in your browser.
             </Typography>
 
             <Box
@@ -164,8 +162,8 @@ export default function InteractiveJupyterModal({
                 </>
               ) : (
                 <Typography level="body-sm" sx={{ flex: 1 }}>
-                  Waiting for tunnel to start. The URL will appear here once
-                  ngrok creates the tunnel...
+                  Waiting for service to start. The URL will appear here once
+                  the connection is available...
                 </Typography>
               )}
             </Box>
@@ -178,7 +176,7 @@ export default function InteractiveJupyterModal({
 
             <Typography level="body-xs" sx={{ mt: 1 }}>
               Tip: If the URL never appears, check the job output and provider
-              logs to ensure Jupyter and ngrok started correctly.
+              logs to ensure Jupyter started correctly.
             </Typography>
           </Box>
         </Box>

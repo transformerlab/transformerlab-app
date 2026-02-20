@@ -336,9 +336,12 @@ export default function Interactive() {
 
         if (galleryResponse.ok) {
           const galleryData = await galleryResponse.json();
-          const template = galleryData.data?.find(
-            (t: any) => t.interactive_type === interactiveType,
-          );
+          const template = galleryData.data?.find((t: any) => {
+            if (data.template_id) {
+              return t.id === data.template_id;
+            }
+            return t.interactive_type === interactiveType;
+          });
 
           if (!template) {
             throw new Error(

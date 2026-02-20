@@ -36,6 +36,9 @@ class ComputeProviderConfig(BaseModel):
     default_template_id: Optional[str] = None  # Default Docker template ID
     default_network_volume_id: Optional[str] = None  # Default network volume ID
 
+    # Accelerators supported by this provider
+    supported_accelerators: Optional[list[str]] = Field(default=None)
+
     # Additional provider-specific config
     extra_config: Dict[str, Any] = Field(default_factory=dict)
 

@@ -126,6 +126,63 @@ export default function QueueTaskModal({
     [providerListData],
   );
 
+  // Helper to check if a provider supports requested accelerators
+  const isProviderCompatible = React.useCallback(
+    (provider: any) => {
+      if (!taskResources || !taskResources.accelerators) return true;
+
+      const supported = provider.config?.supported_accelerators || [];
+      if (supported.length === 0) return true; // Default to compatible if not specified
+
+      const reqAcc = String(taskResources.accelerators).toLowerCase();
+
+      // Check for Apple Silicon
+      if (
+        (reqAcc.includes('apple') || reqAcc.includes('mps')) &&
+        supported.includes('AppleSilicon')
+      ) {
+        return true;
+      }
+
+      // Check for NVIDIA
+      if (
+        (reqAcc.includes('nvidia') ||
+          reqAcc.includes('cuda') ||
+          reqAcc.includes('rtx') ||
+          reqAcc.includes('a100') ||
+          reqAcc.includes('h100') ||
+          reqAcc.includes('v100')) &&
+        supported.includes('NVIDIA')
+      ) {
+        return true;
+      }
+
+      // Check for AMD
+      if (
+        (reqAcc.includes('amd') || reqAcc.includes('rocm')) &&
+        supported.includes('AMD')
+      ) {
+        return true;
+      }
+
+      // Check for CPU
+      if (reqAcc.includes('cpu') && supported.includes('cpu')) {
+        return true;
+      }
+
+      // If it's just a number, we assume it's NVIDIA/CUDA unless it's a local provider on Mac
+      if (/^\d+$/.test(reqAcc)) {
+        if (provider.type === 'local' && serverInfoData?.device_type === 'mps') {
+          return supported.includes('AppleSilicon');
+        }
+        return supported.includes('NVIDIA');
+      }
+
+      return false;
+    },
+    [taskResources, serverInfoData],
+  );
+
   React.useEffect(() => {
     if (providerListError) {
       // eslint-disable-next-line no-console
@@ -949,16 +1006,48 @@ export default function QueueTaskModal({
                     listbox: { sx: { maxHeight: 240 } },
                   }}
                 >
-                  {providers.map((provider: any) => (
-                    <Option key={provider.id} value={provider.id}>
-                      {provider.name}
-                    </Option>
-                  ))}
+                  {providers.map((provider: any) => {
+                    const compatible = isProviderCompatible(provider);
+                    return (
+                      <Option key={provider.id} value={provider.id}>
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="center"
+                          sx={{ width: '100%' }}
+                        >
+                          <Typography>{provider.name}</Typography>
+                          {taskResources?.accelerators && compatible && (
+                            <Chip size="sm" color="success" variant="soft">
+                              Compatible
+                            </Chip>
+                          )}
+                        </Stack>
+                      </Option>
+                    );
+                  })}
                 </Select>
                 <FormHelperText>
                   Choose which compute provider should run this task.
                 </FormHelperText>
               </FormControl>
+
+              {/* Incompatibility Warning */}
+              {selectedProvider &&
+                taskResources?.accelerators &&
+                !isProviderCompatible(selectedProvider) && (
+                  <Alert
+                    variant="soft"
+                    color="warning"
+                    startDecorator={<AlertTriangleIcon size={18} />}
+                    sx={{ mt: 1 }}
+                  >
+                    <Typography level="body-sm">
+                      This provider may not support the requested accelerators (
+                      <strong>{taskResources.accelerators}</strong>).
+                    </Typography>
+                  </Alert>
+                )}
 
               {/* Local Provider Resource Validation */}
               {isLocalProvider &&

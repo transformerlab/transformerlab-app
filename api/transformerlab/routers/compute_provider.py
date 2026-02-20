@@ -1505,6 +1505,23 @@ async def launch_template_on_provider(
         replace_secret_placeholders(request.command, team_secrets) if team_secrets else request.command
     )
 
+    # If local=True and it's an interactive session, we bypass the tunnel-starting command
+    # and instead start the service directly on its default port and print the local address.
+    # right now we are bypassing the interactive gallery and hardcoding commands
+    if request.local and request.subtype == "interactive":
+        if request.interactive_type == "vscode":
+            # For VS Code, we use the serve-web command if available, or stick to tunnel but it's less ideal for local
+            # Actually, for VS Code 'local' might just mean we don't need the tunnel.
+            # But the 'code tunnel' command is what's in the gallery.
+            # For now, let's support jupyter and others which are easier.
+            pass
+        elif request.interactive_type == "jupyter":
+            command_with_secrets = "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password='' --notebook-dir=~; echo 'Local URL: http://localhost:8888'"
+        elif request.interactive_type == "vllm":
+            command_with_secrets = "~/vllm-venv/bin/python -u -m vllm.entrypoints.openai.api_server --model $MODEL_NAME --tensor-parallel-size $TP_SIZE --host 0.0.0.0 --port 8000 --gpu-memory-utilization 0.9 > /tmp/vllm.log 2>&1 & sleep 10 && OPENAI_API_BASE_URL=http://127.0.0.1:8000/v1 OPENAI_API_KEY=dummy ~/vllm-venv/bin/open-webui serve --host 0.0.0.0 --port 8080 > /tmp/openwebui.log 2>&1 & echo 'Local vLLM API: http://localhost:8000'; echo 'Local Open WebUI: http://localhost:8080'; tail -f /tmp/vllm.log /tmp/openwebui.log"
+        elif request.interactive_type == "ollama":
+            command_with_secrets = "export OLLAMA_HOST=0.0.0.0:11434 && ollama serve > /tmp/ollama.log 2>&1 & sleep 3 && ollama pull $MODEL_NAME > /tmp/ollama-pull.log 2>&1 & sleep 5 && OLLAMA_BASE_URL=http://127.0.0.1:11434 ~/ollama-venv/bin/open-webui serve --host 0.0.0.0 --port 8080 > /tmp/openwebui.log 2>&1 & echo 'Local Ollama API: http://localhost:11434'; echo 'Local Open WebUI: http://localhost:8080'; tail -f /tmp/ollama.log /tmp/ollama-pull.log /tmp/openwebui.log"
+
     # Replace secrets in parameters if present
     # Merge parameters (defaults) with config (user's custom values for this run)
     merged_parameters = {}
@@ -1535,6 +1552,7 @@ async def launch_template_on_provider(
         "cluster_name": formatted_cluster_name,
         "subtype": request.subtype,
         "interactive_type": request.interactive_type,
+        "local": request.local,
         "cpus": request.cpus,
         "memory": request.memory,
         "disk_space": request.disk_space,

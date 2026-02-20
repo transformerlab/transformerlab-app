@@ -23,7 +23,7 @@ type NewTeamTaskModalProps = {
     command: string;
     cpus?: string;
     memory?: string;
-    accelerators?: string;
+    supported_accelerators?: string;
     github_repo_url?: string;
     github_repo_dir?: string;
     github_repo_branch?: string;
@@ -44,7 +44,7 @@ export default function NewTeamTaskModal({
   const [command, setCommand] = React.useState('');
   const [cpus, setCpus] = React.useState('');
   const [memory, setMemory] = React.useState('');
-  const [accelerators, setAccelerators] = React.useState('');
+  const [supportedAccelerators, setSupportedAccelerators] = React.useState('');
   const [setup, setSetup] = React.useState('');
   const [githubRepoUrl, setGithubRepoUrl] = React.useState('');
   const [githubRepoDir, setGithubRepoDir] = React.useState('');
@@ -78,7 +78,7 @@ export default function NewTeamTaskModal({
       command: commandValue.trim(),
       cpus: cpus.trim() || undefined,
       memory: memory.trim() || undefined,
-      accelerators: accelerators.trim() || undefined,
+      supported_accelerators: supportedAccelerators.trim() || undefined,
       github_repo_url: githubRepoUrl.trim() || undefined,
       github_repo_dir: githubRepoDir.trim() || undefined,
       github_repo_branch: githubRepoBranch.trim() || undefined,
@@ -90,7 +90,7 @@ export default function NewTeamTaskModal({
     setCommand('');
     setCpus('');
     setMemory('');
-    setAccelerators('');
+    setSupportedAccelerators('');
     setSetup('');
     setGithubRepoUrl('');
     setGithubRepoDir('');
@@ -177,10 +177,10 @@ export default function NewTeamTaskModal({
               <FormControl
                 sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
               >
-                <FormLabel>Accelerators</FormLabel>
+                <FormLabel>Supported Accelerators</FormLabel>
                 <Input
-                  value={accelerators}
-                  onChange={(e) => setAccelerators(e.target.value)}
+                  value={supportedAccelerators}
+                  onChange={(e) => setSupportedAccelerators(e.target.value)}
                   placeholder="e.g. RTX3090:1 or H100:8"
                 />
               </FormControl>

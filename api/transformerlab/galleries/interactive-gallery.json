@@ -7,7 +7,8 @@
     "setup": "SUDO=\"\"; if [ \"$(id -u)\" -ne 0 ]; then SUDO=\"sudo\"; fi; export DEBIAN_FRONTEND=noninteractive; $SUDO apt-get update && $SUDO apt-get install -y gnupg software-properties-common apt-transport-https wget && wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg && $SUDO install -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/ && echo \"deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main\" | $SUDO tee /etc/apt/sources.list.d/vscode.list && $SUDO apt-get update && $SUDO apt-get install -y code;",
     "command": "code tunnel --accept-server-license-terms --disable-telemetry",
     "env_parameters": [],
-    "icon": "https://lab.cloud/img/icons/vscode.png"
+    "icon": "https://lab.cloud/img/icons/vscode.png",
+    "supported_accelerators": "cpu"
   },
   {
     "id": "jupyter",
@@ -27,7 +28,8 @@
         "password": true
       }
     ],
-    "icon": "https://lab.cloud/img/icons/jupyter.png"
+    "icon": "https://lab.cloud/img/icons/jupyter.png",
+    "supported_accelerators": "cpu"
   },
   {
     "id": "vllm",
@@ -72,7 +74,8 @@
         "password": true
       }
     ],
-    "icon": "https://lab.cloud/img/icons/vllm.png"
+    "icon": "https://lab.cloud/img/icons/vllm.png",
+    "supported_accelerators": "NVIDIA"
   },
   {
     "id": "ollama",
@@ -100,7 +103,28 @@
         "password": true
       }
     ],
-    "icon": "https://lab.cloud/img/icons/ollama.png"
+    "icon": "https://lab.cloud/img/icons/ollama.png",
+    "supported_accelerators": "NVIDIA"
+  },
+  {
+    "id": "ollama-macos",
+    "interactive_type": "ollama",
+    "name": "Ollama Server (macOS)",
+    "description": "Ollama model server for macOS (no tunnel)",
+    "setup": "if ! command -v uv >/dev/null 2>&1; then curl -LsSf https://astral.sh/uv/install.sh | sh; fi; export PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\"; uv venv ~/ollama-venv --seed --python 3.11 && . ~/ollama-venv/bin/activate && uv pip install open-webui;",
+    "command": "export OLLAMA_HOST=0.0.0.0:11434 && ollama serve > /tmp/ollama.log 2>&1 & sleep 3 && ollama pull $MODEL_NAME > /tmp/ollama-pull.log 2>&1 & sleep 5 && OLLAMA_BASE_URL=http://127.0.0.1:11434 ~/ollama-venv/bin/open-webui serve --host 0.0.0.0 --port 8080 > /tmp/openwebui.log 2>&1 & sleep 5 && echo 'Local Ollama API: http://localhost:11434'; echo 'Local Open WebUI: http://localhost:8080'; tail -f /tmp/ollama.log /tmp/ollama-pull.log /tmp/openwebui.log",
+    "env_parameters": [
+      {
+        "field_name": "Model Name",
+        "env_var": "MODEL_NAME",
+        "field_type": "str",
+        "required": true,
+        "placeholder": "e.g. llama2, mistral, codellama",
+        "help_text": "Ollama model name (e.g. llama2, mistral, codellama). Use \"ollama pull <model>\" to download models."
+      }
+    ],
+    "icon": "https://lab.cloud/img/icons/ollama.png",
+    "supported_accelerators": "AppleSilicon"
   },
   {
     "id": "ssh",
@@ -120,6 +144,7 @@
         "password": true
       }
     ],
-    "icon": "https://lab.cloud/img/icons/ssh.png"
+    "icon": "https://lab.cloud/img/icons/ssh.png",
+    "supported_accelerators": "cpu"
   }
 ]
