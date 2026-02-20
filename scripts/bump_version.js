@@ -30,7 +30,8 @@ function bumpVersion(filePath, newVersion) {
   if (filePath.endsWith('package-lock.json') && json.packages?.['']) {
     json.packages[''].version = newVersion;
   }
-  fs.writeFileSync(filePath, JSON.stringify(json, null, 2));
+  // Need to add \n to the end so this exactly matches npm install output.
+  fs.writeFileSync(filePath, `${JSON.stringify(json, null, 2)}\n`);
 }
 
 // Get argument which can be either 'major', 'minor', or 'patch'
