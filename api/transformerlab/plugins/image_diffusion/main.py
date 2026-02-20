@@ -67,124 +67,7 @@ scheduler_map = {
     "DPMSolverMultistepScheduler": DPMSolverMultistepScheduler,
 }
 
-# Single-file diffusion support
-SINGLE_FILE_EXTENSIONS = (".ckpt", ".safetensors")
-
-
-def _looks_like_path(value: str) -> bool:
-    return "/" in value or "\\" in value
-
-
-def _is_single_file_path(value: str) -> bool:
-    if not value:
-        return False
-    lower = value.lower()
-    if lower.startswith(("http://", "https://")):
-        return any(lower.endswith(ext) for ext in SINGLE_FILE_EXTENSIONS)
-    if not any(lower.endswith(ext) for ext in SINGLE_FILE_EXTENSIONS):
-        return False
-    if _looks_like_path(value):
-        return True
-    try:
-        if os.path.isfile(value):
-            return True
-    except Exception:
-        pass
-    try:
-        return run_async_from_sync(storage.isfile(value))
-    except Exception:
-        return False
-
-
-def _extract_architecture(json_data: dict) -> str | None:
-    if not isinstance(json_data, dict):
-        return None
-    arch = json_data.get("architecture")
-    if not arch:
-        model_index = json_data.get("model_index", {}) if isinstance(json_data.get("model_index", {}), dict) else {}
-        arch = model_index.get("_class_name")
-    if isinstance(arch, list):
-        arch = arch[0] if arch else None
-    if isinstance(arch, str):
-        if arch.strip() and arch.strip().lower() != "unknown":
-            return arch
-    return None
-
-
-def _infer_single_file_architecture(model_path: str) -> str:
-    name = os.path.basename(model_path or "").lower()
-    if "sdxl" in name or "stable-diffusion-xl" in name or "sd_xl" in name:
-        return "StableDiffusionXLPipeline"
-    if "sd3" in name or "stable-diffusion-3" in name or "stable-diffusion3" in name:
-        return "StableDiffusion3Pipeline"
-    if "lcm" in name or "latent-consistency" in name:
-        return "LatentConsistencyModelPipeline"
-    return "StableDiffusionPipeline"
-
-
-def _find_original_config_file(model_path: str) -> str | None:
-    if not model_path or model_path.startswith(("http://", "https://")):
-        return None
-    if not os.path.isfile(model_path):
-        return None
-    directory = os.path.dirname(model_path)
-    if not directory or not os.path.isdir(directory):
-        return None
-    try:
-        for entry in os.listdir(directory):
-            lower = entry.lower()
-            if lower.endswith((".yaml", ".yml")):
-                return os.path.join(directory, entry)
-    except Exception:
-        return None
-    return None
-
-
-def _resolve_model_reference(model_id: str) -> tuple[str, str | None, bool]:
-    """
-    Resolve model_id to a local path when possible, and return (resolved_model, architecture, is_single_file).
-    """
-    if _is_single_file_path(model_id) or os.path.isdir(model_id):
-        return (
-            model_id,
-            _infer_single_file_architecture(model_id) if _is_single_file_path(model_id) else None,
-            _is_single_file_path(model_id),
-        )
-
-    try:
-        from lab.model import Model as ModelService
-
-        model_service = run_async_from_sync(ModelService.get(model_id))
-        model_data = run_async_from_sync(model_service.get_metadata())
-        json_data = model_data.get("json_data", {}) if model_data else {}
-
-        architecture = _extract_architecture(json_data)
-        source = json_data.get("source", "")
-        source_path = json_data.get("source_id_or_path", "")
-        model_filename = json_data.get("model_filename", "")
-
-        resolved_model = model_id
-        if source == "local" and source_path:
-            resolved_model = source_path
-        elif model_filename and _looks_like_path(model_filename):
-            resolved_model = model_filename
-        else:
-            try:
-                model_dir = run_async_from_sync(model_service.get_dir())
-                if model_dir and run_async_from_sync(storage.exists(model_dir)):
-                    resolved_model = model_dir
-            except Exception:
-                pass
-
-        is_single_file = _is_single_file_path(resolved_model)
-        if is_single_file and not architecture:
-            architecture = _infer_single_file_architecture(resolved_model)
-
-        return resolved_model, architecture, is_single_file
-    except Exception:
-        is_single_file = _is_single_file_path(model_id)
-        return model_id, _infer_single_file_architecture(model_id) if is_single_file else None, is_single_file
-
+DIFFUSION_PIPELINE_MODELS = ["WanPipeline", "ZImagePipeline"]
 
 # Fixed upscaling models
 UPSCALE_MODEL_STANDARD = "stabilityai/stable-diffusion-x4-upscaler"
@@ -434,8 +317,12 @@ def cleanup_pipeline(pipe=None):
         print(f"Warning: Failed to cleanup pipeline: {str(e)}")
 
 
-def is_zimage_model(model: str) -> bool:
-    """Return True if the model architecture is ZImagePipeline."""
+def is_diffusion_pipeline_model(model: str) -> bool:
+    """
+    Check if the model is a diffusion pipeline model like WanPipeline or ZImagePipeline.
+    """
+    if not model:
+        return False
     try:
         info = model_info(model)
         config = getattr(info, "config", {})
@@ -443,13 +330,12 @@ def is_zimage_model(model: str) -> bool:
         architectures = diffusers_config.get("_class_name", "")
         if isinstance(architectures, str):
             architectures = [architectures]
-        if any(arch == "ZImagePipeline" for arch in architectures):
-            return True
-    except Exception as e:
-        print(f"Error checking model {model} for Z-Image: {e}")
-    # Fallback: infer from model name when config lacks architecture (e.g., Tongyi Z-Image Turbo)
-    name = (model or "").lower()
-    return "z-image" in name or "zimage" in name
+        for arch in architectures:
+            if arch in DIFFUSION_PIPELINE_MODELS:
+                return True
+    except Exception:
+        return False
+    return False
 
 
 def get_pipeline(
@@ -462,15 +348,46 @@ def get_pipeline(
     scheduler="default",
     controlnet_id="off",
 ):
-    # cache_key = get_pipeline_key(model, adaptor, is_img2img, is_inpainting)
+    # Validate model param early to avoid cryptic diffusers errors
+    if not model:
+        raise HTTPException(status_code=400, detail="No model specified for pipeline loading")
 
     with _PIPELINES_LOCK:
-        resolved_model, architecture, is_single_file = _resolve_model_reference(model)
-        if isinstance(architecture, list):
-            architecture = architecture[0] if architecture else None
+        # Attempt to detect HF architecture; fall back safely on failure
+        architecture = ""
+        try:
+            info = model_info(model)
+            config = getattr(info, "config", {}) or {}
+            diffusers_config = config.get("diffusers", {}) or {}
+            arch_val = diffusers_config.get("_class_name", "")
+            if isinstance(arch_val, list):
+                # prefer first meaningful entry
+                architecture = arch_val[0] if arch_val else ""
+            else:
+                architecture = arch_val or ""
+        except Exception:
+            architecture = ""
 
-        # Detect Z-Image architecture (non-controlnet path)
-        is_zimage = is_zimage_model(model)
+        # If model is a video/diffusion pipeline like WanPipeline or ZImagePipeline, load DiffusionPipeline
+        if architecture in DIFFUSION_PIPELINE_MODELS:
+            try:
+                # Use bfloat16 for Z-Image models, float16 otherwise
+                dtype = torch.bfloat16 if "ZImage" in architecture else torch.float16
+                if device == "cpu":
+                    dtype = torch.float32
+                pipe = DiffusionPipeline.from_pretrained(
+                    model,
+                    torch_dtype=dtype,
+                    safety_checker=None,
+                    requires_safety_checker=False,
+                    trust_remote_code=True,
+                )
+                print(f"Loaded diffusion (video) pipeline for model: {model} (arch={architecture})")
+                pipe = pipe.to(device)
+                return pipe
+            except Exception as e:
+                print(f"Failed to load DiffusionPipeline for {model}: {e}")
+                # fallthrough to other loaders / error reporting below
 
         # Load appropriate pipeline based on type
         if is_controlnet:
@@ -594,13 +511,6 @@ def get_pipeline(
                     requires_safety_checker=False,
                 )
             print(f"Loaded image-to-image pipeline for model: {model}")
-        elif is_zimage:
-            pipe = DiffusionPipeline.from_pretrained(
-                resolved_model,
-                torch_dtype=torch.bfloat16 if device != "cpu" else torch.float32,
-                low_cpu_mem_usage=False,
-            )
-            print(f"Loaded Z-Image pipeline for model: {model} with dtype {pipe.dtype}")
         else:
             if is_single_file:
                 pipeline_class = {
@@ -862,6 +772,174 @@ def should_use_diffusion_worker(model) -> bool:
         return False
     except Exception:
         return False
+
+
+async def run_video_diffusion_generation_for_images(
+    request: DiffusionRequest,
+    generation_id: str,
+    images_folder: str,
+    experiment_name: str | None = None,
+    max_frames: int | None = None,
+) -> dict:
+    """Generate frames using video-style pipelines (e.g. WanPipeline).
+
+    Saves frames as 0000.png, 0001.png, ... in images_folder and returns
+    the same dict structure as run_multi_gpu_generation.
+    """
+    ensure_directories(experiment_name)
+    storage.makedirs(images_folder, exist_ok=True)
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if device == "cpu":
+        device = "mps" if torch.backends.mps.is_available() else "cpu"
+
+    cleanup_pipeline()
+    pipe = None
+    try:
+        if is_diffusion_pipeline_model(request.model):
+            try:
+                pipe = DiffusionPipeline.from_pretrained(
+                    request.model,
+                    torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                    safety_checker=None,
+                    requires_safety_checker=False,
+                    trust_remote_code=True,
+                )
+            except Exception:
+                pipe = None
+
+        if pipe is None:
+            pipe = get_pipeline(
+                model=request.model,
+                adaptor=request.adaptor,
+                device=device,
+                is_img2img=False,
+                is_inpainting=False,
+                is_controlnet=False,
+                scheduler=request.scheduler,
+            )
+        else:
+            pipe = pipe.to(device)
+    except Exception as e:
+        raise RuntimeError(f"Failed to load pipeline for model {request.model}: {str(e)}")
+
+    num_frames = int(getattr(pipe, "num_frames", 1) or 1)
+    if max_frames:
+        num_frames = min(num_frames, int(max_frames))
+    num_frames = max(1, min(num_frames, 120))
+
+    if request.seed is None or request.seed < 0:
+        seed = random.randint(0, 2**32 - 1)
+    else:
+        seed = request.seed
+
+    generator = torch.manual_seed(seed)
+
+    image_paths: list[str] = []
+    start_time = time.time()
+
+    try:
+        gen_kwargs = {
+            "prompt": request.prompt,
+            "negative_prompt": request.negative_prompt,
+            "height": request.height if request.height > 0 else None,
+            "width": request.width if request.width > 0 else None,
+            "num_frames": num_frames,
+            "num_inference_steps": request.num_inference_steps,
+            "guidance_scale": request.guidance_scale,
+            "generator": generator,
+            "num_videos_per_prompt": request.num_images,
+            "output_type": "pil",
+        }
+
+        if request.guidance_rescale and request.guidance_rescale > 0.0:
+            gen_kwargs["guidance_rescale"] = request.guidance_rescale
+
+        if request.clip_skip and request.clip_skip > 0:
+            gen_kwargs["clip_skip"] = request.clip_skip
+
+        result = pipe(**{k: v for k, v in gen_kwargs.items() if v is not None})
+        frames = None
+
+        if hasattr(result, "frames"):
+            frames = result.frames
+        elif isinstance(result, (list, tuple)) and len(result) > 0:
+            frames = getattr(result[0], "frames", result[0])
+        else:
+            frames = getattr(result, "frames", None)
+
+        if frames is None:
+            raise RuntimeError("Pipeline did not return frames for video generation")
+
+        for i, frm in enumerate(frames):
+            if isinstance(frm, (list, tuple)):
+                sub_frames = list(frm)
+            else:
+                sub_frames = [frm]
+
+            for sub_idx, sub in enumerate(sub_frames):
+                if isinstance(sub, np.ndarray):
+                    img = Image.fromarray(sub)
+                elif hasattr(sub, "save") and callable(getattr(sub, "save")):
+                    img = sub
+                else:
+                    raise RuntimeError(f"Unsupported frame type: {type(sub)}")
+
+                # Use a flat sequential index for filenames (keeps order)
+                flat_index = len(image_paths)
+                frame_path = os.path.join(images_folder, f"{flat_index:04d}.png")
+                img.save(frame_path, format="PNG")
+                image_paths.append(frame_path)
+
+    except Exception as e:
+        try:
+            cleanup_pipeline(pipe)
+        except Exception:
+            pass
+        raise RuntimeError(f"Video generation failed: {str(e)}")
+
+    generation_time = time.time() - start_time
+
+    try:
+        output_data = {
+            "id": generation_id,
+            "prompt": request.prompt,
+            "adaptor": request.adaptor,
+            "adaptor_scale": request.adaptor_scale,
+            "image_folder": images_folder,
+            "num_images": len(image_paths),
+            "timestamp": datetime.now().isoformat(),
+            "generation_time": generation_time,
+            "error_code": 0,
+        }
+        # Also provide list of basenames so frontend can build stable URLs
+        image_files = [os.path.basename(p) for p in image_paths]
+        output_data["image_files"] = image_files
+        # Write tmp_json.json so frontend polling can pick up result immediately
+        tmp_json_path = os.path.join(images_folder, "tmp_json.json")
+        with storage.open(tmp_json_path, "w") as f:
+            json.dump(output_data, f, indent=2)
+        print(f"Video generation tmp_json written: {tmp_json_path} (files: {len(image_files)})")
+    except Exception as e:
+        # non-fatal: log and continue
+        print(f"Warning: Failed to write tmp_json for video generation: {e}")
+
+    try:
+        cleanup_pipeline(pipe)
+    except Exception:
+        pass
+
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    return {
+        "images": image_paths,
+        "generation_time": generation_time,
+        "seed": seed,
+        "image_files": [os.path.basename(p) for p in image_paths],
+        "num_images": len(image_paths),
+    }
 
 
 async def run_multi_gpu_generation(
@@ -1186,25 +1264,17 @@ async def diffusion_generate_job():
 
         tlab_diffusion.progress_update(10)
 
-        # Check if we should use multi-GPU approach
-        if should_use_diffusion_worker(request.model):
-            print(f"Using Diffusion Worker subprocess approach for model: {request.model}")
-            use_single_gpu = False
-
-            tlab_diffusion.progress_update(30)
-
+        video_used = False
+        if is_diffusion_pipeline_model(request.model):
+            print(f"Detected video-style pipeline for model {request.model}, invoking video generator")
             try:
-                result = await run_multi_gpu_generation(
+                result = await run_video_diffusion_generation_for_images(
                     request,
                     generation_id,
                     images_folder,
-                    input_image_path,
-                    mask_image_path,
-                    is_img2img,
-                    is_inpainting,
                     experiment_name,
+                    max_frames=request.num_images,
                 )
-
                 images = []
                 for img_path in result["images"]:
                     images.append(Image.open(img_path))
@@ -1212,24 +1282,67 @@ async def diffusion_generate_job():
                 total_generation_time = result["generation_time"]
                 seed = result["seed"]
 
-                # Get dimensions from the first image
-                first_image = images[0]
-                actual_height = request.height if request.height > 0 else first_image.height
-                actual_width = request.width if request.width > 0 else first_image.width
-
                 tlab_diffusion.progress_update(70)
-
+                video_used = True
+                use_single_gpu = False
             except Exception as e:
-                print(f"Multi-GPU generation failed, falling back to single GPU: {str(e)}")
-                # Fall back to single GPU approach
+                print(f"Video generation failed for video-style model {request.model}: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Video generation failed for model '{request.model}': {str(e)}. This model appears to be a video-style (e.g. WanPipeline) and is not compatible with the standard image pipeline.",
+                )
+
+        # Check if we should use multi-GPU approach (skip if video already ran)
+        if not video_used:
+            if should_use_diffusion_worker(request.model):
+                print(f"Using Diffusion Worker subprocess approach for model: {request.model}")
+                use_single_gpu = False
+
+                tlab_diffusion.progress_update(30)
+
+                try:
+                    result = await run_multi_gpu_generation(
+                        request,
+                        generation_id,
+                        images_folder,
+                        input_image_path,
+                        mask_image_path,
+                        is_img2img,
+                        is_inpainting,
+                        experiment_name,
+                    )
+
+                    images = []
+                    for img_path in result["images"]:
+                        images.append(Image.open(img_path))
+
+                    total_generation_time = result["generation_time"]
+                    seed = result["seed"]
+
+                    # Get dimensions from the first image
+                    first_image = images[0]
+                    actual_height = request.height if request.height > 0 else first_image.height
+                    actual_width = request.width if request.width > 0 else first_image.width
+
+                    tlab_diffusion.progress_update(70)
+
+                except Exception as e:
+                    print(f"Multi-GPU generation failed, falling back to single GPU: {str(e)}")
+                    # Fall back to single GPU approach
+                    use_single_gpu = True
+
+                    cleanup_pipeline()
+
+            else:
                 use_single_gpu = True
 
-                cleanup_pipeline()
-
-        else:
-            use_single_gpu = True
-
         if use_single_gpu:
+            # Prevent attempting to load an image AutoPipeline for video-only models
+            if is_diffusion_pipeline_model(request.model):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Model '{request.model}' looks like a video-style pipeline (e.g. WanPipeline). Use the video generation path or a compatible image model.",
+                )
             device = "cuda" if torch.cuda.is_available() else "cpu"
             if device == "cpu":
                 device = "mps" if torch.backends.mps.is_available() else "cpu"
@@ -1498,17 +1611,23 @@ async def diffusion_generate_job():
         )
         save_to_history(history_item, experiment_name)
 
-        # Save output metadata to tmp_json.json
+        try:
+            image_files = [f for f in os.listdir(images_folder) if f.lower().endswith((".png", ".jpg", ".jpeg"))]
+            image_files.sort()
+        except Exception:
+            image_files = []
+
         output_data = {
             "id": generation_id,
             "prompt": request.prompt,
             "adaptor": request.adaptor,
             "adaptor_scale": request.adaptor_scale,
             "image_folder": images_folder,
-            "num_images": len(images),
+            "num_images": len(image_files) or len(images),
             "timestamp": timestamp,
             "generation_time": total_generation_time,
             "error_code": 0,
+            "image_files": image_files,
         }
 
         output_path = os.path.join(images_folder, "tmp_json.json")

@@ -732,7 +732,7 @@ async def check_provider(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Call the check method
-        is_active = provider_instance.check()
+        is_active = await asyncio.to_thread(provider_instance.check)
 
         return {"status": is_active}
     except Exception as e:
@@ -780,21 +780,32 @@ def _get_aws_credentials_from_file(profile_name: str = "transformerlab-s3") -> T
 COPY_FILE_MOUNTS_SETUP = 'pip install -q transformerlab && python -c "from lab import lab; lab.copy_file_mounts()"'
 
 
+# RunPod (and similar) use /workspace as a writable persistent path; ~/.aws may be wrong user or not visible over SSH
+RUNPOD_AWS_CREDENTIALS_DIR = "/workspace/.aws"
+
+
 def _generate_aws_credentials_setup(
-    aws_access_key_id: str, aws_secret_access_key: str, aws_profile: Optional[str] = None
+    aws_access_key_id: str,
+    aws_secret_access_key: str,
+    aws_profile: Optional[str] = None,
+    aws_credentials_dir: Optional[str] = None,
 ) -> str:
     """
-    Generate bash script to set up AWS credentials in ~/.aws/credentials.
+    Generate bash script to set up AWS credentials.
 
     Args:
         aws_access_key_id: AWS access key ID
         aws_secret_access_key: AWS secret access key
         aws_profile: AWS profile name (defaults to 'transformerlab-s3' if not provided)
+        aws_credentials_dir: If set (e.g. /workspace/.aws), write credentials here instead of ~/.aws.
+            Caller should set AWS_SHARED_CREDENTIALS_FILE to <dir>/credentials so processes use this file.
 
     Returns:
         Bash script to configure AWS credentials
     """
     profile_name = aws_profile or os.getenv("AWS_PROFILE", "transformerlab-s3")
+    cred_dir = aws_credentials_dir if aws_credentials_dir else "~/.aws"
+    cred_file = f"{cred_dir}/credentials" if aws_credentials_dir else "~/.aws/credentials"
 
     # Escape for bash: single quotes and special characters
     def escape_bash(s: str) -> str:
@@ -807,16 +818,16 @@ def _generate_aws_credentials_setup(
     # Simple approach: create dir, remove old profile section directly, append new profile
     setup_script = (
         f"echo 'Setting up AWS credentials for profile: {profile_name}'; "
-        f"mkdir -p ~/.aws; "
-        f"chmod 700 ~/.aws; "
-        f"if [ -f ~/.aws/credentials ]; then "
-        f"  awk 'BEGIN{{in_profile=0}} /^\\[{escaped_profile}\\]/{{in_profile=1; next}} /^\\[/{{in_profile=0}} !in_profile{{print}}' ~/.aws/credentials > ~/.aws/credentials.new && mv ~/.aws/credentials.new ~/.aws/credentials || true; "
+        f"mkdir -p {cred_dir}; "
+        f"chmod 700 {cred_dir}; "
+        f"if [ -f {cred_file} ]; then "
+        f"  awk 'BEGIN{{in_profile=0}} /^\\[{escaped_profile}\\]/{{in_profile=1; next}} /^\\[/{{in_profile=0}} !in_profile{{print}}' {cred_file} > {cred_file}.new && mv {cred_file}.new {cred_file} || true; "
         f"fi; "
-        f"echo '[{profile_name}]' >> ~/.aws/credentials; "
-        f"echo 'aws_access_key_id={escaped_access_key}' >> ~/.aws/credentials; "
-        f"echo 'aws_secret_access_key={escaped_secret_key}' >> ~/.aws/credentials; "
-        f"chmod 600 ~/.aws/credentials; "
-        f"echo 'AWS credentials configured successfully'"
+        f"echo '[{profile_name}]' >> {cred_file}; "
+        f"echo 'aws_access_key_id={escaped_access_key}' >> {cred_file}; "
+        f"echo 'aws_secret_access_key={escaped_secret_key}' >> {cred_file}; "
+        f"chmod 600 {cred_file}; "
+        f"echo 'AWS credentials configured successfully at {cred_file}';"
     )
     return setup_script
 
@@ -1053,21 +1064,29 @@ async def _launch_sweep_jobs(
                 setup_commands = []
 
                 # Cloud credentials setup:
-                # - For AWS (REMOTE_WORKSPACE_HOST=aws), inject ~/.aws/credentials profile if available.
-                # - For GCP (REMOTE_WORKSPACE_HOST=gcp), optionally inject a service account JSON if provided.
-                from lab.storage import REMOTE_WORKSPACE_HOST
-
+                # - For AWS (TFL_STORAGE_PROVIDER=aws), inject ~/.aws/credentials profile if available.
+                # - For GCP (TFL_STORAGE_PROVIDER=gcp), optionally inject a service account JSON if provided.
                 if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
-                    if REMOTE_WORKSPACE_HOST != "gcp":
+                    if STORAGE_PROVIDER == "aws":
                         aws_profile = "transformerlab-s3"
-                        aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
+                        aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(
+                            _get_aws_credentials_from_file, aws_profile
+                        )
                         if aws_access_key_id and aws_secret_access_key:
+                            aws_credentials_dir = (
+                                RUNPOD_AWS_CREDENTIALS_DIR if provider.type == ProviderType.RUNPOD.value else None
+                            )
                             aws_setup = _generate_aws_credentials_setup(
-                                aws_access_key_id, aws_secret_access_key, aws_profile
+                                aws_access_key_id,
+                                aws_secret_access_key,
+                                aws_profile,
+                                aws_credentials_dir=aws_credentials_dir,
                             )
                             setup_commands.append(aws_setup)
                             env_vars["AWS_PROFILE"] = aws_profile
-                    elif REMOTE_WORKSPACE_HOST == "gcp":
+                            if aws_credentials_dir:
+                                env_vars["AWS_SHARED_CREDENTIALS_FILE"] = f"{aws_credentials_dir}/credentials"
+                    elif STORAGE_PROVIDER == "gcp":
                         # If a GCP service account JSON is provided via env, write it on the remote host
                         # and set GOOGLE_APPLICATION_CREDENTIALS so ADC can find it.
                         gcp_sa_json = os.getenv("TFL_GCP_SERVICE_ACCOUNT_JSON")
@@ -1172,7 +1191,9 @@ async def _launch_sweep_jobs(
 
                 # Launch cluster for child job
                 try:
-                    launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
+                    launch_result = await asyncio.to_thread(
+                        provider_instance.launch_cluster, formatted_cluster_name, cluster_config
+                    )
 
                     if isinstance(launch_result, dict):
                         await job_service.job_update_job_data_insert_key_value(
@@ -1364,17 +1385,26 @@ async def launch_template_on_provider(
     # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
     aws_profile = "transformerlab-s3"
     if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
-        aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
+        aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(_get_aws_credentials_from_file, aws_profile)
     else:
         aws_access_key_id, aws_secret_access_key = None, None
 
     # Build setup script - add copy_file_mounts after AWS credentials when file_mounts is True (task dir -> ~/src)
     setup_commands = []
     if aws_access_key_id and aws_secret_access_key:
-        aws_setup = _generate_aws_credentials_setup(aws_access_key_id, aws_secret_access_key, aws_profile)
+        aws_credentials_dir = RUNPOD_AWS_CREDENTIALS_DIR if provider.type == ProviderType.RUNPOD.value else None
+        aws_setup = _generate_aws_credentials_setup(
+            aws_access_key_id, aws_secret_access_key, aws_profile, aws_credentials_dir=aws_credentials_dir
+        )
         setup_commands.append(aws_setup)
+        if aws_credentials_dir:
+            env_vars["AWS_SHARED_CREDENTIALS_FILE"] = f"{aws_credentials_dir}/credentials"
     if request.file_mounts is True and request.task_id:
         setup_commands.append(COPY_FILE_MOUNTS_SETUP)
+    # Ensure transformerlab SDK is available on remote machines for live_status tracking and other helpers.
+    # This runs after AWS credentials are configured so we have access to any remote storage if needed.
+    if provider.type != ProviderType.LOCAL.value:
+        setup_commands.append("pip install -q transformerlab")
 
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
@@ -1388,8 +1418,10 @@ async def launch_template_on_provider(
         )
         setup_commands.append(github_setup)
 
-    # Add SSH public key setup for SSH interactive tasks
-    if request.subtype == "interactive" and request.interactive_type == "ssh":
+    # Add SSH public key setup for SSH interactive tasks and for RunPod (so we can read provider logs via SSH)
+    if (
+        request.subtype == "interactive" and request.interactive_type == "ssh"
+    ) or provider.type == ProviderType.RUNPOD.value:
         from transformerlab.services.ssh_key_service import get_or_create_org_ssh_key_pair, get_org_ssh_public_key
 
         try:
@@ -1403,8 +1435,26 @@ async def launch_template_on_provider(
             public_key_clean = public_key.strip().replace("\n", "").replace("\r", "")
             # Escape single quotes in public key for use within single-quoted string
             public_key_escaped = public_key_clean.replace("'", "'\"'\"'")
-            # Create SSH setup as a single line command (no trailing semicolon - will be added by join)
-            ssh_setup = f"mkdir -p ~/.ssh && chmod 700 ~/.ssh; if [ ! -f ~/.ssh/authorized_keys ]; then touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys; fi; if ! grep -qF '{public_key_escaped}' ~/.ssh/authorized_keys; then echo '{public_key_escaped}' >> ~/.ssh/authorized_keys; fi"
+
+            if provider.type == ProviderType.RUNPOD.value:
+                # For RunPod: use RunPod's recommended SSH setup from their docs
+                # Set SSH_PUBLIC_KEY environment variable (RunPod's override env var for SSH keys)
+                # Reference: https://docs.runpod.io/pods/configuration/use-ssh
+                env_vars["SSH_PUBLIC_KEY"] = public_key_clean
+                ssh_setup = (
+                    "apt-get update -qq && "
+                    "DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openssh-server >/dev/null 2>&1 && "
+                    "mkdir -p ~/.ssh && "
+                    "cd ~/.ssh && "
+                    "chmod 700 ~/.ssh && "
+                    'echo "$SSH_PUBLIC_KEY" >> authorized_keys && '
+                    "chmod 600 authorized_keys && "
+                    "service ssh start"
+                )
+            else:
+                # For other providers (interactive SSH tasks): standard setup
+                ssh_setup = f"mkdir -p ~/.ssh && chmod 700 ~/.ssh; if [ ! -f ~/.ssh/authorized_keys ]; then touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys; fi; if ! grep -qF '{public_key_escaped}' ~/.ssh/authorized_keys; then echo '{public_key_escaped}' >> ~/.ssh/authorized_keys; fi"
+
             setup_commands.append(ssh_setup)
         except Exception as e:
             # Log error but don't fail the launch - SSH key setup is optional
@@ -1476,7 +1526,7 @@ async def launch_template_on_provider(
         # Use a dedicated local-only job directory for the local provider.
         # This directory is always on the host filesystem and does not depend
         # on TFL_REMOTE_STORAGE_ENABLED / remote storage configuration.
-        job_dir = get_local_provider_job_dir(job_id, org_id=team_id)
+        job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id, org_id=team_id)
         provider_config_dict["workspace_dir"] = job_dir
 
     job_data = {
@@ -1519,11 +1569,22 @@ async def launch_template_on_provider(
 
     # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
     file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
+
+    # For non-local (remote) providers, wrap the user command so we can track live_status in job_data.
+    # This uses the tfl-remote-trap helper from the transformerlab SDK, which:
+    #   - sets job_data.live_status="started" when execution begins
+    #   - sets job_data.live_status="finished" on success
+    #   - sets job_data.live_status="crashed" on failure
+    wrapped_command = command_with_secrets
+    if provider.type != ProviderType.LOCAL.value:
+        # Preserve the original command in job_data but execute through the wrapper on the provider.
+        wrapped_command = f"tfl-remote-trap -- {command_with_secrets}"
+
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
         provider_id=provider.id,
-        command=command_with_secrets,
+        command=wrapped_command,
         setup=final_setup,
         env_vars=env_vars,
         cpus=request.cpus,
@@ -1560,7 +1621,9 @@ async def launch_template_on_provider(
         }
 
     try:
-        launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
+        launch_result = await asyncio.to_thread(
+            provider_instance.launch_cluster, formatted_cluster_name, cluster_config
+        )
     except Exception as exc:
         print(f"Failed to launch cluster: {exc}")
         # Release quota hold if launch failed
@@ -1654,6 +1717,66 @@ async def check_provider_job_status(
         }
 
     job_data = job.get("job_data", {}) or {}
+
+    # If the remote wrapper has already detected a crash, mark the job as FAILED immediately.
+    live_status = job_data.get("live_status")
+    if live_status == "crashed":
+        try:
+            end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+            await job_service.job_update_job_data_insert_key_value(
+                job_id, "end_time", end_time_str, job.get("experiment_id")
+            )
+            await job_service.job_update_status(
+                job_id,
+                "FAILED",
+                experiment_id=job.get("experiment_id"),
+                session=session,
+            )
+            await session.commit()
+            return {
+                "status": "success",
+                "job_id": job_id,
+                "updated": True,
+                "new_status": "FAILED",
+                "message": "Remote command crashed (live_status=crashed)",
+            }
+        except Exception as exc:
+            print(f"Failed to update job status from live_status crash: {exc}")
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": "Failed to update job status after crash",
+            }
+
+    # If the remote wrapper has already detected completion, mark the job as COMPLETE immediately.
+    if live_status == "finished":
+        try:
+            end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+            await job_service.job_update_job_data_insert_key_value(
+                job_id, "end_time", end_time_str, job.get("experiment_id")
+            )
+            await job_service.job_update_status(
+                job_id,
+                "COMPLETE",
+                experiment_id=job.get("experiment_id"),
+                session=session,
+            )
+            await session.commit()
+            return {
+                "status": "success",
+                "job_id": job_id,
+                "updated": True,
+                "new_status": "COMPLETE",
+                "message": "Remote command finished (live_status=finished)",
+            }
+        except Exception as exc:
+            print(f"Failed to update job status from live_status finished: {exc}")
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": "Failed to update job status after completion",
+            }
+
     provider_id = job_data.get("provider_id")
     cluster_name = job_data.get("cluster_name")
     experiment_id = job.get("experiment_id")
@@ -1693,7 +1816,7 @@ async def check_provider_job_status(
     # Local provider: single process per "cluster"; check process status
     if provider.type == ProviderType.LOCAL.value:
         try:
-            cluster_status = provider_instance.get_cluster_status(cluster_name)
+            cluster_status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
             terminal_states_local = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
             if cluster_status.state in terminal_states_local:
                 try:
@@ -1737,7 +1860,7 @@ async def check_provider_job_status(
     # Runpod doesn't have a job queue - check pod status instead
     if provider.type == ProviderType.RUNPOD.value:
         try:
-            cluster_status = provider_instance.get_cluster_status(cluster_name)
+            cluster_status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
             # For Runpod, the pod itself is the "job"
             # Check if pod is in a terminal state
             terminal_pod_states = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
@@ -1786,7 +1909,7 @@ async def check_provider_job_status(
 
     # For other providers (SkyPilot, SLURM), check jobs on the cluster
     try:
-        provider_jobs = provider_instance.list_jobs(cluster_name)
+        provider_jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
     except NotImplementedError:
         # Provider doesn't support list_jobs
         return {
@@ -2390,7 +2513,7 @@ async def resume_from_checkpoint(
 
     # Launch cluster
     try:
-        provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
+        await asyncio.to_thread(provider_instance.launch_cluster, formatted_cluster_name, cluster_config)
         return {
             "job_id": new_job_id,
             "message": "Job relaunched from checkpoint",
@@ -2424,7 +2547,7 @@ async def stop_cluster(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Stop cluster
-        result = provider_instance.stop_cluster(cluster_name)
+        result = await asyncio.to_thread(provider_instance.stop_cluster, cluster_name)
 
         # Return the result directly from the provider
         return result
@@ -2454,7 +2577,7 @@ async def get_cluster_status(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Get cluster status
-        status = provider_instance.get_cluster_status(cluster_name)
+        status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
 
         return status
     except Exception as e:
@@ -2484,7 +2607,7 @@ async def get_cluster_resources(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Get cluster resources
-        resources = provider_instance.get_cluster_resources(cluster_name)
+        resources = await asyncio.to_thread(provider_instance.get_cluster_resources, cluster_name)
 
         return resources
     except Exception as e:
@@ -2513,7 +2636,7 @@ async def list_clusters_detailed(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Get detailed clusters
-        clusters = provider_instance.get_clusters_detailed()
+        clusters = await asyncio.to_thread(provider_instance.get_clusters_detailed)
 
         return clusters
     except Exception as e:
@@ -2549,7 +2672,7 @@ async def submit_job(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Submit job
-        result = provider_instance.submit_job(cluster_name, job_config)
+        result = await asyncio.to_thread(provider_instance.submit_job, cluster_name, job_config)
 
         # Extract job_id from result
         job_id = result.get("job_id") or result.get("request_id")
@@ -2591,7 +2714,7 @@ async def list_jobs(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # List jobs
-        jobs = provider_instance.list_jobs(cluster_name)
+        jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
 
         # Filter by state if provided
         if state:
@@ -2630,7 +2753,7 @@ async def get_job_info(
 
         # List jobs and find the specific one
         try:
-            jobs = provider_instance.list_jobs(cluster_name)
+            jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
         except NotImplementedError:
             # Provider doesn't support listing jobs (e.g., Runpod)
             raise HTTPException(
@@ -2689,12 +2812,18 @@ async def get_job_logs(
 
         # Local provider needs workspace_dir (job dir) to read logs
         if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
-            job_dir = get_local_provider_job_dir(job_id, org_id=team_id)
+            job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id, org_id=team_id)
             provider_instance.extra_config["workspace_dir"] = job_dir
 
         # Get job logs
         try:
-            logs = provider_instance.get_job_logs(cluster_name, job_id, tail_lines=tail_lines, follow=follow)
+            logs = await asyncio.to_thread(
+                provider_instance.get_job_logs,
+                cluster_name,
+                job_id,
+                tail_lines=tail_lines,
+                follow=follow,
+            )
         except NotImplementedError:
             # Provider doesn't support job logs (though Runpod returns a string message, not NotImplementedError)
             logs = "Logs not available for this provider type."
@@ -2781,11 +2910,11 @@ async def cancel_job(
 
         # Local provider needs workspace_dir (job dir) to cancel the correct process
         if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
-            job_dir = get_local_provider_job_dir(job_id, org_id=team_id)
+            job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id, org_id=team_id)
             provider_instance.extra_config["workspace_dir"] = job_dir
 
         # Cancel job
-        result = provider_instance.cancel_job(cluster_name, job_id)
+        result = await asyncio.to_thread(provider_instance.cancel_job, cluster_name, job_id)
 
         return {
             "status": "success",

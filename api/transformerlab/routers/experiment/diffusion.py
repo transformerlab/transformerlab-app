@@ -87,6 +87,7 @@ ALLOWED_TEXT2IMG_ARCHITECTURES = [
     "IFInpaintingPipeline",
     "IFPipeline",
     "DiffusionPipeline",
+    "WanPipeline",
     "ZImagePipeline",
 ]
 
@@ -122,6 +123,7 @@ ALLOWED_IMG2IMG_ARCHITECTURES = [
     "StableDiffusionXLControlNetPAGPipeline",
     "LatentConsistencyModelImg2ImgPipeline",
     "LatentConsistencyModelPipeline",
+    "DiffusionPipeline",
 ]
 
 # Allowed architectures for inpainting pipelines
@@ -649,16 +651,53 @@ async def get_image_by_id(
         # Return the generated output image (default behavior)
         # Check if image_path is a folder (new format) or a file (old format)
         if await storage.isdir(image_item.image_path):
-            # New format: folder with numbered images
-            if index < 0 or index >= (image_item.num_images if hasattr(image_item, "num_images") else 1):
+            num_images_val = getattr(image_item, "num_images", None)
+            try:
+                num_images_int = int(num_images_val) if num_images_val is not None else None
+            except Exception:
+                num_images_int = None
+
+            if num_images_int is not None:
+                if index < 0 or index >= num_images_int:
+                    raise HTTPException(status_code=404, detail=f"Image index {index} out of range")
+            try:
+                # Prefer storage.ls (returns either paths or dicts) used across the codebase & tests,
+                # then fallback to storage.listdir, then os.listdir.
+                try:
+                    entries = await storage.ls(image_item.image_path, detail=False)
+                except Exception:
+                    try:
+                        entries = await storage.listdir(image_item.image_path)
+                    except Exception:
+                        entries = os.listdir(image_item.image_path)
+
+                # Normalize entries to basenames (support full paths, dicts, or plain names)
+                def _basename(entry):
+                    if isinstance(entry, dict):
+                        p = entry.get("name") or entry.get("path") or ""
+                        return p.rstrip("/").split("/")[-1] if p else ""
+                    if isinstance(entry, str):
+                        return entry.rstrip("/").split("/")[-1]
+                    return str(entry)
+
+                image_files = [
+                    f for f in (_basename(e) for e in entries) if f.lower().endswith((".png", ".jpg", ".jpeg"))
+                ]
+                image_files.sort()
+            except Exception as e:
+                raise HTTPException(status_code=404, detail=f"Failed to list images folder: {str(e)}")
+
+            if index < 0 or index >= len(image_files):
                 raise HTTPException(
                     status_code=404,
-                    detail=f"Image index {index} out of range. Available: 0-{(image_item.num_images if hasattr(image_item, 'num_images') else 1) - 1}",
+                    detail=f"Image index {index} out of range. Available: 0-{len(image_files) - 1}",
                 )
 
-            # Sanitize the filename and construct the path
-            sanitized_filename = secure_filename(f"{index}.png")
-            image_path = storage.join(image_item.image_path, sanitized_filename)
+            file_name = image_files[index]
+            image_path = storage.join(image_item.image_path, file_name)
+            if not await storage.exists(image_path):
+                raise HTTPException(status_code=404, detail=f"Image file not found: {file_name}")
+            return FileResponse(image_path)
         else:
             # Old format: single image file
             if index != 0:
