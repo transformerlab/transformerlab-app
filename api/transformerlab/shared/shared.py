@@ -23,7 +23,7 @@ from transformerlab.routers.experiment.generations import run_generation_script
 from lab.dirs import get_global_log_path
 from lab import dirs as lab_dirs, Job, Experiment
 from lab import storage
-from lab.dirs import get_workspace_dir
+from lab.dirs import get_workspace_dir, get_local_provider_job_dir
 from transformerlab.shared import dirs
 
 
@@ -1111,6 +1111,120 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             return
 
         else:
+            # ---------------------------------------------------------------
+            # Route mlx_lora_trainer through LocalProvider
+            # ---------------------------------------------------------------
+            if plugin_name == "mlx_lora_trainer":
+                print(f"[LoRA] Routing {plugin_name} through LocalProvider")
+
+                start_time = time.strftime("%Y-%m-%d %H:%M:%S")
+                await job_service.job_update_job_data_insert_key_value(
+                    job_id, "start_time", start_time, experiment_name
+                )
+
+                # Store template_config as job_data["parameters"] so that
+                # lab.get_config() inside main.py returns the training params.
+                await job_service.job_update_job_data_insert_key_value(
+                    job_id, "parameters", template_config, experiment_name
+                )
+
+                # Environment variables that lab.init() needs
+                lp_env_vars = {
+                    "_TFL_JOB_ID": str(job_id),
+                    "_TFL_EXPERIMENT_ID": experiment_name,
+                    "PYTHONUNBUFFERED": "1",
+                }
+                if org_id:
+                    lp_env_vars["_TFL_ORG_ID"] = org_id
+                if user_id:
+                    lp_env_vars["_TFL_USER_ID"] = user_id
+
+                # Job directory for LocalProvider
+                job_dir = get_local_provider_job_dir(job_id, org_id=org_id)
+                await job_service.job_update_job_data_insert_key_value(
+                    job_id, "workspace_dir", job_dir, experiment_name
+                )
+
+                # Build the command that runs inside the LocalProvider venv.
+                # plugin_location is an absolute path to the plugin directory.
+                main_py = os.path.join(plugin_location, "main.py")
+                lp_command = f"python {main_py}"
+
+                # Build setup: install deps from setup.sh content.
+                # LocalProvider creates venv at job_dir/venv and adds venv/bin to PATH.
+                # We need to ensure uv pip install targets the venv correctly.
+                setup_sh = os.path.join(plugin_location, "setup.sh")
+                lp_setup = None
+                if os.path.exists(setup_sh):
+                    with open(setup_sh, "r") as f:
+                        setup_content = f.read().strip()
+                    # Remove shebang if present
+                    setup_lines = setup_content.split('\n')
+                    if setup_lines and setup_lines[0].startswith('#!'):
+                        setup_lines = setup_lines[1:]
+                    setup_content = '\n'.join(setup_lines).strip()
+                    # Wrap setup to use venv Python explicitly and set VIRTUAL_ENV for pip
+                    # LocalProvider sets PATH to include venv/bin, so 'python' should work,
+                    # but we also set VIRTUAL_ENV so pip knows where to install.
+                    lp_setup = f"export VIRTUAL_ENV=./venv && {setup_content}"
+
+                from transformerlab.compute_providers.local import LocalProvider
+                from transformerlab.compute_providers.models import ClusterConfig
+
+                cluster_config = ClusterConfig(
+                    cluster_name=f"lora-{job_id}",
+                    provider_name="local",
+                    provider_id="local",
+                    command=lp_command,
+                    setup=lp_setup,
+                    env_vars=lp_env_vars,
+                    provider_config={"workspace_dir": job_dir},
+                )
+
+                local_provider = LocalProvider()
+
+                try:
+                    launch_result = local_provider.launch_cluster(f"lora-{job_id}", cluster_config)
+                    print(f"[LoRA] LocalProvider launched: {launch_result}")
+                    pid = launch_result.get("pid")
+
+                    await job_service.job_update_job_data_insert_key_value(
+                        job_id, "provider_launch_result", launch_result, experiment_name
+                    )
+
+                    # Monitor the background process in a thread and call
+                    # on_train_complete when it exits (mirroring popen_and_call behaviour).
+                    def _monitor_local_process(pid, job_dir_path):
+                        try:
+                            # Wait for the process to finish
+                            os.waitpid(pid, 0)
+                        except ChildProcessError:
+                            # Not our child — fall back to polling
+                            while True:
+                                try:
+                                    os.kill(pid, 0)  # Check if alive
+                                    time.sleep(2)
+                                except OSError:
+                                    break
+                        on_train_complete()
+
+                    monitor_thread = threading.Thread(
+                        target=_monitor_local_process,
+                        args=(pid, job_dir),
+                        daemon=True,
+                    )
+                    monitor_thread.start()
+
+                except Exception as exc:
+                    print(f"[LoRA] LocalProvider launch failed: {exc}")
+                    await job_update_status(job_id, "FAILED", experiment_id=experiment_name)
+                    return
+
+                return  # LocalProvider path complete
+
+            # ---------------------------------------------------------------
+            # Default path: use plugin_harness (for all other LoRA plugins)
+            # ---------------------------------------------------------------
             # Create a file in the temp directory to store the inputs:
             tempdir = storage.join(workspace_dir, "temp")
             if not await storage.exists(tempdir):
