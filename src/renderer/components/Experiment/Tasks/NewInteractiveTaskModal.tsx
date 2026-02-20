@@ -303,6 +303,7 @@ export default function NewInteractiveTaskModal({
           | 'vllm'
           | 'ssh'
           | 'ollama',
+        template_id: selectedTemplate.id,
         provider_id: selectedProviderId,
         env_parameters: configFieldValues,
         local: isLocal,
