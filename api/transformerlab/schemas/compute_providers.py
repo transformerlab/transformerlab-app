@@ -145,6 +145,10 @@ class ProviderTemplateLaunchRequest(BaseModel):
         default=True,
         description="Whether lower values of sweep_metric are better. If False, higher values are better.",
     )
+    local: Optional[bool] = Field(
+        default=False,
+        description="Whether to use direct local access for interactive sessions (skip tunnels).",
+    )
     minutes_requested: Optional[int] = Field(
         default=None,
         description="Number of minutes requested for this task. Required for quota tracking.",

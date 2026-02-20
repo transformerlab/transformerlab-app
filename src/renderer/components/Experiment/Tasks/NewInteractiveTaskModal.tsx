@@ -7,6 +7,7 @@ import Button from '@mui/joy/Button';
 import FormControl from '@mui/joy/FormControl';
 import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
+import Checkbox from '@mui/joy/Checkbox';
 import {
   ModalClose,
   ModalDialog,
@@ -76,6 +77,7 @@ type NewInteractiveTaskModalProps = {
       interactive_type: 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama';
       provider_id?: string;
       env_parameters?: Record<string, string>;
+      local?: boolean;
     },
     shouldLaunch?: boolean,
   ) => void;
@@ -108,6 +110,7 @@ export default function NewInteractiveTaskModal({
   const [cpus, setCpus] = React.useState('');
   const [memory, setMemory] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
+  const [isLocal, setIsLocal] = React.useState(false);
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
   const [configFieldValues, setConfigFieldValues] = React.useState<
     Record<string, string>
@@ -161,6 +164,7 @@ export default function NewInteractiveTaskModal({
       setCpus('');
       setMemory('');
       setAccelerators('');
+      setIsLocal(false);
       setConfigFieldValues({});
       setSelectedProviderId(providers[0]?.id || '');
       setActiveGalleryTab('interactive');
@@ -278,7 +282,9 @@ export default function NewInteractiveTaskModal({
 
     // Validate required config fields
     const requiredFields =
-      selectedTemplate.env_parameters?.filter((f) => f.required) || [];
+      (selectedTemplate.env_parameters?.filter((f) => f.required) || []).filter(
+        (f) => !(isLocal && f.env_var === 'NGROK_AUTH_TOKEN'),
+      );
     for (const field of requiredFields) {
       if (!configFieldValues[field.env_var]?.trim()) {
         return;
@@ -299,6 +305,7 @@ export default function NewInteractiveTaskModal({
           | 'ollama',
         provider_id: selectedProviderId,
         env_parameters: configFieldValues,
+        local: isLocal,
       },
       shouldLaunch,
     );
@@ -310,7 +317,9 @@ export default function NewInteractiveTaskModal({
     }
 
     const requiredFields =
-      selectedTemplate.env_parameters?.filter((f) => f.required) || [];
+      (selectedTemplate.env_parameters?.filter((f) => f.required) || []).filter(
+        (f) => !(isLocal && f.env_var === 'NGROK_AUTH_TOKEN'),
+      );
     for (const field of requiredFields) {
       if (!configFieldValues[field.env_var]?.trim()) {
         return false;
@@ -396,13 +405,30 @@ export default function NewInteractiveTaskModal({
                   </Alert>
                 )}
 
+                <Checkbox
+                  label="Enable direct web access (no tunnel)"
+                  checked={isLocal}
+                  onChange={(e) => setIsLocal(e.target.checked)}
+                />
+                <FormHelperText sx={{ mt: -2 }}>
+                  When enabled, the session will be accessible directly via a
+                  local address (e.g. http://localhost:8888). Recommended for
+                  local providers only.
+                </FormHelperText>
+
                 {selectedTemplate?.env_parameters &&
                   selectedTemplate.env_parameters.length > 0 && (
                     <>
                       {selectedTemplate.env_parameters.map((field) => (
                         <FormControl
                           key={field.env_var}
-                          required={field.required}
+                          required={
+                            field.required &&
+                            !(isLocal && field.env_var === 'NGROK_AUTH_TOKEN')
+                          }
+                          disabled={
+                            isLocal && field.env_var === 'NGROK_AUTH_TOKEN'
+                          }
                         >
                           <FormLabel>{field.field_name}</FormLabel>
                           <Input

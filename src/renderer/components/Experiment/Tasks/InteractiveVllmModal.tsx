@@ -92,8 +92,7 @@ export default function InteractiveVllmModal({
             vLLM Server Interactive Session (Job {jobId})
           </Typography>
           <Typography level="body-sm" color="neutral">
-            Access your vLLM API server through the tunnel URL below. The tunnel
-            URL provides secure access to the vLLM OpenAI-compatible API.
+            Access your vLLM API server through the URL below.
           </Typography>
         </Stack>
         <Divider />
@@ -109,12 +108,12 @@ export default function InteractiveVllmModal({
         >
           <Stack direction="row" spacing={1} alignItems="center">
             <Chip color={isReady ? 'success' : 'warning'} variant="soft">
-              {isReady ? 'Ready' : 'Waiting for tunnel'}
+              {isReady ? 'Ready' : 'Waiting for connection'}
             </Chip>
             {isLoading && <CircularProgress size="sm" />}
             {error && (
               <Typography level="body-xs" color="danger">
-                Failed to load tunnel info
+                Failed to load connection info
               </Typography>
             )}
           </Stack>
@@ -122,7 +121,7 @@ export default function InteractiveVllmModal({
           <Box>
             <Typography level="title-md">Access vLLM API Server</Typography>
             <Typography level="body-sm" sx={{ mt: 0.5 }}>
-              Once the tunnel is ready, use the URL below to access your vLLM
+              Once ready, use the URL below to access your vLLM
               server. The vLLM server provides an OpenAI-compatible API
               endpoint.
             </Typography>
@@ -163,8 +162,8 @@ export default function InteractiveVllmModal({
                 </>
               ) : (
                 <Typography level="body-sm" sx={{ flex: 1 }}>
-                  Waiting for tunnel to start. The URL will appear here once
-                  ngrok creates the tunnel...
+                  Waiting for service to start. The URL will appear here once
+                  the connection is available...
                 </Typography>
               )}
             </Box>
@@ -204,7 +203,7 @@ export default function InteractiveVllmModal({
 
             <Typography level="body-xs" sx={{ mt: 1 }}>
               Tip: If the URL never appears, check the job output and provider
-              logs to ensure vLLM and ngrok started correctly.
+              logs to ensure vLLM started correctly.
             </Typography>
           </Box>
 
@@ -213,7 +212,7 @@ export default function InteractiveVllmModal({
               Access Open WebUI
             </Typography>
             <Typography level="body-sm" sx={{ mt: 0.5 }}>
-              Once the second tunnel is ready, use the URL below to open Open
+              Use the URL below to open Open
               WebUI connected to this vLLM server. This provides a browser-based
               chat UI backed by the same vLLM API.
             </Typography>
@@ -254,8 +253,7 @@ export default function InteractiveVllmModal({
                 </>
               ) : (
                 <Typography level="body-sm" sx={{ flex: 1 }}>
-                  Waiting for the second tunnel to start. The Open WebUI URL
-                  will appear here once ngrok creates the tunnel...
+                  Waiting for the Open WebUI service to start...
                 </Typography>
               )}
             </Box>
