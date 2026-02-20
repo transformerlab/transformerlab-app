@@ -1,0 +1,11 @@
+node_modules
+dist
+release/build
+release/cloud
+release/app/node_modules
+api/venv
+api/transformerlab/db/llmlab.sqlite3
+.git
+.env
+.vscode
+*.log
