@@ -11,6 +11,7 @@ import os
 import sys
 import time
 import gc
+import asyncio
 from PIL import Image
 import torch
 import random
@@ -18,8 +19,20 @@ import base64
 from huggingface_hub import model_info
 from io import BytesIO
 from diffusers import (
+    StableDiffusionPipeline,
+    StableDiffusionImg2ImgPipeline,
+    StableDiffusionInpaintPipeline,
     StableDiffusionUpscalePipeline,
     StableDiffusionLatentUpscalePipeline,
+    StableDiffusionXLPipeline,
+    StableDiffusionXLImg2ImgPipeline,
+    StableDiffusionXLInpaintPipeline,
+    StableDiffusionXLInstructPix2PixPipeline,
+    StableDiffusionXLKDiffusionPipeline,
+    StableDiffusion3Pipeline,
+    LatentConsistencyModelPipeline,
+    LatentConsistencyModelImg2ImgPipeline,
+    DiffusionPipeline,
     AutoPipelineForText2Image,
     AutoPipelineForImage2Image,
     AutoPipelineForInpainting,
@@ -42,7 +55,6 @@ from diffusers import (
     FluxControlNetImg2ImgPipeline,
     StableDiffusionControlNetInpaintPipeline,
     StableDiffusionXLControlNetInpaintPipeline,
-    StableDiffusionXLPipeline,
     FluxPipeline,
     FluxTransformer2DModel,
     AutoencoderKL,
@@ -69,6 +81,120 @@ scheduler_map = {
     "EulerAncestralDiscreteScheduler": EulerAncestralDiscreteScheduler,
     "DPMSolverMultistepScheduler": DPMSolverMultistepScheduler,
 }
+
+# Single-file diffusion support
+SINGLE_FILE_EXTENSIONS = (".ckpt", ".safetensors")
+
+
+def _looks_like_path(value: str) -> bool:
+    return "/" in value or "\\" in value
+
+
+def _is_single_file_path(value: str) -> bool:
+    if not value:
+        return False
+    lower = value.lower()
+    if lower.startswith(("http://", "https://")):
+        return any(lower.endswith(ext) for ext in SINGLE_FILE_EXTENSIONS)
+    if not any(lower.endswith(ext) for ext in SINGLE_FILE_EXTENSIONS):
+        return False
+    if _looks_like_path(value):
+        return True
+    return os.path.isfile(value)
+
+
+def _extract_architecture(json_data: dict) -> str | None:
+    if not isinstance(json_data, dict):
+        return None
+    arch = json_data.get("architecture")
+    if not arch:
+        model_index = json_data.get("model_index", {}) if isinstance(json_data.get("model_index", {}), dict) else {}
+        arch = model_index.get("_class_name")
+    if isinstance(arch, list):
+        arch = arch[0] if arch else None
+    if isinstance(arch, str):
+        if arch.strip() and arch.strip().lower() != "unknown":
+            return arch
+    return None
+
+
+def _infer_single_file_architecture(model_path: str) -> str:
+    name = os.path.basename(model_path or "").lower()
+    if "sdxl" in name or "stable-diffusion-xl" in name or "sd_xl" in name:
+        return "StableDiffusionXLPipeline"
+    if "sd3" in name or "stable-diffusion-3" in name or "stable-diffusion3" in name:
+        return "StableDiffusion3Pipeline"
+    if "lcm" in name or "latent-consistency" in name:
+        return "LatentConsistencyModelPipeline"
+    return "StableDiffusionPipeline"
+
+
+def _find_original_config_file(model_path: str) -> str | None:
+    if not model_path or model_path.startswith(("http://", "https://")):
+        return None
+    if not os.path.isfile(model_path):
+        return None
+    directory = os.path.dirname(model_path)
+    if not directory or not os.path.isdir(directory):
+        return None
+    try:
+        for entry in os.listdir(directory):
+            lower = entry.lower()
+            if lower.endswith((".yaml", ".yml")):
+                return os.path.join(directory, entry)
+    except Exception:
+        return None
+    return None
+
+
+def _run_async(coro):
+    return asyncio.run(coro)
+
+
+def _resolve_model_reference(model_id: str, model_architecture: str | None = None) -> tuple[str, str | None, bool]:
+    if _is_single_file_path(model_id) or os.path.isdir(model_id):
+        arch = model_architecture or (
+            _infer_single_file_architecture(model_id) if _is_single_file_path(model_id) else None
+        )
+        return model_id, arch, _is_single_file_path(model_id)
+
+    try:
+        from lab.model import Model as ModelService
+
+        model_service = _run_async(ModelService.get(model_id))
+        model_data = _run_async(model_service.get_metadata())
+        json_data = model_data.get("json_data", {}) if model_data else {}
+
+        architecture = model_architecture or _extract_architecture(json_data)
+        source = json_data.get("source", "")
+        source_path = json_data.get("source_id_or_path", "")
+        model_filename = json_data.get("model_filename", "")
+
+        resolved_model = model_id
+        if source == "local" and source_path:
+            resolved_model = source_path
+        elif model_filename and _looks_like_path(model_filename):
+            resolved_model = model_filename
+        else:
+            try:
+                model_dir = _run_async(model_service.get_dir())
+                if model_dir and os.path.isdir(model_dir):
+                    resolved_model = model_dir
+            except Exception:
+                pass
+
+        is_single_file = _is_single_file_path(resolved_model)
+        if is_single_file and not architecture:
+            architecture = _infer_single_file_architecture(resolved_model)
+
+        return resolved_model, architecture, is_single_file
+    except Exception:
+        is_single_file = _is_single_file_path(model_id)
+        return (
+            model_id,
+            model_architecture or (_infer_single_file_architecture(model_id) if is_single_file else None),
+            is_single_file,
+        )
 
 
 def load_controlnet_model(controlnet_id: str, device: str = "cuda") -> ControlNetModel:
@@ -188,9 +314,17 @@ def flush_memory():
     print("Memory flushed")
 
 
-def is_flux_model(model_path):
+def is_flux_model(model_path: str, model_architecture: str | None = None):
     """Check if the model is a FLUX model that supports sharding"""
     try:
+        if model_architecture and "flux" in model_architecture.lower():
+            print(f"Model {model_path} is identified as a FLUX model via architecture metadata")
+            return True
+
+        # Avoid HF lookups for local single-file paths
+        if _is_single_file_path(model_path) or _looks_like_path(model_path):
+            return False
+
         # Check if model has FLUX components by looking for config
         from huggingface_hub import model_info
 
@@ -231,12 +365,19 @@ def load_pipeline_with_sharding(
     flush_memory()
 
     # Check if we should use sharding
-    use_sharding = is_flux_model(model_path) and config.get("enable_sharding", True)
+    use_sharding = is_flux_model(model_path, config.get("model_architecture")) and config.get("enable_sharding", True)
 
     if not use_sharding:
         print("Using standard pipeline loading (sharding disabled or not applicable)")
         return load_pipeline_with_device_map(
-            model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet, controlnet_id
+            model_path,
+            adaptor_path,
+            is_img2img,
+            is_inpainting,
+            device,
+            is_controlnet,
+            controlnet_id,
+            model_architecture=config.get("model_architecture"),
         )
 
     print("Using FLUX model sharding for memory efficiency")
@@ -523,7 +664,14 @@ def load_pipeline_with_sharding(
 
 
 def load_pipeline_with_device_map(
-    model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet=False, controlnet_id="off"
+    model_path,
+    adaptor_path,
+    is_img2img,
+    is_inpainting,
+    device,
+    is_controlnet=False,
+    controlnet_id="off",
+    model_architecture: str | None = None,
 ):
     """Load pipeline with proper device mapping for multi-GPU"""
 
@@ -534,6 +682,10 @@ def load_pipeline_with_device_map(
 
         gc.collect()
         print("Cleared CUDA cache before loading pipeline")
+
+    resolved_model, architecture, is_single_file = _resolve_model_reference(model_path, model_architecture)
+    if isinstance(architecture, list):
+        architecture = architecture[0] if architecture else None
 
     # Common pipeline kwargs
     pipeline_kwargs = {
@@ -616,13 +768,20 @@ def load_pipeline_with_device_map(
             "StableDiffusion3Pipeline": StableDiffusion3ControlNetPipeline,
         }
 
-        try:
-            info = model_info(model_path)
-            config = getattr(info, "config", {})
-            diffusers_config = config.get("diffusers", {})
-            architecture = diffusers_config.get("_class_name", "")
-        except Exception as e:
-            raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+        if not architecture and not is_single_file and not _looks_like_path(resolved_model):
+            try:
+                info = model_info(model_path)
+                config = getattr(info, "config", {})
+                diffusers_config = config.get("diffusers", {})
+                architecture = diffusers_config.get("_class_name", "")
+            except Exception as e:
+                raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+
+        if isinstance(architecture, list):
+            architecture = architecture[0] if architecture else None
+
+        if not architecture:
+            architecture = _infer_single_file_architecture(resolved_model)
 
         controlnet_model = load_controlnet_model(controlnet_id, device)
         if controlnet_model is None:
@@ -632,23 +791,85 @@ def load_pipeline_with_device_map(
         if not controlnet_pipeline:
             raise ValueError("ControlNet architecture not supported")
 
-        pipe = controlnet_pipeline.from_pretrained(
-            model_path,
-            controlnet=controlnet_model,
-            torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-            safety_checker=None,
-            requires_safety_checker=False,
-            use_safetensors=True,
-        )
+        pipeline_kwargs = {
+            "controlnet": controlnet_model,
+            "torch_dtype": torch.float16 if device != "cpu" else torch.float32,
+            "safety_checker": None,
+            "requires_safety_checker": False,
+        }
+        if is_single_file:
+            original_config = _find_original_config_file(resolved_model)
+            if original_config:
+                pipeline_kwargs["original_config_file"] = original_config
+            pipe = controlnet_pipeline.from_single_file(resolved_model, **pipeline_kwargs)
+        else:
+            pipeline_kwargs["use_safetensors"] = True
+            pipe = controlnet_pipeline.from_pretrained(resolved_model, **pipeline_kwargs)
 
     elif is_inpainting:
-        pipe = AutoPipelineForInpainting.from_pretrained(model_path, **pipeline_kwargs)
+        if is_single_file:
+            pipeline_class = {
+                "StableDiffusionPipeline": StableDiffusionInpaintPipeline,
+                "StableDiffusionInpaintPipeline": StableDiffusionInpaintPipeline,
+                "StableDiffusionXLPipeline": StableDiffusionXLInpaintPipeline,
+                "StableDiffusionXLInpaintPipeline": StableDiffusionXLInpaintPipeline,
+            }.get(architecture, StableDiffusionInpaintPipeline)
+
+            original_config = _find_original_config_file(resolved_model)
+            pipe = pipeline_class.from_single_file(
+                resolved_model,
+                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                safety_checker=None,
+                requires_safety_checker=False,
+                **({"original_config_file": original_config} if original_config else {}),
+            )
+        else:
+            pipe = AutoPipelineForInpainting.from_pretrained(resolved_model, **pipeline_kwargs)
         print(f"Loaded inpainting pipeline for model: {model_path}")
     elif is_img2img:
-        pipe = AutoPipelineForImage2Image.from_pretrained(model_path, **pipeline_kwargs)
+        if is_single_file:
+            pipeline_class = {
+                "StableDiffusionPipeline": StableDiffusionImg2ImgPipeline,
+                "StableDiffusionImg2ImgPipeline": StableDiffusionImg2ImgPipeline,
+                "StableDiffusionXLPipeline": StableDiffusionXLImg2ImgPipeline,
+                "StableDiffusionXLImg2ImgPipeline": StableDiffusionXLImg2ImgPipeline,
+                "StableDiffusionXLInstructPix2PixPipeline": StableDiffusionXLInstructPix2PixPipeline,
+                "LatentConsistencyModelPipeline": LatentConsistencyModelImg2ImgPipeline,
+                "LatentConsistencyModelImg2ImgPipeline": LatentConsistencyModelImg2ImgPipeline,
+            }.get(architecture, StableDiffusionImg2ImgPipeline)
+
+            original_config = _find_original_config_file(resolved_model)
+            pipe = pipeline_class.from_single_file(
+                resolved_model,
+                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                safety_checker=None,
+                requires_safety_checker=False,
+                **({"original_config_file": original_config} if original_config else {}),
+            )
+        else:
+            pipe = AutoPipelineForImage2Image.from_pretrained(resolved_model, **pipeline_kwargs)
         print(f"Loaded image-to-image pipeline for model: {model_path}")
     else:
-        pipe = AutoPipelineForText2Image.from_pretrained(model_path, **pipeline_kwargs)
+        if is_single_file:
+            pipeline_class = {
+                "StableDiffusionPipeline": StableDiffusionPipeline,
+                "StableDiffusionXLPipeline": StableDiffusionXLPipeline,
+                "StableDiffusion3Pipeline": StableDiffusion3Pipeline,
+                "LatentConsistencyModelPipeline": LatentConsistencyModelPipeline,
+                "StableDiffusionXLInstructPix2PixPipeline": StableDiffusionXLInstructPix2PixPipeline,
+                "StableDiffusionXLKDiffusionPipeline": StableDiffusionXLKDiffusionPipeline,
+            }.get(architecture, DiffusionPipeline)
+
+            original_config = _find_original_config_file(resolved_model)
+            pipe = pipeline_class.from_single_file(
+                resolved_model,
+                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                safety_checker=None,
+                requires_safety_checker=False,
+                **({"original_config_file": original_config} if original_config else {}),
+            )
+        else:
+            pipe = AutoPipelineForText2Image.from_pretrained(resolved_model, **pipeline_kwargs)
         print(f"Loaded text-to-image pipeline for model: {model_path}")
 
     # Move to device if not using device_map
@@ -805,7 +1026,7 @@ def main():
 
         start_time = time.time()
         gen_start_time = None
-        if config.get("enable_sharding", True) and is_flux_model(model_path):
+        if config.get("enable_sharding", True) and is_flux_model(model_path, config.get("model_architecture")):
             print("Using model sharding for FLUX model")
             # Use model sharding for FLUX models if enabled in config
             gen_start_time = time.time()
@@ -824,7 +1045,14 @@ def main():
         else:
             # Default to device map loading
             pipe = load_pipeline_with_device_map(
-                model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet, controlnet_id
+                model_path,
+                adaptor_path,
+                is_img2img,
+                is_inpainting,
+                device,
+                is_controlnet,
+                controlnet_id,
+                model_architecture=config.get("model_architecture"),
             )
 
             scheduler_name = config.get("scheduler", "default")

@@ -10,8 +10,19 @@ import gc
 from lab.dirs import get_workspace_dir
 from lab import storage
 from diffusers import (
+    StableDiffusionPipeline,
+    StableDiffusionImg2ImgPipeline,
+    StableDiffusionInpaintPipeline,
     StableDiffusionUpscalePipeline,
     StableDiffusionLatentUpscalePipeline,
+    StableDiffusionXLPipeline,
+    StableDiffusionXLImg2ImgPipeline,
+    StableDiffusionXLInpaintPipeline,
+    StableDiffusionXLInstructPix2PixPipeline,
+    StableDiffusionXLKDiffusionPipeline,
+    StableDiffusion3Pipeline,
+    LatentConsistencyModelPipeline,
+    LatentConsistencyModelImg2ImgPipeline,
     AutoPipelineForText2Image,
     AutoPipelineForImage2Image,
     AutoPipelineForInpainting,
@@ -399,13 +410,20 @@ def get_pipeline(
 
             print(f"Loading ControlNet pipeline ({controlnet_id}) for model: {model}")
 
-            try:
-                info = model_info(model)
-                config = getattr(info, "config", {})
-                diffusers_config = config.get("diffusers", {})
-                architecture = diffusers_config.get("_class_name", "")
-            except Exception as e:
-                raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+            if not architecture and not is_single_file and not _looks_like_path(resolved_model):
+                try:
+                    info = model_info(model)
+                    config = getattr(info, "config", {})
+                    diffusers_config = config.get("diffusers", {})
+                    architecture = diffusers_config.get("_class_name", "")
+                except Exception as e:
+                    raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+
+            if isinstance(architecture, list):
+                architecture = architecture[0] if architecture else None
+
+            if not architecture:
+                architecture = _infer_single_file_architecture(resolved_model)
 
             controlnet_model = load_controlnet_model(controlnet_id, device)
             if controlnet_model is None:
@@ -416,37 +434,109 @@ def get_pipeline(
                 raise ValueError("ControlNet architecture not supported")
 
             print(f"Loaded ControlNet pipeline {controlnet_pipeline} for model {model}")
-            pipe = controlnet_pipeline.from_pretrained(
-                model,
-                controlnet=controlnet_model,
-                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-                safety_checker=None,
-                requires_safety_checker=False,
-                use_safetensors=True,
-            )
+            pipeline_kwargs = {
+                "controlnet": controlnet_model,
+                "torch_dtype": torch.float16 if device != "cpu" else torch.float32,
+                "safety_checker": None,
+                "requires_safety_checker": False,
+            }
+            if is_single_file:
+                original_config = _find_original_config_file(resolved_model)
+                if original_config:
+                    pipeline_kwargs["original_config_file"] = original_config
+                pipe = controlnet_pipeline.from_single_file(resolved_model, **pipeline_kwargs)
+            else:
+                pipeline_kwargs["use_safetensors"] = True
+                pipe = controlnet_pipeline.from_pretrained(resolved_model, **pipeline_kwargs)
         elif is_inpainting:
-            pipe = AutoPipelineForInpainting.from_pretrained(
-                model,
-                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-                safety_checker=None,
-                requires_safety_checker=False,
-            )
+            if is_single_file:
+                if architecture and "stablediffusion3" in architecture.lower():
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Single-file Stable Diffusion 3 checkpoints are only supported for text-to-image.",
+                    )
+                pipeline_class = {
+                    "StableDiffusionPipeline": StableDiffusionInpaintPipeline,
+                    "StableDiffusionInpaintPipeline": StableDiffusionInpaintPipeline,
+                    "StableDiffusionXLPipeline": StableDiffusionXLInpaintPipeline,
+                    "StableDiffusionXLInpaintPipeline": StableDiffusionXLInpaintPipeline,
+                }.get(architecture, StableDiffusionInpaintPipeline)
+
+                original_config = _find_original_config_file(resolved_model)
+                pipe = pipeline_class.from_single_file(
+                    resolved_model,
+                    torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                    safety_checker=None,
+                    requires_safety_checker=False,
+                    **({"original_config_file": original_config} if original_config else {}),
+                )
+            else:
+                pipe = AutoPipelineForInpainting.from_pretrained(
+                    resolved_model,
+                    torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                    safety_checker=None,
+                    requires_safety_checker=False,
+                )
             print(f"Loaded inpainting pipeline for model: {model}")
         elif is_img2img:
-            pipe = AutoPipelineForImage2Image.from_pretrained(
-                model,
-                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-                safety_checker=None,
-                requires_safety_checker=False,
-            )
+            if is_single_file:
+                if architecture and "stablediffusion3" in architecture.lower():
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Single-file Stable Diffusion 3 checkpoints are only supported for text-to-image.",
+                    )
+                pipeline_class = {
+                    "StableDiffusionPipeline": StableDiffusionImg2ImgPipeline,
+                    "StableDiffusionImg2ImgPipeline": StableDiffusionImg2ImgPipeline,
+                    "StableDiffusionXLPipeline": StableDiffusionXLImg2ImgPipeline,
+                    "StableDiffusionXLImg2ImgPipeline": StableDiffusionXLImg2ImgPipeline,
+                    "StableDiffusionXLInstructPix2PixPipeline": StableDiffusionXLInstructPix2PixPipeline,
+                    "LatentConsistencyModelPipeline": LatentConsistencyModelImg2ImgPipeline,
+                    "LatentConsistencyModelImg2ImgPipeline": LatentConsistencyModelImg2ImgPipeline,
+                }.get(architecture, StableDiffusionImg2ImgPipeline)
+
+                original_config = _find_original_config_file(resolved_model)
+                pipe = pipeline_class.from_single_file(
+                    resolved_model,
+                    torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                    safety_checker=None,
+                    requires_safety_checker=False,
+                    **({"original_config_file": original_config} if original_config else {}),
+                )
+            else:
+                pipe = AutoPipelineForImage2Image.from_pretrained(
+                    resolved_model,
+                    torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                    safety_checker=None,
+                    requires_safety_checker=False,
+                )
             print(f"Loaded image-to-image pipeline for model: {model}")
         else:
-            pipe = AutoPipelineForText2Image.from_pretrained(
-                model,
-                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-                safety_checker=None,
-                requires_safety_checker=False,
-            )
+            if is_single_file:
+                pipeline_class = {
+                    "StableDiffusionPipeline": StableDiffusionPipeline,
+                    "StableDiffusionXLPipeline": StableDiffusionXLPipeline,
+                    "StableDiffusion3Pipeline": StableDiffusion3Pipeline,
+                    "LatentConsistencyModelPipeline": LatentConsistencyModelPipeline,
+                    "StableDiffusionXLInstructPix2PixPipeline": StableDiffusionXLInstructPix2PixPipeline,
+                    "StableDiffusionXLKDiffusionPipeline": StableDiffusionXLKDiffusionPipeline,
+                }.get(architecture, DiffusionPipeline)
+
+                original_config = _find_original_config_file(resolved_model)
+                pipe = pipeline_class.from_single_file(
+                    resolved_model,
+                    torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                    safety_checker=None,
+                    requires_safety_checker=False,
+                    **({"original_config_file": original_config} if original_config else {}),
+                )
+            else:
+                pipe = AutoPipelineForText2Image.from_pretrained(
+                    resolved_model,
+                    torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                    safety_checker=None,
+                    requires_safety_checker=False,
+                )
             print(f"Loaded text-to-image pipeline for model: {model} with dtype {pipe.dtype}")
         pipe = pipe.to(device)
 
@@ -657,6 +747,15 @@ def should_use_diffusion_worker(model) -> bool:
     """Use the diffusion worker only for FLUX models"""
     # return use_multi_gpu and torch.cuda.device_count() > 1
     try:
+        resolved_model, architecture, is_single_file = _resolve_model_reference(model)
+
+        if architecture and "flux" in architecture.lower():
+            return True
+
+        # Avoid HF lookups for local single-file paths
+        if is_single_file or (resolved_model != model and _looks_like_path(resolved_model)):
+            return False
+
         # Check if model has FLUX components by looking for config
         from huggingface_hub import model_info
 
@@ -861,9 +960,15 @@ async def run_multi_gpu_generation(
     else:
         seed = request.seed
 
+    resolved_model, architecture, is_single_file = _resolve_model_reference(request.model)
+    if is_single_file and not architecture:
+        architecture = _infer_single_file_architecture(resolved_model)
+
     # Prepare configuration for worker
     config = {
-        "model": request.model,
+        "model": resolved_model,
+        "model_architecture": architecture,
+        "is_single_file": is_single_file,
         "adaptor": request.adaptor,
         "adaptor_scale": request.adaptor_scale,
         "prompt": request.prompt,
