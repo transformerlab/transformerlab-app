@@ -946,7 +946,8 @@ class Lab:
                 )
                 await self._job.log_info(f"Model saved to '{dest}'")  # type: ignore[union-attr]
             except Exception as e:
-                self.log(f"Warning: Model saved but metadata creation failed: {str(e)}")
+                # Use await directly — self.log() is sync and cannot be called from async context.
+                await self._job.log_info(f"Warning: Model saved but metadata creation failed: {str(e)}")  # type: ignore[union-attr]
 
             # Track in job_data
             try:
