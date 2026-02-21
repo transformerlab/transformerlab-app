@@ -37,6 +37,7 @@ def _enable_datadog_if_setup():
         from ddtrace import patch_all
         from ddtrace.contrib.asgi import TraceMiddleware
     except ImportError:
+        print("Datadog Init Error: Failed to import library")
         return None
 
     patch_all(fastapi=True, httpx=True)
