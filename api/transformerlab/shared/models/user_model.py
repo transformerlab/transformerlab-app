@@ -31,7 +31,7 @@ async def verify_user_exists(session: AsyncSession, user_id: uuid.UUID) -> bool:
     Verify that a user_id exists in the user table.
     Used to ensure data integrity without foreign key constraints.
     """
-    stmt = select(User).where(User.id == user_id)
+    stmt = select(User).where(User.id == str(user_id))
     result = await session.execute(stmt)
     return result.scalar_one_or_none() is not None
 

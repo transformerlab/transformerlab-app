@@ -11,6 +11,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
+from transformerlab.db.migration_utils import table_exists
 
 # revision identifiers, used by Alembic.
 revision: str = "f278bbaa6f67"
@@ -23,14 +24,7 @@ def upgrade() -> None:
     """Create api_keys table."""
     connection = op.get_bind()
 
-    # Helper function to check if table exists
-    def table_exists(table_name: str) -> bool:
-        result = connection.execute(
-            sa.text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"), {"name": table_name}
-        )
-        return result.fetchone() is not None
-
-    if not table_exists("api_keys"):
+    if not table_exists(connection, "api_keys"):
         op.create_table(
             "api_keys",
             sa.Column("id", sa.String(), nullable=False),
@@ -39,7 +33,7 @@ def upgrade() -> None:
             sa.Column("user_id", sa.String(), nullable=False),
             sa.Column("team_id", sa.String(), nullable=True),
             sa.Column("name", sa.String(), nullable=True),
-            sa.Column("is_active", sa.Boolean(), nullable=False, server_default="1"),
+            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
             sa.Column("last_used_at", sa.DateTime(), nullable=True),
             sa.Column("expires_at", sa.DateTime(), nullable=True),
             sa.Column("created_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),

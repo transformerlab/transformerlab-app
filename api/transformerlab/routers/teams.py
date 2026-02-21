@@ -615,7 +615,7 @@ async def get_my_invitations(
         team = result.scalar_one_or_none()
 
         # Get inviter info
-        stmt = select(User).where(User.id == invitation.invited_by_user_id)
+        stmt = select(User).where(User.id == str(invitation.invited_by_user_id))
         result = await session.execute(stmt)
         inviter = result.scalar_one_or_none()
 
@@ -835,7 +835,7 @@ async def get_team_invitations(
             invitation.status = InvitationStatus.EXPIRED.value
 
         # Get inviter info
-        stmt = select(User).where(User.id == invitation.invited_by_user_id)
+        stmt = select(User).where(User.id == str(invitation.invited_by_user_id))
         result = await session.execute(stmt)
         inviter = result.scalar_one_or_none()
 

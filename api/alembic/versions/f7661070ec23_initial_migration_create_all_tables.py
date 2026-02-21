@@ -11,6 +11,8 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
+from transformerlab.db.migration_utils import table_exists
+
 # revision identifiers, used by Alembic.
 revision: str = "f7661070ec23"
 down_revision: Union[str, Sequence[str], None] = None
@@ -22,15 +24,8 @@ def upgrade() -> None:
     """Create all initial tables."""
     connection = op.get_bind()
 
-    # Helper function to check if table exists
-    def table_exists(table_name: str) -> bool:
-        result = connection.execute(
-            sa.text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"), {"name": table_name}
-        )
-        return result.fetchone() is not None
-
     # Config table
-    if not table_exists("config"):
+    if not table_exists(connection, "config"):
         op.create_table(
             "config",
             sa.Column("id", sa.Integer(), nullable=False),
@@ -42,7 +37,7 @@ def upgrade() -> None:
         op.create_index(op.f("ix_config_key"), "config", ["key"], unique=True)
 
     # Plugin table
-    if table_exists("plugins"):
+    if table_exists(connection, "plugins"):
         # Drop all indexes on the table
         op.drop_index(op.f("ix_plugins_name"), table_name="plugins", if_exists=True)
         op.drop_index(op.f("ix_plugins_type"), table_name="plugins", if_exists=True)
@@ -61,7 +56,7 @@ def upgrade() -> None:
         # op.create_index(op.f("ix_plugins_type"), "plugins", ["type"], unique=False)
 
     # TrainingTemplate table
-    if table_exists("training_template"):
+    if table_exists(connection, "training_template"):
         # Drop all indexes on the table
         op.drop_index(op.f("ix_training_template_name"), table_name="training_template", if_exists=True)
         op.drop_index(op.f("ix_training_template_created_at"), table_name="training_template", if_exists=True)
@@ -89,7 +84,7 @@ def upgrade() -> None:
         # op.create_index(op.f("ix_training_template_updated_at"), "training_template", ["updated_at"], unique=False)
 
     # Workflow table
-    if not table_exists("workflows"):
+    if not table_exists(connection, "workflows"):
         op.create_table(
             "workflows",
             sa.Column("id", sa.Integer(), nullable=False),
@@ -105,7 +100,7 @@ def upgrade() -> None:
         op.create_index("idx_workflow_id_experiment", "workflows", ["id", "experiment_id"], unique=False)
 
     # WorkflowRun table
-    if not table_exists("workflow_runs"):
+    if not table_exists(connection, "workflow_runs"):
         op.create_table(
             "workflow_runs",
             sa.Column("id", sa.Integer(), nullable=False),
@@ -124,7 +119,7 @@ def upgrade() -> None:
         op.create_index(op.f("ix_workflow_runs_status"), "workflow_runs", ["status"], unique=False)
 
     # Team table
-    if not table_exists("teams"):
+    if not table_exists(connection, "teams"):
         op.create_table(
             "teams",
             sa.Column("id", sa.String(), nullable=False),
@@ -133,7 +128,7 @@ def upgrade() -> None:
         )
 
     # UserTeam table
-    if not table_exists("users_teams"):
+    if not table_exists(connection, "users_teams"):
         op.create_table(
             "users_teams",
             sa.Column("user_id", sa.String(), nullable=False),
@@ -143,7 +138,7 @@ def upgrade() -> None:
         )
 
     # TeamInvitation table
-    if not table_exists("team_invitations"):
+    if not table_exists(connection, "team_invitations"):
         op.create_table(
             "team_invitations",
             sa.Column("id", sa.String(), nullable=False),
@@ -166,16 +161,16 @@ def upgrade() -> None:
 
     # User table (from fastapi-users)
     # Check if table exists first to avoid errors on existing databases
-    if not table_exists("user"):
+    if not table_exists(connection, "user"):
         # Create new user table with correct schema
         op.create_table(
             "user",
             sa.Column("id", sa.CHAR(length=36), nullable=False),
             sa.Column("email", sa.String(length=320), nullable=False),
             sa.Column("hashed_password", sa.String(length=1024), nullable=False),
-            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")),
-            sa.Column("is_superuser", sa.Boolean(), nullable=False, server_default=sa.text("0")),
-            sa.Column("is_verified", sa.Boolean(), nullable=False, server_default=sa.text("0")),
+            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+            sa.Column("is_superuser", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+            sa.Column("is_verified", sa.Boolean(), nullable=False, server_default=sa.text("false")),
             sa.Column("first_name", sa.String(length=100), nullable=True),
             sa.Column("last_name", sa.String(length=100), nullable=True),
             sa.PrimaryKeyConstraint("id"),
@@ -203,9 +198,9 @@ def upgrade() -> None:
                 sa.Column("id", sa.CHAR(length=36), nullable=False),
                 sa.Column("email", sa.String(length=320), nullable=False),
                 sa.Column("hashed_password", sa.String(length=1024), nullable=False),
-                sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")),
-                sa.Column("is_superuser", sa.Boolean(), nullable=False, server_default=sa.text("0")),
-                sa.Column("is_verified", sa.Boolean(), nullable=False, server_default=sa.text("0")),
+                sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+                sa.Column("is_superuser", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+                sa.Column("is_verified", sa.Boolean(), nullable=False, server_default=sa.text("false")),
                 sa.Column("first_name", sa.String(length=100), nullable=True),
                 sa.Column("last_name", sa.String(length=100), nullable=True),
                 sa.PrimaryKeyConstraint("id"),
