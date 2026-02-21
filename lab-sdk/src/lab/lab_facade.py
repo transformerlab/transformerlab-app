@@ -15,6 +15,7 @@ from .model import Model as ModelService
 from . import storage
 from .dataset import Dataset
 from .task_template import TaskTemplate
+from .generation import GenerationModel, load_generation_model as _load_generation_model
 
 
 logger = logging.getLogger(__name__)
@@ -1600,6 +1601,15 @@ class Lab:
         self._ensure_initialized()
         return self._experiment  # type: ignore[return-value]
 
+    def set_job_data_field(self, key: str, value: Any) -> None:
+        """
+        Set a single key/value pair on this job's job_data (sync version).
+        This is a thin, synchronous wrapper around Job.update_job_data_field and is
+        intended as a replacement for plugin SDK helpers like add_job_data().
+        """
+        self._ensure_initialized()
+        _run_async(self._job.update_job_data_field(key, value))  # type: ignore[union-attr]
+
     def get_job_data(self) -> Dict[str, Any]:
         """
         Get the job data dictionary (sync version).
@@ -1721,6 +1731,19 @@ class Lab:
                 self.lab.update_progress(95)
 
         return LabCallback(self)
+
+    def load_generation_model(self, config: Optional[Dict[str, Any] | str] = None) -> GenerationModel:
+        """
+        Convenience wrapper to construct a simple text generation model.
+
+        This delegates to lab.generation.load_generation_model and is intentionally
+        library-agnostic. You can call it directly on the lab facade:
+
+            from lab import lab
+            gen = lab.load_generation_model({"provider": "local", "model": "MyModel"})
+            output = gen.generate("Hello")
+        """
+        return _load_generation_model(config)
 
 
 def capture_wandb_url_from_env() -> str | None:
