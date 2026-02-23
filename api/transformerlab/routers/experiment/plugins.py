@@ -165,6 +165,9 @@ allowed_extensions: list[str] = [".py", ".pyj2", ".ipynb", ".md", ".txt", ".sh",
 async def plugin_save_file_contents(id: str, pluginId: str, filename: str, file_contents: Annotated[str, Body()]):
     global allowed_extensions
 
+    if os.getenv("MULTIUSER", "").lower() == "true":
+        return {"message": "Multi-user mode is not supported for this endpoint"}
+
     filename = secure_filename(filename)
 
     data = await experiment_get(id)
@@ -202,6 +205,9 @@ async def plugin_save_file_contents(id: str, pluginId: str, filename: str, file_
 async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
     global allowed_extensions
 
+    if os.getenv("MULTIUSER", "").lower() == "true":
+        return {"message": "Multi-user mode is not supported for this endpoint"}
+
     filename = secure_filename(filename)
 
     data = await experiment_get(id)
@@ -237,6 +243,9 @@ async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
 async def plugin_list_files(id: str, pluginId: str):
     global allowed_extensions
 
+    if os.getenv("MULTIUSER", "").lower() == "true":
+        return {"message": "Multi-user mode is not supported for this endpoint"}
+
     data = await experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
@@ -262,6 +271,9 @@ async def plugin_list_files(id: str, pluginId: str):
 @router.get("/{pluginId}/create_new_file")
 async def plugin_create_new_file(id: str, pluginId: str, filename: str):
     global allowed_extensions
+
+    if os.getenv("MULTIUSER", "").lower() == "true":
+        return {"message": "Multi-user mode is not supported for this endpoint"}
 
     filename = secure_filename(filename)
 
@@ -303,6 +315,9 @@ async def plugin_create_new_file(id: str, pluginId: str, filename: str):
 async def plugin_delete_file(id: str, pluginId: str, filename: str):
     global allowed_extensions
 
+    if os.getenv("MULTIUSER", "").lower() == "true":
+        return {"message": "Multi-user mode is not supported for this endpoint"}
+
     filename = secure_filename(filename)
 
     data = await experiment_get(id)
@@ -340,6 +355,9 @@ async def plugin_delete_file(id: str, pluginId: str, filename: str):
 @router.get(path="/new_plugin")
 async def plugin_new_plugin_directory(id: str, pluginId: str):
     global allowed_extensions
+
+    if os.getenv("MULTIUSER", "").lower() == "true":
+        return {"message": "Multi-user mode is not supported for this endpoint"}
 
     data = await experiment_get(id)
     # if the experiment does not exist, return an error:
