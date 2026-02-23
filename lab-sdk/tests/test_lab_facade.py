@@ -998,3 +998,31 @@ def test_lab_get_model_nonexistent(tmp_path, monkeypatch):
         assert False, "Should have raised FileNotFoundError"
     except FileNotFoundError:
         pass  # Expected
+
+
+def test_lab_load_generation_model_smoke(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+    from lab.generation import LocalHTTPGenerationModel
+
+    lab = Lab()
+    # load_generation_model should NOT require lab.init; it's stateless config
+    model = lab.load_generation_model(
+        {
+            "provider": "local",
+            "base_url": "http://localhost:9999/v1",
+            "model": "test-model",
+            "api_key": "test-key",
+        }
+    )
+
+    assert isinstance(model, LocalHTTPGenerationModel)
+    assert model.base_url == "http://localhost:9999/v1"
+    assert model.model == "test-model"
