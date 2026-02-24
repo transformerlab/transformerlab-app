@@ -16,23 +16,18 @@ import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import Data from './Data/Data';
 import Interact from './Experiment/Interact/Interact';
-import Embeddings from './Experiment/Embeddings';
 import Welcome from './Welcome/Welcome';
 import ModelZoo from './ModelZoo/ModelZoo';
 import Plugins from './Plugins/Plugins';
 import PluginDetails from './Plugins/PluginDetails';
-
 import Computer from './Computer';
 import Compute from './Compute/Compute';
 import Eval from './Experiment/Eval/Eval';
-import Generate from './Experiment/Generate/Generate';
-import Export from './Experiment/Export/Export';
 import Api from './Experiment/Api';
 import Settings from './Experiment/Settings';
 import TrainLoRA from './Experiment/Train/TrainLoRA';
 import Prompt from './Experiment/Prompt';
 import Documents from './Experiment/Documents';
-import Rag from './Experiment/Rag';
 import Tokenize from './Experiment/Interact/Tokenize';
 import Diffusion from './Experiment/Diffusion/Diffusion';
 import Audio from './Experiment/Audio/Audio';
@@ -40,9 +35,7 @@ import AudioSTT from './Experiment/Audio/AudioSTT';
 import ExperimentNotes from './Experiment/ExperimentNotes';
 import UserSettings from './User/UserSettings';
 import TransformerLabSettings from './Settings/TransformerLabSettings';
-import Logs from './Logs';
 import FoundationHome from './Experiment/Foundation';
-import Workflows from './Experiment/Workflows';
 import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
 import { useAnalytics } from './Shared/analytics/AnalyticsContext';
 import SafeJSONParse from './Shared/SafeJSONParse';
@@ -279,23 +272,6 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
     [experimentInfo, experimentInfoMutate],
   );
 
-  const experimentAddGeneration = useCallback(
-    async (
-      pluginName: string,
-      localName: string,
-      script_template_parameters: any = {},
-    ) => {
-      await chatAPI.EXPERIMENT_ADD_GENERATION(
-        experimentInfo?.id,
-        localName,
-        pluginName,
-        script_template_parameters,
-      );
-      experimentInfoMutate();
-    },
-    [experimentInfo, experimentInfoMutate],
-  );
-
   const setRagEngine = useCallback(
     async (name: string, rag_settings: any = {}) => {
       await chatAPI.authenticatedFetch(
@@ -348,7 +324,6 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
             />
           }
         />
-        <Route path="/experiment/workflows" element={<Workflows />} />
         <Route
           path="/experiment/prompt"
           element={
@@ -385,7 +360,6 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
             />
           }
         />
-        <Route path="/experiment/embeddings" element={<Embeddings />} />
         <Route path="/experiment/tokenize" element={<Tokenize />} />
         <Route path="/experiment/training" element={<TrainLoRA />} />
         <Route path="/experiment/tasks" element={<Tasks />} />
@@ -395,16 +369,8 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
           path="/experiment/eval"
           element={<Eval addEvaluation={experimentAddEvaluation} />}
         />
-        <Route
-          path="/experiment/generate"
-          element={<Generate addGeneration={experimentAddGeneration} />}
-        />
         <Route path="/experiment/documents" element={<Documents />} />
-        <Route
-          path="/experiment/rag"
-          element={<Rag setRagEngine={setRagEngine} />}
-        />
-        <Route path="/experiment/export" element={<Export />} />
+
         <Route path="/experiment/diffusion" element={<Diffusion />} />
         <Route path="/experiment/audio" element={<Audio />} />
         <Route path="/experiment/audio-stt" element={<AudioSTT />} />
@@ -425,7 +391,6 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/computer" element={<Computer />} />
         <Route path="/compute" element={<Compute />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
-        <Route path="/logs" element={<Logs />} />
         <Route path="/user" element={<UserSettings />} />
         <Route path="/team" element={<Team />} />
         <Route path="/team/usage-report" element={<UsageReport />} />

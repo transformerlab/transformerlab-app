@@ -99,7 +99,6 @@ except Exception:
     HAS_AMD = True
 from transformerlab import fastchat_openai_api  # noqa: E402
 from transformerlab.routers.experiment import experiment  # noqa: E402
-from transformerlab.routers.experiment import workflows  # noqa: E402
 from transformerlab.routers.experiment import jobs  # noqa: E402
 from transformerlab.shared import shared  # noqa: E402
 from transformerlab.shared import galleries  # noqa: E402
@@ -171,9 +170,6 @@ async def lifespan(app: FastAPI):
 
     if "--reload" in sys.argv:
         await install_all_plugins()
-
-    if os.getenv("MULTIUSER", "").lower() != "true":
-        asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
     # Do the following at API Shutdown:
@@ -181,14 +177,6 @@ async def lifespan(app: FastAPI):
     # Run the clean up function
     cleanup_at_exit()
     print("FastAPI LIFESPAN: Complete")
-
-
-async def run_over_and_over():
-    """Every three seconds, check for new jobs to run."""
-    while True:
-        await asyncio.sleep(3)
-        await jobs.start_next_job()
-        await workflows.start_next_step_in_workflow()
 
 
 description = "Transformerlab API helps you do awesome stuff. 🚀"
@@ -609,13 +597,10 @@ async def healthz():
     """
     Health check endpoint to verify server status and mode.
     """
-    tfl_remote_storage_enabled = os.getenv("MULTIUSER", "").lower() == "true"
-
+    # MULTIUSER flag: default to true unless explicitly set to 'false'
+    IS_MULTIUSER = os.getenv("MULTIUSER", "true").lower() == "true"
     # Determine mode: multiuser or local
-    if tfl_remote_storage_enabled:
-        mode = "multiuser"
-    else:
-        mode = "local"
+    mode = "multiuser" if IS_MULTIUSER else "local"
 
     return {
         "message": "OK",

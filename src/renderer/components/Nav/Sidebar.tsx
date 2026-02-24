@@ -1,28 +1,16 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useMemo } from 'react';
 
 import {
   CodeIcon,
-  GraduationCapIcon,
-  LayersIcon,
-  MessageCircleIcon,
   BoxesIcon,
   FileTextIcon,
   MonitorIcon,
   FlaskConicalIcon,
   SettingsIcon,
   GithubIcon,
-  ArrowRightFromLineIcon,
-  PlugIcon,
-  TextIcon,
-  SquareStackIcon,
   FileIcon,
-  ChartColumnIncreasingIcon,
-  AudioLinesIcon,
   StretchHorizontalIcon,
 } from 'lucide-react';
-
-import { RiImageAiLine } from 'renderer/components/Icons';
 
 import {
   ButtonGroup,
@@ -33,12 +21,8 @@ import {
   Tooltip,
 } from '@mui/joy';
 
-import {
-  useModelStatus,
-  getAPIFullPath,
-} from 'renderer/lib/transformerlab-api-sdk';
+import { useModelStatus } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
 import { useNotificationsSummary } from 'renderer/lib/useNotificationsSummary';
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 
@@ -48,130 +32,10 @@ import LoginChip from './UserWidget';
 
 interface ExperimentMenuItemsProps {
   experimentInfo: any;
-  models: any;
 }
 
-function ExperimentMenuItems({
-  experimentInfo,
-  models,
-}: ExperimentMenuItemsProps) {
-  const { team } = useAuth();
-  const isLocalMode = window?.platform?.multiuser !== true;
-  const [pipelineTag, setPipelineTag] = useState<string | null>(null);
-  const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
-    boolean | null
-  >(null);
+function ExperimentMenuItems({ experimentInfo }: ExperimentMenuItemsProps) {
   const experimentReady = Boolean(experimentInfo?.name);
-  const hasFoundation = Boolean(experimentInfo?.config?.foundation);
-
-  const { data: providerListData } = useAPI('compute_provider', ['list'], {
-    teamId: team?.id ?? null,
-  });
-
-  const providers = useMemo(
-    () => (Array.isArray(providerListData) ? providerListData : []),
-    [providerListData],
-  );
-  const hasProviders = providers.length > 0;
-
-  const pipelineIsTTS = pipelineTag === 'text-to-speech';
-  const pipelineIsSTT = pipelineTag === 'speech-to-text';
-  const isDiffusionModel = isValidDiffusionModel === true;
-  const showInteractTab =
-    (!isDiffusionModel && !pipelineIsTTS && !pipelineIsSTT) ||
-    (hasProviders && !isLocalMode);
-  const showDiffusionTab = isLocalMode && isDiffusionModel;
-  const showAudioTTSTab = isLocalMode && pipelineIsTTS;
-  const showAudioSTTTab = isLocalMode && pipelineIsSTT;
-
-  const isActiveModelDifferent = useMemo(() => {
-    if (!models || !experimentReady) return true;
-
-    const activeModelId = models[0]?.id;
-    const normalize = (value?: string | null) =>
-      value?.split?.('/')?.slice(-1)?.[0] ?? value;
-    const config = experimentInfo?.config;
-
-    return (
-      activeModelId !== normalize(config?.foundation) &&
-      activeModelId !== normalize(config?.foundation_filename) &&
-      activeModelId !== config?.adaptor
-    );
-  }, [models, experimentReady, experimentInfo?.config]);
-
-  const disableInteract = !experimentReady || isActiveModelDifferent;
-  const disableEval = !experimentReady || isDiffusionModel;
-  const disableExport = !experimentReady || !hasFoundation;
-
-  useEffect(() => {
-    if (!experimentInfo?.id || !hasFoundation) {
-      setIsValidDiffusionModel(false);
-      setPipelineTag(null);
-      return;
-    }
-
-    let isMounted = true;
-    setIsValidDiffusionModel(null);
-
-    const checkValidDiffusionAndPipelineTag = async () => {
-      try {
-        const pipelineResponse = await fetchWithAuth(
-          getAPIFullPath('models', ['pipeline_tag'], {
-            modelName: experimentInfo.config.foundation,
-          }),
-          { method: 'GET' },
-        );
-
-        if (!isMounted) return;
-
-        const pipelineData = pipelineResponse.ok
-          ? ((await pipelineResponse.json())?.data ?? null)
-          : null;
-
-        setPipelineTag(pipelineData);
-
-        if (pipelineData === 'text-to-speech') {
-          setIsValidDiffusionModel(false);
-          return;
-        }
-
-        const diffusionResponse = await fetchWithAuth(
-          getAPIFullPath('diffusion', ['checkValidDiffusion'], {
-            experimentId: experimentInfo.id,
-          }),
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: experimentInfo.config.foundation }),
-          },
-        );
-
-        if (!isMounted) return;
-
-        if (!diffusionResponse.ok) {
-          setIsValidDiffusionModel(false);
-          return;
-        }
-
-        const diffusionData = await diffusionResponse.json();
-        setIsValidDiffusionModel(
-          diffusionData?.is_valid_diffusion_model ?? false,
-        );
-      } catch {
-        if (isMounted) {
-          setPipelineTag(null);
-          setIsValidDiffusionModel(false);
-        }
-      }
-    };
-
-    checkValidDiffusionAndPipelineTag();
-
-    // eslint-disable-next-line consistent-return
-    return function cleanup() {
-      isMounted = false;
-    };
-  }, [experimentInfo?.id, experimentInfo?.config?.foundation, hasFoundation]);
 
   return (
     <List
@@ -183,98 +47,24 @@ function ExperimentMenuItems({
       }}
     >
       <>
-        {isLocalMode && (
-          <SubNavItem
-            title="Foundation"
-            path="/experiment/model"
-            icon={<LayersIcon strokeWidth={1} />}
-            disabled={!experimentReady}
-          />
-        )}
-        {showInteractTab && (
-          <SubNavItem
-            title="Interact"
-            path={isLocalMode ? '/experiment/chat' : '/experiment/interactive'}
-            icon={
-              isLocalMode ? (
-                <MessageCircleIcon strokeWidth={9} />
-              ) : (
-                <CodeIcon strokeWidth={1} />
-              )
-            }
-            disabled={isLocalMode ? disableInteract : !experimentReady}
-          />
-        )}
-        {showDiffusionTab && (
-          <SubNavItem
-            title="Diffusion"
-            path="/experiment/diffusion"
-            icon={<RiImageAiLine />}
-            disabled={!experimentReady}
-          />
-        )}
-        {showAudioTTSTab && (
-          <SubNavItem
-            title="Audio"
-            path="/experiment/audio"
-            icon={<AudioLinesIcon />}
-            disabled={disableInteract}
-          />
-        )}
-        {showAudioSTTTab && (
-          <SubNavItem
-            title="Audio"
-            path="/experiment/audio-stt"
-            icon={<AudioLinesIcon />}
-            disabled={disableInteract}
-          />
-        )}
-        {isLocalMode && (
-          <SubNavItem
-            title="Train"
-            path="/experiment/training"
-            icon={<GraduationCapIcon />}
-            disabled={!experimentReady}
-          />
-        )}
-        {!isLocalMode && (
-          <SubNavItem
-            title="Tasks"
-            path="/experiment/tasks"
-            icon={<StretchHorizontalIcon />}
-            disabled={!experimentReady}
-          />
-        )}
-        {isLocalMode && (
-          <SubNavItem
-            title="Generate"
-            path="/experiment/generate"
-            icon={<SquareStackIcon />}
-            disabled={!experimentReady}
-          />
-        )}
-        {isLocalMode && (
-          <SubNavItem
-            title="Evaluate"
-            path="/experiment/eval"
-            icon={<ChartColumnIncreasingIcon />}
-            disabled={disableEval}
-          />
-        )}
+        <SubNavItem
+          title="Interact"
+          path="/experiment/interactive"
+          icon={<CodeIcon strokeWidth={1} />}
+          disabled={!experimentReady}
+        />
+        <SubNavItem
+          title="Tasks"
+          path="/experiment/tasks"
+          icon={<StretchHorizontalIcon />}
+          disabled={!experimentReady}
+        />
         <SubNavItem
           title="Documents"
           path="/experiment/documents"
           icon={<FileIcon />}
           disabled={!experimentReady}
         />
-        {isLocalMode && (
-          <SubNavItem
-            title="Export"
-            path="/experiment/export"
-            icon={<ArrowRightFromLineIcon />}
-            disabled={disableExport}
-          />
-        )}
         <SubNavItem
           title="Notes"
           path="/experiment/notes"
@@ -287,16 +77,10 @@ function ExperimentMenuItems({
 }
 
 interface GlobalMenuItemsProps {
-  outdatedPluginsCount: number | undefined;
-  hasProviders: boolean;
   experimentInfo: any;
 }
 
-function GlobalMenuItems({
-  outdatedPluginsCount,
-  hasProviders,
-  experimentInfo,
-}: GlobalMenuItemsProps) {
+function GlobalMenuItems({ experimentInfo }: GlobalMenuItemsProps) {
   const isLocalMode = window?.platform?.multiuser !== true;
   return (
     <List
@@ -318,30 +102,8 @@ function GlobalMenuItems({
           icon={<StretchHorizontalIcon />}
         />
       )}
-      {isLocalMode && (
-        <SubNavItem
-          title="API"
-          path="/api"
-          icon={<CodeIcon />}
-          disabled={!experimentInfo?.name}
-        />
-      )}
-      {isLocalMode && (
-        <SubNavItem title="Logs" path="/logs" icon={<TextIcon />} />
-      )}
-      {isLocalMode && (
-        <SubNavItem
-          title="Plugins"
-          path="/plugins"
-          icon={<PlugIcon />}
-          counter={outdatedPluginsCount}
-        />
-      )}
       {!isLocalMode && (
         <SubNavItem title="Compute" path="/compute" icon={<MonitorIcon />} />
-      )}
-      {isLocalMode && (
-        <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
       )}
     </List>
   );
@@ -413,20 +175,6 @@ export default function Sidebar({
 
   const navigate = useNavigate();
 
-  const { team } = useAuth();
-
-  // Fetch compute_provider to determine if Tasks tab should be visible
-  const { data: providerListData } = useAPI('compute_provider', ['list'], {
-    teamId: team?.id ?? null,
-  });
-
-  const providers = useMemo(
-    () => (Array.isArray(providerListData) ? providerListData : []),
-    [providerListData],
-  );
-
-  const hasProviders = providers.length > 0;
-
   return (
     <Sheet
       className="Sidebar"
@@ -457,12 +205,8 @@ export default function Sidebar({
       }}
     >
       <SelectExperimentMenu models={models} />
-      <ExperimentMenuItems experimentInfo={experimentInfo} models={models} />
-      <GlobalMenuItems
-        outdatedPluginsCount={notificationsSummary.byCategory.outdatedPlugins}
-        hasProviders={hasProviders}
-        experimentInfo={experimentInfo}
-      />
+      <ExperimentMenuItems experimentInfo={experimentInfo} />
+      <GlobalMenuItems experimentInfo={experimentInfo} />
       {window?.platform?.multiuser === true && (
         <LoginChip notificationsSummary={notificationsSummary} />
       )}

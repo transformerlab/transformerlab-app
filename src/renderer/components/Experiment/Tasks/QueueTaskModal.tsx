@@ -334,42 +334,8 @@ export default function QueueTaskModal({
       }
     }
 
-    // Check CPU requirement
-    if (taskResources.cpus) {
-      const requiredCpus = parseInt(String(taskResources.cpus), 10);
-      const availableCpus = serverInfoData.cpu_count || 0;
-      if (
-        !isNaN(requiredCpus) &&
-        requiredCpus > 0 &&
-        availableCpus < requiredCpus
-      ) {
-        issues.push({
-          type: 'warning',
-          label: 'CPUs',
-          required: `${requiredCpus}`,
-          available: `${availableCpus}`,
-        });
-      }
-    }
-
-    // Check memory requirement (task specifies in GB)
-    if (taskResources.memory) {
-      const requiredMemoryGB = parseFloat(String(taskResources.memory));
-      const availableMemoryBytes = serverInfoData.memory?.total || 0;
-      const availableMemoryGB = availableMemoryBytes / (1024 * 1024 * 1024);
-      if (
-        !isNaN(requiredMemoryGB) &&
-        requiredMemoryGB > 0 &&
-        availableMemoryGB < requiredMemoryGB
-      ) {
-        issues.push({
-          type: 'warning',
-          label: 'Memory',
-          required: `${requiredMemoryGB} GB`,
-          available: `${availableMemoryGB.toFixed(1)} GB`,
-        });
-      }
-    }
+    // Note: We intentionally skip validating CPU and memory for local providers.
+    // Only accelerator (GPU) requirements are enforced here.
 
     const hasErrors = issues.some((i) => i.type === 'error');
     const hasWarnings = issues.some((i) => i.type === 'warning');

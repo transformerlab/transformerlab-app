@@ -88,52 +88,6 @@ async def job_update(job_id: str, status: str, experimentId: str):
     return {"message": "OK"}
 
 
-async def start_next_job():
-    # Count running jobs across all organizations
-    num_running_jobs = await job_service.job_count_running_across_all_orgs()
-    if num_running_jobs > 0:
-        return {"message": "A job is already running"}
-
-    # Get next queued job across all organizations
-    nextjob, org_id = await job_service.jobs_get_next_queued_job_across_all_orgs()
-
-    if nextjob:
-        print(f"Starting Next Job in Queue: {nextjob}")
-        print(f"Job belongs to organization: {org_id}")
-        print("Starting job: " + str(nextjob["id"]))
-
-        # Set organization context before running the job
-        # Note: This is safe because:
-        # 1. This function runs in a background task with its own async context (isolated from request handlers)
-        # 2. Request handlers have their own middleware that sets/clears org context per request
-        # 3. The try/finally block ensures cleanup even if run_job() raises an exception
-        if org_id:
-            from lab.dirs import set_organization_id
-
-            set_organization_id(org_id)
-            print(f"Set organization context to: {org_id}")
-
-        try:
-            nextjob_data = nextjob["job_data"]
-            if not isinstance(nextjob_data, dict):
-                job_config = json.loads(nextjob["job_data"])
-            else:
-                job_config = nextjob_data
-            experiment_name = nextjob["experiment_id"]  # Note: experiment_id and experiment_name are the same
-            await shared.run_job(
-                job_id=nextjob["id"], job_config=job_config, experiment_name=experiment_name, job_details=nextjob
-            )
-            return nextjob
-        finally:
-            # Clear organization context after running job
-            if org_id:
-                from lab.dirs import set_organization_id
-
-                set_organization_id(None)
-    else:
-        return {"message": "No jobs in queue"}
-
-
 @router.get("/{job_id}/stop")
 async def stop_job(job_id: str, experimentId: str):
     # The way a job is stopped is simply by adding "stop: true" to the job_data
