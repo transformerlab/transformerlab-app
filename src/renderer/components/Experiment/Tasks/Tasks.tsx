@@ -225,7 +225,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     },
   );
 
-  // Fetch SWEEP jobs using sweep-status endpoint (which also updates their status)
+  // Fetch SWEEP jobs using sweep-status endpoint (status is updated by backend background worker)
   const { data: sweepStatusData, mutate: jobsSweepMutate } = useSWR(
     experimentInfo?.id
       ? chatAPI.Endpoints.ComputeProvider.CheckSweepStatus(experimentInfo.id)
@@ -380,9 +380,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
   //   return () => clearInterval(interval);
   // }, [experimentInfo?.id, fetchWithAuth, jobsMutate]);
-
-  // Note: SWEEP job status is automatically updated when fetching via sweep-status endpoint
-  // No separate status check needed - the endpoint updates and returns all SWEEP jobs
 
   const loading = templatesIsLoading || jobsIsLoading;
 
