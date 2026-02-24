@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 import asyncio
+import sys
 from typing import Optional, Dict, Any, Union
 import io
 import os
@@ -1595,6 +1596,22 @@ class Lab:
         """
         model = _run_async(ModelService.get(model_id))
         return _run_async(model.get_dir())
+
+    def get_python_executable(self) -> str:
+        """
+        Return the Python executable path for the current job's virtual environment.
+
+        Returns:
+            str: Absolute path to the Python executable.
+        """
+        self._ensure_initialized()
+        job_id = os.environ.get("_TFL_JOB_ID") or self._job.id  # type: ignore[union-attr]
+        job_data = _run_async(self._job.get_job_data())  # type: ignore[union-attr]
+        org_id = job_data.get("team_id") if isinstance(job_data, dict) else None
+        local_job_dir = dirs.get_local_provider_job_dir(job_id, org_id=org_id)
+        candidate = os.path.join(local_job_dir, "venv", "bin", "python")
+        if os.path.isfile(candidate):
+            return candidate
 
     @property
     def experiment(self) -> Experiment:
