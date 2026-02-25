@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -157,22 +158,47 @@ class LocalProvider(ComputeProvider):
 
             extra = _get_pyproject_extra()
             additional_flags = _get_uv_pip_install_flags()
-            activate = str(team_venv_path / "bin" / "activate")
-            # Install from pyproject and freeze requirements into team_requirements.txt
-            full_cmd = (
-                f"source {activate} && cd {source_code_dir} && "
-                f"uv pip install {additional_flags} .{extra} && "
-                f"uv pip freeze > {team_requirements}"
-            )
+
+            # Run uv inside the team venv by adjusting PATH instead of using shell activation.
+            env = os.environ.copy()
+            venv_bin = team_venv_path / "bin"
+            env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
+
+            install_cmd = ["uv", "pip", "install"]
+            if additional_flags:
+                install_cmd.extend(shlex.split(additional_flags))
+            install_cmd.append(f".{extra}")
+
             result = subprocess.run(
-                ["/bin/bash", "-c", full_cmd],
-                cwd=team_venv_path.parent,
+                install_cmd,
+                cwd=source_code_dir,
+                env=env,
                 capture_output=True,
                 text=True,
                 timeout=900,
             )
             if result.returncode != 0:
-                raise RuntimeError(f"uv pip install/freeze failed: {result.stderr or result.stdout or 'unknown error'}")
+                raise RuntimeError(
+                    f"uv pip install failed for team venv: {result.stderr or result.stdout or 'unknown error'}"
+                )
+
+            freeze_cmd = ["uv", "pip", "freeze"]
+            try:
+                with team_requirements.open("w", encoding="utf-8") as req_file:
+                    result = subprocess.run(
+                        freeze_cmd,
+                        cwd=source_code_dir,
+                        env=env,
+                        stdout=req_file,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        timeout=300,
+                    )
+            except OSError as exc:
+                raise RuntimeError(f"Failed to write team requirements file: {exc}") from exc
+
+            if result.returncode != 0:
+                raise RuntimeError(f"uv pip freeze failed for team venv: {result.stderr or 'unknown error'}")
 
             team_hash_file.write_text(desired_hash)
 
@@ -197,21 +223,29 @@ class LocalProvider(ComputeProvider):
         )
 
         additional_flags = _get_uv_pip_install_flags()
-        activate = str(venv_path / "bin" / "activate")
-        # Install the same package set as the team venv, using the shared requirements file.
-        # We intentionally use `uv pip install` instead of `uv pip sync` here because sync can
-        # be more sensitive to resolution differences; install still benefits from uv's cache
-        # and avoids re-resolving from pyproject.toml directly.
-        full_cmd = f"source {activate} && uv pip install {additional_flags} -r {team_requirements}"
+
+        # Run uv inside the job venv by adjusting PATH instead of using shell activation.
+        env = os.environ.copy()
+        venv_bin = venv_path / "bin"
+        env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
+
+        install_cmd = ["uv", "pip", "install"]
+        if additional_flags:
+            install_cmd.extend(shlex.split(additional_flags))
+        install_cmd.extend(["-r", str(team_requirements)])
+
         result = subprocess.run(
-            ["/bin/bash", "-c", full_cmd],
+            install_cmd,
             cwd=venv_path.parent,
+            env=env,
             capture_output=True,
             text=True,
             timeout=900,
         )
         if result.returncode != 0:
-            raise RuntimeError(f"uv pip sync failed: {result.stderr or result.stdout or 'unknown error'}")
+            raise RuntimeError(
+                f"uv pip install failed for job venv: {result.stderr or result.stdout or 'unknown error'}"
+            )
 
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         """
