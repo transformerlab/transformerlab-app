@@ -179,7 +179,7 @@ class LocalProvider(ComputeProvider):
         return team_requirements
 
     def _ensure_job_venv_from_team(self, venv_path: Path, team_requirements: Path) -> None:
-        """Create or refresh a per-job venv by syncing from the shared team requirements."""
+        """Create or refresh a per-job venv by installing from the shared team requirements."""
         team_requirements = Path(team_requirements)
         if not team_requirements.exists():
             raise FileNotFoundError(f"team requirements file not found at {team_requirements}")
@@ -198,7 +198,11 @@ class LocalProvider(ComputeProvider):
 
         additional_flags = _get_uv_pip_install_flags()
         activate = str(venv_path / "bin" / "activate")
-        full_cmd = f"source {activate} && uv pip sync {additional_flags} -r {team_requirements}"
+        # Install the same package set as the team venv, using the shared requirements file.
+        # We intentionally use `uv pip install` instead of `uv pip sync` here because sync can
+        # be more sensitive to resolution differences; install still benefits from uv's cache
+        # and avoids re-resolving from pyproject.toml directly.
+        full_cmd = f"source {activate} && uv pip install {additional_flags} -r {team_requirements}"
         result = subprocess.run(
             ["/bin/bash", "-c", full_cmd],
             cwd=venv_path.parent,
