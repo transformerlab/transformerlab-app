@@ -1,8 +1,7 @@
 import asyncio
 import datetime
 import json
-import os
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 
 from lab import Experiment, Job
 from lab import dirs as lab_dirs
@@ -23,86 +22,6 @@ ALLOWED_JOB_TYPES = [
     "REMOTE",
     "SWEEP",
 ]
-
-# Centralized set of job types that can trigger workflows on completion
-SUPPORTED_WORKFLOW_TRIGGERS = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE", "DOWNLOAD_MODEL"]
-
-# Queue file management for efficient job queueing
-QUEUE_FILE_NAME = "job_queue.json"
-
-
-def _get_queue_file_path() -> str:
-    """Get the path to the job queue file."""
-    try:
-        home_dir = lab_dirs.HOME_DIR
-    except AttributeError:
-        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
-    return storage.join(home_dir, QUEUE_FILE_NAME)
-
-
-async def _get_queued_jobs_from_file() -> List[Dict[str, str]]:
-    """
-    Read all queued jobs from the queue file.
-    Returns a list of dicts with 'job_id' and 'org_id' keys.
-    """
-    queue_file = _get_queue_file_path()
-    try:
-        if await storage.exists(queue_file):
-            async with await storage.open(queue_file, "r") as f:
-                content = await f.read()
-                if content.strip():
-                    return json.loads(content)
-        return []
-    except Exception as e:
-        print(f"Error reading queue file {queue_file}: {e}")
-        return []
-
-
-async def _write_queued_jobs_to_file(queued_jobs: List[Dict[str, str]]):
-    """Write the queue list to the queue file."""
-    queue_file = _get_queue_file_path()
-    try:
-        # Ensure directory exists
-        queue_dir = storage.join(*queue_file.split("/")[:-1]) if "/" in queue_file else "."
-        await storage.makedirs(queue_dir, exist_ok=True)
-
-        async with await storage.open(queue_file, "w") as f:
-            await f.write(json.dumps(queued_jobs, indent=2))
-    except Exception as e:
-        print(f"Error writing queue file {queue_file}: {e}")
-
-
-async def _add_job_to_queue(job_id: str, org_id: Optional[str] = None):
-    """
-    Add a job to the queue file.
-    If org_id is not provided, attempts to find it.
-    """
-    try:
-        if org_id is None:
-            org_id = await _find_org_id_for_job(job_id)
-        if org_id is None:
-            print(f"Warning: Could not determine org_id for job {job_id}, skipping queue add")
-            return
-
-        queued_jobs = await _get_queued_jobs_from_file()
-        # Check if already in queue
-        if any(j["job_id"] == job_id for j in queued_jobs):
-            return
-
-        queued_jobs.append({"job_id": str(job_id), "org_id": org_id})
-        await _write_queued_jobs_to_file(queued_jobs)
-    except Exception as e:
-        print(f"Error adding job {job_id} to queue: {e}")
-
-
-async def _remove_job_from_queue(job_id: str):
-    """Remove a job from the queue file."""
-    try:
-        queued_jobs = await _get_queued_jobs_from_file()
-        queued_jobs = [j for j in queued_jobs if j["job_id"] != str(job_id)]
-        await _write_queued_jobs_to_file(queued_jobs)
-    except Exception as e:
-        print(f"Error removing job {job_id} from queue: {e}")
 
 
 async def job_create(type, status, experiment_id, job_data="{}"):
@@ -126,19 +45,6 @@ async def job_create(type, status, experiment_id, job_data="{}"):
     await job.set_type(type)
     await job.update_status(status)
     await job.set_job_data(job_data)
-
-    # Add to queue file if status is QUEUED
-    if status == "QUEUED":
-        # Get org_id from current context
-        try:
-            from lab.dirs import get_workspace_dir
-
-            workspace_dir = await get_workspace_dir()
-            if "/orgs/" in workspace_dir:
-                org_id = workspace_dir.split("/orgs/")[-1].split("/")[0]
-                await _add_job_to_queue(job.id, org_id)
-        except Exception as e:
-            print(f"Error adding job {job.id} to queue during creation: {e}")
 
     return job.id
 
@@ -239,65 +145,6 @@ async def job_count_running_across_all_orgs() -> int:
     return count
 
 
-async def jobs_get_next_queued_job():
-    return await Job.get_next_queued_job()
-
-
-async def jobs_get_next_queued_job_across_all_orgs() -> Tuple[Optional[dict], Optional[str]]:
-    """
-    Get the next queued job across all organizations.
-    Returns a tuple of (job_data_dict, organization_id) or (None, None) if no queued jobs found.
-
-    Uses the queue file for efficient lookup instead of scanning all jobs on disk.
-    Jobs are sorted by job_id (oldest first) to ensure fair queue ordering across all orgs.
-    """
-    # Read queued jobs from queue file
-    queued_jobs_from_file = await _get_queued_jobs_from_file()
-
-    if not queued_jobs_from_file:
-        return (None, None)
-
-    # Convert to list of (job_id, job_data, org_id) tuples, filtering out invalid entries
-    valid_queued_jobs = []
-
-    for job_entry in queued_jobs_from_file:
-        job_id_str = job_entry.get("job_id")
-        org_id = job_entry.get("org_id")
-
-        if not job_id_str or not org_id:
-            continue
-
-        try:
-            # Set org context and verify job exists and is still QUEUED
-            lab_dirs.set_organization_id(org_id)
-            try:
-                job = await Job.get(job_id_str)
-                job_data = await job.get_json_data(uncached=True)
-
-                # Verify job is still QUEUED (in case queue file is out of sync)
-                if job_data.get("status") == "QUEUED":
-                    job_id = int(job_id_str) if job_id_str.isdigit() else 0
-                    valid_queued_jobs.append((job_id, job_data, org_id))
-                else:
-                    # Job is no longer QUEUED, remove from queue file
-                    await _remove_job_from_queue(job_id_str)
-            except Exception:
-                # Job doesn't exist or error accessing it, remove from queue
-                await _remove_job_from_queue(job_id_str)
-        except Exception as e:
-            print(f"Error processing queued job {job_id_str}: {e}")
-        finally:
-            lab_dirs.set_organization_id(None)
-
-    # Sort by job_id (oldest first) and return the first one
-    if valid_queued_jobs:
-        valid_queued_jobs.sort(key=lambda x: x[0])
-        job_id, job_data, org_id = valid_queued_jobs[0]
-        return (job_data, org_id)
-
-    return (None, None)
-
-
 async def job_delete_all(experiment_id):
     if experiment_id is not None:
         experiment = Experiment(experiment_id)
@@ -311,8 +158,6 @@ async def job_delete(job_id, experiment_id):
         if experiment_id is not None and exp_id != experiment_id:
             return
         await job.delete()
-        # Remove from queue file if it was queued
-        await _remove_job_from_queue(job_id)
     except Exception as e:
         print(f"Error deleting job {job_id}: {e}")
 
@@ -556,42 +401,6 @@ async def _record_quota_usage_internal(
         await session.rollback()
 
 
-async def _trigger_workflows_on_job_completion(job_id: str):
-    """
-    Trigger workflows when a job completes if the job type is in supported triggers.
-    """
-    try:
-        # Get the job details
-        job = await job_get(job_id)
-        if not job:
-            return
-
-        job_type = job.get("type")
-        experiment_id = job.get("experiment_id")
-
-        # Define supported triggers based on centralized configuration
-        supported_triggers = SUPPORTED_WORKFLOW_TRIGGERS
-
-        # Check if job type is in supported triggers
-        if job_type not in supported_triggers:
-            return
-
-        # Import here to avoid circular imports
-        from transformerlab.routers.experiment.workflows import workflows_get_by_trigger_type
-
-        # Get workflows that should be triggered
-        triggered_workflow_ids = await workflows_get_by_trigger_type(experiment_id, job_type)
-
-        # Start each workflow
-        if triggered_workflow_ids:
-            from transformerlab.db.workflows import workflow_queue
-
-            for workflow_id in triggered_workflow_ids:
-                await workflow_queue(workflow_id)
-    except Exception as e:
-        print(f"Error triggering workflows for job {job_id}: {e}")
-
-
 async def job_update_status(
     job_id: str,
     status: str,
@@ -600,7 +409,7 @@ async def job_update_status(
     session: Optional[object] = None,  # AsyncSession type but using object to avoid circular imports
 ):
     """
-    Update job status and trigger workflows if job is completed.
+    Update job status.
     Also handles quota tracking for REMOTE jobs.
 
     Args:
@@ -611,24 +420,11 @@ async def job_update_status(
         session: Optional database session for quota tracking. If not provided, quota tracking will use a background task.
     """
     # Get old status before updating for queue management
-    old_status = None
-    org_id = None
     try:
         job = await Job.get(job_id)
         exp_id = await job.get_experiment_id()
         if experiment_id is not None and exp_id != experiment_id:
             return
-        old_status = await job.get_status()
-
-        # Get org_id for queue management
-        try:
-            from lab.dirs import get_workspace_dir
-
-            workspace_dir = await get_workspace_dir()
-            if "/orgs/" in workspace_dir:
-                org_id = workspace_dir.split("/orgs/")[-1].split("/")[0]
-        except Exception:
-            org_id = await _find_org_id_for_job(job_id)
 
         await job.update_status(status)
         if error_msg:
@@ -636,18 +432,6 @@ async def job_update_status(
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
         pass
-
-    # Update queue file based on status change
-    try:
-        if old_status == "QUEUED" and status != "QUEUED":
-            # Job was queued but is no longer queued, remove from queue
-            await _remove_job_from_queue(job_id)
-        elif old_status != "QUEUED" and status == "QUEUED":
-            # Job is now queued, add to queue
-            if org_id:
-                await _add_job_to_queue(job_id, org_id)
-    except Exception as e:
-        print(f"Error updating queue for job {job_id}: {e}")
 
     # Track quota for REMOTE jobs when they transition to terminal states
     if status in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
@@ -669,14 +453,10 @@ async def job_update_status(
         except Exception as e:
             print(f"Error initiating quota tracking for job {job_id}: {e}")
 
-    # # Trigger workflows if job status is COMPLETE
-    # if status == "COMPLETE":
-    #     await _trigger_workflows_on_job_completion(job_id)
-
 
 async def job_update(job_id: str, type: str, status: str, experiment_id: Optional[str] = None):
     """
-    Update job type and status and trigger workflows if job is completed.
+    Update job type and status.
 
     Args:
         job_id: The ID of the job to update
@@ -684,47 +464,17 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
         status: The new status to set
         experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
     """
-    # Get old status before updating for queue management
-    old_status = None
-    org_id = None
     try:
         job = await Job.get(job_id)
         exp_id = await job.get_experiment_id()
         if experiment_id is not None and exp_id != experiment_id:
             return
-        old_status = await job.get_status()
-
-        # Get org_id for queue management
-        try:
-            from lab.dirs import get_workspace_dir
-
-            workspace_dir = await get_workspace_dir()
-            if "/orgs/" in workspace_dir:
-                org_id = workspace_dir.split("/orgs/")[-1].split("/")[0]
-        except Exception:
-            org_id = await _find_org_id_for_job(job_id)
 
         await job.set_type(type)
         await job.update_status(status)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
         pass
-
-    # Update queue file based on status change
-    try:
-        if old_status == "QUEUED" and status != "QUEUED":
-            # Job was queued but is no longer queued, remove from queue
-            await _remove_job_from_queue(job_id)
-        elif old_status != "QUEUED" and status == "QUEUED":
-            # Job is now queued, add to queue
-            if org_id:
-                await _add_job_to_queue(job_id, org_id)
-    except Exception as e:
-        print(f"Error updating queue for job {job_id}: {e}")
-
-    # # Trigger workflows if job status is COMPLETE
-    # if status == "COMPLETE":
-    #     await _trigger_workflows_on_job_completion(job_id)
 
 
 def job_update_status_sync(job_id: str, org_id: str, status: str, error_msg: Optional[str] = None):
@@ -781,10 +531,6 @@ def job_update_sync(job_id: str, status: str, experiment_id: Optional[str] = Non
         print(f"Error updating job {job_id}: {e}")
         pass
 
-    # # Trigger workflows if job status is COMPLETE
-    # if status == "COMPLETE":
-    #     _trigger_workflows_on_job_completion_sync(job_id)
-
 
 def job_update_type_and_status_sync(job_id: str, job_type: str, status: str, experiment_id: Optional[str] = None):
     """
@@ -803,77 +549,13 @@ def job_update_type_and_status_sync(job_id: str, job_type: str, status: str, exp
             return
         asyncio.run(job.set_type(job_type))
         asyncio.run(job.update_status(status))
-
-        # Trigger workflows if job status is COMPLETE
-        # if status == "COMPLETE":
-        # _trigger_workflows_on_job_completion_sync(job_id)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
         pass
 
 
-def _trigger_workflows_on_job_completion_sync(job_id: str):
-    """
-    Sync version of workflow triggering for use in sync contexts
-    Note: This function cannot be truly sync since it needs to use async database operations.
-    It should be called from an async context or we should use a sync database session.
-    For now, we'll leave it as-is but it may need to be refactored.
-    """
-    try:
-        # 1. Get job details using SDK
-        job = asyncio.run(Job.get(job_id))
-        job_type = asyncio.run(job.get_type())
-        # Get experiment_id from job data to match the type expected by workflow functions
-        experiment_id = asyncio.run(job.get_experiment_id())
-
-        if not experiment_id:
-            return
-
-        # 2. Check if job type is supported
-        supported_triggers = SUPPORTED_WORKFLOW_TRIGGERS
-        if job_type not in supported_triggers:
-            return
-
-        # 3. Get workflows with matching trigger using async database operations
-        # Note: This is a limitation - we can't easily do async operations in a sync context
-        # For now, we'll import the async function and call it
-
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # We're already in an async context, create a task
-                asyncio.create_task(_trigger_workflows_async(job_id, job_type, experiment_id))
-            else:
-                # We're not in an async context, run it
-                asyncio.run(_trigger_workflows_async(job_id, job_type, experiment_id))
-        except RuntimeError:
-            # No event loop, create one
-            asyncio.run(_trigger_workflows_async(job_id, job_type, experiment_id))
-
-    except Exception as e:
-        print(f"Error triggering workflows for job {job_id}: {e}")
-
-
-async def _trigger_workflows_async(job_id: str, job_type: str, experiment_id: str):
-    """Helper async function to trigger workflows"""
-    try:
-        from transformerlab.routers.experiment.workflows import workflows_get_by_trigger_type
-
-        # Get workflows with matching trigger
-        triggered_workflow_ids = await workflows_get_by_trigger_type(experiment_id, job_type)
-
-        # Queue workflows
-        if triggered_workflow_ids:
-            from transformerlab.db.workflows import workflow_queue
-
-            for workflow_id in triggered_workflow_ids:
-                await workflow_queue(workflow_id)
-    except Exception as e:
-        print(f"Error in async workflow triggering for job {job_id}: {e}")
-
-
 def job_mark_as_complete_if_running(job_id: int, org_id: str) -> None:
-    """Service wrapper: mark job as complete if running and then trigger workflows."""
+    """Service wrapper: mark job as complete if running."""
     try:
         # Set org context before accessing the job
         if org_id:

@@ -23,10 +23,8 @@ import { useDebounce } from 'use-debounce';
 import CompletionsPage from './CompletionsPage';
 import PromptSettingsModal from './PromptSettingsModal';
 import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
-import Rag from '../Rag';
 import TemplatedCompletion from './TemplatedCompletion';
 import Tokenize from './Tokenize';
-import Embeddings from '../Embeddings';
 import { ChevronDownIcon } from 'lucide-react';
 
 import { scrollChatToBottom, focusChatInput } from './interactUtils';
@@ -821,9 +819,7 @@ export default function Chat({
             >
               Model Architecture
             </Option>
-            <Option value="rag" disabled={!supports.includes('rag')}>
-              Query Docs (RAG)
-            </Option>
+
             <Option value="tools" disabled={!supports.includes('tools')}>
               Tool Calling
             </Option>
@@ -991,9 +987,6 @@ export default function Chat({
             experimentInfoMutate={experimentInfoMutate}
           />
         )}
-        {mode === 'embeddings' && (
-          <Embeddings experimentInfo={experimentInfo}></Embeddings>
-        )}
         {mode === 'tokenize' && (
           <Tokenize experimentInfo={experimentInfo}></Tokenize>
         )}
@@ -1019,9 +1012,7 @@ export default function Chat({
             experimentInfoMutate={experimentInfoMutate}
           ></VisualizeLogProbs>
         )}
-        {mode === 'rag' && (
-          <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
-        )}
+
         {mode == 'batched' && (
           <Batched
             tokenCount={tokenCount}

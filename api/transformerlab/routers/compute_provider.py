@@ -1541,7 +1541,7 @@ async def launch_template_on_provider(
 
             resolved_cmd, setup_override_from_gallery = resolve_interactive_command(gallery_entry, environment)
             if resolved_cmd:
-                base_command = resolved_cmd
+                base_command = INTERACTIVE_SUDO_PREFIX + " " + resolved_cmd
             if setup_override_from_gallery and team_secrets:
                 setup_override_from_gallery = replace_secret_placeholders(setup_override_from_gallery, team_secrets)
 

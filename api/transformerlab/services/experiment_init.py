@@ -7,6 +7,7 @@ from lab import dirs as lab_dirs
 from sqlalchemy import select
 from transformerlab.shared.models.user_model import AsyncSessionLocal, create_personal_team
 from transformerlab.shared.models.models import User, UserTeam, TeamRole
+from transformerlab.services.provider_service import ensure_default_local_provider_for_team
 from transformerlab.models.users import UserManager, UserCreate
 from fastapi_users.db import SQLAlchemyUserDatabase
 import os
@@ -54,6 +55,12 @@ async def seed_default_admin_user():
                 else:
                     # Get the team ID from existing user_team
                     team_id = user_team.team_id
+
+                # Ensure a default local provider exists for this team
+                try:
+                    await ensure_default_local_provider_for_team(session, team_id, str(admin_user_id))
+                except Exception as e:
+                    print(f"⚠️  Failed to create default local provider for existing admin team {team_id}: {e}")
 
                 # Migrate workspace from ~/.transformerlab/workspace to ~/.transformerlab/orgs/<team-id>/workspace
                 await migrate_workspace_to_org(team_id)
@@ -106,6 +113,12 @@ async def seed_default_admin_user():
                 # Get the team ID from existing user_team
                 team_id = user_team.team_id
                 print(f"✅ Admin user already has team association (team_id={team_id})")
+
+            # Ensure a default local provider exists for this team
+            try:
+                await ensure_default_local_provider_for_team(session, team_id, str(admin_user_id))
+            except Exception as e:
+                print(f"⚠️  Failed to create default local provider for admin team {team_id}: {e}")
 
             # Migrate workspace from ~/.transformerlab/workspace to ~/.transformerlab/orgs/<team-id>/workspace
             await migrate_workspace_to_org(team_id)
