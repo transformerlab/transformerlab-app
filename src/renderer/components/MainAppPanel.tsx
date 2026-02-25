@@ -29,7 +29,6 @@ import TrainLoRA from './Experiment/Train/TrainLoRA';
 import Prompt from './Experiment/Prompt';
 import Documents from './Experiment/Documents';
 import Tokenize from './Experiment/Interact/Tokenize';
-import Diffusion from './Experiment/Diffusion/Diffusion';
 import Audio from './Experiment/Audio/Audio';
 import AudioSTT from './Experiment/Audio/AudioSTT';
 import ExperimentNotes from './Experiment/ExperimentNotes';
@@ -371,7 +370,6 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         />
         <Route path="/experiment/documents" element={<Documents />} />
 
-        <Route path="/experiment/diffusion" element={<Diffusion />} />
         <Route path="/experiment/audio" element={<Audio />} />
         <Route path="/experiment/audio-stt" element={<AudioSTT />} />
         <Route

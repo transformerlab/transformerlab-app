@@ -6,6 +6,7 @@ import {
   Box,
   Card,
   CardContent,
+  IconButton,
   FormControl,
   Grid,
   Input,
@@ -27,6 +28,8 @@ import {
   SearchIcon,
   ZapIcon,
 } from 'lucide-react';
+import { ArrowLeftIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import {
   SiNvidia,
@@ -77,6 +80,8 @@ export default function Computer() {
     ? pythonLibraries
     : [];
 
+  const navigate = useNavigate();
+
   return (
     <Sheet
       sx={{
@@ -116,9 +121,26 @@ export default function Computer() {
               }}
             >
               {/* {JSON.stringify(server)} */}
-              <Typography level="h2" paddingBottom={1}>
-                Server Information
-              </Typography>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  pb: 1,
+                }}
+              >
+                <IconButton
+                  size="sm"
+                  variant="plain"
+                  color="neutral"
+                  onClick={() => navigate(-1)}
+                  aria-label="Back"
+                  sx={{ borderRadius: '999px' }}
+                >
+                  <ArrowLeftIcon size={18} />
+                </IconButton>
+                <Typography level="h2">Server Information</Typography>
+              </Box>
               <Sheet
                 className="OrderTableContainer"
                 sx={{
