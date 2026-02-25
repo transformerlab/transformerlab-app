@@ -140,11 +140,7 @@ class LocalProvider(ComputeProvider):
         desired_hash = self._compute_team_venv_hash(pyproject_path)
         current_hash = team_hash_file.read_text().strip() if team_hash_file.exists() else None
 
-        needs_rebuild = (
-            current_hash != desired_hash
-            or not team_venv_path.exists()
-            or not team_requirements.exists()
-        )
+        needs_rebuild = current_hash != desired_hash or not team_venv_path.exists() or not team_requirements.exists()
 
         if needs_rebuild:
             source_code_dir = str(pyproject_path.parent)
