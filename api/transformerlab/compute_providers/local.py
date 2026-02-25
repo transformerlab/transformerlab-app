@@ -1,5 +1,6 @@
 """Local compute provider: runs tasks in a uv venv synced with the base environment."""
 
+import hashlib
 import os
 import subprocess
 import sys
@@ -85,6 +86,9 @@ def _get_uv_pip_install_flags() -> str:
     return ""
 
 
+_PYTHON_VERSION = "3.11"
+
+
 class LocalProvider(ComputeProvider):
     """
     Provider that runs each "cluster" (task run) in a dedicated uv venv
@@ -98,41 +102,116 @@ class LocalProvider(ComputeProvider):
     def __init__(self, extra_config: Optional[Dict[str, Any]] = None):
         self.extra_config = extra_config or {}
 
-    def _ensure_venv_and_sync(self, venv_path: Path) -> None:
-        """Create uv venv and sync with base env (pyproject.toml from source)."""
+    def _get_source_code_and_pyproject(self) -> Path:
+        """Return path to pyproject.toml in the transformerlab API source tree."""
         source_code_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
         if not source_code_dir or not os.path.isdir(source_code_dir):
             raise FileNotFoundError("_TFL_SOURCE_CODE_DIR is not set or not a directory; cannot sync base environment")
         pyproject_path = Path(source_code_dir) / "pyproject.toml"
         if not pyproject_path.exists():
             raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
+        return pyproject_path
+
+    def _compute_team_venv_hash(self, pyproject_path: Path) -> str:
+        """Compute a hash representing the desired team venv contents."""
+        extra = _get_pyproject_extra()
+        additional_flags = _get_uv_pip_install_flags()
+        h = hashlib.sha256()
+        h.update(pyproject_path.read_bytes())
+        h.update(extra.encode("utf-8"))
+        h.update(additional_flags.encode("utf-8"))
+        h.update(_PYTHON_VERSION.encode("utf-8"))
+        return h.hexdigest()
+
+    def _ensure_team_venv_and_requirements(self, org_dir: Path) -> Path:
+        """
+        Ensure the shared per-org team venv and its frozen requirements exist and are up to date.
+
+        Returns the path to the team requirements file.
+        """
+        pyproject_path = self._get_source_code_and_pyproject()
+        org_dir = Path(org_dir)
+        org_dir.mkdir(parents=True, exist_ok=True)
+
+        team_venv_path = org_dir / "team_venv"
+        team_requirements = org_dir / "team_requirements.txt"
+        team_hash_file = org_dir / "team_venv_hash.txt"
+
+        desired_hash = self._compute_team_venv_hash(pyproject_path)
+        current_hash = team_hash_file.read_text().strip() if team_hash_file.exists() else None
+
+        needs_rebuild = (
+            current_hash != desired_hash
+            or not team_venv_path.exists()
+            or not team_requirements.exists()
+        )
+
+        if needs_rebuild:
+            source_code_dir = str(pyproject_path.parent)
+            team_venv_path.mkdir(parents=True, exist_ok=True)
+
+            # uv venv --python (match plugin install default)
+            subprocess.run(
+                ["uv", "venv", str(team_venv_path), "--python", _PYTHON_VERSION, "--clear"],
+                cwd=team_venv_path.parent,
+                check=True,
+                capture_output=True,
+                timeout=120,
+            )
+
+            extra = _get_pyproject_extra()
+            additional_flags = _get_uv_pip_install_flags()
+            activate = str(team_venv_path / "bin" / "activate")
+            # Install from pyproject and freeze requirements into team_requirements.txt
+            full_cmd = (
+                f"source {activate} && cd {source_code_dir} && "
+                f"uv pip install {additional_flags} .{extra} && "
+                f"uv pip freeze > {team_requirements}"
+            )
+            result = subprocess.run(
+                ["/bin/bash", "-c", full_cmd],
+                cwd=team_venv_path.parent,
+                capture_output=True,
+                text=True,
+                timeout=900,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"uv pip install/freeze failed: {result.stderr or result.stdout or 'unknown error'}")
+
+            team_hash_file.write_text(desired_hash)
+
+        return team_requirements
+
+    def _ensure_job_venv_from_team(self, venv_path: Path, team_requirements: Path) -> None:
+        """Create or refresh a per-job venv by syncing from the shared team requirements."""
+        team_requirements = Path(team_requirements)
+        if not team_requirements.exists():
+            raise FileNotFoundError(f"team requirements file not found at {team_requirements}")
 
         venv_path = Path(venv_path)
         venv_path.mkdir(parents=True, exist_ok=True)
 
-        # uv venv --python 3.11 (match plugin install default)
+        # uv venv --python (match plugin install default)
         subprocess.run(
-            ["uv", "venv", str(venv_path), "--python", "3.11", "--clear"],
+            ["uv", "venv", str(venv_path), "--python", _PYTHON_VERSION, "--clear"],
             cwd=venv_path.parent,
             check=True,
             capture_output=True,
             timeout=120,
         )
 
-        extra = _get_pyproject_extra()
         additional_flags = _get_uv_pip_install_flags()
-        # Run with venv activated: source venv/bin/activate && cd source_code_dir && uv pip install ...
         activate = str(venv_path / "bin" / "activate")
-        full_cmd = f"source {activate} && cd {source_code_dir} && uv pip install {additional_flags} .{extra}"
+        full_cmd = f"source {activate} && uv pip sync {additional_flags} -r {team_requirements}"
         result = subprocess.run(
             ["/bin/bash", "-c", full_cmd],
             cwd=venv_path.parent,
             capture_output=True,
             text=True,
-            timeout=600,
+            timeout=900,
         )
         if result.returncode != 0:
-            raise RuntimeError(f"uv pip install failed: {result.stderr or result.stdout or 'unknown error'}")
+            raise RuntimeError(f"uv pip sync failed: {result.stderr or result.stdout or 'unknown error'}")
 
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         """
@@ -147,8 +226,12 @@ class LocalProvider(ComputeProvider):
         job_dir = Path(job_dir)
         venv_path = job_dir / "venv"
         venv_path.mkdir(parents=True, exist_ok=True)
-
-        self._ensure_venv_and_sync(venv_path)
+        # Derive org directory from job directory:
+        # ~/.transformerlab/local_provider_runs/orgs/<org_id>/<job_id>/
+        # -> org_dir = ~/.transformerlab/local_provider_runs/orgs/<org_id>/
+        org_dir = job_dir.parent
+        team_requirements = self._ensure_team_venv_and_requirements(org_dir)
+        self._ensure_job_venv_from_team(venv_path, team_requirements)
 
         venv_bin = venv_path / "bin"
         env = os.environ.copy()
