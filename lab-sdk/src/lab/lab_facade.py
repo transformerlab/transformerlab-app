@@ -1597,7 +1597,7 @@ class Lab:
         model = _run_async(ModelService.get(model_id))
         return _run_async(model.get_dir())
 
-    def get_python_executable(self) -> str:
+    def get_python_executable_local_provider(self) -> str:
         """
         Return the Python executable path for the current job's virtual environment.
 
