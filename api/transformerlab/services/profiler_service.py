@@ -340,8 +340,10 @@ def _resolve_working_directory(workspace_dir: str, requested_dir: Optional[str])
         return workspace_abs
 
     candidate = requested_dir.strip()
-    resolved = candidate if os.path.isabs(candidate) else os.path.abspath(os.path.join(workspace_abs, candidate))
-    resolved_abs = os.path.abspath(resolved)
+    # Always resolve the requested directory relative to the workspace,
+    # then normalize and validate that it stays within the workspace root.
+    joined = os.path.join(workspace_abs, candidate)
+    resolved_abs = os.path.abspath(os.path.normpath(joined))
 
     if os.path.commonpath([workspace_abs, resolved_abs]) != workspace_abs:
         raise ValueError("working_directory must be inside the workspace.")
