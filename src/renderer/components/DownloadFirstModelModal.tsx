@@ -53,7 +53,17 @@ function typeOfComputer(cpu: string, os: string, device: string) {
   return `${cpu} based ${os} computer with ${device} support`;
 }
 
-export default function DownloadFirstModelModal({ open, setOpen, server }) {
+interface DownloadFirstModelModalProps {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  server?: any;
+}
+
+export default function DownloadFirstModelModal({
+  open,
+  setOpen,
+  server,
+}: DownloadFirstModelModalProps) {
   const { experimentInfo } = useExperimentInfo();
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
   const [jobId, setJobId] = useState(null);

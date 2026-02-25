@@ -10,15 +10,8 @@ import transformerlab.services.experiment_service as experiment_service
 from lab import Dataset, Experiment, storage
 from transformerlab.shared import shared
 from transformerlab.routers.experiment import (
-    rag,
     documents,
     plugins,
-    conversations,
-    export,
-    evals,
-    generations,
-    workflows,
-    diffusion,
     jobs,
     task as task_router,
     tasks2 as tasks2_router,
@@ -29,16 +22,8 @@ from werkzeug.utils import secure_filename
 
 router = APIRouter(prefix="/experiment")
 
-router.include_router(router=rag.router, prefix="/{experimentId}", tags=["rag"])
 router.include_router(router=documents.router, prefix="/{experimentId}", tags=["documents"])
 router.include_router(router=plugins.router, prefix="/{id}", tags=["plugins"])
-router.include_router(router=conversations.router, prefix="/{experimentId}", tags=["conversations"])
-router.include_router(router=conversations.audio_router, prefix="/{experimentId}", tags=["conversations"])
-router.include_router(router=export.router, prefix="/{id}", tags=["export"])
-router.include_router(router=evals.router, prefix="/{experimentId}", tags=["evals"])
-router.include_router(router=generations.router, prefix="/{experimentId}", tags=["generations"])
-router.include_router(router=workflows.router, prefix="/{experimentId}", tags=["workflows"])
-router.include_router(router=diffusion.router, prefix="/{experimentId}", tags=["diffusion"])
 router.include_router(router=jobs.router, prefix="/{experimentId}", tags=["jobs"])
 router.include_router(router=tasks2_router.router, prefix="/{experimentId}", tags=["task2"])
 router.include_router(router=task_router.router, prefix="/{experimentId}", tags=["task"])

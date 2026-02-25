@@ -8,14 +8,12 @@ import {
 } from '@mui/joy';
 import {
   CheckCheckIcon,
-  CheckCircle2Icon,
   InfoIcon,
   PlayCircleIcon,
   Plug2Icon,
   StopCircleIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import { RiImageAiLine } from 'renderer/components/Icons';
 import { useEffect, useState } from 'react';
 
 import {
@@ -175,10 +173,6 @@ export default function RunModelButton({
     );
   }, [data, supportedEngines]);
 
-  const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
-    boolean | null
-  >(null);
-
   // Prevent transient UI while we determine/commit inference engine defaults
   const [inferenceLoading, setInferenceLoading] = useState(true);
 
@@ -311,33 +305,6 @@ export default function RunModelButton({
     experimentInfo?.id,
     experimentInfo?.config?.inferenceParams,
   ]);
-
-  // Check if the current foundation model is a diffusion model
-  useEffect(() => {
-    const checkValidDiffusion = async () => {
-      if (!experimentInfo?.config?.foundation) {
-        setIsValidDiffusionModel(false);
-        return;
-      }
-
-      try {
-        const response = await chatAPI.authenticatedFetch(
-          getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: experimentInfo.config.foundation }),
-          },
-        );
-        const data = await response.json();
-        setIsValidDiffusionModel(data.is_valid_diffusion_model);
-      } catch (e) {
-        setIsValidDiffusionModel(false);
-      }
-    };
-
-    checkValidDiffusion();
-  }, [experimentInfo?.config?.foundation]);
 
   function Engine() {
     const isStarting = jobId === -1 || hasPendingLoadJob;
@@ -516,20 +483,6 @@ export default function RunModelButton({
         </Box>
       ) : supportedEngines.length > 0 ? (
         <Engine />
-      ) : isValidDiffusionModel === true ? (
-        <Alert startDecorator={<CheckCircle2Icon />} color="success">
-          <Typography level="body-sm">
-            You can now run inference using this diffusion model. Go to{' '}
-            <Link to="/experiment/diffusion">
-              <RiImageAiLine
-                size="16px"
-                style={{ verticalAlign: 'middle', marginRight: '2px' }}
-              />
-              Diffusion
-            </Link>{' '}
-            to generate images with it.
-          </Typography>
-        </Alert>
       ) : unsupportedEngines.length > 0 ? (
         <div>
           <Alert startDecorator={<TriangleAlertIcon />} color="warning">

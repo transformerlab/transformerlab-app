@@ -116,10 +116,7 @@ export function usePluginStatus(experimentInfo: any) {
 
 export function useServerStats() {
   const api_url = API_URL();
-  const isLocalMode =
-    typeof window !== 'undefined' && window?.platform?.multiuser !== true;
-  const url: string | null =
-    api_url && isLocalMode ? API_URL() + 'server/info' : null;
+  const url: string | null = api_url ? API_URL() + 'server/info' : null;
 
   // Poll every 1 seconds
   const options = { refreshInterval: 2000 };

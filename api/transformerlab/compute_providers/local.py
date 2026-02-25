@@ -150,10 +150,18 @@ class LocalProvider(ComputeProvider):
 
         self._ensure_venv_and_sync(venv_path)
 
+        # Use a per-job workspace directory as HOME for local runs so tools that
+        # rely on ~ and $HOME resolve inside the job workspace instead of the
+        # user's real home directory. This makes it easier to clone and run
+        # code in an isolated workspace for each job.
+        workspace_home = job_dir / "workspace"
+        workspace_home.mkdir(parents=True, exist_ok=True)
+
         venv_bin = venv_path / "bin"
         env = os.environ.copy()
         env.update(config.env_vars or {})
         env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
+        env["HOME"] = str(workspace_home)
 
         print(f"DEBUG: LocalProvider.launch_cluster: cluster_name={cluster_name}")
         print(f"DEBUG: LocalProvider.launch_cluster: job_dir={job_dir}")

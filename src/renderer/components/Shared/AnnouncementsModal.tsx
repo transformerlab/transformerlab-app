@@ -33,31 +33,14 @@ export default function AnnouncementsModal() {
   // Tracks whether we've already fetched announcements for the current connection
   const [hasChecked, setHasChecked] = useState(false);
 
-  const { server, isLoading, isError } = chatAPI.useServerStats();
   const localStorageKey = 'latestAnnouncementDate';
-
-  // Reset hasChecked when connection is lost
-  useEffect(() => {
-    const isConnected = API_URL() !== null;
-    if (!isConnected && hasChecked) {
-      setHasChecked(false);
-      setOpen(false);
-      setCurrentAnnouncement(null);
-    }
-  }, [hasChecked, server]);
 
   // Check for new announcements on connection
   useEffect(() => {
     // Only check when connected
     const isConnected = API_URL() !== null;
 
-    // Wait for connection to be established
-    if (!isConnected || isLoading || isError || !server) {
-      return;
-    }
-
-    // Only check once per connection
-    if (hasChecked) {
+    if (!isConnected || hasChecked) {
       return;
     }
 
@@ -217,7 +200,7 @@ export default function AnnouncementsModal() {
     return function cleanup() {
       clearTimeout(timer);
     };
-  }, [isLoading, server, isError, hasChecked]);
+  }, [hasChecked]);
 
   async function handleClose() {
     if (currentAnnouncement) {

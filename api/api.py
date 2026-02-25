@@ -70,15 +70,9 @@ from transformerlab.routers import (  # noqa: E402
     data,
     model,
     serverinfo,
-    train,
     plugins,
-    evals,
     config,
-    tasks,
-    prompts,
     tools,
-    batched_prompts,
-    recipes,
     teams,
     compute_provider,
     auth,
@@ -317,18 +311,12 @@ async def validation_exception_handler(request, exc):
 
 app.include_router(model.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(serverinfo.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(train.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(data.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(experiment.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(plugins.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(evals.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(jobs.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(tasks.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(config.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(prompts.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(tools.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(recipes.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(batched_prompts.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(fastchat_openai_api.router)
 app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(compute_provider.router)
