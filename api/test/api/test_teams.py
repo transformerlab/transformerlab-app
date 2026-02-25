@@ -689,6 +689,33 @@ def test_accept_invitation(client, fresh_owner_user, invited_user, fresh_test_te
     assert fresh_test_team["id"] in team_ids
 
 
+def test_accept_invitation_by_id(client, fresh_owner_user, invited_user, fresh_test_team):
+    """Test accepting a team invitation via invitation ID (in-app acceptance)"""
+    # Create invitation
+    headers = {"Authorization": f"Bearer {fresh_owner_user['token']}", "X-Team-Id": fresh_test_team["id"]}
+    invitation_data = {"email": invited_user["email"], "role": "member"}
+    resp = client.post(f"/teams/{fresh_test_team['id']}/members", json=invitation_data, headers=headers)
+    assert resp.status_code == 200
+    invitation_id = resp.json()["invitation_id"]
+
+    # Accept invitation by ID as invited user
+    headers = {"Authorization": f"Bearer {invited_user['token']}"}
+    resp = client.post(f"/invitations/{invitation_id}/accept", headers=headers)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["message"] == "Invitation accepted successfully"
+    assert data["team_id"] == fresh_test_team["id"]
+    assert data["role"] == "member"
+
+    # Verify user is now in the team
+    resp = client.get("/users/me/teams", headers=headers)
+    assert resp.status_code == 200
+    teams = resp.json()["teams"]
+    team_ids = [t["id"] for t in teams]
+    assert fresh_test_team["id"] in team_ids
+
+
 def test_reject_invitation(client, fresh_owner_user, reject_user, fresh_test_team):
     """Test rejecting a team invitation"""
     # Create invitation

@@ -120,16 +120,30 @@ _current_tfl_storage_uri: contextvars.ContextVar[str | None] = contextvars.Conte
     "current_tfl_storage_uri", default=None
 )
 
-REMOTE_WORKSPACE_HOST = os.getenv("REMOTE_WORKSPACE_HOST", "aws")
+# Single source: aws | gcp | localfs (default aws for backward compatibility)
+STORAGE_PROVIDER = (os.getenv("TFL_STORAGE_PROVIDER") or "aws").strip().lower()
 _AWS_PROFILE = os.getenv("AWS_PROFILE", "transformerlab-s3")
 _GCP_PROJECT = os.getenv("GCP_PROJECT", "transformerlab-workspace")
 
+# Common prefixes that represent remote storage locations handled by this module
+_REMOTE_PATH_PREFIXES: tuple[str, ...] = ("s3://", "gs://", "gcs://", "abfs://")
+
+
+def is_remote_path(path: str) -> bool:
+    """
+    Return True if the given path represents a remote storage location.
+
+    This centralizes the logic for detecting remote paths (S3, GCS, Azure, etc.)
+    so that callers don't need to duplicate prefix checks.
+    """
+    return isinstance(path, str) and path.startswith(_REMOTE_PATH_PREFIXES)
+
 
 def _get_storage_options() -> dict:
-    """Get storage options based on REMOTE_WORKSPACE_HOST."""
-    if REMOTE_WORKSPACE_HOST == "aws":
+    """Get storage options based on TFL_STORAGE_PROVIDER (aws | gcp)."""
+    if STORAGE_PROVIDER == "aws":
         return {"profile": _AWS_PROFILE} if _AWS_PROFILE else {}
-    elif REMOTE_WORKSPACE_HOST == "gcp":
+    elif STORAGE_PROVIDER == "gcp":
         return {"project": _GCP_PROJECT} if _GCP_PROJECT else {}
     else:
         return {}
@@ -222,7 +236,7 @@ async def debug_info() -> dict:
         "TFL_STORAGE_URI_env": env_uri,
         "AWS_PROFILE": _AWS_PROFILE,
         "GCP_PROJECT": _GCP_PROJECT,
-        "REMOTE_WORKSPACE_HOST": REMOTE_WORKSPACE_HOST,
+        "STORAGE_PROVIDER": STORAGE_PROVIDER,
         "root_uri": root,
         "filesystem_type": type(fs).__name__,
     }

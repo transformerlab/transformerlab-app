@@ -23,9 +23,10 @@ type NewTeamTaskModalProps = {
     command: string;
     cpus?: string;
     memory?: string;
-    accelerators?: string;
+    supported_accelerators?: string;
     github_repo_url?: string;
     github_repo_dir?: string;
+    github_repo_branch?: string;
   }) => Promise<void>;
   isSubmitting?: boolean;
 };
@@ -43,10 +44,11 @@ export default function NewTeamTaskModal({
   const [command, setCommand] = React.useState('');
   const [cpus, setCpus] = React.useState('');
   const [memory, setMemory] = React.useState('');
-  const [accelerators, setAccelerators] = React.useState('');
+  const [supportedAccelerators, setSupportedAccelerators] = React.useState('');
   const [setup, setSetup] = React.useState('');
   const [githubRepoUrl, setGithubRepoUrl] = React.useState('');
   const [githubRepoDir, setGithubRepoDir] = React.useState('');
+  const [githubRepoBranch, setGithubRepoBranch] = React.useState('');
   // keep separate refs for the two Monaco editors
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
@@ -76,9 +78,10 @@ export default function NewTeamTaskModal({
       command: commandValue.trim(),
       cpus: cpus.trim() || undefined,
       memory: memory.trim() || undefined,
-      accelerators: accelerators.trim() || undefined,
+      supported_accelerators: supportedAccelerators.trim() || undefined,
       github_repo_url: githubRepoUrl.trim() || undefined,
       github_repo_dir: githubRepoDir.trim() || undefined,
+      github_repo_branch: githubRepoBranch.trim() || undefined,
     });
 
     // Reset all form fields
@@ -87,10 +90,11 @@ export default function NewTeamTaskModal({
     setCommand('');
     setCpus('');
     setMemory('');
-    setAccelerators('');
+    setSupportedAccelerators('');
     setSetup('');
     setGithubRepoUrl('');
     setGithubRepoDir('');
+    setGithubRepoBranch('');
     // clear editor contents if mounted
     try {
       setupEditorRef?.current?.setValue?.('');
@@ -173,10 +177,10 @@ export default function NewTeamTaskModal({
               <FormControl
                 sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
               >
-                <FormLabel>Accelerators</FormLabel>
+                <FormLabel>Supported Accelerators</FormLabel>
                 <Input
-                  value={accelerators}
-                  onChange={(e) => setAccelerators(e.target.value)}
+                  value={supportedAccelerators}
+                  onChange={(e) => setSupportedAccelerators(e.target.value)}
                   placeholder="e.g. RTX3090:1 or H100:8"
                 />
               </FormControl>
@@ -243,6 +247,18 @@ export default function NewTeamTaskModal({
                 <FormHelperText>
                   Optional: Specific directory within the repo. If empty, the
                   entire repo will be cloned.
+                </FormHelperText>
+              </FormControl>
+              <FormControl sx={{ mt: 1 }}>
+                <FormLabel>Branch / tag / commit (Optional)</FormLabel>
+                <Input
+                  value={githubRepoBranch}
+                  onChange={(e) => setGithubRepoBranch(e.target.value)}
+                  placeholder="main"
+                />
+                <FormHelperText>
+                  Optional: Branch, tag, or commit SHA to clone. Defaults to
+                  main if empty.
                 </FormHelperText>
               </FormControl>
             </FormControl>

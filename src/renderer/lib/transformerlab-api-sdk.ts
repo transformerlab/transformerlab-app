@@ -48,6 +48,7 @@ export {
   useModelStatus,
   usePluginStatus,
   useServerStats,
+  useConnectionHealth,
   useCheckLocalConnection,
   fetcher,
 } from './api-client/hooks';

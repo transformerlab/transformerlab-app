@@ -25,7 +25,7 @@
       "url": "https://github.com/dadmobile"
     }
   ],
-  "version": "0.28.4",
+  "version": "0.30.1",
   "scripts": {
     "build": "dotenv -e .env -- cross-env NODE_ENV=production tsx node_modules/webpack/bin/webpack.js --config ./.erb/configs/webpack.config.cloud.prod.ts",
     "build:multiuser": "cross-env NODE_ENV=production tsx node_modules/webpack/bin/webpack.js --config ./.erb/configs/webpack.config.cloud.prod.ts",
@@ -37,7 +37,13 @@
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
     "format:api": "prettier --write \"api/transformerlab/plugins/**/*.json\"",
     "api:install": "cd api && ./install.sh",
-    "api:start": "cd api && ./run.sh"
+    "api:start": "cd api && ./run.sh",
+    "docker-test:build": "docker build -t transformerlab-test -f test/docker/Dockerfile .",
+    "docker-test:run": "docker run --name transformerlab-test -p 8338:8338 transformerlab-test",
+    "docker-test:up": "docker compose -f docker-compose.test.yml up -d --build --wait",
+    "docker-test:down": "docker compose -f docker-compose.test.yml down",
+    "docker-test:playwright": "npm run docker-test:up && npx playwright test; npm run docker-test:down",
+    "docker-test:test": "docker rm -f transformerlab-test || true && npm run docker-test:build && npm run docker-test:run"
   },
   "browserslist": [],
   "prettier": {
@@ -115,6 +121,7 @@
     "dayjs": "^1.11.13",
     "debug": "^4.3.4",
     "easy-peasy": "^6.1.0",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.477.0",
     "monaco-themes": "^0.4.4",
     "morgan": "~1.10.0",
@@ -139,6 +146,7 @@
     "wavesurfer.js": "^7.10.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.10",
     "@svgr/webpack": "^8.0.1",
     "@teamsupercell/typings-for-css-modules-loader": "^2.5.2",

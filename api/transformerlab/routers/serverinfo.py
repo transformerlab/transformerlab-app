@@ -312,7 +312,7 @@ async def get_pytorch_collect_env():
     return output.decode("utf-8")
 
 
-async def watch_s3_file(
+async def watch_remote_file(
     filename: str, start_from_beginning=False, poll_interval_ms: int = 500
 ) -> AsyncGenerator[str, None]:
     """
@@ -409,7 +409,7 @@ async def watch_log():
     global_log_path = await get_global_log_path()
 
     # Check if the path is an S3 or other remote filesystem path
-    is_remote_path = global_log_path.startswith(("s3://", "gs://", "abfs://", "gcs://"))
+    is_remote_path = storage.is_remote_path(global_log_path)
 
     if not await storage.exists(global_log_path):
         # Create the file using appropriate method
@@ -423,7 +423,7 @@ async def watch_log():
         if is_remote_path:
             # Use S3 polling watcher for remote filesystems
             return StreamingResponse(
-                watch_s3_file(global_log_path),
+                watch_remote_file(global_log_path),
                 media_type="text/event-stream",
                 headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
             )

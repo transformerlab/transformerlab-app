@@ -9,7 +9,6 @@ import {
 } from '@mui/joy';
 import { Play, Pause, Volume2 } from 'lucide-react';
 import WaveSurfer from 'wavesurfer.js';
-import { fetchWithAuth } from 'renderer/lib/authContext';
 
 interface AudioPlayerProps {
   audioData: {
@@ -80,55 +79,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  // Fetch audio data with authentication and create blob URL
-  // This way we don't need to pass a URL that requires auth to audio element
+  // Use direct audio URL; cookies handle auth
   React.useEffect(() => {
     if (!audioData?.audio_data_url) {
       return undefined;
     }
 
-    let isCancelled = false;
-    setIsLoading(true);
+    setIsLoading(false);
     setError(null);
-
-    const fetchAudio = async () => {
-      try {
-        const response = await fetchWithAuth(audioData.audio_data_url);
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch audio: ${response.status}`);
-        }
-
-        // Check for unmounting before making blob URL
-        if (isCancelled) return;
-
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-
-        // Make sure this hasn't been unmounted before setting.
-        // Avoids possible memory leak.
-        if (isCancelled) {
-          URL.revokeObjectURL(blobUrl);
-          return;
-        }
-
-        setAudioBlobUrl(blobUrl);
-      } catch (err) {
-        if (!isCancelled) {
-          console.error('Error fetching audio:', err);
-          setError('Failed to load audio');
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchAudio();
+    setAudioBlobUrl(audioData.audio_data_url);
 
     return () => {
-      isCancelled = true;
-      if (audioBlobUrl) {
-        URL.revokeObjectURL(audioBlobUrl);
-      }
+      // no-op cleanup; no blob URLs created
     };
   }, [audioData?.audio_data_url]);
 

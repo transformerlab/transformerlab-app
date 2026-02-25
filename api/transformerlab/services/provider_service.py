@@ -1,12 +1,23 @@
 """Service layer for bridging database provider records to ProviderConfig."""
 
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException
-from transformerlab.shared.models.models import TeamComputeProvider, Team, UserTeam, User
+from transformerlab.shared.models.models import (
+    TeamComputeProvider,
+    Team,
+    UserTeam,
+    User,
+    ProviderType,
+    AcceleratorType,
+)
 from transformerlab.compute_providers.config import ComputeProviderConfig, create_compute_provider
 from transformerlab.compute_providers.base import ComputeProvider
+from transformerlab.compute_providers.local import _check_nvidia_gpu, _check_amd_gpu
+import sys
+import platform
+import asyncio
 
 
 async def validate_team_exists(session: AsyncSession, team_id: str) -> None:
@@ -123,17 +134,76 @@ async def list_team_providers(session: AsyncSession, team_id: str) -> list[TeamC
     return list(result.scalars().all())
 
 
-def db_record_to_provider_config(record: TeamComputeProvider) -> ComputeProviderConfig:
+def detect_local_supported_accelerators() -> List[str]:
+    """
+    Detect accelerators available on the current machine for the local provider.
+
+    Returns:
+        List of AcceleratorType enum values (as strings) that are supported.
+    """
+    accelerators: List[str] = []
+
+    # CPU is always available
+    accelerators.append(AcceleratorType.CPU.value)
+
+    # Apple Silicon detection (arm64 macOS)
+    try:
+        if sys.platform == "darwin":
+            machine = platform.machine().lower()
+            if machine in ("arm64", "aarch64"):
+                accelerators.append(AcceleratorType.APPLE_SILICON.value)
+    except Exception:
+        # Best-effort detection; ignore failures
+        pass
+
+    # NVIDIA GPU detection
+    try:
+        if _check_nvidia_gpu():
+            accelerators.append(AcceleratorType.NVIDIA.value)
+    except Exception:
+        pass
+
+    # AMD GPU (ROCm) detection
+    try:
+        if _check_amd_gpu():
+            accelerators.append(AcceleratorType.AMD.value)
+    except Exception:
+        pass
+
+    # De-duplicate while preserving order
+    seen = set()
+    unique_accelerators: List[str] = []
+    for acc in accelerators:
+        if acc not in seen:
+            seen.add(acc)
+            unique_accelerators.append(acc)
+
+    return unique_accelerators
+
+
+def db_record_to_provider_config(
+    record: TeamComputeProvider,
+    user_slurm_user: Optional[str] = None,
+    user_ssh_key_path: Optional[str] = None,
+) -> ComputeProviderConfig:
     """
     Convert a database TeamComputeProvider record to a ComputeProviderConfig object.
 
     Args:
         record: TeamComputeProvider database record
+        user_slurm_user: Optional user-specific SLURM username to override provider's ssh_user
+        user_ssh_key_path: Optional path to user's SSH private key (used for SLURM when user has uploaded a key)
 
     Returns:
         ComputeProviderConfig object ready for create_compute_provider()
     """
     config_dict = record.config or {}
+
+    # Use user-specific slurm_user if provided, otherwise use provider's default
+    ssh_user = user_slurm_user if user_slurm_user else config_dict.get("ssh_user")
+
+    # Use user's key path when provided (user uploaded private key in Provider Settings); else provider config
+    ssh_key_path = user_ssh_key_path if user_ssh_key_path else config_dict.get("ssh_key_path")
 
     # Build ComputeProviderConfig from database record
     provider_config = ComputeProviderConfig(
@@ -146,8 +216,8 @@ def db_record_to_provider_config(record: TeamComputeProvider) -> ComputeProvider
         mode=config_dict.get("mode"),
         rest_url=config_dict.get("rest_url"),
         ssh_host=config_dict.get("ssh_host"),
-        ssh_user=config_dict.get("ssh_user"),
-        ssh_key_path=config_dict.get("ssh_key_path"),
+        ssh_user=ssh_user,
+        ssh_key_path=ssh_key_path,
         ssh_port=config_dict.get("ssh_port", 22),
         # Runpod-specific config
         api_key=config_dict.get("api_key"),
@@ -156,23 +226,63 @@ def db_record_to_provider_config(record: TeamComputeProvider) -> ComputeProvider
         default_region=config_dict.get("default_region"),
         default_template_id=config_dict.get("default_template_id"),
         default_network_volume_id=config_dict.get("default_network_volume_id"),
+        supported_accelerators=config_dict.get("supported_accelerators"),
         extra_config=config_dict.get("extra_config", {}),
     )
+    # Local provider has no extra required config; workspace_dir is set at launch from get_workspace_dir()
 
     return provider_config
 
 
-def get_provider_instance(record: TeamComputeProvider) -> ComputeProvider:
+async def get_provider_instance(
+    record: TeamComputeProvider,
+    user_id: Optional[str] = None,
+    team_id: Optional[str] = None,
+) -> ComputeProvider:
     """
     Get an instantiated ComputeProvider from a database record.
 
+    When user_id and team_id are provided and the provider is SLURM, looks up
+    the user's SLURM username from config (User Settings → Provider Settings)
+    and uses it instead of the provider's default ssh_user.
+
+    When user_id and team_id are provided and the provider is SLURM (SSH mode),
+    uses the user's uploaded SSH private key (User Settings → Provider Settings)
+    if present; otherwise falls back to provider config ssh_key_path.
+
     Args:
         record: TeamComputeProvider database record
+        user_id: Optional user ID; if set with team_id and provider is SLURM, user's slurm_user and SSH key are used
+        team_id: Optional team ID; required with user_id for slurm_user and SSH key lookup
 
     Returns:
         Instantiated ComputeProvider object
     """
-    config = db_record_to_provider_config(record)
+
+    user_slurm_user = None
+    user_ssh_key_path = None
+
+    if record.type == "slurm":
+        if user_id and team_id:
+            import transformerlab.db.db as db
+
+            config_key = f"provider:{record.id}:slurm_user"
+            user_slurm_user = await db.config_get(key=config_key, user_id=user_id, team_id=team_id)
+
+            # Use user's uploaded SSH private key (SSH mode) when available
+            if record.config and record.config.get("mode") == "ssh":
+                try:
+                    from transformerlab.services.user_slurm_key_service import (
+                        get_user_slurm_key_path,
+                        user_slurm_key_exists,
+                    )
+
+                    if await user_slurm_key_exists(team_id, record.id, user_id):
+                        user_ssh_key_path = await get_user_slurm_key_path(team_id, record.id, user_id)
+                except Exception:
+                    pass
+
+    config = db_record_to_provider_config(record, user_slurm_user=user_slurm_user, user_ssh_key_path=user_ssh_key_path)
     return create_compute_provider(config)
 
 
@@ -213,6 +323,50 @@ async def create_team_provider(
     session.add(provider)
     await session.commit()
     await session.refresh(provider)
+    return provider
+
+
+async def ensure_default_local_provider_for_team(
+    session: AsyncSession,
+    team_id: str,
+    created_by_user_id: str,
+    provider_name: str = "Local",
+) -> Optional[TeamComputeProvider]:
+    """
+    Ensure that a default local compute provider exists for the given team.
+
+    If a local provider with the same name already exists for the team, this
+    function is a no-op.
+
+    Args:
+        session: Database session
+        team_id: Team ID
+        created_by_user_id: User ID to attribute as creator of the provider
+        provider_name: Name for the local provider (default: "Local")
+
+    Returns:
+        The created TeamComputeProvider record, or None if one already existed.
+    """
+    # Check for existing local provider with the same name
+    existing_providers = await list_team_providers(session, team_id)
+    for provider in existing_providers:
+        if provider.type == ProviderType.LOCAL.value and provider.name == provider_name:
+            return None
+
+    # Detect accelerators for this machine without blocking the event loop
+    supported_accelerators = await asyncio.to_thread(detect_local_supported_accelerators)
+    config: dict = {"supported_accelerators": supported_accelerators}
+
+    provider = await create_team_provider(
+        session=session,
+        team_id=team_id,
+        name=provider_name,
+        provider_type=ProviderType.LOCAL.value,
+        config=config,
+        created_by_user_id=created_by_user_id,
+        # Validation ensures the creating user is a member of the team
+        validate=True,
+    )
     return provider
 
 

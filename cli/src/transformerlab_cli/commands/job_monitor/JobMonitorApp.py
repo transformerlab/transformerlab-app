@@ -80,7 +80,8 @@ class JobMonitorApp(App):
         self.push_screen(TaskAddModal())
 
     def action_list_tasks(self) -> None:
-        self.push_screen(TaskListModal())
+        current_experiment = get_current_experiment() or "alpha"
+        self.push_screen(TaskListModal(experiment_id=current_experiment))
 
     def action_refresh(self) -> None:
         """Refresh the job list."""

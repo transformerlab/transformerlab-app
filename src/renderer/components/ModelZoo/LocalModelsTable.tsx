@@ -17,6 +17,7 @@ import {
   ArrowDownIcon,
   FlaskRoundIcon,
   InfoIcon,
+  MessageCircle,
   SearchIcon,
   StoreIcon,
   Trash2Icon,
@@ -31,7 +32,6 @@ import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { filterByFilters, licenseTypes, modelTypes } from '../../lib/utils';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import SelectButton from '../Experiment/SelectButton';
-import { RiChatAiLine, RiImageAiLine } from 'renderer/components/Icons';
 import { fetchWithAuth } from 'renderer/lib/authContext';
 
 type Order = 'asc' | 'desc';
@@ -272,9 +272,9 @@ const LocalModelsTable = ({
                           startDecorator={
                             row?.json_data?.model_type === 'stable-diffusion' ||
                             row?.json_data?.model_type === 'diffusion' ? (
-                              <RiImageAiLine />
+                              <ImageIcon size={18} />
                             ) : (
-                              <RiChatAiLine />
+                              <MessageCircle size={18} />
                             )
                           }
                         >
@@ -476,13 +476,19 @@ const LocalModelsTable = ({
                     justifyContent="center"
                     margin={5}
                   >
-                    You do not have any models on your local machine. You can
-                    download a model by going to the{' '}
-                    <ReactRouterLink to="/zoo">
-                      <StoreIcon />
-                      Model Registry
-                    </ReactRouterLink>
-                    .
+                    {window?.platform?.multiuser === true ? (
+                      'No models are currently available. Models saved from jobs in this experiment will be available here.'
+                    ) : (
+                      <>
+                        You do not have any models on your local machine. You
+                        can download a model by going to the{' '}
+                        <ReactRouterLink to="/zoo">
+                          <StoreIcon />
+                          Model Registry
+                        </ReactRouterLink>
+                        .
+                      </>
+                    )}
                   </Typography>
                 </td>
               </tr>
@@ -490,10 +496,12 @@ const LocalModelsTable = ({
           </tbody>
         </Table>
       </Sheet>
-      <Typography mt={2} level="body-sm">
-        Looking for more models? Go to the{' '}
-        <ReactRouterLink to="/zoo">Model Registry</ReactRouterLink>
-      </Typography>
+      {window?.platform?.multiuser !== true && (
+        <Typography mt={2} level="body-sm">
+          Looking for more models? Go to the{' '}
+          <ReactRouterLink to="/zoo">Model Registry</ReactRouterLink>
+        </Typography>
+      )}
     </>
   );
 };

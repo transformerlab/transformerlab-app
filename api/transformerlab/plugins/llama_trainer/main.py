@@ -275,7 +275,6 @@ def train_model():
         model=model,
         train_dataset=train_data,
         eval_dataset=eval_data,
-        peft_config=peft_config,
         processing_class=tokenizer,
         formatting_func=formatting_func,
         args=training_args,

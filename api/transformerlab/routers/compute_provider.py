@@ -5,7 +5,8 @@ import time
 import json
 import configparser
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
+import asyncio
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request, Body
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, List, Optional, Union, Tuple
@@ -40,13 +41,20 @@ from transformerlab.compute_providers.models import (
 )
 from transformerlab.services import job_service
 from transformerlab.services import quota_service
+from transformerlab.services.local_provider_queue import enqueue_local_launch
 from lab import storage
-from lab.dirs import get_workspace_dir
+from lab.storage import STORAGE_PROVIDER
+from lab.dirs import get_workspace_dir, get_local_provider_job_dir, set_organization_id
 from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
     generate_github_clone_setup,
 )
 from transformerlab.shared.secret_utils import load_team_secrets, replace_secrets_in_dict, replace_secret_placeholders
+from transformerlab.shared import galleries
+from transformerlab.shared.interactive_gallery_utils import (
+    resolve_interactive_command,
+    find_interactive_gallery_entry,
+)
 from typing import Any
 
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
@@ -170,10 +178,10 @@ async def create_provider(
     user = owner_info["user"]
 
     # Validate provider type
-    if provider_data.type not in [ProviderType.SLURM, ProviderType.SKYPILOT, ProviderType.RUNPOD]:
+    if provider_data.type not in [ProviderType.SLURM, ProviderType.SKYPILOT, ProviderType.RUNPOD, ProviderType.LOCAL]:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid provider type. Must be one of: {ProviderType.SLURM.value}, {ProviderType.SKYPILOT.value}, {ProviderType.RUNPOD.value}",
+            detail=f"Invalid provider type. Must be one of: {ProviderType.SLURM.value}, {ProviderType.SKYPILOT.value}, {ProviderType.RUNPOD.value}, {ProviderType.LOCAL.value}",
         )
 
     # Check if provider name already exists for this team
@@ -409,6 +417,197 @@ async def get_usage_report(
     }
 
 
+@router.get("/org-ssh-public-key")
+async def get_org_ssh_public_key_endpoint(
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Get the organization's SSH public key for users to add to their SLURM account.
+    Requires X-Team-Id header and team membership.
+    """
+    from transformerlab.services.ssh_key_service import get_org_ssh_public_key
+
+    team_id = user_and_team["team_id"]
+
+    try:
+        public_key = await get_org_ssh_public_key(team_id)
+        return {
+            "public_key": public_key,
+            "instructions": "Add this public key to ~/.ssh/authorized_keys on your SLURM login node for the user account you specify in Provider Settings.",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get SSH public key: {str(e)}")
+
+
+@router.get("/user-settings/{provider_id}")
+async def get_user_provider_settings(
+    provider_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get user-specific settings for a provider (e.g., SLURM username, SSH key status).
+    Requires X-Team-Id header and team membership.
+    """
+    import transformerlab.db.db as db
+    from transformerlab.services.user_slurm_key_service import user_slurm_key_exists
+
+    team_id = user_and_team["team_id"]
+    user_id = str(user_and_team["user"].id)
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    config_key = f"provider:{provider_id}:slurm_user"
+    slurm_user = await db.config_get(key=config_key, user_id=user_id, team_id=team_id)
+
+    has_ssh_key = False
+    if provider.type == ProviderType.SLURM.value:
+        has_ssh_key = await user_slurm_key_exists(team_id, provider_id, user_id)
+
+    return {
+        "provider_id": provider_id,
+        "slurm_user": slurm_user,
+        "has_ssh_key": has_ssh_key,
+    }
+
+
+@router.put("/user-settings/{provider_id}")
+async def set_user_provider_settings(
+    provider_id: str,
+    body: Optional[dict] = Body(None),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Set user-specific settings for a provider (e.g., SLURM username).
+    Requires X-Team-Id header and team membership.
+    """
+    import transformerlab.db.db as db
+
+    team_id = user_and_team["team_id"]
+    user_id = str(user_and_team["user"].id)
+
+    # Verify provider exists and user has access
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    # Only allow SLURM providers to have slurm_user setting
+    if provider.type != ProviderType.SLURM.value:
+        raise HTTPException(status_code=400, detail="slurm_user setting is only available for SLURM providers")
+
+    # Read slurm_user from request body (frontend sends JSON body)
+    slurm_user = (body or {}).get("slurm_user")
+    if isinstance(slurm_user, str):
+        slurm_user = slurm_user.strip() or None
+    elif slurm_user is not None and not isinstance(slurm_user, str):
+        slurm_user = str(slurm_user).strip() or None
+
+    # Set user-specific slurm_user setting
+    config_key = f"provider:{provider_id}:slurm_user"
+    if slurm_user:
+        await db.config_set(key=config_key, value=slurm_user, user_id=user_id, team_id=team_id)
+    else:
+        await db.config_set(key=config_key, value="", user_id=user_id, team_id=team_id)
+
+    has_ssh_key = False
+    if provider.type == ProviderType.SLURM.value:
+        from transformerlab.services.user_slurm_key_service import user_slurm_key_exists
+
+        has_ssh_key = await user_slurm_key_exists(team_id, provider_id, user_id)
+
+    return {
+        "provider_id": provider_id,
+        "slurm_user": slurm_user,
+        "has_ssh_key": has_ssh_key,
+    }
+
+
+@router.post("/user-settings/{provider_id}/ssh-key")
+async def upload_user_slurm_ssh_key(
+    provider_id: str,
+    body: dict = Body(...),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Upload a user's SLURM SSH private key for a provider.
+    Requires X-Team-Id header and team membership.
+    """
+    from transformerlab.services.user_slurm_key_service import save_user_slurm_key
+
+    team_id = user_and_team["team_id"]
+    user_id = str(user_and_team["user"].id)
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if provider.type != ProviderType.SLURM.value:
+        raise HTTPException(
+            status_code=400,
+            detail="SSH key upload is only available for SLURM providers",
+        )
+
+    private_key = body.get("private_key")
+    if not private_key or not isinstance(private_key, str):
+        raise HTTPException(status_code=400, detail="private_key is required and must be a string")
+    private_key = private_key.strip()
+    if not private_key:
+        raise HTTPException(status_code=400, detail="private_key cannot be empty")
+    if not (private_key.startswith("-----BEGIN") or "PRIVATE KEY" in private_key or "BEGIN RSA" in private_key):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid private key format. Expected PEM or OpenSSH format starting with '-----BEGIN'",
+        )
+
+    try:
+        await save_user_slurm_key(team_id, provider_id, user_id, private_key)
+        return {
+            "status": "success",
+            "provider_id": provider_id,
+            "message": "SSH private key uploaded successfully",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save SSH key: {str(e)}")
+
+
+@router.delete("/user-settings/{provider_id}/ssh-key")
+async def delete_user_slurm_ssh_key(
+    provider_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Delete a user's SLURM SSH private key for a provider.
+    Requires X-Team-Id header and team membership.
+    """
+    from transformerlab.services.user_slurm_key_service import delete_user_slurm_key
+
+    team_id = user_and_team["team_id"]
+    user_id = str(user_and_team["user"].id)
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if provider.type != ProviderType.SLURM.value:
+        raise HTTPException(
+            status_code=400,
+            detail="SSH key deletion is only available for SLURM providers",
+        )
+
+    try:
+        await delete_user_slurm_key(team_id, provider_id, user_id)
+        return {
+            "status": "success",
+            "provider_id": provider_id,
+            "message": "SSH private key deleted successfully",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete SSH key: {str(e)}")
+
+
 @router.get("/{provider_id}", response_model=ProviderRead)
 async def get_provider(
     provider_id: str,
@@ -522,22 +721,23 @@ async def check_provider(
     """
     Check if a compute provider is active and accessible.
     Requires X-Team-Id header and team membership.
+    For SLURM providers, uses the current user's SLURM username if set in Provider Settings.
 
     Returns:
         {"status": True} if the provider is active, {"status": False} otherwise
     """
     team_id = user_and_team["team_id"]
+    user_id_str = str(user_and_team["user"].id)
 
     provider = await get_team_provider(session, team_id, provider_id)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Try to instantiate the provider
-        provider_instance = get_provider_instance(provider)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Call the check method
-        is_active = provider_instance.check()
+        is_active = await asyncio.to_thread(provider_instance.check)
 
         return {"status": is_active}
     except Exception as e:
@@ -581,21 +781,36 @@ def _get_aws_credentials_from_file(profile_name: str = "transformerlab-s3") -> T
     return None, None
 
 
+# lab.init() not required; copy_file_mounts uses _TFL_JOB_ID and job_data only
+COPY_FILE_MOUNTS_SETUP = 'pip install -q transformerlab && python -c "from lab import lab; lab.copy_file_mounts()"'
+
+
+# RunPod (and similar) use /workspace as a writable persistent path; ~/.aws may be wrong user or not visible over SSH
+RUNPOD_AWS_CREDENTIALS_DIR = "/workspace/.aws"
+
+
 def _generate_aws_credentials_setup(
-    aws_access_key_id: str, aws_secret_access_key: str, aws_profile: Optional[str] = None
+    aws_access_key_id: str,
+    aws_secret_access_key: str,
+    aws_profile: Optional[str] = None,
+    aws_credentials_dir: Optional[str] = None,
 ) -> str:
     """
-    Generate bash script to set up AWS credentials in ~/.aws/credentials.
+    Generate bash script to set up AWS credentials.
 
     Args:
         aws_access_key_id: AWS access key ID
         aws_secret_access_key: AWS secret access key
         aws_profile: AWS profile name (defaults to 'transformerlab-s3' if not provided)
+        aws_credentials_dir: If set (e.g. /workspace/.aws), write credentials here instead of ~/.aws.
+            Caller should set AWS_SHARED_CREDENTIALS_FILE to <dir>/credentials so processes use this file.
 
     Returns:
         Bash script to configure AWS credentials
     """
     profile_name = aws_profile or os.getenv("AWS_PROFILE", "transformerlab-s3")
+    cred_dir = aws_credentials_dir if aws_credentials_dir else "~/.aws"
+    cred_file = f"{cred_dir}/credentials" if aws_credentials_dir else "~/.aws/credentials"
 
     # Escape for bash: single quotes and special characters
     def escape_bash(s: str) -> str:
@@ -608,16 +823,52 @@ def _generate_aws_credentials_setup(
     # Simple approach: create dir, remove old profile section directly, append new profile
     setup_script = (
         f"echo 'Setting up AWS credentials for profile: {profile_name}'; "
-        f"mkdir -p ~/.aws; "
-        f"chmod 700 ~/.aws; "
-        f"if [ -f ~/.aws/credentials ]; then "
-        f"  awk 'BEGIN{{in_profile=0}} /^\\[{escaped_profile}\\]/{{in_profile=1; next}} /^\\[/{{in_profile=0}} !in_profile{{print}}' ~/.aws/credentials > ~/.aws/credentials.new && mv ~/.aws/credentials.new ~/.aws/credentials || true; "
+        f"mkdir -p {cred_dir}; "
+        f"chmod 700 {cred_dir}; "
+        f"if [ -f {cred_file} ]; then "
+        f"  awk 'BEGIN{{in_profile=0}} /^\\[{escaped_profile}\\]/{{in_profile=1; next}} /^\\[/{{in_profile=0}} !in_profile{{print}}' {cred_file} > {cred_file}.new && mv {cred_file}.new {cred_file} || true; "
         f"fi; "
-        f"echo '[{profile_name}]' >> ~/.aws/credentials; "
-        f"echo 'aws_access_key_id={escaped_access_key}' >> ~/.aws/credentials; "
-        f"echo 'aws_secret_access_key={escaped_secret_key}' >> ~/.aws/credentials; "
-        f"chmod 600 ~/.aws/credentials; "
-        f"echo 'AWS credentials configured successfully'"
+        f"echo '[{profile_name}]' >> {cred_file}; "
+        f"echo 'aws_access_key_id={escaped_access_key}' >> {cred_file}; "
+        f"echo 'aws_secret_access_key={escaped_secret_key}' >> {cred_file}; "
+        f"chmod 600 {cred_file}; "
+        f"echo 'AWS credentials configured successfully at {cred_file}';"
+    )
+    return setup_script
+
+
+def _generate_gcp_credentials_setup(service_account_json: str, credentials_path: Optional[str] = None) -> str:
+    """
+    Generate bash script to set up GCP service account credentials on the remote host.
+
+    This writes the provided service account JSON to a file and points
+    GOOGLE_APPLICATION_CREDENTIALS at it so that google-cloud libraries and
+    ADC can pick it up.
+
+    Args:
+        service_account_json: The service account JSON contents.
+        credentials_path: Optional path on the remote host where the JSON
+            should be written. Defaults to ~/.config/gcloud/tfl-service-account.json
+
+    Returns:
+        Bash script to configure GCP credentials.
+    """
+    target_path = credentials_path or "$HOME/.config/gcloud/tfl-service-account.json"
+
+    def escape_bash_single_quoted(s: str) -> str:
+        # Safely embed arbitrary JSON into a single-quoted string in bash:
+        # close quote, escape single quote, reopen.
+        return s.replace("'", "'\"'\"'")
+
+    escaped_json = escape_bash_single_quoted(service_account_json)
+
+    setup_script = (
+        "echo 'Setting up GCP service account credentials...'; "
+        'mkdir -p "$HOME/.config/gcloud"; '
+        f"echo '{escaped_json}' > {target_path}; "
+        f"chmod 600 {target_path}; "
+        f"export GOOGLE_APPLICATION_CREDENTIALS={target_path}; "
+        "echo 'GCP credentials configured successfully'"
     )
     return setup_script
 
@@ -739,7 +990,9 @@ async def _launch_sweep_jobs(
                 print(f"Provider {provider_id} not found for sweep job {parent_job_id}")
                 return
 
-            provider_instance = get_provider_instance(provider)
+            # Get provider instance (resolves user's slurm_user for SLURM when user_id/team_id set)
+            user_id_str = str(user.id)
+            provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
             # Generate user_info
             user_info = {}
@@ -752,8 +1005,9 @@ async def _launch_sweep_jobs(
 
             provider_display_name = request.provider_name or provider.name
 
-            # Load team secrets for template replacement
-            team_secrets = await load_team_secrets()
+            # Load team secrets and user secrets for template replacement (user secrets override team secrets)
+            user_id = str(user_and_team["user"].id)
+            team_secrets = await load_team_secrets(user_id=user_id)
 
             # Generate all parameter combinations
             param_names = list(sweep_config.keys())
@@ -792,37 +1046,75 @@ async def _launch_sweep_jobs(
 
                 env_vars["_TFL_JOB_ID"] = str(child_job_id)
                 env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
+                env_vars["_TFL_USER_ID"] = user_id
 
                 # Get TFL_STORAGE_URI
                 tfl_storage_uri = None
                 try:
                     storage_root = await storage.root_uri()
-                    if storage_root and any(
-                        storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")
-                    ):
-                        tfl_storage_uri = storage_root
+                    if storage_root:
+                        if storage.is_remote_path(storage_root):
+                            # Remote cloud storage (S3/GCS/etc.)
+                            tfl_storage_uri = storage_root
+                        elif STORAGE_PROVIDER == "localfs":
+                            # localfs: expose the local mount path to the remote worker
+                            tfl_storage_uri = storage_root
                 except Exception:
                     pass
 
                 if tfl_storage_uri:
                     env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
-                    env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
 
-                # Build setup script
+                # For local provider, set TFL_WORKSPACE_DIR so the lab SDK in the subprocess finds the job dir
+                if provider.type == ProviderType.LOCAL.value and team_id:
+                    set_organization_id(team_id)
+                    try:
+                        workspace_dir = await get_workspace_dir()
+                        if workspace_dir and not storage.is_remote_path(workspace_dir):
+                            env_vars["TFL_WORKSPACE_DIR"] = workspace_dir
+                    finally:
+                        set_organization_id(None)
+
+                # Build setup script (add copy_file_mounts when file_mounts is True, after cloud credentials)
                 setup_commands = []
-                aws_profile = "transformerlab-s3"
-                if os.getenv("TFL_API_STORAGE_URI"):
-                    aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
-                    if aws_access_key_id and aws_secret_access_key:
-                        aws_setup = _generate_aws_credentials_setup(
-                            aws_access_key_id, aws_secret_access_key, aws_profile
+
+                # Cloud credentials setup:
+                # - For AWS (TFL_STORAGE_PROVIDER=aws), inject ~/.aws/credentials profile if available.
+                # - For GCP (TFL_STORAGE_PROVIDER=gcp), optionally inject a service account JSON if provided.
+                if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
+                    if STORAGE_PROVIDER == "aws":
+                        aws_profile = "transformerlab-s3"
+                        aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(
+                            _get_aws_credentials_from_file, aws_profile
                         )
-                        setup_commands.append(aws_setup)
-                        env_vars["AWS_PROFILE"] = aws_profile
+                        if aws_access_key_id and aws_secret_access_key:
+                            aws_credentials_dir = (
+                                RUNPOD_AWS_CREDENTIALS_DIR if provider.type == ProviderType.RUNPOD.value else None
+                            )
+                            aws_setup = _generate_aws_credentials_setup(
+                                aws_access_key_id,
+                                aws_secret_access_key,
+                                aws_profile,
+                                aws_credentials_dir=aws_credentials_dir,
+                            )
+                            setup_commands.append(aws_setup)
+                            env_vars["AWS_PROFILE"] = aws_profile
+                            if aws_credentials_dir:
+                                env_vars["AWS_SHARED_CREDENTIALS_FILE"] = f"{aws_credentials_dir}/credentials"
+                    elif STORAGE_PROVIDER == "gcp":
+                        # If a GCP service account JSON is provided via env, write it on the remote host
+                        # and set GOOGLE_APPLICATION_CREDENTIALS so ADC can find it.
+                        gcp_sa_json = os.getenv("TFL_GCP_SERVICE_ACCOUNT_JSON")
+                        if gcp_sa_json:
+                            gcp_setup = _generate_gcp_credentials_setup(gcp_sa_json)
+                            setup_commands.append(gcp_setup)
+
+                if request.file_mounts is True and request.task_id:
+                    setup_commands.append(COPY_FILE_MOUNTS_SETUP)
 
                 if request.github_repo_url:
                     workspace_dir = await get_workspace_dir()
-                    github_pat = read_github_pat_from_workspace(workspace_dir)
+                    github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
                     github_setup = generate_github_clone_setup(
                         repo_url=request.github_repo_url,
                         directory=request.github_directory,
@@ -869,7 +1161,7 @@ async def _launch_sweep_jobs(
                     "num_nodes": request.num_nodes,
                     "setup": final_setup,
                     "env_vars": env_vars if env_vars else None,
-                    "file_mounts": request.file_mounts or None,
+                    "file_mounts": request.file_mounts if request.file_mounts is not True else True,
                     "parameters": parameters_with_secrets or None,
                     "provider_id": provider.id,
                     "provider_type": provider.type,
@@ -877,6 +1169,8 @@ async def _launch_sweep_jobs(
                     "user_info": user_info or None,
                     "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
                 }
+                if request.file_mounts is True and request.task_id:
+                    child_job_data["task_id"] = request.task_id
 
                 for key, value in child_job_data.items():
                     if value is not None:
@@ -892,6 +1186,8 @@ async def _launch_sweep_jobs(
                     except (TypeError, ValueError):
                         disk_size = None
 
+                # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
+                file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
                 cluster_config = ClusterConfig(
                     cluster_name=formatted_cluster_name,
                     provider_name=provider_display_name,
@@ -904,13 +1200,15 @@ async def _launch_sweep_jobs(
                     accelerators=request.accelerators,
                     num_nodes=request.num_nodes,
                     disk_size=disk_size,
-                    file_mounts=request.file_mounts or {},
+                    file_mounts=file_mounts_for_provider,
                     provider_config={"requested_disk_space": request.disk_space},
                 )
 
                 # Launch cluster for child job
                 try:
-                    launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
+                    launch_result = await asyncio.to_thread(
+                        provider_instance.launch_cluster, formatted_cluster_name, cluster_config
+                    )
 
                     if isinstance(launch_result, dict):
                         await job_service.job_update_job_data_insert_key_value(
@@ -998,8 +1296,6 @@ async def launch_template_on_provider(
 
         # Launch child jobs in the background using asyncio.create_task
         # This runs concurrently but still within the request context
-        import asyncio
-
         # Merge parameters (defaults) with config for sweep
         base_params_for_sweep = {}
         if request.parameters:
@@ -1045,10 +1341,15 @@ async def launch_template_on_provider(
         if not has_quota:
             raise HTTPException(status_code=403, detail=message)
 
-    provider_instance = get_provider_instance(provider)
+    # Get provider instance (resolves user's slurm_user for SLURM when user_id/team_id set)
+    user_id_str = str(user.id)
+    provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
-    # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING
+    # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING,
+    # except for LOCAL providers where we introduce a WAITING status while queued.
     initial_status = "INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING"
+    if provider.type == ProviderType.LOCAL.value:
+        initial_status = "WAITING"
 
     job_id = await job_service.job_create(
         type="REMOTE",
@@ -1085,8 +1386,9 @@ async def launch_template_on_provider(
 
     provider_display_name = request.provider_name or provider.name
 
-    # Load team secrets for template replacement
-    team_secrets = await load_team_secrets()
+    # Load team secrets and user secrets for template replacement (user secrets override team secrets)
+    user_id = str(user_and_team["user"].id)
+    team_secrets = await load_team_secrets(user_id=user_id)
 
     # Prepare environment variables - start with a copy of requested env_vars
     env_vars = request.env_vars.copy() if request.env_vars else {}
@@ -1097,21 +1399,32 @@ async def launch_template_on_provider(
 
     # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
     aws_profile = "transformerlab-s3"
-    if os.getenv("TFL_API_STORAGE_URI"):
-        aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
+    if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
+        aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(_get_aws_credentials_from_file, aws_profile)
     else:
         aws_access_key_id, aws_secret_access_key = None, None
 
-    # Build setup script - prepend AWS credentials setup if credentials are provided
+    # Build setup script - add copy_file_mounts after AWS credentials when file_mounts is True (task dir -> ~/src)
     setup_commands = []
     if aws_access_key_id and aws_secret_access_key:
-        aws_setup = _generate_aws_credentials_setup(aws_access_key_id, aws_secret_access_key, aws_profile)
+        aws_credentials_dir = RUNPOD_AWS_CREDENTIALS_DIR if provider.type == ProviderType.RUNPOD.value else None
+        aws_setup = _generate_aws_credentials_setup(
+            aws_access_key_id, aws_secret_access_key, aws_profile, aws_credentials_dir=aws_credentials_dir
+        )
         setup_commands.append(aws_setup)
+        if aws_credentials_dir:
+            env_vars["AWS_SHARED_CREDENTIALS_FILE"] = f"{aws_credentials_dir}/credentials"
+    if request.file_mounts is True and request.task_id:
+        setup_commands.append(COPY_FILE_MOUNTS_SETUP)
+    # Ensure transformerlab SDK is available on remote machines for live_status tracking and other helpers.
+    # This runs after AWS credentials are configured so we have access to any remote storage if needed.
+    if provider.type != ProviderType.LOCAL.value:
+        setup_commands.append("pip install -q transformerlab")
 
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
         workspace_dir = await get_workspace_dir()
-        github_pat = await read_github_pat_from_workspace(workspace_dir)
+        github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
         github_setup = generate_github_clone_setup(
             repo_url=request.github_repo_url,
             directory=request.github_directory,
@@ -1120,8 +1433,10 @@ async def launch_template_on_provider(
         )
         setup_commands.append(github_setup)
 
-    # Add SSH public key setup for SSH interactive tasks
-    if request.subtype == "interactive" and request.interactive_type == "ssh":
+    # Add SSH public key setup for SSH interactive tasks and for RunPod (so we can read provider logs via SSH)
+    if (
+        request.subtype == "interactive" and request.interactive_type == "ssh"
+    ) or provider.type == ProviderType.RUNPOD.value:
         from transformerlab.services.ssh_key_service import get_or_create_org_ssh_key_pair, get_org_ssh_public_key
 
         try:
@@ -1135,51 +1450,116 @@ async def launch_template_on_provider(
             public_key_clean = public_key.strip().replace("\n", "").replace("\r", "")
             # Escape single quotes in public key for use within single-quoted string
             public_key_escaped = public_key_clean.replace("'", "'\"'\"'")
-            # Create SSH setup as a single line command (no trailing semicolon - will be added by join)
-            ssh_setup = f"mkdir -p ~/.ssh && chmod 700 ~/.ssh; if [ ! -f ~/.ssh/authorized_keys ]; then touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys; fi; if ! grep -qF '{public_key_escaped}' ~/.ssh/authorized_keys; then echo '{public_key_escaped}' >> ~/.ssh/authorized_keys; fi"
+
+            if provider.type == ProviderType.RUNPOD.value:
+                # For RunPod: use RunPod's recommended SSH setup from their docs
+                # Set SSH_PUBLIC_KEY environment variable (RunPod's override env var for SSH keys)
+                # Reference: https://docs.runpod.io/pods/configuration/use-ssh
+                env_vars["SSH_PUBLIC_KEY"] = public_key_clean
+                ssh_setup = (
+                    "apt-get update -qq && "
+                    "DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openssh-server >/dev/null 2>&1 && "
+                    "mkdir -p ~/.ssh && "
+                    "cd ~/.ssh && "
+                    "chmod 700 ~/.ssh && "
+                    'echo "$SSH_PUBLIC_KEY" >> authorized_keys && '
+                    "chmod 600 authorized_keys && "
+                    "service ssh start"
+                )
+            else:
+                # For other providers (interactive SSH tasks): standard setup
+                ssh_setup = f"mkdir -p ~/.ssh && chmod 700 ~/.ssh; if [ ! -f ~/.ssh/authorized_keys ]; then touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys; fi; if ! grep -qF '{public_key_escaped}' ~/.ssh/authorized_keys; then echo '{public_key_escaped}' >> ~/.ssh/authorized_keys; fi"
+
             setup_commands.append(ssh_setup)
         except Exception as e:
             # Log error but don't fail the launch - SSH key setup is optional
             print(f"Warning: Failed to set up SSH key for organization {team_id}: {e}")
 
-    # Add user-provided setup if any (replace secrets in setup)
-    if request.setup:
-        setup_with_secrets = replace_secret_placeholders(request.setup, team_secrets) if team_secrets else request.setup
-        setup_commands.append(setup_with_secrets)
-
-    # Join setup commands, stripping trailing semicolons to avoid double semicolons
-    if setup_commands:
-        # Strip trailing semicolons and whitespace from each command, then join with semicolons
-        cleaned_commands = [cmd.rstrip(";").rstrip() for cmd in setup_commands if cmd.strip()]
-        final_setup = ";".join(cleaned_commands) if cleaned_commands else None
-    else:
-        final_setup = None
+    # Note: final_setup is assembled later, after we optionally inject
+    # interactive remote setup based on the gallery entry.
 
     # Add default environment variables
     env_vars["_TFL_JOB_ID"] = str(job_id)
     env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
+    env_vars["_TFL_USER_ID"] = user_id
 
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
     try:
         storage_root = await storage.root_uri()
-        # Check if it's a remote URI (not a local path)
-        if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
-            tfl_storage_uri = storage_root
+        if storage_root:
+            if storage.is_remote_path(storage_root):
+                # Remote cloud storage (S3/GCS/etc.)
+                tfl_storage_uri = storage_root
+            elif STORAGE_PROVIDER == "localfs":
+                # localfs: expose the local mount path to the remote worker
+                tfl_storage_uri = storage_root
     except Exception:
         pass
 
     if tfl_storage_uri:
         env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
-        env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
-        env_vars["AWS_PROFILE"] = aws_profile
+        # Only mark as remote SkyPilot workspace and set AWS profile for true remote URIs
+        if storage.is_remote_path(tfl_storage_uri):
+            env_vars["AWS_PROFILE"] = aws_profile
         # env_vars["AWS_ACCESS_KEY_ID"] = aws_access_key_id
         # env_vars["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
 
+    # For local provider, set TFL_WORKSPACE_DIR so the lab SDK in the subprocess can find
+    # the job directory (workspace/jobs/<job_id>). The organization context for the API
+    # request is already set by authentication middleware, so we can rely on
+    # get_workspace_dir() without mutating the global org context here.
+    if provider.type == ProviderType.LOCAL.value and team_id:
+        workspace_dir = await get_workspace_dir()
+        if workspace_dir and not storage.is_remote_path(workspace_dir):
+            env_vars["TFL_WORKSPACE_DIR"] = workspace_dir
+
+    # Resolve command (and optional setup override) for interactive sessions from gallery
+    base_command = request.command
+    setup_override_from_gallery = None
+    interactive_setup_added = False
+    if request.subtype == "interactive" and (request.interactive_gallery_id or request.interactive_type):
+        gallery_list = await galleries.get_interactive_gallery()
+        gallery_entry = find_interactive_gallery_entry(
+            gallery_list,
+            interactive_gallery_id=request.interactive_gallery_id,
+            interactive_type=request.interactive_type,
+        )
+        if gallery_entry:
+            environment = "local" if (provider.type == ProviderType.LOCAL.value or request.local) else "remote"
+            # Run gallery/task setup for both local and remote interactive (SUDO prefix so $SUDO is defined).
+            # Ngrok is installed only when tunnel logic runs (remote); setup has no ngrok.
+            from transformerlab.shared.interactive_gallery_utils import INTERACTIVE_SUDO_PREFIX
+
+            raw_setup = (gallery_entry.get("setup") or "").strip() or (request.setup or "").strip()
+            if raw_setup:
+                setup_commands.append(INTERACTIVE_SUDO_PREFIX + " " + raw_setup)
+                interactive_setup_added = True
+
+            resolved_cmd, setup_override_from_gallery = resolve_interactive_command(gallery_entry, environment)
+            if resolved_cmd:
+                base_command = INTERACTIVE_SUDO_PREFIX + " " + resolved_cmd
+            if setup_override_from_gallery and team_secrets:
+                setup_override_from_gallery = replace_secret_placeholders(setup_override_from_gallery, team_secrets)
+
+    # Add user-provided setup if any (replace secrets in setup).
+    # For interactive tasks we already added gallery/task setup above (local and remote).
+    if request.setup and not interactive_setup_added:
+        setup_with_secrets = replace_secret_placeholders(request.setup, team_secrets) if team_secrets else request.setup
+        setup_commands.append(setup_with_secrets)
+
+    # Join setup commands, stripping trailing semicolons to avoid double semicolons
+    if setup_commands:
+        cleaned_commands = [cmd.rstrip(";").rstrip() for cmd in setup_commands if cmd.strip()]
+        final_setup = ";".join(cleaned_commands) if cleaned_commands else None
+    else:
+        final_setup = None
+
+    if setup_override_from_gallery is not None:
+        final_setup = setup_override_from_gallery
+
     # Replace secrets in command
-    command_with_secrets = (
-        replace_secret_placeholders(request.command, team_secrets) if team_secrets else request.command
-    )
+    command_with_secrets = replace_secret_placeholders(base_command, team_secrets) if team_secrets else base_command
 
     # Replace secrets in parameters if present
     # Merge parameters (defaults) with config (user's custom values for this run)
@@ -1196,12 +1576,22 @@ async def launch_template_on_provider(
     else:
         parameters_with_secrets = merged_parameters if merged_parameters else None
 
+    # Build provider_config for cluster_config (and job_data for local provider)
+    provider_config_dict = {"requested_disk_space": request.disk_space}
+    if provider.type == ProviderType.LOCAL.value:
+        # Use a dedicated local-only job directory for the local provider.
+        # This directory is always on the host filesystem and does not depend
+        # on TFL_REMOTE_STORAGE_ENABLED / remote storage configuration.
+        job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id, org_id=team_id)
+        provider_config_dict["workspace_dir"] = job_dir
+
     job_data = {
         "task_name": request.task_name,
         "command": command_with_secrets,
         "cluster_name": formatted_cluster_name,
         "subtype": request.subtype,
         "interactive_type": request.interactive_type,
+        "local": request.local,
         "cpus": request.cpus,
         "memory": request.memory,
         "disk_space": request.disk_space,
@@ -1209,7 +1599,7 @@ async def launch_template_on_provider(
         "num_nodes": request.num_nodes,
         "setup": final_setup,
         "env_vars": env_vars if env_vars else None,
-        "file_mounts": request.file_mounts or None,
+        "file_mounts": request.file_mounts if request.file_mounts is not True else True,
         "parameters": parameters_with_secrets or None,
         "provider_id": provider.id,
         "provider_type": provider.type,
@@ -1218,6 +1608,10 @@ async def launch_template_on_provider(
         "team_id": team_id,  # Store team_id for quota tracking
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
+    if provider.type == ProviderType.LOCAL.value and provider_config_dict.get("workspace_dir"):
+        job_data["workspace_dir"] = provider_config_dict["workspace_dir"]
+    if request.file_mounts is True and request.task_id:
+        job_data["task_id"] = request.task_id
 
     for key, value in job_data.items():
         if value is not None:
@@ -1230,11 +1624,24 @@ async def launch_template_on_provider(
         except (TypeError, ValueError):
             disk_size = None
 
+    # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
+    file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
+
+    # For non-local (remote) providers, wrap the user command so we can track live_status in job_data.
+    # This uses the tfl-remote-trap helper from the transformerlab SDK, which:
+    #   - sets job_data.live_status="started" when execution begins
+    #   - sets job_data.live_status="finished" on success
+    #   - sets job_data.live_status="crashed" on failure
+    wrapped_command = command_with_secrets
+    if provider.type != ProviderType.LOCAL.value:
+        # Preserve the original command in job_data but execute through the wrapper on the provider.
+        wrapped_command = f"tfl-remote-trap -- {command_with_secrets}"
+
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
         provider_id=provider.id,
-        command=command_with_secrets,
+        command=wrapped_command,
         setup=final_setup,
         env_vars=env_vars,
         cpus=request.cpus,
@@ -1242,12 +1649,39 @@ async def launch_template_on_provider(
         accelerators=request.accelerators,
         num_nodes=request.num_nodes,
         disk_size=disk_size,
-        file_mounts=request.file_mounts or {},
-        provider_config={"requested_disk_space": request.disk_space},
+        file_mounts=file_mounts_for_provider,
+        provider_config=provider_config_dict,
     )
 
+    # For LOCAL provider, enqueue the launch and return immediately with WAITING status
+    if provider.type == ProviderType.LOCAL.value:
+        # Commit quota hold (if any) before enqueuing so the worker can see it
+        if quota_hold:
+            await session.commit()
+
+        await enqueue_local_launch(
+            job_id=str(job_id),
+            experiment_id=request.experiment_id,
+            provider_id=provider.id,
+            team_id=team_id,
+            cluster_name=formatted_cluster_name,
+            cluster_config=cluster_config,
+            quota_hold_id=str(quota_hold.id) if quota_hold else None,
+            initial_status="INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING",
+        )
+
+        return {
+            "status": "WAITING",
+            "job_id": job_id,
+            "cluster_name": formatted_cluster_name,
+            "request_id": None,
+            "message": "Local provider launch waiting in queue",
+        }
+
     try:
-        launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
+        launch_result = await asyncio.to_thread(
+            provider_instance.launch_cluster, formatted_cluster_name, cluster_config
+        )
     except Exception as exc:
         print(f"Failed to launch cluster: {exc}")
         # Release quota hold if launch failed
@@ -1341,6 +1775,66 @@ async def check_provider_job_status(
         }
 
     job_data = job.get("job_data", {}) or {}
+
+    # If the remote wrapper has already detected a crash, mark the job as FAILED immediately.
+    live_status = job_data.get("live_status")
+    if live_status == "crashed":
+        try:
+            end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+            await job_service.job_update_job_data_insert_key_value(
+                job_id, "end_time", end_time_str, job.get("experiment_id")
+            )
+            await job_service.job_update_status(
+                job_id,
+                "FAILED",
+                experiment_id=job.get("experiment_id"),
+                session=session,
+            )
+            await session.commit()
+            return {
+                "status": "success",
+                "job_id": job_id,
+                "updated": True,
+                "new_status": "FAILED",
+                "message": "Remote command crashed (live_status=crashed)",
+            }
+        except Exception as exc:
+            print(f"Failed to update job status from live_status crash: {exc}")
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": "Failed to update job status after crash",
+            }
+
+    # If the remote wrapper has already detected completion, mark the job as COMPLETE immediately.
+    if live_status == "finished":
+        try:
+            end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+            await job_service.job_update_job_data_insert_key_value(
+                job_id, "end_time", end_time_str, job.get("experiment_id")
+            )
+            await job_service.job_update_status(
+                job_id,
+                "COMPLETE",
+                experiment_id=job.get("experiment_id"),
+                session=session,
+            )
+            await session.commit()
+            return {
+                "status": "success",
+                "job_id": job_id,
+                "updated": True,
+                "new_status": "COMPLETE",
+                "message": "Remote command finished (live_status=finished)",
+            }
+        except Exception as exc:
+            print(f"Failed to update job status from live_status finished: {exc}")
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": "Failed to update job status after completion",
+            }
+
     provider_id = job_data.get("provider_id")
     cluster_name = job_data.get("cluster_name")
     experiment_id = job.get("experiment_id")
@@ -1362,7 +1856,8 @@ async def check_provider_job_status(
         }
 
     try:
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
     except Exception as exc:
         print(f"Failed to instantiate provider: {exc}")
         return {
@@ -1371,10 +1866,59 @@ async def check_provider_job_status(
             "message": "Failed to instantiate provider",
         }
 
+    # Local provider needs workspace_dir from job_data for status/logs
+    if provider.type == ProviderType.LOCAL.value and job_data.get("workspace_dir"):
+        if hasattr(provider_instance, "extra_config"):
+            provider_instance.extra_config["workspace_dir"] = job_data["workspace_dir"]
+
+    # Local provider: single process per "cluster"; check process status
+    if provider.type == ProviderType.LOCAL.value:
+        try:
+            cluster_status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
+            terminal_states_local = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
+            if cluster_status.state in terminal_states_local:
+                try:
+                    end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+                    await job_service.job_update_job_data_insert_key_value(
+                        job_id, "end_time", end_time_str, experiment_id
+                    )
+                    await job_service.job_update_status(
+                        job_id, "COMPLETE", experiment_id=experiment_id, session=session
+                    )
+                    await session.commit()
+                    return {
+                        "status": "success",
+                        "job_id": job_id,
+                        "updated": True,
+                        "new_status": "COMPLETE",
+                        "message": f"Local job finished (status: {cluster_status.state.value})",
+                    }
+                except Exception as exc:
+                    print(f"Failed to update job status: {exc}")
+                    return {
+                        "status": "error",
+                        "job_id": job_id,
+                        "message": "Failed to update job status",
+                    }
+            return {
+                "status": "success",
+                "job_id": job_id,
+                "updated": False,
+                "current_status": "LAUNCHING",
+                "message": f"Local job still running (status: {cluster_status.state.value})",
+            }
+        except Exception as exc:
+            print(f"Failed to check local job status: {exc}")
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": "Failed to check local job status",
+            }
+
     # Runpod doesn't have a job queue - check pod status instead
     if provider.type == ProviderType.RUNPOD.value:
         try:
-            cluster_status = provider_instance.get_cluster_status(cluster_name)
+            cluster_status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
             # For Runpod, the pod itself is the "job"
             # Check if pod is in a terminal state
             terminal_pod_states = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
@@ -1423,7 +1967,7 @@ async def check_provider_job_status(
 
     # For other providers (SkyPilot, SLURM), check jobs on the cluster
     try:
-        provider_jobs = provider_instance.list_jobs(cluster_name)
+        provider_jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
     except NotImplementedError:
         # Provider doesn't support list_jobs
         return {
@@ -1901,9 +2445,10 @@ async def resume_from_checkpoint(
         if value is not None:
             await job_service.job_update_job_data_insert_key_value(new_job_id, field, value, experimentId)
 
-    # Relaunch via provider - replicate launch logic from compute_provider.py
+    # Relaunch via provider (uses current user's slurm_user for SLURM)
+    user_id_str = str(user_and_team["user"].id)
     try:
-        provider_instance = get_provider_instance(provider)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
     except Exception as exc:
         await job_service.job_update_status(new_job_id, "FAILED", experimentId, error_msg=str(exc))
         raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
@@ -1929,19 +2474,35 @@ async def resume_from_checkpoint(
     env_vars = (job_data.get("env_vars") or {}).copy()
     env_vars["_TFL_JOB_ID"] = str(new_job_id)
     env_vars["_TFL_EXPERIMENT_ID"] = experimentId
+    if user:
+        env_vars["_TFL_USER_ID"] = str(user.id)
 
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
     try:
-        storage_root = storage.root_uri()
-        if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
-            tfl_storage_uri = storage_root
+        storage_root = await storage.root_uri()
+        if storage_root:
+            if storage.is_remote_path(storage_root):
+                # Remote cloud storage (S3/GCS/etc.)
+                tfl_storage_uri = storage_root
+            elif STORAGE_PROVIDER == "localfs":
+                # localfs: expose the local mount path to the remote worker
+                tfl_storage_uri = storage_root
     except Exception:
         pass
 
     if tfl_storage_uri:
         env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
-        env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
+
+    # For local provider, set TFL_WORKSPACE_DIR so the lab SDK in the subprocess finds the job dir
+    if provider.type == ProviderType.LOCAL.value and team_id:
+        set_organization_id(team_id)
+        try:
+            workspace_dir = await get_workspace_dir()
+            if workspace_dir and not storage.is_remote_path(workspace_dir):
+                env_vars["TFL_WORKSPACE_DIR"] = workspace_dir
+        finally:
+            set_organization_id(None)
 
     # Build setup script
     setup_commands = []
@@ -1949,7 +2510,8 @@ async def resume_from_checkpoint(
     github_repo_url = job_data.get("github_repo_url")
     if github_repo_url:
         workspace_dir = await get_workspace_dir()
-        github_pat = read_github_pat_from_workspace(workspace_dir)
+        user_id_for_pat = str(user.id) if user else None
+        github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id_for_pat)
         github_setup = generate_github_clone_setup(
             repo_url=github_repo_url,
             directory=job_data.get("github_directory"),
@@ -2019,7 +2581,7 @@ async def resume_from_checkpoint(
 
     # Launch cluster
     try:
-        provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
+        await asyncio.to_thread(provider_instance.launch_cluster, formatted_cluster_name, cluster_config)
         return {
             "job_id": new_job_id,
             "message": "Job relaunched from checkpoint",
@@ -2049,11 +2611,11 @@ async def stop_cluster(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Stop cluster
-        result = provider_instance.stop_cluster(cluster_name)
+        result = await asyncio.to_thread(provider_instance.stop_cluster, cluster_name)
 
         # Return the result directly from the provider
         return result
@@ -2079,11 +2641,11 @@ async def get_cluster_status(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Get cluster status
-        status = provider_instance.get_cluster_status(cluster_name)
+        status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
 
         return status
     except Exception as e:
@@ -2109,11 +2671,11 @@ async def get_cluster_resources(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Get cluster resources
-        resources = provider_instance.get_cluster_resources(cluster_name)
+        resources = await asyncio.to_thread(provider_instance.get_cluster_resources, cluster_name)
 
         return resources
     except Exception as e:
@@ -2138,11 +2700,11 @@ async def list_clusters_detailed(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Get detailed clusters
-        clusters = provider_instance.get_clusters_detailed()
+        clusters = await asyncio.to_thread(provider_instance.get_clusters_detailed)
 
         return clusters
     except Exception as e:
@@ -2174,11 +2736,11 @@ async def submit_job(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Submit job
-        result = provider_instance.submit_job(cluster_name, job_config)
+        result = await asyncio.to_thread(provider_instance.submit_job, cluster_name, job_config)
 
         # Extract job_id from result
         job_id = result.get("job_id") or result.get("request_id")
@@ -2216,11 +2778,11 @@ async def list_jobs(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # List jobs
-        jobs = provider_instance.list_jobs(cluster_name)
+        jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
 
         # Filter by state if provided
         if state:
@@ -2254,12 +2816,12 @@ async def get_job_info(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # List jobs and find the specific one
         try:
-            jobs = provider_instance.list_jobs(cluster_name)
+            jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
         except NotImplementedError:
             # Provider doesn't support listing jobs (e.g., Runpod)
             raise HTTPException(
@@ -2313,12 +2875,23 @@ async def get_job_logs(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
+
+        # Local provider needs workspace_dir (job dir) to read logs
+        if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
+            job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id, org_id=team_id)
+            provider_instance.extra_config["workspace_dir"] = job_dir
 
         # Get job logs
         try:
-            logs = provider_instance.get_job_logs(cluster_name, job_id, tail_lines=tail_lines, follow=follow)
+            logs = await asyncio.to_thread(
+                provider_instance.get_job_logs,
+                cluster_name,
+                job_id,
+                tail_lines=tail_lines,
+                follow=follow,
+            )
         except NotImplementedError:
             # Provider doesn't support job logs (though Runpod returns a string message, not NotImplementedError)
             logs = "Logs not available for this provider type."
@@ -2400,11 +2973,16 @@ async def cancel_job(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        # Get provider instance
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
+
+        # Local provider needs workspace_dir (job dir) to cancel the correct process
+        if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
+            job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id, org_id=team_id)
+            provider_instance.extra_config["workspace_dir"] = job_dir
 
         # Cancel job
-        result = provider_instance.cancel_job(cluster_name, job_id)
+        result = await asyncio.to_thread(provider_instance.cancel_job, cluster_name, job_id)
 
         return {
             "status": "success",

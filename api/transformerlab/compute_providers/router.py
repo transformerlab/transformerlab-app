@@ -145,7 +145,7 @@ def _try_load_from_database(provider_name: str) -> Optional[ComputeProvider]:
                     provider_record = result.scalar_one_or_none()
 
                     if provider_record:
-                        return get_provider_instance(provider_record)
+                        return await get_provider_instance(provider_record)
                     return None
             except Exception:
                 return None

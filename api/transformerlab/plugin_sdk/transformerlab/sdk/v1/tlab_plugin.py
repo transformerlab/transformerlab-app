@@ -1,5 +1,7 @@
 import argparse
 import asyncio
+import concurrent.futures
+import contextvars
 import functools
 import os
 import time
@@ -7,9 +9,33 @@ import traceback
 import requests
 import json
 from pydantic import BaseModel
-from typing import Any, List
+from typing import Any, List, Optional
 
 from datasets import get_dataset_split_names, get_dataset_config_names, load_dataset
+
+
+def _run_async_from_sync(coro):
+    """
+    Run a coroutine from sync code. Safe to call from either sync context or from
+    inside an already-running event loop (e.g. from async_job_wrapper's run_async).
+    When a loop is already running, runs the coroutine in a separate thread to
+    avoid 'asyncio.run() cannot be called from a running event loop'. Copies the
+    current context (e.g. org_id, storage_uri) into the worker thread so Job
+    and storage use the correct workspace.
+    """
+    try:
+        asyncio.get_running_loop()
+        running = True
+    except RuntimeError:
+        running = False
+    if not running:
+        return asyncio.run(coro)
+    # Copy context so lab SDK context vars (org_id, storage_uri) are available in worker thread
+    ctx = contextvars.copy_context()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(lambda: ctx.run(asyncio.run, coro))
+        return future.result()
+
 
 try:
     from transformerlab.plugin import get_dataset_path
@@ -18,8 +44,8 @@ except ModuleNotFoundError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_dataset_path
     import transformerlab.plugin_sdk.transformerlab.plugin as tlab_core
 
-from lab import Job
-from lab import storage
+from lab import Job  # noqa: E402
+from lab import storage  # noqa: E402
 
 
 class DotDict(dict):
@@ -76,6 +102,8 @@ class TLabPlugin:
         progress_end: int = 100,
         wandb_project_name: str = "TLab_Training",
         manual_logging: bool = False,
+        success_message: Optional[str] = None,
+        include_exception_in_error: bool = False,
     ):
         """Decorator for wrapping a function with job status updates"""
 
@@ -88,17 +116,19 @@ class TLabPlugin:
                 self.add_job_data("start_time", start_time)
                 self.params.start_time = start_time
                 self.add_job_data("model_name", self.params.model_name)
-                self.add_job_data("template_name", self.params.template_name)
-                self.add_job_data("model_adapter", self.params.get("model_adapter", ""))
+                plugin_type = getattr(self, "tlab_plugin_type", None)
+                if plugin_type in ("trainer", "evals"):
+                    self.add_job_data("template_name", self.params.template_name)
+                    self.add_job_data("model_adapter", self.params.get("model_adapter", ""))
 
                 # Update starting progress
                 self.progress_update(progress_start)
 
                 try:
-                    # Setup logging
-                    if self.tlab_plugin_type == "trainer":
+                    # Setup: logging for trainer/evals, or exporter hook
+                    if plugin_type == "trainer":
                         self.setup_train_logging(wandb_project_name=wandb_project_name, manual_logging=manual_logging)
-                    elif self.tlab_plugin_type == "evals":
+                    elif plugin_type == "evals":
                         self.setup_eval_logging(wandb_project_name=wandb_project_name, manual_logging=manual_logging)
 
                     # Call the wrapped function
@@ -107,15 +137,16 @@ class TLabPlugin:
                     # Update final progress and success status
                     self.progress_update(progress_end)
 
-                    job_data = asyncio.run(self.job.get_json_data())
+                    completion_msg = success_message if success_message is not None else "Job completed successfully"
+                    job_data = _run_async_from_sync(self.job.get_json_data())
                     if job_data.get("job_data", {}).get("completion_status", "") != "success":
-                        asyncio.run(self.job.update_job_data_field("completion_status", "success"))
+                        _run_async_from_sync(self.job.update_job_data_field("completion_status", "success"))
 
-                    job_data = asyncio.run(self.job.get_json_data())
-                    if job_data.get("job_data", {}).get("completion_details", "") != "Job completed successfully":
-                        asyncio.run(self.job.update_job_data_field("completion_details", "Job completed successfully"))
+                    job_data = _run_async_from_sync(self.job.get_json_data())
+                    if job_data.get("job_data", {}).get("completion_details", "") != completion_msg:
+                        _run_async_from_sync(self.job.update_job_data_field("completion_details", completion_msg))
 
-                    job_data = asyncio.run(self.job.get_json_data())
+                    job_data = _run_async_from_sync(self.job.get_json_data())
                     if (
                         job_data.get("job_data", {}).get("end_time", "") is None
                         or job_data.get("job_data", {}).get("end_time", "") == ""
@@ -137,10 +168,13 @@ class TLabPlugin:
                     print(error_msg)
 
                     # Update job with failure status
-                    asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
-                    asyncio.run(
-                        self.job.update_job_data_field("completion_details", "Error occurred while executing job")
+                    _run_async_from_sync(self.job.update_job_data_field("completion_status", "failed"))
+                    details = (
+                        f"Error occurred: {str(e)}"
+                        if include_exception_in_error
+                        else "Error occurred while executing job"
                     )
+                    _run_async_from_sync(self.job.update_job_data_field("completion_details", details))
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                     if manual_logging and getattr(self.params, "wandb_run") is not None:
                         self.wandb_run.finish()
@@ -239,17 +273,17 @@ class TLabPlugin:
 
     def progress_update(self, progress: int):
         """Update job progress using SDK directly"""
-        job_data = asyncio.run(self.job.get_job_data())
+        job_data = _run_async_from_sync(self.job.get_job_data())
         if job_data.get("sweep_progress") is not None:
             if int(job_data.get("sweep_progress")) != 100:
-                asyncio.run(self.job.update_job_data_field("sweep_subprogress", progress))
+                _run_async_from_sync(self.job.update_job_data_field("sweep_subprogress", progress))
                 return
 
-        asyncio.run(self.job.update_progress(progress))
+        _run_async_from_sync(self.job.update_progress(progress))
         # Check stop status using SDK
-        job_data = asyncio.run(self.job.get_job_data())
+        job_data = _run_async_from_sync(self.job.get_job_data())
         if job_data.get("stop", False):
-            asyncio.run(self.job.update_status("STOPPED"))
+            _run_async_from_sync(self.job.update_status("STOPPED"))
             raise KeyboardInterrupt("Job stopped by user")
 
     def get_experiment_config(self, experiment_name: str):
@@ -258,7 +292,7 @@ class TLabPlugin:
 
     def add_job_data(self, key: str, value: Any):
         """Add data to job using SDK directly"""
-        asyncio.run(self.job.update_job_data_field(key, value))
+        _run_async_from_sync(self.job.update_job_data_field(key, value))
 
     def load_dataset(self, dataset_types: List[str] = ["train"], config_name: str = None):
         """Decorator for loading datasets with error handling"""
@@ -266,8 +300,8 @@ class TLabPlugin:
         self._ensure_args_parsed()
 
         if not self.params.dataset_name:
-            asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
-            asyncio.run(self.job.update_job_data_field("completion_details", "Dataset name not provided"))
+            _run_async_from_sync(self.job.update_job_data_field("completion_status", "failed"))
+            _run_async_from_sync(self.job.update_job_data_field("completion_details", "Dataset name not provided"))
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise ValueError("Dataset name not provided")
 
@@ -281,7 +315,7 @@ class TLabPlugin:
                     return await storage.isdir(dataset_target)
                 return os.path.isdir(dataset_target)
 
-            is_dir = isinstance(dataset_target, str) and asyncio.run(_check_dir())
+            is_dir = isinstance(dataset_target, str) and _run_async_from_sync(_check_dir())
             data_files_map = None
             if is_dir:
                 try:
@@ -294,7 +328,7 @@ class TLabPlugin:
                         else:
                             return os.listdir(dataset_target)
 
-                    entries = asyncio.run(_get_entries())
+                    entries = _run_async_from_sync(_get_entries())
                 except Exception:
                     entries = []
 
@@ -318,7 +352,7 @@ class TLabPlugin:
                                 return full_path
                         return None
 
-                    full_path = asyncio.run(_check_file())
+                    full_path = _run_async_from_sync(_check_file())
                     if full_path:
                         filtered_files.append(full_path)
 
@@ -403,8 +437,8 @@ class TLabPlugin:
         except Exception as e:
             error_msg = f"Error loading dataset: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)
-            asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
-            asyncio.run(self.job.update_job_data_field("completion_details", "Failed to load dataset"))
+            _run_async_from_sync(self.job.update_job_data_field("completion_status", "failed"))
+            _run_async_from_sync(self.job.update_job_data_field("completion_details", "Failed to load dataset"))
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
@@ -467,7 +501,7 @@ class TLabPlugin:
             return self._create_local_model_wrapper(custom_model, model_name)
 
         elif model_type == "claude":
-            anthropic_api_key = asyncio.run(tlab_core.get_db_config_value("ANTHROPIC_API_KEY"))
+            anthropic_api_key = _run_async_from_sync(tlab_core.get_db_config_value("ANTHROPIC_API_KEY"))
             if not anthropic_api_key or anthropic_api_key.strip() == "":
                 raise ValueError("Please set the Anthropic API Key from Settings.")
 
@@ -475,14 +509,14 @@ class TLabPlugin:
             return self._create_commercial_model_wrapper("claude", generation_model)
 
         elif model_type == "azure":
-            azure_api_details = asyncio.run(tlab_core.get_db_config_value("AZURE_OPENAI_DETAILS"))
+            azure_api_details = _run_async_from_sync(tlab_core.get_db_config_value("AZURE_OPENAI_DETAILS"))
             if not azure_api_details or azure_api_details.strip() == "":
                 raise ValueError("Please set the Azure OpenAI Details from Settings.")
 
             return self._create_commercial_model_wrapper("azure", "")
 
         elif model_type == "openai":
-            openai_api_key = asyncio.run(tlab_core.get_db_config_value("OPENAI_API_KEY"))
+            openai_api_key = _run_async_from_sync(tlab_core.get_db_config_value("OPENAI_API_KEY"))
             if not openai_api_key or openai_api_key.strip() == "":
                 raise ValueError("Please set the OpenAI API Key from Settings.")
 
@@ -490,7 +524,7 @@ class TLabPlugin:
             return self._create_commercial_model_wrapper("openai", generation_model)
 
         elif model_type == "custom":
-            custom_api_details = asyncio.run(tlab_core.get_db_config_value("CUSTOM_MODEL_API_KEY"))
+            custom_api_details = _run_async_from_sync(tlab_core.get_db_config_value("CUSTOM_MODEL_API_KEY"))
             if not custom_api_details or custom_api_details.strip() == "":
                 raise ValueError("Please set the Custom API Details from Settings.")
 
@@ -544,7 +578,7 @@ class TLabPlugin:
     def _start_worker_sync(self, model_server=None):
         """Start the local model server and wait for it to be ready"""
         # Get experiment_id from the job
-        experiment_id = asyncio.run(self.job.get_experiment_id()) if self.job else None
+        experiment_id = _run_async_from_sync(self.job.get_experiment_id()) if self.job else None
 
         params = {
             "model_name": self.params.model_name,
@@ -688,7 +722,7 @@ class TLabPlugin:
                 if model_type == "claude":
                     self.chat_completions_url = "https://api.anthropic.com/v1/chat/completions"
                     self.base_url = "https://api.anthropic.com/v1"
-                    anthropic_api_key = asyncio.run(tlab_core.get_db_config_value("ANTHROPIC_API_KEY"))
+                    anthropic_api_key = _run_async_from_sync(tlab_core.get_db_config_value("ANTHROPIC_API_KEY"))
                     self.api_key = anthropic_api_key
                     if not anthropic_api_key or anthropic_api_key.strip() == "":
                         raise ValueError("Please set the Anthropic API Key from Settings.")
@@ -696,7 +730,7 @@ class TLabPlugin:
                         os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
                     self.model = Anthropic()
                 elif model_type == "azure":
-                    azure_api_details = asyncio.run(tlab_core.get_db_config_value("AZURE_OPENAI_DETAILS"))
+                    azure_api_details = _run_async_from_sync(tlab_core.get_db_config_value("AZURE_OPENAI_DETAILS"))
                     if not azure_api_details or azure_api_details.strip() == "":
                         raise ValueError("Please set the Azure OpenAI Details from Settings.")
                     azure_api_details = json.loads(azure_api_details)
@@ -715,7 +749,7 @@ class TLabPlugin:
                 elif model_type == "openai":
                     self.chat_completions_url = "https://api.openai.com/v1/chat/completions"
                     self.base_url = "https://api.openai.com/v1"
-                    openai_api_key = asyncio.run(tlab_core.get_db_config_value("OPENAI_API_KEY"))
+                    openai_api_key = _run_async_from_sync(tlab_core.get_db_config_value("OPENAI_API_KEY"))
                     self.api_key = openai_api_key
                     if not openai_api_key or openai_api_key.strip() == "":
                         raise ValueError("Please set the OpenAI API Key from Settings.")
@@ -724,7 +758,7 @@ class TLabPlugin:
                     self.model = OpenAI()
 
                 elif model_type == "custom":
-                    custom_api_details = asyncio.run(tlab_core.get_db_config_value("CUSTOM_MODEL_API_KEY"))
+                    custom_api_details = _run_async_from_sync(tlab_core.get_db_config_value("CUSTOM_MODEL_API_KEY"))
 
                     if not custom_api_details or custom_api_details.strip() == "":
                         raise ValueError("Please set the Custom API Details from Settings.")

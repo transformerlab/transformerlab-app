@@ -216,9 +216,6 @@ async def model_gallery(model_id: str):
     return await get_model_details_from_gallery(model_id)
 
 
-# Should this be a POST request?
-
-
 @router.get("/model/upload_to_huggingface", summary="Given a model ID, upload it to Hugging Face.")
 async def upload_model_to_huggingface(
     model_id: str, model_name: str = "transformerlab-model", organization_name: str = "", model_card_data: str = "{}"

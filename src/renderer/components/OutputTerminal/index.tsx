@@ -25,21 +25,20 @@ const OutputTerminal = ({
   const lineQueue = useRef<string[]>([]);
   const isProcessing = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const currentEndpointRef = useRef<string>('');
 
   const handleResize = debounce(() => {
     if (termRef.current && terminalRef.current && fitAddon.current) {
-      // Check if container has dimensions before fitting
       const rect = terminalRef.current.getBoundingClientRect();
       if (rect.width > 0 && rect.height > 0) {
         try {
-          // Additional check: ensure terminal element is in DOM and has xterm class
           const xtermElement = terminalRef.current.querySelector('.xterm');
           if (xtermElement) {
             fitAddon.current.fit();
           }
         } catch (error) {
-          // Ignore fit errors if dimensions aren't ready yet
-          console.warn('FitAddon fit failed:', error);
+          // Ignore fit errors
         }
       }
     }
@@ -71,92 +70,112 @@ const OutputTerminal = ({
     [processQueue],
   );
 
+  // Initialize terminal once
   useEffect(() => {
-    termRef.current = new Terminal({
-      smoothScrollDuration: 200,
-    });
-    termRef.current.loadAddon(fitAddon.current);
+    if (!termRef.current) {
+      termRef.current = new Terminal({
+        smoothScrollDuration: 200,
+      });
+      termRef.current.loadAddon(fitAddon.current);
 
-    if (terminalRef.current) {
-      termRef.current.open(terminalRef.current);
+      if (terminalRef.current) {
+        termRef.current.open(terminalRef.current);
 
-      // Delay fit() until container has dimensions
-      // Try multiple times with delays to ensure container is visible
-      const tryFit = (attempt = 0) => {
-        if (terminalRef.current && termRef.current && fitAddon.current) {
-          const rect = terminalRef.current.getBoundingClientRect();
-          // Check if container has dimensions and terminal element exists
-          const xtermElement = terminalRef.current.querySelector('.xterm');
-          if (rect.width > 0 && rect.height > 0 && xtermElement) {
-            try {
-              fitAddon.current.fit();
-            } catch (error) {
-              // If fit fails and we haven't tried too many times, retry
-              if (attempt < 5) {
-                setTimeout(() => tryFit(attempt + 1), 100);
-              } else {
-                console.warn(
-                  'Initial FitAddon fit failed after retries:',
-                  error,
-                );
+        const tryFit = (attempt = 0) => {
+          if (terminalRef.current && termRef.current && fitAddon.current) {
+            const rect = terminalRef.current.getBoundingClientRect();
+            const xtermElement = terminalRef.current.querySelector('.xterm');
+            if (rect.width > 0 && rect.height > 0 && xtermElement) {
+              try {
+                fitAddon.current.fit();
+              } catch (error) {
+                if (attempt < 5) {
+                  setTimeout(() => tryFit(attempt + 1), 100);
+                }
               }
+            } else if (attempt < 10) {
+              setTimeout(() => tryFit(attempt + 1), 100);
             }
           } else if (attempt < 10) {
-            // Container not visible yet or terminal not initialized, retry after a delay
             setTimeout(() => tryFit(attempt + 1), 100);
           }
-        } else if (attempt < 10) {
-          setTimeout(() => tryFit(attempt + 1), 100);
-        }
-      };
+        };
 
-      // Start trying to fit after a short delay
-      requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          tryFit();
+          requestAnimationFrame(() => {
+            tryFit();
+          });
         });
+      }
+
+      const resizeObserver = new ResizeObserver(() => {
+        handleResize();
       });
+
+      if (terminalRef.current) {
+        resizeObserver.observe(terminalRef.current);
+      }
+
+      if (initialMessage) {
+        termRef.current.writeln(initialMessage);
+      }
+
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }
+  }, [initialMessage, handleResize]);
+
+  // Handle streaming - only restart if endpoint actually changed
+  useEffect(() => {
+    // Only restart if endpoint changed
+    if (currentEndpointRef.current === logEndpoint) {
+      return;
     }
 
-    const resizeObserver = new ResizeObserver(() => {
-      handleResize();
-    });
-
-    if (terminalRef.current) {
-      resizeObserver.observe(terminalRef.current);
+    // Abort previous stream
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
 
-    termRef.current.writeln(initialMessage);
+    // Update current endpoint
+    currentEndpointRef.current = logEndpoint;
 
-    let abortController: AbortController | null = new AbortController();
+    // Clear terminal and queue when switching endpoints
+    if (termRef.current) {
+      termRef.current.clear();
+    }
+    lineQueue.current = [];
+    isProcessing.current = false;
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    // Start new stream
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
     let isStreaming = true;
 
-    // Use fetchWithAuth instead of EventSource to support authentication
     const startStreaming = async () => {
       try {
         const response = await fetchWithAuth(logEndpoint, {
-          signal: abortController?.signal,
+          signal: abortController.signal,
         });
 
         if (!response.ok) {
-          // eslint-disable-next-line no-console
-          console.error('Stream log request failed:', response.status);
           return;
         }
 
         const reader = response.body?.getReader();
         if (!reader) {
-          // eslint-disable-next-line no-console
-          console.error('No reader available');
           return;
         }
 
         const decoder = new TextDecoder();
         let buffer = '';
 
-        // eslint-disable-next-line no-await-in-loop
         while (isStreaming) {
-          // eslint-disable-next-line no-await-in-loop
           const { done, value } = await reader.read();
 
           if (done) {
@@ -165,54 +184,59 @@ const OutputTerminal = ({
 
           buffer += decoder.decode(value, { stream: true });
 
-          // Parse SSE format: lines starting with "data: " followed by JSON
           const bufferLines = buffer.split('\n');
-          buffer = bufferLines.pop() || ''; // Keep incomplete line in buffer
+          buffer = bufferLines.pop() || '';
 
           bufferLines.forEach((line) => {
             if (line.startsWith('data: ')) {
               try {
-                const jsonData = line.slice(6); // Remove "data: " prefix
+                const jsonData = line.slice(6);
                 const logLines = JSON.parse(jsonData);
-                if (termRef.current) {
+                if (
+                  termRef.current &&
+                  abortControllerRef.current === abortController
+                ) {
                   addLinesOneByOne(logLines);
                 }
               } catch (e) {
-                // eslint-disable-next-line no-console
-                console.error('Error parsing SSE data:', e);
+                // Ignore parse errors
               }
             }
           });
         }
       } catch (error: any) {
         if (error.name !== 'AbortError') {
-          // eslint-disable-next-line no-console
-          console.error('Stream log error:', error);
+          // Stream error (not abort)
         }
       }
     };
 
     startStreaming();
 
-    const currentTerminalRef = terminalRef.current;
-    const currentTerm = termRef.current;
-
     return () => {
       isStreaming = false;
-      if (abortController) {
+      if (abortControllerRef.current === abortController) {
         abortController.abort();
-        abortController = null;
+        abortControllerRef.current = null;
       }
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (currentTerm) {
-        currentTerm.dispose();
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
-      if (currentTerminalRef) {
-        resizeObserver.unobserve(currentTerminalRef);
-      }
-      resizeObserver.disconnect();
     };
-  }, [logEndpoint, initialMessage, addLinesOneByOne, handleResize]);
+  }, [logEndpoint, addLinesOneByOne]);
+
+  // Cleanup terminal on unmount
+  useEffect(() => {
+    return () => {
+      if (termRef.current) {
+        termRef.current.dispose();
+        termRef.current = null;
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   return (
     <Sheet

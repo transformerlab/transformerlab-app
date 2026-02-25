@@ -1,33 +1,38 @@
 import asyncio
+import csv
+from datetime import datetime
 from fnmatch import fnmatch
 import json
 import os
-import csv
 from typing import List, Optional
+
 import pandas as pd
 from fastapi import APIRouter, Response, Request, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse, FileResponse
-from lab import storage
-
-from transformerlab.shared import shared
 from json import JSONDecodeError
-
+from lab import Job, storage
+from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.utils import secure_filename
 
-from transformerlab.routers.serverinfo import watch_file
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
-import transformerlab.services.job_service as job_service
-from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
-from transformerlab.services.provider_service import get_team_provider, get_provider_instance
-from transformerlab.routers.auth import get_user_and_team
-from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.compute_providers.models import JobState
+from transformerlab.compute_providers.runpod import fetch_runpod_provider_logs
+from transformerlab.routers.auth import get_user_and_team
+from transformerlab.routers.serverinfo import watch_file
+from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
+import transformerlab.services.job_service as job_service
+from transformerlab.services.provider_service import get_team_provider, get_provider_instance
+from transformerlab.shared import shared, zip_utils
+from transformerlab.shared.models.models import ProviderType
+from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.shared.tunnel_parser import get_tunnel_info
-from lab import Job
-from lab.dirs import get_workspace_dir
-from transformerlab.shared import zip_utils
+from lab.dirs import (
+    get_workspace_dir,
+    get_local_provider_job_dir,
+    get_job_datasets_dir,
+    get_datasets_dir,
+    get_job_models_dir,
+    get_models_dir,
+)
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -81,52 +86,6 @@ async def job_create_task(script: str, job_data: str = "{}", experimentId: str =
 async def job_update(job_id: str, status: str, experimentId: str):
     await job_update_status(job_id, status, experiment_id=experimentId)
     return {"message": "OK"}
-
-
-async def start_next_job():
-    # Count running jobs across all organizations
-    num_running_jobs = await job_service.job_count_running_across_all_orgs()
-    if num_running_jobs > 0:
-        return {"message": "A job is already running"}
-
-    # Get next queued job across all organizations
-    nextjob, org_id = await job_service.jobs_get_next_queued_job_across_all_orgs()
-
-    if nextjob:
-        print(f"Starting Next Job in Queue: {nextjob}")
-        print(f"Job belongs to organization: {org_id}")
-        print("Starting job: " + str(nextjob["id"]))
-
-        # Set organization context before running the job
-        # Note: This is safe because:
-        # 1. This function runs in a background task with its own async context (isolated from request handlers)
-        # 2. Request handlers have their own middleware that sets/clears org context per request
-        # 3. The try/finally block ensures cleanup even if run_job() raises an exception
-        if org_id:
-            from lab.dirs import set_organization_id
-
-            set_organization_id(org_id)
-            print(f"Set organization context to: {org_id}")
-
-        try:
-            nextjob_data = nextjob["job_data"]
-            if not isinstance(nextjob_data, dict):
-                job_config = json.loads(nextjob["job_data"])
-            else:
-                job_config = nextjob_data
-            experiment_name = nextjob["experiment_id"]  # Note: experiment_id and experiment_name are the same
-            await shared.run_job(
-                job_id=nextjob["id"], job_config=job_config, experiment_name=experiment_name, job_details=nextjob
-            )
-            return nextjob
-        finally:
-            # Clear organization context after running job
-            if org_id:
-                from lab.dirs import set_organization_id
-
-                set_organization_id(None)
-    else:
-        return {"message": "No jobs in queue"}
 
 
 @router.get("/{job_id}/stop")
@@ -236,11 +195,22 @@ async def get_provider_job_logs(
     experimentId: str,
     job_id: str,
     tail_lines: int = Query(400, ge=100, le=2000),
+    live: bool = Query(
+        False,
+        description=(
+            "If true, bypass cached provider_logs.txt and fetch logs directly from the underlying compute provider."
+        ),
+    ),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
     Fetch the raw job logs directly from the underlying compute provider for a REMOTE job.
+
+    Preferred order:
+      1. If `provider_logs.txt` exists in the job directory (written by the SDK wrapper),
+         read and return that.
+      2. Otherwise, fall back to provider-native log retrieval (existing behavior).
     """
 
     job = await job_service.job_get(job_id)
@@ -261,12 +231,44 @@ async def get_provider_job_logs(
             status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
         )
 
+    # 1) If live=False (default), first try to read provider logs from the job directory
+    #    via the SDK's job_dir helper. This file is written by tfl-remote-trap inside
+    #    the remote environment.
+    if not live:
+        try:
+            from lab.dirs import get_job_dir
+
+            job_dir = await get_job_dir(job_id)
+            provider_logs_path = storage.join(job_dir, "provider_logs.txt")
+            if await storage.exists(provider_logs_path):
+                async with await storage.open(provider_logs_path, "r", encoding="utf-8") as f:
+                    logs_text = await f.read()
+                if tail_lines is not None:
+                    lines = logs_text.splitlines()
+                    logs_text = "\n".join(lines[-tail_lines:])
+
+                return {
+                    "cluster_name": cluster_name,
+                    "provider_id": provider_id,
+                    "provider_job_id": None,
+                    "provider_name": job_data.get("provider_name"),
+                    "tail_lines": tail_lines,
+                    "logs": logs_text,
+                    "job_candidates": [],
+                }
+        except Exception:
+            # If anything goes wrong with the file-based path, fall back to provider-native logs.
+            pass
+
+    # 2) Fall back to existing provider-native log retrieval.
     provider = await get_team_provider(session, user_and_team["team_id"], provider_id)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        team_id = user_and_team["team_id"]
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
 
@@ -285,8 +287,9 @@ async def get_provider_job_logs(
             provider_job_id = provider_launch_result.get("job_id")
 
     if provider_job_id is None:
+        provider_jobs: List = []
         try:
-            provider_jobs = provider_instance.list_jobs(cluster_name)
+            provider_jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
         except NotImplementedError:
             # Provider doesn't support listing jobs (e.g., Runpod)
             # For Runpod, we can't determine a job_id, so we'll use the cluster_name as a fallback
@@ -314,13 +317,25 @@ async def get_provider_job_logs(
     if provider_job_id is None:
         raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
 
+    # For local provider, set workspace_dir (job dir) so LocalProvider can read logs.
+    # Use the dedicated local-only directory so this works even when TFL_REMOTE_STORAGE_ENABLED is set.
+    if getattr(provider, "type", None) == "local" and hasattr(provider_instance, "extra_config"):
+        job_dir = get_local_provider_job_dir(job_id, org_id=user_and_team["team_id"])
+        provider_instance.extra_config["workspace_dir"] = job_dir
+
     try:
-        raw_logs = provider_instance.get_job_logs(
-            cluster_name,
-            provider_job_id,
-            tail_lines=tail_lines or None,
-            follow=False,
-        )
+        if provider.type == ProviderType.RUNPOD.value:
+            raw_logs = await fetch_runpod_provider_logs(
+                provider_instance, cluster_name, user_and_team["team_id"], tail_lines
+            )
+        else:
+            raw_logs = await asyncio.to_thread(
+                provider_instance.get_job_logs,
+                cluster_name,
+                provider_job_id,
+                tail_lines=tail_lines or None,
+                follow=False,
+            )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
 
@@ -354,10 +369,12 @@ async def get_tunnel_info_for_job(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Parse provider logs for a REMOTE job and extract tunnel information based on job type.
+    Parse provider logs and extract tunnel or local URLs based on job type.
 
-    This route automatically determines the tunnel type from job_data.interactive_type
-    and uses the appropriate parser. Supports: 'vscode', 'jupyter', 'vllm', 'ssh'
+    For remote jobs with a tunnel (e.g. ngrok), parses tunnel URLs from logs.
+    For local provider jobs (no tunnel), parses local URLs (e.g. Local Ollama API:
+    http://localhost:11434) from stdout/stderr. Uses job_data.interactive_type to
+    choose the parser. Supports: 'vscode', 'jupyter', 'vllm', 'ollama', 'ssh'.
     """
 
     job = await job_service.job_get(job_id)
@@ -388,7 +405,9 @@ async def get_tunnel_info_for_job(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        provider_instance = get_provider_instance(provider)
+        user_id_str = str(user_and_team["user"].id)
+        team_id = user_and_team["team_id"]
+        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
 
@@ -401,8 +420,9 @@ async def get_tunnel_info_for_job(
             provider_job_id = provider_job_ids[-1]
 
     if provider_job_id is None:
+        provider_jobs = None
         try:
-            provider_jobs = provider_instance.list_jobs(cluster_name)
+            provider_jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
         except NotImplementedError:
             # Provider doesn't support listing jobs (e.g., Runpod)
             # For Runpod, we can't determine a job_id, so we'll use the cluster_name as a fallback
@@ -418,13 +438,24 @@ async def get_tunnel_info_for_job(
     if provider_job_id is None:
         raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
 
+    # For local provider, set workspace_dir (job dir) so LocalProvider can read logs.
+    if getattr(provider, "type", None) == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
+        job_dir = get_local_provider_job_dir(job_id, org_id=user_and_team["team_id"])
+        provider_instance.extra_config["workspace_dir"] = job_dir
+
     try:
-        raw_logs = provider_instance.get_job_logs(
-            cluster_name,
-            provider_job_id,
-            tail_lines=tail_lines or None,
-            follow=False,
-        )
+        if provider.type == ProviderType.RUNPOD.value:
+            raw_logs = await fetch_runpod_provider_logs(
+                provider_instance, cluster_name, user_and_team["team_id"], tail_lines
+            )
+        else:
+            raw_logs = await asyncio.to_thread(
+                provider_instance.get_job_logs,
+                cluster_name,
+                provider_job_id,
+                tail_lines=tail_lines or None,
+                follow=False,
+            )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
 
@@ -544,12 +575,28 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
         )
 
-    return StreamingResponse(
-        # we force polling because i can't get this to work otherwise -- changes aren't detected
-        watch_file(output_file_name, start_from_beginning=True, force_polling=True),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
-    )
+    # Check if this is a remote path (S3, GCS, etc.) and use appropriate watcher
+    is_remote_path = storage.is_remote_path(output_file_name)
+
+    if is_remote_path:
+        # Use S3 polling watcher for remote filesystems
+        # This handles file rewrites better by comparing content lengths
+        from transformerlab.routers.serverinfo import watch_remote_file
+
+        return StreamingResponse(
+            watch_remote_file(output_file_name, start_from_beginning=True, poll_interval_ms=100),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+        )
+    else:
+        # Use local file watcher for local filesystems
+        # watch_file is already imported at the top
+        return StreamingResponse(
+            # we force polling because i can't get this to work otherwise -- changes aren't detected
+            watch_file(output_file_name, start_from_beginning=True, force_polling=True),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+        )
 
 
 @router.get("/{job_id}/stream_detailed_json_report")
@@ -1252,3 +1299,139 @@ async def sweep_results(job_id: str):
     except Exception as e:
         print(f"Error loading sweep results for job {job_id}: {e}")
         return {"status": "error", "message": "An internal error has occurred!"}
+
+
+@router.get("/{job_id}/datasets")
+async def get_job_datasets(job_id: str, request: Request):
+    """Get list of datasets in the job's datasets directory"""
+
+    if not job_id or job_id in ("", "-1"):
+        return {"datasets": []}
+
+    try:
+        from lab.dirs import get_job_datasets_dir
+
+        datasets_dir = await get_job_datasets_dir(job_id)
+        datasets = await job_service.get_datasets_from_directory(datasets_dir, storage)
+    except Exception as e:
+        print(f"Error getting datasets for job {job_id}: {e}")
+        datasets = []
+
+    datasets.sort(key=lambda x: x["name"], reverse=True)
+
+    return {"datasets": datasets}
+
+
+@router.get("/{job_id}/models")
+async def get_job_models(job_id: str, request: Request):
+    """Get list of models in the job's models directory"""
+
+    if not job_id or job_id in ("", "-1"):
+        return {"models": []}
+
+    try:
+        from lab.dirs import get_job_models_dir
+
+        models_dir = await get_job_models_dir(job_id)
+        models = await job_service.get_models_from_directory(models_dir, storage)
+    except Exception as e:
+        print(f"Error getting models for job {job_id}: {e}")
+        models = []
+
+    models.sort(key=lambda x: x["name"], reverse=True)
+
+    return {"models": models}
+
+
+@router.post("/{job_id}/datasets/{dataset_name}/save_to_registry")
+async def save_dataset_to_registry(
+    job_id: str,
+    dataset_name: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Copy a dataset from job's datasets directory to the global datasets registry"""
+
+    try:
+        # Secure the dataset name
+        dataset_name_secure = secure_filename(dataset_name)
+
+        # Get source path (job's datasets directory)
+        job_datasets_dir = await get_job_datasets_dir(job_id)
+        source_path = storage.join(job_datasets_dir, dataset_name_secure)
+
+        if not await storage.exists(source_path):
+            raise HTTPException(status_code=404, detail=f"Dataset '{dataset_name}' not found in job directory")
+
+        # Get destination path (global datasets registry)
+        datasets_registry_dir = await get_datasets_dir()
+        dest_path = storage.join(datasets_registry_dir, dataset_name_secure)
+
+        # Check if dataset already exists in registry and generate a unique name if needed
+        if await storage.exists(dest_path):
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            dataset_name_secure = f"{dataset_name_secure}_{timestamp}"
+            dest_path = storage.join(datasets_registry_dir, dataset_name_secure)
+
+        # Copy the dataset to the registry
+        # Try local copy first (if both are local paths)
+        try:
+            await storage.copy_dir(source_path, dest_path)
+        except Exception as copy_err:
+            # If shutil fails, fallback to storage.copy_dir
+            print(f"Storage.copy_dir failed: {copy_err}")
+
+        return {"status": "success", "message": f"Dataset saved to registry as '{dataset_name_secure}'"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving dataset to registry for job {job_id}: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to save dataset to registry: {str(e)}")
+
+
+@router.post("/{job_id}/models/{model_name}/save_to_registry")
+async def save_model_to_registry(job_id: str, model_name: str):
+    """Copy a model from job's models directory to the global models registry"""
+
+    try:
+        # Secure the model name
+        model_name_secure = secure_filename(model_name)
+
+        # Get source path (job's models directory)
+        job_models_dir = await get_job_models_dir(job_id)
+        source_path = storage.join(job_models_dir, model_name_secure)
+
+        if not await storage.exists(source_path):
+            raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found in job directory")
+
+        # Get destination path (global models registry)
+        models_registry_dir = await get_models_dir()
+        dest_path = storage.join(models_registry_dir, model_name_secure)
+
+        # Check if model already exists in registry
+        if await storage.exists(dest_path):
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            model_name_secure = f"{model_name_secure}_{timestamp}"
+            dest_path = storage.join(models_registry_dir, model_name_secure)
+
+        # Copy the model directory to the registry
+        try:
+            await storage.copy_dir(source_path, dest_path)
+        except Exception as copy_err:
+            print(f"storage.copy_dir failed: {copy_err}")
+            await storage.copy_dir(source_path, dest_path)
+
+        return {"status": "success", "message": f"Model saved to registry as '{model_name_secure}'"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving model to registry for job {job_id}: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to save model to registry: {str(e)}")

@@ -8,14 +8,12 @@ import {
 } from '@mui/joy';
 import {
   CheckCheckIcon,
-  CheckCircle2Icon,
   InfoIcon,
   PlayCircleIcon,
   Plug2Icon,
   StopCircleIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import { RiImageAiLine } from 'renderer/components/Icons';
 import { useEffect, useState } from 'react';
 
 import {
@@ -42,6 +40,10 @@ function removeServerFromEndOfString(str) {
   }
 }
 
+// Keep "Stopping..." state stable when switching pages in this app session.
+// This remains in-memory only and is not persisted to browser storage.
+const stopRequestedStateByExperiment = new Map<string, boolean>();
+
 export default function RunModelButton({
   experimentInfo,
   killWorker,
@@ -51,6 +53,7 @@ export default function RunModelButton({
 }) {
   const [jobId, setJobId] = useState(null);
   const [stopping, setStopping] = useState(false);
+  const [stopRequested, setStopRequested] = useState(false);
   const [showRunSettings, setShowRunSettings] = useState(false);
   const [inferenceSettings, setInferenceSettings] = useState({
     inferenceEngine: null,
@@ -83,6 +86,31 @@ export default function RunModelButton({
   const pipelineTag = pipelineTagData?.data || null;
 
   const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
+  const experimentId = experimentInfo?.id ?? '';
+
+  useEffect(() => {
+    if (!experimentId) {
+      setStopRequested(false);
+      return;
+    }
+    setStopRequested(stopRequestedStateByExperiment.get(experimentId) === true);
+  }, [experimentId]);
+
+  const { data: loadJobs } = useSWR(
+    experimentId
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(
+          experimentId,
+          'LOAD_MODEL',
+          'STARTED',
+        )
+      : null,
+    fetcher,
+    {
+      refreshInterval: 2000,
+    },
+  );
+
+  const hasPendingLoadJob = Array.isArray(loadJobs) && loadJobs.length > 0;
 
   // Fetch suggested compatible loader plugin from API (platform-aware)
   const { data: suggestedLoaderPlugin, isLoading: suggestedPluginLoading } =
@@ -145,12 +173,16 @@ export default function RunModelButton({
     );
   }, [data, supportedEngines]);
 
-  const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
-    boolean | null
-  >(null);
-
   // Prevent transient UI while we determine/commit inference engine defaults
   const [inferenceLoading, setInferenceLoading] = useState(true);
+
+  useEffect(() => {
+    if (!experimentId) return;
+    if (models === null) {
+      stopRequestedStateByExperiment.delete(experimentId);
+      setStopRequested(false);
+    }
+  }, [models, experimentId]);
 
   function isPossibleToRunAModel() {
     return (
@@ -173,13 +205,13 @@ export default function RunModelButton({
       {},
     );
     const inferenceEnginesJSON = await inferenceEngines.json();
-    const experimentId = experimentInfo?.id;
+    const currentExperimentId = experimentInfo?.id;
     const engine = inferenceEnginesJSON?.[0]?.uniqueId;
     const inferenceEngineFriendlyName = inferenceEnginesJSON?.[0]?.name || '';
 
     await chatAPI.authenticatedFetch(
       chatAPI.Endpoints.Experiment.UpdateConfig(
-        experimentId,
+        currentExperimentId,
         'inferenceParams',
         JSON.stringify({
           ...inferenceSettings,
@@ -274,41 +306,21 @@ export default function RunModelButton({
     experimentInfo?.config?.inferenceParams,
   ]);
 
-  // Check if the current foundation model is a diffusion model
-  useEffect(() => {
-    const checkValidDiffusion = async () => {
-      if (!experimentInfo?.config?.foundation) {
-        setIsValidDiffusionModel(false);
-        return;
-      }
-
-      try {
-        const response = await chatAPI.authenticatedFetch(
-          getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: experimentInfo.config.foundation }),
-          },
-        );
-        const data = await response.json();
-        setIsValidDiffusionModel(data.is_valid_diffusion_model);
-      } catch (e) {
-        setIsValidDiffusionModel(false);
-      }
-    };
-
-    checkValidDiffusion();
-  }, [experimentInfo?.config?.foundation]);
-
   function Engine() {
+    const isStarting = jobId === -1 || hasPendingLoadJob;
+    const runLabel = isStarting
+      ? 'Starting...'
+      : isPossibleToRunAModel()
+        ? 'Run'
+        : 'No Available Engine';
+
     return (
       <>
         {models === null ? (
           <>
             <Button
               startDecorator={
-                jobId === -1 ? (
+                isStarting ? (
                   <CircularProgress size="sm" thickness={2} />
                 ) : (
                   <PlayCircleIcon />
@@ -318,6 +330,7 @@ export default function RunModelButton({
               size="lg"
               sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
               onClick={async (e) => {
+                if (isStarting) return;
                 if (inferenceSettings?.inferenceEngine === null) {
                   setShowRunSettings(!showRunSettings);
                   return;
@@ -358,15 +371,19 @@ export default function RunModelButton({
                 setJobId(job_id);
                 mutate();
               }}
-              disabled={!isPossibleToRunAModel()}
+              disabled={!isPossibleToRunAModel() || isStarting}
             >
-              {isPossibleToRunAModel() ? 'Run' : 'No Available Engine'}
+              {runLabel}
             </Button>
           </>
         ) : (
           <Button
             onClick={async () => {
               if (stopping) return;
+              if (experimentId) {
+                stopRequestedStateByExperiment.set(experimentId, true);
+              }
+              setStopRequested(true);
               setStopping(true);
               try {
                 await killWorker();
@@ -386,7 +403,7 @@ export default function RunModelButton({
               }
             }}
             startDecorator={
-              stopping || models?.length == 0 ? (
+              stopping || stopRequested || models?.length == 0 ? (
                 <CircularProgress size="sm" thickness={2} />
               ) : (
                 <StopCircleIcon />
@@ -396,13 +413,18 @@ export default function RunModelButton({
             size="lg"
             sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
           >
-            {stopping ? 'Stopping...' : 'Stop'}
+            {stopping || stopRequested ? 'Stopping...' : 'Stop'}
           </Button>
         )}
         <Button
           variant="plain"
           onClick={() => setShowRunSettings(!showRunSettings)}
-          disabled={models?.length > 0 || jobId == -1 || inferenceLoading}
+          disabled={
+            models?.length > 0 ||
+            jobId == -1 ||
+            inferenceLoading ||
+            hasPendingLoadJob
+          }
         >
           using{' '}
           {removeServerFromEndOfString(
@@ -461,20 +483,6 @@ export default function RunModelButton({
         </Box>
       ) : supportedEngines.length > 0 ? (
         <Engine />
-      ) : isValidDiffusionModel === true ? (
-        <Alert startDecorator={<CheckCircle2Icon />} color="success">
-          <Typography level="body-sm">
-            You can now run inference using this diffusion model. Go to{' '}
-            <Link to="/experiment/diffusion">
-              <RiImageAiLine
-                size="16px"
-                style={{ verticalAlign: 'middle', marginRight: '2px' }}
-              />
-              Diffusion
-            </Link>{' '}
-            to generate images with it.
-          </Typography>
-        </Alert>
       ) : unsupportedEngines.length > 0 ? (
         <div>
           <Alert startDecorator={<TriangleAlertIcon />} color="warning">

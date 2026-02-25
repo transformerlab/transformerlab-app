@@ -11,6 +11,7 @@ class ExportTaskToTeamGalleryRequest(BaseModel):
 class ImportTaskFromGalleryRequest(BaseModel):
     gallery_id: str  # Index or identifier in the gallery array
     experiment_id: str
+    is_interactive: Optional[bool] = False  # Whether importing from interactive gallery
 
 
 class ImportTaskFromTeamGalleryRequest(BaseModel):
@@ -25,7 +26,7 @@ class AddTeamTaskToGalleryRequest(BaseModel):
     command: str
     cpus: Optional[str] = None
     memory: Optional[str] = None
-    accelerators: Optional[str] = None
+    supported_accelerators: Optional[str] = None
     github_repo_url: Optional[str] = None
     github_repo_dir: Optional[str] = None
     github_branch: Optional[str] = None

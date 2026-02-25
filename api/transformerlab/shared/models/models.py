@@ -130,6 +130,16 @@ class ProviderType(str, enum.Enum):
     SLURM = "slurm"
     SKYPILOT = "skypilot"
     RUNPOD = "runpod"
+    LOCAL = "local"
+
+
+class AcceleratorType(str, enum.Enum):
+    """Enum for accelerator types."""
+
+    APPLE_SILICON = "AppleSilicon"
+    NVIDIA = "NVIDIA"
+    AMD = "AMD"
+    CPU = "cpu"
 
 
 class TeamComputeProvider(Base):

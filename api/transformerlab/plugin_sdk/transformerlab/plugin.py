@@ -1,4 +1,6 @@
 import asyncio
+import concurrent.futures
+import contextvars
 import os
 import json
 import sqlite3
@@ -18,19 +20,36 @@ from lab.dataset import Dataset as dataset_service
 # Use shared constant as sole source of truth
 DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
 
+
+# Helper to safely run async code from sync contexts
+def _run_async_from_sync(coro):
+    """
+    Run a coroutine from sync code. Safe to call whether or not an event loop
+    is already running. When a loop is already running, runs the coroutine in
+    a separate thread and copies contextvars so lab SDK state is preserved.
+    """
+    try:
+        asyncio.get_running_loop()
+        running = True
+    except RuntimeError:
+        running = False
+
+    if not running:
+        return asyncio.run(coro)
+
+    ctx = contextvars.copy_context()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(lambda: ctx.run(asyncio.run, coro))
+        return future.result()
+
+
 # Initialize WORKSPACE_DIR synchronously
 # This is called during plugin initialization, not during API runtime
 try:
-    WORKSPACE_DIR = asyncio.run(get_workspace_dir())
-except RuntimeError:
-    # If there's already an event loop running (shouldn't happen in plugin context)
-    # fall back to using the existing loop
-    try:
-        loop = asyncio.get_event_loop()
-        WORKSPACE_DIR = loop.run_until_complete(get_workspace_dir())
-    except Exception as e:
-        print(f"Plugin Harness Error: Could not get WORKSPACE_DIR: {e}")
-        WORKSPACE_DIR = None
+    WORKSPACE_DIR = _run_async_from_sync(get_workspace_dir())
+except Exception as e:
+    print(f"Plugin Harness Error: Could not get WORKSPACE_DIR: {e}")
+    WORKSPACE_DIR = None
 
 if WORKSPACE_DIR is None:
     print("Plugin Harness Error: WORKSPACE_DIR not available. Quitting.")
@@ -102,7 +121,7 @@ def get_dataset_path(dataset_id: str):
         # Otherwise assume it is a HuggingFace dataset id
         return dataset_id
 
-    return asyncio.run(_get())
+    return _run_async_from_sync(_get())
 
 
 async def get_db_config_value(key: str, team_id: Optional[str] = None, user_id: Optional[str] = None):
@@ -207,7 +226,7 @@ def experiment_get(id):
         except Exception:
             return None
 
-    return asyncio.run(_get())
+    return _run_async_from_sync(_get())
 
 
 def get_experiment_config(name: str):
@@ -224,7 +243,7 @@ def get_experiment_config(name: str):
         except Exception:
             return None, name
 
-    return asyncio.run(_get())
+    return _run_async_from_sync(_get())
 
 
 def get_python_executable(plugin_dir):
@@ -291,7 +310,7 @@ def generate_model_json(
         async with await storage.open(storage.join(output_directory, "index.json"), "w") as outfile:
             await outfile.write(json.dumps(model_description))
 
-    asyncio.run(_write())
+    _run_async_from_sync(_write())
     return model_description
 
 
@@ -344,7 +363,7 @@ def prepare_dataset_files(
             except Exception as e:
                 print(f"Error reading example from {output_file}: {e}")
 
-    asyncio.run(_process_datasets())
+    _run_async_from_sync(_process_datasets())
 
 
 def format_template(

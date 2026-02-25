@@ -16,14 +16,12 @@ import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import { analytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
-import NewTaskModal from './NewTaskModal/NewTaskModal';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveVSCodeModal from './InteractiveVSCodeModal';
 import InteractiveJupyterModal from './InteractiveJupyterModal';
 import InteractiveVllmModal from './InteractiveVllmModal';
 import InteractiveSshModal from './InteractiveSshModal';
 import InteractiveOllamaModal from './InteractiveOllamaModal';
-import EditTaskModal from './EditTaskModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -32,6 +30,11 @@ import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
+import ViewJobDatasetsModal from '../Train/ViewJobDatasetsModal';
+import ViewJobModelsModal from '../Train/ViewJobModelsModal';
+import SafeJSONParse from '../../Shared/SafeJSONParse';
+import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
+import TaskYamlEditorModal from './TaskYamlEditorModal';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -56,10 +59,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [viewSweepResultsFromJob, setViewSweepResultsFromJob] = useState(-1);
   const [viewEvalResultsFromJob, setViewEvalResultsFromJob] = useState(-1);
   const [interactiveJobForModal, setInteractiveJobForModal] = useState(-1);
+  const [viewJobDatasetsFromJob, setViewJobDatasetsFromJob] = useState(-1);
+  const [viewJobModelsFromJob, setViewJobModelsFromJob] = useState(-1);
   const [previewDatasetModal, setPreviewDatasetModal] = useState<{
     open: boolean;
     datasetId: string | null;
   }>({ open: false, datasetId: null });
+  const [yamlEditorTaskId, setYamlEditorTaskId] = useState<string | null>(null);
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const { fetchWithAuth, team } = useAuth();
@@ -674,6 +680,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       // Fetch interactive gallery to get setup and command templates
       let defaultSetup: string;
       let defaultCommand: string;
+      let templateId: string | undefined;
 
       try {
         const galleryResponse = await chatAPI.authenticatedFetch(
@@ -697,6 +704,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
           defaultSetup = template.setup || '';
           defaultCommand = template.command || '';
+          templateId = template.id;
         } else {
           throw new Error('Failed to fetch interactive gallery');
         }
@@ -747,6 +755,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         setup: defaultSetup,
         subtype: 'interactive',
         interactive_type: interactiveType,
+        interactive_gallery_id: templateId,
         provider_id: providerMeta.id,
         provider_name: providerMeta.name,
         env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
@@ -888,11 +897,17 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       // Keep original parameters (the definitions/defaults) and send overrides separately
       const payload = {
         experiment_id: experimentInfo.id,
+        task_id: task.id,
         task_name: task.name,
         cluster_name: cfg.cluster_name || task.cluster_name,
         command: cfg.command || task.command,
         subtype: cfg.subtype || task.subtype,
         interactive_type: cfg.interactive_type || task.interactive_type,
+        interactive_gallery_id:
+          cfg.interactive_gallery_id ??
+          (task as any)?.interactive_gallery_id ??
+          config?.interactive_gallery_id ??
+          undefined,
         cpus: cfg.cpus || task.cpus,
         memory: cfg.memory || task.memory,
         disk_space: cfg.disk_space || task.disk_space,
@@ -978,8 +993,18 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   };
 
   const handleEditTask = (task: any) => {
-    setTaskBeingEdited(task);
-    setEditModalOpen(true);
+    const config =
+      typeof task?.config === 'string'
+        ? SafeJSONParse(task.config, {})
+        : (task?.config ?? {});
+    const isInteractive =
+      (task as any)?.interactive_type || config?.interactive_type;
+    if (isInteractive) {
+      setTaskBeingEdited(task);
+      setEditModalOpen(true);
+    } else {
+      setYamlEditorTaskId(task?.id ?? null);
+    }
   };
 
   return (
@@ -992,14 +1017,23 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }}
     >
       {!isInteractivePage && (
-        <NewTaskModal
+        <NewTaskModal2
           open={modalOpen}
           onClose={handleClose}
-          experimentId={experimentInfo?.id}
-          onSubmit={handleSubmit}
-          isSubmitting={isSubmitting}
-          providers={providers}
-          isProvidersLoading={providersIsLoading}
+          experimentId={experimentInfo?.id ?? ''}
+          onTaskCreated={(taskId) => {
+            setYamlEditorTaskId(taskId);
+            handleClose();
+          }}
+        />
+      )}
+      {experimentInfo?.id && yamlEditorTaskId && (
+        <TaskYamlEditorModal
+          open={Boolean(yamlEditorTaskId)}
+          onClose={() => setYamlEditorTaskId(null)}
+          experimentId={experimentInfo.id}
+          taskId={yamlEditorTaskId}
+          onSaved={() => templatesMutate()}
         />
       )}
       {isInteractivePage && (
@@ -1013,73 +1047,64 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         />
       )}
       {taskBeingEdited &&
-      (taskBeingEdited as any).interactive_type &&
-      isInteractivePage ? (
-        <EditInteractiveTaskModal
-          open={editModalOpen}
-          onClose={handleEditClose}
-          task={taskBeingEdited}
-          providers={providers}
-          isProvidersLoading={providersIsLoading}
-          onSaved={async (updatedBody: any) => {
-            if (!experimentInfo?.id || !taskBeingEdited?.id) {
-              addNotification({
-                type: 'warning',
-                message: 'Missing experiment or task ID',
-              });
-              return;
-            }
-
-            try {
-              const response = await chatAPI.authenticatedFetch(
-                chatAPI.Endpoints.Task.UpdateTemplate(
-                  experimentInfo.id,
-                  taskBeingEdited.id,
-                ),
-                {
-                  method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    accept: 'application/json',
-                  },
-                  body: JSON.stringify(updatedBody),
-                },
-              );
-
-              if (response.ok) {
-                await templatesMutate();
+        ((taskBeingEdited as any).interactive_type ||
+          SafeJSONParse((taskBeingEdited as any)?.config, {})
+            ?.interactive_type) && (
+          <EditInteractiveTaskModal
+            open={editModalOpen}
+            onClose={handleEditClose}
+            task={taskBeingEdited}
+            providers={providers}
+            isProvidersLoading={providersIsLoading}
+            onSaved={async (updatedBody: any) => {
+              if (!experimentInfo?.id || !taskBeingEdited?.id) {
                 addNotification({
-                  type: 'success',
-                  message: 'Interactive task updated successfully',
+                  type: 'warning',
+                  message: 'Missing experiment or task ID',
                 });
-              } else {
-                const txt = await response.text();
+                return;
+              }
+
+              try {
+                const response = await chatAPI.authenticatedFetch(
+                  chatAPI.Endpoints.Task.UpdateTemplate(
+                    experimentInfo.id,
+                    taskBeingEdited.id,
+                  ),
+                  {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      accept: 'application/json',
+                    },
+                    body: JSON.stringify(updatedBody),
+                  },
+                );
+
+                if (response.ok) {
+                  await templatesMutate();
+                  addNotification({
+                    type: 'success',
+                    message: 'Interactive task updated successfully',
+                  });
+                } else {
+                  const txt = await response.text();
+                  addNotification({
+                    type: 'danger',
+                    message: `Failed to update interactive task: ${txt}`,
+                  });
+                }
+              } catch (error) {
+                console.error('Error updating interactive task:', error);
                 addNotification({
                   type: 'danger',
-                  message: `Failed to update interactive task: ${txt}`,
+                  message:
+                    'Failed to update interactive task. Please try again.',
                 });
               }
-            } catch (error) {
-              console.error('Error updating interactive task:', error);
-              addNotification({
-                type: 'danger',
-                message: 'Failed to update interactive task. Please try again.',
-              });
-            }
-          }}
-        />
-      ) : (
-        <EditTaskModal
-          open={editModalOpen}
-          onClose={handleEditClose}
-          task={taskBeingEdited}
-          providers={providers}
-          isProvidersLoading={providersIsLoading}
-          onSaved={async () => {
-            await templatesMutate();
-          }}
-        />
-      )}
+            }}
+          />
+        )}
       {taskBeingQueued && (
         <QueueTaskModal
           open={queueModalOpen}
@@ -1148,6 +1173,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           onViewGeneratedDataset={(jobId, datasetId) => {
             setPreviewDatasetModal({ open: true, datasetId });
           }}
+          onViewJobDatasets={(jobId) =>
+            setViewJobDatasetsFromJob(parseInt(jobId))
+          }
+          onViewJobModels={(jobId) => setViewJobModelsFromJob(parseInt(jobId))}
           onViewSweepOutput={(jobId) => {
             setViewOutputFromSweepJob(true);
             setViewOutputFromJob(parseInt(jobId));
@@ -1255,6 +1284,16 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         }
         dataset_id={previewDatasetModal.datasetId}
         viewType="preview"
+      />
+      <ViewJobDatasetsModal
+        open={viewJobDatasetsFromJob !== -1}
+        onClose={() => setViewJobDatasetsFromJob(-1)}
+        jobId={viewJobDatasetsFromJob}
+      />
+      <ViewJobModelsModal
+        open={viewJobModelsFromJob !== -1}
+        onClose={() => setViewJobModelsFromJob(-1)}
+        jobId={viewJobModelsFromJob}
       />
     </Sheet>
   );

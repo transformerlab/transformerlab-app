@@ -1,186 +1,20 @@
 /* eslint-disable react/jsx-no-useless-fragment */
 import Sheet from '@mui/joy/Sheet';
-import { Sparklines, SparklinesLine } from 'react-sparklines';
-import { Box, LinearProgress, Stack, Tooltip, Typography } from '@mui/joy';
-import {
-  useServerStats,
-  apiHealthz,
-} from 'renderer/lib/transformerlab-api-sdk';
-import { useEffect, useState } from 'react';
+import { Box, Stack, Tooltip, Typography } from '@mui/joy';
+import { useConnectionHealth } from 'renderer/lib/transformerlab-api-sdk';
+import { useEffect } from 'react';
 import { Link2Icon } from 'lucide-react';
 
-import { formatBytes } from 'renderer/lib/utils';
 import { Link as ReactRouterLink } from 'react-router-dom';
 import ModelCurrentlyPlayingBar from './ModelCurrentlyPlayingBar';
 
-import TinyMLXLogo from './Shared/TinyMLXLogo';
-import TinyNVIDIALogo from './Shared/TinyNVIDIALogo';
-import TinyAMDLogo from './Shared/TinyAMDLogo';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import ConnectionLostModal from './Shared/ConnectionLostModal';
 
-function StatsBar({ connection, setConnection }) {
-  const [cs, setCS] = useState({ cpu: [0], gpu: [0], mem: [0] });
-  const { server, isLoading, isError } = useServerStats();
-
-  useEffect(() => {
-    if (connection === '') return;
-
-    const newConnectionStats = { ...cs };
-
-    // CPU Percent:
-    if (server?.cpu_percent == null || Number.isNaN(server?.cpu_percent)) {
-      newConnectionStats.cpu.push(0);
-    } else {
-      newConnectionStats.cpu.push(server?.cpu_percent);
-    }
-    if (newConnectionStats.cpu.length > 10) {
-      newConnectionStats.cpu.shift();
-    }
-
-    // GPU Percent:
-    const gpuPercent =
-      (server?.gpu?.reduce((acc, gpu) => {
-        if (gpu.total_memory && gpu.used_memory) {
-          return acc + (gpu.used_memory / gpu.total_memory) * 100;
-        }
-        return acc;
-      }, 0) ?? 0) / (server?.gpu?.length || 1);
-
-    if (Number.isNaN(gpuPercent)) {
-      newConnectionStats.gpu.push(0);
-    } else {
-      newConnectionStats.gpu.push(gpuPercent);
-    }
-    if (newConnectionStats.gpu.length > 10) {
-      newConnectionStats.gpu.shift();
-    }
-
-    // Memory:
-    if (
-      server?.memory?.percent == null ||
-      Number.isNaN(server?.memory?.percent)
-    ) {
-      newConnectionStats.mem.push(0);
-    } else {
-      newConnectionStats.mem.push(server?.memory?.percent);
-    }
-
-    if (newConnectionStats.mem.length > 10) {
-      newConnectionStats.mem.shift();
-    }
-
-    setCS(newConnectionStats);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connection, server]);
-
-  function showGPU() {
-    if (server?.os == 'Darwin' && server?.cpu == 'arm64') {
-      // Check if mac_metrics and GPU data are available
-      if (server?.mac_metrics?.gpu_usage) {
-        const gpuPercent = server.mac_metrics.gpu_usage[1] * 100; // Convert to percentage
-
-        return (
-          <Stack gap={0} direction="row">
-            VRAM:
-            <div style={{ width: '60px', textAlign: 'center' }}>
-              <div
-                style={{ width: '60px', position: 'absolute', opacity: 0.6 }}
-              >
-                <Sparklines height={20} width={60} data={cs.gpu}>
-                  <SparklinesLine color="var(--joy-palette-danger-500)" />
-                </Sparklines>
-              </div>
-              {Math.round(gpuPercent)}%
-            </div>{' '}
-            <span style={{ opacity: 0.6 }}>
-              <TinyMLXLogo />
-            </span>
-          </Stack>
-        );
-      }
-
-      // Fallback to just showing the MLX logo if no mac_metrics
-      return (
-        <span style={{ opacity: 0.6 }}>
-          {' '}
-          <TinyMLXLogo />
-        </span>
-      );
-    }
-
-    return (
-      <Tooltip
-        title={showDetailedVRAM()}
-        placement="top"
-        arrow
-        sx={{ fontSize: 12 }}
-        variant="outlined"
-      >
-        <span id="hoo">
-          <Stack gap={0} direction="row">
-            VRAM:
-            <div style={{ width: '60px', textAlign: 'center' }}>
-              <div
-                style={{ width: '60px', position: 'absolute', opacity: 0.6 }}
-              >
-                <Sparklines height={20} width={60} data={cs.gpu}>
-                  <SparklinesLine color="var(--joy-palette-danger-500)" />
-                </Sparklines>
-              </div>
-              {Math.round(cs.gpu[cs.gpu.length - 1])}%
-            </div>{' '}
-            GPU:{' '}
-            {server?.gpu?.map((gpu, index) => (
-              <PercentWithColoredBackgroundMeter
-                key={index}
-                percent={Math.round(gpu?.utilization)}
-              />
-            ))}
-            {server?.device === 'cuda' && (
-              <span style={{ display: 'flex', alignItems: 'center' }}>
-                {server?.device_type === 'nvidia' ? (
-                  <TinyNVIDIALogo />
-                ) : server?.device_type === 'amd' ? (
-                  <TinyAMDLogo />
-                ) : null}
-              </span>
-            )}
-          </Stack>
-        </span>
-      </Tooltip>
-    );
-  }
-
-  function showDetailedVRAM() {
-    // if gpu?.total_memory == 'n/a" then quit:
-    if (server?.gpu?.[0]?.total_memory === 'n/a') {
-      return ' ';
-    }
-
-    return (
-      <>
-        {server?.gpu?.map((gpuDetail, index) => (
-          <div key={index} style={{ marginBottom: '10px' }}>
-            <Typography level="title-sm">GPU {index + 1}:</Typography>
-            <div>Total VRAM: {formatBytes(gpuDetail?.total_memory)}</div>
-            <div>Used VRAM: {formatBytes(gpuDetail?.used_memory)}</div>
-            <div>Free VRAM: {formatBytes(gpuDetail?.free_memory)}</div>
-            <LinearProgress
-              determinate
-              value={(gpuDetail?.used_memory / gpuDetail?.total_memory) * 100}
-              variant="solid"
-              sx={{ minWidth: '50px' }}
-            />
-          </div>
-        ))}
-      </>
-    );
-  }
-
+function StatsBar({ connection }: { connection: string }) {
   return (
     <>
-      {isError ? (
+      {connection === '' ? (
         <div
           style={{
             display: 'flex',
@@ -240,7 +74,7 @@ function StatsBar({ connection, setConnection }) {
                       <Typography level="title-lg">{connection}</Typography>
                       <Typography>
                         <b>OS: </b>
-                        {server?.os_alias[0]}
+                        {Array.isArray(server?.os_alias) && server.os_alias[0]}
                       </Typography>
                       <Typography>
                         <b>CPU: </b>
@@ -336,67 +170,14 @@ function StatsBar({ connection, setConnection }) {
 
 export default function Header({ connection, setConnection }) {
   const { experimentInfo } = useExperimentInfo();
-  const { isError, server } = useServerStats();
-  const [connectionLost, setConnectionLost] = useState(false);
-
-  // Check connection health when we have a connection URL set
-  useEffect(() => {
-    if (!connection || connection === '') {
-      setConnectionLost(false);
-      return;
-    }
-
-    let isMounted = true;
-    let checkInterval: NodeJS.Timeout | null = null;
-
-    const checkConnectionHealth = async () => {
-      try {
-        const healthz = await apiHealthz();
-        if (isMounted) {
-          // Connection is healthy if healthz returns non-null
-          if (healthz !== null) {
-            setConnectionLost(false);
-          } else {
-            // Connection is lost (apiHealthz returns null on error)
-            setConnectionLost(true);
-          }
-        }
-      } catch (error) {
-        // Connection is lost
-        if (isMounted) {
-          setConnectionLost(true);
-        }
-      }
-    };
-
-    // Check immediately
-    checkConnectionHealth();
-
-    // Then check every 2 seconds for faster detection
-    checkInterval = setInterval(() => {
-      checkConnectionHealth();
-    }, 2000);
-
-    return () => {
-      isMounted = false;
-      if (checkInterval) {
-        clearInterval(checkInterval);
-      }
-    };
-  }, [connection]);
-
-  // Also check if useServerStats reports an error (as a backup detection method)
-  // Note: The direct apiHealthz check above is the primary method, this is just a backup
-  useEffect(() => {
-    if (connection && connection !== '' && isError) {
-      // If useServerStats reports an error, also mark as lost
-      setConnectionLost(true);
-    }
-    // Don't override connectionLost=false here because the direct check above handles that
-  }, [connection, isError]);
+  const { isError: connectionHealthError, isLoading: connectionHealthLoading } =
+    useConnectionHealth(connection);
 
   const isLocalMode = window?.platform?.multiuser !== true;
-  // Show connection lost modal when we have a connection but it's lost
+  // Use connection health (with timeout) so we get a definite fail when server is down;
+  // useServerStats can hang and never set error
+  const connectionLost =
+    connection !== '' && !connectionHealthLoading && !!connectionHealthError;
   const showConnectionLostModal = connection !== '' && connectionLost;
 
   return (
@@ -459,7 +240,7 @@ export default function Header({ connection, setConnection }) {
       {!isLocalMode ? (
         <Box sx={{ mr: 2 }} />
       ) : (
-        <StatsBar connection={connection} setConnection={setConnection} />
+        <StatsBar connection={connection} />
       )}
       {showConnectionLostModal && (
         <ConnectionLostModal

@@ -14,11 +14,12 @@ from transformerlab.services.task_service import task_service
 from transformerlab.services.provider_service import list_team_providers
 from transformerlab.shared import galleries
 from transformerlab.shared.github_utils import (
-    fetch_task_json_from_github_helper,
     fetch_task_json_from_github,
+    fetch_task_yaml_from_github,
 )
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
+from lab.task_template import TaskTemplate
 from transformerlab.schemas.task import (
     ExportTaskToTeamGalleryRequest,
     ImportTaskFromGalleryRequest,
@@ -198,7 +199,8 @@ async def _resolve_provider(
 def _parse_yaml_to_task_data(yaml_content: str) -> dict:
     """
     Parse YAML content and convert it to the task structure.
-    Expected YAML format (all fields at root level):
+    Title and description are gallery/catalog metadata (from the gallery entry),
+    not part of task.yaml. Expected YAML format (all fields at root level):
     name: task-name
     resources:
       compute_provider: provider-name
@@ -208,8 +210,9 @@ def _parse_yaml_to_task_data(yaml_content: str) -> dict:
       KEY: value
     setup: "command"
     run: "command"
-    git_repo: "url"
-    git_repo_directory: "dir"
+    github_repo_url: "url"
+    github_repo_dir: "optional/subdir"
+    github_repo_branch: "optional branch/tag"
     parameters: {...}
     sweeps:
       sweep_config: {...}
@@ -263,13 +266,13 @@ def _parse_yaml_to_task_data(yaml_content: str) -> dict:
     if "run" in task_yaml:
         task_data["command"] = str(task_yaml["run"])
 
-    # GitHub
-    if "git_repo" in task_yaml:
-        task_data["github_repo_url"] = str(task_yaml["git_repo"])
-    if "git_repo_directory" in task_yaml:
-        task_data["github_directory"] = str(task_yaml["git_repo_directory"])
-    if "git_repo_branch" in task_yaml:
-        task_data["github_branch"] = str(task_yaml["git_repo_branch"])
+    # GitHub (task.yaml: github_repo_url, github_repo_dir, github_repo_branch; stored as github_directory/github_branch internally)
+    if "github_repo_url" in task_yaml:
+        task_data["github_repo_url"] = str(task_yaml["github_repo_url"])
+    if "github_repo_dir" in task_yaml:
+        task_data["github_directory"] = str(task_yaml["github_repo_dir"])
+    if "github_repo_branch" in task_yaml:
+        task_data["github_branch"] = str(task_yaml["github_repo_branch"])
 
     # Parameters
     if "parameters" in task_yaml:
@@ -377,8 +380,9 @@ async def add_task(
       KEY: value
     setup: "command"
     run: "command"
-    git_repo: "url"
-    git_repo_directory: "dir"
+    github_repo_url: "url"
+    github_repo_dir: "optional/subdir"
+    github_repo_branch: "optional branch/tag"
     parameters: {...}
     sweeps:
       sweep_config: {...}
@@ -442,15 +446,22 @@ async def add_task(
                 if "name" in new_task:
                     new_task["name"] = secure_filename(new_task["name"])
 
+                # Persist interactive_gallery_id for launch-time command resolution (from template_id or interactive_gallery_id)
+                if new_task.get("subtype") == "interactive" or new_task.get("interactive_type"):
+                    gid = new_task.get("interactive_gallery_id") or new_task.get("template_id")
+                    if gid:
+                        new_task["interactive_gallery_id"] = gid
+
                 # All fields are stored directly in the JSON (not nested in inputs/outputs/config)
                 task_id = await task_service.add_task(new_task)
 
                 # Handle zip file if provided (for JSON requests, zip_file would come from multipart)
                 if zip_file and zip_file.filename:
                     try:
-                        zip_path = await _store_zip_file(zip_file, task_id)
-                        # Update task with file_mounts - map ~/src to the stored zip file
-                        await task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
+                        await _store_zip_file(zip_file, task_id)
+                        # Update task with file_mounts: true so launch runs lab.copy_file_mounts()
+                        await task_service.update_task(task_id, {"file_mounts": True})
+
                     except Exception as e:
                         # Log error but don't fail task creation
                         print(f"Warning: Failed to process zip file: {e}")
@@ -477,9 +488,9 @@ async def add_task(
                 # Handle zip file if provided
                 if zip_file and zip_file.filename:
                     try:
-                        zip_path = await _store_zip_file(zip_file, task_id)
-                        # Update task with file_mounts - map ~/src to the stored zip file
-                        await task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
+                        await _store_zip_file(zip_file, task_id)
+                        # Update task with file_mounts: true so launch runs lab.copy_file_mounts()
+                        await task_service.update_task(task_id, {"file_mounts": True})
                     except Exception as e:
                         # Log error but don't fail task creation
                         print(f"Warning: Failed to process zip file: {e}")
@@ -488,9 +499,8 @@ async def add_task(
 
         # Common processing for YAML-based requests
         if task_data:
-            # Inject experimentId from path parameter if not in YAML
-            if "experiment_id" not in task_data:
-                task_data["experiment_id"] = experimentId
+            # Always set experiment_id from path so the task belongs to this experiment
+            task_data["experiment_id"] = experimentId
 
             # Add required fields if not present
             if "type" not in task_data:
@@ -510,9 +520,9 @@ async def add_task(
             # Handle zip file if provided
             if zip_file and zip_file.filename:
                 try:
-                    zip_path = await _store_zip_file(zip_file, task_id)
-                    # Update task with file_mounts - map ~/src to the stored zip file
-                    await task_service.update_task(task_id, {"file_mounts": {"~/src": zip_path}})
+                    await _store_zip_file(zip_file, task_id)
+                    # Update task with file_mounts: true so launch runs lab.copy_file_mounts()
+                    await task_service.update_task(task_id, {"file_mounts": True})
                 except Exception as e:
                     # Log error but don't fail task creation
                     print(f"Warning: Failed to process zip file: {e}")
@@ -550,12 +560,63 @@ async def import_task_from_gallery(
     experimentId: str,
     request: ImportTaskFromGalleryRequest,
     user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Import a task from the tasks gallery.
-    Creates a new task using the gallery entry's config and GitHub info.
+    Import a task from the tasks gallery or interactive gallery.
+    Creates a new task using task.yaml from GitHub repository (for regular tasks)
+    or creates an interactive task template from gallery definition.
     Uses the team's GitHub PAT if available.
     """
+    # Check if importing from interactive gallery
+    if request.is_interactive:
+        # Import from interactive gallery
+        gallery = await galleries.get_interactive_gallery()
+
+        # Find the gallery entry by index or ID
+        try:
+            gallery_index = int(request.gallery_id)
+            if gallery_index < 0 or gallery_index >= len(gallery):
+                raise HTTPException(status_code=404, detail="Gallery entry not found")
+            gallery_entry = gallery[gallery_index]
+        except (ValueError, IndexError):
+            gallery_entry = None
+            for entry in gallery:
+                if entry.get("id") == request.gallery_id:
+                    gallery_entry = entry
+                    break
+            if not gallery_entry:
+                raise HTTPException(status_code=404, detail="Gallery entry not found")
+
+        # Create interactive task template (store interactive_gallery_id for launch-time command resolution)
+        task_name = gallery_entry.get("name", "Interactive Task")
+        interactive_type = gallery_entry.get("interactive_type", "vscode")
+        interactive_gallery_id = gallery_entry.get("id")
+
+        # Resolve provider
+        task_data = {
+            "name": secure_filename(task_name),
+            "type": "REMOTE",
+            "plugin": "remote_orchestrator",
+            "experiment_id": experimentId,
+            "cluster_name": task_name,
+            # Command is resolved at launch from gallery logic. Setup is stored so the
+            # launch route can prepend SUDO prefix for remote; no full command in task.
+            "command": "",
+            "setup": gallery_entry.get("setup", ""),
+            "interactive_type": interactive_type,
+            "subtype": "interactive",
+            "interactive_gallery_id": interactive_gallery_id,
+        }
+
+        await _resolve_provider(task_data, user_and_team, session)
+
+        # Create the task
+        task_id = await task_service.add_task(task_data)
+
+        return {"status": "success", "message": f"Interactive task '{task_name}' imported successfully", "id": task_id}
+
+    # Regular task import (existing logic)
     gallery = await galleries.get_tasks_gallery()
 
     # Find the gallery entry by index or ID
@@ -582,62 +643,75 @@ async def import_task_from_gallery(
         or gallery_entry.get("directory_path")
         or gallery_entry.get("github_directory")
     )
-    config = gallery_entry.get("config", {})
+    github_branch = (
+        gallery_entry.get("github_branch") or gallery_entry.get("github_repo_branch") or gallery_entry.get("git_branch")
+    )
 
     if not github_repo_url:
         raise HTTPException(status_code=400, detail="Gallery entry missing github_repo_url")
 
-    if not isinstance(config, dict):
-        try:
-            config = json.loads(config) if isinstance(config, str) else {}
-        except Exception:
-            config = {}
+    # Fetch task.yaml from GitHub repository
+    try:
+        task_yaml_content = await fetch_task_yaml_from_github(
+            github_repo_url, directory=github_repo_dir, ref=github_branch
+        )
+    except HTTPException as e:
+        if e.status_code == 404:
+            raise HTTPException(
+                status_code=404,
+                detail="task.yaml not found in repository. Please ensure the repository contains a task.yaml file.",
+            )
+        raise
 
-    # Try to fetch task.json from GitHub repository
-    task_json = None
-    if github_repo_url:
-        task_json = await fetch_task_json_from_github_helper(github_repo_url, github_repo_dir)
+    # Parse task.yaml to task data
+    try:
+        task_data = _parse_yaml_to_task_data(task_yaml_content)
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error parsing YAML: {str(e)}")
 
-    # Build the task config, merging gallery config with task.json (task.json takes precedence)
-    task_config = {
-        **config,  # Start with gallery config
-        "github_repo_url": github_repo_url,
-    }
+    # Always set experiment_id from path so the task belongs to this experiment
+    task_data["experiment_id"] = experimentId
 
-    # Merge task.json if found (overrides gallery config)
-    if task_json:
-        task_config.update(task_json)
+    # Ensure required fields
+    if "type" not in task_data:
+        task_data["type"] = "REMOTE"
+    if "plugin" not in task_data:
+        task_data["plugin"] = "remote_orchestrator"
 
-    if github_repo_dir:
-        task_config["github_directory"] = github_repo_dir
+    # Ensure GitHub repo info is set (may be in task.yaml as git_repo)
+    if not task_data.get("github_repo_url"):
+        task_data["github_repo_url"] = github_repo_url
+    if github_repo_dir and not task_data.get("github_directory"):
+        task_data["github_directory"] = github_repo_dir
+    if github_branch and not task_data.get("github_branch"):
+        task_data["github_branch"] = github_branch
 
-    # Process env_parameters into env_vars if present
-    task_config = process_env_parameters_to_env_vars(task_config)
+    # Resolve provider
+    await _resolve_provider(task_data, user_and_team, session)
 
-    # Get task name from config or use title
-    task_name = task_config.get("name") or task_config.get("cluster_name") or title
-
-    # Ensure required fields are set with defaults if not in config
-    if "cluster_name" not in task_config:
-        task_config["cluster_name"] = task_name
-    if "command" not in task_config:
-        task_config["command"] = "echo 'No command specified'"
+    # Get task name from task.yaml or use title
+    task_name = task_data.get("name") or title
+    if "name" in task_data:
+        task_data["name"] = secure_filename(task_data["name"])
+    else:
+        task_data["name"] = secure_filename(task_name)
 
     # Create the task with all fields stored directly (flat structure)
-    new_task = {
-        "name": task_name,
-        "type": "REMOTE",
-        "plugin": "remote_orchestrator",
-        "experiment_id": experimentId,
-        **task_config,  # All config fields go directly into task
-    }
+    task_id = await task_service.add_task(task_data)
 
-    # Perform secure_filename before adding the task
-    new_task["name"] = secure_filename(new_task["name"])
+    # Store task.yaml in task directory
+    task = TaskTemplate(secure_filename(str(task_id)))
+    task_dir = await task.get_dir()
+    await storage.makedirs(task_dir, exist_ok=True)
+    yaml_path = storage.join(task_dir, "task.yaml")
+    async with await storage.open(yaml_path, "w", encoding="utf-8") as f:
+        await f.write(task_yaml_content)
 
-    await task_service.add_task(new_task)
-
-    return {"status": "success", "message": f"Task '{task_name}' imported successfully"}
+    return {"status": "success", "message": f"Task '{task_data['name']}' imported successfully", "id": task_id}
 
 
 @router.get("/gallery/team", summary="List team-specific tasks from the team gallery")
@@ -652,9 +726,11 @@ async def import_task_from_team_gallery(
     experimentId: str,
     request: ImportTaskFromTeamGalleryRequest,
     user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
     Import a task from the team-specific tasks gallery (workspace_dir/team_specific_tasks.json).
+    Creates a new task using task.yaml from GitHub repository.
     """
     gallery = await galleries.get_team_tasks_gallery()
 
@@ -681,60 +757,75 @@ async def import_task_from_team_gallery(
         or gallery_entry.get("directory_path")
         or gallery_entry.get("github_directory")
     )
-    config = gallery_entry.get("config", {})
+    github_branch = (
+        gallery_entry.get("github_branch") or gallery_entry.get("github_repo_branch") or gallery_entry.get("git_branch")
+    )
 
-    if not isinstance(config, dict):
-        try:
-            config = json.loads(config) if isinstance(config, str) else {}
-        except Exception:
-            config = {}
+    if not github_repo_url:
+        raise HTTPException(status_code=400, detail="Gallery entry missing github_repo_url")
 
-    # Try to fetch task.json from GitHub repository if repo URL is provided
-    task_json = None
-    if github_repo_url:
-        task_json = await fetch_task_json_from_github_helper(github_repo_url, github_repo_dir)
+    # Fetch task.yaml from GitHub repository
+    try:
+        task_yaml_content = await fetch_task_yaml_from_github(
+            github_repo_url, directory=github_repo_dir, ref=github_branch
+        )
+    except HTTPException as e:
+        if e.status_code == 404:
+            raise HTTPException(
+                status_code=404,
+                detail="task.yaml not found in repository. Please ensure the repository contains a task.yaml file.",
+            )
+        raise
 
-    # Build the task config, merging gallery config with task.json (task.json takes precedence)
-    task_config = {
-        **config,  # Start with gallery config
-    }
+    # Parse task.yaml to task data
+    try:
+        task_data = _parse_yaml_to_task_data(task_yaml_content)
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error parsing YAML: {str(e)}")
 
-    # Merge task.json if found (overrides gallery config)
-    if task_json:
-        task_config.update(task_json)
+    # Always set experiment_id from path so the task belongs to this experiment
+    task_data["experiment_id"] = experimentId
 
-    if github_repo_url:
-        task_config["github_repo_url"] = github_repo_url
-    if github_repo_dir:
-        task_config["github_directory"] = github_repo_dir
+    # Ensure required fields
+    if "type" not in task_data:
+        task_data["type"] = "REMOTE"
+    if "plugin" not in task_data:
+        task_data["plugin"] = "remote_orchestrator"
 
-    # Process env_parameters into env_vars if present
-    task_config = process_env_parameters_to_env_vars(task_config)
+    # Ensure GitHub repo info is set (may be in task.yaml as git_repo)
+    if not task_data.get("github_repo_url"):
+        task_data["github_repo_url"] = github_repo_url
+    if github_repo_dir and not task_data.get("github_directory"):
+        task_data["github_directory"] = github_repo_dir
+    if github_branch and not task_data.get("github_branch"):
+        task_data["github_branch"] = github_branch
 
-    # Get task name from config or use title
-    task_name = task_config.get("name") or task_config.get("cluster_name") or title
+    # Resolve provider
+    await _resolve_provider(task_data, user_and_team, session)
 
-    # Ensure required fields are set with defaults if not in config
-    if "cluster_name" not in task_config:
-        task_config["cluster_name"] = task_name
-    if "command" not in task_config:
-        task_config["command"] = "echo 'No command specified'"
+    # Get task name from task.yaml or use title
+    task_name = task_data.get("name") or title
+    if "name" in task_data:
+        task_data["name"] = secure_filename(task_data["name"])
+    else:
+        task_data["name"] = secure_filename(task_name)
 
     # Create the task with all fields stored directly (flat structure)
-    new_task = {
-        "name": task_name,
-        "type": "REMOTE",
-        "plugin": "remote_orchestrator",
-        "experiment_id": experimentId,
-        **task_config,  # All config fields go directly into task
-    }
+    task_id = await task_service.add_task(task_data)
 
-    # Perform secure_filename before adding the task
-    new_task["name"] = secure_filename(new_task["name"])
+    # Store task.yaml in task directory
+    task = TaskTemplate(secure_filename(str(task_id)))
+    task_dir = await task.get_dir()
+    await storage.makedirs(task_dir, exist_ok=True)
+    yaml_path = storage.join(task_dir, "task.yaml")
+    async with await storage.open(yaml_path, "w", encoding="utf-8") as f:
+        await f.write(task_yaml_content)
 
-    await task_service.add_task(new_task)
-
-    return {"status": "success", "message": f"Task '{task_name}' imported successfully"}
+    return {"status": "success", "message": f"Task '{task_data['name']}' imported successfully", "id": task_id}
 
 
 @router.post("/gallery/team/export", summary="Export an existing task to the team gallery")
@@ -790,6 +881,7 @@ async def export_task_to_team_gallery(
         "config": config,
         "github_repo_url": task.get("github_repo_url"),
         "github_repo_dir": task.get("github_directory"),
+        "github_branch": task.get("github_branch"),
     }
 
     await galleries.add_team_task_to_gallery(gallery_entry)

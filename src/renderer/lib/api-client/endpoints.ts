@@ -80,6 +80,14 @@ Endpoints.Task = {
     `${API_URL()}experiment/${experimentId}/task/gallery/team/delete`,
   FetchTaskJson: (experimentId: string, url: string) =>
     `${API_URL()}experiment/${experimentId}/task/fetch_task_json?url=${encodeURIComponent(url)}`,
+  FromDirectory: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task2/from_directory`,
+  BlankFromYaml: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task2/blank`,
+  GetYaml: (experimentId: string, taskId: string) =>
+    `${API_URL()}experiment/${experimentId}/task2/${taskId}/yaml`,
+  UpdateYaml: (experimentId: string, taskId: string) =>
+    `${API_URL()}experiment/${experimentId}/task2/${taskId}/yaml`,
 };
 
 Endpoints.ComputeProvider = {
@@ -519,8 +527,9 @@ Endpoints.Experiment = {
     experimentId: string,
     jobId: string,
     tailLines: number = 400,
+    live: boolean = false,
   ) =>
-    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/provider_logs?tail_lines=${tailLines}`,
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/provider_logs?tail_lines=${tailLines}&live=${live}`,
   GetTunnelInfo: (
     experimentId: string,
     jobId: string,
@@ -603,4 +612,9 @@ Endpoints.Quota = {
 Endpoints.Teams = {
   GetSecrets: (teamId: string) => `${API_URL()}teams/${teamId}/secrets`,
   SetSecrets: (teamId: string) => `${API_URL()}teams/${teamId}/secrets`,
+};
+
+Endpoints.Users = {
+  GetSecrets: () => `${API_URL()}users/me/secrets`,
+  SetSecrets: () => `${API_URL()}users/me/secrets`,
 };

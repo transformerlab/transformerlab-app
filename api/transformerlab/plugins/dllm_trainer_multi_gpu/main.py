@@ -5,7 +5,17 @@ from functools import partial
 
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import get_python_executable
-from lab.dirs import get_workspace_dir
+from lab.dirs import get_workspace_dir, set_organization_id
+
+# Ensure organization context is set when this module is executed directly
+# (e.g., via `accelerate launch`), since that path bypasses `plugin_harness.py`.
+_ORG_ID = os.environ.get("_TFL_ORG_ID")
+if _ORG_ID:
+    try:
+        set_organization_id(_ORG_ID)
+    except Exception as e:
+        # Do not crash training if org context cannot be set; just log a warning.
+        print(f"Warning: Could not set organization context in dllm multi-GPU trainer: {e}")
 
 # Add custom arguments
 tlab_trainer.add_argument(

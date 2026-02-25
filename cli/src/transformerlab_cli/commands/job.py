@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.text import Text
 from urllib.parse import urlparse
 
-from transformerlab_cli.util.config import check_configs
+from transformerlab_cli.util.config import check_configs, get_config
 from transformerlab_cli.util import api
 
 app = typer.Typer()
@@ -17,9 +17,9 @@ app = typer.Typer()
 console = Console()
 
 
-def _fetch_all_jobs() -> list[dict]:
-    """Fetch all jobs from the API."""
-    response = api.get("/experiment/alpha/jobs/list?type=REMOTE")  # Placeholder logic for listing jobs
+def _fetch_all_jobs(experiment_id: str) -> list[dict]:
+    """Fetch all jobs from the API for a specific experiment."""
+    response = api.get(f"/experiment/{experiment_id}/jobs/list?type=REMOTE")
     if response.status_code == 200:
         return response.json()
     else:
@@ -116,20 +116,20 @@ def _render_job(job) -> None:
     console.print(panel)
 
 
-def list_jobs():
-    """List all jobs."""
+def list_jobs(experiment_id: str):
+    """List all jobs for a specific experiment."""
     jobs = []
     with console.status("[bold green]Fetching jobs[/bold green]", spinner="dots"):
-        jobs = _fetch_all_jobs()
+        jobs = _fetch_all_jobs(experiment_id)
     table = _render_jobs(jobs)
     print(table)
 
 
-def info_job(job_id: str):
+def info_job(job_id: str, experiment_id: str):
     """Get details of a specific job."""
     jobs = []
     with console.status("[bold green]Fetching jobs[/bold green]", spinner="dots"):
-        jobs = _fetch_all_jobs()
+        jobs = _fetch_all_jobs(experiment_id)
 
     # filter the job with the given job_id
     job = next((job for job in jobs if str(job.get("id")) == job_id), None)
@@ -257,7 +257,12 @@ def command_job_download(
 def command_job_list():
     """List all jobs."""
     check_configs()
-    list_jobs()  # Delegate to job_commands.list_jobs
+    current_experiment = get_config("current_experiment")
+    if not current_experiment or not str(current_experiment).strip():
+        console.print("[yellow]current_experiment is not set in config.[/yellow]")
+        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
+        raise typer.Exit(1)
+    list_jobs(current_experiment)  # Delegate to job_commands.list_jobs
 
 
 @app.command("info")
@@ -266,7 +271,12 @@ def command_job_info(
 ):
     """Get job details."""
     check_configs()
-    info_job(job_id)  # Delegate to job_commands.info_job
+    current_experiment = get_config("current_experiment")
+    if not current_experiment or not str(current_experiment).strip():
+        console.print("[yellow]current_experiment is not set in config.[/yellow]")
+        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
+        raise typer.Exit(1)
+    info_job(job_id, current_experiment)
 
 
 @app.command("monitor")

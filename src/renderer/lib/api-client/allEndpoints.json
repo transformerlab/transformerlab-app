@@ -175,6 +175,10 @@
     "getModelDetailsFromGallery": {
       "method": "GET",
       "path": "model/gallery/{modelId}"
+    },
+    "vramEstimate": {
+      "method": "GET",
+      "path": "model/vram_estimate?model_id={modelId}&dtype={dtype}&batch={batch}&seq_len={seqLen}&no_kv={noKv}&filename={filename}"
     }
   },
   "jobs": {
@@ -197,6 +201,22 @@
     "getArtifact": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/artifact/{filename}"
+    },
+    "getJobDatasets": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/datasets"
+    },
+    "getJobModels": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/models"
+    },
+    "saveDatasetToRegistry": {
+      "method": "POST",
+      "path": "experiment/{experimentId}/jobs/{jobId}/datasets/{datasetName}/save_to_registry"
+    },
+    "saveModelToRegistry": {
+      "method": "POST",
+      "path": "experiment/{experimentId}/jobs/{jobId}/models/{modelName}/save_to_registry"
     },
     "getJobsOfType": {
       "method": "GET",
@@ -289,6 +309,14 @@
     "inviteMember": {
       "method": "POST",
       "path": "teams/{teamId}/members"
+    },
+    "getInvitations": {
+      "method": "GET",
+      "path": "teams/{teamId}/invitations"
+    },
+    "cancelInvitation": {
+      "method": "DELETE",
+      "path": "teams/{teamId}/invitations/{invitationId}"
     }
   },
   "compute_provider": {
@@ -348,6 +376,22 @@
       "method": "GET",
       "path": "compute_provider/usage-report"
     },
+    "user-settings": {
+      "method": "GET",
+      "path": "compute_provider/user-settings/{providerId}"
+    },
+    "user-settings-update": {
+      "method": "PUT",
+      "path": "compute_provider/user-settings/{providerId}"
+    },
+    "user-settings-ssh-key": {
+      "method": "POST",
+      "path": "compute_provider/user-settings/{providerId}/ssh-key"
+    },
+    "user-settings-ssh-key-delete": {
+      "method": "DELETE",
+      "path": "compute_provider/user-settings/{providerId}/ssh-key"
+    },
     "downloadSshKey": {
       "method": "GET",
       "path": "ssh-key/download"
@@ -376,7 +420,7 @@
     },
     "login": {
       "method": "POST",
-      "path": "auth/jwt/login"
+      "path": "auth/cookie/login"
     },
     "register": {
       "method": "POST",
@@ -384,7 +428,7 @@
     },
     "logout": {
       "method": "POST",
-      "path": "auth/logout"
+      "path": "auth/cookie/logout"
     },
     "forgotPassword": {
       "method": "POST",
@@ -418,13 +462,25 @@
     },
     "refresh": {
       "method": "POST",
-      "path": "auth/refresh"
+      "path": "auth/cookie/refresh"
     }
   },
   "invitations": {
+    "me": {
+      "method": "GET",
+      "path": "invitations/me"
+    },
     "accept": {
       "method": "POST",
       "path": "invitations/accept"
+    },
+    "acceptById": {
+      "method": "POST",
+      "path": "invitations/{invitationId}/accept"
+    },
+    "reject": {
+      "method": "POST",
+      "path": "invitations/{invitationId}/reject"
     }
   },
   "experiment": {

@@ -36,6 +36,9 @@ class ComputeProviderConfig(BaseModel):
     default_template_id: Optional[str] = None  # Default Docker template ID
     default_network_volume_id: Optional[str] = None  # Default network volume ID
 
+    # Accelerators supported by this provider
+    supported_accelerators: Optional[list[str]] = Field(default=None)
+
     # Additional provider-specific config
     extra_config: Dict[str, Any] = Field(default_factory=dict)
 
@@ -177,5 +180,9 @@ def create_compute_provider(config: ComputeProviderConfig):
             default_network_volume_id=config.default_network_volume_id,
             extra_config=config.extra_config,
         )
+    elif config.type == "local":
+        from .local import LocalProvider
+
+        return LocalProvider(extra_config=config.extra_config)
     else:
         raise ValueError(f"Unknown provider type: {config.type}")

@@ -26,16 +26,21 @@ def parse_vscode_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str]]:
                     auth_code = match.group(1)
 
             # Parse tunnel URL: "https://vscode.dev/tunnel/maclan/..."
-            if "vscode.dev/tunnel" in line and not tunnel_url:
+            if ("vscode.dev/tunnel" in line or "localhost:" in line) and not tunnel_url:
                 # Look for the full URL
                 match = re.search(r"(https://vscode\.dev/tunnel/[^\s]+)", line)
                 if match:
                     tunnel_url = match.group(1)
                 else:
-                    # If no full URL, look for just the tunnel path
-                    match = re.search(r"(vscode\.dev/tunnel/[^\s]+)", line)
+                    # Look for local URL: "http://localhost:\d+"
+                    match = re.search(r"(http://localhost:\d+)", line)
                     if match:
-                        tunnel_url = f"https://{match.group(1)}"
+                        tunnel_url = match.group(1)
+                    else:
+                        # If no full URL, look for just the tunnel path
+                        match = re.search(r"(vscode\.dev/tunnel/[^\s]+)", line)
+                        if match:
+                            tunnel_url = f"https://{match.group(1)}"
 
         return auth_code, tunnel_url
 
@@ -93,6 +98,12 @@ def parse_jupyter_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str]]:
                 if match:
                     tunnel_url = match.group(1)
 
+            # Check for local URL: "Local URL: http://localhost:8888"
+            if not tunnel_url:
+                match = re.search(r"Local URL:\s*(http://localhost:\d+)", line)
+                if match:
+                    tunnel_url = match.group(1)
+
         return token, tunnel_url
 
     except Exception as e:
@@ -100,50 +111,57 @@ def parse_jupyter_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str]]:
         return None, None
 
 
-def parse_vllm_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str]]:
+def parse_vllm_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
-    Parse vLLM server logs to extract tunnel URL.
+    Parse vLLM server logs to extract tunnel URLs.
 
     Args:
         logs: Job logs as string
 
     Returns:
-        Tuple of (tunnel_url, vllm_url) - both can be None if not found
+        Tuple of (tunnel_url, vllm_url, openwebui_url) - all can be None if not found
     """
-    tunnel_url = None
-    vllm_url = None
+    tunnel_url: Optional[str] = None
+    vllm_url: Optional[str] = None
+    openwebui_url: Optional[str] = None
 
     try:
         lines = logs.split("\n")
 
+        found_urls: list[str] = []
+
         for line in lines:
-            # Parse cloudflared tunnel URL: "https://random-name.trycloudflare.com"
-            if not tunnel_url:
-                # Look for the full URL
-                match = re.search(r"(https://[a-zA-Z0-9-]+\.trycloudflare\.com)", line)
-                if match:
-                    tunnel_url = match.group(1)
-                else:
-                    # If no full URL, look for just the domain
-                    match = re.search(r"([a-zA-Z0-9-]+\.trycloudflare\.com)", line)
-                    if match:
-                        tunnel_url = f"https://{match.group(1)}"
+            # Look for any HTTPS tunnel URL from supported providers
+            match = re.search(
+                r"(https://[a-zA-Z0-9-]+\.(?:trycloudflare\.com|ngrok-free\.app|ngrok-free\.dev|ngrok\.io))",
+                line,
+            )
+            if match:
+                url = match.group(1)
+                if url not in found_urls:
+                    found_urls.append(url)
 
-            # Also check for other tunnel services (ngrok, localtunnel, etc.)
-            if not tunnel_url:
-                # Check for ngrok: "https://abc123.ngrok-free.app" or "https://abc123.ngrok-free.dev"
-                match = re.search(r"(https://[a-zA-Z0-9-]+\.(?:ngrok-free\.app|ngrok-free\.dev|ngrok\.io))", line)
-                if match:
-                    tunnel_url = match.group(1)
+            # Check for local URL patterns: "Local vLLM API: http://localhost:8000" or "Local Open WebUI: http://localhost:8080"
+            match = re.search(r"Local (?:vLLM API|Open WebUI):\s*(http://localhost:\d+)", line)
+            if match:
+                url = match.group(1)
+                if url not in found_urls:
+                    found_urls.append(url)
 
-        # vLLM URL is the same as tunnel URL (vLLM runs on port 8000, tunnel forwards to it)
-        vllm_url = tunnel_url
+        # Assign URLs by discovery order:
+        #  - first URL: vLLM API tunnel
+        #  - second URL (if present): Open WebUI tunnel
+        if found_urls:
+            tunnel_url = found_urls[0]
+            vllm_url = tunnel_url
+        if len(found_urls) > 1:
+            openwebui_url = found_urls[1]
 
-        return tunnel_url, vllm_url
+        return tunnel_url, vllm_url, openwebui_url
 
     except Exception as e:
         print(f"Error parsing vLLM tunnel logs: {e}")
-        return None, None
+        return None, None, None
 
 
 def parse_ssh_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[int], Optional[str]]:
@@ -277,22 +295,23 @@ def get_vllm_tunnel_info(logs: str) -> dict:
         logs: Job logs as string
 
     Returns:
-        Dictionary with tunnel information including full vLLM URL
+        Dictionary with tunnel information including full vLLM and Open WebUI URLs
     """
-    tunnel_url, vllm_url = parse_vllm_tunnel_logs(logs)
+    tunnel_url, vllm_url, openwebui_url = parse_vllm_tunnel_logs(logs)
 
-    # Tunnel is ready if we have the tunnel URL
+    # Tunnel is ready if we have the primary tunnel URL
     is_ready = tunnel_url is not None
 
     return {
         "tunnel_url": tunnel_url,
         "vllm_url": vllm_url,
+        "openwebui_url": openwebui_url,
         "is_ready": is_ready,
         "status": "ready" if is_ready else "loading",
     }
 
 
-def parse_ollama_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str]]:
+def parse_ollama_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
     Parse Ollama server logs to extract tunnel URL.
 
@@ -300,42 +319,49 @@ def parse_ollama_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str]]:
         logs: Job logs as string
 
     Returns:
-        Tuple of (tunnel_url, ollama_url) - both can be None if not found
+        Tuple of (tunnel_url, ollama_url, openwebui_url) - all can be None if not found
     """
-    tunnel_url = None
-    ollama_url = None
+    tunnel_url: Optional[str] = None
+    ollama_url: Optional[str] = None
+    openwebui_url: Optional[str] = None
 
     try:
         lines = logs.split("\n")
 
+        found_urls: list[str] = []
+
         for line in lines:
-            # Parse cloudflared tunnel URL: "https://random-name.trycloudflare.com"
-            if not tunnel_url:
-                # Look for the full URL
-                match = re.search(r"(https://[a-zA-Z0-9-]+\.trycloudflare\.com)", line)
-                if match:
-                    tunnel_url = match.group(1)
-                else:
-                    # If no full URL, look for just the domain
-                    match = re.search(r"([a-zA-Z0-9-]+\.trycloudflare\.com)", line)
-                    if match:
-                        tunnel_url = f"https://{match.group(1)}"
+            # Look for any HTTPS tunnel URL from supported providers
+            match = re.search(
+                r"(https://[a-zA-Z0-9-]+\.(?:trycloudflare\.com|ngrok-free\.app|ngrok-free\.dev|ngrok\.io))",
+                line,
+            )
+            if match:
+                url = match.group(1)
+                if url not in found_urls:
+                    found_urls.append(url)
 
-            # Also check for other tunnel services (ngrok, localtunnel, etc.)
-            if not tunnel_url:
-                # Check for ngrok: "https://abc123.ngrok-free.app" or "https://abc123.ngrok-free.dev"
-                match = re.search(r"(https://[a-zA-Z0-9-]+\.(?:ngrok-free\.app|ngrok-free\.dev|ngrok\.io))", line)
-                if match:
-                    tunnel_url = match.group(1)
+            # Check for local URL patterns: "Local Ollama API: http://localhost:11434" or "Local Open WebUI: http://localhost:8080"
+            match = re.search(r"Local (?:Ollama API|Open WebUI):\s*(http://localhost:\d+)", line)
+            if match:
+                url = match.group(1)
+                if url not in found_urls:
+                    found_urls.append(url)
 
-        # Ollama URL is the same as tunnel URL (Ollama runs on port 11434, tunnel forwards to it)
-        ollama_url = tunnel_url
+        # Assign URLs by discovery order:
+        #  - first URL: Ollama API tunnel
+        #  - second URL (if present): Open WebUI tunnel
+        if found_urls:
+            tunnel_url = found_urls[0]
+            ollama_url = tunnel_url
+        if len(found_urls) > 1:
+            openwebui_url = found_urls[1]
 
-        return tunnel_url, ollama_url
+        return tunnel_url, ollama_url, openwebui_url
 
     except Exception as e:
         print(f"Error parsing Ollama tunnel logs: {e}")
-        return None, None
+        return None, None, None
 
 
 def get_ollama_tunnel_info(logs: str) -> dict:
@@ -346,9 +372,9 @@ def get_ollama_tunnel_info(logs: str) -> dict:
         logs: Job logs as string
 
     Returns:
-        Dictionary with tunnel information including full Ollama URL
+        Dictionary with tunnel information including full Ollama and Open WebUI URLs
     """
-    tunnel_url, ollama_url = parse_ollama_tunnel_logs(logs)
+    tunnel_url, ollama_url, openwebui_url = parse_ollama_tunnel_logs(logs)
 
     # Tunnel is ready if we have the tunnel URL
     is_ready = tunnel_url is not None
@@ -356,6 +382,7 @@ def get_ollama_tunnel_info(logs: str) -> dict:
     return {
         "tunnel_url": tunnel_url,
         "ollama_url": ollama_url,
+        "openwebui_url": openwebui_url,
         "is_ready": is_ready,
         "status": "ready" if is_ready else "loading",
     }

@@ -1,7 +1,3 @@
-import asyncio
-import time
-import traceback
-
 from transformerlab.sdk.v1.tlab_plugin import TLabPlugin, DotDict
 
 
@@ -40,48 +36,11 @@ class ExportTLabPlugin(TLabPlugin):
                 self.params[key] = arg
                 key = None
 
-    # Added exporter-specific functionality and removed wandb logging
-    def exporter_job_wrapper(self, progress_start: int = 0, progress_end: int = 100):
-        """Decorator for wrapping an exporter function with job status updates"""
-
-        def decorator(func):
-            def wrapper(*args, **kwargs):
-                # Ensure args are parsed and job is initialized
-                self._ensure_args_parsed()
-                start_time = time.strftime("%Y-%m-%d %H:%M:%S")
-                self.add_job_data("start_time", start_time)
-                self.add_job_data("model_name", self.params.model_name)
-
-                # Update starting progress
-                asyncio.run(self.job.update_progress(progress_start))
-
-                try:
-                    # Call the wrapped function
-                    result = func(*args, **kwargs)
-
-                    # Update final progress and success status
-                    asyncio.run(self.job.update_progress(progress_end))
-                    asyncio.run(self.job.update_job_data_field("completion_status", "success"))
-                    asyncio.run(self.job.update_job_data_field("completion_details", "Export completed successfully"))
-                    self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
-
-                    return result
-
-                except Exception as e:
-                    # Capture the full erorr
-                    error_msg = f"Error in Job: {str(e)}\n{traceback.format_exc()}"
-                    print(error_msg)
-
-                    # Log the error
-                    asyncio.run(self.job.update_job_data_field("completion_status", "failed"))
-                    asyncio.run(self.job.update_job_data_field("completion_details", f"Error occured: {str(e)}"))
-                    self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
-
-                    raise
-
-            return wrapper
-
-        return decorator
+    def job_wrapper(self, progress_start: int = 0, progress_end: int = 100, **kwargs):
+        """Use base job_wrapper with exporter defaults: no wandb, export success/error messages."""
+        kwargs.setdefault("success_message", "Export completed successfully")
+        kwargs.setdefault("include_exception_in_error", True)
+        return super().job_wrapper(progress_start=progress_start, progress_end=progress_end, **kwargs)
 
 
 # Create an instance of the ExportTLabPlugin class

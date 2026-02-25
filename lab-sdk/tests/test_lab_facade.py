@@ -465,21 +465,26 @@ def test_lab_save_dataset(tmp_path, monkeypatch):
     output_path = lab.save_dataset(df, "test_dataset")
 
     assert os.path.exists(output_path)
-    assert output_path.endswith("test_dataset.json")
+    # Dataset name should be prefixed with job_id
+    job_id = lab._job.id
+    expected_filename = f"{job_id}_test_dataset.json"
+    assert output_path.endswith(expected_filename)
 
     # Verify dataset metadata was created
     from lab.dataset import Dataset
 
-    ds = asyncio.run(Dataset.get("test_dataset"))
+    prefixed_dataset_id = f"{job_id}_test_dataset"
+    ds = asyncio.run(Dataset.get(prefixed_dataset_id, job_id=job_id))
     metadata = asyncio.run(ds.get_metadata())
-    assert metadata["dataset_id"] == "test_dataset"
+    assert metadata["dataset_id"] == prefixed_dataset_id
     assert metadata["location"] == "local"
     assert metadata["json_data"]["generated"] is True
     assert metadata["json_data"]["sample_count"] == 2
+    assert metadata["json_data"]["job_id"] == job_id
 
     # Verify dataset is tracked in job_data
     job_data = lab.get_job_data()
-    assert job_data["dataset_id"] == "test_dataset"
+    assert job_data["dataset_id"] == prefixed_dataset_id
 
 
 def test_lab_save_dataset_with_metadata(tmp_path, monkeypatch):
@@ -520,7 +525,9 @@ def test_lab_save_dataset_with_metadata(tmp_path, monkeypatch):
 
     from lab.dataset import Dataset
 
-    ds = asyncio.run(Dataset.get("test_dataset_meta"))
+    job_id = lab._job.id
+    prefixed_dataset_id = f"{job_id}_test_dataset_meta"
+    ds = asyncio.run(Dataset.get(prefixed_dataset_id, job_id=job_id))
     metadata = asyncio.run(ds.get_metadata())
     assert metadata["json_data"]["description"] == "Test dataset"
     assert metadata["json_data"]["source"] == "synthetic"
@@ -604,11 +611,16 @@ def test_lab_save_dataset_duplicate_error(tmp_path, monkeypatch):
 
     df = MockDataFrame([{"a": 1}])
 
-    try:
-        lab.save_dataset(df, "existing_dataset")
-        assert False, "Should have raised FileExistsError"
-    except FileExistsError:
-        pass
+    output_path_1 = lab.save_dataset(df, "existing_dataset")
+    assert os.path.exists(output_path_1)
+    job_id = lab._job.id
+    assert f"{job_id}_existing_dataset.json" in output_path_1
+
+    # Save again with same name in same job - should create with suffix
+    output_path_2 = lab.save_dataset(df, "existing_dataset")
+    assert os.path.exists(output_path_2)
+    assert output_path_1 != output_path_2
+    assert f"{job_id}_existing_dataset_1.json" in output_path_2
 
 
 def test_lab_properties(tmp_path, monkeypatch):
@@ -799,6 +811,97 @@ def test_lab_ensure_initialized(tmp_path, monkeypatch):
             pass  # Expected
 
 
+def test_lab_list_datasets(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+    from lab.dataset import Dataset
+
+    # Create test datasets
+    ds1 = asyncio.run(Dataset.create("test_dataset_1"))
+    asyncio.run(ds1.set_metadata(description="First dataset"))
+
+    ds2 = asyncio.run(Dataset.create("test_dataset_2"))
+    asyncio.run(ds2.set_metadata(description="Second dataset"))
+
+    lab = Lab()
+    # list_datasets doesn't require initialization
+    datasets = lab.list_datasets()
+
+    assert len(datasets) >= 2
+    dataset_ids = [d.get("dataset_id") for d in datasets]
+    assert "test_dataset_1" in dataset_ids
+    assert "test_dataset_2" in dataset_ids
+
+
+def test_lab_list_datasets_empty(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+
+    lab = Lab()
+    datasets = lab.list_datasets()
+
+    assert isinstance(datasets, list)
+    assert len(datasets) == 0
+
+
+def test_lab_get_dataset(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+    from lab.dataset import Dataset
+
+    # Create a test dataset
+    ds = asyncio.run(Dataset.create("test_dataset_get"))
+    asyncio.run(ds.set_metadata(description="My Dataset"))
+
+    lab = Lab()
+    # get_dataset doesn't require initialization
+    retrieved_ds = lab.get_dataset("test_dataset_get")
+
+    assert retrieved_ds.id == "test_dataset_get"
+    metadata = asyncio.run(retrieved_ds.get_metadata())
+    assert metadata["description"] == "My Dataset"
+
+
+def test_lab_get_dataset_nonexistent(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+
+    lab = Lab()
+    try:
+        lab.get_dataset("nonexistent_dataset")
+        assert False, "Should have raised FileNotFoundError"
+    except FileNotFoundError:
+        pass  # Expected
+
+
 def test_lab_list_models(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
@@ -895,3 +998,31 @@ def test_lab_get_model_nonexistent(tmp_path, monkeypatch):
         assert False, "Should have raised FileNotFoundError"
     except FileNotFoundError:
         pass  # Expected
+
+
+def test_lab_load_generation_model_smoke(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+    from lab.generation import LocalHTTPGenerationModel
+
+    lab = Lab()
+    # load_generation_model should NOT require lab.init; it's stateless config
+    model = lab.load_generation_model(
+        {
+            "provider": "local",
+            "base_url": "http://localhost:9999/v1",
+            "model": "test-model",
+            "api_key": "test-key",
+        }
+    )
+
+    assert isinstance(model, LocalHTTPGenerationModel)
+    assert model.base_url == "http://localhost:9999/v1"
+    assert model.model == "test-model"

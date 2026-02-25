@@ -1,16 +1,56 @@
 import json
 from werkzeug.utils import secure_filename
+from typing import Optional
 
-from .dirs import get_models_dir
+from .dirs import get_models_dir, get_job_models_dir
 from .labresource import BaseLabResource
 from . import storage
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Model(BaseLabResource):
+    def __init__(self, id: str, job_id: Optional[str] = None):
+        """
+        Initialize a Model resource.
+
+        Args:
+            id: The model identifier
+            job_id: Optional job ID. If provided, the model is scoped to the job's directory.
+                   If not provided, will attempt to use _TFL_JOB_ID environment variable.
+        """
+        super().__init__(id)
+        self.job_id = job_id
+
+    @classmethod
+    async def create(cls, id: str, job_id: Optional[str] = None):
+        """Create a new model, optionally scoped to a job."""
+        newobj = cls(id, job_id=job_id)
+        await newobj._initialize()
+        return newobj
+
+    @classmethod
+    async def get(cls, id: str, job_id: Optional[str] = None):
+        """Get an existing model, optionally scoped to a job."""
+        newobj = cls(id, job_id=job_id)
+        resource_dir = await newobj.get_dir()
+        if not await storage.isdir(resource_dir):
+            raise FileNotFoundError(f"Directory for {cls.__name__} with id '{id}' not found")
+        json_file = await newobj._get_json_file()
+        if not await storage.exists(json_file):
+            async with await storage.open(json_file, "w", encoding="utf-8") as f:
+                await f.write(json.dumps(newobj._default_json()))
+        return newobj
+
     async def get_dir(self):
         """Abstract method on BaseLabResource"""
         model_id_safe = secure_filename(str(self.id))
-        models_dir = await get_models_dir()
+        # Always use job-specific directory
+        if self.job_id:
+            models_dir = await get_job_models_dir(self.job_id)
+        else:
+            models_dir = await get_models_dir()
         return storage.join(models_dir, model_id_safe)
 
     def _default_json(self):
@@ -120,7 +160,7 @@ class Model(BaseLabResource):
             model_info = api.model_info(parent_model)
             return model_info.pipeline_tag
         except Exception as e:
-            print(f"Could not fetch pipeline tag from parent model '{parent_model}': {type(e).__name__}: {e}")
+            logger.error(f"Could not fetch pipeline tag from parent model '{parent_model}': {type(e).__name__}: {e}")
             return None
 
     async def create_md5_checksums(self, model_path: str) -> list:
@@ -145,7 +185,7 @@ class Model(BaseLabResource):
         md5_objects = []
 
         if not await storage.isdir(model_path):
-            print(f"Model path '{model_path}' is not a directory, skipping MD5 checksum creation")
+            logger.warning(f"Model path '{model_path}' is not a directory, skipping MD5 checksum creation")
             return md5_objects
 
         # Use fsspec's walk equivalent for directory traversal
@@ -156,7 +196,7 @@ class Model(BaseLabResource):
                     md5_hash = await compute_md5(file_path)
                     md5_objects.append({"file_path": file_path, "md5_hash": md5_hash})
                 except Exception as e:
-                    print(f"Warning: Could not compute MD5 for {file_path}: {str(e)}")
+                    logger.warning(f"Warning: Could not compute MD5 for {file_path}: {str(e)}")
         except Exception:
             # Fallback: if find doesn't work, try listing the directory
             try:
@@ -167,8 +207,9 @@ class Model(BaseLabResource):
                             md5_hash = await compute_md5(entry)
                             md5_objects.append({"file_path": entry, "md5_hash": md5_hash})
                         except Exception as e:
-                            print(f"Warning: Could not compute MD5 for {entry}: {str(e)}")
+                            logger.warning(f"Warning: Could not compute MD5 for {entry}: {str(e)}")
             except Exception:
+                logger.warning(f"Warning: Failed to get directory listing: {model_path}")
                 pass
 
         return md5_objects

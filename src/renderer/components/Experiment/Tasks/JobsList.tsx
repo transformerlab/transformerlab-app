@@ -5,6 +5,10 @@ import IconButton from '@mui/joy/IconButton';
 import Button from '@mui/joy/Button';
 import Skeleton from '@mui/joy/Skeleton';
 import Box from '@mui/joy/Box';
+import Menu from '@mui/joy/Menu';
+import MenuButton from '@mui/joy/MenuButton';
+import MenuItem from '@mui/joy/MenuItem';
+import Dropdown from '@mui/joy/Dropdown';
 import {
   Trash2Icon,
   LineChartIcon,
@@ -30,6 +34,8 @@ interface JobsListProps {
   onViewEvalResults?: (jobId: string) => void;
   onViewGeneratedDataset?: (jobId: string, datasetId: string) => void;
   onViewInteractive?: (jobId: string) => void;
+  onViewJobDatasets?: (jobId: string) => void;
+  onViewJobModels?: (jobId: string) => void;
   loading: boolean;
 }
 
@@ -46,6 +52,8 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewEvalResults,
   onViewGeneratedDataset,
   onViewInteractive,
+  onViewJobDatasets,
+  onViewJobModels,
   loading,
 }) => {
   const formatJobConfig = (job: any) => {
@@ -278,19 +286,14 @@ const JobsList: React.FC<JobsListProps> = ({
                         </Box>
                       </Button>
                     )}
-                  {job?.job_data?.generated_datasets &&
-                    Array.isArray(job.job_data.generated_datasets) &&
-                    job.job_data.generated_datasets.length > 0 && (
-                      <Button
+                  {(job?.job_data?.artifacts ||
+                    job?.job_data?.artifacts_dir ||
+                    job?.job_data?.generated_datasets) && (
+                    <Dropdown>
+                      <MenuButton
                         size="sm"
                         variant="plain"
-                        onClick={() => {
-                          // Show the first dataset, or could show a selector if multiple
-                          const firstDataset =
-                            job.job_data.generated_datasets[0];
-                          onViewGeneratedDataset?.(job?.id, firstDataset);
-                        }}
-                        startDecorator={<DatabaseIcon />}
+                        startDecorator={<ArchiveIcon />}
                       >
                         <Box
                           sx={{
@@ -301,10 +304,25 @@ const JobsList: React.FC<JobsListProps> = ({
                             },
                           }}
                         >
-                          Preview Dataset
+                          Artifacts
                         </Box>
-                      </Button>
-                    )}
+                      </MenuButton>
+                      <Menu>
+                        {(job?.job_data?.artifacts ||
+                          job?.job_data?.artifacts_dir) && (
+                          <MenuItem onClick={() => onViewArtifacts?.(job?.id)}>
+                            View Artifacts
+                          </MenuItem>
+                        )}
+                        <MenuItem onClick={() => onViewJobDatasets?.(job?.id)}>
+                          View Datasets
+                        </MenuItem>
+                        <MenuItem onClick={() => onViewJobModels?.(job?.id)}>
+                          View Models
+                        </MenuItem>
+                      </Menu>
+                    </Dropdown>
+                  )}
                   {(job?.type === 'SWEEP' || job?.job_data?.sweep_parent) &&
                     job?.status === 'COMPLETE' && (
                       <Button
@@ -389,27 +407,6 @@ const JobsList: React.FC<JobsListProps> = ({
                         }}
                       >
                         Checkpoints
-                      </Box>
-                    </Button>
-                  )}
-                  {(job?.job_data?.artifacts ||
-                    job?.job_data?.artifacts_dir) && (
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => onViewArtifacts?.(job?.id)}
-                      startDecorator={<ArchiveIcon />}
-                    >
-                      <Box
-                        sx={{
-                          display: {
-                            xs: 'none',
-                            sm: 'none',
-                            md: 'inline-flex',
-                          },
-                        }}
-                      >
-                        Artifacts
                       </Box>
                     </Button>
                   )}

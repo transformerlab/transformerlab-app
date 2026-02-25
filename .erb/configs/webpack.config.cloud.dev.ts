@@ -112,9 +112,8 @@ const configuration: webpack.Configuration = {
     new webpack.EnvironmentPlugin({
       NODE_ENV: 'development',
       npm_package_version: 'default',
-      MULTIUSER: 'false',
+      MULTIUSER: 'true',
       TL_API_URL: '',
-      TL_FORCE_API_URL: 'false',
       EMAIL_AUTH_ENABLED: 'true',
       SENTRY_DSN: '',
       SENTRY_ENABLE_TRACING: 'false',

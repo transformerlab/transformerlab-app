@@ -8,8 +8,6 @@ from textual.widgets import (
 from textual.containers import Vertical
 from textual.screen import ModalScreen
 from textual import on, work
-from textual.reactive import reactive
-
 from transformerlab_cli.util import api
 from transformerlab_cli.util.config import get_current_experiment, set_config
 
@@ -19,10 +17,6 @@ class ExperimentSelectModal(ModalScreen):
     A modal that dynamically mounts the Select widget only when data is ready.
     This prevents rendering glitches where the value is set but not shown.
     """
-
-    experiment_options: reactive[list[tuple[str, str]] | None] = reactive(None)
-    is_loading: reactive[bool] = reactive(True)  # Add a reactive property for loading state
-    selected_value: reactive[str | None] = reactive(None)
 
     DEFAULT_CSS = """
     ExperimentSelectModal {
@@ -41,6 +35,20 @@ class ExperimentSelectModal(ModalScreen):
         min-height: 3;
         align: center middle;
         margin-bottom: 1;
+    }
+    Select {
+        width: 100%;
+        height: auto;
+        min-height: 3;
+    }
+    Select > SelectCurrent {
+        width: 1fr;
+        height: auto;
+        min-height: 1;
+        padding: 0 1;
+    }
+    Select > SelectCurrent > Static {
+        width: 1fr;
     }
     """
 
@@ -77,36 +85,24 @@ class ExperimentSelectModal(ModalScreen):
         except Exception:
             data = []
 
-        # format the data which looks like [{"name":"alpha","id":"alpha","config":{}},{"name":"beta","id":"beta","config":{}}]
-        # to a tuple list which looks like [("alpha","alpha"),("beta","beta")]
         options = [(str(exp.get("id")), exp.get("name")) for exp in data]
-        self.experiment_options = options
-        self.is_loading = False
+        self.app.call_from_thread(self._update_experiments, options)
 
-    def watch_is_loading(self, is_loading: bool) -> None:
-        """Show or hide the loading indicator based on the loading state."""
+    def _update_experiments(self, options: list[tuple[str, str]]) -> None:
+        """Update the UI with fetched experiments (must be called from main thread)."""
         loader = self.query_one("#experiment-loader", LoadingIndicator)
-        loader.display = is_loading  # Control visibility using the `display` property
+        loader.display = False
 
-    def watch_experiment_options(self, experiments: list[tuple[str, str]] | None) -> None:
-        """
-        Replaces the LoadingIndicator with a configured Select widget.
-        """
         feedback = self.query_one("#experiment-feedback", Static)
-
-        if experiments is None:
-            return
-
-        if not experiments:
+        if not options:
             feedback.update("[yellow]No experiments found.[/yellow]")
             return
 
         select = self.query_one("#experiment-select", Select)
         with select.prevent(Select.Changed):
-            select.options = experiments
+            select.set_options(options)
             select.value = self.current_experiment
             select.expanded = True
-        print("Experiments loaded:", experiments)
 
     @on(Select.Changed, "#experiment-select")
     def select_changed(self, event: Select.Changed) -> None:

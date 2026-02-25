@@ -4,18 +4,23 @@ def test_server_info(client):
     data = response.json()
     assert isinstance(data, dict)
     assert "cpu" in data
-    assert "memory" in data and isinstance(data["memory"], dict)
-    assert "disk" in data and isinstance(data["disk"], dict)
     assert "gpu" in data
-    mem = data["memory"]
-    for key in ("total", "available", "percent", "used", "free"):
-        assert key in mem
-    disk = data["disk"]
-    for key in ("total", "used", "free", "percent"):
-        assert key in disk
+    # In local (non-multiuser) mode, /server/info includes detailed memory/disk stats.
+    # In multiuser mode, it returns a more static snapshot without these sections.
+    if "memory" in data:
+        assert isinstance(data["memory"], dict)
+        mem = data["memory"]
+        for key in ("total", "available", "percent", "used", "free"):
+            assert key in mem
+    if "disk" in data:
+        assert isinstance(data["disk"], dict)
+        disk = data["disk"]
+        for key in ("total", "used", "free", "percent"):
+            assert key in disk
 
 
 def test_server_info_keys(client):
+    # Set MULTIUSER to false
     response = client.get("/server/info")
     assert response.status_code == 200
     data = response.json()
@@ -63,11 +68,21 @@ def test_is_wsl_false(monkeypatch):
     assert serverinfo.is_wsl() is False
 
 
+def test_healthz_multiuser_mode(client, monkeypatch):
+    """Test healthz endpoint in multiuser mode"""
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "OK"
+    assert data["mode"] == "multiuser"
+
+
 def test_healthz_local_mode(client, monkeypatch):
     """Test healthz endpoint in local mode"""
-    # Ensure TFL_API_STORAGE_URI is not set
-    monkeypatch.delenv("TFL_API_STORAGE_URI", raising=False)
+    # Set MULTIUSER to enable multiuser mode
+    monkeypatch.setenv("MULTIUSER", "false")
 
+    # The healthz endpoint reads env vars at request time, so monkeypatch should work
     response = client.get("/healthz")
     assert response.status_code == 200
     data = response.json()
@@ -75,14 +90,16 @@ def test_healthz_local_mode(client, monkeypatch):
     assert data["mode"] == "local"
 
 
-def test_healthz_s3_mode(client, monkeypatch):
-    """Test healthz endpoint in s3 mode"""
-    # Set TFL_API_STORAGE_URI to enable s3 mode
-    monkeypatch.setenv("TFL_API_STORAGE_URI", "true")
+def test_healthz_localfs_mode(client, monkeypatch, tmp_path):
+    """Test healthz endpoint in localfs mode"""
+    # Ensure cloud mode is disabled
+    monkeypatch.delenv("TFL_REMOTE_STORAGE_ENABLED", raising=False)
+    # Configure NFS-style storage provider pointing at a temp dir
+    monkeypatch.setenv("TFL_STORAGE_PROVIDER", "localfs")
+    monkeypatch.setenv("TFL_STORAGE_URI", str(tmp_path / "localfs_root"))
 
-    # The healthz endpoint reads env vars at request time, so monkeypatch should work
     response = client.get("/healthz")
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "OK"
-    assert data["mode"] == "s3"
+    assert data["mode"] == "multiuser"

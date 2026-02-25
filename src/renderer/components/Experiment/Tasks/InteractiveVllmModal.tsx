@@ -73,6 +73,7 @@ export default function InteractiveVllmModal({
 
   const vllmUrl = data?.vllm_url || null;
   const tunnelUrl = data?.tunnel_url || null;
+  const openwebuiUrl = data?.openwebui_url || null;
   const isReady = Boolean(data?.is_ready);
 
   return (
@@ -91,8 +92,7 @@ export default function InteractiveVllmModal({
             vLLM Server Interactive Session (Job {jobId})
           </Typography>
           <Typography level="body-sm" color="neutral">
-            Access your vLLM API server through the tunnel URL below. The tunnel
-            URL provides secure access to the vLLM OpenAI-compatible API.
+            Access your vLLM API server through the URL below.
           </Typography>
         </Stack>
         <Divider />
@@ -108,12 +108,12 @@ export default function InteractiveVllmModal({
         >
           <Stack direction="row" spacing={1} alignItems="center">
             <Chip color={isReady ? 'success' : 'warning'} variant="soft">
-              {isReady ? 'Ready' : 'Waiting for tunnel'}
+              {isReady ? 'Ready' : 'Waiting for connection'}
             </Chip>
             {isLoading && <CircularProgress size="sm" />}
             {error && (
               <Typography level="body-xs" color="danger">
-                Failed to load tunnel info
+                Failed to load connection info
               </Typography>
             )}
           </Stack>
@@ -121,9 +121,8 @@ export default function InteractiveVllmModal({
           <Box>
             <Typography level="title-md">Access vLLM API Server</Typography>
             <Typography level="body-sm" sx={{ mt: 0.5 }}>
-              Once the tunnel is ready, use the URL below to access your vLLM
-              server. The vLLM server provides an OpenAI-compatible API
-              endpoint.
+              Once ready, use the URL below to access your vLLM server. The vLLM
+              server provides an OpenAI-compatible API endpoint.
             </Typography>
 
             <Box
@@ -162,8 +161,8 @@ export default function InteractiveVllmModal({
                 </>
               ) : (
                 <Typography level="body-sm" sx={{ flex: 1 }}>
-                  Waiting for tunnel to start. The URL will appear here once
-                  ngrok creates the tunnel...
+                  Waiting for service to start. The URL will appear here once
+                  the connection is available...
                 </Typography>
               )}
             </Box>
@@ -203,8 +202,60 @@ export default function InteractiveVllmModal({
 
             <Typography level="body-xs" sx={{ mt: 1 }}>
               Tip: If the URL never appears, check the job output and provider
-              logs to ensure vLLM and ngrok started correctly.
+              logs to ensure vLLM started correctly.
             </Typography>
+          </Box>
+
+          <Box>
+            <Typography level="title-md" sx={{ mt: 2 }}>
+              Access Open WebUI
+            </Typography>
+            <Typography level="body-sm" sx={{ mt: 0.5 }}>
+              Use the URL below to open Open WebUI connected to this vLLM
+              server. This provides a browser-based chat UI backed by the same
+              vLLM API.
+            </Typography>
+
+            <Box
+              sx={{
+                mt: 1,
+                p: 1.5,
+                borderRadius: 'sm',
+                border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1,
+                flexWrap: 'wrap',
+              }}
+            >
+              {openwebuiUrl ? (
+                <>
+                  <Link
+                    href={openwebuiUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    level="title-md"
+                    sx={{ wordBreak: 'break-all', flex: 1, minWidth: 0 }}
+                  >
+                    {openwebuiUrl}
+                  </Link>
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      size="sm"
+                      variant="soft"
+                      onClick={() => handleCopy(openwebuiUrl)}
+                    >
+                      Copy URL
+                    </Button>
+                  </Stack>
+                </>
+              ) : (
+                <Typography level="body-sm" sx={{ flex: 1 }}>
+                  Waiting for the Open WebUI service to start...
+                </Typography>
+              )}
+            </Box>
           </Box>
         </Box>
       </ModalDialog>

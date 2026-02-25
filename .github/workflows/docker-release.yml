@@ -35,15 +35,27 @@ jobs:
       - name: Build General image
         run: docker build -f docker/common/Dockerfile -t transformerlab/api:${VERSION} -t transformerlab/api:latest .
 
+      - name: Push General image
+        run: |
+          docker push transformerlab/api:${VERSION}
+          docker push transformerlab/api:latest
+
+      - name: Clean up General image to free disk space
+        run: |
+          docker rmi transformerlab/api:${VERSION} transformerlab/api:latest || true
+          docker builder prune -af
+          docker system prune -af
+
       - name: Build ROCm image
         run: docker build -f docker/gpu/amd/Dockerfile -t transformerlab/api:${VERSION}-rocm -t transformerlab/api:latest-rocm docker/gpu/amd
 
-      - name: Push versioned images
+      - name: Push ROCm image
         run: |
-          docker push transformerlab/api:${VERSION}
           docker push transformerlab/api:${VERSION}-rocm
-
-      - name: Push latest images
-        run: |
-          docker push transformerlab/api:latest
           docker push transformerlab/api:latest-rocm
+
+      - name: Clean up ROCm image to free disk space
+        run: |
+          docker rmi transformerlab/api:${VERSION}-rocm transformerlab/api:latest-rocm || true
+          docker builder prune -af
+          docker system prune -af

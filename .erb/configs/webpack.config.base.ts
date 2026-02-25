@@ -49,9 +49,8 @@ const configuration: webpack.Configuration = {
     new webpack.EnvironmentPlugin({
       NODE_ENV: 'production',
       VERSION: process.env.npm_package_version || '0.0.0',
-      MULTIUSER: 'false',
+      MULTIUSER: 'true',
       TL_API_URL: '',
-      TL_FORCE_API_URL: 'false',
       EMAIL_AUTH_ENABLED: 'true',
     }),
     // new BundleAnalyzerPlugin(), // uncomment to enable bundle analysis

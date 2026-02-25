@@ -33,6 +33,20 @@ import ModelDetailsModal from './ModelDetailsModal';
 import DownloadProgressBox from '../Shared/DownloadProgressBox';
 import ImportModelsBar from './ImportModelsBar';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
+export type ModelGalleryEntry = {
+  uniqueID: string;
+  name: string;
+  huggingface_repo?: string;
+  huggingface_filename?: string;
+  gated?: boolean;
+  id?: string;
+  new?: boolean;
+  license?: string;
+  architecture?: string;
+  size_of_model_in_mb?: number;
+  downloaded?: boolean;
+  tags?: string[];
+};
 import { formatBytes } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import {
@@ -176,6 +190,9 @@ export default function ModelGroups({ experimentInfo }) {
     architecture: 'All',
   });
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [selectedModel, setSelectedModel] = useState<ModelGalleryEntry | null>(
+    null,
+  );
   const [modelDetailsId, setModelDetailsId] = useState(null);
   const [jobId, setJobId] = useState(null);
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
@@ -231,6 +248,7 @@ export default function ModelGroups({ experimentInfo }) {
   useEffect(() => {
     if (selectedGroup) {
       setFilters({ archived: false, architecture: 'All' });
+      setSelectedModel(null);
     }
   }, [selectedGroup]);
 
@@ -740,8 +758,18 @@ export default function ModelGroups({ experimentInfo }) {
                   {stableSort(
                     filterByFilters(selectedGroup.models, searchText, filters),
                     getComparator(order, orderBy),
-                  ).map((row) => (
-                    <tr key={row.uniqueID}>
+                  ).map((row: ModelGalleryEntry) => (
+                    <tr
+                      key={row.uniqueID}
+                      onClick={() => setSelectedModel(row)}
+                      style={{
+                        cursor: 'pointer',
+                        backgroundColor:
+                          selectedModel?.uniqueID === row.uniqueID
+                            ? 'var(--joy-palette-background-level1)'
+                            : undefined,
+                      }}
+                    >
                       <td>
                         <Typography level="body-sm">
                           {row.new && (
@@ -768,15 +796,15 @@ export default function ModelGroups({ experimentInfo }) {
                             )}
                           </a>
                           {/* {row.tags?.map((tag) => (
-                            <Chip
-                              key={tag}
-                              size="sm"
-                              variant="soft"
-                              color="neutral"
-                            >
-                              {tag}
-                            </Chip>
-                          ))} */}
+                              <Chip
+                                key={tag}
+                                size="sm"
+                                variant="soft"
+                                color="neutral"
+                              >
+                                {tag}
+                              </Chip>
+                            ))} */}
                         </Typography>
                       </td>
                       <td className="license-col">
@@ -820,7 +848,8 @@ export default function ModelGroups({ experimentInfo }) {
                             size="sm"
                             endDecorator={<LockKeyholeIcon />}
                             color="warning"
-                            onClick={() => {
+                            onClick={(event) => {
+                              event.stopPropagation();
                               if (
                                 confirm(
                                   'To access gated Hugging Face models you must first create a token. Go to settings',
@@ -843,7 +872,8 @@ export default function ModelGroups({ experimentInfo }) {
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                             }}
-                            onClick={async () => {
+                            onClick={async (event) => {
+                              event.stopPropagation();
                               setJobId(-1);
                               setCurrentlyDownloading(row.name);
                               try {

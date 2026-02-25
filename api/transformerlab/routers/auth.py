@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Header, Request
+from fastapi import APIRouter, Depends, HTTPException, Header, Request, Cookie, Query
 from fastapi_users import exceptions
 from transformerlab.shared.models.user_model import get_async_session, create_personal_team
 from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole
 from transformerlab.models.users import (
     fastapi_users,
     auth_backend,
+    cookie_auth_backend,
     oauth_backend,
     current_active_user,
     UserRead,
@@ -16,18 +17,32 @@ from transformerlab.models.users import (
     GOOGLE_OAUTH_ENABLED,
     github_oauth_client,
     GITHUB_OAUTH_ENABLED,
+    OIDC_PROVIDERS,
     EMAIL_AUTH_ENABLED,
     SECRET,
+    TOKEN_LIFETIME,
+    REFRESH_LIFETIME,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from typing import Optional
+import json
+import re
 
 from transformerlab.shared.api_key_auth import (
     extract_api_key_from_request,
     validate_api_key_and_get_user,
     get_user_personal_team_id,
+)
+from transformerlab.utils.api_key_utils import mask_key
+from lab.dirs import get_workspace_dir
+from lab import storage
+from transformerlab.schemas.secrets import (
+    UserSecretsRequest,
+    SpecialSecretRequest,
+    SPECIAL_SECRET_TYPES,
+    SPECIAL_SECRET_KEYS,
 )
 
 router = APIRouter(tags=["users"])
@@ -41,9 +56,16 @@ class RefreshTokenRequest(BaseModel):
 # Include Auth and Registration Routers only if EMAIL_AUTH_ENABLED is True
 if EMAIL_AUTH_ENABLED:
     # Require user verification before login (is_verified must be True)
+    # JWT Bearer token auth (for API clients)
     router.include_router(
         fastapi_users.get_auth_router(auth_backend, requires_verification=True),
         prefix="/auth/jwt",
+        tags=["auth"],
+    )
+    # Cookie-based auth (for browser clients)
+    router.include_router(
+        fastapi_users.get_auth_router(cookie_auth_backend, requires_verification=True),
+        prefix="/auth/cookie",
         tags=["auth"],
     )
     # User starts with is_verified=False by default, must verify email
@@ -94,7 +116,7 @@ async def _get_user_from_jwt_or_api_key(
     session: AsyncSession,
 ) -> tuple[User, Optional[str], str]:
     """
-    Try to authenticate user via JWT or API key.
+    Try to authenticate user via JWT (header or cookie) or API key.
     Returns (user, api_key_team_id, auth_method)
     """
     # Check if request has an API key (starts with "tl-")
@@ -108,38 +130,45 @@ async def _get_user_from_jwt_or_api_key(
         except HTTPException as e:
             raise e
 
-    # Try JWT authentication - check if there's a Bearer token that's not an API key
+    # Try JWT authentication from Authorization header
+    from transformerlab.utils.api_key_utils import validate_api_key_format
+
+    token = None
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header[7:]  # Remove "Bearer " prefix
-        # If it's not an API key format, try JWT validation
-        from transformerlab.utils.api_key_utils import validate_api_key_format
+        # Skip if it looks like an API key
+        if validate_api_key_format(token):
+            token = None
 
-        if not validate_api_key_format(token):
-            # This looks like a JWT token, try to validate it
-            from transformerlab.models.users import auth_backend
+    # If no Bearer token, try to get JWT from cookie
+    if not token:
+        token = request.cookies.get("tlab_auth")
 
-            # Create user_db and user_manager directly using the existing session
-            from transformerlab.shared.models.models import User, OAuthAccount
-            from transformerlab.shared.models.user_model import SQLAlchemyUserDatabaseWithOAuth
-            from transformerlab.models.users import UserManager
+    if token:
+        from transformerlab.models.users import auth_backend
 
-            try:
-                # Create user_db instance
-                user_db = SQLAlchemyUserDatabaseWithOAuth(session, User, OAuthAccount)
+        # Create user_db and user_manager directly using the existing session
+        from transformerlab.shared.models.models import User, OAuthAccount
+        from transformerlab.shared.models.user_model import SQLAlchemyUserDatabaseWithOAuth
+        from transformerlab.models.users import UserManager
 
-                # Create user_manager instance
-                user_manager = UserManager(user_db)
+        try:
+            # Create user_db instance
+            user_db = SQLAlchemyUserDatabaseWithOAuth(session, User, OAuthAccount)
 
-                # Validate JWT token
-                strategy = auth_backend.get_strategy()
-                user = await strategy.read_token(token, user_manager)
-                if user and user.is_active:
-                    return user, None, "jwt"
-            except Exception:
-                # Token validation failed (expired, invalid, etc.)
-                # Continue to raise 401 below
-                pass
+            # Create user_manager instance
+            user_manager = UserManager(user_db)
+
+            # Validate JWT token
+            strategy = auth_backend.get_strategy()
+            user = await strategy.read_token(token, user_manager)
+            if user and user.is_active:
+                return user, None, "jwt"
+        except Exception:
+            # Token validation failed (expired, invalid, etc.)
+            # Continue to raise 401 below
+            pass
 
     # If we get here, neither API key nor JWT worked
     raise HTTPException(status_code=401, detail="Authentication required")
@@ -148,6 +177,31 @@ async def _get_user_from_jwt_or_api_key(
 @router.get("/auth/github/status")
 async def github_oauth_status():
     return {"enabled": GITHUB_OAUTH_ENABLED}
+
+
+@router.get("/auth/oidc/providers")
+async def oidc_providers_list():
+    """
+    Returns the list of configured OIDC providers for the login page.
+    Each provider has id (route prefix, e.g. oidc-0) and name (display label).
+    """
+    return {
+        "enabled": len(OIDC_PROVIDERS) > 0,
+        "providers": [{"id": p["id"], "name": p["name"]} for p in OIDC_PROVIDERS],
+    }
+
+
+for _oidc in OIDC_PROVIDERS:
+    _oidc_router = fastapi_users.get_oauth_router(
+        _oidc["client"],
+        oauth_backend,
+        SECRET,
+    )
+    router.include_router(
+        _oidc_router,
+        prefix=f"/auth/{_oidc['id']}",
+        tags=["auth"],
+    )
 
 
 if GITHUB_OAUTH_ENABLED:
@@ -161,6 +215,7 @@ if GITHUB_OAUTH_ENABLED:
 async def get_user_and_team(
     request: Request,
     x_team: str | None = Header(None, alias="X-Team-Id"),
+    team_cookie: str | None = Cookie(None, alias="tlab_team_id"),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
@@ -190,10 +245,15 @@ async def get_user_and_team(
             # API key works for all teams, but no X-Team-Id - use personal team
             team_id = await get_user_personal_team_id(session, user)
     else:
-        # JWT authentication - requires X-Team-Id
-        if not x_team:
-            raise HTTPException(status_code=400, detail="X-Team-Id header required for JWT authentication")
-        team_id = x_team
+        # JWT authentication - prefer X-Team-Id, fall back to team cookie if present
+        if x_team:
+            team_id = x_team
+        elif team_cookie:
+            team_id = team_cookie
+        else:
+            raise HTTPException(
+                status_code=400, detail="X-Team-Id header or team cookie required for JWT authentication"
+            )
 
     # Context should already be set by middleware, but ensure it's correct
     # (in case middleware couldn't determine it, or for consistency)
@@ -221,19 +281,21 @@ async def get_user_and_team(
 async def require_team_owner(
     user: User = Depends(current_active_user),
     x_team: str | None = Header(None, alias="X-Team-Id"),
+    team_cookie: str | None = Cookie(None, alias="tlab_team_id"),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
     Dependency to validate user authentication and ensure user is an owner of the team.
-    Extracts X-Team-Id header and verifies user has owner role.
+    Uses X-Team-Id header when present, otherwise falls back to team cookie.
     """
-    if not x_team:
-        raise HTTPException(status_code=400, detail="X-Team-Id header missing")
+    team_id = x_team or team_cookie
+    if not team_id:
+        raise HTTPException(status_code=400, detail="X-Team-Id header or team cookie missing")
 
     # Verify user is an owner of the team
     stmt = select(UserTeam).where(
         UserTeam.user_id == str(user.id),
-        UserTeam.team_id == x_team,
+        UserTeam.team_id == team_id,
     )
     result = await session.execute(stmt)
     user_team = result.scalar_one_or_none()
@@ -303,6 +365,78 @@ async def refresh_access_token(
     except Exception as e:
         print(f"Refresh Error: {e}")
         raise HTTPException(status_code=401, detail="Could not refresh token")
+
+
+@router.post("/auth/cookie/refresh")
+async def refresh_cookie_tokens(
+    request: Request,
+    user_manager=Depends(get_user_manager),
+):
+    """
+    Cookie-based token refresh. Reads refresh token from cookie and sets new cookies.
+    """
+    from fastapi.responses import JSONResponse
+    import os
+
+    refresh_token = request.cookies.get("tlab_refresh")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="No refresh token cookie found")
+
+    try:
+        refresh_strategy = get_refresh_strategy()
+        user = await refresh_strategy.read_token(refresh_token, user_manager)
+
+        if user is None or not user.is_active:
+            raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+
+        access_strategy = auth_backend.get_strategy()
+        new_access_token = await access_strategy.write_token(user)
+        new_refresh_token = await refresh_strategy.write_token(user)
+
+        response = JSONResponse(
+            content={"access_token": new_access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
+        )
+
+        cookie_secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+
+        response.set_cookie(
+            key="tlab_auth",
+            value=new_access_token,
+            max_age=TOKEN_LIFETIME,
+            httponly=True,
+            secure=cookie_secure,
+            samesite="lax",
+        )
+
+        response.set_cookie(
+            key="tlab_refresh",
+            value=new_refresh_token,
+            max_age=REFRESH_LIFETIME,
+            httponly=True,
+            secure=cookie_secure,
+            samesite="lax",
+        )
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Cookie Refresh Error: {e}")
+        raise HTTPException(status_code=401, detail="Could not refresh token")
+
+
+@router.post("/auth/cookie/logout")
+async def logout_cookie():
+    """
+    Clear authentication cookies.
+    """
+    from fastapi.responses import JSONResponse
+
+    response = JSONResponse(content={"detail": "Logged out"})
+    response.delete_cookie("tlab_auth")
+    response.delete_cookie("tlab_refresh")
+    return response
 
 
 @router.get("/users/me", response_model=UserRead)
@@ -393,3 +527,192 @@ async def get_user_teams(user: User = Depends(current_active_user), session: Asy
     ]
 
     return {"user_id": str(user.id), "teams": teams_with_roles}
+
+
+@router.get("/users/me/secrets")
+async def get_user_secrets(
+    user: User = Depends(current_active_user),
+    include_values: bool = Query(False, description="Include actual secret values"),
+):
+    """
+    Get user-specific secrets.
+    - Users can view their own secret keys and values.
+    - Values are always included since users own their secrets.
+    """
+    user_id = str(user.id)
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, f"user_secrets_{user_id}.json")
+
+    try:
+        if not await storage.exists(secrets_path):
+            return {"status": "success", "secrets": {}, "secret_keys": []}
+
+        async with await storage.open(secrets_path, "r") as f:
+            secrets = json.loads(await f.read())
+
+        if include_values:
+            # Return actual values
+            return {
+                "status": "success",
+                "secrets": secrets,
+                "secret_keys": list(secrets.keys()),
+            }
+        else:
+            # Mask all secret values
+            masked_secrets = {key: "***" for key in secrets.keys()}
+            return {
+                "status": "success",
+                "secrets": masked_secrets,
+                "secret_keys": list(secrets.keys()),
+            }
+    except Exception as e:
+        print(f"Error reading user secrets: {e}")
+        raise HTTPException(status_code=500, detail="Failed to read user secrets")
+
+
+@router.put("/users/me/secrets")
+async def set_user_secrets(
+    secrets_data: UserSecretsRequest,
+    user: User = Depends(current_active_user),
+):
+    """
+    Set user-specific secrets. Users can set/update their own secrets.
+    Stored in workspace/user_secrets_{user_id}.json file.
+    """
+    user_id = str(user.id)
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, f"user_secrets_{user_id}.json")
+
+    try:
+        # Validate that all keys are valid environment variable names
+        # Environment variable names can contain letters, numbers, and underscores
+        valid_key_pattern = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+        for key in secrets_data.secrets.keys():
+            if not valid_key_pattern.match(key):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid secret key '{key}'. Secret keys must start with a letter or underscore and contain only letters, numbers, and underscores.",
+                )
+            if key in SPECIAL_SECRET_KEYS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Secret key '{key}' is a special secret and can only be set via the Special Secrets section.",
+                )
+
+        # Ensure workspace directory exists
+        await storage.makedirs(workspace_dir, exist_ok=True)
+
+        # Write secrets to file
+        async with await storage.open(secrets_path, "w") as f:
+            await f.write(json.dumps(secrets_data.secrets, indent=2))
+
+        return {
+            "status": "success",
+            "message": "User secrets saved successfully",
+            "secret_keys": list(secrets_data.secrets.keys()),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving user secrets: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save user secrets")
+
+
+@router.get("/users/me/special_secrets")
+async def get_user_special_secrets(
+    user: User = Depends(current_active_user),
+):
+    """
+    Get user special secrets.
+    Users can view which special secrets are configured (values are masked).
+    """
+    user_id = str(user.id)
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, f"user_secrets_{user_id}.json")
+
+    result = {}
+    try:
+        if await storage.exists(secrets_path):
+            async with await storage.open(secrets_path, "r") as f:
+                all_secrets = json.loads(await f.read())
+                # Filter only special secrets
+                for key in SPECIAL_SECRET_TYPES.keys():
+                    if key in all_secrets:
+                        result[key] = {
+                            "name": SPECIAL_SECRET_TYPES[key],
+                            "exists": True,
+                            "masked_value": mask_key(all_secrets[key]) if all_secrets[key] else None,
+                        }
+                    else:
+                        result[key] = {
+                            "name": SPECIAL_SECRET_TYPES[key],
+                            "exists": False,
+                            "masked_value": None,
+                        }
+        else:
+            # No secrets file, return all as not configured
+            for key in SPECIAL_SECRET_TYPES.keys():
+                result[key] = {
+                    "name": SPECIAL_SECRET_TYPES[key],
+                    "exists": False,
+                    "masked_value": None,
+                }
+    except Exception as e:
+        print(f"Error reading user special secrets: {e}")
+        raise HTTPException(status_code=500, detail="Failed to read user special secrets")
+
+    return {"status": "success", "special_secrets": result}
+
+
+@router.put("/users/me/special_secrets")
+async def set_user_special_secret(
+    secret_data: SpecialSecretRequest,
+    user: User = Depends(current_active_user),
+):
+    """
+    Set a user special secret. Users can set/update their own special secrets.
+    Stored in workspace/user_secrets_{user_id}.json file.
+    """
+    # Validate secret type
+    if secret_data.secret_type not in SPECIAL_SECRET_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid secret type '{secret_data.secret_type}'. Must be one of: {', '.join(SPECIAL_SECRET_TYPES.keys())}",
+        )
+
+    user_id = str(user.id)
+    workspace_dir = await get_workspace_dir()
+    secrets_path = storage.join(workspace_dir, f"user_secrets_{user_id}.json")
+
+    try:
+        # Load existing secrets
+        existing_secrets = {}
+        if await storage.exists(secrets_path):
+            async with await storage.open(secrets_path, "r") as f:
+                existing_secrets = json.loads(await f.read())
+
+        # Update or remove the special secret
+        if secret_data.value and secret_data.value.strip():
+            existing_secrets[secret_data.secret_type] = secret_data.value.strip()
+        else:
+            # Remove if empty
+            existing_secrets.pop(secret_data.secret_type, None)
+
+        # Ensure workspace directory exists
+        await storage.makedirs(workspace_dir, exist_ok=True)
+
+        # Write secrets to file
+        async with await storage.open(secrets_path, "w") as f:
+            await f.write(json.dumps(existing_secrets, indent=2))
+
+        return {
+            "status": "success",
+            "message": f"{SPECIAL_SECRET_TYPES[secret_data.secret_type]} saved successfully",
+            "secret_type": secret_data.secret_type,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving user special secret: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save user special secret")

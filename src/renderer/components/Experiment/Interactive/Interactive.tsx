@@ -10,6 +10,7 @@ import {
   Chip,
   Box,
   IconButton,
+  Skeleton,
 } from '@mui/joy';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -19,8 +20,10 @@ import {
   PlayIcon,
   Trash2Icon,
   LogsIcon,
+  LibraryIcon,
 } from 'lucide-react';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
+import { useNavigate } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -54,6 +57,7 @@ export default function Interactive() {
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const { fetchWithAuth, team } = useAuth();
+  const navigate = useNavigate();
 
   // Trigger to force re-render when localStorage changes
   const [pendingIdsTrigger, setPendingIdsTrigger] = useState(0);
@@ -321,6 +325,7 @@ export default function Interactive() {
       // Fetch interactive gallery to get setup and command templates
       let defaultSetup: string;
       let defaultCommand: string;
+      let templateId: string | undefined;
 
       try {
         const galleryResponse = await chatAPI.authenticatedFetch(
@@ -332,9 +337,12 @@ export default function Interactive() {
 
         if (galleryResponse.ok) {
           const galleryData = await galleryResponse.json();
-          const template = galleryData.data?.find(
-            (t: any) => t.interactive_type === interactiveType,
-          );
+          const template = galleryData.data?.find((t: any) => {
+            if (data.template_id) {
+              return t.id === data.template_id;
+            }
+            return t.interactive_type === interactiveType;
+          });
 
           if (!template) {
             throw new Error(
@@ -344,6 +352,7 @@ export default function Interactive() {
 
           defaultSetup = template.setup || '';
           defaultCommand = template.command || '';
+          templateId = template.id;
         } else {
           throw new Error('Failed to fetch interactive gallery');
         }
@@ -368,6 +377,7 @@ export default function Interactive() {
         setup: defaultSetup,
         subtype: 'interactive',
         interactive_type: interactiveType,
+        interactive_gallery_id: templateId,
         provider_id: providerMeta.id,
         provider_name: providerMeta.name,
         env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
@@ -490,11 +500,17 @@ export default function Interactive() {
     try {
       const payload = {
         experiment_id: experimentInfo.id,
+        task_id: task.id,
         task_name: task.name,
         cluster_name: cfg.cluster_name || task.cluster_name,
         command: cfg.command || task.command,
         subtype: cfg.subtype || task.subtype,
         interactive_type: cfg.interactive_type || task.interactive_type,
+        interactive_gallery_id:
+          cfg.interactive_gallery_id ??
+          task?.interactive_gallery_id ??
+          config?.interactive_gallery_id ??
+          undefined,
         cpus: cfg.cpus || task.cpus,
         memory: cfg.memory || task.memory,
         disk_space: cfg.disk_space || task.disk_space,
@@ -637,6 +653,10 @@ export default function Interactive() {
         isSubmitting={isSubmitting}
         providers={providers}
         isProvidersLoading={providersIsLoading}
+        importedTasks={tasks}
+        onDeleteTask={handleDeleteTask}
+        onQueueTask={handleQueue}
+        onRefreshTasks={templatesMutate}
       />
       {taskBeingEdited && (
         <EditInteractiveTaskModal
@@ -704,7 +724,7 @@ export default function Interactive() {
       >
         <Typography level="title-md">Running Services</Typography>
         <Button
-          startDecorator={<TerminalIcon />}
+          startDecorator={<PlusIcon size={16} />}
           onClick={() => setInteractiveModalOpen(true)}
         >
           New
@@ -722,27 +742,49 @@ export default function Interactive() {
           overflow: 'auto',
         }}
       >
-        {jobsIsLoading ? (
-          <LinearProgress />
-        ) : jobsWithPlaceholders.length === 0 ? (
+        {(jobsIsLoading || !experimentInfo?.id) && (
           <Box
             sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              py: 8,
-              textAlign: 'center',
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                md: 'repeat(3, 1fr)',
+                lg: 'repeat(4, 1fr)',
+              },
+              gap: 2,
             }}
           >
-            <Typography level="body-lg" sx={{ mb: 2 }}>
-              No interactive jobs yet
-            </Typography>
-            <Typography level="body-sm" color="neutral">
-              Create a new interactive job to get started
-            </Typography>
+            <Skeleton variant="rectangular" height={100} width={100} />
           </Box>
-        ) : (
+        )}
+        {!jobsIsLoading &&
+          experimentInfo?.id &&
+          jobsWithPlaceholders.length === 0 && (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                py: 8,
+                textAlign: 'center',
+              }}
+            >
+              <Typography level="body-lg" sx={{ mb: 2 }}>
+                No interactive jobs yet
+              </Typography>
+              <Typography level="body-sm" color="neutral" sx={{ mb: 1 }}>
+                Interactive jobs are long running services like an Inference
+                Server, VS Code or Jupyter notebook.
+              </Typography>
+              <Typography level="body-sm" color="neutral">
+                Import an interactive task from the gallery and then queue it to
+                start.
+              </Typography>
+            </Box>
+          )}
+        {!jobsIsLoading && jobsWithPlaceholders.length > 0 && (
           <Box
             sx={{
               display: 'grid',
@@ -803,8 +845,7 @@ export default function Interactive() {
                       {jobData.start_time && (
                         <Typography level="body-xs" color="neutral">
                           Started:{' '}
-                          {dayjs
-                            .utc(jobData.start_time)
+                          {dayjs(jobData.start_time)
                             .local()
                             .format('MMM D, YYYY HH:mm:ss')}
                         </Typography>
@@ -826,7 +867,7 @@ export default function Interactive() {
                                 size="sm"
                                 startDecorator={<LogsIcon size={16} />}
                                 onClick={() =>
-                                  setViewOutputFromJob(parseInt(job.id))
+                                  setViewOutputFromJob(parseInt(job.id, 10))
                                 }
                               >
                                 Output
@@ -836,7 +877,7 @@ export default function Interactive() {
                                 color="primary"
                                 size="sm"
                                 onClick={() =>
-                                  handleViewInteractive(parseInt(job.id))
+                                  handleViewInteractive(parseInt(job.id, 10))
                                 }
                               >
                                 Interactive Setup
@@ -872,20 +913,18 @@ export default function Interactive() {
           overflow: 'auto',
         }}
       >
-        {templatesIsLoading ? (
-          <LinearProgress />
-        ) : (
-          <TaskTemplateList
-            tasksList={tasks}
-            onDeleteTask={handleDeleteTask}
-            onQueueTask={handleQueue}
-            onEditTask={handleEditTask}
-          />
-        )}
+        <TaskTemplateList
+          tasksList={tasks}
+          onDeleteTask={handleDeleteTask}
+          onQueueTask={handleQueue}
+          onEditTask={handleEditTask}
+          loading={templatesIsLoading || !experimentInfo?.id}
+        />
       </Sheet>
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={(jobId: number) => setViewOutputFromJob(jobId)}
+        tabs={['provider']}
       />
       {(() => {
         const job = jobs.find(

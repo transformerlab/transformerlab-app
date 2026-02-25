@@ -1,9 +1,9 @@
 """Pydantic schemas for provider management."""
 
 from pydantic import BaseModel, Field
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
-from transformerlab.shared.models.models import ProviderType
+from transformerlab.shared.models.models import ProviderType, AcceleratorType
 
 
 class ProviderConfigBase(BaseModel):
@@ -30,6 +30,9 @@ class ProviderConfigBase(BaseModel):
     default_region: Optional[str] = None  # Default region
     default_template_id: Optional[str] = None  # Default Docker template ID
     default_network_volume_id: Optional[str] = None  # Default network volume ID
+
+    # Accelerators supported by this provider
+    supported_accelerators: Optional[List[AcceleratorType]] = Field(default=None)
 
     # Additional provider-specific config
     extra_config: Dict[str, Any] = Field(default_factory=dict)
@@ -96,11 +99,18 @@ class ProviderTemplateLaunchRequest(BaseModel):
     """Payload for launching a remote template via providers."""
 
     experiment_id: str = Field(..., description="Experiment that owns the job")
+    task_id: Optional[str] = Field(
+        None, description="Task ID; required when file_mounts is True for lab.copy_file_mounts()"
+    )
     task_name: Optional[str] = Field(None, description="Friendly task name")
     cluster_name: Optional[str] = Field(None, description="Base cluster name, suffix is appended automatically")
     command: str = Field(..., description="Command to execute on the cluster")
     subtype: Optional[str] = Field(None, description="Optional subtype for filtering")
     interactive_type: Optional[str] = Field(None, description="Interactive task type (e.g. vscode)")
+    interactive_gallery_id: Optional[str] = Field(
+        None,
+        description="Interactive gallery entry id (e.g. jupyter, ollama-macos) for launch-time command resolution.",
+    )
     cpus: Optional[str] = None
     memory: Optional[str] = None
     disk_space: Optional[str] = None
@@ -108,10 +118,10 @@ class ProviderTemplateLaunchRequest(BaseModel):
     num_nodes: Optional[int] = None
     setup: Optional[str] = None
     env_vars: Dict[str, str] = Field(default_factory=dict, description="Environment variables as key-value pairs")
-    # File mounts: mapping of remote path -> local path
-    file_mounts: Optional[Dict[str, str]] = Field(
+    # File mounts: True = use lab.copy_file_mounts() at launch (task_id required); or dict for legacy path mapping
+    file_mounts: Optional[Union[Dict[str, str], bool]] = Field(
         default=None,
-        description="File mounts in the form {<remote_path>: <local_path>}",
+        description="True to copy task dir to ~/src via lab.copy_file_mounts(); or {<remote_path>: <local_path>} for legacy",
     )
     parameters: Optional[Dict[str, Any]] = Field(
         default=None,
@@ -141,6 +151,10 @@ class ProviderTemplateLaunchRequest(BaseModel):
     lower_is_better: Optional[bool] = Field(
         default=True,
         description="Whether lower values of sweep_metric are better. If False, higher values are better.",
+    )
+    local: Optional[bool] = Field(
+        default=False,
+        description="Whether to use direct local access for interactive sessions (skip tunnels).",
     )
     minutes_requested: Optional[int] = Field(
         default=None,

@@ -26,7 +26,12 @@ function bumpVersion(filePath, newVersion) {
   const data = fs.readFileSync(filePath, 'utf-8');
   const json = JSON.parse(data);
   json.version = newVersion;
-  fs.writeFileSync(filePath, JSON.stringify(json, null, 2));
+  // package-lock.json (npm v7+) also has root package version at packages[""]
+  if (filePath.endsWith('package-lock.json') && json.packages?.['']) {
+    json.packages[''].version = newVersion;
+  }
+  // Need to add \n to the end so this exactly matches npm install output.
+  fs.writeFileSync(filePath, `${JSON.stringify(json, null, 2)}\n`);
 }
 
 // Get argument which can be either 'major', 'minor', or 'patch'
