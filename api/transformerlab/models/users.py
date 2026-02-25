@@ -237,8 +237,8 @@ google_oauth_client = GoogleOAuth2(
 GOOGLE_OAUTH_ENABLED = os.getenv("GOOGLE_OAUTH_ENABLED", "false").lower() == "true" and bool(
     os.getenv("GOOGLE_OAUTH_CLIENT_ID") and os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
 )
-# Check if we're in MULTIUSER mode
-MULTIUSER_MODE = os.getenv("MULTIUSER", "false").lower() != "false"
+# Check if we're in MULTIUSER mode (default to true unless explicitly set to 'false')
+MULTIUSER_MODE = os.getenv("MULTIUSER", "true").lower() == "true"
 
 if not GOOGLE_OAUTH_ENABLED and MULTIUSER_MODE:
     print(
