@@ -9,3 +9,10 @@ api/transformerlab/db/llmlab.sqlite3
 .env
 .vscode
 *.log
+**/.git
+**/venv
+**/.venv
+**/node_modules
+**/tmp
+**/*.pyc
+**/.DS_Store
