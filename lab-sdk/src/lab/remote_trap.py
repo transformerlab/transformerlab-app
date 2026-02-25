@@ -6,7 +6,7 @@ import subprocess
 import sys
 from typing import List
 
-from lab import Job
+from lab import Job, storage
 
 
 async def _set_live_status_async(job_id: str, status: str) -> None:
@@ -43,6 +43,54 @@ def _set_live_status(status: str) -> None:
             return
 
 
+async def _write_provider_logs_async(job_id: str, logs_text: str) -> None:
+    """
+    Best-effort helper to write combined stdout/stderr logs to the job directory.
+
+    Uses _TFL_JOB_ID to resolve the job directory via lab.dirs.get_job_dir, then
+    writes provider_logs.txt using the storage abstraction.
+    """
+    try:
+        # Import inside helper to avoid circular imports at module load time.
+        from lab.dirs import get_job_dir
+
+        job_dir = await get_job_dir(job_id)
+        log_path = storage.join(job_dir, "provider_logs.txt")
+
+        # Ensure the directory exists (no-op for remote storage that doesn't require mkdirs).
+        try:
+            await storage.makedirs(job_dir, exist_ok=True)
+        except Exception:
+            # Some storage backends may not support makedirs for virtual paths; ignore.
+            pass
+
+        async with await storage.open(log_path, "w", encoding="utf-8") as f:
+            await f.write(logs_text or "")
+    except Exception:
+        # Never let logging failures break the wrapped command.
+        return
+
+
+def _write_provider_logs(logs_text: str) -> None:
+    """Entry-point wrapper for writing provider logs for the current job."""
+    job_id = os.environ.get("_TFL_JOB_ID")
+    if not job_id or logs_text is None:
+        return
+
+    try:
+        asyncio.run(_write_provider_logs_async(job_id, logs_text))
+    except RuntimeError:
+        # Fallback in case an event loop already exists.
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(_write_provider_logs_async(job_id, logs_text))
+            else:
+                loop.run_until_complete(_write_provider_logs_async(job_id, logs_text))
+        except Exception:
+            return
+
+
 def main(argv: List[str] | None = None) -> int:
     """
     Wrapper entrypoint for remote jobs.
@@ -74,7 +122,40 @@ def main(argv: List[str] | None = None) -> int:
     _set_live_status("started")
 
     # Run the original command in the shell so it behaves exactly as submitted.
-    completed = subprocess.run(command_str, shell=True)
+    # Capture stdout/stderr so we can save a copy to provider_logs.txt while still
+    # echoing output to the current process streams.
+    completed = subprocess.run(
+        command_str,
+        shell=True,
+        capture_output=True,
+        text=True,
+    )
+
+    # Echo captured output back to the current stdout/stderr so provider-native logs
+    # (e.g., SkyPilot, SLURM, RunPod) still see the same content.
+    if completed.stdout:
+        try:
+            sys.stdout.write(completed.stdout)
+            sys.stdout.flush()
+        except Exception:
+            pass
+    if completed.stderr:
+        try:
+            sys.stderr.write(completed.stderr)
+            sys.stderr.flush()
+        except Exception:
+            pass
+
+    # Combine stdout + stderr into a single text blob and store it alongside the job.
+    combined_logs_parts: List[str] = []
+    if completed.stdout:
+        combined_logs_parts.append(completed.stdout)
+    if completed.stderr:
+        combined_logs_parts.append(completed.stderr)
+    combined_logs = "\n".join(part.rstrip("\n") for part in combined_logs_parts)
+
+    _write_provider_logs(combined_logs)
+
     exit_code = completed.returncode
 
     # Update live_status based on outcome (best-effort).

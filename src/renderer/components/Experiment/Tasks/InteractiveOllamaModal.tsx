@@ -92,9 +92,7 @@ export default function InteractiveOllamaModal({
             Ollama Server Interactive Session (Job {jobId})
           </Typography>
           <Typography level="body-sm" color="neutral">
-            Access your Ollama API server through the tunnel URL below. The
-            tunnel URL provides secure access to the Ollama OpenAI-compatible
-            API.
+            Access your Ollama API server through the URL below.
           </Typography>
         </Stack>
         <Divider />
@@ -110,12 +108,12 @@ export default function InteractiveOllamaModal({
         >
           <Stack direction="row" spacing={1} alignItems="center">
             <Chip color={isReady ? 'success' : 'warning'} variant="soft">
-              {isReady ? 'Ready' : 'Waiting for tunnel'}
+              {isReady ? 'Ready' : 'Waiting for connection'}
             </Chip>
             {isLoading && <CircularProgress size="sm" />}
             {error && (
               <Typography level="body-xs" color="danger">
-                Failed to load tunnel info
+                Failed to load connection info
               </Typography>
             )}
           </Stack>
@@ -123,9 +121,8 @@ export default function InteractiveOllamaModal({
           <Box>
             <Typography level="title-md">Access Ollama API Server</Typography>
             <Typography level="body-sm" sx={{ mt: 0.5 }}>
-              Once the tunnel is ready, use the URL below to access your Ollama
-              server. The Ollama server provides an OpenAI-compatible API
-              endpoint.
+              Once ready, use the URL below to access your Ollama server. The
+              Ollama server provides an OpenAI-compatible API endpoint.
             </Typography>
 
             <Box
@@ -164,8 +161,8 @@ export default function InteractiveOllamaModal({
                 </>
               ) : (
                 <Typography level="body-sm" sx={{ flex: 1 }}>
-                  Waiting for tunnel to start. The URL will appear here once
-                  ngrok creates the tunnel...
+                  Waiting for service to start. The URL will appear here once
+                  the connection is available...
                 </Typography>
               )}
             </Box>
@@ -203,7 +200,7 @@ export default function InteractiveOllamaModal({
 
             <Typography level="body-xs" sx={{ mt: 1 }}>
               Tip: If the URL never appears, check the job output and provider
-              logs to ensure Ollama and ngrok started correctly.
+              logs to ensure Ollama started correctly.
             </Typography>
           </Box>
 
@@ -212,9 +209,9 @@ export default function InteractiveOllamaModal({
               Access Open WebUI
             </Typography>
             <Typography level="body-sm" sx={{ mt: 0.5 }}>
-              Once the second tunnel is ready, use the URL below to open Open
-              WebUI connected to this Ollama server. This gives you a convenient
-              browser chat UI backed by the same Ollama API.
+              Use the URL below to open Open WebUI connected to this Ollama
+              server. This gives you a convenient browser chat UI backed by the
+              same Ollama API.
             </Typography>
 
             <Box
@@ -253,8 +250,7 @@ export default function InteractiveOllamaModal({
                 </>
               ) : (
                 <Typography level="body-sm" sx={{ flex: 1 }}>
-                  Waiting for the second tunnel to start. The Open WebUI URL
-                  will appear here once ngrok creates the tunnel...
+                  Waiting for the Open WebUI service to start...
                 </Typography>
               )}
             </Box>

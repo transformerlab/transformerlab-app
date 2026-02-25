@@ -7,6 +7,7 @@ import Button from '@mui/joy/Button';
 import FormControl from '@mui/joy/FormControl';
 import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
+import Checkbox from '@mui/joy/Checkbox';
 import {
   ModalClose,
   ModalDialog,
@@ -25,6 +26,7 @@ import {
   TabList,
   Tab,
   Box,
+  Chip,
 } from '@mui/joy';
 import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -32,10 +34,13 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import { generateFriendlyName } from 'renderer/lib/utils';
 
 type ProviderOption = {
   id: string;
   name: string;
+  type?: string;
+  config?: any;
 };
 
 type ConfigField = {
@@ -55,6 +60,14 @@ type InteractiveTemplate = {
   description: string;
   env_parameters?: ConfigField[];
   icon?: string;
+  supported_accelerators?: string;
+  /** When true, task is hidden when a local compute provider is selected. */
+  remoteOnly?: boolean;
+  /** Optional per-environment (local/remote) and per-accelerator command variants; backend resolves at launch. */
+  commands?: Record<
+    string,
+    Record<string, string | { setup?: string; command: string }>
+  >;
 };
 
 type ImportedTask = {
@@ -76,6 +89,7 @@ type NewInteractiveTaskModalProps = {
       interactive_type: 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama';
       provider_id?: string;
       env_parameters?: Record<string, string>;
+      local?: boolean;
     },
     shouldLaunch?: boolean,
   ) => void;
@@ -101,13 +115,16 @@ export default function NewInteractiveTaskModal({
   onRefreshTasks,
 }: NewInteractiveTaskModalProps) {
   const { experimentInfo } = useExperimentInfo();
-  const [step, setStep] = React.useState<'gallery' | 'config'>('gallery');
+  const [step, setStep] = React.useState<'provider' | 'gallery' | 'config'>(
+    'provider',
+  );
   const [selectedTemplate, setSelectedTemplate] =
     React.useState<InteractiveTemplate | null>(null);
-  const [title, setTitle] = React.useState('');
+  const [title, setTitle] = React.useState(generateFriendlyName());
   const [cpus, setCpus] = React.useState('');
   const [memory, setMemory] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
+  const [isLocal, setIsLocal] = React.useState(false);
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
   const [configFieldValues, setConfigFieldValues] = React.useState<
     Record<string, string>
@@ -119,6 +136,60 @@ export default function NewInteractiveTaskModal({
     string | number | null
   >(null);
   const { addNotification } = useNotification();
+
+  // Helper to check if a provider supports requested accelerators
+  const isProviderCompatible = React.useCallback(
+    (provider: any, taskSupportedAccelerators: string | undefined) => {
+      if (!taskSupportedAccelerators) return true;
+
+      const supported = provider.config?.supported_accelerators || [];
+      if (supported.length === 0) return true; // Default to compatible if not specified
+
+      const reqAcc = String(taskSupportedAccelerators).toLowerCase();
+
+      // Check for Apple Silicon
+      if (
+        (reqAcc.includes('apple') || reqAcc.includes('mps')) &&
+        supported.includes('AppleSilicon')
+      ) {
+        return true;
+      }
+
+      // Check for NVIDIA
+      if (
+        (reqAcc.includes('nvidia') ||
+          reqAcc.includes('cuda') ||
+          reqAcc.includes('rtx') ||
+          reqAcc.includes('a100') ||
+          reqAcc.includes('h100') ||
+          reqAcc.includes('v100')) &&
+        supported.includes('NVIDIA')
+      ) {
+        return true;
+      }
+
+      // Check for AMD
+      if (
+        (reqAcc.includes('amd') || reqAcc.includes('rocm')) &&
+        supported.includes('AMD')
+      ) {
+        return true;
+      }
+
+      // Check for CPU
+      if (reqAcc.includes('cpu') && supported.includes('cpu')) {
+        return true;
+      }
+
+      // If it's just a number, we assume it's NVIDIA/CUDA
+      if (/^\d+$/.test(reqAcc)) {
+        return supported.includes('NVIDIA');
+      }
+
+      return false;
+    },
+    [],
+  );
 
   // Fetch interactive gallery
   const { data: galleryData, isLoading: galleryIsLoading } = useSWR(
@@ -155,33 +226,44 @@ export default function NewInteractiveTaskModal({
 
   React.useEffect(() => {
     if (!open) {
-      setStep('gallery');
+      setStep('provider');
       setSelectedTemplate(null);
-      setTitle('');
+      setTitle(generateFriendlyName());
       setCpus('');
       setMemory('');
       setAccelerators('');
+      setIsLocal(false);
       setConfigFieldValues({});
-      setSelectedProviderId(providers[0]?.id || '');
+      setSelectedProviderId('');
       setActiveGalleryTab('interactive');
-    } else if (open && providers.length && !selectedProviderId) {
-      setSelectedProviderId(providers[0].id);
     }
-  }, [open, providers, selectedProviderId]);
+  }, [open]);
 
   React.useEffect(() => {
+    if (!open) return;
     if (!providers.length) {
       setSelectedProviderId('');
       return;
     }
     if (!selectedProviderId) {
-      setSelectedProviderId(providers[0].id);
+      // Don't auto-select first one, let user pick in the first step
       return;
     }
     if (!providers.find((p) => p.id === selectedProviderId)) {
-      setSelectedProviderId(providers[0].id);
+      setSelectedProviderId('');
     }
-  }, [providers, selectedProviderId]);
+  }, [open, providers, selectedProviderId]);
+
+  const selectedProvider = React.useMemo(
+    () => providers.find((p) => p.id === selectedProviderId),
+    [providers, selectedProviderId],
+  );
+
+  React.useEffect(() => {
+    if (selectedProvider?.type === 'local') {
+      setIsLocal(true);
+    }
+  }, [selectedProvider]);
 
   const handleTemplateSelect = (template: InteractiveTemplate) => {
     setSelectedTemplate(template);
@@ -197,9 +279,13 @@ export default function NewInteractiveTaskModal({
   };
 
   const handleBack = () => {
-    setStep('gallery');
-    setSelectedTemplate(null);
-    setConfigFieldValues({});
+    if (step === 'config') {
+      setStep('gallery');
+      setSelectedTemplate(null);
+      setConfigFieldValues({});
+    } else if (step === 'gallery') {
+      setStep('provider');
+    }
   };
 
   const handleConfigFieldChange = (envVar: string, value: string) => {
@@ -277,8 +363,9 @@ export default function NewInteractiveTaskModal({
     }
 
     // Validate required config fields
-    const requiredFields =
-      selectedTemplate.env_parameters?.filter((f) => f.required) || [];
+    const requiredFields = (
+      selectedTemplate.env_parameters?.filter((f) => f.required) || []
+    ).filter((f) => !(isLocal && f.env_var === 'NGROK_AUTH_TOKEN'));
     for (const field of requiredFields) {
       if (!configFieldValues[field.env_var]?.trim()) {
         return;
@@ -297,8 +384,10 @@ export default function NewInteractiveTaskModal({
           | 'vllm'
           | 'ssh'
           | 'ollama',
+        template_id: selectedTemplate.id,
         provider_id: selectedProviderId,
         env_parameters: configFieldValues,
+        local: isLocal,
       },
       shouldLaunch,
     );
@@ -309,8 +398,9 @@ export default function NewInteractiveTaskModal({
       return false;
     }
 
-    const requiredFields =
-      selectedTemplate.env_parameters?.filter((f) => f.required) || [];
+    const requiredFields = (
+      selectedTemplate.env_parameters?.filter((f) => f.required) || []
+    ).filter((f) => !(isLocal && f.env_var === 'NGROK_AUTH_TOKEN'));
     for (const field of requiredFields) {
       if (!configFieldValues[field.env_var]?.trim()) {
         return false;
@@ -325,18 +415,94 @@ export default function NewInteractiveTaskModal({
       <ModalDialog
         sx={{
           maxHeight: '80vh',
-          width: step === 'gallery' ? '70vw' : '60vw',
+          width:
+            step === 'provider' ? '40vw' : step === 'gallery' ? '70vw' : '60vw',
           overflow: 'hidden',
         }}
       >
         <ModalClose />
         <DialogTitle>
-          {step === 'gallery' ? 'New Interactive Task' : 'Configure Task'}
+          {step === 'provider'
+            ? 'Select Provider'
+            : step === 'gallery'
+              ? 'New Interactive Task'
+              : 'Configure Task'}
         </DialogTitle>
         <form onSubmit={(e) => handleSubmit(e, false)}>
           <DialogContent
             sx={{ maxHeight: '60vh', overflow: 'auto', padding: 1 }}
           >
+            {step === 'provider' && (
+              <Stack spacing={3} sx={{ py: 2 }}>
+                <Typography level="body-md">
+                  First, select the compute provider you want to use for this
+                  interactive session. We'll show you compatible tasks in the
+                  next step.
+                </Typography>
+                <FormControl required>
+                  <FormLabel>Provider</FormLabel>
+                  <Select
+                    placeholder={
+                      providers.length
+                        ? 'Select a provider'
+                        : 'No providers configured'
+                    }
+                    value={selectedProviderId || null}
+                    onChange={(_, value) => setSelectedProviderId(value || '')}
+                    disabled={
+                      isSubmitting ||
+                      isProvidersLoading ||
+                      providers.length === 0
+                    }
+                    slotProps={{
+                      listbox: { sx: { maxHeight: 240 } },
+                    }}
+                  >
+                    {providers.map((provider) => (
+                      <Option key={provider.id} value={provider.id}>
+                        {provider.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {selectedProvider &&
+                  selectedProvider.config?.supported_accelerators &&
+                  selectedProvider.config.supported_accelerators.length > 0 && (
+                    <Box>
+                      <Typography level="body-xs" sx={{ mb: 1 }}>
+                        Supported Accelerators:
+                      </Typography>
+                      <Stack direction="row" spacing={1}>
+                        {selectedProvider.config.supported_accelerators.map(
+                          (acc: string) => (
+                            <Chip
+                              key={acc}
+                              size="sm"
+                              variant="soft"
+                              color="primary"
+                            >
+                              {acc}
+                            </Chip>
+                          ),
+                        )}
+                      </Stack>
+                    </Box>
+                  )}
+
+                <Box
+                  sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}
+                >
+                  <Button
+                    disabled={!selectedProviderId}
+                    onClick={() => setStep('gallery')}
+                    endDecorator={<ArrowRightIcon size={16} />}
+                  >
+                    Next: Choose Task
+                  </Button>
+                </Box>
+              </Stack>
+            )}
             {step === 'config' && (
               <Stack spacing={3}>
                 <FormControl required>
@@ -396,13 +562,34 @@ export default function NewInteractiveTaskModal({
                   </Alert>
                 )}
 
+                {selectedProvider?.type !== 'local' && (
+                  <>
+                    <Checkbox
+                      label="Enable direct web access (no tunnel)"
+                      checked={isLocal}
+                      onChange={(e) => setIsLocal(e.target.checked)}
+                    />
+                    <FormHelperText sx={{ mt: -2 }}>
+                      When enabled, the session will be accessible directly via
+                      a local address (e.g. http://localhost:8888). Recommended
+                      for local providers only.
+                    </FormHelperText>
+                  </>
+                )}
+
                 {selectedTemplate?.env_parameters &&
                   selectedTemplate.env_parameters.length > 0 && (
                     <>
                       {selectedTemplate.env_parameters.map((field) => (
                         <FormControl
                           key={field.env_var}
-                          required={field.required}
+                          required={
+                            field.required &&
+                            !(isLocal && field.env_var === 'NGROK_AUTH_TOKEN')
+                          }
+                          disabled={
+                            isLocal && field.env_var === 'NGROK_AUTH_TOKEN'
+                          }
                         >
                           <FormLabel>{field.field_name}</FormLabel>
                           <Input
@@ -430,38 +617,40 @@ export default function NewInteractiveTaskModal({
                     </>
                   )}
 
-                <Stack
-                  direction="row"
-                  spacing={2}
-                  sx={{ flexWrap: 'wrap', rowGap: 2 }}
-                >
-                  <FormControl sx={{ minWidth: '160px', flex: 1 }}>
-                    <FormLabel>CPUs</FormLabel>
-                    <Input
-                      value={cpus}
-                      onChange={(e) => setCpus(e.target.value)}
-                      placeholder="e.g. 4"
-                    />
-                  </FormControl>
+                {selectedProvider?.type !== 'local' && (
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    sx={{ flexWrap: 'wrap', rowGap: 2 }}
+                  >
+                    <FormControl sx={{ minWidth: '160px', flex: 1 }}>
+                      <FormLabel>CPUs</FormLabel>
+                      <Input
+                        value={cpus}
+                        onChange={(e) => setCpus(e.target.value)}
+                        placeholder="e.g. 4"
+                      />
+                    </FormControl>
 
-                  <FormControl sx={{ minWidth: '160px', flex: 1 }}>
-                    <FormLabel>Memory (GB)</FormLabel>
-                    <Input
-                      value={memory}
-                      onChange={(e) => setMemory(e.target.value)}
-                      placeholder="e.g. 16"
-                    />
-                  </FormControl>
+                    <FormControl sx={{ minWidth: '160px', flex: 1 }}>
+                      <FormLabel>Memory (GB)</FormLabel>
+                      <Input
+                        value={memory}
+                        onChange={(e) => setMemory(e.target.value)}
+                        placeholder="e.g. 16"
+                      />
+                    </FormControl>
 
-                  <FormControl sx={{ minWidth: '200px', flex: 2 }}>
-                    <FormLabel>Accelerators</FormLabel>
-                    <Input
-                      value={accelerators}
-                      onChange={(e) => setAccelerators(e.target.value)}
-                      placeholder="e.g. RTX3090:1 or H100:8"
-                    />
-                  </FormControl>
-                </Stack>
+                    <FormControl sx={{ minWidth: '200px', flex: 2 }}>
+                      <FormLabel>Accelerators</FormLabel>
+                      <Input
+                        value={accelerators}
+                        onChange={(e) => setAccelerators(e.target.value)}
+                        placeholder="e.g. RTX3090:1 or H100:8"
+                      />
+                    </FormControl>
+                  </Stack>
+                )}
 
                 <FormHelperText>
                   Setup and command are pre-populated based on the selected
@@ -561,38 +750,76 @@ export default function NewInteractiveTaskModal({
                       )}
                     {!galleryIsLoading && galleryData && gallery.length > 0 && (
                       <Grid container spacing={2}>
-                        {gallery.map((template) => (
-                          <Grid xs={12} sm={6} md={4} key={template.id}>
-                            <Card
-                              variant="outlined"
-                              sx={{
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  boxShadow: 'md',
-                                  borderColor: 'primary.500',
-                                },
-                              }}
-                              onClick={() => handleTemplateSelect(template)}
-                            >
-                              <CardContent>
-                                {template.icon && (
-                                  <img
-                                    src={template.icon}
-                                    alt={`${template.name} icon`}
-                                    width={32}
-                                    height={32}
-                                  />
-                                )}
-                                <Typography level="title-md">
-                                  {template.name}
-                                </Typography>
-                                <Typography level="body-sm" sx={{ mt: 1 }}>
-                                  {template.description}
-                                </Typography>
-                              </CardContent>
-                            </Card>
-                          </Grid>
-                        ))}
+                        {gallery
+                          .filter((template) => {
+                            if (
+                              selectedProvider?.type === 'local' &&
+                              (template as InteractiveTemplate).remoteOnly
+                            ) {
+                              return false;
+                            }
+                            return isProviderCompatible(
+                              selectedProvider,
+                              template.supported_accelerators,
+                            );
+                          })
+                          .map((template) => (
+                            <Grid xs={12} sm={6} md={4} key={template.id}>
+                              <Card
+                                variant="outlined"
+                                sx={{
+                                  cursor: 'pointer',
+                                  '&:hover': {
+                                    boxShadow: 'md',
+                                    borderColor: 'primary.500',
+                                  },
+                                }}
+                                onClick={() => handleTemplateSelect(template)}
+                              >
+                                <CardContent>
+                                  {template.icon && (
+                                    <img
+                                      src={template.icon}
+                                      alt={`${template.name} icon`}
+                                      width={32}
+                                      height={32}
+                                    />
+                                  )}
+                                  <Typography level="title-md">
+                                    {template.name}
+                                  </Typography>
+                                  <Typography level="body-sm" sx={{ mt: 1 }}>
+                                    {template.description}
+                                  </Typography>
+                                  {template.supported_accelerators && (
+                                    <Box sx={{ mt: 1.5 }}>
+                                      <Stack
+                                        direction="row"
+                                        spacing={0.5}
+                                        flexWrap="wrap"
+                                      >
+                                        {(Array.isArray(
+                                          template.supported_accelerators,
+                                        )
+                                          ? template.supported_accelerators
+                                          : [template.supported_accelerators]
+                                        ).map((acc: string) => (
+                                          <Chip
+                                            key={acc}
+                                            size="sm"
+                                            variant="soft"
+                                            color="primary"
+                                          >
+                                            {acc}
+                                          </Chip>
+                                        ))}
+                                      </Stack>
+                                    </Box>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            </Grid>
+                          ))}
                       </Grid>
                     )}
                   </>
@@ -654,70 +881,116 @@ export default function NewInteractiveTaskModal({
                       teamGalleryData &&
                       teamGallery.length > 0 && (
                         <Grid container spacing={2}>
-                          {teamGallery.map((task: any, index: number) => {
-                            const taskTitle =
-                              task.title || task.name || 'Untitled Task';
-                            const taskId =
-                              task?.id ||
-                              task?.name ||
-                              task?.title ||
-                              index.toString();
-                            let galleryIdentifier: string | number;
-                            if (task?.id) {
-                              galleryIdentifier = task.id;
-                            } else if (task?.name) {
-                              galleryIdentifier = task.name;
-                            } else if (task?.title) {
-                              galleryIdentifier = task.title;
-                            } else {
-                              galleryIdentifier = index;
-                            }
+                          {teamGallery
+                            .filter((task: any) => {
+                              if (
+                                selectedProvider?.type === 'local' &&
+                                task.remoteOnly
+                              ) {
+                                return false;
+                              }
+                              return isProviderCompatible(
+                                selectedProvider,
+                                task.supported_accelerators ||
+                                  task.config?.supported_accelerators,
+                              );
+                            })
+                            .map((task: any, index: number) => {
+                              const taskTitle =
+                                task.title || task.name || 'Untitled Task';
+                              const taskId =
+                                task?.id ||
+                                task?.name ||
+                                task?.title ||
+                                index.toString();
+                              let galleryIdentifier: string | number;
+                              if (task?.id) {
+                                galleryIdentifier = task.id;
+                              } else if (task?.name) {
+                                galleryIdentifier = task.name;
+                              } else if (task?.title) {
+                                galleryIdentifier = task.title;
+                              } else {
+                                galleryIdentifier = index;
+                              }
 
-                            return (
-                              <Grid xs={12} sm={6} md={4} key={taskId}>
-                                <Card
-                                  variant="outlined"
-                                  sx={{
-                                    cursor: 'pointer',
-                                    '&:hover': {
-                                      boxShadow: 'md',
-                                      borderColor: 'primary.500',
-                                    },
-                                  }}
-                                  onClick={() =>
-                                    handleImportTeamTask(galleryIdentifier)
-                                  }
-                                >
-                                  <CardContent>
-                                    {task.icon && (
-                                      <img
-                                        src={task.icon}
-                                        alt={`${taskTitle} icon`}
-                                        width={32}
-                                        height={32}
-                                      />
-                                    )}
-                                    <Typography level="title-md">
-                                      {taskTitle}
-                                    </Typography>
-                                    <Typography level="body-sm" sx={{ mt: 1 }}>
-                                      {task.description || 'No description'}
-                                    </Typography>
-                                    {importingTeamTaskId ===
-                                      galleryIdentifier && (
+                              const taskSupportedAccelerators =
+                                task.supported_accelerators ||
+                                task.config?.supported_accelerators;
+
+                              return (
+                                <Grid xs={12} sm={6} md={4} key={taskId}>
+                                  <Card
+                                    variant="outlined"
+                                    sx={{
+                                      cursor: 'pointer',
+                                      '&:hover': {
+                                        boxShadow: 'md',
+                                        borderColor: 'primary.500',
+                                      },
+                                    }}
+                                    onClick={() =>
+                                      handleImportTeamTask(galleryIdentifier)
+                                    }
+                                  >
+                                    <CardContent>
+                                      {task.icon && (
+                                        <img
+                                          src={task.icon}
+                                          alt={`${taskTitle} icon`}
+                                          width={32}
+                                          height={32}
+                                        />
+                                      )}
+                                      <Typography level="title-md">
+                                        {taskTitle}
+                                      </Typography>
                                       <Typography
-                                        level="body-xs"
-                                        color="primary"
+                                        level="body-sm"
                                         sx={{ mt: 1 }}
                                       >
-                                        Importing...
+                                        {task.description || 'No description'}
                                       </Typography>
-                                    )}
-                                  </CardContent>
-                                </Card>
-                              </Grid>
-                            );
-                          })}
+                                      {taskSupportedAccelerators && (
+                                        <Box sx={{ mt: 1.5 }}>
+                                          <Stack
+                                            direction="row"
+                                            spacing={0.5}
+                                            flexWrap="wrap"
+                                          >
+                                            {(Array.isArray(
+                                              taskSupportedAccelerators,
+                                            )
+                                              ? taskSupportedAccelerators
+                                              : [taskSupportedAccelerators]
+                                            ).map((acc: string) => (
+                                              <Chip
+                                                key={acc}
+                                                size="sm"
+                                                variant="soft"
+                                                color="primary"
+                                              >
+                                                {acc}
+                                              </Chip>
+                                            ))}
+                                          </Stack>
+                                        </Box>
+                                      )}
+                                      {importingTeamTaskId ===
+                                        galleryIdentifier && (
+                                        <Typography
+                                          level="body-xs"
+                                          color="primary"
+                                          sx={{ mt: 1 }}
+                                        >
+                                          Importing...
+                                        </Typography>
+                                      )}
+                                    </CardContent>
+                                  </Card>
+                                </Grid>
+                              );
+                            })}
                         </Grid>
                       )}
                   </>
@@ -731,15 +1004,17 @@ export default function NewInteractiveTaskModal({
               spacing={2}
               sx={{ width: '100%', justifyContent: 'space-between' }}
             >
-              <Button
-                variant="plain"
-                color="neutral"
-                onClick={step === 'gallery' ? onClose : handleBack}
-                disabled={isSubmitting}
-                startDecorator={<ArrowLeftIcon size={16} />}
-              >
-                {step === 'gallery' ? 'Cancel' : 'Back'}
-              </Button>
+              {step !== 'provider' && (
+                <Button
+                  variant="plain"
+                  color="neutral"
+                  onClick={handleBack}
+                  disabled={isSubmitting}
+                  startDecorator={<ArrowLeftIcon size={16} />}
+                >
+                  Back
+                </Button>
+              )}
               {step === 'config' && (
                 <Stack direction="row" spacing={2}>
                   <Button

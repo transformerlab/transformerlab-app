@@ -561,8 +561,9 @@ Endpoints.Experiment = {
     experimentId: string,
     jobId: string,
     tailLines: number = 400,
+    live: boolean = false,
   ) =>
-    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/provider_logs?tail_lines=${tailLines}`,
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/provider_logs?tail_lines=${tailLines}&live=${live}`,
   GetTunnelInfo: (
     experimentId: string,
     jobId: string,

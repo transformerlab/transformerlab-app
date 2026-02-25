@@ -149,7 +149,7 @@ const configuration: webpack.Configuration = {
     new webpack.EnvironmentPlugin({
       NODE_ENV: 'production',
       DEBUG_PROD: false,
-      MULTIUSER: 'false',
+      MULTIUSER: 'true',
       TL_API_URL: '',
       EMAIL_AUTH_ENABLED: 'true',
       SENTRY_DSN: '',

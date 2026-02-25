@@ -8,6 +8,7 @@ from transformerlab.models.users import current_active_user
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
 from transformerlab.shared.remote_workspace import create_bucket_for_team
+from transformerlab.services.provider_service import ensure_default_local_provider_for_team
 
 from pydantic import BaseModel, EmailStr
 from typing import Optional
@@ -98,6 +99,14 @@ async def create_team(
     user_team = UserTeam(user_id=str(user.id), team_id=team.id, role=TeamRole.OWNER.value)
     session.add(user_team)
     await session.commit()
+
+    # Ensure a default local compute provider is created for this team,
+    # with supported_accelerators detected from the current machine.
+    try:
+        await ensure_default_local_provider_for_team(session, team.id, str(user.id))
+    except Exception as e:
+        # Log error but don't fail team creation if provider creation fails
+        print(f"Warning: Failed to create default local provider for team {team.id}: {e}")
 
     # Create storage (cloud bucket or local folder) for the new team
     if getenv("TFL_REMOTE_STORAGE_ENABLED") or (

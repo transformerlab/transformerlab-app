@@ -26,16 +26,21 @@ def parse_vscode_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str]]:
                     auth_code = match.group(1)
 
             # Parse tunnel URL: "https://vscode.dev/tunnel/maclan/..."
-            if "vscode.dev/tunnel" in line and not tunnel_url:
+            if ("vscode.dev/tunnel" in line or "localhost:" in line) and not tunnel_url:
                 # Look for the full URL
                 match = re.search(r"(https://vscode\.dev/tunnel/[^\s]+)", line)
                 if match:
                     tunnel_url = match.group(1)
                 else:
-                    # If no full URL, look for just the tunnel path
-                    match = re.search(r"(vscode\.dev/tunnel/[^\s]+)", line)
+                    # Look for local URL: "http://localhost:\d+"
+                    match = re.search(r"(http://localhost:\d+)", line)
                     if match:
-                        tunnel_url = f"https://{match.group(1)}"
+                        tunnel_url = match.group(1)
+                    else:
+                        # If no full URL, look for just the tunnel path
+                        match = re.search(r"(vscode\.dev/tunnel/[^\s]+)", line)
+                        if match:
+                            tunnel_url = f"https://{match.group(1)}"
 
         return auth_code, tunnel_url
 
@@ -93,6 +98,12 @@ def parse_jupyter_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str]]:
                 if match:
                     tunnel_url = match.group(1)
 
+            # Check for local URL: "Local URL: http://localhost:8888"
+            if not tunnel_url:
+                match = re.search(r"Local URL:\s*(http://localhost:\d+)", line)
+                if match:
+                    tunnel_url = match.group(1)
+
         return token, tunnel_url
 
     except Exception as e:
@@ -125,6 +136,13 @@ def parse_vllm_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str], Opt
                 r"(https://[a-zA-Z0-9-]+\.(?:trycloudflare\.com|ngrok-free\.app|ngrok-free\.dev|ngrok\.io))",
                 line,
             )
+            if match:
+                url = match.group(1)
+                if url not in found_urls:
+                    found_urls.append(url)
+
+            # Check for local URL patterns: "Local vLLM API: http://localhost:8000" or "Local Open WebUI: http://localhost:8080"
+            match = re.search(r"Local (?:vLLM API|Open WebUI):\s*(http://localhost:\d+)", line)
             if match:
                 url = match.group(1)
                 if url not in found_urls:
@@ -318,6 +336,13 @@ def parse_ollama_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str], O
                 r"(https://[a-zA-Z0-9-]+\.(?:trycloudflare\.com|ngrok-free\.app|ngrok-free\.dev|ngrok\.io))",
                 line,
             )
+            if match:
+                url = match.group(1)
+                if url not in found_urls:
+                    found_urls.append(url)
+
+            # Check for local URL patterns: "Local Ollama API: http://localhost:11434" or "Local Open WebUI: http://localhost:8080"
+            match = re.search(r"Local (?:Ollama API|Open WebUI):\s*(http://localhost:\d+)", line)
             if match:
                 url = match.group(1)
                 if url not in found_urls:

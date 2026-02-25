@@ -74,6 +74,7 @@ async def get_interactive_gallery():
     """
     Get the interactive tasks gallery.
     This contains templates for interactive task types (vscode, jupyter, vllm, ssh).
+    Resolution is by environment (local/remote) only; see resolve_interactive_command.
     """
     return await get_gallery_file(INTERACTIVE_GALLERY_FILE)
 

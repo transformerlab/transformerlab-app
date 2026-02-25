@@ -2,7 +2,7 @@
 
 ## Build/Lint/Test Commands
 
-- **Frontend dev**: `npm start:cloud` (Node v22, not v23+)
+- **Frontend dev**: `npm start` (Node v22, not v23+)
 - **Frontend test**: `npm test` (Jest); single test: `npm test -- --testPathPattern="<pattern>"`
 - **Frontend format**: `npm run format` (Prettier, single quotes)
 - **API install**: `cd api && ./install.sh` or `npm run api:install`
@@ -13,7 +13,7 @@
 
 ## Architecture
 
-- **Frontend**: Electron + React (TypeScript) in `src/` (renderer + main process)
+- **Frontend**: Electron + React (TypeScript) in `src/`
 - **Backend**: Python FastAPI in `api/transformerlab/`, entry point: `api/api.py`
 - **SDK**: `lab-sdk/` - Python SDK published to PyPI as `transformerlab`
 - **Database**: SQLite with Alembic migrations in `api/alembic/`

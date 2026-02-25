@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
+  Checkbox,
   CircularProgress,
   Modal,
   ModalClose,
@@ -98,21 +99,42 @@ const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
   );
 };
 
+const TAB_OPTIONS: { value: 'output' | 'provider'; label: string }[] = [
+  { value: 'output', label: 'Task Output' },
+  { value: 'provider', label: 'Provider Logs' },
+];
+
 interface ViewOutputModalStreamingProps {
   jobId: number;
   setJobId: (jobId: number) => void;
+  /** Which tabs to show, in order. e.g. ['output', 'provider'] or ['provider'] for interactive tasks. */
+  tabs?: ('output' | 'provider')[];
 }
 
-export default function ViewOutputModalStreaming({
+function ViewOutputModalStreaming({
   jobId,
   setJobId,
+  tabs: tabsProp = ['output', 'provider'],
 }: ViewOutputModalStreamingProps) {
   const { experimentInfo } = useExperimentInfo();
   const [activeTab, setActiveTab] = useState<'output' | 'provider'>('output');
+  const [viewLiveProviderLogs, setViewLiveProviderLogs] =
+    useState<boolean>(false);
+
+  const tabs = tabsProp.length > 0 ? tabsProp : ['output', 'provider'];
+  const showTabList = tabs.length > 1;
+  const tabsKey = tabs.join(',');
 
   useEffect(() => {
-    setActiveTab('output');
-  }, [jobId]);
+    setActiveTab((current) =>
+      tabs.includes(current)
+        ? current
+        : ((tabs[0] ?? 'output') as 'output' | 'provider'),
+    );
+    setViewLiveProviderLogs(false);
+    // tabsKey is a stable serialization of tabs to avoid array reference churn
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId, tabsKey]);
 
   const providerLogsUrl = useMemo(() => {
     if (jobId === -1 || !experimentInfo?.id) {
@@ -121,8 +143,10 @@ export default function ViewOutputModalStreaming({
     return chatAPI.Endpoints.Experiment.GetProviderLogs(
       experimentInfo.id,
       String(jobId),
+      400,
+      viewLiveProviderLogs,
     );
-  }, [experimentInfo?.id, jobId]);
+  }, [experimentInfo?.id, jobId, viewLiveProviderLogs]);
 
   const {
     data: providerLogsData,
@@ -161,37 +185,76 @@ export default function ViewOutputModalStreaming({
       >
         <ModalClose />
         <Typography level="title-lg" sx={{ mb: 1 }}>
-          Output from job: {jobId}
+          {`${
+            showTabList
+              ? 'Output from job'
+              : (TAB_OPTIONS.find((t) => t.value === tabs[0])?.label ??
+                'Output')
+          }: ${jobId}`}
         </Typography>
-        <Tabs
-          value={activeTab}
-          onChange={(_event, value) => {
-            if (typeof value === 'string') {
-              setActiveTab(value as 'output' | 'provider');
-            }
-          }}
-        >
-          <TabList>
-            <Tab value="output">Task Output</Tab>
-            <Tab value="provider">Provider Logs</Tab>
-          </TabList>
-        </Tabs>
+        {showTabList && (
+          <Tabs
+            value={activeTab}
+            onChange={(_event, value) => {
+              if (
+                typeof value === 'string' &&
+                (value === 'output' || value === 'provider')
+              ) {
+                setActiveTab(value);
+              }
+            }}
+          >
+            <TabList>
+              {tabs.map((tabValue) => {
+                const option = TAB_OPTIONS.find((t) => t.value === tabValue);
+                return option ? (
+                  <Tab key={tabValue} value={tabValue}>
+                    {option.label}
+                  </Tab>
+                ) : null;
+              })}
+            </TabList>
+          </Tabs>
+        )}
+        {activeTab === 'provider' && (
+          <Box
+            sx={{
+              mt: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+            }}
+          >
+            <Checkbox
+              size="sm"
+              checked={viewLiveProviderLogs}
+              onChange={(event) =>
+                setViewLiveProviderLogs(!!event.target.checked)
+              }
+              label="View live provider logs"
+            />
+            {viewLiveProviderLogs && (
+              <Typography level="body-xs" color="warning">
+                Live logs are fetched directly from the remote machine and may
+                disappear once the machine stops running.
+              </Typography>
+            )}
+          </Box>
+        )}
         <Box
           sx={{
-            mt: 1,
+            mt: activeTab === 'provider' ? 0.5 : 1,
             flex: 1,
             minHeight: 0,
             width: '100%',
             display: 'flex',
-            padding: '8px 0px 8px 11px',
-            backgroundColor: '#000',
-            borderRadius: '8px',
+            flexDirection: 'column',
           }}
         >
-          {activeTab === 'output' ? (
+          {tabs.includes('output') && activeTab === 'output' ? (
             <Box
               sx={{
-                padding: `0`,
+                padding: 0,
                 backgroundColor: '#000',
                 width: '100%',
                 flex: 1,
@@ -199,6 +262,7 @@ export default function ViewOutputModalStreaming({
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
+                borderRadius: '8px',
               }}
             >
               <PollingOutputTerminal
@@ -210,7 +274,19 @@ export default function ViewOutputModalStreaming({
               />
             </Box>
           ) : (
-            <>
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                backgroundColor: '#000',
+                borderRadius: '8px',
+                padding: '8px 11px',
+                gap: 1,
+              }}
+            >
               {providerLogsLoading && (
                 <Box
                   sx={{
@@ -268,10 +344,16 @@ export default function ViewOutputModalStreaming({
               {!providerLogsLoading && !providerLogsError && (
                 <ProviderLogsTerminal logsText={providerLogText} />
               )}
-            </>
+            </Box>
           )}
         </Box>
       </ModalDialog>
     </Modal>
   );
 }
+
+ViewOutputModalStreaming.defaultProps = {
+  tabs: ['output', 'provider'],
+};
+
+export default ViewOutputModalStreaming;
