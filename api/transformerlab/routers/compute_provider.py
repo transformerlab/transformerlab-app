@@ -19,6 +19,7 @@ from transformerlab.services.provider_service import (
     update_team_provider,
     delete_team_provider,
     get_provider_instance,
+    _get_local_provider_setup,
 )
 from transformerlab.schemas.compute_providers import (
     ProviderCreate,
@@ -58,11 +59,6 @@ from transformerlab.shared.interactive_gallery_utils import (
 from typing import Any
 
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
-
-
-def _is_local_provider_creation_disabled() -> bool:
-    """Return True when local provider creation is globally disabled via env."""
-    return os.getenv("TFL_DISABLE_LOCAL_PROVIDER", "false").lower() == "true"
 
 
 def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
@@ -190,7 +186,7 @@ async def create_provider(
         )
 
     # Respect global disable flag for local providers
-    if provider_data.type == ProviderType.LOCAL and _is_local_provider_creation_disabled():
+    if provider_data.type == ProviderType.LOCAL and _get_local_provider_setup() == "disabled":
         raise HTTPException(status_code=400, detail="Local providers are disabled by server configuration.")
 
     # Check if provider name already exists for this team

@@ -15,19 +15,15 @@ from transformerlab.compute_providers.local import _check_amd_gpu, _check_nvidia
 from transformerlab.shared.models.models import AcceleratorType, ProviderType, Team, TeamComputeProvider, User, UserTeam
 
 
-def _is_local_provider_creation_disabled() -> bool:
-    """Return True when local provider creation is globally disabled via env."""
-    return os.getenv("TFL_DISABLE_LOCAL_PROVIDER", "false").lower() == "true"
-
-
-def _is_auto_local_provider_enabled() -> bool:
+def _get_local_provider_setup() -> str:
     """
-    Return True when auto-creation of local providers on team creation/seed is enabled.
+    Return TFL_LOCAL_PROVIDER_SETUP mode: "auto" | "disabled" | "manual".
 
-    Defaults to False so auto-creation is opt-in. Value is treated like MULTIUSER:
-    only the string "true" (case-insensitive) enables it.
+    - auto: auto-create a default local provider on team creation/seed; manual add allowed.
+    - disabled: no local provider creation (auto or manual).
+    - manual (default): manual add allowed; auto-add disabled.
     """
-    return os.getenv("TFL_ENABLE_AUTO_LOCAL_PROVIDER", "false").lower() == "true"
+    return os.getenv("TFL_LOCAL_PROVIDER_SETUP", "manual").lower().strip()
 
 
 async def validate_team_exists(session: AsyncSession, team_id: str) -> None:
@@ -328,7 +324,7 @@ async def create_team_provider(
         await validate_provider_data(session, team_id, created_by_user_id, validate_membership=True)
 
     # Respect global disable flag for local providers
-    if provider_type == ProviderType.LOCAL.value and _is_local_provider_creation_disabled():
+    if provider_type == ProviderType.LOCAL.value and _get_local_provider_setup() == "disabled":
         raise HTTPException(status_code=400, detail="Local providers are disabled by server configuration.")
 
     provider = TeamComputeProvider(
@@ -367,10 +363,11 @@ async def ensure_default_local_provider_for_team(
     Returns:
         The created TeamComputeProvider record, or None if one already existed or auto-creation is disabled.
     """
-    # Respect global disable flag and auto-create flag
-    if _is_local_provider_creation_disabled():
+    # Respect global setup: disabled = no local providers; manual = no auto-create
+    setup = _get_local_provider_setup()
+    if setup == "disabled":
         return None
-    if not _is_auto_local_provider_enabled():
+    if setup != "auto":
         return None
 
     # Check for existing local provider with the same name
