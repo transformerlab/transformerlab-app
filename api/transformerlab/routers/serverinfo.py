@@ -6,7 +6,6 @@ import subprocess
 import zipfile
 import tempfile
 from datetime import datetime
-from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, HTTPException
@@ -31,26 +30,6 @@ if IS_WSL_SYSTEM:
 
 
 router = APIRouter(prefix="/server", tags=["serverinfo"])
-
-
-@router.get("/config")
-async def get_local_provider_config():
-    """
-    Return a snapshot of local provider/server configuration generated via the base venv.
-
-    This is read from HOME_DIR/local_provider_config.json, which is written by the
-    transformerlab.scripts.local_provider_config module when the shared base venv
-    for the local provider is created or refreshed.
-    """
-    config_path = Path(HOME_DIR) / "local_provider_config.json"
-    if not config_path.exists():
-        raise HTTPException(status_code=404, detail="Local provider config not found")
-
-    try:
-        raw = config_path.read_text(encoding="utf-8")
-        return json.loads(raw)
-    except (OSError, json.JSONDecodeError) as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to read local provider config: {exc}") from exc
 
 
 async def watch_remote_file(

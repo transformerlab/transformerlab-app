@@ -114,24 +114,8 @@ export function usePluginStatus(experimentInfo: any) {
   return { data: outdatedPlugins, isLoading, mutate };
 }
 
-export function useServerStats() {
-  const api_url = API_URL();
-  const url: string | null = api_url ? API_URL() + 'server/config' : null;
-
-  // Poll every 2 seconds
-  const options = { refreshInterval: 2000 };
-
-  const { data, error, isLoading } = useSWR(url, fetcher, options);
-
-  return {
-    server: data,
-    isLoading,
-    isError: !!error,
-  };
-}
-
 /**
- * Connection health check with timeout. Use this (not useServerStats) to decide
+ * Connection health check with timeout. Use this to decide
  * when to show ConnectionLostModal, so we get a definite fail after ~10s when
  * the server is down instead of hanging.
  *

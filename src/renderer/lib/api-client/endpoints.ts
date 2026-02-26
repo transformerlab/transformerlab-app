@@ -371,10 +371,6 @@ Endpoints.ServerInfo = {
   StreamLog: () => `${API_URL()}server/stream_log`,
 };
 
-Endpoints.ServerConfig = {
-  Get: () => `${API_URL()}server/config`,
-};
-
 Endpoints.Charts = {
   CompareEvals: (jobIds: string) =>
     `${API_URL()}evals/compare_evals?job_list=${jobIds}`,

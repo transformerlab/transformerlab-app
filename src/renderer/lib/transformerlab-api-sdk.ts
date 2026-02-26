@@ -46,7 +46,6 @@ export {
 export {
   useModelStatus,
   usePluginStatus,
-  useServerStats,
   useConnectionHealth,
   useCheckLocalConnection,
   fetcher,
