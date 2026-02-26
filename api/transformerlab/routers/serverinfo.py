@@ -86,7 +86,6 @@ async def get_mac_disk_usage():
     return None
 
 
-
 @router.get("/info")
 async def get_computer_information():
     # start with our static system information and add current performance details
