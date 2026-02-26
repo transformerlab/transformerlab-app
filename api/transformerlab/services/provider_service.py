@@ -14,10 +14,32 @@ from transformerlab.shared.models.models import (
 )
 from transformerlab.compute_providers.config import ComputeProviderConfig, create_compute_provider
 from transformerlab.compute_providers.base import ComputeProvider
+<<<<<<< Updated upstream
 from transformerlab.compute_providers.local import _check_nvidia_gpu, _check_amd_gpu, ensure_base_venv_and_requirements
 import sys
 import platform
+=======
+from transformerlab.compute_providers.local import _check_nvidia_gpu, _check_amd_gpu
+>>>>>>> Stashed changes
 import asyncio
+import os
+import platform
+import sys
+
+
+def _is_local_provider_creation_disabled() -> bool:
+    """Return True when local provider creation is globally disabled via env."""
+    return os.getenv("TFL_DISABLE_LOCAL_PROVIDER", "false").lower() == "true"
+
+
+def _is_auto_local_provider_enabled() -> bool:
+    """
+    Return True when auto-creation of local providers on team creation/seed is enabled.
+
+    Defaults to False so auto-creation is opt-in. Value is treated like MULTIUSER:
+    only the string "true" (case-insensitive) enables it.
+    """
+    return os.getenv("TFL_ENABLE_AUTO_LOCAL_PROVIDER", "false").lower() == "true"
 
 
 async def validate_team_exists(session: AsyncSession, team_id: str) -> None:
@@ -311,11 +333,15 @@ async def create_team_provider(
         Created TeamComputeProvider record
 
     Raises:
-        HTTPException: If validation fails
+        HTTPException: If validation fails or local providers are disabled
     """
     # Validate referential integrity before creating
     if validate:
         await validate_provider_data(session, team_id, created_by_user_id, validate_membership=True)
+
+    # Respect global disable flag for local providers
+    if provider_type == ProviderType.LOCAL.value and _is_local_provider_creation_disabled():
+        raise HTTPException(status_code=400, detail="Local providers are disabled by server configuration.")
 
     provider = TeamComputeProvider(
         team_id=team_id, name=name, type=provider_type, config=config, created_by_user_id=created_by_user_id
@@ -351,8 +377,14 @@ async def ensure_default_local_provider_for_team(
         provider_name: Name for the local provider (default: "Local")
 
     Returns:
-        The created TeamComputeProvider record, or None if one already existed.
+        The created TeamComputeProvider record, or None if one already existed or auto-creation is disabled.
     """
+    # Respect global disable flag and auto-create flag
+    if _is_local_provider_creation_disabled():
+        return None
+    if not _is_auto_local_provider_enabled():
+        return None
+
     # Check for existing local provider with the same name
     existing_providers = await list_team_providers(session, team_id)
     for provider in existing_providers:

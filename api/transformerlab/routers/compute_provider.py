@@ -60,6 +60,11 @@ from typing import Any
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
 
 
+def _is_local_provider_creation_disabled() -> bool:
+    """Return True when local provider creation is globally disabled via env."""
+    return os.getenv("TFL_DISABLE_LOCAL_PROVIDER", "false").lower() == "true"
+
+
 def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
     """Return a filesystem-safe cluster base name."""
     if not base_name:
@@ -183,6 +188,10 @@ async def create_provider(
             status_code=400,
             detail=f"Invalid provider type. Must be one of: {ProviderType.SLURM.value}, {ProviderType.SKYPILOT.value}, {ProviderType.RUNPOD.value}, {ProviderType.LOCAL.value}",
         )
+
+    # Respect global disable flag for local providers
+    if provider_data.type == ProviderType.LOCAL and _is_local_provider_creation_disabled():
+        raise HTTPException(status_code=400, detail="Local providers are disabled by server configuration.")
 
     # Check if provider name already exists for this team
     existing = await list_team_providers(session, team_id)
