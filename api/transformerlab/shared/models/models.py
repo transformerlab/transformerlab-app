@@ -133,6 +133,15 @@ class ProviderType(str, enum.Enum):
     LOCAL = "local"
 
 
+class AcceleratorType(str, enum.Enum):
+    """Enum for accelerator types."""
+
+    APPLE_SILICON = "AppleSilicon"
+    NVIDIA = "NVIDIA"
+    AMD = "AMD"
+    CPU = "cpu"
+
+
 class TeamComputeProvider(Base):
     """Team compute provider model for managing compute providers per team."""
 

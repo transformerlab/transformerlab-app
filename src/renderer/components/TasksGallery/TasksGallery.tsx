@@ -260,30 +260,17 @@ function TaskCard({
               ))}
             </Stack>
           )}
-          {/* {task.config && (
-            <Stack spacing={0.5}>
-              <Typography level="body-xs" fontWeight="bold">
-                Compute:
-              </Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap">
-                {task.config.cpus && (
-                  <Chip size="sm" variant="soft">
-                    CPUs: {task.config.cpus}
-                  </Chip>
-                )}
-                {task.config.memory && (
-                  <Chip size="sm" variant="soft">
-                    Memory: {task.config.memory}GB
-                  </Chip>
-                )}
-                {task.config.accelerators && (
-                  <Chip size="sm" variant="soft">
-                    {task.config.accelerators}
-                  </Chip>
-                )}
+          {(task.supported_accelerators ||
+            task.config?.supported_accelerators) && (
+            <Box sx={{ mt: 1.5 }}>
+              <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                <Chip size="sm" variant="soft" color="primary">
+                  {task.supported_accelerators ||
+                    task.config?.supported_accelerators}
+                </Chip>
               </Stack>
-            </Stack>
-          )} */}
+            </Box>
+          )}
         </Stack>
         <CardActions>
           <Button

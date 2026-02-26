@@ -15,7 +15,7 @@ tlab_exporter.add_argument(
 )
 
 
-@tlab_exporter.exporter_job_wrapper(progress_start=0, progress_end=100)
+@tlab_exporter.job_wrapper(progress_start=0, progress_end=100)
 def llamafile_export():
     """Export a model to Llamafile format"""
     input_model = tlab_exporter.params.get("model_name")

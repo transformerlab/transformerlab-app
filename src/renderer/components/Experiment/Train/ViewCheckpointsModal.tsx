@@ -6,6 +6,7 @@ import {
   Table,
   Button,
   Box,
+  CircularProgress,
 } from '@mui/joy';
 import { PlayIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -13,6 +14,7 @@ import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { fetchWithAuth } from 'renderer/lib/authContext';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import { formatBytes } from 'renderer/lib/utils';
 
 export default function ViewCheckpointsModal({ open, onClose, jobId }) {
   const { experimentInfo } = useExperimentInfo();
@@ -112,7 +114,23 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
               )}
 
             {checkpointsLoading ? (
-              <Typography level="body-md">Loading checkpoints...</Typography>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  mt: 2,
+                }}
+              >
+                <CircularProgress
+                  sx={{
+                    '--CircularProgress-size': '18px',
+                    '--CircularProgress-trackThickness': '4px',
+                    '--CircularProgress-progressThickness': '2px',
+                  }}
+                />
+                <Typography level="body-md">Loading checkpoints...</Typography>
+              </Box>
             ) : (
               <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
                 <Table>

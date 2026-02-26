@@ -40,6 +40,11 @@ load_env_files() {
 # Load environment variables
 load_env_files
 
+# Override env variables (if TFL_API_STORAGE_URI is set and TFL_REMOTE_STORAGE_ENABLED is not set)
+if [ -n "${TFL_API_STORAGE_URI}" ] && [ -z "${TFL_REMOTE_STORAGE_ENABLED}" ]; then
+    export TFL_REMOTE_STORAGE_ENABLED=True
+fi
+
 # echo "Your shell is $SHELL"
 # echo "Conda's binary is at ${CONDA_BIN}"
 # echo "Your current directory is $(pwd)"

@@ -14,7 +14,6 @@ import sys
 from werkzeug.utils import secure_filename
 
 import fastapi
-import httpx
 
 # Using torch to test for CUDA and MPS support.
 import uvicorn
@@ -29,6 +28,27 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+# Optional Datadog APM (does nothing unless enabled + installed)
+def _enable_datadog_if_setup():
+    if not os.getenv("DD_SERVICE"):
+        return
+
+    try:
+        from ddtrace import patch_all
+        from ddtrace.contrib.asgi import TraceMiddleware
+
+        print("Datadog trace middleware enabled")
+    except ImportError:
+        print("Datadog Init Error: Failed to import library")
+        return None
+
+    patch_all(fastapi=True, httpx=True)
+    return TraceMiddleware
+
+
+TRACE_MIDDLEWARE = _enable_datadog_if_setup()
+
+import httpx  # noqa: E402
 from fastchat.constants import (  # noqa: E402
     ErrorCode,
 )
@@ -50,15 +70,9 @@ from transformerlab.routers import (  # noqa: E402
     data,
     model,
     serverinfo,
-    train,
     plugins,
-    evals,
     config,
-    tasks,
-    prompts,
     tools,
-    batched_prompts,
-    recipes,
     teams,
     compute_provider,
     auth,
@@ -79,7 +93,6 @@ except Exception:
     HAS_AMD = True
 from transformerlab import fastchat_openai_api  # noqa: E402
 from transformerlab.routers.experiment import experiment  # noqa: E402
-from transformerlab.routers.experiment import workflows  # noqa: E402
 from transformerlab.routers.experiment import jobs  # noqa: E402
 from transformerlab.shared import shared  # noqa: E402
 from transformerlab.shared import galleries  # noqa: E402
@@ -151,9 +164,6 @@ async def lifespan(app: FastAPI):
 
     if "--reload" in sys.argv:
         await install_all_plugins()
-
-    if not os.getenv("MULTIUSER"):
-        asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
     # Do the following at API Shutdown:
@@ -161,14 +171,6 @@ async def lifespan(app: FastAPI):
     # Run the clean up function
     cleanup_at_exit()
     print("FastAPI LIFESPAN: Complete")
-
-
-async def run_over_and_over():
-    """Every three seconds, check for new jobs to run."""
-    while True:
-        await asyncio.sleep(3)
-        await jobs.start_next_job()
-        await workflows.start_next_step_in_workflow()
 
 
 description = "Transformerlab API helps you do awesome stuff. 🚀"
@@ -224,6 +226,10 @@ app = fastapi.FastAPI(
     lifespan=lifespan,
     openapi_tags=tags_metadata,
 )
+
+# Add tracing middleware only if setup and enabled
+if TRACE_MIDDLEWARE is not None:
+    app.add_middleware(TRACE_MIDDLEWARE)
 
 # CORS configuration
 # When using cookies, allow_credentials must be True and allow_origins cannot be ["*"]
@@ -305,18 +311,12 @@ async def validation_exception_handler(request, exc):
 
 app.include_router(model.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(serverinfo.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(train.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(data.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(experiment.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(plugins.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(evals.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(jobs.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(tasks.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(config.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(prompts.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(tools.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(recipes.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(batched_prompts.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(fastchat_openai_api.router)
 app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(compute_provider.router)
@@ -585,16 +585,10 @@ async def healthz():
     """
     Health check endpoint to verify server status and mode.
     """
-    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "")
-    storage_provider = os.getenv("TFL_STORAGE_PROVIDER", "").lower()
-
-    # Determine mode: s3 or local
-    if tfl_remote_storage_enabled:
-        mode = "s3"
-    elif storage_provider == "localfs":
-        mode = "localfs"
-    else:
-        mode = "local"
+    # MULTIUSER flag: default to true unless explicitly set to 'false'
+    IS_MULTIUSER = os.getenv("MULTIUSER", "true").lower() == "true"
+    # Determine mode: multiuser or local
+    mode = "multiuser" if IS_MULTIUSER else "local"
 
     return {
         "message": "OK",

@@ -13,7 +13,7 @@ except ImportError or ModuleNotFoundError:
 tlab_exporter.add_argument("--q_bits", default="4", type=str, help="Bits per weight for quantization.")
 
 
-@tlab_exporter.exporter_job_wrapper(progress_start=0, progress_end=100)
+@tlab_exporter.job_wrapper(progress_start=0, progress_end=100)
 def mlx_export():
     plugin_dir = os.path.realpath(os.path.dirname(__file__))
     python_executable = get_python_executable(plugin_dir)
