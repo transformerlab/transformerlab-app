@@ -116,18 +116,17 @@ export function usePluginStatus(experimentInfo: any) {
 
 export function useServerStats() {
   const api_url = API_URL();
-  const url: string | null = api_url ? API_URL() + 'server/info' : null;
+  const url: string | null = api_url ? API_URL() + 'server/config' : null;
 
-  // Poll every 1 seconds
+  // Poll every 2 seconds
   const options = { refreshInterval: 2000 };
 
-  // eslint-disable-next-line prefer-const
-  let { data, isError, isLoading } = useSWR(url, fetcher, options);
+  const { data, error, isLoading } = useSWR(url, fetcher, options);
 
   return {
     server: data,
     isLoading,
-    isError,
+    isError: !!error,
   };
 }
 
