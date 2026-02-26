@@ -5,9 +5,11 @@
 - **Frontend dev**: `npm start` (Node v22, not v23+)
 - **Frontend test**: `npm test` (Jest); single test: `npm test -- --testPathPattern="<pattern>"`
 - **Frontend format**: `npm run format` (Prettier, single quotes)
+- **Python env (run once per shell)**: `source ~/.transformerlab/miniforge3/bin/activate && conda activate ~/.transformerlab/envs/transformerlab`
 - **API install**: `cd api && ./install.sh` or `npm run api:install`
 - **API start**: `cd api && ./run.sh` or `npm run api:start`
-- **API test**: `cd api && pytest`; single test: `pytest test/<file>::<test>`
+- **API test**: `cd api && pytest`
+- **API single test**: `cd api && pytest test/<file>::<test>`
 - **Python lint**: `ruff check api/` (line-length=120, indent=4)
 - **DB migrations**: `cd api && alembic upgrade head`
 
@@ -20,6 +22,7 @@
 - **CLI**: Typer-based Python CLI in `cli/`
 
 ## Code Style
+
 - **Imports**: Use existing patterns in neighboring files; check package.json/pyproject.toml before adding deps
 - **DB Tables**: Use existing patterns and dont create any table with a foreign key.
 - **Alembic Migrations**: Use existing patterns and dont create any migration with a foreign key. Try to autogenerate the migration if possible.

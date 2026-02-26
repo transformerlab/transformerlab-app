@@ -2614,6 +2614,16 @@ async def stop_cluster(
         user_id_str = str(user_and_team["user"].id)
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
+        # Local provider needs workspace_dir (job dir) to stop the correct process tree.
+        # Derive job_id from the standard "-job-<job_id>" suffix in the cluster name.
+        if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
+            job_id_segment = None
+            if "-job-" in cluster_name:
+                job_id_segment = cluster_name.rsplit("-job-", 1)[-1] or None
+            if job_id_segment is not None:
+                job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id_segment, org_id=team_id)
+                provider_instance.extra_config["workspace_dir"] = job_dir
+
         # Stop cluster
         result = await asyncio.to_thread(provider_instance.stop_cluster, cluster_name)
 

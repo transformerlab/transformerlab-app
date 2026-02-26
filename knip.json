@@ -1,0 +1,43 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/renderer/index.tsx",
+    "src/renderer/instrument.ts",
+    "src/main/**/*.ts",
+    "src/__tests__/**/*.{ts,tsx}",
+    ".erb/configs/**/*.ts",
+    ".erb/scripts/**/*.ts"
+  ],
+  "project": ["src/**/*.{ts,tsx,js,jsx}"],
+  "ignore": [
+    "api/**",
+    "cli/**",
+    "lab-sdk/**",
+    "docs/**",
+    "scripts/**",
+    "release/**",
+    "build/**",
+    "dist/**",
+    "test/**",
+    "test-results/**",
+    "playwright-report/**",
+    "assets/**",
+    "src/node_modules/**",
+    "**/*.d.ts",
+    "src/renderer/preload.d.ts"
+  ],
+  "ignoreDependencies": [
+    "@playwright/test",
+    "playwright",
+    "electron",
+    "electron-builder",
+    "electron-devtools-installer",
+    "electron-notarize"
+  ],
+  "webpack": {
+    "entry": [".erb/configs/webpack.config.*.ts"]
+  },
+  "jest": {
+    "entry": ["src/__tests__/**/*.{ts,tsx}"]
+  }
+}
