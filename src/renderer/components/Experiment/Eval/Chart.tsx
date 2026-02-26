@@ -5,12 +5,27 @@ import { ResponsiveRadar } from '@nivo/radar';
 import { Select, Option, FormControl, Box, Button } from '@mui/joy';
 import { ArrowLeftRight } from 'lucide-react';
 
-const Chart = ({ metrics, compareChart }) => {
+export interface ChartMetric {
+  type: string;
+  score: number;
+  evaluator?: string;
+  job_id?: string | number;
+}
+
+interface ChartProps {
+  metrics: ChartMetric[];
+  compareChart?: boolean;
+}
+
+const Chart = ({ metrics, compareChart = false }: ChartProps) => {
   const [chartType, setChartType] = useState('bar');
   const [swapAxes, setSwapAxes] = useState(false);
 
-  const handleChartTypeChange = (event, newValue) => {
-    setChartType(newValue);
+  const handleChartTypeChange = (
+    _event: React.SyntheticEvent | null,
+    newValue: string | null,
+  ) => {
+    if (newValue) setChartType(newValue);
   };
 
   const handleSwapAxes = () => {
@@ -33,7 +48,11 @@ const Chart = ({ metrics, compareChart }) => {
   );
 
   // Create a consistent structure for all modes
-  const dataMap = {};
+  interface DataPoint {
+    metric: string;
+    [key: string]: string | number | undefined;
+  }
+  const dataMap: Record<string, DataPoint> = {};
   metrics.forEach((metric) => {
     const { type, evaluator, job_id, score } = metric;
     const seriesKey = compareChart ? `${evaluator}-${job_id}` : 'score';
@@ -66,7 +85,7 @@ const Chart = ({ metrics, compareChart }) => {
               );
               return {
                 x: seriesKey,
-                y: matchingPoint ? matchingPoint[seriesKey] : null,
+                y: matchingPoint ? (matchingPoint[seriesKey] as number) : null,
               };
             })
             .filter((point) => point.y !== null),
@@ -78,7 +97,7 @@ const Chart = ({ metrics, compareChart }) => {
           data: dataPoints
             .map((point) => ({
               x: point.metric,
-              y: point[seriesKey],
+              y: point[seriesKey] as number,
             }))
             .filter((point) => point.y !== undefined),
         }));
@@ -87,7 +106,7 @@ const Chart = ({ metrics, compareChart }) => {
       if (chartType === 'radar') {
         // For radar charts, replace undefined values with 0
         return dataPoints.map((point) => {
-          const cleanedPoint = { ...point };
+          const cleanedPoint: DataPoint = { ...point };
           // Ensure all series keys have valid numeric values
           seriesKeys.forEach((key) => {
             if (cleanedPoint[key] === undefined) {
@@ -136,7 +155,12 @@ const Chart = ({ metrics, compareChart }) => {
       <div style={{ height: 400, width: '100%' }}>
         {chartType === 'line' && (
           <ResponsiveLine
-            data={getChartData()}
+            data={
+              getChartData() as {
+                id: string;
+                data: { x: string; y: number }[];
+              }[]
+            }
             margin={{ top: 50, right: 200, bottom: 80, left: 60 }}
             xScale={{ type: 'point' }}
             yScale={{
@@ -190,7 +214,7 @@ const Chart = ({ metrics, compareChart }) => {
 
         {chartType === 'bar' && (
           <ResponsiveBar
-            data={getChartData()}
+            data={getChartData() as Record<string, string | number>[]}
             keys={normalizedData.seriesKeys}
             indexBy="metric"
             margin={{ top: 50, right: 130, bottom: 50, left: 60 }}
@@ -224,7 +248,7 @@ const Chart = ({ metrics, compareChart }) => {
 
         {chartType === 'radar' && (
           <ResponsiveRadar
-            data={getChartData()}
+            data={getChartData() as DataPoint[]}
             keys={normalizedData.seriesKeys}
             indexBy="metric"
             margin={{ top: 70, right: 170, bottom: 40, left: 80 }}
