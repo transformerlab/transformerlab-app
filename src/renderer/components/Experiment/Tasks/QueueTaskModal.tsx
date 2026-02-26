@@ -142,9 +142,13 @@ export default function QueueTaskModal({
       : null;
   const { data: providerClustersData } = useSWR(clustersKey, fetcher);
   const localProviderConfig = React.useMemo(() => {
-    const clusters = Array.isArray(providerClustersData) ? providerClustersData : [];
+    const clusters = Array.isArray(providerClustersData)
+      ? providerClustersData
+      : [];
     const localCluster =
-      clusters.find((c: any) => String(c?.backend_type).toLowerCase() === 'local') ??
+      clusters.find(
+        (c: any) => String(c?.backend_type).toLowerCase() === 'local',
+      ) ??
       clusters[0] ??
       null;
     return (localCluster?.provider_data as any) ?? null;
