@@ -38,7 +38,7 @@ import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import ModelDetailsModal from './ModelDetailsModal';
 import ImportModelsBar from './ImportModelsBar';
-import ModelVramSidebar, { ModelGalleryEntry } from './ModelVramSidebar';
+import { ModelGalleryEntry } from './ModelGroups';
 import DownloadProgressBox from '../Shared/DownloadProgressBox';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
@@ -736,11 +736,6 @@ export default function ModelStore() {
           </Table>
         )}
       </Sheet>
-      <ModelVramSidebar
-        model={selectedModel}
-        open={Boolean(selectedModel)}
-        onClose={() => setSelectedModel(null)}
-      />
       <ImportModelsBar jobId={jobId} setJobId={setJobId} />
     </Sheet>
   );

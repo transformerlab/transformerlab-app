@@ -11,7 +11,6 @@ from markitdown import MarkItDown
 from werkzeug.utils import secure_filename
 from urllib.parse import urlparse
 
-from transformerlab.routers.experiment import rag
 from transformerlab.shared.shared import slugify
 
 from lab import Experiment, storage
@@ -247,8 +246,8 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
                 raise HTTPException(status_code=403, detail="There was a problem uploading the file")
 
         # reindex the vector store on every file upload
-        if folder == "rag":
-            await rag.reindex(experimentId)
+        # if folder == "rag":
+        #     await rag.reindex(experimentId)
 
     return {"status": "success", "filename": fileNames}
 
@@ -326,8 +325,8 @@ async def document_upload_links(experimentId: str, folder: str = None, data: dic
             async with aiofiles.open(filename_md, "w", encoding="utf-8") as out_file:
                 await out_file.write(result.markdown)
         # reindex the vector store on every file upload
-        if folder == "rag":
-            await rag.reindex(experimentId)
+        # if folder == "rag":
+        #     await rag.reindex(experimentId)
     return {"status": "success", "filename": urls}
 
 
@@ -366,10 +365,10 @@ async def document_download_zip(experimentId: str, data: dict = Body(...)):
         # Clean up
         os.remove(temp_zip_path)
 
-        # Reindex RAG if any files were extracted to a 'rag' folder
-        rag_files = [f for f in extracted_files if f.startswith("rag/")]
-        if rag_files:
-            await rag.reindex(experimentId)
+        # # Reindex RAG if any files were extracted to a 'rag' folder
+        # rag_files = [f for f in extracted_files if f.startswith("rag/")]
+        # if rag_files:
+        #     await rag.reindex(experimentId)
 
         return {"status": "success", "extracted_files": extracted_files, "total_files": len(extracted_files)}
 
