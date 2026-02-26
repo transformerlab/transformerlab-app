@@ -589,7 +589,14 @@ def ensure_base_venv_and_requirements() -> Path:
     # This uses the same logic as /server/info but runs inside the shared base venv and
     # writes the result to HOME_DIR/local_provider_config.json.
     python_bin = base_venv_path / "bin" / "python"
-    script_path = Path(source_code_dir) / "transformerlab" / "scripts" / "local_provider_config.py"
+    script_path = (
+        Path(source_code_dir)
+        / "transformerlab"
+        / "compute_providers"
+        / "services"
+        / "local"
+        / "local_provider_config.py"
+    )
     env = os.environ.copy()
     venv_bin = base_venv_path / "bin"
     env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
