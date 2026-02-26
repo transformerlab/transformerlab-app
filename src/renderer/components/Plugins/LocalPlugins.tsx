@@ -28,13 +28,6 @@ export default function LocalPlugins({
     chatAPI.Endpoints.Experiment.ListScripts(experimentInfo?.id),
     fetcher,
   );
-  const serverInfoKey =
-    window?.platform?.multiuser === true
-      ? null
-      : chatAPI.Endpoints.ServerInfo.Get();
-  const { data: serverInfo } = useSWR(serverInfoKey, fetcher);
-
-  const device = serverInfo?.device_type;
 
   if (error)
     return 'Failed to fetch plugins for the selected experiment. Please verify the experiment ID and server availability.';

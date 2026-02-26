@@ -20,7 +20,6 @@ import Welcome from './Welcome/Welcome';
 import ModelZoo from './ModelZoo/ModelZoo';
 import Plugins from './Plugins/Plugins';
 import PluginDetails from './Plugins/PluginDetails';
-import Computer from './Computer';
 import Compute from './Compute/Compute';
 import Eval from './Experiment/Eval/Eval';
 import Api from './Experiment/Api';
@@ -386,7 +385,6 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/zoo/groups" element={<ModelZoo tab="groups" />} />
         <Route path="/data" element={<Data />} />
         <Route path="/tasks-gallery" element={<TasksGallery />} />
-        <Route path="/computer" element={<Computer />} />
         <Route path="/compute" element={<Compute />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/user" element={<UserSettings />} />

@@ -33,12 +33,6 @@ export default function PluginGallery({
     fetcher,
   );
 
-  const serverInfoKey =
-    window?.platform?.multiuser === true
-      ? null
-      : chatAPI.Endpoints.ServerInfo.Get();
-  const { data: serverInfo } = useSWR(serverInfoKey, fetcher);
-
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({});
   const [showExperimental, setShowExperimental] = useState(false);
@@ -50,8 +44,6 @@ export default function PluginGallery({
     }
     fetchShowExperimental();
   }, []);
-
-  const device = serverInfo?.device_type;
 
   const renderFilters = () => (
     <FormControl size="sm" sx={{ flex: 1 }}>
