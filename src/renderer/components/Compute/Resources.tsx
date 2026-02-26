@@ -233,7 +233,7 @@ const Resources = () => {
                 <Typography level="title-lg" sx={{ mb: 2 }}>
                   Local Machine
                 </Typography>
-                <LocalMachineSummary />
+                <LocalMachineSummary providerId={selectedProviderObj.id} />
               </CardContent>
             </Card>
           </Grid>
