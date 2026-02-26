@@ -1,30 +1,18 @@
 """Service layer for bridging database provider records to ProviderConfig."""
 
-from typing import Optional, List
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from fastapi import HTTPException
-from transformerlab.shared.models.models import (
-    TeamComputeProvider,
-    Team,
-    UserTeam,
-    User,
-    ProviderType,
-    AcceleratorType,
-)
-from transformerlab.compute_providers.config import ComputeProviderConfig, create_compute_provider
-from transformerlab.compute_providers.base import ComputeProvider
-<<<<<<< Updated upstream
-from transformerlab.compute_providers.local import _check_nvidia_gpu, _check_amd_gpu, ensure_base_venv_and_requirements
-import sys
-import platform
-=======
-from transformerlab.compute_providers.local import _check_nvidia_gpu, _check_amd_gpu
->>>>>>> Stashed changes
 import asyncio
 import os
 import platform
 import sys
+from typing import List, Optional
+
+from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from transformerlab.compute_providers.base import ComputeProvider
+from transformerlab.compute_providers.config import ComputeProviderConfig, create_compute_provider
+from transformerlab.compute_providers.local import _check_amd_gpu, _check_nvidia_gpu, ensure_base_venv_and_requirements
+from transformerlab.shared.models.models import AcceleratorType, ProviderType, Team, TeamComputeProvider, User, UserTeam
 
 
 def _is_local_provider_creation_disabled() -> bool:
