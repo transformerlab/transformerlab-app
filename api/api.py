@@ -141,9 +141,6 @@ async def lifespan(app: FastAPI):
     # Cancel any running jobs
     await cancel_in_progress_jobs()
 
-    # Start background sweep status updater.
-    await start_sweep_status_worker()
-
     # Create buckets/folders for all existing teams if cloud or localfs storage is enabled
     if os.getenv("TFL_REMOTE_STORAGE_ENABLED") or (
         os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI")
@@ -168,6 +165,9 @@ async def lifespan(app: FastAPI):
 
     if "--reload" in sys.argv:
         await install_all_plugins()
+
+    # Start background sweep status updater after all startup steps succeed.
+    await start_sweep_status_worker()
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
     # Do the following at API Shutdown:
