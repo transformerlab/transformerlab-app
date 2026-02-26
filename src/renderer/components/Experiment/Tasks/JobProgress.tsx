@@ -11,6 +11,7 @@ import Skeleton from '@mui/joy/Skeleton';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import duration from 'dayjs/plugin/duration';
+import utc from 'dayjs/plugin/utc';
 import { jobChipColor } from 'renderer/lib/utils';
 import { useCallback } from 'react';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -19,6 +20,7 @@ import { useAuth } from 'renderer/lib/authContext';
 
 dayjs.extend(relativeTime);
 dayjs.extend(duration);
+dayjs.extend(utc);
 
 interface JobData {
   start_time?: string;

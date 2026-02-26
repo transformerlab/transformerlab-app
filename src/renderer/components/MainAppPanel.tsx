@@ -14,30 +14,20 @@ import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { useAnalytics } from './Shared/analytics/AnalyticsContext';
+import SafeJSONParse from './Shared/SafeJSONParse';
 import Data from './Data/Data';
 import Interact from './Experiment/Interact/Interact';
 import Welcome from './Welcome/Welcome';
 import ModelZoo from './ModelZoo/ModelZoo';
-import Plugins from './Plugins/Plugins';
-import PluginDetails from './Plugins/PluginDetails';
-import Computer from './Computer';
 import Compute from './Compute/Compute';
-import Eval from './Experiment/Eval/Eval';
 import Api from './Experiment/Api';
 import Settings from './Experiment/Settings';
 import TrainLoRA from './Experiment/Train/TrainLoRA';
-import Prompt from './Experiment/Prompt';
 import Documents from './Experiment/Documents';
-import Tokenize from './Experiment/Interact/Tokenize';
-import Audio from './Experiment/Audio/Audio';
-import AudioSTT from './Experiment/Audio/AudioSTT';
 import ExperimentNotes from './Experiment/ExperimentNotes';
 import UserSettings from './User/UserSettings';
 import TransformerLabSettings from './Settings/TransformerLabSettings';
-import FoundationHome from './Experiment/Foundation';
-import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
-import { useAnalytics } from './Shared/analytics/AnalyticsContext';
-import SafeJSONParse from './Shared/SafeJSONParse';
 import Tasks from './Experiment/Tasks/Tasks';
 import Interactive from './Experiment/Interactive/Interactive';
 import Team from './Team/Team';
@@ -303,37 +293,6 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/" element={<Welcome />} />
         <Route path="/experiment/notes" element={<ExperimentNotes />} />
         <Route
-          path="/experiment/model"
-          element={
-            <FoundationHome
-              pickAModelMode
-              experimentInfo={experimentInfo}
-              setFoundation={setFoundation}
-              setAdaptor={setAdaptor}
-              setLogsDrawerOpen={setLogsDrawerOpen}
-            />
-          }
-        />
-        <Route
-          path="/experiment/embedding-model"
-          element={
-            <SelectEmbeddingModel
-              experimentInfo={experimentInfo}
-              setEmbedding={setEmbedding}
-            />
-          }
-        />
-        <Route
-          path="/experiment/prompt"
-          element={
-            <Prompt
-              experimentId={experimentInfo?.id}
-              experimentInfo={experimentInfo}
-              experimentInfoMutate={experimentInfoMutate}
-            />
-          }
-        />
-        <Route
           path="/experiment/chat"
           element={
             <Interact
@@ -359,24 +318,10 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
             />
           }
         />
-        <Route path="/experiment/tokenize" element={<Tokenize />} />
         <Route path="/experiment/training" element={<TrainLoRA />} />
         <Route path="/experiment/tasks" element={<Tasks />} />
         <Route path="/experiment/interactive" element={<Interactive />} />
-
-        <Route
-          path="/experiment/eval"
-          element={<Eval addEvaluation={experimentAddEvaluation} />}
-        />
         <Route path="/experiment/documents" element={<Documents />} />
-
-        <Route path="/experiment/audio" element={<Audio />} />
-        <Route path="/experiment/audio-stt" element={<AudioSTT />} />
-        <Route
-          path="/plugins"
-          element={<Plugins setLogsDrawerOpen={setLogsDrawerOpen} />}
-        />
-        <Route path="/plugins/:pluginName" element={<PluginDetails />} />
         <Route path="/api" element={<Api />} />
         <Route path="/experiment/settings" element={<Settings />} />
         <Route path="/zoo" element={<ModelZoo tab="groups" />} />
@@ -386,7 +331,6 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/zoo/groups" element={<ModelZoo tab="groups" />} />
         <Route path="/data" element={<Data />} />
         <Route path="/tasks-gallery" element={<TasksGallery />} />
-        <Route path="/computer" element={<Computer />} />
         <Route path="/compute" element={<Compute />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/user" element={<UserSettings />} />
