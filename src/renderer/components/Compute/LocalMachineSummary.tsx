@@ -23,7 +23,13 @@ function StatRow({ title, value }: { title: string; value: React.ReactNode }) {
   );
 }
 
-export default function LocalMachineSummary() {
+interface LocalMachineSummaryProps {
+  showAcceleration?: boolean;
+}
+
+export default function LocalMachineSummary({
+  showAcceleration = true,
+}: LocalMachineSummaryProps) {
   const { server, isLoading, isError } = useServerStats();
 
   if (isLoading) {
@@ -58,39 +64,45 @@ export default function LocalMachineSummary() {
         <StatRow title="Cores" value={server.cpu_count ?? 'n/a'} />
       </Grid>
 
-      <Grid xs={12} md={4}>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-          <BsGpuCard />
-          <Typography level="title-md">Acceleration</Typography>
-        </Stack>
-        <StatRow
-          title="GPU"
-          value={
-            gpuCount > 0 ? (
-              <Box
-                sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
-              >
-                {server.gpu?.[0]?.name?.includes('NVIDIA') && (
-                  <SiNvidia color="#76B900" />
-                )}
-                <span>
-                  {gpuCount} device{gpuCount === 1 ? '' : 's'}
-                </span>
-              </Box>
-            ) : (
-              'None'
-            )
-          }
-        />
-        <StatRow
-          title={server?.device_type !== 'amd' ? 'CUDA' : 'ROCm'}
-          value={server.device === 'cuda' ? 'Available' : 'Unavailable'}
-        />
-        <StatRow
-          title="Python MPS"
-          value={server.device === 'mps' ? 'Enabled' : 'Disabled'}
-        />
-      </Grid>
+      {showAcceleration && (
+        <Grid xs={12} md={4}>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+            <BsGpuCard />
+            <Typography level="title-md">Acceleration</Typography>
+          </Stack>
+          <StatRow
+            title="GPU"
+            value={
+              gpuCount > 0 ? (
+                <Box
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                  }}
+                >
+                  {server.gpu?.[0]?.name?.includes('NVIDIA') && (
+                    <SiNvidia color="#76B900" />
+                  )}
+                  <span>
+                    {gpuCount} device{gpuCount === 1 ? '' : 's'}
+                  </span>
+                </Box>
+              ) : (
+                'None'
+              )
+            }
+          />
+          <StatRow
+            title={server?.device_type !== 'amd' ? 'CUDA' : 'ROCm'}
+            value={server.device === 'cuda' ? 'Available' : 'Unavailable'}
+          />
+          <StatRow
+            title="Python MPS"
+            value={server.device === 'mps' ? 'Enabled' : 'Disabled'}
+          />
+        </Grid>
+      )}
 
       <Grid xs={12} md={4}>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
