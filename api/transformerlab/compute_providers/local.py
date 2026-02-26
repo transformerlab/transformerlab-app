@@ -450,72 +450,61 @@ def ensure_base_venv_and_requirements() -> Path:
 
     base_venv_path = home_dir_path / "local_provider_base_venv"
     base_requirements = home_dir_path / "local_provider_base_requirements.txt"
-    base_hash_file = home_dir_path / "local_provider_base_venv_hash.txt"
-
-    desired_hash = LocalProvider()._compute_team_venv_hash(pyproject_path)
-    current_hash = base_hash_file.read_text().strip() if base_hash_file.exists() else None
-
-    needs_rebuild = current_hash != desired_hash or not base_venv_path.exists() or not base_requirements.exists()
 
     source_code_dir = str(pyproject_path.parent)
 
-    if needs_rebuild:
-        base_venv_path.mkdir(parents=True, exist_ok=True)
+    base_venv_path.mkdir(parents=True, exist_ok=True)
 
-        # uv venv --python (match plugin install default)
-        subprocess.run(
-            ["uv", "venv", str(base_venv_path), "--python", _PYTHON_VERSION, "--clear"],
-            cwd=base_venv_path.parent,
-            check=True,
-            capture_output=True,
-            timeout=120,
-        )
+    # uv venv --python (match plugin install default)
+    subprocess.run(
+        ["uv", "venv", str(base_venv_path), "--python", _PYTHON_VERSION, "--clear"],
+        cwd=base_venv_path.parent,
+        check=True,
+        capture_output=True,
+        timeout=120,
+    )
 
-        extra = _get_pyproject_extra()
-        additional_flags = _get_uv_pip_install_flags()
+    extra = _get_pyproject_extra()
+    additional_flags = _get_uv_pip_install_flags()
 
-        # Use uv pip with an explicit --python target so installs go into the base venv.
-        python_bin = base_venv_path / "bin" / "python"
-        env = os.environ.copy()
+    # Use uv pip with an explicit --python target so installs go into the base venv.
+    python_bin = base_venv_path / "bin" / "python"
+    env = os.environ.copy()
 
-        install_cmd = ["uv", "pip", "install"]
-        if additional_flags:
-            install_cmd.extend(shlex.split(additional_flags))
-        install_cmd.extend(["--python", str(python_bin), f".{extra}"])
+    install_cmd = ["uv", "pip", "install"]
+    if additional_flags:
+        install_cmd.extend(shlex.split(additional_flags))
+    install_cmd.extend(["--python", str(python_bin), f".{extra}"])
 
-        result = subprocess.run(
-            install_cmd,
-            cwd=source_code_dir,
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=900,
-        )
+    result = subprocess.run(
+        install_cmd,
+        cwd=source_code_dir,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=900,
+    )
 
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"uv pip install failed for base venv: {result.stderr or result.stdout or 'unknown error'}"
+    if result.returncode != 0:
+        raise RuntimeError(f"uv pip install failed for base venv: {result.stderr or result.stdout or 'unknown error'}")
+
+    freeze_cmd = ["uv", "pip", "freeze", "--python", str(python_bin)]
+    try:
+        with base_requirements.open("w", encoding="utf-8") as req_file:
+            result = subprocess.run(
+                freeze_cmd,
+                cwd=source_code_dir,
+                env=env,
+                stdout=req_file,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=300,
             )
+    except OSError as exc:
+        raise RuntimeError(f"Failed to write base requirements file: {exc}") from exc
 
-        freeze_cmd = ["uv", "pip", "freeze", "--python", str(python_bin)]
-        try:
-            with base_requirements.open("w", encoding="utf-8") as req_file:
-                result = subprocess.run(
-                    freeze_cmd,
-                    cwd=source_code_dir,
-                    env=env,
-                    stdout=req_file,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    timeout=300,
-                )
-        except OSError as exc:
-            raise RuntimeError(f"Failed to write base requirements file: {exc}") from exc
-
-        if result.returncode != 0:
-            raise RuntimeError(f"uv pip freeze failed for base venv: {result.stderr or 'unknown error'}")
-
-        base_hash_file.write_text(desired_hash)
+    if result.returncode != 0:
+        raise RuntimeError(f"uv pip freeze failed for base venv: {result.stderr or 'unknown error'}")
 
     # Always ensure the local provider config snapshot is generated via the base venv.
     # This uses the same logic as /server/info but runs inside the shared base venv and
