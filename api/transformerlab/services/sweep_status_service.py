@@ -202,13 +202,15 @@ async def _sweep_status_worker_loop() -> None:
     print("Sweep status worker: started")
     try:
         while True:
-            await refresh_active_sweeps_once()
+            try:
+                await refresh_active_sweeps_once()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                print(f"Sweep status worker: unhandled error in cycle, continuing: {exc}")
             await asyncio.sleep(SWEEP_STATUS_INTERVAL_SECONDS)
     except asyncio.CancelledError:
         print("Sweep status worker: stopping")
-        raise
-    except Exception as exc:
-        print(f"Sweep status worker: crashed with error: {exc}")
         raise
     finally:
         _clear_org_context()
