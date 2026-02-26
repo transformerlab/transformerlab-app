@@ -110,7 +110,7 @@ async def apply_parent_sweep_updates(
     await job_service.job_update_sweep_progress(job_id, counts["sweep_progress"], experiment_id)
 
     all_complete = counts["sweep_completed"] + counts["sweep_failed"] == counts["sweep_total"]
-    if all_complete and job.get("status") == "RUNNING":
+    if all_complete and job.get("status") in ACTIVE_SWEEP_PARENT_STATUSES:
         await job_service.job_update_job_data_insert_key_value(
             job_id,
             "end_time",
