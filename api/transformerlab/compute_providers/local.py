@@ -1,6 +1,8 @@
 """Local compute provider: runs tasks in a uv venv synced with the base environment."""
 
+import contextlib
 import os
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -83,6 +85,48 @@ def _get_uv_pip_install_flags() -> str:
     if not sys.platform == "darwin":
         return "--index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
     return ""
+
+
+def _terminate_process_tree(pid: int, sig: int = signal.SIGTERM) -> None:
+    """
+    Best-effort termination of a process and all of its descendants.
+
+    Uses psutil when available to walk the full process tree and then force-kill
+    any survivors; otherwise falls back to killing the process group (if possible)
+    and then the single pid.
+    """
+    try:
+        import psutil  # type: ignore[import-not-found]
+    except Exception:
+        psutil = None  # type: ignore[assignment]
+
+    if psutil is not None:
+        try:
+            parent = psutil.Process(pid)
+        except psutil.NoSuchProcess:
+            parent = None
+
+        if parent is not None:
+            procs = [parent] + parent.children(recursive=True)
+
+            # First try graceful termination
+            for proc in procs:
+                with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied, psutil.Error):
+                    proc.send_signal(sig)
+
+            # Give processes a short window to exit, then force kill survivors
+            gone, alive = psutil.wait_procs(procs, timeout=3)  # type: ignore[assignment]
+            for proc in alive:
+                with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied, psutil.Error):
+                    proc.kill()
+            return
+
+    # Fallback path when psutil is unavailable or parent no longer exists
+    try:
+        pgid = os.getpgid(pid)
+        os.killpg(pgid, sig)
+    except Exception:
+        os.kill(pid, sig)
 
 
 def _is_process_zombie(pid: int) -> bool:
@@ -172,17 +216,18 @@ class LocalProvider(ComputeProvider):
         if not job_dir or not os.path.isdir(job_dir):
             raise ValueError("Local provider requires workspace_dir (job directory) in provider_config")
         job_dir = Path(job_dir)
-        venv_path = job_dir / "venv"
-        venv_path.mkdir(parents=True, exist_ok=True)
-
-        self._ensure_venv_and_sync(venv_path)
-
         # Use a per-job workspace directory as HOME for local runs so tools that
         # rely on ~ and $HOME resolve inside the job workspace instead of the
         # user's real home directory. This makes it easier to clone and run
         # code in an isolated workspace for each job.
         workspace_home = job_dir / "workspace"
         workspace_home.mkdir(parents=True, exist_ok=True)
+
+        # Create the venv inside the per-job workspace HOME directory so that all
+        # environment state (including Python packages) lives under HOME.
+        venv_path = workspace_home / "venv"
+
+        self._ensure_venv_and_sync(venv_path)
 
         venv_bin = venv_path / "bin"
         env = os.environ.copy()
@@ -226,7 +271,7 @@ class LocalProvider(ComputeProvider):
         }
 
     def stop_cluster(self, cluster_name: str) -> Dict[str, Any]:
-        """Stop the local process for this cluster (SIGTERM)."""
+        """Stop the local process tree for this cluster (SIGTERM)."""
         job_dir = self.extra_config.get("workspace_dir")
         if not job_dir:
             return {
@@ -243,8 +288,8 @@ class LocalProvider(ComputeProvider):
             }
         try:
             pid = int(pid_file.read_text().strip())
-            os.kill(pid, 15)
-            return {"cluster_name": cluster_name, "status": "stopped", "message": "Sent SIGTERM"}
+            _terminate_process_tree(pid, signal.SIGTERM)
+            return {"cluster_name": cluster_name, "status": "stopped", "message": "Sent SIGTERM to process tree"}
         except (ValueError, ProcessLookupError, OSError) as e:
             return {"cluster_name": cluster_name, "status": "stopped", "message": str(e)}
 

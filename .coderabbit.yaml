@@ -1,0 +1,34 @@
+reviews:
+  profile: 'chill' # less aggressive than default
+
+  high_level_summary: true
+  review_start_comment: false # disable the "starting review" comment
+  diff_only: true # Stop reviewing old code that is not part of the PR
+  request_changes_workflow: false # don't auto-block PRs
+  poem: false
+
+  instructions: >
+    Do NOT suggest adding type annotations.
+    Do NOT comment on missing return type hints.
+    Focus on:
+    - runtime correctness
+    - security issues
+    - performance issues
+    - race conditions
+    - architectural risks
+
+  auto_review:
+    enabled: true
+    drafts: false # don't review draft PRs
+
+  path_filters:
+    - '!**/*.md'
+    - '!docs/**'
+    - '!**/*.json'
+    - '!**/*.lock'
+    - '!dist/**'
+    - '!build/**'
+
+  tools:
+    ruff:
+      enabled: false # we already run this

@@ -364,7 +364,7 @@ async def get_provider_job_logs(
 async def get_tunnel_info_for_job(
     experimentId: str,
     job_id: str,
-    tail_lines: int = Query(400, ge=100, le=2000),
+    tail_lines: int = Query(1000, ge=100, le=5000),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):

@@ -533,7 +533,7 @@ Endpoints.Experiment = {
   GetTunnelInfo: (
     experimentId: string,
     jobId: string,
-    tailLines: number = 400,
+    tailLines: number = 1000,
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/tunnel_info?tail_lines=${tailLines}`,
   GetAdditionalDetails: (
