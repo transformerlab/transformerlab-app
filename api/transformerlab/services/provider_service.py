@@ -14,7 +14,7 @@ from transformerlab.shared.models.models import (
 )
 from transformerlab.compute_providers.config import ComputeProviderConfig, create_compute_provider
 from transformerlab.compute_providers.base import ComputeProvider
-from transformerlab.compute_providers.local import _check_nvidia_gpu, _check_amd_gpu
+from transformerlab.compute_providers.local import _check_nvidia_gpu, _check_amd_gpu, ensure_base_venv_and_requirements
 import sys
 import platform
 import asyncio
@@ -323,6 +323,12 @@ async def create_team_provider(
     session.add(provider)
     await session.commit()
     await session.refresh(provider)
+
+    # When a local provider is created for any team, ensure the shared base venv
+    # under HOME_DIR is initialized (no-op if it already exists).
+    if provider.type == ProviderType.LOCAL.value:
+        await asyncio.to_thread(ensure_base_venv_and_requirements)
+
     return provider
 
 

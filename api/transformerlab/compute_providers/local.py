@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from lab.dirs import HOME_DIR
+
 from .base import ComputeProvider
 from .models import (
     ClusterConfig,
@@ -195,86 +197,6 @@ class LocalProvider(ComputeProvider):
         h.update(_PYTHON_VERSION.encode("utf-8"))
         return h.hexdigest()
 
-    def _ensure_team_venv_and_requirements(self, org_dir: Path) -> Path:
-        """
-        Ensure the shared per-org team venv and its frozen requirements exist and are up to date.
-
-        Returns the path to the team requirements file.
-        """
-        pyproject_path = self._get_source_code_and_pyproject()
-        org_dir = Path(org_dir)
-        org_dir.mkdir(parents=True, exist_ok=True)
-
-        team_venv_path = org_dir / "team_venv"
-        team_requirements = org_dir / "team_requirements.txt"
-        team_hash_file = org_dir / "team_venv_hash.txt"
-
-        desired_hash = self._compute_team_venv_hash(pyproject_path)
-        current_hash = team_hash_file.read_text().strip() if team_hash_file.exists() else None
-
-        needs_rebuild = current_hash != desired_hash or not team_venv_path.exists() or not team_requirements.exists()
-
-        if needs_rebuild:
-            source_code_dir = str(pyproject_path.parent)
-            team_venv_path.mkdir(parents=True, exist_ok=True)
-
-            # uv venv --python (match plugin install default)
-            subprocess.run(
-                ["uv", "venv", str(team_venv_path), "--python", _PYTHON_VERSION, "--clear"],
-                cwd=team_venv_path.parent,
-                check=True,
-                capture_output=True,
-                timeout=120,
-            )
-
-            extra = _get_pyproject_extra()
-            additional_flags = _get_uv_pip_install_flags()
-
-            # Run uv inside the team venv by adjusting PATH instead of using shell activation.
-            env = os.environ.copy()
-            venv_bin = team_venv_path / "bin"
-            env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
-
-            install_cmd = ["uv", "pip", "install"]
-            if additional_flags:
-                install_cmd.extend(shlex.split(additional_flags))
-            install_cmd.append(f".{extra}")
-
-            result = subprocess.run(
-                install_cmd,
-                cwd=source_code_dir,
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=900,
-            )
-            if result.returncode != 0:
-                raise RuntimeError(
-                    f"uv pip install failed for team venv: {result.stderr or result.stdout or 'unknown error'}"
-                )
-
-            freeze_cmd = ["uv", "pip", "freeze"]
-            try:
-                with team_requirements.open("w", encoding="utf-8") as req_file:
-                    result = subprocess.run(
-                        freeze_cmd,
-                        cwd=source_code_dir,
-                        env=env,
-                        stdout=req_file,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        timeout=300,
-                    )
-            except OSError as exc:
-                raise RuntimeError(f"Failed to write team requirements file: {exc}") from exc
-
-            if result.returncode != 0:
-                raise RuntimeError(f"uv pip freeze failed for team venv: {result.stderr or 'unknown error'}")
-
-            team_hash_file.write_text(desired_hash)
-
-        return team_requirements
-
     def _ensure_job_venv_from_team(self, venv_path: Path, team_requirements: Path) -> None:
         """Create or refresh a per-job venv by installing from the shared team requirements."""
         team_requirements = Path(team_requirements)
@@ -340,12 +262,10 @@ class LocalProvider(ComputeProvider):
         # environment state (including Python packages) lives under HOME.
         venv_path = workspace_home / "venv"
 
-        # Derive org directory from job directory:
-        # ~/.transformerlab/local_provider_runs/orgs/<org_id>/<job_id>/
-        # -> org_dir = ~/.transformerlab/local_provider_runs/orgs/<org_id>/
-        org_dir = job_dir.parent
-        team_requirements = self._ensure_team_venv_and_requirements(org_dir)
-        self._ensure_job_venv_from_team(venv_path, team_requirements)
+        # Ensure the shared base venv (common across all teams) exists and is up to date,
+        # then create a per-job venv from its frozen requirements.
+        base_requirements = ensure_base_venv_and_requirements()
+        self._ensure_job_venv_from_team(venv_path, base_requirements)
 
         venv_bin = venv_path / "bin"
         env = os.environ.copy()
@@ -513,3 +433,87 @@ class LocalProvider(ComputeProvider):
         import shutil
 
         return shutil.which("uv") is not None
+
+
+def ensure_base_venv_and_requirements() -> Path:
+    """
+    Ensure the shared base venv under HOME_DIR and its frozen requirements exist and are up to date.
+
+    This base venv is common across all teams and is created at:
+        HOME_DIR / "local_provider_base_venv"
+
+    Returns the path to the base requirements file.
+    """
+    pyproject_path = LocalProvider()._get_source_code_and_pyproject()
+    home_dir_path = Path(HOME_DIR)
+    home_dir_path.mkdir(parents=True, exist_ok=True)
+
+    base_venv_path = home_dir_path / "local_provider_base_venv"
+    base_requirements = home_dir_path / "local_provider_base_requirements.txt"
+    base_hash_file = home_dir_path / "local_provider_base_venv_hash.txt"
+
+    desired_hash = LocalProvider()._compute_team_venv_hash(pyproject_path)
+    current_hash = base_hash_file.read_text().strip() if base_hash_file.exists() else None
+
+    needs_rebuild = current_hash != desired_hash or not base_venv_path.exists() or not base_requirements.exists()
+
+    if needs_rebuild:
+        source_code_dir = str(pyproject_path.parent)
+        base_venv_path.mkdir(parents=True, exist_ok=True)
+
+        # uv venv --python (match plugin install default)
+        subprocess.run(
+            ["uv", "venv", str(base_venv_path), "--python", _PYTHON_VERSION, "--clear"],
+            cwd=base_venv_path.parent,
+            check=True,
+            capture_output=True,
+            timeout=120,
+        )
+
+        extra = _get_pyproject_extra()
+        additional_flags = _get_uv_pip_install_flags()
+
+        # Run uv inside the base venv by adjusting PATH instead of using shell activation.
+        env = os.environ.copy()
+        venv_bin = base_venv_path / "bin"
+        env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
+
+        install_cmd = ["uv", "pip", "install"]
+        if additional_flags:
+            install_cmd.extend(shlex.split(additional_flags))
+        install_cmd.append(f".{extra}")
+
+        result = subprocess.run(
+            install_cmd,
+            cwd=source_code_dir,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=900,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"uv pip install failed for base venv: {result.stderr or result.stdout or 'unknown error'}"
+            )
+
+        freeze_cmd = ["uv", "pip", "freeze"]
+        try:
+            with base_requirements.open("w", encoding="utf-8") as req_file:
+                result = subprocess.run(
+                    freeze_cmd,
+                    cwd=source_code_dir,
+                    env=env,
+                    stdout=req_file,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    timeout=300,
+                )
+        except OSError as exc:
+            raise RuntimeError(f"Failed to write base requirements file: {exc}") from exc
+
+        if result.returncode != 0:
+            raise RuntimeError(f"uv pip freeze failed for base venv: {result.stderr or 'unknown error'}")
+
+        base_hash_file.write_text(desired_hash)
+
+    return base_requirements
