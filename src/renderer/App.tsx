@@ -200,7 +200,7 @@ function AppContent({
           </Box>
         </Box>
       )}
-      <AnnouncementsModal />
+      {/* <AnnouncementsModal /> */}
     </Box>
   );
 }
