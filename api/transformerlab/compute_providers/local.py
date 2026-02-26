@@ -507,7 +507,7 @@ class LocalProvider(ComputeProvider):
         ]
 
     def check(self) -> bool:
-        """Local provider is available when uv is installed and local config exists."""
+        """Local provider is available local config exists."""
         from pathlib import Path
 
         config_path = Path(HOME_DIR) / "local_provider_config.json"
