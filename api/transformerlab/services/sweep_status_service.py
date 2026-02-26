@@ -69,7 +69,7 @@ def compute_parent_sweep_counts(parent_job: Dict[str, Any], child_jobs: List[Dic
         child_status = child_job.get("status", "")
         if child_status == "COMPLETE":
             completed_count += 1
-        elif child_status == "FAILED":
+        elif child_status in {"FAILED", "STOPPED", "DELETED"}:
             failed_count += 1
         elif child_status in RUNNING_CHILD_STATUSES:
             running_count += 1
