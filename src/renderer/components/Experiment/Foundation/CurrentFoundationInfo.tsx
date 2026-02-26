@@ -161,7 +161,7 @@ export default function CurrentFoundationInfo({
   const serverInfoKey =
     window?.platform?.multiuser === true
       ? null
-      : chatAPI.Endpoints.ServerInfo.Get();
+      : chatAPI.Endpoints.ServerConfig.Get();
   const { data: serverInfo } = useSWR(serverInfoKey, fetcher);
   const device = serverInfo?.device;
 

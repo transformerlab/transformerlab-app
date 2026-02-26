@@ -133,9 +133,9 @@ export default function QueueTaskModal({
   );
   const isLocalProvider = selectedProvider?.type === 'local';
 
-  // Fetch server info (local machine resources) when modal is open and local provider selected
+  // Fetch local provider/server config snapshot when modal is open and local provider selected
   const { data: serverInfoData } = useSWR(
-    open && isLocalProvider ? chatAPI.Endpoints.ServerInfo.Get() : null,
+    open && isLocalProvider ? chatAPI.Endpoints.ServerConfig.Get() : null,
     fetcher,
   );
 

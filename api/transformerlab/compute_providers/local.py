@@ -217,15 +217,14 @@ class LocalProvider(ComputeProvider):
 
         additional_flags = _get_uv_pip_install_flags()
 
-        # Run uv inside the job venv by adjusting PATH instead of using shell activation.
+        # Use uv pip with an explicit --python target so installs go into this venv.
+        python_bin = venv_path / "bin" / "python"
         env = os.environ.copy()
-        venv_bin = venv_path / "bin"
-        env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
 
         install_cmd = ["uv", "pip", "install"]
         if additional_flags:
             install_cmd.extend(shlex.split(additional_flags))
-        install_cmd.extend(["-r", str(team_requirements)])
+        install_cmd.extend(["--python", str(python_bin), "-r", str(team_requirements)])
 
         result = subprocess.run(
             install_cmd,
@@ -429,10 +428,11 @@ class LocalProvider(ComputeProvider):
         ]
 
     def check(self) -> bool:
-        """Local provider is always available if uv is installed."""
-        import shutil
+        """Local provider is available when uv is installed and local config exists."""
+        from pathlib import Path
 
-        return shutil.which("uv") is not None
+        config_path = Path(HOME_DIR) / "local_provider_config.json"
+        return config_path.exists()
 
 
 def ensure_base_venv_and_requirements() -> Path:
@@ -457,8 +457,9 @@ def ensure_base_venv_and_requirements() -> Path:
 
     needs_rebuild = current_hash != desired_hash or not base_venv_path.exists() or not base_requirements.exists()
 
+    source_code_dir = str(pyproject_path.parent)
+
     if needs_rebuild:
-        source_code_dir = str(pyproject_path.parent)
         base_venv_path.mkdir(parents=True, exist_ok=True)
 
         # uv venv --python (match plugin install default)
@@ -473,15 +474,14 @@ def ensure_base_venv_and_requirements() -> Path:
         extra = _get_pyproject_extra()
         additional_flags = _get_uv_pip_install_flags()
 
-        # Run uv inside the base venv by adjusting PATH instead of using shell activation.
+        # Use uv pip with an explicit --python target so installs go into the base venv.
+        python_bin = base_venv_path / "bin" / "python"
         env = os.environ.copy()
-        venv_bin = base_venv_path / "bin"
-        env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
 
         install_cmd = ["uv", "pip", "install"]
         if additional_flags:
             install_cmd.extend(shlex.split(additional_flags))
-        install_cmd.append(f".{extra}")
+        install_cmd.extend(["--python", str(python_bin), f".{extra}"])
 
         result = subprocess.run(
             install_cmd,
@@ -491,12 +491,13 @@ def ensure_base_venv_and_requirements() -> Path:
             text=True,
             timeout=900,
         )
+
         if result.returncode != 0:
             raise RuntimeError(
                 f"uv pip install failed for base venv: {result.stderr or result.stdout or 'unknown error'}"
             )
 
-        freeze_cmd = ["uv", "pip", "freeze"]
+        freeze_cmd = ["uv", "pip", "freeze", "--python", str(python_bin)]
         try:
             with base_requirements.open("w", encoding="utf-8") as req_file:
                 result = subprocess.run(
@@ -515,5 +516,28 @@ def ensure_base_venv_and_requirements() -> Path:
             raise RuntimeError(f"uv pip freeze failed for base venv: {result.stderr or 'unknown error'}")
 
         base_hash_file.write_text(desired_hash)
+
+    # Always ensure the local provider config snapshot is generated via the base venv.
+    # This uses the same logic as /server/info but runs inside the shared base venv and
+    # writes the result to HOME_DIR/local_provider_config.json.
+    python_bin = base_venv_path / "bin" / "python"
+    script_path = Path(source_code_dir) / "transformerlab" / "scripts" / "local_provider_config.py"
+    env = os.environ.copy()
+    venv_bin = base_venv_path / "bin"
+    env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
+
+    result = subprocess.run(
+        [str(python_bin), str(script_path)],
+        cwd=source_code_dir,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            "Failed to generate local provider config "
+            f"(exit {result.returncode}): {result.stderr or result.stdout or 'unknown error'}"
+        )
 
     return base_requirements
