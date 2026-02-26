@@ -1506,16 +1506,13 @@ async def launch_template_on_provider(
         # env_vars["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
 
     # For local provider, set TFL_WORKSPACE_DIR so the lab SDK in the subprocess can find
-    # the job directory (workspace/jobs/<job_id>). Without this, Job.get(id) looks under
-    # ~/.transformerlab/workspace and fails with "Directory for Job with id '...' not found".
+    # the job directory (workspace/jobs/<job_id>). The organization context for the API
+    # request is already set by authentication middleware, so we can rely on
+    # get_workspace_dir() without mutating the global org context here.
     if provider.type == ProviderType.LOCAL.value and team_id:
-        set_organization_id(team_id)
-        try:
-            workspace_dir = await get_workspace_dir()
-            if workspace_dir and not storage.is_remote_path(workspace_dir):
-                env_vars["TFL_WORKSPACE_DIR"] = workspace_dir
-        finally:
-            set_organization_id(None)
+        workspace_dir = await get_workspace_dir()
+        if workspace_dir and not storage.is_remote_path(workspace_dir):
+            env_vars["TFL_WORKSPACE_DIR"] = workspace_dir
 
     # Resolve command (and optional setup override) for interactive sessions from gallery
     base_command = request.command
@@ -1666,6 +1663,7 @@ async def launch_template_on_provider(
             job_id=str(job_id),
             experiment_id=request.experiment_id,
             provider_id=provider.id,
+            team_id=team_id,
             cluster_name=formatted_cluster_name,
             cluster_config=cluster_config,
             quota_hold_id=str(quota_hold.id) if quota_hold else None,
@@ -2615,6 +2613,16 @@ async def stop_cluster(
     try:
         user_id_str = str(user_and_team["user"].id)
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
+
+        # Local provider needs workspace_dir (job dir) to stop the correct process tree.
+        # Derive job_id from the standard "-job-<job_id>" suffix in the cluster name.
+        if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
+            job_id_segment = None
+            if "-job-" in cluster_name:
+                job_id_segment = cluster_name.rsplit("-job-", 1)[-1] or None
+            if job_id_segment is not None:
+                job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id_segment, org_id=team_id)
+                provider_instance.extra_config["workspace_dir"] = job_dir
 
         # Stop cluster
         result = await asyncio.to_thread(provider_instance.stop_cluster, cluster_name)

@@ -18,12 +18,14 @@ import {
   Button,
   Stack,
 } from '@mui/joy';
+import { useNavigate } from 'react-router-dom';
 import {
   authenticatedFetch,
   getAPIFullPath,
 } from 'renderer/lib/transformerlab-api-sdk';
 import { RotateCcw } from 'lucide-react';
 import FixedComputeClusterVisualization from './FixedComputeClusterVisualization';
+import LocalMachineSummary from './LocalMachineSummary';
 
 interface Provider {
   id: string;
@@ -64,6 +66,7 @@ const Resources = () => {
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchProviders();
@@ -165,7 +168,11 @@ const Resources = () => {
     });
   });
 
-  if (loading) {
+  const selectedProviderObj = providers.find(
+    (provider) => provider.id === selectedProvider,
+  );
+
+  if (loading && providers.length === 0 && clusters.length === 0) {
     return (
       <Box
         display="flex"
@@ -219,6 +226,30 @@ const Resources = () => {
       </FormControl>
 
       <Grid container spacing={3}>
+        {selectedProviderObj?.type === 'local' && (
+          <Grid xs={12}>
+            <Card>
+              <CardContent>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  mb={2}
+                >
+                  <Typography level="title-lg">Local Machine</Typography>
+                  <Button
+                    size="sm"
+                    variant="soft"
+                    onClick={() => navigate('/computer')}
+                  >
+                    View full details
+                  </Button>
+                </Stack>
+                <LocalMachineSummary />
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
         {/* Fixed Compute Section */}
         <Grid xs={12}>
           <Card>

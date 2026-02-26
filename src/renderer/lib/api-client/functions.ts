@@ -150,9 +150,6 @@ export async function localaiHealthz() {
 }
 
 export async function getComputerInfo() {
-  if (typeof window !== 'undefined' && window?.platform?.multiuser === true) {
-    return null;
-  }
   let response;
   try {
     // Pass just the path - fetchWithAuth will handle prepending the base URL

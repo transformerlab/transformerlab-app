@@ -33,7 +33,20 @@ import ModelDetailsModal from './ModelDetailsModal';
 import DownloadProgressBox from '../Shared/DownloadProgressBox';
 import ImportModelsBar from './ImportModelsBar';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
-import ModelVramSidebar, { ModelGalleryEntry } from './ModelVramSidebar';
+export type ModelGalleryEntry = {
+  uniqueID: string;
+  name: string;
+  huggingface_repo?: string;
+  huggingface_filename?: string;
+  gated?: boolean;
+  id?: string;
+  new?: boolean;
+  license?: string;
+  architecture?: string;
+  size_of_model_in_mb?: number;
+  downloaded?: boolean;
+  tags?: string[];
+};
 import { formatBytes } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import {
@@ -923,11 +936,6 @@ export default function ModelGroups({ experimentInfo }) {
       >
         <ImportModelsBar jobId={jobId} setJobId={setJobId} />
       </Box>
-      <ModelVramSidebar
-        model={selectedModel}
-        open={Boolean(selectedModel)}
-        onClose={() => setSelectedModel(null)}
-      />
     </Sheet>
   );
 }
