@@ -48,13 +48,6 @@ def test_server_python_libraries(client):
         assert "version" in package and isinstance(package["version"], str) and package["version"]
 
 
-def test_server_pytorch_collect_env(client):
-    response = client.get("/server/pytorch_collect_env")
-    assert response.status_code == 200
-    data = response.text
-    assert "PyTorch" in data
-
-
 def test_is_wsl_false(monkeypatch):
     # Simulate subprocess.CalledProcessError
     import subprocess

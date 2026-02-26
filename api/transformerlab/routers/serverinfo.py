@@ -12,46 +12,11 @@ from fastapi.responses import StreamingResponse, FileResponse
 from fastapi import APIRouter, HTTPException
 from typing import AsyncGenerator
 
-# Could also use https://github.com/gpuopenanalytics/pynvml but this is simpler
 import psutil
-import torch
 from lab.dirs import get_global_log_path
 from lab import HOME_DIR
 from lab import storage
 from transformerlab.shared import galleries
-
-
-try:
-    from pynvml import (
-        nvmlDeviceGetCount,
-        nvmlDeviceGetHandleByIndex,
-        nvmlDeviceGetMemoryInfo,
-        nvmlDeviceGetName,
-        nvmlDeviceGetUtilizationRates,
-        nvmlInit,
-    )
-
-    HAS_AMD = False
-except Exception:
-    from pyrsmi import rocml
-
-    HAS_AMD = True
-
-
-pyTorch_version = torch.__version__
-print(f"🔥 PyTorch version: {pyTorch_version}")
-
-# # Check for version of flash_attn:
-# flash_attn_version = ""
-# try:
-#     from flash_attn import __version__ as flash_attn_version
-
-#     print(f"⚡️ Flash Attention is installed, version {flash_attn_version}")
-# except ImportError:
-#     flash_attn_version = "n/a"
-#     print(
-#         "🟡 Flash Attention is not installed. If you are running on GPU, install to accelerate inference and training. https://github.com/Dao-AILab/flash-attention"
-#     )
 
 
 def is_wsl():
@@ -82,31 +47,8 @@ system_info = {
     "cuda_version": "n/a",
     "conda_environment": os.environ.get("CONDA_DEFAULT_ENV", "n/a"),
     "conda_prefix": os.environ.get("CONDA_PREFIX", "n/a"),
-    "pytorch_version": torch.__version__,
-    # "flash_attn_version": flash_attn_version,
+    "pytorch_version": "n/a",
 }
-
-# Determine which device to use (cuda/mps/cpu)
-if torch.cuda.is_available():
-    system_info["device"] = "cuda"
-    if not HAS_AMD:
-        nvmlInit()
-        system_info["cuda_version"] = torch.version.cuda
-        system_info["device_type"] = "nvidia"
-        pytorch_device = "CUDA"
-    elif HAS_AMD:
-        if not IS_WSL_SYSTEM:
-            rocml.smi_initialize()
-        system_info["device_type"] = "amd"
-        system_info["cuda_version"] = torch.version.hip
-        pytorch_device = "ROCm"
-
-    print(f"🏄 PyTorch is using {pytorch_device}, version {system_info['cuda_version']}")
-
-elif torch.backends.mps.is_available():
-    system_info["device"] = "mps"
-    system_info["device_type"] = "apple_silicon"
-    print("🏄 PyTorch is using MPS for Apple Metal acceleration")
 
 router = APIRouter(prefix="/server", tags=["serverinfo"])
 
@@ -194,75 +136,6 @@ async def get_computer_information():
     if macmon_data:
         r["mac_metrics"] = macmon_data
 
-    try:
-        if HAS_AMD and not IS_WSL_SYSTEM:
-            deviceCount = rocml.smi_get_device_count()
-        elif HAS_AMD and IS_WSL_SYSTEM:
-            deviceCount = torch.cuda.device_count()
-        else:
-            deviceCount = nvmlDeviceGetCount()
-        # print('device count: ', deviceCount)
-        for i in range(deviceCount):
-            info = {}
-            if HAS_AMD and not IS_WSL_SYSTEM:
-                handle = rocml.smi_get_device_id(i)
-            elif HAS_AMD and IS_WSL_SYSTEM:
-                handle = i
-            else:
-                handle = nvmlDeviceGetHandleByIndex(i)
-
-            # Certain versions of the NVML library on WSL return a byte string,
-            # and this creates a utf error. This is a workaround:
-            if not HAS_AMD:
-                device_name = nvmlDeviceGetName(handle)
-            elif HAS_AMD and not IS_WSL_SYSTEM:
-                device_name = rocml.smi_get_device_name(i)
-            elif HAS_AMD and IS_WSL_SYSTEM:
-                device_name = torch.cuda.get_device_name(i)
-            else:
-                raise Exception("Unsupported GPU type for rocm-smi")
-            # print('device name: ', device_name)
-
-            # check if device_name is a byte string, if so convert to string:
-            if isinstance(device_name, bytes):
-                device_name = device_name.decode(errors="ignore")
-
-            info["name"] = device_name
-            if not HAS_AMD:
-                memory = nvmlDeviceGetMemoryInfo(handle)
-                info["total_memory"] = memory.total
-                info["free_memory"] = memory.free
-                info["used_memory"] = memory.used
-
-                u = nvmlDeviceGetUtilizationRates(handle)
-                info["utilization"] = u.gpu
-            elif HAS_AMD and not IS_WSL_SYSTEM:
-                info["total_memory"] = rocml.smi_get_device_memory_total(i)
-                info["used_memory"] = rocml.smi_get_device_memory_used(i)
-                info["free_memory"] = rocml.smi_get_device_memory_total(i) - rocml.smi_get_device_memory_used(i)
-                info["utilization"] = rocml.smi_get_device_utilization(i)
-            elif HAS_AMD and IS_WSL_SYSTEM:
-                free_memory, total_memory = torch.cuda.mem_get_info(i)
-                info["total_memory"] = total_memory
-                info["used_memory"] = total_memory - free_memory
-                info["free_memory"] = free_memory
-                info["utilization"] = ((total_memory - free_memory) / total_memory) * 100
-            else:
-                raise Exception("Unsupported GPU type")
-
-            # info["temp"] = nvmlDeviceGetTemperature(handle)
-            g.append(info)
-    except Exception:  # Catch all exceptions and print them
-        g.append(
-            {
-                "name": "cpu",
-                "total_memory": "n/a",
-                "free_memory": "n/a",
-                "used_memory": "n/a",
-                "utilization": "n/a",
-            }
-        )
-
     r["gpu"] = g
 
     return r
@@ -307,9 +180,7 @@ async def get_python_library_versions():
 
 @router.get("/pytorch_collect_env")
 async def get_pytorch_collect_env():
-    # run python -m torch.utils.collect_env and return the output
-    output = subprocess.check_output(sys.executable + " -m torch.utils.collect_env", shell=True)
-    return output.decode("utf-8")
+    return "torch is not available"
 
 
 async def watch_remote_file(
