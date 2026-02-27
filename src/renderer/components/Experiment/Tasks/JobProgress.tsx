@@ -204,7 +204,9 @@ export default function JobProgress({
             sx={{ my: 0.5 }}
           />
         </>
-      ) : job?.status === 'LAUNCHING' || job?.status === 'INTERACTIVE' || job?.status === 'WAITING' ? (
+      ) : job?.status === 'LAUNCHING' ||
+        job?.status === 'INTERACTIVE' ||
+        job?.status === 'WAITING' ? (
         <>
           <Stack direction="row" alignItems="center" gap={1}>
             <Chip
@@ -253,7 +255,11 @@ export default function JobProgress({
             </IconButton>
           </Stack>
           {(launchProgress?.message || launchProgress?.percent != null) && (
-            <Stack direction="column" sx={{ width: '100%', mt: 0.5 }} spacing={0.5}>
+            <Stack
+              direction="column"
+              sx={{ width: '100%', mt: 0.5 }}
+              spacing={0.5}
+            >
               {launchProgress?.message && (
                 <Typography level="body-sm" textColor="neutral.600">
                   {launchProgress.message}
