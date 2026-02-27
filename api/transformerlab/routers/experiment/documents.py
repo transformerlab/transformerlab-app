@@ -66,8 +66,8 @@ async def document_view(experimentId: str, document_name: str, folder: str = Non
 @router.get("/list", summary="List available documents.")
 async def document_list(experimentId: str, folder: str = None):
     documents = []
-    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "")
-    use_detail = not bool(tfl_remote_storage_enabled)  # no size/mtime when remote
+    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
+    use_detail = not tfl_remote_storage_enabled  # no size/mtime when remote
     # List the files that are in the experiment/<experiment_name>/documents directory:
     exp_obj = Experiment(experimentId)
     experiment_dir = await exp_obj.get_dir()
@@ -140,7 +140,7 @@ async def delete_document(experimentId: str, document_name: str, folder: str = N
 async def document_upload(experimentId: str, folder: str, files: list[UploadFile]):
     fileNames = []
     md = MarkItDown(enable_plugins=False)
-    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "")
+    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
 
     # Adding secure filename to the folder name as well
     folder = secure_filename(folder)
@@ -270,7 +270,7 @@ async def create_folder(experimentId: str, name: str):
 async def document_upload_links(experimentId: str, folder: str = None, data: dict = Body(...)):
     urls = data.get("urls")
     folder = secure_filename(folder)
-    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "")
+    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
     exp_obj = Experiment(experimentId)
     experiment_dir = await exp_obj.get_dir()
     documents_dir = storage.join(experiment_dir, "documents")
