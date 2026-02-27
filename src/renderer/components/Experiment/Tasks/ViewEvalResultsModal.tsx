@@ -225,11 +225,17 @@ const ViewEvalResultsModal = ({
       });
     });
 
-    return Array.from(aggregator.values()).map((entry) => ({
-      type: entry.type,
-      series: entry.series,
-      score: entry.sum / entry.count,
-    }));
+    return Array.from(aggregator.values()).map((entry) => {
+      const mean = entry.sum / entry.count;
+      const rounded = Number.isFinite(mean)
+        ? Number(mean.toFixed(2))
+        : mean || 0;
+      return {
+        type: entry.type,
+        series: entry.series,
+        score: rounded,
+      };
+    });
   }, [report, effectiveValueCols, chartCategoryCol]);
 
   const needsFieldMapping =
