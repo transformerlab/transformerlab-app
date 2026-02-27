@@ -2,9 +2,9 @@ name: Prettier Check
 
 on:
   push:
-    branches: [main]
+    branches: ["main", "frozen/*"]
   pull_request:
-    branches: [main]
+    branches: ["main", "frozen/*"]
 
 jobs:
   prettier-check:

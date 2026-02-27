@@ -4,11 +4,13 @@ on:
   push:
     branches:
       - main
+      - frozen/*
     paths:
       - "lab-sdk/**"
   pull_request:
     branches:
       - main
+      - frozen/*
     paths:
       - "lab-sdk/**"
 

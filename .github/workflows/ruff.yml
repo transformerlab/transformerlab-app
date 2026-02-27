@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - main
+      - frozen/*
+
   pull_request:
 jobs:
   ruff:
