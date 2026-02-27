@@ -35,20 +35,13 @@ function heatedColor(value: number): string {
   return `hsla(${h}, 100%, 50%, 0.3)`;
 }
 
-function formatScore(score: any): any {
-  // if score is a number, return it as is
-  if (!isNaN(score)) {
-    return score;
-  } else {
-    // if score is a string, try to parse it as a float
-    const parsedScore = parseFloat(score);
-    // if parsedScore is not a number, return the original score
-    if (isNaN(parsedScore)) {
-      return score;
-    } else {
-      return parsedScore;
-    }
+function formatScore(score: unknown): number | string {
+  if (typeof score === 'number') return score;
+  if (typeof score === 'string') {
+    const parsed = parseFloat(score);
+    if (!Number.isNaN(parsed)) return parsed;
   }
+  return String(score);
 }
 
 const ViewEvalResultsModal = ({
@@ -65,7 +58,7 @@ const ViewEvalResultsModal = ({
   const [viewMode, setViewMode] = useState<'table' | 'chart'>('table');
   // Chart field mapping: when header has no "score" column, user picks which column is value/category
   const [chartCategoryCol, setChartCategoryCol] = useState<number>(0);
-  const [chartValueCol, setChartValueCol] = useState<number | null>(null);
+  const [chartValueCols, setChartValueCols] = useState<number[]>([]);
 
   // Fetch job data to get list of eval results files
   const {
@@ -132,19 +125,19 @@ const ViewEvalResultsModal = ({
 
   useEffect(() => {
     setChartCategoryCol(0);
-    setChartValueCol(scoreColumnIndex >= 0 ? scoreColumnIndex : null);
+    setChartValueCols(scoreColumnIndex >= 0 ? [scoreColumnIndex] : []);
   }, [selectedFileIndex, scoreColumnIndex]);
 
   // Determine loading and error states
   const isLoading = isLoadingJob || isLoadingReport;
-  const error =
-    jobError || reportError
-      ? 'Failed to load evaluation results'
-      : evalResultsFiles.length === 0 && !isLoadingJob
-        ? 'No evaluation results found'
-        : reportData && (!reportData.header || !reportData.body)
-          ? 'Invalid data format'
-          : null;
+  let error: string | null = null;
+  if (jobError || reportError) {
+    error = 'Failed to load evaluation results';
+  } else if (evalResultsFiles.length === 0 && !isLoadingJob) {
+    error = 'No evaluation results found';
+  } else if (reportData && (!reportData.header || !reportData.body)) {
+    error = 'Invalid data format';
+  }
 
   const handleDownload = async () => {
     if (!experimentInfo?.id || !jobId) return;
@@ -171,6 +164,7 @@ const ViewEvalResultsModal = ({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Error downloading eval results:', err);
     }
   };
@@ -181,37 +175,56 @@ const ViewEvalResultsModal = ({
     return filename;
   };
 
-  // Chart: effective value column (user-selected or auto "score"); category column for x-axis
-  let effectiveChartValueCol = -1;
-  if (chartValueCol !== null) {
-    effectiveChartValueCol = chartValueCol;
-  } else if (scoreColumnIndex >= 0) {
-    effectiveChartValueCol = scoreColumnIndex;
-  }
+  const effectiveValueCols =
+    chartValueCols.length > 0
+      ? chartValueCols
+      : scoreColumnIndex >= 0
+        ? [scoreColumnIndex]
+        : [];
+
   const chartMetrics: ChartMetric[] = useMemo(() => {
     const { header, body } = report;
     if (
       body.length === 0 ||
       header.length === 0 ||
-      effectiveChartValueCol < 0 ||
-      effectiveChartValueCol >= header.length ||
+      effectiveValueCols.length === 0 ||
       chartCategoryCol < 0 ||
       chartCategoryCol >= header.length
     ) {
       return [];
     }
-    return body.map((row: unknown[]) => ({
-      type: String(row[chartCategoryCol] ?? ''),
-      score: parseFloat(String(row[effectiveChartValueCol] ?? 0)) || 0,
-    }));
-  }, [report, effectiveChartValueCol, chartCategoryCol]);
+    const safeValueCols = effectiveValueCols.filter(
+      (idx) => idx >= 0 && idx < header.length,
+    );
+    if (safeValueCols.length === 0) return [];
+
+    const valueColNames = safeValueCols.map(
+      (idx) => header[idx] ?? `col_${idx}`,
+    );
+
+    const rowsAsMetrics: ChartMetric[] = [];
+    body.forEach((row: unknown[]) => {
+      const type = String(row[chartCategoryCol] ?? '');
+
+      safeValueCols.forEach((valueColIdx, k) => {
+        const valueName = valueColNames[k];
+        const score = parseFloat(String(row[valueColIdx] ?? 0)) || 0;
+        const series = valueName;
+        rowsAsMetrics.push({ type, score, series });
+      });
+    });
+
+    return rowsAsMetrics;
+  }, [report, effectiveValueCols, chartCategoryCol]);
 
   const needsFieldMapping =
-    viewMode === 'chart' && scoreColumnIndex === -1 && chartValueCol === null;
+    viewMode === 'chart' &&
+    scoreColumnIndex === -1 &&
+    chartValueCols.length === 0;
   const canShowChart =
     viewMode === 'chart' &&
     chartMetrics.length > 0 &&
-    effectiveChartValueCol >= 0;
+    effectiveValueCols.length > 0;
 
   const renderBody = () => {
     if (isLoading) {
@@ -252,7 +265,6 @@ const ViewEvalResultsModal = ({
             </thead>
             <tbody>
               {report?.body?.map((row: any[], i: number) => (
-                // Row key by index: eval result rows have no stable id
                 <tr key={`eval-row-${String(i)}-${row[0] ?? ''}`}>
                   {row.map((col: any, j: number) => (
                     <td key={report?.header?.[j] ?? `col-${j}`}>
@@ -260,7 +272,7 @@ const ViewEvalResultsModal = ({
                         <div
                           style={{
                             backgroundColor: heatedColor(
-                              parseFloat(formatScore(col)) || 0,
+                              parseFloat(String(formatScore(col))) || 0,
                             ),
                             height: '100%',
                             width: '100%',
@@ -320,19 +332,14 @@ const ViewEvalResultsModal = ({
                 </Select>
               </FormControl>
               <FormControl sx={{ minWidth: 200 }}>
-                <FormLabel>Value (score to chart)</FormLabel>
+                <FormLabel>Value column(s)</FormLabel>
                 <Select
-                  value={
-                    effectiveChartValueCol >= 0 ? effectiveChartValueCol : -1
-                  }
+                  multiple
+                  value={chartValueCols}
                   onChange={(_, v) => {
-                    const n = v === -1 || v === null ? null : (v as number);
-                    setChartValueCol(n);
+                    setChartValueCols((v as number[]) ?? []);
                   }}
                 >
-                  {scoreColumnIndex === -1 && (
-                    <Option value={-1}>Select column…</Option>
-                  )}
                   {reportHeader.map((col: string, idx: number) => (
                     <Option key={`val-${col}`} value={idx}>
                       {formatColumnNames(col)}
