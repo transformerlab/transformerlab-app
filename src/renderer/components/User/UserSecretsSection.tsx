@@ -87,8 +87,58 @@ export default function UserSecretsSection() {
     setSecrets([...secrets, { key: '', value: '', isNew: true }]);
   };
 
-  const handleRemoveSecret = (index: number) => {
-    setSecrets(secrets.filter((_, i) => i !== index));
+  const handleRemoveSecret = async (index: number) => {
+    const secretToRemove = secrets[index];
+
+    // If this is a new, unsaved row, just remove it locally.
+    if (!secretToRemove || !secretToRemove.key.trim() || secretToRemove.isNew) {
+      setSecrets((prev) => prev.filter((_, i) => i !== index));
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      // Fetch current secrets with values so we can remove this key and persist the change.
+      let currentSecrets: Record<string, string> = {};
+      try {
+        const getRes = await fetchWithAuth(
+          `${API_URL()}users/me/secrets?include_values=true`,
+        );
+        if (getRes.ok) {
+          const getData = await getRes.json();
+          currentSecrets = getData.secrets || {};
+        }
+      } catch (err) {
+        console.warn('Could not fetch current secrets before delete:', err);
+      }
+
+      if (secretToRemove.key in currentSecrets) {
+        // Remove the key from the persisted secrets
+        const { [secretToRemove.key]: _, ...updatedSecrets } = currentSecrets;
+
+        const res = await fetchWithAuth(`${API_URL()}users/me/secrets`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secrets: updatedSecrets }),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          setError(errorData.detail || 'Failed to delete secret');
+          return;
+        }
+      }
+
+      // Update local state to remove the row
+      setSecrets((prev) => prev.filter((_, i) => i !== index));
+    } catch (err: any) {
+      console.error('Error deleting secret:', err);
+      setError('Failed to delete secret');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleUpdateSecret = (
