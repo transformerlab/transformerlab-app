@@ -36,6 +36,7 @@ interface ExperimentMenuItemsProps {
 
 function ExperimentMenuItems({ experimentInfo }: ExperimentMenuItemsProps) {
   const experimentReady = Boolean(experimentInfo?.name);
+  const basePath = `/experiment/${experimentInfo?.name || ''}`;
 
   return (
     <List
@@ -49,25 +50,29 @@ function ExperimentMenuItems({ experimentInfo }: ExperimentMenuItemsProps) {
       <>
         <SubNavItem
           title="Interact"
-          path="/experiment/interactive"
+          path={`${basePath}/interactive`}
+          matchPattern="/experiment/:experimentName/interactive"
           icon={<CodeIcon strokeWidth={1} />}
           disabled={!experimentReady}
         />
         <SubNavItem
           title="Tasks"
-          path="/experiment/tasks"
+          path={`${basePath}/tasks`}
+          matchPattern="/experiment/:experimentName/tasks"
           icon={<StretchHorizontalIcon />}
           disabled={!experimentReady}
         />
         <SubNavItem
           title="Documents"
-          path="/experiment/documents"
+          path={`${basePath}/documents`}
+          matchPattern="/experiment/:experimentName/documents"
           icon={<FileIcon />}
           disabled={!experimentReady}
         />
         <SubNavItem
           title="Notes"
-          path="/experiment/notes"
+          path={`${basePath}/notes`}
+          matchPattern="/experiment/:experimentName/notes"
           icon={<FlaskConicalIcon />}
           disabled={!experimentReady}
         />

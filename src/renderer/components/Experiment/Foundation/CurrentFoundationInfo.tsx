@@ -373,7 +373,7 @@ export default function CurrentFoundationInfo({
   }, [experimentInfo?.config?.embedding_model]);
 
   const handleEmbeddingModelClick = () => {
-    navigate('/experiment/embedding-model', {
+    navigate(`/experiment/${experimentInfo?.name}/embedding-model`, {
       state: {
         currentEmbeddingModel: embeddingModel,
         experimentId: experimentInfo?.id,
