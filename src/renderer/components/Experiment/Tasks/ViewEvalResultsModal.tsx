@@ -15,7 +15,7 @@ import {
   CircularProgress,
   Alert,
 } from '@mui/joy';
-import { TableIcon, BarChart3 } from 'lucide-react';
+import { TableIcon, BarChart3, CheckIcon } from 'lucide-react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -361,11 +361,19 @@ const ViewEvalResultsModal = ({
                     setChartValueCols((v as number[]) ?? []);
                   }}
                 >
-                  {reportHeader.map((col: string, idx: number) => (
-                    <Option key={`val-${col}`} value={idx}>
-                      {formatColumnNames(col)}
-                    </Option>
-                  ))}
+                  {reportHeader.map((col: string, idx: number) => {
+                    const selected = chartValueCols.includes(idx);
+                    return (
+                      <Option key={`val-${col}`} value={idx}>
+                        <Box
+                          sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                        >
+                          {selected && <CheckIcon size={14} />}
+                          <span>{formatColumnNames(col)}</span>
+                        </Box>
+                      </Option>
+                    );
+                  })}
                 </Select>
               </FormControl>
             </Box>
