@@ -47,8 +47,13 @@ export const PageTracker = () => {
   useEffect(() => {
     const trackPageView = async () => {
       // Track page view when location changes
+      // But hide the specific experiment name in the URL
+      const normalizedPath = location.pathname.replace(
+        /^\/experiment\/[^/]+/,
+        '/experiment/:experimentName',
+      );
       analytics.page({
-        path: location.pathname,
+        path: normalizedPath,
         url: window.location.href,
         search: location.search,
         title: document.title,
