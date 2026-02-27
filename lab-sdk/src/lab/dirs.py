@@ -37,8 +37,8 @@ _current_org_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("cu
 def set_organization_id(organization_id: str | None) -> None:
     _current_org_id.set(organization_id)
     if organization_id is not None:
-        # If TFL_REMOTE_STORAGE_ENABLED is set, use <cloud_protocol>://workspace_<team_id> instead of the value itself
-        tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED")
+        # If TFL_REMOTE_STORAGE_ENABLED is true, use <cloud_protocol>://workspace_<team_id> instead of the value itself
+        tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
         if tfl_remote_storage_enabled:
             # Determine protocol based on TFL_STORAGE_PROVIDER (aws | gcp)
             protocol = "gs://" if STORAGE_PROVIDER == "gcp" else "s3://"
