@@ -4,11 +4,11 @@ name: Pytest
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "frozen/*"]
     paths:
       - "api/**"
   pull_request:
-    branches: ["main"]
+    branches: ["main", "frozen/*"]
     paths:
       - "api/**"
 

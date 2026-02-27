@@ -15,6 +15,7 @@ on:
   push:
     branches:
       - main
+      - frozen/*
     paths:
       - "lab-sdk/**"
 

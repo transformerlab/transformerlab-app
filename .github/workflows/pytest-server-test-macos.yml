@@ -4,12 +4,12 @@ name: Test for Install and Serving (macOS)
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "frozen/*"]
     paths:
       - "api/**"
       - "lab-sdk/**"
   pull_request:
-    branches: ["main"]
+    branches: ["main", "frozen/*"]
     paths:
       - "api/**"
       - "lab-sdk/**"
