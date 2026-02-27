@@ -95,19 +95,17 @@ async def apply_parent_sweep_updates(
     if not job:
         return None
 
-    await job_service.job_update_job_data_insert_key_value(
-        job_id, "sweep_completed", counts["sweep_completed"], experiment_id
-    )
-    await job_service.job_update_job_data_insert_key_value(
-        job_id, "sweep_running", counts["sweep_running"], experiment_id
-    )
-    await job_service.job_update_job_data_insert_key_value(
-        job_id, "sweep_failed", counts["sweep_failed"], experiment_id
-    )
-    await job_service.job_update_job_data_insert_key_value(
-        job_id, "sweep_queued", counts["sweep_queued"], experiment_id
-    )
-    await job_service.job_update_sweep_progress(job_id, counts["sweep_progress"], experiment_id)
+    job_data = job.get("job_data", {}) or {}
+
+    # Compare job_data with updated values and only write if there's a change
+    count_fields = ["sweep_completed", "sweep_running", "sweep_failed", "sweep_queued"]
+    for field in count_fields:
+        # "or 0" guards against the stored value being None rather than missing
+        if counts[field] != int(job_data.get(field, 0) or 0):
+            await job_service.job_update_job_data_insert_key_value(job_id, field, counts[field], experiment_id)
+
+    if counts["sweep_progress"] != int(job_data.get("sweep_progress", 0) or 0):  # same None guard
+        await job_service.job_update_sweep_progress(job_id, counts["sweep_progress"], experiment_id)
 
     all_complete = counts["sweep_completed"] + counts["sweep_failed"] == counts["sweep_total"]
     if all_complete and job.get("status") in ACTIVE_SWEEP_PARENT_STATUSES:
