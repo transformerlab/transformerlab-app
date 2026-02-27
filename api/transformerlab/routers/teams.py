@@ -100,9 +100,8 @@ async def create_team(
     await session.commit()
 
     # Create storage (cloud bucket or local folder) for the new team
-    if getenv("TFL_REMOTE_STORAGE_ENABLED") or (
-        getenv("TFL_STORAGE_PROVIDER") == "localfs" and getenv("TFL_STORAGE_URI")
-    ):
+    remote_storage_enabled = getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
+    if remote_storage_enabled or (getenv("TFL_STORAGE_PROVIDER") == "localfs" and getenv("TFL_STORAGE_URI")):
         try:
             create_bucket_for_team(team.id, profile_name="transformerlab-s3")
         except Exception as e:
