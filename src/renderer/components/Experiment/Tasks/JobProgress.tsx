@@ -30,6 +30,12 @@ interface JobData {
   [key: string]: any;
 }
 
+interface LaunchProgressInfo {
+  phase?: string;
+  percent?: number;
+  message?: string;
+}
+
 interface JobProps {
   job: {
     id: string;
@@ -40,11 +46,13 @@ interface JobProps {
     placeholder?: boolean;
   };
   showLaunchResultInfo?: boolean;
+  launchProgress?: LaunchProgressInfo | null;
 }
 
 export default function JobProgress({
   job,
   showLaunchResultInfo = false,
+  launchProgress,
 }: JobProps) {
   const { experimentInfo } = useExperimentInfo();
   const { fetchWithAuth } = useAuth();
@@ -196,7 +204,7 @@ export default function JobProgress({
             sx={{ my: 0.5 }}
           />
         </>
-      ) : job?.status === 'LAUNCHING' || job?.status === 'INTERACTIVE' ? (
+      ) : job?.status === 'LAUNCHING' || job?.status === 'INTERACTIVE' || job?.status === 'WAITING' ? (
         <>
           <Stack direction="row" alignItems="center" gap={1}>
             <Chip
@@ -244,6 +252,22 @@ export default function JobProgress({
               <StopCircleIcon size="20px" />
             </IconButton>
           </Stack>
+          {(launchProgress?.message || launchProgress?.percent != null) && (
+            <Stack direction="column" sx={{ width: '100%', mt: 0.5 }} spacing={0.5}>
+              {launchProgress?.message && (
+                <Typography level="body-sm" textColor="neutral.600">
+                  {launchProgress.message}
+                </Typography>
+              )}
+              {launchProgress?.percent != null && (
+                <LinearProgress
+                  determinate
+                  value={Math.min(100, Math.max(0, launchProgress.percent))}
+                  sx={{ maxWidth: 200, height: 6 }}
+                />
+              )}
+            </Stack>
+          )}
           {job?.job_data?.start_time && (
             <>
               Started:{' '}
@@ -255,7 +279,7 @@ export default function JobProgress({
           )}
           {renderLiveStatusSubtitle()}
         </>
-      ) : job?.status === 'RUNNING' || job?.status === 'LAUNCHING' ? (
+      ) : job?.status === 'RUNNING' ? (
         <>
           <Stack direction="row" alignItems="center" gap={1}>
             <Chip
