@@ -3,6 +3,7 @@ import random
 import json
 import gc
 import asyncio
+import os
 
 import numpy as np
 import torch
@@ -12,7 +13,14 @@ from peft import LoraConfig
 from peft.utils import get_peft_model_state_dict
 from torchvision import transforms
 
-from diffusers import AutoPipelineForText2Image, StableDiffusionPipeline
+from diffusers import (
+    AutoPipelineForText2Image,
+    StableDiffusionPipeline,
+    StableDiffusionXLPipeline,
+    StableDiffusion3Pipeline,
+    LatentConsistencyModelPipeline,
+    DiffusionPipeline,
+)
 
 from diffusers.optimization import get_scheduler
 from diffusers.training_utils import cast_training_params, compute_snr
@@ -52,6 +60,76 @@ def cleanup_pipeline():
 
 
 cleanup_pipeline()
+
+
+SINGLE_FILE_EXTENSIONS = (".ckpt", ".safetensors")
+
+
+def _is_single_file_model(model_path: str) -> bool:
+    if not model_path:
+        return False
+    lower = model_path.lower()
+    if lower.startswith(("http://", "https://")):
+        return any(lower.endswith(ext) for ext in SINGLE_FILE_EXTENSIONS)
+    if not any(lower.endswith(ext) for ext in SINGLE_FILE_EXTENSIONS):
+        return False
+    return os.path.isfile(model_path) or "/" in model_path or "\\" in model_path
+
+
+def _infer_single_file_architecture(model_path: str, fallback: str = "StableDiffusionPipeline") -> str:
+    name = os.path.basename(model_path or "").lower()
+    if "sdxl" in name or "stable-diffusion-xl" in name or "sd_xl" in name:
+        return "StableDiffusionXLPipeline"
+    if "sd3" in name or "stable-diffusion-3" in name or "stable-diffusion3" in name:
+        return "StableDiffusion3Pipeline"
+    if "lcm" in name or "latent-consistency" in name:
+        return "LatentConsistencyModelPipeline"
+    return fallback
+
+
+def _find_original_config_file(model_path: str) -> str | None:
+    if not model_path or model_path.startswith(("http://", "https://")):
+        return None
+    if not os.path.isfile(model_path):
+        return None
+    directory = os.path.dirname(model_path)
+    if not directory or not os.path.isdir(directory):
+        return None
+    try:
+        for entry in os.listdir(directory):
+            lower = entry.lower()
+            if lower.endswith((".yaml", ".yml")):
+                return os.path.join(directory, entry)
+    except Exception:
+        return None
+    return None
+
+
+def _load_text2img_pipeline(pretrained_model_name_or_path: str, model_architecture: str | None, pipeline_kwargs: dict):
+    """Load a text-to-image pipeline, supporting single-file checkpoints."""
+    is_single_file = _is_single_file_model(pretrained_model_name_or_path)
+    if not is_single_file:
+        return AutoPipelineForText2Image.from_pretrained(pretrained_model_name_or_path, **pipeline_kwargs)
+
+    architecture = model_architecture or _infer_single_file_architecture(pretrained_model_name_or_path)
+
+    if architecture == "FluxPipeline":
+        raise ValueError("FluxPipeline single-file checkpoints are not supported.")
+
+    pipeline_class = {
+        "StableDiffusionPipeline": StableDiffusionPipeline,
+        "StableDiffusionXLPipeline": StableDiffusionXLPipeline,
+        "StableDiffusion3Pipeline": StableDiffusion3Pipeline,
+        "LatentConsistencyModelPipeline": LatentConsistencyModelPipeline,
+    }.get(architecture, DiffusionPipeline)
+
+    original_config = _find_original_config_file(pretrained_model_name_or_path)
+    if original_config:
+        return pipeline_class.from_single_file(
+            pretrained_model_name_or_path, **pipeline_kwargs, original_config_file=original_config
+        )
+
+    return pipeline_class.from_single_file(pretrained_model_name_or_path, **pipeline_kwargs)
 
 
 def compute_loss_weighting(args, timesteps, noise_scheduler):
@@ -360,7 +438,7 @@ def train_diffusion_lora():
         "requires_safety_checker": False,
     }
 
-    temp_pipeline = AutoPipelineForText2Image.from_pretrained(pretrained_model_name_or_path, **pipeline_kwargs)
+    temp_pipeline = _load_text2img_pipeline(pretrained_model_name_or_path, model_architecture, pipeline_kwargs)
 
     # Extract components from the loaded pipeline
     noise_scheduler = temp_pipeline.scheduler
