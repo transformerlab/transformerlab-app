@@ -202,7 +202,11 @@ const ViewEvalResultsModal = ({
       (idx) => header[idx] ?? `col_${idx}`,
     );
 
-    const rowsAsMetrics: ChartMetric[] = [];
+    const aggregator = new Map<
+      string,
+      { type: string; series: string; sum: number; count: number }
+    >();
+
     body.forEach((row: unknown[]) => {
       const type = String(row[chartCategoryCol] ?? '');
 
@@ -210,11 +214,22 @@ const ViewEvalResultsModal = ({
         const valueName = valueColNames[k];
         const score = parseFloat(String(row[valueColIdx] ?? 0)) || 0;
         const series = valueName;
-        rowsAsMetrics.push({ type, score, series });
+        const key = `${type}|||${series}`;
+        const existing = aggregator.get(key);
+        if (existing) {
+          existing.sum += score;
+          existing.count += 1;
+        } else {
+          aggregator.set(key, { type, series, sum: score, count: 1 });
+        }
       });
     });
 
-    return rowsAsMetrics;
+    return Array.from(aggregator.values()).map((entry) => ({
+      type: entry.type,
+      series: entry.series,
+      score: entry.sum / entry.count,
+    }));
   }, [report, effectiveValueCols, chartCategoryCol]);
 
   const needsFieldMapping =
