@@ -120,8 +120,6 @@ async def _local_launch_worker() -> None:
                         await session.commit()
                         continue
 
-                    print(f"DEBUG: LocalProviderQueue._local_launch_worker: launch_result={launch_result}")
-
                     # On success, we keep the job in LAUNCHING/INTERACTIVE; status checks will
                     # complete it when the local process exits.
                     if isinstance(launch_result, dict):

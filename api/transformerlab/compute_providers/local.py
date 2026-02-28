@@ -1,6 +1,8 @@
 """Local compute provider: runs tasks in a uv venv synced with the base environment."""
 
+import contextlib
 import os
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -85,6 +87,75 @@ def _get_uv_pip_install_flags() -> str:
     return ""
 
 
+def _terminate_process_tree(pid: int, sig: int = signal.SIGTERM) -> None:
+    """
+    Best-effort termination of a process and all of its descendants.
+
+    Uses psutil when available to walk the full process tree and then force-kill
+    any survivors; otherwise falls back to killing the process group (if possible)
+    and then the single pid.
+    """
+    try:
+        import psutil  # type: ignore[import-not-found]
+    except Exception:
+        psutil = None  # type: ignore[assignment]
+
+    if psutil is not None:
+        try:
+            parent = psutil.Process(pid)
+        except psutil.NoSuchProcess:
+            parent = None
+
+        if parent is not None:
+            procs = [parent] + parent.children(recursive=True)
+
+            # First try graceful termination
+            for proc in procs:
+                with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied, psutil.Error):
+                    proc.send_signal(sig)
+
+            # Give processes a short window to exit, then force kill survivors
+            gone, alive = psutil.wait_procs(procs, timeout=3)  # type: ignore[assignment]
+            for proc in alive:
+                with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied, psutil.Error):
+                    proc.kill()
+            return
+
+    # Fallback path when psutil is unavailable or parent no longer exists
+    try:
+        pgid = os.getpgid(pid)
+        os.killpg(pgid, sig)
+    except Exception:
+        os.kill(pid, sig)
+
+
+def _is_process_zombie(pid: int) -> bool:
+    """
+    Return True if the process is a zombie/defunct process.
+
+    Uses psutil when available; if psutil is not installed or status cannot be
+    determined, returns False so callers can fall back to basic pid checks.
+    """
+    try:
+        import psutil  # type: ignore[import-not-found]
+    except Exception:
+        return False
+
+    try:
+        proc = psutil.Process(pid)
+        try:
+            status = proc.status()
+        except psutil.Error:
+            return False
+    except psutil.NoSuchProcess:
+        # Process went away between checks; treat as non-zombie here and let the
+        # caller handle it as not running.
+        return False
+
+    zombie_status = getattr(psutil, "STATUS_ZOMBIE", "zombie")
+    return status == zombie_status
+
+
 class LocalProvider(ComputeProvider):
     """
     Provider that runs each "cluster" (task run) in a dedicated uv venv
@@ -145,11 +216,6 @@ class LocalProvider(ComputeProvider):
         if not job_dir or not os.path.isdir(job_dir):
             raise ValueError("Local provider requires workspace_dir (job directory) in provider_config")
         job_dir = Path(job_dir)
-        venv_path = job_dir / "venv"
-        venv_path.mkdir(parents=True, exist_ok=True)
-
-        self._ensure_venv_and_sync(venv_path)
-
         # Use a per-job workspace directory as HOME for local runs so tools that
         # rely on ~ and $HOME resolve inside the job workspace instead of the
         # user's real home directory. This makes it easier to clone and run
@@ -157,16 +223,19 @@ class LocalProvider(ComputeProvider):
         workspace_home = job_dir / "workspace"
         workspace_home.mkdir(parents=True, exist_ok=True)
 
+        # Create the venv inside the per-job workspace HOME directory so that all
+        # environment state (including Python packages) lives under HOME.
+        venv_path = workspace_home / "venv"
+
+        self._ensure_venv_and_sync(venv_path)
+
         venv_bin = venv_path / "bin"
         env = os.environ.copy()
         env.update(config.env_vars or {})
         env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
         env["HOME"] = str(workspace_home)
 
-        print(f"DEBUG: LocalProvider.launch_cluster: cluster_name={cluster_name}")
-        print(f"DEBUG: LocalProvider.launch_cluster: job_dir={job_dir}")
         if config.setup:
-            print(f"DEBUG: LocalProvider.launch_cluster: running setup: {config.setup}")
             setup_result = subprocess.run(
                 ["/bin/bash", "-c", config.setup],
                 cwd=job_dir,
@@ -181,7 +250,6 @@ class LocalProvider(ComputeProvider):
                 raise RuntimeError(f"Setup failed: {setup_result.stderr or setup_result.stdout or 'unknown'}")
 
         # Start main command in background (detached subprocess)
-        print(f"DEBUG: LocalProvider.launch_cluster: running command: {config.command}")
         proc = subprocess.Popen(
             ["/bin/bash", "-c", config.command or "true"],
             cwd=str(job_dir),
@@ -203,7 +271,7 @@ class LocalProvider(ComputeProvider):
         }
 
     def stop_cluster(self, cluster_name: str) -> Dict[str, Any]:
-        """Stop the local process for this cluster (SIGTERM)."""
+        """Stop the local process tree for this cluster (SIGTERM)."""
         job_dir = self.extra_config.get("workspace_dir")
         if not job_dir:
             return {
@@ -220,8 +288,8 @@ class LocalProvider(ComputeProvider):
             }
         try:
             pid = int(pid_file.read_text().strip())
-            os.kill(pid, 15)
-            return {"cluster_name": cluster_name, "status": "stopped", "message": "Sent SIGTERM"}
+            _terminate_process_tree(pid, signal.SIGTERM)
+            return {"cluster_name": cluster_name, "status": "stopped", "message": "Sent SIGTERM to process tree"}
         except (ValueError, ProcessLookupError, OSError) as e:
             return {"cluster_name": cluster_name, "status": "stopped", "message": str(e)}
 
@@ -238,25 +306,19 @@ class LocalProvider(ComputeProvider):
         if not pid_file.exists():
             return ClusterStatus(
                 cluster_name=cluster_name,
-                state=ClusterState.DOWN,
-                status_message="No pid file",
+                state=ClusterState.UNKNOWN,
+                status_message="No pid file (cluster may be starting)",
             )
         try:
             pid = int(pid_file.read_text().strip())
-            os_killed = os.kill(pid, 0)
-            # Return up only if the process is not running
-            if os_killed is not None:
-                return ClusterStatus(
-                    cluster_name=cluster_name,
-                    state=ClusterState.UP,
-                    status_message="Process running",
-                )
-            else:
-                return ClusterStatus(
-                    cluster_name=cluster_name,
-                    state=ClusterState.DOWN,
-                    status_message="Process not running",
-                )
+            os.kill(pid, 0)
+            if _is_process_zombie(pid):
+                raise ProcessLookupError("Process is zombie/defunct")
+            return ClusterStatus(
+                cluster_name=cluster_name,
+                state=ClusterState.UP,
+                status_message="Process running",
+            )
         except (ValueError, ProcessLookupError, OSError):
             return ClusterStatus(
                 cluster_name=cluster_name,

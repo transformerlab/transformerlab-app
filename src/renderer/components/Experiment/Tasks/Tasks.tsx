@@ -844,8 +844,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const handleQueueSubmit = async (config: Record<string, any>) => {
     if (!experimentInfo?.id || !taskBeingQueued) return;
 
-    // Close modal and start submission
-    setQueueModalOpen(false);
+    // Keep modal open while submission is in progress
     setIsSubmitting(true);
 
     const task = taskBeingQueued;
@@ -968,7 +967,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           type: 'success',
           message: 'Provider cluster launch initiated.',
         });
+        setQueueModalOpen(false);
         await Promise.all([jobsMutate(), templatesMutate()]);
+        // Close the queue modal only after the launch succeeds
+        setTaskBeingQueued(null);
       } else {
         // FastAPI HTTPException uses 'detail' field, but some responses may use 'message'
         const message =
@@ -988,6 +990,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       });
     } finally {
       setIsSubmitting(false);
+      // Ensure the queue modal closes when the launch request finishes,
+      // regardless of success or failure.
+      setQueueModalOpen(false);
       setTaskBeingQueued(null);
     }
   };

@@ -141,9 +141,8 @@ async def lifespan(app: FastAPI):
     await cancel_in_progress_jobs()
 
     # Create buckets/folders for all existing teams if cloud or localfs storage is enabled
-    if os.getenv("TFL_REMOTE_STORAGE_ENABLED") or (
-        os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI")
-    ):
+    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
+    if tfl_remote_storage_enabled or (os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI")):
         print("✅ CHECKING STORAGE FOR EXISTING TEAMS")
         try:
             from transformerlab.db.session import async_session

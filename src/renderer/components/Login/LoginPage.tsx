@@ -131,12 +131,36 @@ export default function LoginPage() {
     if (token) {
       const verifyEmail = async () => {
         try {
-          // Normalize TL_API_URL - ensure it's not "default" or empty
+          // Normalize TL_API_URL - ensure it's not "default" or empty, and mirror App.tsx behavior:
+          // - For localhost or port 1212, assume API is on port 8338
+          // - For non-localhost, assume API is served from the same origin as the frontend
           const envUrl = process.env.TL_API_URL;
-          let apiUrl =
-            !envUrl || envUrl === 'default' || envUrl.trim() === ''
-              ? `${window.location.protocol}//${window.location.hostname}:8338`
-              : envUrl;
+          let apiUrl: string;
+
+          if (!envUrl || envUrl === 'default' || envUrl.trim() === '') {
+            const { protocol, hostname, port } = window.location;
+
+            if (hostname === 'localhost' || hostname === '127.0.0.1') {
+              apiUrl = `${protocol}//${hostname}:8338`;
+            } else if (port === '1212') {
+              apiUrl = `${protocol}//${hostname}:8338`;
+            } else {
+              const isDefaultHttpPort = port === '' || port === '80';
+              const isDefaultHttpsPort = port === '' || port === '443';
+              const isDefaultPort =
+                (protocol === 'http:' && isDefaultHttpPort) ||
+                (protocol === 'https:' && isDefaultHttpsPort);
+
+              if (isDefaultPort) {
+                apiUrl = `${protocol}//${hostname}`;
+              } else {
+                apiUrl = `${protocol}//${hostname}:${port}`;
+              }
+            }
+          } else {
+            apiUrl = envUrl.trim();
+          }
+
           apiUrl = apiUrl.replace(/\/$/, '');
           const url = `${apiUrl}/auth/verify`;
           const response = await fetch(url, {
