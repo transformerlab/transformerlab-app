@@ -75,6 +75,7 @@ class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
         # Must use dialect-specific insert for ON CONFLICT DO UPDATE support.
         if DATABASE_TYPE == "postgresql":
             from sqlalchemy.dialects.postgresql import insert as pg_insert
+
             stmt = (
                 pg_insert(OAuthAccount)
                 .values(user_id=user.id, **create_dict)
@@ -85,6 +86,7 @@ class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
             )
         else:
             from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
             stmt = (
                 sqlite_insert(OAuthAccount)
                 .values(user_id=user.id, **create_dict)
