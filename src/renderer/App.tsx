@@ -17,7 +17,7 @@ import './styles.css';
 
 import OutputTerminal from './components/OutputTerminal';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
-import AnnouncementsModal from './components/Shared/AnnouncementsModal';
+import AnnouncementBanner from './components/Shared/AnnouncementBanner';
 import { NotificationProvider } from './components/Shared/NotificationSystem';
 import {
   ExperimentInfoProvider,
@@ -141,6 +141,7 @@ function AppContent({
         }}
         id="main-app-panel"
       >
+        <AnnouncementBanner />
         <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
       </Box>
       {isLocalMode && (
@@ -200,7 +201,6 @@ function AppContent({
           </Box>
         </Box>
       )}
-      {/* <AnnouncementsModal /> */}
     </Box>
   );
 }
