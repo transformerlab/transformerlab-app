@@ -90,8 +90,14 @@ if __name__ == "__main__":
             "trl-internal-testing/descriptiveness-sentiment-trl-style",
         )
 
-    if not getattr(script_args, "dataset_train_split", None):
-        script_args.dataset_train_split = cfg.get("dataset_train_split", "descriptiveness")
+    # Prefer explicit lab config; otherwise, override TRL's default "train" for this dataset
+    if "dataset_train_split" in cfg:
+        script_args.dataset_train_split = cfg["dataset_train_split"]
+    elif (
+        script_args.dataset_name == "trl-internal-testing/descriptiveness-sentiment-trl-style"
+        and script_args.dataset_train_split == "train"
+    ):
+        script_args.dataset_train_split = "descriptiveness"
 
     if not getattr(training_args, "output_dir", None):
         training_args.output_dir = cfg.get(
