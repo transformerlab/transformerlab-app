@@ -1,27 +1,9 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import Sheet from '@mui/joy/Sheet';
-import {
-  Button,
-  LinearProgress,
-  Stack,
-  Typography,
-  Card,
-  CardContent,
-  Chip,
-  Box,
-  IconButton,
-  Skeleton,
-} from '@mui/joy';
+import { Button, Stack, Typography, Box, Skeleton } from '@mui/joy';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import {
-  PlusIcon,
-  TerminalIcon,
-  PlayIcon,
-  Trash2Icon,
-  LogsIcon,
-  LibraryIcon,
-} from 'lucide-react';
+import { PlusIcon } from 'lucide-react';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -39,8 +21,7 @@ import InteractiveSshModal from '../Tasks/InteractiveSshModal';
 import InteractiveOllamaModal from '../Tasks/InteractiveOllamaModal';
 import EditInteractiveTaskModal from '../Tasks/EditInteractiveTaskModal';
 import ViewOutputModalStreaming from '../Tasks/ViewOutputModalStreaming';
-import JobProgress from '../Tasks/JobProgress';
-import { jobChipColor } from 'renderer/lib/utils';
+import InteractiveJobCard from './InteractiveJobCard';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -595,40 +576,6 @@ export default function Interactive() {
     setEditModalOpen(true);
   };
 
-  const getInteractiveTypeLabel = (interactiveType: string) => {
-    switch (interactiveType) {
-      case 'jupyter':
-        return 'Jupyter';
-      case 'vllm':
-        return 'vLLM';
-      case 'ollama':
-        return 'Ollama';
-      case 'ssh':
-        return 'SSH';
-      case 'vscode':
-      default:
-        return 'VS Code';
-    }
-  };
-
-  const getInteractiveTypeColor = (
-    interactiveType: string,
-  ): 'primary' | 'success' | 'warning' | 'danger' | 'neutral' => {
-    switch (interactiveType) {
-      case 'jupyter':
-        return 'warning';
-      case 'vllm':
-        return 'success';
-      case 'ollama':
-        return 'primary';
-      case 'ssh':
-        return 'danger';
-      case 'vscode':
-      default:
-        return 'primary';
-    }
-  };
-
   const handleViewInteractive = (jobId: number) => {
     setInteractiveJobForModal(jobId);
   };
@@ -797,107 +744,15 @@ export default function Interactive() {
               gap: 2,
             }}
           >
-            {jobsWithPlaceholders.map((job: any) => {
-              const jobData = job.job_data || {};
-              const interactiveType =
-                jobData.interactive_type ||
-                (typeof jobData === 'string'
-                  ? JSON.parse(jobData || '{}')?.interactive_type
-                  : null) ||
-                'vscode';
-
-              return (
-                <Card key={job.id} variant="outlined" sx={{ height: '100%' }}>
-                  <CardContent>
-                    <Stack spacing={2}>
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                        flexWrap="wrap"
-                      >
-                        <Typography
-                          level="title-md"
-                          sx={{ flex: 1, minWidth: 0 }}
-                        >
-                          {jobData.cluster_name ||
-                            jobData.template_name ||
-                            `Job ${job.id}`}
-                        </Typography>
-                        <Chip
-                          variant="soft"
-                          color={jobChipColor(job.status)}
-                          size="sm"
-                        >
-                          {job.status}
-                        </Chip>
-                        <Chip
-                          variant="soft"
-                          color={getInteractiveTypeColor(interactiveType)}
-                          size="sm"
-                        >
-                          {getInteractiveTypeLabel(interactiveType)}
-                        </Chip>
-                      </Stack>
-                      <Box>
-                        <JobProgress job={job} />
-                      </Box>
-                      {jobData.start_time && (
-                        <Typography level="body-xs" color="neutral">
-                          Started:{' '}
-                          {dayjs(jobData.start_time)
-                            .local()
-                            .format('MMM D, YYYY HH:mm:ss')}
-                        </Typography>
-                      )}
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        justifyContent="flex-end"
-                      >
-                        {job.status === 'INTERACTIVE' &&
-                          (interactiveType === 'vscode' ||
-                            interactiveType === 'jupyter' ||
-                            interactiveType === 'vllm' ||
-                            interactiveType === 'ollama' ||
-                            interactiveType === 'ssh') && (
-                            <>
-                              <Button
-                                variant="plain"
-                                size="sm"
-                                startDecorator={<LogsIcon size={16} />}
-                                onClick={() =>
-                                  setViewOutputFromJob(parseInt(job.id, 10))
-                                }
-                              >
-                                Output
-                              </Button>
-                              <Button
-                                variant="soft"
-                                color="primary"
-                                size="sm"
-                                onClick={() =>
-                                  handleViewInteractive(parseInt(job.id, 10))
-                                }
-                              >
-                                Interactive Setup
-                              </Button>
-                            </>
-                          )}
-                        <IconButton
-                          variant="plain"
-                          color="danger"
-                          size="sm"
-                          onClick={() => handleDeleteJob(String(job.id))}
-                        >
-                          <Trash2Icon size={16} />
-                        </IconButton>
-                      </Stack>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {jobsWithPlaceholders.map((job: any) => (
+              <InteractiveJobCard
+                key={job.id}
+                job={job}
+                onViewOutput={setViewOutputFromJob}
+                onViewInteractive={handleViewInteractive}
+                onDeleteJob={handleDeleteJob}
+              />
+            ))}
           </Box>
         )}
       </Sheet>
