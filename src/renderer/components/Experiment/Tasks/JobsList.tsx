@@ -9,6 +9,7 @@ import Menu from '@mui/joy/Menu';
 import MenuButton from '@mui/joy/MenuButton';
 import MenuItem from '@mui/joy/MenuItem';
 import Dropdown from '@mui/joy/Dropdown';
+import Checkbox from '@mui/joy/Checkbox';
 import {
   Trash2Icon,
   LineChartIcon,
@@ -44,6 +45,9 @@ interface JobsListProps {
   onViewJobDatasets?: (jobId: string) => void;
   onViewJobModels?: (jobId: string) => void;
   loading: boolean;
+  selectMode?: boolean;
+  selectedJobIds?: string[];
+  onToggleJobSelected?: (jobId: string) => void;
 }
 
 const JobsList: React.FC<JobsListProps> = ({
@@ -63,6 +67,9 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewJobDatasets,
   onViewJobModels,
   loading,
+  selectMode = false,
+  selectedJobIds = [],
+  onToggleJobSelected,
 }) => {
   const formatJobConfig = (job: any) => {
     const jobData = job?.job_data || {};
@@ -190,6 +197,17 @@ const JobsList: React.FC<JobsListProps> = ({
           jobs?.map((job) => (
             <tr key={job.id}>
               <td style={{ verticalAlign: 'top', border: 'none' }}>
+                {selectMode &&
+                  job?.job_data?.eval_results &&
+                  Array.isArray(job.job_data.eval_results) &&
+                  job.job_data.eval_results.length > 0 && (
+                    <Checkbox
+                      size="sm"
+                      checked={selectedJobIds.includes(String(job.id))}
+                      onChange={() => onToggleJobSelected?.(String(job.id))}
+                      sx={{ mr: 1 }}
+                    />
+                  )}
                 <b>{job.id}</b>
               </td>
               <td style={{ verticalAlign: 'top', border: 'none' }}>

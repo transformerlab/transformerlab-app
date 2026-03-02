@@ -28,6 +28,7 @@ import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
 import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
+import CompareEvalResultsModal from './CompareEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
 import ViewJobDatasetsModal from '../Train/ViewJobDatasetsModal';
@@ -65,6 +66,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     open: boolean;
     datasetId: string | null;
   }>({ open: false, datasetId: null });
+  const [compareEvalJobIds, setCompareEvalJobIds] = useState<number[]>([]);
+  const [isCompareSelectMode, setIsCompareSelectMode] = useState(false);
+  const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
   const [yamlEditorTaskId, setYamlEditorTaskId] = useState<string | null>(null);
   const [launchProgressByJobId, setLaunchProgressByJobId] = useState<
     Record<string, { phase?: string; percent?: number; message?: string }>
@@ -1061,6 +1065,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           isSubmitting={isSubmitting}
           providers={providers}
           isProvidersLoading={providersIsLoading}
+          importedTasks={tasks}
+          onDeleteTask={handleDeleteTask}
+          onQueueTask={handleQueue}
+          onRefreshTasks={templatesMutate}
         />
       )}
       {taskBeingEdited &&
@@ -1168,7 +1176,47 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           loading={templatesIsLoading}
         />
       </Sheet>
-      <Typography level="title-md">Runs</Typography>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        gap={2}
+        sx={{ mt: 1 }}
+      >
+        <Typography level="title-md">Runs</Typography>
+        <Stack direction="row" gap={1}>
+          <Button
+            size="sm"
+            variant={isCompareSelectMode ? 'solid' : 'outlined'}
+            onClick={() => {
+              setIsCompareSelectMode((prev) => {
+                const next = !prev;
+                if (!next) {
+                  setCompareEvalJobIds([]);
+                  setCompareEvalModalOpen(false);
+                }
+                return next;
+              });
+            }}
+          >
+            {isCompareSelectMode ? 'Cancel' : 'Select'}
+          </Button>
+          {isCompareSelectMode && (
+            <Button
+              size="sm"
+              variant="solid"
+              disabled={compareEvalJobIds.length !== 2}
+              onClick={() => {
+                if (compareEvalJobIds.length === 2) {
+                  setCompareEvalModalOpen(true);
+                }
+              }}
+            >
+              Compare selected evals
+            </Button>
+          )}
+        </Stack>
+      </Stack>
       <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
         <JobsList
           jobs={jobsWithPlaceholders as any}
@@ -1206,6 +1254,21 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             setInteractiveJobForModal(parseInt(jobId))
           }
           loading={jobsIsLoading}
+          selectMode={isCompareSelectMode}
+          selectedJobIds={compareEvalJobIds.map((id) => String(id))}
+          onToggleJobSelected={(jobId) => {
+            setCompareEvalJobIds((prev) => {
+              const id = parseInt(jobId, 10);
+              if (Number.isNaN(id)) return prev;
+              if (prev.includes(id)) {
+                return prev.filter((existing) => existing !== id);
+              }
+              if (prev.length === 0) return [id];
+              if (prev.length === 1) return [...prev, id];
+              // If already two selected, replace the oldest with the new one
+              return [prev[1], id];
+            });
+          }}
         />
       </Sheet>
       <ViewSweepResultsModal
@@ -1231,6 +1294,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         onClose={() => setViewEvalResultsFromJob(-1)}
         jobId={viewEvalResultsFromJob}
       />
+      <CompareEvalResultsModal
+        open={compareEvalModalOpen && compareEvalJobIds.length === 2}
+        onClose={() => setCompareEvalModalOpen(false)}
+        jobIds={compareEvalJobIds}
+      />
       {(() => {
         // Find the job to determine which modal to show
         const job = jobs.find(
@@ -1248,7 +1316,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             <InteractiveJupyterModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
@@ -1258,21 +1325,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             <InteractiveVllmModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
 
         if (interactiveType === 'ssh') {
-          console.log(
-            '[Tasks] Rendering InteractiveSshModal with onOpenOutput:',
-            handleOpenOutputFromInteractive,
-          );
           return (
             <InteractiveSshModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
@@ -1282,7 +1343,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             <InteractiveOllamaModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
@@ -1291,7 +1351,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           <InteractiveVSCodeModal
             jobId={interactiveJobForModal}
             setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            onOpenOutput={handleOpenOutputFromInteractive}
           />
         );
       })()}

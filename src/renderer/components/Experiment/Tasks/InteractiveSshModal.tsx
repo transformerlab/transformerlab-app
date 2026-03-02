@@ -12,7 +12,6 @@ import {
   Stack,
   Typography,
 } from '@mui/joy';
-import { LogsIcon } from 'lucide-react';
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -22,13 +21,13 @@ import { useAuth } from 'renderer/lib/authContext';
 type InteractiveSshModalProps = {
   jobId: number;
   setJobId: (jobId: number) => void;
-  onOpenOutput?: (jobId: number) => void;
+  embeddedOutput?: React.ReactNode;
 };
 
 export default function InteractiveSshModal({
   jobId,
   setJobId,
-  onOpenOutput,
+  embeddedOutput,
 }: InteractiveSshModalProps) {
   const { experimentInfo } = useExperimentInfo();
   const { team } = useAuth();
@@ -100,9 +99,9 @@ export default function InteractiveSshModal({
     <Modal open={jobId !== -1} onClose={handleClose}>
       <ModalDialog
         sx={{
-          maxWidth: '700px',
-          width: '90vw',
-          maxHeight: '80vh',
+          maxWidth: '95vw',
+          width: '95vw',
+          height: '85vh',
           overflow: 'hidden',
         }}
       >
@@ -118,140 +117,303 @@ export default function InteractiveSshModal({
           </Typography>
         </Stack>
         <Divider />
-        <Box
-          sx={{
-            mt: 2,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            maxHeight: '60vh',
-            overflow: 'auto',
-          }}
-        >
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Chip color={isReady ? 'success' : 'warning'} variant="soft">
-              {isReady ? 'Ready' : 'Waiting for tunnel'}
-            </Chip>
-            {isLoading && <CircularProgress size="sm" />}
-            {error && (
-              <Typography level="body-xs" color="danger">
-                Failed to load tunnel info
-              </Typography>
-            )}
-          </Stack>
-
-          <Box>
-            <Typography level="title-md">SSH Connection Details</Typography>
-            <Typography level="body-sm" sx={{ mt: 0.5 }}>
-              Once the tunnel is ready, use the SSH command below to connect to
-              your remote machine.
-            </Typography>
-
-            {domain && port && (
-              <Box sx={{ mt: 2 }}>
-                <Typography level="body-sm" sx={{ mb: 1, fontWeight: 'bold' }}>
-                  Connection Information:
-                </Typography>
-                <Stack spacing={0.5} sx={{ mb: 2 }}>
-                  <Typography level="body-xs">
-                    Domain: <code>{domain}</code>
-                  </Typography>
-                  <Typography level="body-xs">
-                    Port: <code>{port}</code>
-                  </Typography>
-                  {username && (
-                    <Typography level="body-xs">
-                      Username: <code>{username}</code>
+        {embeddedOutput ? (
+          <Box sx={{ display: 'flex', flex: 1, minHeight: 0, gap: 2, mt: 2 }}>
+            <Box sx={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Chip color={isReady ? 'success' : 'warning'} variant="soft">
+                    {isReady ? 'Ready' : 'Waiting for tunnel'}
+                  </Chip>
+                  {isLoading && <CircularProgress size="sm" />}
+                  {error && (
+                    <Typography level="body-xs" color="danger">
+                      Failed to load tunnel info
                     </Typography>
                   )}
                 </Stack>
-              </Box>
-            )}
 
-            <Box
-              sx={{
-                mt: 1,
-                p: 1.5,
-                borderRadius: 'sm',
-                border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 1,
-                flexWrap: 'wrap',
-                bgcolor: 'background.level1',
-              }}
-            >
-              {sshCommand ? (
-                <>
-                  <Typography
-                    level="body-md"
-                    component="code"
+                <Box>
+                  <Typography level="title-md">
+                    SSH Connection Details
+                  </Typography>
+                  <Typography level="body-sm" sx={{ mt: 0.5 }}>
+                    Once the tunnel is ready, use the SSH command below to
+                    connect to your remote machine.
+                  </Typography>
+
+                  {domain && port && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography
+                        level="body-sm"
+                        sx={{ mb: 1, fontWeight: 'bold' }}
+                      >
+                        Connection Information:
+                      </Typography>
+                      <Stack spacing={0.5} sx={{ mb: 2 }}>
+                        <Typography level="body-xs">
+                          Domain: <code>{domain}</code>
+                        </Typography>
+                        <Typography level="body-xs">
+                          Port: <code>{port}</code>
+                        </Typography>
+                        {username && (
+                          <Typography level="body-xs">
+                            Username: <code>{username}</code>
+                          </Typography>
+                        )}
+                      </Stack>
+                    </Box>
+                  )}
+
+                  <Box
                     sx={{
-                      fontFamily: 'monospace',
-                      wordBreak: 'break-all',
-                      flex: 1,
-                      minWidth: 0,
+                      mt: 1,
+                      p: 1.5,
+                      borderRadius: 'sm',
+                      border:
+                        '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 1,
+                      flexWrap: 'wrap',
+                      bgcolor: 'background.level1',
                     }}
                   >
-                    {sshCommand}
-                  </Typography>
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      size="sm"
-                      variant="soft"
-                      onClick={() => handleCopy(sshCommand)}
-                    >
-                      Copy Command
-                    </Button>
-                  </Stack>
-                </>
-              ) : (
-                <Typography level="body-sm" sx={{ flex: 1 }}>
-                  Waiting for tunnel to start. The SSH command will appear here
-                  once ngrok creates the tunnel...
-                </Typography>
-              )}
-            </Box>
+                    {sshCommand ? (
+                      <>
+                        <Typography
+                          level="body-md"
+                          component="code"
+                          sx={{
+                            fontFamily: 'monospace',
+                            wordBreak: 'break-all',
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                        >
+                          {sshCommand}
+                        </Typography>
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            size="sm"
+                            variant="soft"
+                            onClick={() => handleCopy(sshCommand)}
+                          >
+                            Copy Command
+                          </Button>
+                        </Stack>
+                      </>
+                    ) : (
+                      <Typography level="body-sm" sx={{ flex: 1 }}>
+                        Waiting for tunnel to start. The SSH command will appear
+                        here once ngrok creates the tunnel...
+                      </Typography>
+                    )}
+                  </Box>
 
-            {sshCommand && (
-              <Box
-                sx={{
-                  mt: 2,
-                  p: 1.5,
-                  bgcolor: 'background.level1',
-                  borderRadius: 'sm',
-                }}
-              >
-                <Typography level="body-sm" sx={{ mb: 1, fontWeight: 'bold' }}>
-                  Usage Instructions:
-                </Typography>
-                <Typography
-                  level="body-xs"
-                  component="pre"
-                  sx={{
-                    fontFamily: 'monospace',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-all',
-                    fontSize: '0.75rem',
-                  }}
-                >
-                  {`1. Download your organization's SSH key from Team Settings
+                  {sshCommand && (
+                    <Box
+                      sx={{
+                        mt: 2,
+                        p: 1.5,
+                        bgcolor: 'background.level1',
+                        borderRadius: 'sm',
+                      }}
+                    >
+                      <Typography
+                        level="body-sm"
+                        sx={{ mb: 1, fontWeight: 'bold' }}
+                      >
+                        Usage Instructions:
+                      </Typography>
+                      <Typography
+                        level="body-xs"
+                        component="pre"
+                        sx={{
+                          fontFamily: 'monospace',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-all',
+                          fontSize: '0.75rem',
+                        }}
+                      >
+                        {`1. Download your organization's SSH key from Team Settings
 2. Save the key file (e.g., ~/org_ssh_key_${team?.id || 'YOUR_TEAM_ID'})
 3. Set permissions: chmod 600 ~/org_ssh_key_${team?.id || 'YOUR_TEAM_ID'}
 4. Copy the SSH command above
 5. Open your terminal
 6. Paste and run the command`}
-                </Typography>
-              </Box>
-            )}
+                      </Typography>
+                    </Box>
+                  )}
 
-            <Typography level="body-xs" sx={{ mt: 1 }}>
-              Tip: If the command never appears, check the job output and
-              provider logs to ensure ngrok started correctly.
-            </Typography>
+                  <Typography level="body-xs" sx={{ mt: 1 }}>
+                    Tip: If the command never appears, check the job output and
+                    provider logs to ensure ngrok started correctly.
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+            <Box
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              {embeddedOutput}
+            </Box>
           </Box>
-        </Box>
+        ) : (
+          <Box
+            sx={{
+              mt: 2,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              maxHeight: '60vh',
+              overflow: 'auto',
+            }}
+          >
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip color={isReady ? 'success' : 'warning'} variant="soft">
+                {isReady ? 'Ready' : 'Waiting for tunnel'}
+              </Chip>
+              {isLoading && <CircularProgress size="sm" />}
+              {error && (
+                <Typography level="body-xs" color="danger">
+                  Failed to load tunnel info
+                </Typography>
+              )}
+            </Stack>
+
+            <Box>
+              <Typography level="title-md">SSH Connection Details</Typography>
+              <Typography level="body-sm" sx={{ mt: 0.5 }}>
+                Once the tunnel is ready, use the SSH command below to connect
+                to your remote machine.
+              </Typography>
+
+              {domain && port && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography
+                    level="body-sm"
+                    sx={{ mb: 1, fontWeight: 'bold' }}
+                  >
+                    Connection Information:
+                  </Typography>
+                  <Stack spacing={0.5} sx={{ mb: 2 }}>
+                    <Typography level="body-xs">
+                      Domain: <code>{domain}</code>
+                    </Typography>
+                    <Typography level="body-xs">
+                      Port: <code>{port}</code>
+                    </Typography>
+                    {username && (
+                      <Typography level="body-xs">
+                        Username: <code>{username}</code>
+                      </Typography>
+                    )}
+                  </Stack>
+                </Box>
+              )}
+
+              <Box
+                sx={{
+                  mt: 1,
+                  p: 1.5,
+                  borderRadius: 'sm',
+                  border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1,
+                  flexWrap: 'wrap',
+                  bgcolor: 'background.level1',
+                }}
+              >
+                {sshCommand ? (
+                  <>
+                    <Typography
+                      level="body-md"
+                      component="code"
+                      sx={{
+                        fontFamily: 'monospace',
+                        wordBreak: 'break-all',
+                        flex: 1,
+                        minWidth: 0,
+                      }}
+                    >
+                      {sshCommand}
+                    </Typography>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        size="sm"
+                        variant="soft"
+                        onClick={() => handleCopy(sshCommand)}
+                      >
+                        Copy Command
+                      </Button>
+                    </Stack>
+                  </>
+                ) : (
+                  <Typography level="body-sm" sx={{ flex: 1 }}>
+                    Waiting for tunnel to start. The SSH command will appear
+                    here once ngrok creates the tunnel...
+                  </Typography>
+                )}
+              </Box>
+
+              {sshCommand && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    p: 1.5,
+                    bgcolor: 'background.level1',
+                    borderRadius: 'sm',
+                  }}
+                >
+                  <Typography
+                    level="body-sm"
+                    sx={{ mb: 1, fontWeight: 'bold' }}
+                  >
+                    Usage Instructions:
+                  </Typography>
+                  <Typography
+                    level="body-xs"
+                    component="pre"
+                    sx={{
+                      fontFamily: 'monospace',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all',
+                      fontSize: '0.75rem',
+                    }}
+                  >
+                    {`1. Download your organization's SSH key from Team Settings
+2. Save the key file (e.g., ~/org_ssh_key_${team?.id || 'YOUR_TEAM_ID'})
+3. Set permissions: chmod 600 ~/org_ssh_key_${team?.id || 'YOUR_TEAM_ID'}
+4. Copy the SSH command above
+5. Open your terminal
+6. Paste and run the command`}
+                  </Typography>
+                </Box>
+              )}
+
+              <Typography level="body-xs" sx={{ mt: 1 }}>
+                Tip: If the command never appears, check the job output and
+                provider logs to ensure ngrok started correctly.
+              </Typography>
+            </Box>
+          </Box>
+        )}
       </ModalDialog>
     </Modal>
   );
