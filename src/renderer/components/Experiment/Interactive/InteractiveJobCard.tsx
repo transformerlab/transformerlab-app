@@ -8,11 +8,18 @@ import {
   Chip,
   Box,
   IconButton,
+  Divider,
 } from '@mui/joy';
-import dayjs from 'dayjs';
-import { Trash2Icon, LogsIcon } from 'lucide-react';
+import {
+  Trash2Icon,
+  LogsIcon,
+  CodeIcon,
+  NotebookPenIcon,
+  ServerIcon,
+  TerminalIcon,
+  BoxIcon,
+} from 'lucide-react';
 import JobProgress from '../Tasks/JobProgress';
-import { jobChipColor } from 'renderer/lib/utils';
 
 interface InteractiveJobCardProps {
   job: any;
@@ -21,38 +28,25 @@ interface InteractiveJobCardProps {
   onDeleteJob: (jobId: string) => void;
 }
 
-function getInteractiveTypeLabel(interactiveType: string): string {
-  switch (interactiveType) {
-    case 'jupyter':
-      return 'Jupyter';
-    case 'vllm':
-      return 'vLLM';
-    case 'ollama':
-      return 'Ollama';
-    case 'ssh':
-      return 'SSH';
-    case 'vscode':
-    default:
-      return 'VS Code';
+const INTERACTIVE_TYPE_CONFIG: Record<
+  string,
+  {
+    label: string;
+    color: 'primary' | 'success' | 'warning' | 'danger' | 'neutral';
+    icon: React.ElementType;
   }
-}
+> = {
+  vscode: { label: 'VS Code', color: 'primary', icon: CodeIcon },
+  jupyter: { label: 'Jupyter', color: 'warning', icon: NotebookPenIcon },
+  vllm: { label: 'vLLM', color: 'success', icon: ServerIcon },
+  ollama: { label: 'Ollama', color: 'primary', icon: BoxIcon },
+  ssh: { label: 'SSH', color: 'danger', icon: TerminalIcon },
+};
 
-function getInteractiveTypeColor(
-  interactiveType: string,
-): 'primary' | 'success' | 'warning' | 'danger' | 'neutral' {
-  switch (interactiveType) {
-    case 'jupyter':
-      return 'warning';
-    case 'vllm':
-      return 'success';
-    case 'ollama':
-      return 'primary';
-    case 'ssh':
-      return 'danger';
-    case 'vscode':
-    default:
-      return 'primary';
-  }
+const DEFAULT_TYPE_CONFIG = INTERACTIVE_TYPE_CONFIG.vscode;
+
+function getTypeConfig(interactiveType: string) {
+  return INTERACTIVE_TYPE_CONFIG[interactiveType] || DEFAULT_TYPE_CONFIG;
 }
 
 export default function InteractiveJobCard({
@@ -69,75 +63,92 @@ export default function InteractiveJobCard({
       : null) ||
     'vscode';
 
+  const typeConfig = getTypeConfig(interactiveType);
+  const TypeIcon = typeConfig.icon;
+  const isInteractive = job.status === 'INTERACTIVE';
+  const title =
+    jobData.cluster_name || jobData.template_name || `Job ${job.id}`;
+
   return (
-    <Card variant="outlined" sx={{ height: '100%' }}>
-      <CardContent>
-        <Stack spacing={2}>
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="center"
-            flexWrap="wrap"
+    <Card
+      variant="outlined"
+      sx={{
+        height: '100%',
+        transition: 'box-shadow 0.2s',
+        '&:hover': {
+          boxShadow: 'sm',
+        },
+      }}
+    >
+      <CardContent sx={{ gap: 1.5 }}>
+        <Stack direction="row" spacing={1.5} alignItems="flex-start">
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 36,
+              height: 36,
+              borderRadius: 'sm',
+              bgcolor: `var(--joy-palette-${typeConfig.color}-softBg)`,
+              color: `var(--joy-palette-${typeConfig.color}-softColor)`,
+              flexShrink: 0,
+              mt: 0.25,
+            }}
           >
-            <Typography level="title-md" sx={{ flex: 1, minWidth: 0 }}>
-              {jobData.cluster_name || jobData.template_name || `Job ${job.id}`}
-            </Typography>
-            <Chip variant="soft" color={jobChipColor(job.status)} size="sm">
-              {job.status}
-            </Chip>
-            <Chip
-              variant="soft"
-              color={getInteractiveTypeColor(interactiveType)}
-              size="sm"
-            >
-              {getInteractiveTypeLabel(interactiveType)}
-            </Chip>
-          </Stack>
-          <Box>
-            <JobProgress job={job} />
+            <TypeIcon size={20} />
           </Box>
-          {jobData.start_time && (
-            <Typography level="body-xs" color="neutral">
-              Started:{' '}
-              {dayjs(jobData.start_time).local().format('MMM D, YYYY HH:mm:ss')}
-            </Typography>
-          )}
-          <Stack direction="row" spacing={1} justifyContent="flex-end">
-            {job.status === 'INTERACTIVE' &&
-              (interactiveType === 'vscode' ||
-                interactiveType === 'jupyter' ||
-                interactiveType === 'vllm' ||
-                interactiveType === 'ollama' ||
-                interactiveType === 'ssh') && (
-                <>
-                  <Button
-                    variant="plain"
-                    size="sm"
-                    startDecorator={<LogsIcon size={16} />}
-                    onClick={() => onViewOutput(parseInt(job.id, 10))}
-                  >
-                    Output
-                  </Button>
-                  <Button
-                    variant="soft"
-                    color="primary"
-                    size="sm"
-                    onClick={() => onViewInteractive(parseInt(job.id, 10))}
-                  >
-                    Interactive Setup
-                  </Button>
-                </>
-              )}
-            <IconButton
-              variant="plain"
-              color="danger"
-              size="sm"
-              onClick={() => onDeleteJob(String(job.id))}
+          <Stack sx={{ flex: 1, minWidth: 0 }} spacing={0.25}>
+            <Typography
+              level="title-sm"
+              noWrap
+              title={title}
+              sx={{ fontWeight: 600 }}
             >
-              <Trash2Icon size={16} />
-            </IconButton>
+              {title}
+            </Typography>
+            <Chip variant="soft" color={typeConfig.color} size="sm">
+              {typeConfig.label}
+            </Chip>
           </Stack>
+          <IconButton
+            variant="plain"
+            color="danger"
+            size="sm"
+            onClick={() => onDeleteJob(String(job.id))}
+            sx={{ mt: -0.5, mr: -0.5 }}
+          >
+            <Trash2Icon size={16} />
+          </IconButton>
         </Stack>
+
+        <Box>
+          <JobProgress job={job} />
+        </Box>
+
+        {isInteractive && (
+          <>
+            <Divider />
+            <Stack direction="row" spacing={1} justifyContent="flex-end">
+              <Button
+                variant="plain"
+                size="sm"
+                startDecorator={<LogsIcon size={14} />}
+                onClick={() => onViewOutput(parseInt(job.id, 10))}
+              >
+                Output
+              </Button>
+              <Button
+                variant="soft"
+                color="primary"
+                size="sm"
+                onClick={() => onViewInteractive(parseInt(job.id, 10))}
+              >
+                Connect
+              </Button>
+            </Stack>
+          </>
+        )}
       </CardContent>
     </Card>
   );
