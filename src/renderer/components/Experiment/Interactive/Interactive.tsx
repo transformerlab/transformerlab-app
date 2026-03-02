@@ -20,7 +20,6 @@ import InteractiveVllmModal from '../Tasks/InteractiveVllmModal';
 import InteractiveSshModal from '../Tasks/InteractiveSshModal';
 import InteractiveOllamaModal from '../Tasks/InteractiveOllamaModal';
 import EditInteractiveTaskModal from '../Tasks/EditInteractiveTaskModal';
-import ViewOutputModalStreaming from '../Tasks/ViewOutputModalStreaming';
 import InteractiveJobCard from './InteractiveJobCard';
 
 const duration = require('dayjs/plugin/duration');
@@ -33,7 +32,6 @@ export default function Interactive() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskBeingEdited, setTaskBeingEdited] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [interactiveJobForModal, setInteractiveJobForModal] = useState(-1);
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
@@ -748,7 +746,6 @@ export default function Interactive() {
               <InteractiveJobCard
                 key={job.id}
                 job={job}
-                onViewOutput={setViewOutputFromJob}
                 onViewInteractive={handleViewInteractive}
                 onDeleteJob={handleDeleteJob}
               />
@@ -776,11 +773,6 @@ export default function Interactive() {
           loading={templatesIsLoading || !experimentInfo?.id}
         />
       </Sheet>
-      <ViewOutputModalStreaming
-        jobId={viewOutputFromJob}
-        setJobId={(jobId: number) => setViewOutputFromJob(jobId)}
-        tabs={['provider']}
-      />
       {(() => {
         const job = jobs.find(
           (j: any) => String(j.id) === String(interactiveJobForModal),

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Button,
   Stack,
@@ -12,10 +12,10 @@ import {
 } from '@mui/joy';
 import { Trash2Icon, LogsIcon } from 'lucide-react';
 import JobProgress from '../Tasks/JobProgress';
+import ViewOutputModalStreaming from '../Tasks/ViewOutputModalStreaming';
 
 interface InteractiveJobCardProps {
   job: any;
-  onViewOutput: (jobId: number) => void;
   onViewInteractive: (jobId: number) => void;
   onDeleteJob: (jobId: string) => void;
 }
@@ -103,10 +103,10 @@ function getTypeConfig(interactiveType: string) {
 
 export default function InteractiveJobCard({
   job,
-  onViewOutput,
   onViewInteractive,
   onDeleteJob,
 }: InteractiveJobCardProps) {
+  const [outputOpen, setOutputOpen] = useState(false);
   const jobData = job.job_data || {};
   const interactiveType =
     jobData.interactive_type ||
@@ -186,7 +186,7 @@ export default function InteractiveJobCard({
                 variant="plain"
                 size="sm"
                 startDecorator={<LogsIcon size={14} />}
-                onClick={() => onViewOutput(parseInt(job.id, 10))}
+                onClick={() => setOutputOpen(true)}
               >
                 Output
               </Button>
@@ -202,6 +202,11 @@ export default function InteractiveJobCard({
           </>
         )}
       </CardContent>
+      <ViewOutputModalStreaming
+        jobId={outputOpen ? parseInt(job.id, 10) : -1}
+        setJobId={() => setOutputOpen(false)}
+        tabs={['provider']}
+      />
     </Card>
   );
 }
