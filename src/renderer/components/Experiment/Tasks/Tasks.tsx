@@ -1303,7 +1303,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             <InteractiveJupyterModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
@@ -1313,21 +1312,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             <InteractiveVllmModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
 
         if (interactiveType === 'ssh') {
-          console.log(
-            '[Tasks] Rendering InteractiveSshModal with onOpenOutput:',
-            handleOpenOutputFromInteractive,
-          );
           return (
             <InteractiveSshModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
@@ -1337,7 +1330,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             <InteractiveOllamaModal
               jobId={interactiveJobForModal}
               setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-              onOpenOutput={handleOpenOutputFromInteractive}
             />
           );
         }
@@ -1346,7 +1338,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           <InteractiveVSCodeModal
             jobId={interactiveJobForModal}
             setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            onOpenOutput={handleOpenOutputFromInteractive}
           />
         );
       })()}
