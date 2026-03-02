@@ -4,12 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
 from fastapi_users.db import SQLAlchemyUserDatabase
-from sqlalchemy.dialects.sqlite import insert
 from fastapi import Depends
 from os import getenv
 import uuid
 
-from transformerlab.db.constants import DATABASE_URL
+from transformerlab.db.constants import DATABASE_URL, DATABASE_TYPE
 from transformerlab.shared.models.models import Team, User, OAuthAccount
 from transformerlab.shared.remote_workspace import create_bucket_for_team
 
@@ -72,15 +71,30 @@ class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
         if not user_exists:
             raise ValueError(f"User with id {user.id} does not exist")
 
-        # Perform an upsert: insert if not exists, update if conflict on unique constraint
-        stmt = (
-            insert(OAuthAccount)
-            .values(user_id=user.id, **create_dict)
-            .on_conflict_do_update(
-                index_elements=["oauth_name", "account_id"],  # Unique index on these columns
-                set_={k: v for k, v in create_dict.items() if k not in ["id"]},  # Update all fields except primary key
+        # Perform an upsert: insert if not exists, update if conflict on unique constraint.
+        # Must use dialect-specific insert for ON CONFLICT DO UPDATE support.
+        if DATABASE_TYPE == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            stmt = (
+                pg_insert(OAuthAccount)
+                .values(user_id=user.id, **create_dict)
+                .on_conflict_do_update(
+                    index_elements=["oauth_name", "account_id"],
+                    set_={k: v for k, v in create_dict.items() if k not in ["id"]},
+                )
             )
-        )
+        else:
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+            stmt = (
+                sqlite_insert(OAuthAccount)
+                .values(user_id=user.id, **create_dict)
+                .on_conflict_do_update(
+                    index_elements=["oauth_name", "account_id"],
+                    set_={k: v for k, v in create_dict.items() if k not in ["id"]},
+                )
+            )
         await self.session.execute(stmt)
         return user
 
