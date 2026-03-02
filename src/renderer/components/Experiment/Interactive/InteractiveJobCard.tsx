@@ -10,15 +10,7 @@ import {
   IconButton,
   Divider,
 } from '@mui/joy';
-import {
-  Trash2Icon,
-  LogsIcon,
-  CodeIcon,
-  NotebookPenIcon,
-  ServerIcon,
-  TerminalIcon,
-  BoxIcon,
-} from 'lucide-react';
+import { Trash2Icon, LogsIcon } from 'lucide-react';
 import JobProgress from '../Tasks/JobProgress';
 
 interface InteractiveJobCardProps {
@@ -26,6 +18,66 @@ interface InteractiveJobCardProps {
   onViewOutput: (jobId: number) => void;
   onViewInteractive: (jobId: number) => void;
   onDeleteJob: (jobId: string) => void;
+}
+
+function VscodeIcon() {
+  return (
+    <img
+      src="https://lab.cloud/img/icons/vscode.png"
+      alt="VS Code"
+      width={20}
+      height={20}
+      style={{ display: 'block' }}
+    />
+  );
+}
+
+function JupyterIcon() {
+  return (
+    <img
+      src="https://lab.cloud/img/icons/jupyter.png"
+      alt="Jupyter"
+      width={20}
+      height={20}
+      style={{ display: 'block' }}
+    />
+  );
+}
+
+function SshIcon() {
+  return (
+    <img
+      src="https://lab.cloud/img/icons/ssh.png"
+      alt="SSH"
+      width={20}
+      height={20}
+      style={{ display: 'block' }}
+    />
+  );
+}
+
+function VllmIcon() {
+  return (
+    <img
+      src="https://lab.cloud/img/icons/vllm.png"
+      alt="vLLM"
+      width={20}
+      height={20}
+      style={{ display: 'block' }}
+    />
+  );
+}
+
+function OllamaIcon() {
+  return (
+    <img
+      src="https://lab.cloud/img/icons/ollama.png"
+      alt="Ollama"
+      width={20}
+      height={20}
+      style={{ display: 'block' }}
+    />
+  );
 }
 
 const INTERACTIVE_TYPE_CONFIG: Record<
@@ -36,11 +88,11 @@ const INTERACTIVE_TYPE_CONFIG: Record<
     icon: React.ElementType;
   }
 > = {
-  vscode: { label: 'VS Code', color: 'primary', icon: CodeIcon },
-  jupyter: { label: 'Jupyter', color: 'warning', icon: NotebookPenIcon },
-  vllm: { label: 'vLLM', color: 'success', icon: ServerIcon },
-  ollama: { label: 'Ollama', color: 'primary', icon: BoxIcon },
-  ssh: { label: 'SSH', color: 'danger', icon: TerminalIcon },
+  vscode: { label: 'VS Code', color: 'primary', icon: VscodeIcon },
+  jupyter: { label: 'Jupyter', color: 'warning', icon: JupyterIcon },
+  vllm: { label: 'vLLM', color: 'success', icon: VllmIcon },
+  ollama: { label: 'Ollama', color: 'primary', icon: OllamaIcon },
+  ssh: { label: 'SSH', color: 'danger', icon: SshIcon },
 };
 
 const DEFAULT_TYPE_CONFIG = INTERACTIVE_TYPE_CONFIG.vscode;
