@@ -1131,6 +1131,10 @@ export default function UserLoginTest(): JSX.Element {
         }}
         teamId={authContext.team?.id || ''}
         providerId={providerId}
+        hasLocalProvider={
+          Array.isArray(providers) &&
+          providers.some((provider: any) => provider?.type === 'local')
+        }
       />
       <Modal
         open={openSetLogoModal}
