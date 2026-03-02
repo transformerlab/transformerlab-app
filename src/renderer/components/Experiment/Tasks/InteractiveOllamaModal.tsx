@@ -124,7 +124,8 @@ export default function InteractiveOllamaModal({
                   </Typography>
                   <Typography level="body-sm" sx={{ mt: 0.5 }}>
                     Once ready, use the URL below to access your Ollama server.
-                    The Ollama server provides an OpenAI-compatible API endpoint.
+                    The Ollama server provides an OpenAI-compatible API
+                    endpoint.
                   </Typography>
 
                   <Box
@@ -307,9 +308,7 @@ export default function InteractiveOllamaModal({
             </Stack>
 
             <Box>
-              <Typography level="title-md">
-                Access Ollama API Server
-              </Typography>
+              <Typography level="title-md">Access Ollama API Server</Typography>
               <Typography level="body-sm" sx={{ mt: 0.5 }}>
                 Once ready, use the URL below to access your Ollama server. The
                 Ollama server provides an OpenAI-compatible API endpoint.
@@ -320,8 +319,7 @@ export default function InteractiveOllamaModal({
                   mt: 1,
                   p: 1.5,
                   borderRadius: 'sm',
-                  border:
-                    '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                  border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -413,8 +411,7 @@ export default function InteractiveOllamaModal({
                   mt: 1,
                   p: 1.5,
                   borderRadius: 'sm',
-                  border:
-                    '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                  border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',

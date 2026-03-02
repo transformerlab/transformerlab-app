@@ -179,13 +179,11 @@ export default function InteractiveVSCodeModal({
                 <Divider />
 
                 <Box>
-                  <Typography level="title-md">
-                    Step 2: Open VS Code
-                  </Typography>
+                  <Typography level="title-md">Step 2: Open VS Code</Typography>
                   <Typography level="body-sm" sx={{ mt: 0.5 }}>
-                    After you finish authorization, the URL will appear here. Use
-                    it to open the remote environment in your browser-based VS
-                    Code.
+                    After you finish authorization, the URL will appear here.
+                    Use it to open the remote environment in your browser-based
+                    VS Code.
                   </Typography>
 
                   <Box
@@ -288,8 +286,7 @@ export default function InteractiveVSCodeModal({
                   mt: 1,
                   p: 1.5,
                   borderRadius: 'sm',
-                  border:
-                    '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                  border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -332,8 +329,7 @@ export default function InteractiveVSCodeModal({
                   mt: 1,
                   p: 1.5,
                   borderRadius: 'sm',
-                  border:
-                    '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                  border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',

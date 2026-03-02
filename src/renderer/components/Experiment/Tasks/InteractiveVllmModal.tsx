@@ -320,8 +320,7 @@ export default function InteractiveVllmModal({
                   mt: 1,
                   p: 1.5,
                   borderRadius: 'sm',
-                  border:
-                    '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                  border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -415,8 +414,7 @@ export default function InteractiveVllmModal({
                   mt: 1,
                   p: 1.5,
                   borderRadius: 'sm',
-                  border:
-                    '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                  border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',

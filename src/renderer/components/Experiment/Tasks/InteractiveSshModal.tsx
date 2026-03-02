@@ -298,8 +298,8 @@ export default function InteractiveSshModal({
             <Box>
               <Typography level="title-md">SSH Connection Details</Typography>
               <Typography level="body-sm" sx={{ mt: 0.5 }}>
-                Once the tunnel is ready, use the SSH command below to connect to
-                your remote machine.
+                Once the tunnel is ready, use the SSH command below to connect
+                to your remote machine.
               </Typography>
 
               {domain && port && (
@@ -331,8 +331,7 @@ export default function InteractiveSshModal({
                   mt: 1,
                   p: 1.5,
                   borderRadius: 'sm',
-                  border:
-                    '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                  border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -367,8 +366,8 @@ export default function InteractiveSshModal({
                   </>
                 ) : (
                   <Typography level="body-sm" sx={{ flex: 1 }}>
-                    Waiting for tunnel to start. The SSH command will appear here
-                    once ngrok creates the tunnel...
+                    Waiting for tunnel to start. The SSH command will appear
+                    here once ngrok creates the tunnel...
                   </Typography>
                 )}
               </Box>

@@ -5,7 +5,6 @@ import {
   Chip,
   CircularProgress,
   Divider,
-
   Link,
   Modal,
   ModalClose,
@@ -214,9 +213,7 @@ export default function InteractiveJupyterModal({
             </Stack>
 
             <Box>
-              <Typography level="title-md">
-                Access Jupyter Notebook
-              </Typography>
+              <Typography level="title-md">Access Jupyter Notebook</Typography>
               <Typography level="body-sm" sx={{ mt: 0.5 }}>
                 Once ready, click the link below to open your Jupyter notebook
                 in your browser.
@@ -227,8 +224,7 @@ export default function InteractiveJupyterModal({
                   mt: 1,
                   p: 1.5,
                   borderRadius: 'sm',
-                  border:
-                    '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                  border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -266,17 +262,14 @@ export default function InteractiveJupyterModal({
               </Box>
 
               {token && (
-                <Typography
-                  level="body-xs"
-                  sx={{ mt: 0.5, color: 'neutral' }}
-                >
+                <Typography level="body-xs" sx={{ mt: 0.5, color: 'neutral' }}>
                   Token: <code>{token}</code> (automatically included in URL)
                 </Typography>
               )}
 
               <Typography level="body-xs" sx={{ mt: 1 }}>
-                Tip: If the URL never appears, check the job output and
-                provider logs to ensure Jupyter started correctly.
+                Tip: If the URL never appears, check the job output and provider
+                logs to ensure Jupyter started correctly.
               </Typography>
             </Box>
           </Box>
