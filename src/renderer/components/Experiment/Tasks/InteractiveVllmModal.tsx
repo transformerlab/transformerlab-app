@@ -12,7 +12,7 @@ import {
   Stack,
   Typography,
 } from '@mui/joy';
-import { LogsIcon } from 'lucide-react';
+
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -21,13 +21,13 @@ import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 type InteractiveVllmModalProps = {
   jobId: number;
   setJobId: (jobId: number) => void;
-  onOpenOutput?: (jobId: number) => void;
+  embeddedOutput?: React.ReactNode;
 };
 
 export default function InteractiveVllmModal({
   jobId,
   setJobId,
-  onOpenOutput,
+  embeddedOutput,
 }: InteractiveVllmModalProps) {
   const { experimentInfo } = useExperimentInfo();
 
@@ -80,9 +80,9 @@ export default function InteractiveVllmModal({
     <Modal open={jobId !== -1} onClose={handleClose}>
       <ModalDialog
         sx={{
-          maxWidth: '700px',
-          width: '90vw',
-          maxHeight: '80vh',
+          maxWidth: '95vw',
+          width: '95vw',
+          height: '85vh',
           overflow: 'hidden',
         }}
       >
@@ -96,168 +96,362 @@ export default function InteractiveVllmModal({
           </Typography>
         </Stack>
         <Divider />
-        <Box
-          sx={{
-            mt: 2,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            maxHeight: '60vh',
-            overflow: 'auto',
-          }}
-        >
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Chip color={isReady ? 'success' : 'warning'} variant="soft">
-              {isReady ? 'Ready' : 'Waiting for connection'}
-            </Chip>
-            {isLoading && <CircularProgress size="sm" />}
-            {error && (
-              <Typography level="body-xs" color="danger">
-                Failed to load connection info
-              </Typography>
-            )}
-          </Stack>
-
-          <Box>
-            <Typography level="title-md">Access vLLM API Server</Typography>
-            <Typography level="body-sm" sx={{ mt: 0.5 }}>
-              Once ready, use the URL below to access your vLLM server. The vLLM
-              server provides an OpenAI-compatible API endpoint.
-            </Typography>
-
-            <Box
-              sx={{
-                mt: 1,
-                p: 1.5,
-                borderRadius: 'sm',
-                border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 1,
-                flexWrap: 'wrap',
-              }}
-            >
-              {vllmUrl ? (
-                <>
-                  <Link
-                    href={vllmUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    level="title-md"
-                    sx={{ wordBreak: 'break-all', flex: 1, minWidth: 0 }}
-                  >
-                    {vllmUrl}
-                  </Link>
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      size="sm"
-                      variant="soft"
-                      onClick={() => handleCopy(vllmUrl)}
-                    >
-                      Copy URL
-                    </Button>
-                  </Stack>
-                </>
-              ) : (
-                <Typography level="body-sm" sx={{ flex: 1 }}>
-                  Waiting for service to start. The URL will appear here once
-                  the connection is available...
-                </Typography>
-              )}
-            </Box>
-
-            {vllmUrl && (
+        {embeddedOutput ? (
+          <Box sx={{ display: 'flex', flex: 1, minHeight: 0, gap: 2, mt: 2 }}>
+            <Box sx={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
               <Box
                 sx={{
-                  mt: 2,
-                  p: 1.5,
-                  bgcolor: 'background.level1',
-                  borderRadius: 'sm',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
                 }}
               >
-                <Typography level="body-sm" sx={{ mb: 1, fontWeight: 'bold' }}>
-                  API Usage Example:
-                </Typography>
-                <Typography
-                  level="body-xs"
-                  component="pre"
-                  sx={{
-                    fontFamily: 'monospace',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-all',
-                    fontSize: '0.75rem',
-                  }}
-                >
-                  {`curl ${vllmUrl}/v1/completions \\
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Chip color={isReady ? 'success' : 'warning'} variant="soft">
+                    {isReady ? 'Ready' : 'Waiting for connection'}
+                  </Chip>
+                  {isLoading && <CircularProgress size="sm" />}
+                  {error && (
+                    <Typography level="body-xs" color="danger">
+                      Failed to load connection info
+                    </Typography>
+                  )}
+                </Stack>
+
+                <Box>
+                  <Typography level="title-md">
+                    Access vLLM API Server
+                  </Typography>
+                  <Typography level="body-sm" sx={{ mt: 0.5 }}>
+                    Once ready, use the URL below to access your vLLM server.
+                    The vLLM server provides an OpenAI-compatible API endpoint.
+                  </Typography>
+
+                  <Box
+                    sx={{
+                      mt: 1,
+                      p: 1.5,
+                      borderRadius: 'sm',
+                      border:
+                        '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 1,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    {vllmUrl ? (
+                      <>
+                        <Link
+                          href={vllmUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          level="title-md"
+                          sx={{
+                            wordBreak: 'break-all',
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                        >
+                          {vllmUrl}
+                        </Link>
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            size="sm"
+                            variant="soft"
+                            onClick={() => handleCopy(vllmUrl)}
+                          >
+                            Copy URL
+                          </Button>
+                        </Stack>
+                      </>
+                    ) : (
+                      <Typography level="body-sm" sx={{ flex: 1 }}>
+                        Waiting for service to start. The URL will appear here
+                        once the connection is available...
+                      </Typography>
+                    )}
+                  </Box>
+
+                  {vllmUrl && (
+                    <Box
+                      sx={{
+                        mt: 2,
+                        p: 1.5,
+                        bgcolor: 'background.level1',
+                        borderRadius: 'sm',
+                      }}
+                    >
+                      <Typography
+                        level="body-sm"
+                        sx={{ mb: 1, fontWeight: 'bold' }}
+                      >
+                        API Usage Example:
+                      </Typography>
+                      <Typography
+                        level="body-xs"
+                        component="pre"
+                        sx={{
+                          fontFamily: 'monospace',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-all',
+                          fontSize: '0.75rem',
+                        }}
+                      >
+                        {`curl ${vllmUrl}/v1/completions \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "your-model-name",
     "prompt": "Hello, world!",
     "max_tokens": 50
   }'`}
-                </Typography>
+                      </Typography>
+                    </Box>
+                  )}
+
+                  <Typography level="body-xs" sx={{ mt: 1 }}>
+                    Tip: If the URL never appears, check the job output and
+                    provider logs to ensure vLLM started correctly.
+                  </Typography>
+                </Box>
+
+                <Box>
+                  <Typography level="title-md" sx={{ mt: 2 }}>
+                    Access Open WebUI
+                  </Typography>
+                  <Typography level="body-sm" sx={{ mt: 0.5 }}>
+                    Use the URL below to open Open WebUI connected to this vLLM
+                    server. This provides a browser-based chat UI backed by the
+                    same vLLM API.
+                  </Typography>
+
+                  <Box
+                    sx={{
+                      mt: 1,
+                      p: 1.5,
+                      borderRadius: 'sm',
+                      border:
+                        '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 1,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    {openwebuiUrl ? (
+                      <>
+                        <Link
+                          href={openwebuiUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          level="title-md"
+                          sx={{
+                            wordBreak: 'break-all',
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                        >
+                          {openwebuiUrl}
+                        </Link>
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            size="sm"
+                            variant="soft"
+                            onClick={() => handleCopy(openwebuiUrl)}
+                          >
+                            Copy URL
+                          </Button>
+                        </Stack>
+                      </>
+                    ) : (
+                      <Typography level="body-sm" sx={{ flex: 1 }}>
+                        Waiting for the Open WebUI service to start...
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
               </Box>
-            )}
-
-            <Typography level="body-xs" sx={{ mt: 1 }}>
-              Tip: If the URL never appears, check the job output and provider
-              logs to ensure vLLM started correctly.
-            </Typography>
-          </Box>
-
-          <Box>
-            <Typography level="title-md" sx={{ mt: 2 }}>
-              Access Open WebUI
-            </Typography>
-            <Typography level="body-sm" sx={{ mt: 0.5 }}>
-              Use the URL below to open Open WebUI connected to this vLLM
-              server. This provides a browser-based chat UI backed by the same
-              vLLM API.
-            </Typography>
-
+            </Box>
             <Box
               sx={{
-                mt: 1,
-                p: 1.5,
-                borderRadius: 'sm',
-                border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                flex: 1,
+                minWidth: 0,
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 1,
-                flexWrap: 'wrap',
+                flexDirection: 'column',
               }}
             >
-              {openwebuiUrl ? (
-                <>
-                  <Link
-                    href={openwebuiUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    level="title-md"
-                    sx={{ wordBreak: 'break-all', flex: 1, minWidth: 0 }}
-                  >
-                    {openwebuiUrl}
-                  </Link>
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      size="sm"
-                      variant="soft"
-                      onClick={() => handleCopy(openwebuiUrl)}
-                    >
-                      Copy URL
-                    </Button>
-                  </Stack>
-                </>
-              ) : (
-                <Typography level="body-sm" sx={{ flex: 1 }}>
-                  Waiting for the Open WebUI service to start...
-                </Typography>
-              )}
+              {embeddedOutput}
             </Box>
           </Box>
-        </Box>
+        ) : (
+          <Box
+            sx={{
+              mt: 2,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              maxHeight: '60vh',
+              overflow: 'auto',
+            }}
+          >
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip color={isReady ? 'success' : 'warning'} variant="soft">
+                {isReady ? 'Ready' : 'Waiting for connection'}
+              </Chip>
+              {isLoading && <CircularProgress size="sm" />}
+              {error && (
+                <Typography level="body-xs" color="danger">
+                  Failed to load connection info
+                </Typography>
+              )}
+            </Stack>
+
+            <Box>
+              <Typography level="title-md">Access vLLM API Server</Typography>
+              <Typography level="body-sm" sx={{ mt: 0.5 }}>
+                Once ready, use the URL below to access your vLLM server. The
+                vLLM server provides an OpenAI-compatible API endpoint.
+              </Typography>
+
+              <Box
+                sx={{
+                  mt: 1,
+                  p: 1.5,
+                  borderRadius: 'sm',
+                  border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1,
+                  flexWrap: 'wrap',
+                }}
+              >
+                {vllmUrl ? (
+                  <>
+                    <Link
+                      href={vllmUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      level="title-md"
+                      sx={{ wordBreak: 'break-all', flex: 1, minWidth: 0 }}
+                    >
+                      {vllmUrl}
+                    </Link>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        size="sm"
+                        variant="soft"
+                        onClick={() => handleCopy(vllmUrl)}
+                      >
+                        Copy URL
+                      </Button>
+                    </Stack>
+                  </>
+                ) : (
+                  <Typography level="body-sm" sx={{ flex: 1 }}>
+                    Waiting for service to start. The URL will appear here once
+                    the connection is available...
+                  </Typography>
+                )}
+              </Box>
+
+              {vllmUrl && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    p: 1.5,
+                    bgcolor: 'background.level1',
+                    borderRadius: 'sm',
+                  }}
+                >
+                  <Typography
+                    level="body-sm"
+                    sx={{ mb: 1, fontWeight: 'bold' }}
+                  >
+                    API Usage Example:
+                  </Typography>
+                  <Typography
+                    level="body-xs"
+                    component="pre"
+                    sx={{
+                      fontFamily: 'monospace',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all',
+                      fontSize: '0.75rem',
+                    }}
+                  >
+                    {`curl ${vllmUrl}/v1/completions \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "your-model-name",
+    "prompt": "Hello, world!",
+    "max_tokens": 50
+  }'`}
+                  </Typography>
+                </Box>
+              )}
+
+              <Typography level="body-xs" sx={{ mt: 1 }}>
+                Tip: If the URL never appears, check the job output and provider
+                logs to ensure vLLM started correctly.
+              </Typography>
+            </Box>
+
+            <Box>
+              <Typography level="title-md" sx={{ mt: 2 }}>
+                Access Open WebUI
+              </Typography>
+              <Typography level="body-sm" sx={{ mt: 0.5 }}>
+                Use the URL below to open Open WebUI connected to this vLLM
+                server. This provides a browser-based chat UI backed by the same
+                vLLM API.
+              </Typography>
+
+              <Box
+                sx={{
+                  mt: 1,
+                  p: 1.5,
+                  borderRadius: 'sm',
+                  border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1,
+                  flexWrap: 'wrap',
+                }}
+              >
+                {openwebuiUrl ? (
+                  <>
+                    <Link
+                      href={openwebuiUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      level="title-md"
+                      sx={{ wordBreak: 'break-all', flex: 1, minWidth: 0 }}
+                    >
+                      {openwebuiUrl}
+                    </Link>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        size="sm"
+                        variant="soft"
+                        onClick={() => handleCopy(openwebuiUrl)}
+                      >
+                        Copy URL
+                      </Button>
+                    </Stack>
+                  </>
+                ) : (
+                  <Typography level="body-sm" sx={{ flex: 1 }}>
+                    Waiting for the Open WebUI service to start...
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          </Box>
+        )}
       </ModalDialog>
     </Modal>
   );

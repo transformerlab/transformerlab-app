@@ -208,15 +208,39 @@ function AppContent({
 const INITIAL_LOGS_DRAWER_HEIGHT = 200; // Default height for logs drawer when first opened
 
 export default function App() {
-  // Normalize TL_API_URL - ensure it's either a valid URL or default to same host as frontend
+  // Normalize TL_API_URL - ensure it's either a valid URL or default sensibly based on environment
   const initialApiUrl = (() => {
     const envUrl = process.env?.TL_API_URL;
-    // If undefined, null, or the string "default", use same host as frontend with API port
+    // If undefined, null, or the string "default", choose a fallback:
+    // - For localhost or frontend port 1212, assume API is on port 8338 (Electron dev)
+    // - For non-localhost, assume API is served from the same origin as the frontend
     if (!envUrl || envUrl === 'default' || envUrl.trim() === '') {
-      // Use the same protocol and hostname as the frontend, but with API port 8338
       const protocol = window.location.protocol;
       const hostname = window.location.hostname;
-      return `${protocol}//${hostname}:8338/`;
+      const port = window.location.port;
+
+      // Local dev: API runs on 8338 even if frontend uses another port
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return `${protocol}//${hostname}:8338/`;
+      }
+
+      // Local dev: frontend often on 1212, API on 8338
+      if (port === '1212') {
+        return `${protocol}//${hostname}:8338/`;
+      }
+
+      // Cloud/hosted: assume API is available on the same origin as the frontend
+      const isDefaultHttpPort = port === '' || port === '80';
+      const isDefaultHttpsPort = port === '' || port === '443';
+      const isDefaultPort =
+        (protocol === 'http:' && isDefaultHttpPort) ||
+        (protocol === 'https:' && isDefaultHttpsPort);
+
+      if (isDefaultPort) {
+        return `${protocol}//${hostname}/`;
+      }
+
+      return `${protocol}//${hostname}:${port}/`;
     }
     // Ensure the URL has a trailing slash
     let url = envUrl.trim();

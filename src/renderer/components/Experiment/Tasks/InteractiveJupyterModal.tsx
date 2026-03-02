@@ -5,7 +5,6 @@ import {
   Chip,
   CircularProgress,
   Divider,
-  IconButton,
   Link,
   Modal,
   ModalClose,
@@ -13,7 +12,7 @@ import {
   Stack,
   Typography,
 } from '@mui/joy';
-import { CopyIcon, LogsIcon } from 'lucide-react';
+
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -22,13 +21,13 @@ import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 type InteractiveJupyterModalProps = {
   jobId: number;
   setJobId: (jobId: number) => void;
-  onOpenOutput?: (jobId: number) => void;
+  embeddedOutput?: React.ReactNode;
 };
 
 export default function InteractiveJupyterModal({
   jobId,
   setJobId,
-  onOpenOutput,
+  embeddedOutput,
 }: InteractiveJupyterModalProps) {
   const { experimentInfo } = useExperimentInfo();
 
@@ -81,9 +80,9 @@ export default function InteractiveJupyterModal({
     <Modal open={jobId !== -1} onClose={handleClose}>
       <ModalDialog
         sx={{
-          maxWidth: '700px',
-          width: '90vw',
-          maxHeight: '80vh',
+          maxWidth: '95vw',
+          width: '95vw',
+          height: '85vh',
           overflow: 'hidden',
         }}
       >
@@ -97,89 +96,184 @@ export default function InteractiveJupyterModal({
           </Typography>
         </Stack>
         <Divider />
-        <Box
-          sx={{
-            mt: 2,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            maxHeight: '60vh',
-            overflow: 'auto',
-          }}
-        >
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Chip color={isReady ? 'success' : 'warning'} variant="soft">
-              {isReady ? 'Ready' : 'Waiting for connection'}
-            </Chip>
-            {isLoading && <CircularProgress size="sm" />}
-            {error && (
-              <Typography level="body-xs" color="danger">
-                Failed to load connection info
-              </Typography>
-            )}
-          </Stack>
+        {embeddedOutput ? (
+          <Box sx={{ display: 'flex', flex: 1, minHeight: 0, gap: 2, mt: 2 }}>
+            <Box sx={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Chip color={isReady ? 'success' : 'warning'} variant="soft">
+                  {isReady ? 'Ready' : 'Waiting for connection'}
+                </Chip>
+                {isLoading && <CircularProgress size="sm" />}
+                {error && (
+                  <Typography level="body-xs" color="danger">
+                    Failed to load connection info
+                  </Typography>
+                )}
+              </Stack>
 
-          <Box>
-            <Typography level="title-md">Access Jupyter Notebook</Typography>
-            <Typography level="body-sm" sx={{ mt: 0.5 }}>
-              Once ready, click the link below to open your Jupyter notebook in
-              your browser.
-            </Typography>
+              <Box sx={{ mt: 2 }}>
+                <Typography level="title-md">
+                  Access Jupyter Notebook
+                </Typography>
+                <Typography level="body-sm" sx={{ mt: 0.5 }}>
+                  Once ready, click the link below to open your Jupyter notebook
+                  in your browser.
+                </Typography>
 
+                <Box
+                  sx={{
+                    mt: 1,
+                    p: 1.5,
+                    borderRadius: 'sm',
+                    border:
+                      '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 1,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  {jupyterUrl ? (
+                    <>
+                      <Link
+                        href={jupyterUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        level="title-md"
+                        sx={{ wordBreak: 'break-all', flex: 1, minWidth: 0 }}
+                      >
+                        {jupyterUrl}
+                      </Link>
+                      <Stack direction="row" spacing={1}>
+                        <Button
+                          size="sm"
+                          variant="soft"
+                          onClick={() => handleCopy(jupyterUrl)}
+                        >
+                          Copy URL
+                        </Button>
+                      </Stack>
+                    </>
+                  ) : (
+                    <Typography level="body-sm" sx={{ flex: 1 }}>
+                      Waiting for service to start. The URL will appear here
+                      once the connection is available...
+                    </Typography>
+                  )}
+                </Box>
+
+                {token && (
+                  <Typography
+                    level="body-xs"
+                    sx={{ mt: 0.5, color: 'neutral' }}
+                  >
+                    Token: <code>{token}</code> (automatically included in URL)
+                  </Typography>
+                )}
+
+                <Typography level="body-xs" sx={{ mt: 1 }}>
+                  Tip: If the URL never appears, check the job output and
+                  provider logs to ensure Jupyter started correctly.
+                </Typography>
+              </Box>
+            </Box>
             <Box
               sx={{
-                mt: 1,
-                p: 1.5,
-                borderRadius: 'sm',
-                border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                flex: 1,
+                minWidth: 0,
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 1,
-                flexWrap: 'wrap',
+                flexDirection: 'column',
               }}
             >
-              {jupyterUrl ? (
-                <>
-                  <Link
-                    href={jupyterUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    level="title-md"
-                    sx={{ wordBreak: 'break-all', flex: 1, minWidth: 0 }}
-                  >
-                    {jupyterUrl}
-                  </Link>
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      size="sm"
-                      variant="soft"
-                      onClick={() => handleCopy(jupyterUrl)}
-                    >
-                      Copy URL
-                    </Button>
-                  </Stack>
-                </>
-              ) : (
-                <Typography level="body-sm" sx={{ flex: 1 }}>
-                  Waiting for service to start. The URL will appear here once
-                  the connection is available...
+              {embeddedOutput}
+            </Box>
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              mt: 2,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              maxHeight: '60vh',
+              overflow: 'auto',
+            }}
+          >
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip color={isReady ? 'success' : 'warning'} variant="soft">
+                {isReady ? 'Ready' : 'Waiting for connection'}
+              </Chip>
+              {isLoading && <CircularProgress size="sm" />}
+              {error && (
+                <Typography level="body-xs" color="danger">
+                  Failed to load connection info
                 </Typography>
               )}
-            </Box>
+            </Stack>
 
-            {token && (
-              <Typography level="body-xs" sx={{ mt: 0.5, color: 'neutral' }}>
-                Token: <code>{token}</code> (automatically included in URL)
+            <Box>
+              <Typography level="title-md">Access Jupyter Notebook</Typography>
+              <Typography level="body-sm" sx={{ mt: 0.5 }}>
+                Once ready, click the link below to open your Jupyter notebook
+                in your browser.
               </Typography>
-            )}
 
-            <Typography level="body-xs" sx={{ mt: 1 }}>
-              Tip: If the URL never appears, check the job output and provider
-              logs to ensure Jupyter started correctly.
-            </Typography>
+              <Box
+                sx={{
+                  mt: 1,
+                  p: 1.5,
+                  borderRadius: 'sm',
+                  border: '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1,
+                  flexWrap: 'wrap',
+                }}
+              >
+                {jupyterUrl ? (
+                  <>
+                    <Link
+                      href={jupyterUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      level="title-md"
+                      sx={{ wordBreak: 'break-all', flex: 1, minWidth: 0 }}
+                    >
+                      {jupyterUrl}
+                    </Link>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        size="sm"
+                        variant="soft"
+                        onClick={() => handleCopy(jupyterUrl)}
+                      >
+                        Copy URL
+                      </Button>
+                    </Stack>
+                  </>
+                ) : (
+                  <Typography level="body-sm" sx={{ flex: 1 }}>
+                    Waiting for service to start. The URL will appear here once
+                    the connection is available...
+                  </Typography>
+                )}
+              </Box>
+
+              {token && (
+                <Typography level="body-xs" sx={{ mt: 0.5, color: 'neutral' }}>
+                  Token: <code>{token}</code> (automatically included in URL)
+                </Typography>
+              )}
+
+              <Typography level="body-xs" sx={{ mt: 1 }}>
+                Tip: If the URL never appears, check the job output and provider
+                logs to ensure Jupyter started correctly.
+              </Typography>
+            </Box>
           </Box>
-        </Box>
+        )}
       </ModalDialog>
     </Modal>
   );

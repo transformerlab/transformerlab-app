@@ -26,6 +26,7 @@ interface ProviderDetailsModalProps {
   onClose: () => void;
   teamId: string;
   providerId?: string;
+  hasLocalProvider?: boolean;
 }
 
 const ACCELERATOR_OPTIONS = ['AppleSilicon', 'NVIDIA', 'AMD', 'cpu'];
@@ -67,6 +68,7 @@ export default function ProviderDetailsModal({
   onClose,
   teamId,
   providerId,
+  hasLocalProvider = false,
 }: ProviderDetailsModalProps) {
   const [name, setName] = useState('');
   const [type, setType] = useState('');
@@ -357,7 +359,9 @@ export default function ProviderDetailsModal({
                   <Option value="skypilot">Skypilot</Option>
                   <Option value="slurm">SLURM</Option>
                   <Option value="runpod">Runpod (beta)</Option>
-                  <Option value="local">Local (beta)</Option>
+                  {!hasLocalProvider && !providerId && (
+                    <Option value="local">Local (beta)</Option>
+                  )}
                 </Select>
                 {providerId && (
                   <Typography

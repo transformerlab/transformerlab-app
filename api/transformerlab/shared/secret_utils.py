@@ -2,9 +2,14 @@
 
 import json
 import re
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional, Set
+
 from lab import storage
 from lab.dirs import get_workspace_dir
+
+
+# Pattern to match {{secret.<secret_name>}} or {{secrets.<secret_name>}}
+SECRET_PATTERN = re.compile(r"\{\{secrets?\.([A-Za-z_][A-Za-z0-9_]*)\}\}")
 
 
 async def load_user_secrets(user_id: str) -> Dict[str, str]:
@@ -78,9 +83,6 @@ def replace_secret_placeholders(text: str, secrets: Dict[str, str]) -> str:
     if not isinstance(text, str):
         return text
 
-    # Pattern to match {{secret.<secret_name>}} or {{secrets.<secret_name>}}
-    pattern = r"\{\{secrets?\.([A-Za-z_][A-Za-z0-9_]*)\}\}"
-
     def replace_match(match: re.Match) -> str:
         secret_name = match.group(1)
         if secret_name in secrets:
@@ -88,7 +90,7 @@ def replace_secret_placeholders(text: str, secrets: Dict[str, str]) -> str:
         # If secret not found, leave the pattern unchanged
         return match.group(0)
 
-    return re.sub(pattern, replace_match, text)
+    return SECRET_PATTERN.sub(replace_match, text)
 
 
 def replace_secrets_in_dict(data: Dict[str, Any], secrets: Dict[str, str]) -> Dict[str, Any]:
@@ -127,3 +129,35 @@ def replace_secrets_in_dict(data: Dict[str, Any], secrets: Dict[str, str]) -> Di
             result[key] = value
 
     return result
+
+
+def extract_secret_names_from_text(text: Any) -> Set[str]:
+    """
+    Extract all secret names referenced in a string as {{secret.NAME}} / {{secrets.NAME}}.
+
+    Returns a set of secret names without the "secret." / "secrets." prefix.
+    """
+    if not isinstance(text, str):
+        return set()
+    return set(SECRET_PATTERN.findall(text))
+
+
+def extract_secret_names_from_data(data: Any) -> Set[str]:
+    """
+    Recursively extract all secret names referenced in strings within a nested structure.
+
+    Supports strings, dicts, and lists; other types are ignored.
+    """
+    names: Set[str] = set()
+
+    if isinstance(data, str):
+        return extract_secret_names_from_text(data)
+
+    if isinstance(data, dict):
+        for value in data.values():
+            names.update(extract_secret_names_from_data(value))
+    elif isinstance(data, list):
+        for item in data:
+            names.update(extract_secret_names_from_data(item))
+
+    return names
