@@ -5,12 +5,29 @@ import { ResponsiveRadar } from '@nivo/radar';
 import { Select, Option, FormControl, Box, Button } from '@mui/joy';
 import { ArrowLeftRight } from 'lucide-react';
 
-const Chart = ({ metrics, compareChart }) => {
+export interface ChartMetric {
+  type: string;
+  score: number;
+  evaluator?: string;
+  job_id?: string | number;
+  series?: string;
+}
+
+interface ChartProps {
+  metrics: ChartMetric[];
+  compareChart?: boolean;
+}
+
+const Chart = ({ metrics, compareChart = false }: ChartProps) => {
   const [chartType, setChartType] = useState('bar');
   const [swapAxes, setSwapAxes] = useState(false);
+  const [barMode, setBarMode] = useState<'grouped' | 'stacked'>('grouped');
 
-  const handleChartTypeChange = (event, newValue) => {
-    setChartType(newValue);
+  const handleChartTypeChange = (
+    _event: React.SyntheticEvent | null,
+    newValue: string | null,
+  ) => {
+    if (newValue) setChartType(newValue);
   };
 
   const handleSwapAxes = () => {
@@ -27,16 +44,22 @@ const Chart = ({ metrics, compareChart }) => {
   const seriesKeys = Array.from(
     new Set(
       metrics.map((m) =>
-        compareChart ? `${m.evaluator}-${m.job_id}` : 'score',
+        compareChart ? `${m.evaluator}-${m.job_id}` : (m.series ?? 'score'),
       ),
     ),
   );
 
   // Create a consistent structure for all modes
-  const dataMap = {};
+  interface DataPoint {
+    metric: string;
+    [key: string]: string | number | undefined;
+  }
+  const dataMap: Record<string, DataPoint> = {};
   metrics.forEach((metric) => {
-    const { type, evaluator, job_id, score } = metric;
-    const seriesKey = compareChart ? `${evaluator}-${job_id}` : 'score';
+    const { type, evaluator, job_id, score, series } = metric;
+    const seriesKey = compareChart
+      ? `${evaluator}-${job_id}`
+      : (series ?? 'score');
 
     if (!dataMap[type]) {
       dataMap[type] = { metric: type };
@@ -66,7 +89,7 @@ const Chart = ({ metrics, compareChart }) => {
               );
               return {
                 x: seriesKey,
-                y: matchingPoint ? matchingPoint[seriesKey] : null,
+                y: matchingPoint ? (matchingPoint[seriesKey] as number) : null,
               };
             })
             .filter((point) => point.y !== null),
@@ -78,16 +101,27 @@ const Chart = ({ metrics, compareChart }) => {
           data: dataPoints
             .map((point) => ({
               x: point.metric,
-              y: point[seriesKey],
+              y: point[seriesKey] as number,
             }))
             .filter((point) => point.y !== undefined),
         }));
       }
     } else if (chartType === 'bar' || chartType === 'radar') {
       if (chartType === 'radar') {
+        if (swapAxes) {
+          // Swap axes for radar: series keys become radar axes, metric types become keys
+          return seriesKeys.map((seriesKey) => {
+            const point: DataPoint = { metric: seriesKey };
+            metricTypes.forEach((type) => {
+              const base = dataMap[type]?.[seriesKey];
+              point[type] = typeof base === 'number' ? base : 0;
+            });
+            return point;
+          });
+        }
         // For radar charts, replace undefined values with 0
         return dataPoints.map((point) => {
-          const cleanedPoint = { ...point };
+          const cleanedPoint: DataPoint = { ...point };
           // Ensure all series keys have valid numeric values
           seriesKeys.forEach((key) => {
             if (cleanedPoint[key] === undefined) {
@@ -97,7 +131,17 @@ const Chart = ({ metrics, compareChart }) => {
           return cleanedPoint;
         });
       }
-      // For bar charts, use dataPoints directly
+      // For bar charts, allow swapping axes by transposing
+      if (swapAxes) {
+        return seriesKeys.map((seriesKey) => {
+          const point: DataPoint = { metric: seriesKey };
+          metricTypes.forEach((type) => {
+            const base = dataMap[type]?.[seriesKey];
+            point[type] = typeof base === 'number' ? base : 0;
+          });
+          return point;
+        });
+      }
       return dataPoints;
     } else {
       return [];
@@ -122,7 +166,7 @@ const Chart = ({ metrics, compareChart }) => {
           </Select>
         </FormControl>
 
-        {chartType === 'line' && (
+        {(chartType === 'line' || chartType === 'bar') && (
           <Button
             variant="outlined"
             startDecorator={<ArrowLeftRight size={18} />}
@@ -131,12 +175,31 @@ const Chart = ({ metrics, compareChart }) => {
             Swap Axes
           </Button>
         )}
+
+        {chartType === 'bar' && seriesKeys.length > 1 && (
+          <FormControl sx={{ width: 200 }}>
+            <Select
+              value={barMode}
+              onChange={(_, v) => {
+                if (v === 'grouped' || v === 'stacked') setBarMode(v);
+              }}
+            >
+              <Option value="grouped">Grouped bars</Option>
+              <Option value="stacked">Stacked bars</Option>
+            </Select>
+          </FormControl>
+        )}
       </Box>
 
       <div style={{ height: 400, width: '100%' }}>
         {chartType === 'line' && (
           <ResponsiveLine
-            data={getChartData()}
+            data={
+              getChartData() as {
+                id: string;
+                data: { x: string; y: number }[];
+              }[]
+            }
             margin={{ top: 50, right: 200, bottom: 80, left: 60 }}
             xScale={{ type: 'point' }}
             yScale={{
@@ -190,21 +253,21 @@ const Chart = ({ metrics, compareChart }) => {
 
         {chartType === 'bar' && (
           <ResponsiveBar
-            data={getChartData()}
-            keys={normalizedData.seriesKeys}
+            data={getChartData() as Record<string, string | number>[]}
+            keys={
+              swapAxes ? normalizedData.metricTypes : normalizedData.seriesKeys
+            }
             indexBy="metric"
             margin={{ top: 50, right: 130, bottom: 50, left: 60 }}
             padding={0.3}
-            groupMode={
-              normalizedData.seriesKeys.length > 1 ? 'grouped' : 'stacked'
-            }
+            groupMode={barMode}
             axisTop={null}
             axisRight={null}
             axisBottom={{
               tickSize: 5,
               tickPadding: 5,
               tickRotation: 0,
-              legend: 'metric',
+              legend: swapAxes ? 'series' : 'metric',
               legendPosition: 'middle',
               legendOffset: 32,
             }}
@@ -224,8 +287,10 @@ const Chart = ({ metrics, compareChart }) => {
 
         {chartType === 'radar' && (
           <ResponsiveRadar
-            data={getChartData()}
-            keys={normalizedData.seriesKeys}
+            data={getChartData() as DataPoint[]}
+            keys={
+              swapAxes ? normalizedData.metricTypes : normalizedData.seriesKeys
+            }
             indexBy="metric"
             margin={{ top: 70, right: 170, bottom: 40, left: 80 }}
             borderColor={{ from: 'color' }}
