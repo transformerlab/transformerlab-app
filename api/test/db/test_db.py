@@ -14,29 +14,11 @@ from transformerlab.db.db import (  # noqa: E402
 )
 
 from transformerlab.services import experiment_service  # noqa: E402
-from transformerlab.db.workflows import (  # noqa: E402
-    workflow_run_get_by_id,
-    workflows_get_by_id,
-)
 
 import transformerlab.db.session as db  # noqa: E402
 
 
 import pytest  # noqa: E402
-
-
-@pytest.mark.asyncio
-@pytest.mark.skip("skipping workflow tests")
-async def test_workflows_get_by_id_returns_none_for_missing():
-    workflow = await workflows_get_by_id(999999, 1)
-    assert workflow is None
-
-
-@pytest.mark.asyncio
-@pytest.mark.skip("skipping workflow tests")
-async def test_workflow_run_get_by_id_returns_none_for_missing():
-    run = await workflow_run_get_by_id(999999)
-    assert run is None
 
 
 @pytest.mark.asyncio
