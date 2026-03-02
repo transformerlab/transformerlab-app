@@ -14,11 +14,6 @@ import { useAuth } from 'renderer/lib/authContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import TaskTemplateList from '../Tasks/TaskTemplateList';
 import NewInteractiveTaskModal from '../Tasks/NewInteractiveTaskModal';
-import InteractiveVSCodeModal from '../Tasks/InteractiveVSCodeModal';
-import InteractiveJupyterModal from '../Tasks/InteractiveJupyterModal';
-import InteractiveVllmModal from '../Tasks/InteractiveVllmModal';
-import InteractiveSshModal from '../Tasks/InteractiveSshModal';
-import InteractiveOllamaModal from '../Tasks/InteractiveOllamaModal';
 import EditInteractiveTaskModal from '../Tasks/EditInteractiveTaskModal';
 import InteractiveJobCard from './InteractiveJobCard';
 
@@ -32,7 +27,7 @@ export default function Interactive() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskBeingEdited, setTaskBeingEdited] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [interactiveJobForModal, setInteractiveJobForModal] = useState(-1);
+
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const { fetchWithAuth, team } = useAuth();
@@ -574,10 +569,6 @@ export default function Interactive() {
     setEditModalOpen(true);
   };
 
-  const handleViewInteractive = (jobId: number) => {
-    setInteractiveJobForModal(jobId);
-  };
-
   const loading = templatesIsLoading || jobsIsLoading;
 
   return (
@@ -746,7 +737,6 @@ export default function Interactive() {
               <InteractiveJobCard
                 key={job.id}
                 job={job}
-                onViewInteractive={handleViewInteractive}
                 onDeleteJob={handleDeleteJob}
               />
             ))}
@@ -773,60 +763,6 @@ export default function Interactive() {
           loading={templatesIsLoading || !experimentInfo?.id}
         />
       </Sheet>
-      {(() => {
-        const job = jobs.find(
-          (j: any) => String(j.id) === String(interactiveJobForModal),
-        );
-        const interactiveType =
-          job?.job_data?.interactive_type ||
-          (typeof job?.job_data === 'string'
-            ? JSON.parse(job?.job_data || '{}')?.interactive_type
-            : null) ||
-          'vscode';
-
-        if (interactiveType === 'jupyter') {
-          return (
-            <InteractiveJupyterModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'vllm') {
-          return (
-            <InteractiveVllmModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'ssh') {
-          return (
-            <InteractiveSshModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'ollama') {
-          return (
-            <InteractiveOllamaModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        return (
-          <InteractiveVSCodeModal
-            jobId={interactiveJobForModal}
-            setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-          />
-        );
-      })()}
     </Sheet>
   );
 }

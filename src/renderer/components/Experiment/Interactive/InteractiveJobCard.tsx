@@ -10,13 +10,17 @@ import {
   IconButton,
   Divider,
 } from '@mui/joy';
-import { Trash2Icon, LogsIcon } from 'lucide-react';
+import { Trash2Icon } from 'lucide-react';
 import JobProgress from '../Tasks/JobProgress';
-import ViewOutputModalStreaming from '../Tasks/ViewOutputModalStreaming';
+import InteractiveVSCodeModal from '../Tasks/InteractiveVSCodeModal';
+import InteractiveJupyterModal from '../Tasks/InteractiveJupyterModal';
+import InteractiveVllmModal from '../Tasks/InteractiveVllmModal';
+import InteractiveSshModal from '../Tasks/InteractiveSshModal';
+import InteractiveOllamaModal from '../Tasks/InteractiveOllamaModal';
+import EmbeddableStreamingOutput from '../Tasks/EmbeddableStreamingOutput';
 
 interface InteractiveJobCardProps {
   job: any;
-  onViewInteractive: (jobId: number) => void;
   onDeleteJob: (jobId: string) => void;
 }
 
@@ -101,12 +105,19 @@ function getTypeConfig(interactiveType: string) {
   return INTERACTIVE_TYPE_CONFIG[interactiveType] || DEFAULT_TYPE_CONFIG;
 }
 
+const INTERACTIVE_MODALS: Record<string, React.ElementType> = {
+  vscode: InteractiveVSCodeModal,
+  jupyter: InteractiveJupyterModal,
+  vllm: InteractiveVllmModal,
+  ollama: InteractiveOllamaModal,
+  ssh: InteractiveSshModal,
+};
+
 export default function InteractiveJobCard({
   job,
-  onViewInteractive,
   onDeleteJob,
 }: InteractiveJobCardProps) {
-  const [outputOpen, setOutputOpen] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false);
   const jobData = job.job_data || {};
   const interactiveType =
     jobData.interactive_type ||
@@ -120,6 +131,10 @@ export default function InteractiveJobCard({
   const isInteractive = job.status === 'INTERACTIVE';
   const title =
     jobData.cluster_name || jobData.template_name || `Job ${job.id}`;
+  const jobIdNum = parseInt(job.id, 10);
+
+  const ConnectModal =
+    INTERACTIVE_MODALS[interactiveType] || InteractiveVSCodeModal;
 
   return (
     <Card
@@ -183,18 +198,10 @@ export default function InteractiveJobCard({
             <Divider />
             <Stack direction="row" spacing={1} justifyContent="flex-end">
               <Button
-                variant="plain"
-                size="sm"
-                startDecorator={<LogsIcon size={14} />}
-                onClick={() => setOutputOpen(true)}
-              >
-                Output
-              </Button>
-              <Button
                 variant="soft"
                 color="primary"
                 size="sm"
-                onClick={() => onViewInteractive(parseInt(job.id, 10))}
+                onClick={() => setConnectOpen(true)}
               >
                 Connect
               </Button>
@@ -202,10 +209,12 @@ export default function InteractiveJobCard({
           </>
         )}
       </CardContent>
-      <ViewOutputModalStreaming
-        jobId={outputOpen ? parseInt(job.id, 10) : -1}
-        setJobId={() => setOutputOpen(false)}
-        tabs={['provider']}
+      <ConnectModal
+        jobId={connectOpen ? jobIdNum : -1}
+        setJobId={() => setConnectOpen(false)}
+        embeddedOutput={
+          <EmbeddableStreamingOutput jobId={jobIdNum} tabs={['provider']} />
+        }
       />
     </Card>
   );
