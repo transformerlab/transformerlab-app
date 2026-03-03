@@ -235,6 +235,9 @@ class LocalProvider(ComputeProvider):
         env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
         env["HOME"] = str(workspace_home)
 
+        stdout_path = job_dir / "stdout.log"
+        stderr_path = job_dir / "stderr.log"
+
         if config.setup:
             setup_result = subprocess.run(
                 ["/bin/bash", "-c", config.setup],
@@ -244,6 +247,18 @@ class LocalProvider(ComputeProvider):
                 text=True,
                 timeout=300,
             )
+            if setup_result.stdout:
+                try:
+                    with open(stdout_path, "a", encoding="utf-8") as f:
+                        f.write(setup_result.stdout)
+                except OSError:
+                    pass
+            if setup_result.stderr:
+                try:
+                    with open(stderr_path, "a", encoding="utf-8") as f:
+                        f.write(setup_result.stderr)
+                except OSError:
+                    pass
             if setup_result.returncode != 0:
                 print(f"DEBUG: LocalProvider.launch_cluster: setup failed with code {setup_result.returncode}")
                 print(f"DEBUG: LocalProvider.launch_cluster: setup stderr: {setup_result.stderr}")
@@ -254,8 +269,8 @@ class LocalProvider(ComputeProvider):
             ["/bin/bash", "-c", config.command or "true"],
             cwd=str(job_dir),
             env=env,
-            stdout=open(job_dir / "stdout.log", "w"),
-            stderr=open(job_dir / "stderr.log", "w"),
+            stdout=open(stdout_path, "a"),
+            stderr=open(stderr_path, "a"),
             start_new_session=True,
         )
         pid = proc.pid
