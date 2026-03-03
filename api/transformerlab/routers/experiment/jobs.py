@@ -1466,11 +1466,13 @@ async def list_job_files(job_id: str, subpath: str = ""):
                 name = os.path.basename(full_path.rstrip("/"))
                 is_dir = await storage.isdir(full_path)
                 size = 0
-            files.append({
-                "name": name,
-                "is_dir": is_dir,
-                "size": size,
-            })
+            files.append(
+                {
+                    "name": name,
+                    "is_dir": is_dir,
+                    "size": size,
+                }
+            )
     except Exception as e:
         print(f"Error listing job files: {e}")
 
@@ -1521,9 +1523,28 @@ async def get_job_file(job_id: str, file_path: str):
 
     # For text-like files, return content as text
     text_types = {
-        ".txt", ".log", ".csv", ".py", ".yaml", ".yml", ".md", ".sh",
-        ".cfg", ".ini", ".toml", ".json", ".xml", ".html", ".css", ".js",
-        ".ts", ".tsx", ".jsx", ".sql", ".r", ".ipynb",
+        ".txt",
+        ".log",
+        ".csv",
+        ".py",
+        ".yaml",
+        ".yml",
+        ".md",
+        ".sh",
+        ".cfg",
+        ".ini",
+        ".toml",
+        ".json",
+        ".xml",
+        ".html",
+        ".css",
+        ".js",
+        ".ts",
+        ".tsx",
+        ".jsx",
+        ".sql",
+        ".r",
+        ".ipynb",
     }
     if ext in text_types:
         try:
@@ -1543,6 +1564,6 @@ async def get_job_file(job_id: str, file_path: str):
                 yield chunk
 
     filename = os.path.basename(file_path)
-    return StreamingResponse(generate(), media_type=media_type, headers={
-        "Content-Disposition": f'inline; filename="{filename}"'
-    })
+    return StreamingResponse(
+        generate(), media_type=media_type, headers={"Content-Disposition": f'inline; filename="{filename}"'}
+    )

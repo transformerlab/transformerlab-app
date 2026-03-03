@@ -94,18 +94,35 @@ export default function FileBrowserModal({
       return;
     }
 
-    const filePath = currentPath
-      ? `${currentPath}/${file.name}`
-      : file.name;
+    const filePath = currentPath ? `${currentPath}/${file.name}` : file.name;
     setSelectedFile(filePath);
     setFileLoading(true);
     setFileContent(null);
 
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     const textExtensions = [
-      'txt', 'log', 'csv', 'py', 'yaml', 'yml', 'md', 'sh', 'cfg', 'ini',
-      'toml', 'json', 'xml', 'html', 'css', 'js', 'ts', 'tsx', 'jsx',
-      'sql', 'r', 'ipynb',
+      'txt',
+      'log',
+      'csv',
+      'py',
+      'yaml',
+      'yml',
+      'md',
+      'sh',
+      'cfg',
+      'ini',
+      'toml',
+      'json',
+      'xml',
+      'html',
+      'css',
+      'js',
+      'ts',
+      'tsx',
+      'jsx',
+      'sql',
+      'r',
+      'ipynb',
     ];
     const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'];
 
