@@ -86,7 +86,7 @@ type NewInteractiveTaskModalProps = {
       cpus?: string;
       memory?: string;
       accelerators?: string;
-      interactive_type: 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama';
+      interactive_type: 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama' | 'mlx_lm';
       provider_id?: string;
       env_parameters?: Record<string, string>;
       local?: boolean;
@@ -383,7 +383,8 @@ export default function NewInteractiveTaskModal({
           | 'jupyter'
           | 'vllm'
           | 'ssh'
-          | 'ollama',
+          | 'ollama'
+          | 'mlx_lm',
         template_id: selectedTemplate.id,
         provider_id: selectedProviderId,
         env_parameters: configFieldValues,
