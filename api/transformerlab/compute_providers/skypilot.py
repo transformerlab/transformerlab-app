@@ -699,10 +699,14 @@ class SkyPilotProvider(ComputeProvider):
         else:
             state_str = "UNKNOWN"
 
-        try:
-            state = ClusterState[state_str]
-        except KeyError:
-            state = ClusterState.UNKNOWN
+        # Map SkyPilot's FAILED_SETUP directly to our FAILED state
+        if state_str == "FAILED_SETUP":
+            state = ClusterState.FAILED
+        else:
+            try:
+                state = ClusterState[state_str]
+            except KeyError:
+                state = ClusterState.UNKNOWN
 
         return ClusterStatus(
             cluster_name=cluster_name,
@@ -851,10 +855,14 @@ class SkyPilotProvider(ComputeProvider):
             else:
                 state_str = "UNKNOWN"
 
-            try:
-                state = ClusterState[state_str]
-            except KeyError:
-                state = ClusterState.UNKNOWN
+            # Map SkyPilot's FAILED_SETUP directly to our FAILED state
+            if state_str == "FAILED_SETUP":
+                state = ClusterState.FAILED
+            else:
+                try:
+                    state = ClusterState[state_str]
+                except KeyError:
+                    state = ClusterState.UNKNOWN
 
             cluster_statuses.append(
                 ClusterStatus(

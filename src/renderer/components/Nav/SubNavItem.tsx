@@ -10,18 +10,20 @@ import { Badge, Typography } from '@mui/joy';
 const SubNavItem = ({
   title,
   path,
+  matchPattern,
   icon,
   disabled = false,
   counter = null,
 }: {
   title: string;
   path: string;
+  matchPattern?: string;
   icon: ReactElement;
   disabled?: boolean;
   counter?: number | null;
 }) => {
   const navigate = useNavigate();
-  const match = useMatch(path);
+  const match = useMatch(matchPattern || path);
 
   return (
     <ListItem className="FirstSidebar_Content">
