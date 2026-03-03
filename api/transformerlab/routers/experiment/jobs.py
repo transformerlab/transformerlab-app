@@ -1435,3 +1435,114 @@ async def save_model_to_registry(job_id: str, model_name: str):
 
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to save model to registry: {str(e)}")
+
+
+@router.get("/{job_id}/files")
+async def list_job_files(job_id: str, subpath: str = ""):
+    """List files and directories in a job's directory."""
+    from lab.dirs import get_job_dir
+
+    job_dir = await get_job_dir(job_id)
+    if not await storage.exists(job_dir):
+        return {"files": [], "path": subpath}
+
+    browse_dir = job_dir
+    if subpath:
+        browse_dir = storage.join(job_dir, subpath)
+        if not await storage.exists(browse_dir):
+            return {"files": [], "path": subpath}
+
+    files = []
+    try:
+        entries = await storage.ls(browse_dir, detail=True)
+        for entry in entries:
+            if isinstance(entry, dict):
+                full_path = entry.get("name") or entry.get("path") or ""
+                name = os.path.basename(full_path.rstrip("/"))
+                is_dir = entry.get("type") == "directory"
+                size = int(entry.get("size") or 0)
+            else:
+                full_path = entry
+                name = os.path.basename(full_path.rstrip("/"))
+                is_dir = await storage.isdir(full_path)
+                size = 0
+            files.append({
+                "name": name,
+                "is_dir": is_dir,
+                "size": size,
+            })
+    except Exception as e:
+        print(f"Error listing job files: {e}")
+
+    # Sort: directories first, then files, alphabetically
+    files.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
+    return {"files": files, "path": subpath}
+
+
+@router.get("/{job_id}/file/{file_path:path}")
+async def get_job_file(job_id: str, file_path: str):
+    """Serve a file from a job's directory."""
+    from lab.dirs import get_job_dir
+
+    job_dir = await get_job_dir(job_id)
+    target = storage.join(job_dir, file_path)
+
+    if not await storage.exists(target) or not await storage.isfile(target):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Determine media type
+    _, ext = os.path.splitext(file_path.lower())
+    media_type_map = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".json": "application/json",
+        ".txt": "text/plain",
+        ".log": "text/plain",
+        ".csv": "text/csv",
+        ".py": "text/plain",
+        ".yaml": "text/plain",
+        ".yml": "text/plain",
+        ".md": "text/plain",
+        ".sh": "text/plain",
+        ".cfg": "text/plain",
+        ".ini": "text/plain",
+        ".toml": "text/plain",
+        ".pdf": "application/pdf",
+        ".zip": "application/zip",
+    }
+    media_type = media_type_map.get(ext, "application/octet-stream")
+
+    # For text-like files, return content as text
+    text_types = {
+        ".txt", ".log", ".csv", ".py", ".yaml", ".yml", ".md", ".sh",
+        ".cfg", ".ini", ".toml", ".json", ".xml", ".html", ".css", ".js",
+        ".ts", ".tsx", ".jsx", ".sql", ".r", ".ipynb",
+    }
+    if ext in text_types:
+        try:
+            async with await storage.open(target, "r", encoding="utf-8") as f:
+                content = await f.read()
+            return Response(content, media_type=media_type)
+        except Exception:
+            pass
+
+    # For binary files, stream
+    async def generate():
+        async with await storage.open(target, "rb") as f:
+            while True:
+                chunk = await f.read(8192)
+                if not chunk:
+                    break
+                yield chunk
+
+    filename = os.path.basename(file_path)
+    return StreamingResponse(generate(), media_type=media_type, headers={
+        "Content-Disposition": f'inline; filename="{filename}"'
+    })
