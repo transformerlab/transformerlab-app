@@ -1,7 +1,8 @@
 import asyncio
 import datetime
 import json
-from typing import List, Dict, Optional
+import time
+from typing import List, Dict, Optional, Any
 
 from lab import Experiment, Job
 from lab import dirs as lab_dirs
@@ -206,6 +207,49 @@ async def job_update_sweep_progress(job_id, value, experiment_id):
         await job.update_sweep_progress(value)
     except Exception as e:
         print(f"Error updating sweep job {job_id}: {e}")
+
+
+def _build_launch_progress(
+    phase: str,
+    percent: int,
+    message: str,
+    existing_steps: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """Build launch_progress dict with optional step appended."""
+    step = {
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        "phase": phase,
+        "message": message,
+    }
+    steps = list(existing_steps) if existing_steps else []
+    steps.append(step)
+    return {"phase": phase, "percent": percent, "message": message, "steps": steps}
+
+
+async def job_update_launch_progress(
+    job_id: str,
+    experiment_id: Optional[str],
+    phase: str,
+    percent: int,
+    message: str,
+) -> None:
+    """
+    Update the 'launch_progress' key in job_data for provider launch jobs.
+    Appends a step to the timeline and sets phase, percent, and message.
+    """
+    try:
+        existing = await job_get(job_id)
+        if not existing or (experiment_id is not None and existing.get("experiment_id") != experiment_id):
+            return
+        job_data = existing.get("job_data") or {}
+        existing_progress = job_data.get("launch_progress") or {}
+        steps = existing_progress.get("steps")
+        if not isinstance(steps, list):
+            steps = []
+        payload = _build_launch_progress(phase, percent, message, steps)
+        await job_update_job_data_insert_key_value(job_id, "launch_progress", payload, experiment_id)
+    except Exception as e:
+        print(f"Error updating launch progress for job {job_id}: {e}")
 
 
 async def jobs_get_sweep_children(parent_job_id, experiment_id=None):
