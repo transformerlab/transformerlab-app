@@ -6,6 +6,8 @@ import {
   useNavigate,
   redirect,
   useLocation,
+  useParams,
+  Outlet,
 } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -45,8 +47,13 @@ export const PageTracker = () => {
   useEffect(() => {
     const trackPageView = async () => {
       // Track page view when location changes
+      // But hide the specific experiment name in the URL
+      const normalizedPath = location.pathname.replace(
+        /^\/experiment\/[^/]+/,
+        '/experiment/:experimentName',
+      );
       analytics.page({
-        path: location.pathname,
+        path: normalizedPath,
         url: window.location.href,
         search: location.search,
         title: document.title,
@@ -64,6 +71,20 @@ export const PageTracker = () => {
 
   return null; // This component doesn't render anything
 };
+
+// Syncs the :experimentName URL param to the experiment context
+function ExperimentLayout() {
+  const { experimentName } = useParams();
+  const { setExperimentId } = useExperimentInfo();
+
+  useEffect(() => {
+    if (experimentName) {
+      setExperimentId(experimentName);
+    }
+  }, [experimentName, setExperimentId]);
+
+  return <Outlet />;
+}
 
 // This component renders the main content of the app that is shown
 // On the rightmost side, regardless of what menu items are selected
@@ -127,7 +148,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
   // When navigating to /experiment/chat, set the mode to the first supported mode
   // If there's no supports array or it's empty, default to 'chat'
   useEffect(() => {
-    if (location.pathname === '/experiment/chat') {
+    if (location.pathname.match(/^\/experiment\/[^/]+\/chat$/)) {
       if (Array.isArray(modelSupports) && modelSupports.length > 0) {
         // Always set mode to the first supported mode when navigating to the route
         setSelectedInteractSubpage(modelSupports[0]);
@@ -291,39 +312,44 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
       <PageTracker />
       <Routes>
         <Route path="/" element={<Welcome />} />
-        <Route path="/experiment/notes" element={<ExperimentNotes />} />
         <Route
-          path="/experiment/chat"
-          element={
-            <Interact
-              setRagEngine={setRagEngine}
-              mode={selectedInteractSubpage}
-              setMode={setSelectedInteractSubpage}
-              supports={modelSupports}
-              chatHistory={chatHistory}
-              setChatHistory={setChatHistory}
-            />
-          }
-        />
-        <Route
-          path="/experiment/model_architecture_visualization"
-          element={
-            <Interact
-              setRagEngine={setRagEngine}
-              mode="model_layers"
-              setMode={setSelectedInteractSubpage}
-              supports={modelSupports}
-              chatHistory={chatHistory}
-              setChatHistory={setChatHistory}
-            />
-          }
-        />
-        <Route path="/experiment/training" element={<TrainLoRA />} />
-        <Route path="/experiment/tasks" element={<Tasks />} />
-        <Route path="/experiment/interactive" element={<Interactive />} />
-        <Route path="/experiment/documents" element={<Documents />} />
+          path="/experiment/:experimentName"
+          element={<ExperimentLayout />}
+        >
+          <Route path="notes" element={<ExperimentNotes />} />
+          <Route
+            path="chat"
+            element={
+              <Interact
+                setRagEngine={setRagEngine}
+                mode={selectedInteractSubpage}
+                setMode={setSelectedInteractSubpage}
+                supports={modelSupports}
+                chatHistory={chatHistory}
+                setChatHistory={setChatHistory}
+              />
+            }
+          />
+          <Route
+            path="model_architecture_visualization"
+            element={
+              <Interact
+                setRagEngine={setRagEngine}
+                mode="model_layers"
+                setMode={setSelectedInteractSubpage}
+                supports={modelSupports}
+                chatHistory={chatHistory}
+                setChatHistory={setChatHistory}
+              />
+            }
+          />
+          <Route path="training" element={<TrainLoRA />} />
+          <Route path="tasks" element={<Tasks />} />
+          <Route path="interactive" element={<Interactive />} />
+          <Route path="documents" element={<Documents />} />
+          <Route path="settings" element={<Settings />} />
+        </Route>
         <Route path="/api" element={<Api />} />
-        <Route path="/experiment/settings" element={<Settings />} />
         <Route path="/zoo" element={<ModelZoo tab="groups" />} />
         <Route path="/zoo/local" element={<ModelZoo tab="local" />} />
         <Route path="/zoo/generated" element={<ModelZoo tab="generated" />} />
