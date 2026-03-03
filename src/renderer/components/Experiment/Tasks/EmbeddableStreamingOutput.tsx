@@ -97,8 +97,8 @@ const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
 };
 
 const TAB_OPTIONS: { value: 'output' | 'provider'; label: string }[] = [
-  { value: 'output', label: 'Task Output' },
-  { value: 'provider', label: 'Provider Logs' },
+  { value: 'output', label: 'Lab SDK Output' },
+  { value: 'provider', label: 'Machine Logs' },
 ];
 
 export interface EmbeddableStreamingOutputProps {
