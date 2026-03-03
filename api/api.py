@@ -259,9 +259,13 @@ else:
 # Determines team_id from X-Team-Id header or API key, and sets context early.
 @app.middleware("http")
 async def set_org_context(request: Request, call_next):
-    try:
-        org_id = None
+    # Avoid any org / DB resolution on lightweight health checks so they
+    # remain responsive even if other requests are busy or holding DB locks.
+    path = request.url.path
+    if path == "/healthz" or path == "/server/worker_healthz":
+        return await call_next(request)
 
+    try:
         # First check X-Team-Id header (fastest path)
         org_id = request.headers.get("X-Team-Id")
 

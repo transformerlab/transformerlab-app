@@ -274,8 +274,6 @@ Endpoints.Rag = {
     ragFolder: string = 'rag',
   ) =>
     `${API_URL()}experiment/${experimentId}/rag/query?model=${model_name}&query=${query}&settings=${settings}&rag_folder=${ragFolder}`,
-  ReIndex: (experimentId: string, folderName: string = 'rag') =>
-    `${API_URL()}experiment/${experimentId}/rag/reindex?rag_folder=${folderName}`,
   Embeddings: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/rag/embed`,
 };

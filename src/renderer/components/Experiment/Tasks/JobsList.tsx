@@ -18,12 +18,20 @@ import {
   LogsIcon,
   FileTextIcon,
   DatabaseIcon,
+  FolderOpenIcon,
 } from 'lucide-react';
 import { Typography } from '@mui/joy';
 import JobProgress from './JobProgress';
 
+export interface LaunchProgressInfo {
+  phase?: string;
+  percent?: number;
+  message?: string;
+}
+
 interface JobsListProps {
   jobs: any[];
+  launchProgressByJobId?: Record<string, LaunchProgressInfo>;
   onDeleteJob?: (jobId: string) => void;
   onViewOutput?: (jobId: string) => void;
   onViewTensorboard?: (jobId: string) => void;
@@ -37,6 +45,7 @@ interface JobsListProps {
   onViewInteractive?: (jobId: string) => void;
   onViewJobDatasets?: (jobId: string) => void;
   onViewJobModels?: (jobId: string) => void;
+  onViewFileBrowser?: (jobId: string) => void;
   loading: boolean;
   selectMode?: boolean;
   selectedJobIds?: string[];
@@ -45,6 +54,7 @@ interface JobsListProps {
 
 const JobsList: React.FC<JobsListProps> = ({
   jobs,
+  launchProgressByJobId,
   onDeleteJob,
   onViewOutput,
   onViewTensorboard,
@@ -58,6 +68,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewInteractive,
   onViewJobDatasets,
   onViewJobModels,
+  onViewFileBrowser,
   loading,
   selectMode = false,
   selectedJobIds = [],
@@ -206,7 +217,14 @@ const JobsList: React.FC<JobsListProps> = ({
                 {formatJobConfig(job)}
               </td>
               <td style={{ verticalAlign: 'top', border: 'none' }}>
-                <JobProgress job={job} showLaunchResultInfo />
+                <JobProgress
+                  job={job}
+                  showLaunchResultInfo
+                  launchProgress={
+                    launchProgressByJobId?.[String(job.id)] ??
+                    job?.job_data?.launch_progress
+                  }
+                />
               </td>
               <td
                 style={{
@@ -432,6 +450,26 @@ const JobsList: React.FC<JobsListProps> = ({
                         }}
                       >
                         Checkpoints
+                      </Box>
+                    </Button>
+                  )}
+                  {!job?.placeholder && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => onViewFileBrowser?.(job?.id)}
+                      startDecorator={<FolderOpenIcon />}
+                    >
+                      <Box
+                        sx={{
+                          display: {
+                            xs: 'none',
+                            sm: 'none',
+                            md: 'inline-flex',
+                          },
+                        }}
+                      >
+                        Files
                       </Box>
                     </Button>
                   )}

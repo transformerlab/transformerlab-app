@@ -3,8 +3,8 @@ import { Modal, ModalClose, ModalDialog, Typography } from '@mui/joy';
 import EmbeddableStreamingOutput from './EmbeddableStreamingOutput';
 
 const TAB_LABELS: Record<string, string> = {
-  output: 'Task Output',
-  provider: 'Provider Logs',
+  output: 'Lab SDK Output',
+  provider: 'Machine Logs',
 };
 
 interface ViewOutputModalStreamingProps {

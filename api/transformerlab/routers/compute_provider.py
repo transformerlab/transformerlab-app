@@ -1407,6 +1407,14 @@ async def launch_template_on_provider(
         experiment_id=request.experiment_id,
     )
 
+    await job_service.job_update_launch_progress(
+        job_id,
+        request.experiment_id,
+        phase="checking_quota",
+        percent=10,
+        message="Checking quota",
+    )
+
     # Create quota hold if minutes_requested is provided
     quota_hold = None
     if request.minutes_requested is not None and request.minutes_requested > 0:
@@ -1422,6 +1430,14 @@ async def launch_template_on_provider(
             minutes_requested=request.minutes_requested,
             job_id=str(job_id),
         )
+
+    await job_service.job_update_launch_progress(
+        job_id,
+        request.experiment_id,
+        phase="building_config",
+        percent=30,
+        message="Building cluster configuration",
+    )
 
     base_name = request.cluster_name or request.task_name or provider.name
     formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{job_id}"
@@ -1699,12 +1715,27 @@ async def launch_template_on_provider(
         provider_config=provider_config_dict,
     )
 
+    await job_service.job_update_launch_progress(
+        job_id,
+        request.experiment_id,
+        phase="launching_cluster",
+        percent=70,
+        message="Launching cluster",
+    )
+
     # For LOCAL provider, enqueue the launch and return immediately with WAITING status
     if provider.type == ProviderType.LOCAL.value:
         # Commit quota hold (if any) before enqueuing so the worker can see it
         if quota_hold:
             await session.commit()
 
+        await job_service.job_update_launch_progress(
+            job_id,
+            request.experiment_id,
+            phase="queued",
+            percent=0,
+            message="Queued for launch",
+        )
         await enqueue_local_launch(
             job_id=str(job_id),
             experiment_id=request.experiment_id,
@@ -1730,6 +1761,13 @@ async def launch_template_on_provider(
         )
     except Exception as exc:
         print(f"Failed to launch cluster: {exc}")
+        await job_service.job_update_launch_progress(
+            job_id,
+            request.experiment_id,
+            phase="failed",
+            percent=100,
+            message=f"Launch failed: {exc!s}",
+        )
         # Release quota hold if launch failed
         if quota_hold:
             await quota_service.release_quota_hold(session, hold_id=quota_hold.id)
@@ -1741,6 +1779,14 @@ async def launch_template_on_provider(
             error_msg=str(exc),
         )
         raise HTTPException(status_code=500, detail="Failed to launch cluster") from exc
+
+    await job_service.job_update_launch_progress(
+        job_id,
+        request.experiment_id,
+        phase="cluster_started",
+        percent=100,
+        message="Launch initiated",
+    )
 
     # Commit quota hold creation after successful launch
     if quota_hold:
@@ -1789,6 +1835,9 @@ async def check_provider_job_status(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    job_data_for_status = job.get("job_data", {}) or {}
+    launch_progress = job_data_for_status.get("launch_progress")
+
     # Only process REMOTE jobs
     if job.get("type") != "REMOTE":
         return {
@@ -1796,6 +1845,7 @@ async def check_provider_job_status(
             "job_id": job_id,
             "current_status": job.get("status"),
             "message": "Job is not a REMOTE job",
+            "launch_progress": launch_progress,
         }
 
     # If job is already in a terminal state, ensure quota is recorded
@@ -1809,6 +1859,7 @@ async def check_provider_job_status(
             "job_id": job_id,
             "current_status": job_status,
             "message": f"Job is already in {job_status} state",
+            "launch_progress": launch_progress,
         }
 
     # Only check provider status for jobs in LAUNCHING state
@@ -1818,9 +1869,10 @@ async def check_provider_job_status(
             "job_id": job_id,
             "current_status": job_status,
             "message": f"Job is in {job_status} state, not checking provider status",
+            "launch_progress": launch_progress,
         }
 
-    job_data = job.get("job_data", {}) or {}
+    job_data = job_data_for_status
 
     # If the remote wrapper has already detected a crash, mark the job as FAILED immediately.
     live_status = job_data.get("live_status")
@@ -1843,6 +1895,7 @@ async def check_provider_job_status(
                 "updated": True,
                 "new_status": "FAILED",
                 "message": "Remote command crashed (live_status=crashed)",
+                "launch_progress": launch_progress,
             }
         except Exception as exc:
             print(f"Failed to update job status from live_status crash: {exc}")
@@ -1850,6 +1903,7 @@ async def check_provider_job_status(
                 "status": "error",
                 "job_id": job_id,
                 "message": "Failed to update job status after crash",
+                "launch_progress": launch_progress,
             }
 
     # If the remote wrapper has already detected completion, mark the job as COMPLETE immediately.
@@ -1872,6 +1926,7 @@ async def check_provider_job_status(
                 "updated": True,
                 "new_status": "COMPLETE",
                 "message": "Remote command finished (live_status=finished)",
+                "launch_progress": launch_progress,
             }
         except Exception as exc:
             print(f"Failed to update job status from live_status finished: {exc}")
@@ -1879,6 +1934,7 @@ async def check_provider_job_status(
                 "status": "error",
                 "job_id": job_id,
                 "message": "Failed to update job status after completion",
+                "launch_progress": launch_progress,
             }
 
     provider_id = job_data.get("provider_id")
@@ -1890,6 +1946,7 @@ async def check_provider_job_status(
             "status": "error",
             "job_id": job_id,
             "message": "Job missing provider_id or cluster_name in job_data",
+            "launch_progress": launch_progress,
         }
 
     # Get the provider
@@ -1899,6 +1956,7 @@ async def check_provider_job_status(
             "status": "error",
             "job_id": job_id,
             "message": "Provider not found or not accessible",
+            "launch_progress": launch_progress,
         }
 
     try:
@@ -1910,6 +1968,7 @@ async def check_provider_job_status(
             "status": "error",
             "job_id": job_id,
             "message": "Failed to instantiate provider",
+            "launch_progress": launch_progress,
         }
 
     # Local provider needs workspace_dir from job_data for status/logs
@@ -1938,6 +1997,7 @@ async def check_provider_job_status(
                         "updated": True,
                         "new_status": "COMPLETE",
                         "message": f"Local job finished (status: {cluster_status.state.value})",
+                        "launch_progress": launch_progress,
                     }
                 except Exception as exc:
                     print(f"Failed to update job status: {exc}")
@@ -1945,6 +2005,7 @@ async def check_provider_job_status(
                         "status": "error",
                         "job_id": job_id,
                         "message": "Failed to update job status",
+                        "launch_progress": launch_progress,
                     }
             return {
                 "status": "success",
@@ -1952,6 +2013,7 @@ async def check_provider_job_status(
                 "updated": False,
                 "current_status": "LAUNCHING",
                 "message": f"Local job still running (status: {cluster_status.state.value})",
+                "launch_progress": launch_progress,
             }
         except Exception as exc:
             print(f"Failed to check local job status: {exc}")
@@ -1959,6 +2021,7 @@ async def check_provider_job_status(
                 "status": "error",
                 "job_id": job_id,
                 "message": "Failed to check local job status",
+                "launch_progress": launch_progress,
             }
 
     # Runpod doesn't have a job queue - check pod status instead
@@ -1986,6 +2049,7 @@ async def check_provider_job_status(
                         "updated": True,
                         "new_status": "COMPLETE",
                         "message": f"Pod finished (status: {cluster_status.state.value})",
+                        "launch_progress": launch_progress,
                     }
                 except Exception as exc:
                     print(f"Failed to update job status: {exc}")
@@ -1993,6 +2057,7 @@ async def check_provider_job_status(
                         "status": "error",
                         "job_id": job_id,
                         "message": "Failed to update job status",
+                        "launch_progress": launch_progress,
                     }
             else:
                 # Pod is still running
@@ -2002,6 +2067,7 @@ async def check_provider_job_status(
                     "updated": False,
                     "current_status": "LAUNCHING",
                     "message": f"Pod is still running (status: {cluster_status.state.value})",
+                    "launch_progress": launch_progress,
                 }
         except Exception as exc:
             print(f"Failed to check Runpod pod status: {exc}")
@@ -2009,6 +2075,7 @@ async def check_provider_job_status(
                 "status": "error",
                 "job_id": job_id,
                 "message": "Failed to check pod status",
+                "launch_progress": launch_progress,
             }
 
     # For other providers (SkyPilot, SLURM), check jobs on the cluster
@@ -2022,6 +2089,7 @@ async def check_provider_job_status(
             "updated": False,
             "current_status": job_status,
             "message": "Provider does not support job status checking",
+            "launch_progress": launch_progress,
         }
     except Exception as exc:
         print(f"Failed to list jobs for cluster {cluster_name}: {exc}")
@@ -2029,6 +2097,7 @@ async def check_provider_job_status(
             "status": "error",
             "job_id": job_id,
             "message": f"Failed to list jobs for cluster {cluster_name}: {exc}",
+            "launch_progress": launch_progress,
         }
 
     terminal_states = {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
@@ -2052,6 +2121,7 @@ async def check_provider_job_status(
                 "updated": True,
                 "new_status": "COMPLETE",
                 "message": "All provider jobs completed",
+                "launch_progress": launch_progress,
             }
         except Exception as exc:
             print(f"Failed to update job status: {exc}")
@@ -2059,6 +2129,7 @@ async def check_provider_job_status(
                 "status": "error",
                 "job_id": job_id,
                 "message": "Failed to update job status",
+                "launch_progress": launch_progress,
             }
     else:
         return {
@@ -2067,6 +2138,7 @@ async def check_provider_job_status(
             "updated": False,
             "current_status": "LAUNCHING",
             "message": "Jobs still running on provider",
+            "launch_progress": launch_progress,
         }
 
 

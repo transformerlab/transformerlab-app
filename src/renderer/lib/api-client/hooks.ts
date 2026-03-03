@@ -21,7 +21,12 @@ async function healthzFetcherWithTimeout(url: string): Promise<unknown> {
     CONNECTION_HEALTH_TIMEOUT_MS,
   );
   try {
-    const res = await fetchWithAuth(url, { signal: controller.signal });
+    // Use a "simple" request (no extra headers) so health checks can't be
+    // blocked behind CORS preflights during long-running operations.
+    const res = await fetch(url, {
+      signal: controller.signal,
+      credentials: 'include',
+    });
     clearTimeout(timeoutId);
     if (!res.ok) throw new Error(`healthz ${res.status}`);
     return res.json();

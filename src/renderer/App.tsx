@@ -18,6 +18,9 @@ import './styles.css';
 import OutputTerminal from './components/OutputTerminal';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
 import AnnouncementsModal from './components/Shared/AnnouncementsModal';
+import AnnouncementBanner from './components/Shared/AnnouncementBanner';
+import InsecurePasswordBanner from './components/Shared/InsecurePasswordBanner';
+import AnnouncementBanner from './components/Shared/AnnouncementBanner';
 import { NotificationProvider } from './components/Shared/NotificationSystem';
 import {
   ExperimentInfoProvider,
@@ -93,114 +96,125 @@ function AppContent({
 
   return (
     <Box
-      component="main"
-      className="MainContent"
-      sx={() => ({
-        display: 'grid',
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
         height: '100dvh',
         width: '100dvw',
         overflow: 'hidden',
-        gridTemplateColumns: '180px 1fr',
-        gridTemplateRows: !isLocalMode
-          ? '48px 5fr'
-          : logsDrawerOpen
-            ? `48px 5fr ${logsDrawerHeight}px`
-            : '48px 5fr 18px',
-        gridTemplateAreas: !isLocalMode
-          ? `
+      }}
+    >
+      <InsecurePasswordBanner />
+      <Box
+        component="main"
+        className="MainContent"
+        sx={() => ({
+          display: 'grid',
+          flex: 1,
+          width: '100%',
+          overflow: 'hidden',
+          gridTemplateColumns: '180px 1fr',
+          gridTemplateRows: !isLocalMode
+            ? '48px 5fr'
+            : logsDrawerOpen
+              ? `48px 5fr ${logsDrawerHeight}px`
+              : '48px 5fr 18px',
+          gridTemplateAreas: !isLocalMode
+            ? `
           "sidebar header"
           "sidebar main"
         `
-          : `
+            : `
           "sidebar header"
           "sidebar main"
           "sidebar footer"
         `,
-      })}
-    >
-      <Header connection={connection} setConnection={setConnection} />
-      <Sidebar
-        logsDrawerOpen={logsDrawerOpen}
-        setLogsDrawerOpen={setLogsDrawerOpen as any}
-        themeSetter={themeSetter}
-      />
-      <Box
-        sx={{
-          px: {
-            md: 3,
-            lg: 4,
-          },
-          pt: 2,
-          pb: 0,
-          height: '100%',
-          gridArea: 'main',
-          overflow: 'hidden',
-          backgroundColor: 'var(--joy-palette-background-surface)',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-        id="main-app-panel"
+        })}
       >
-        <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
-      </Box>
-      {isLocalMode && (
+        <Header connection={connection} setConnection={setConnection} />
+        <Sidebar
+          logsDrawerOpen={logsDrawerOpen}
+          setLogsDrawerOpen={setLogsDrawerOpen as any}
+          themeSetter={themeSetter}
+        />
         <Box
           sx={{
-            gridArea: 'footer',
+            px: {
+              md: 3,
+              lg: 4,
+            },
+            pt: 2,
+            pb: 0,
+            height: '100%',
+            gridArea: 'main',
+            overflow: 'hidden',
+            backgroundColor: 'var(--joy-palette-background-surface)',
             display: 'flex',
             flexDirection: 'column',
-            height: logsDrawerOpen ? '100%' : '18px',
-            width: '100%',
-            overflow: 'hidden',
-            alignItems: 'stretch',
-            backgroundColor: 'var(--joy-palette-background-level3)',
           }}
+          id="main-app-panel"
         >
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              height: '18px',
-              lineHeight: '18px',
-            }}
-          >
-            <div>&nbsp;</div>
-            {logsDrawerOpen ? (
-              <DraggableElipsis notifyOnMove={onOutputDrawerDrag} />
-            ) : (
-              <>&nbsp;</>
-            )}
-            <IconButton
-              sx={{ padding: 0, margin: 0, minHeight: 0 }}
-              onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
-            >
-              {logsDrawerOpen ? (
-                <ChevronDownIcon size="18px" />
-              ) : (
-                <ChevronUpIcon size="18px" />
-              )}
-            </IconButton>
-          </div>
+          <AnnouncementBanner />
+          <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
+        </Box>
+        {isLocalMode && (
           <Box
             sx={{
-              height: logsDrawerOpen ? '100%' : '0px',
-              overflow: 'hidden',
-              border: logsDrawerOpen ? '10px solid #444' : '0',
-              padding: logsDrawerOpen ? '6px' : '0',
-              backgroundColor: '#000',
+              gridArea: 'footer',
+              display: 'flex',
+              flexDirection: 'column',
+              height: logsDrawerOpen ? '100%' : '18px',
               width: '100%',
+              overflow: 'hidden',
+              alignItems: 'stretch',
+              backgroundColor: 'var(--joy-palette-background-level3)',
             }}
           >
-            <OutputTerminal
-              key={connection}
-              logEndpoint={chatAPI.Endpoints.ServerInfo.StreamLog()}
-              initialMessage="** Running a Model will Display Output Here **"
-            />
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                height: '18px',
+                lineHeight: '18px',
+              }}
+            >
+              <div>&nbsp;</div>
+              {logsDrawerOpen ? (
+                <DraggableElipsis notifyOnMove={onOutputDrawerDrag} />
+              ) : (
+                <>&nbsp;</>
+              )}
+              <IconButton
+                sx={{ padding: 0, margin: 0, minHeight: 0 }}
+                onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
+              >
+                {logsDrawerOpen ? (
+                  <ChevronDownIcon size="18px" />
+                ) : (
+                  <ChevronUpIcon size="18px" />
+                )}
+              </IconButton>
+            </div>
+            <Box
+              sx={{
+                height: logsDrawerOpen ? '100%' : '0px',
+                overflow: 'hidden',
+                border: logsDrawerOpen ? '10px solid #444' : '0',
+                padding: logsDrawerOpen ? '6px' : '0',
+                backgroundColor: '#000',
+                width: '100%',
+              }}
+            >
+              <OutputTerminal
+                key={connection}
+                logEndpoint={chatAPI.Endpoints.ServerInfo.StreamLog()}
+                initialMessage="** Running a Model will Display Output Here **"
+              />
+            </Box>
           </Box>
-        </Box>
-      )}
-      <AnnouncementsModal />
+        )}
+      </Box>
     </Box>
   );
 }

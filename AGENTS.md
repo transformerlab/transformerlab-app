@@ -1,5 +1,14 @@
 # AGENTS.md
 
+## Git Workflow
+
+- The `main` branch is protected. **Never commit directly to `main`.**
+- Always create a new branch for your work: `git checkout -b <descriptive-branch-name>`
+- Use a clear branch naming convention, e.g. `feat/short-description`, `fix/short-description`, `chore/short-description`.
+- Commit early and often with meaningful commit messages.
+- When work is complete, push the branch and open a pull request: `gh pr create --fill`
+- Do not merge PRs yourself — let the reviewer merge.
+
 ## Build/Lint/Test Commands
 
 - **Frontend dev**: `npm start` (Node v22, not v23+)
@@ -35,6 +44,12 @@
   - **Type Hints**: Mandatory for all function arguments and return types.
   - **Pydantic**: Use Pydantic models (in `schemas/`) for distinct data validation and serialization layers.
   - **Service Pattern**: Business logic goes in `api/transformerlab/services/`, NOT in routers. Routers (`api/transformerlab/routers/`) should only handle HTTP request/response validation and calling services.
+
+
+## Storing Data
+
+- In general we are biased towards storing data in the filesystem versus storing in a database. This is so that nodes that are all coordinating in an ML cluster can all use the filesystem to synchronize data
+- Our database is a SQLlite DB but we also support Postgres (by using sqlalchemy) so avoid DB operations that would only work on one or the other
 
 ## Testing
 
