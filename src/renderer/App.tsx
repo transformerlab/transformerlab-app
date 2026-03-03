@@ -152,6 +152,7 @@ function AppContent({
           }}
           id="main-app-panel"
         >
+          <AnnouncementBanner />
           <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
         </Box>
         {isLocalMode && (
@@ -211,7 +212,6 @@ function AppContent({
             </Box>
           </Box>
         )}
-        <AnnouncementsModal />
       </Box>
     </Box>
   );

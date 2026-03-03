@@ -22,8 +22,15 @@ import {
 import { Typography } from '@mui/joy';
 import JobProgress from './JobProgress';
 
+export interface LaunchProgressInfo {
+  phase?: string;
+  percent?: number;
+  message?: string;
+}
+
 interface JobsListProps {
   jobs: any[];
+  launchProgressByJobId?: Record<string, LaunchProgressInfo>;
   onDeleteJob?: (jobId: string) => void;
   onViewOutput?: (jobId: string) => void;
   onViewTensorboard?: (jobId: string) => void;
@@ -45,6 +52,7 @@ interface JobsListProps {
 
 const JobsList: React.FC<JobsListProps> = ({
   jobs,
+  launchProgressByJobId,
   onDeleteJob,
   onViewOutput,
   onViewTensorboard,
@@ -206,7 +214,14 @@ const JobsList: React.FC<JobsListProps> = ({
                 {formatJobConfig(job)}
               </td>
               <td style={{ verticalAlign: 'top', border: 'none' }}>
-                <JobProgress job={job} showLaunchResultInfo />
+                <JobProgress
+                  job={job}
+                  showLaunchResultInfo
+                  launchProgress={
+                    launchProgressByJobId?.[String(job.id)] ??
+                    job?.job_data?.launch_progress
+                  }
+                />
               </td>
               <td
                 style={{
