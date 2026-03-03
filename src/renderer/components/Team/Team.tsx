@@ -21,6 +21,8 @@ import {
   TabList,
   Tab,
   TabPanel,
+  Switch,
+  Tooltip,
 } from '@mui/joy';
 import {
   NetworkIcon,
@@ -103,12 +105,12 @@ export default function UserLoginTest(): JSX.Element {
     },
   );
 
-  // Get compute_provider list (unchanged)
+  // Get compute_provider list (include disabled for admin view)
   const {
     data: providers,
     mutate: providersMutate,
     isLoading: providersLoading,
-  } = useAPI('compute_provider', ['list']);
+  } = useAPI('compute_provider', ['listAll']);
 
   // Simplify errors: show all errors under the "Members" title
   const [roleError, setRoleError] = useState<string | undefined>(undefined);
@@ -408,6 +410,36 @@ export default function UserLoginTest(): JSX.Element {
     } catch (e: any) {
       // eslint-disable-next-line no-alert
       alert(`Error deleting provider: ${e?.message ?? String(e)}`);
+    }
+  }
+
+  async function handleToggleProviderDisabled(
+    id: string,
+    currentlyDisabled: boolean,
+  ) {
+    try {
+      const res = await authContext.fetchWithAuth(
+        chatAPI.getAPIFullPath('compute_provider', ['update'], {
+          providerId: id,
+        }),
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ disabled: !currentlyDisabled }),
+        },
+      );
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({
+          detail: 'Failed to update provider',
+        }));
+        alert(
+          `Failed to toggle provider: ${errorData.detail || 'Unknown error'}`,
+        );
+        return;
+      }
+      if (providersMutate) providersMutate();
+    } catch (e: any) {
+      alert(`Error toggling provider: ${e?.message ?? String(e)}`);
     }
   }
 
@@ -924,6 +956,9 @@ export default function UserLoginTest(): JSX.Element {
               <tr>
                 <th style={{ width: 'auto' }}>Name</th>
                 <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Type</th>
+                <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>
+                  Enabled
+                </th>
                 <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Status</th>
                 <th
                   style={{
@@ -943,7 +978,12 @@ export default function UserLoginTest(): JSX.Element {
                   const isChecking = checkingProviderId === provider.id;
 
                   return (
-                    <tr key={provider.id}>
+                    <tr
+                      key={provider.id}
+                      style={{
+                        opacity: provider.disabled ? 0.5 : 1,
+                      }}
+                    >
                       <td>
                         <Stack direction="row" alignItems="center" gap={1}>
                           <NetworkIcon size={16} />
@@ -956,6 +996,31 @@ export default function UserLoginTest(): JSX.Element {
                         <Typography level="body-sm">
                           {provider?.type}
                         </Typography>
+                      </td>
+                      <td>
+                        <Tooltip
+                          title={
+                            !iAmOwner
+                              ? 'Only owners can toggle providers'
+                              : provider.disabled
+                                ? 'Enable this provider'
+                                : 'Disable this provider'
+                          }
+                        >
+                          <span>
+                            <Switch
+                              size="sm"
+                              checked={!provider.disabled}
+                              disabled={!iAmOwner}
+                              onChange={() =>
+                                handleToggleProviderDisabled(
+                                  provider.id,
+                                  provider.disabled,
+                                )
+                              }
+                            />
+                          </span>
+                        </Tooltip>
                       </td>
                       <td>
                         <Stack direction="row" alignItems="center" gap={0.5}>

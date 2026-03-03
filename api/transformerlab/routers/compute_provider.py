@@ -15,6 +15,7 @@ from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.services.provider_service import (
     get_team_provider,
     list_team_providers,
+    list_enabled_team_providers,
     create_team_provider,
     update_team_provider,
     delete_team_provider,
@@ -139,15 +140,20 @@ async def upload_task_file_for_provider(
 
 @router.get("/", response_model=List[ProviderRead])
 async def list_providers(
+    include_disabled: bool = Query(False, description="Include disabled providers (admin view)"),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
     List all providers for the current team.
     Requires X-Team-Id header and team membership.
+    By default, disabled providers are excluded. Pass include_disabled=true to see all.
     """
     team_id = user_and_team["team_id"]
-    providers = await list_team_providers(session, team_id)
+    if include_disabled:
+        providers = await list_team_providers(session, team_id)
+    else:
+        providers = await list_enabled_team_providers(session, team_id)
 
     # Convert to response format with masked sensitive fields
     result = []
@@ -163,6 +169,7 @@ async def list_providers(
                 created_by_user_id=provider.created_by_user_id,
                 created_at=provider.created_at,
                 updated_at=provider.updated_at,
+                disabled=provider.disabled,
             )
         )
 
@@ -223,6 +230,7 @@ async def create_provider(
         created_by_user_id=provider.created_by_user_id,
         created_at=provider.created_at,
         updated_at=provider.updated_at,
+        disabled=provider.disabled,
     )
 
 
@@ -680,8 +688,13 @@ async def update_provider(
         # Merge dictionaries, with new_config taking precedence
         update_config = {**existing_config, **new_config}
 
+    # Resolve disabled flag: only update if explicitly set (not the default False)
+    update_disabled = provider_data.disabled if provider_data.disabled is not None else None
+
     # Update provider
-    provider = await update_team_provider(session=session, provider=provider, name=update_name, config=update_config)
+    provider = await update_team_provider(
+        session=session, provider=provider, name=update_name, config=update_config, disabled=update_disabled
+    )
 
     # Return with masked sensitive fields
     masked_config = mask_sensitive_config(provider.config or {}, provider.type)
@@ -694,6 +707,7 @@ async def update_provider(
         created_by_user_id=provider.created_by_user_id,
         created_at=provider.created_at,
         updated_at=provider.updated_at,
+        disabled=provider.disabled,
     )
 
 
@@ -1378,6 +1392,8 @@ async def launch_template_on_provider(
     provider = await get_team_provider(session, team_id, provider_id)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
+    if provider.disabled:
+        raise HTTPException(status_code=403, detail="Provider is disabled and cannot be used to launch tasks")
 
     # Quota checking and hold creation (only for REMOTE jobs)
     if request.minutes_requested is not None and request.minutes_requested > 0:
