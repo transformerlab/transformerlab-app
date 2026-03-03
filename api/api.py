@@ -272,7 +272,6 @@ async def set_org_context(request: Request, call_next):
     # remain responsive even if other requests are busy or holding DB locks.
     path = request.url.path
     if path == "/healthz" or path == "/server/worker_healthz":
-        print(f"Health check request: {request.url.path}")
         return await call_next(request)
 
     try:
