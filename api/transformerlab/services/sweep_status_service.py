@@ -3,12 +3,10 @@ import time
 from typing import Any, Dict, List, Optional
 
 from lab import Experiment
-from lab import dirs as lab_dirs
-from lab import storage
 from lab.dirs import set_organization_id as lab_set_org_id
 
-from transformerlab.services import job_service
-from transformerlab.shared.request_context import set_current_org_id
+from transformerlab.services import job_service, team_service
+from transformerlab.shared.request_context import set_current_org_id, get_current_org_id
 
 ACTIVE_SWEEP_PARENT_STATUSES = {"RUNNING", "LAUNCHING"}
 RUNNING_CHILD_STATUSES = {"RUNNING", "LAUNCHING"}
@@ -28,21 +26,11 @@ def _clear_org_context() -> None:
 
 
 async def _list_all_org_ids() -> List[str]:
-    orgs_dir = lab_dirs.get_orgs_base_dir()
-    org_ids: List[str] = []
-
-    if await storage.exists(orgs_dir) and await storage.isdir(orgs_dir):
-        try:
-            org_entries = await storage.ls(orgs_dir, detail=False)
-            for org_path in org_entries:
-                if await storage.isdir(org_path):
-                    org_id = str(org_path).rstrip("/").split("/")[-1]
-                    if org_id:
-                        org_ids.append(org_id)
-        except Exception as exc:
-            print(f"Sweep status worker: failed listing orgs: {exc}")
-
-    return org_ids
+    try:
+        return await team_service.get_all_team_ids()
+    except Exception as exc:
+        print(f"Sweep status worker: failed listing orgs from DB: {exc}")
+        return []
 
 
 async def _list_experiment_ids_for_current_org() -> List[str]:
