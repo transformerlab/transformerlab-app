@@ -203,18 +203,7 @@ class LocalProvider(ComputeProvider):
             raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
         return pyproject_path
 
-    def _compute_team_venv_hash(self, pyproject_path: Path) -> str:
-        """Compute a hash representing the desired team venv contents."""
-        extra = _get_pyproject_extra()
-        additional_flags = _get_uv_pip_install_flags()
-        h = hashlib.sha256()
-        h.update(pyproject_path.read_bytes())
-        h.update(extra.encode("utf-8"))
-        h.update(additional_flags.encode("utf-8"))
-        h.update(_PYTHON_VERSION.encode("utf-8"))
-        return h.hexdigest()
-
-    def _ensure_job_venv_from_team(self, venv_path: Path, team_requirements: Path) -> None:
+    def _ensure_job_venv_from_base(self, venv_path: Path, team_requirements: Path) -> None:
         """Create or refresh a per-job venv by installing from the shared team requirements."""
         team_requirements = Path(team_requirements)
         if not team_requirements.exists():
@@ -281,7 +270,7 @@ class LocalProvider(ComputeProvider):
         # Ensure the shared base venv (common across all teams) exists and is up to date,
         # then create a per-job venv from its frozen requirements.
         base_requirements = ensure_base_venv_and_requirements()
-        self._ensure_job_venv_from_team(venv_path, base_requirements)
+        self._ensure_job_venv_from_base(venv_path, base_requirements)
 
         venv_bin = venv_path / "bin"
         env = os.environ.copy()
