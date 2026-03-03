@@ -27,10 +27,10 @@ def validate_cloud_credentials() -> None:
         return
 
     # Check if cloud storage is enabled
-    tfl_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED")
+    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
 
-    # If neither is set, no validation needed
-    if not tfl_storage_uri:
+    # If not enabled, no validation needed
+    if not tfl_remote_storage_enabled:
         return
 
     # If cloud storage is enabled, check credentials based on provider
@@ -188,9 +188,9 @@ def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3"
             print(f"❌ Failed to create local workspace folder for team {team_id}: {e}")
             return False
 
-    # Check if TFL_REMOTE_STORAGE_ENABLED is set
-    tfl_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED")
-    if not tfl_storage_uri:
+    # Check if TFL_REMOTE_STORAGE_ENABLED is enabled
+    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
+    if not tfl_remote_storage_enabled:
         print("TFL_REMOTE_STORAGE_ENABLED is not set, skipping bucket creation")
         return False
 
@@ -345,8 +345,8 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
             return (0, 0, ["TFL_STORAGE_URI is not set"])
         print("Initialising local workspaces for all teams (localfs mode)")
     else:
-        tfl_storage_uri = os.getenv("TFL_REMOTE_STORAGE_ENABLED")
-        if not tfl_storage_uri:
+        tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
+        if not tfl_remote_storage_enabled:
             print("TFL_REMOTE_STORAGE_ENABLED is not set, skipping bucket creation for existing teams")
             return (0, 0, ["TFL_REMOTE_STORAGE_ENABLED is not set"])
         remote_label = "GCS" if STORAGE_PROVIDER == "gcp" else "S3"

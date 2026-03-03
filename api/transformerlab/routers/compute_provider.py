@@ -49,7 +49,12 @@ from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
     generate_github_clone_setup,
 )
-from transformerlab.shared.secret_utils import load_team_secrets, replace_secrets_in_dict, replace_secret_placeholders
+from transformerlab.shared.secret_utils import (
+    extract_secret_names_from_data,
+    load_team_secrets,
+    replace_secrets_in_dict,
+    replace_secret_placeholders,
+)
 from transformerlab.shared import galleries
 from transformerlab.shared.interactive_gallery_utils import (
     resolve_interactive_command,
@@ -873,6 +878,34 @@ def _generate_gcp_credentials_setup(service_account_json: str, credentials_path:
     return setup_script
 
 
+def _find_missing_secrets_for_template_launch(
+    request: ProviderTemplateLaunchRequest, secrets: Dict[str, Any]
+) -> set[str]:
+    """
+    Inspect the launch request for any {{secret.NAME}} / {{secrets.NAME}} placeholders
+    and return the subset of referenced secret names that are not present in `secrets`.
+    """
+    referenced: set[str] = set()
+
+    # Core task fields that may contain secrets
+    referenced.update(extract_secret_names_from_data(request.command))
+    if request.setup:
+        referenced.update(extract_secret_names_from_data(request.setup))
+    if request.env_vars:
+        referenced.update(extract_secret_names_from_data(request.env_vars))
+    if request.parameters:
+        referenced.update(extract_secret_names_from_data(request.parameters))
+    if request.config:
+        referenced.update(extract_secret_names_from_data(request.config))
+    if request.sweep_config:
+        referenced.update(extract_secret_names_from_data(request.sweep_config))
+
+    if not referenced:
+        return set()
+
+    return {name for name in referenced if name not in secrets}
+
+
 async def _create_sweep_parent_job(
     provider_id: str,
     request: ProviderTemplateLaunchRequest,
@@ -1081,7 +1114,7 @@ async def _launch_sweep_jobs(
                 # Cloud credentials setup:
                 # - For AWS (TFL_STORAGE_PROVIDER=aws), inject ~/.aws/credentials profile if available.
                 # - For GCP (TFL_STORAGE_PROVIDER=gcp), optionally inject a service account JSON if provided.
-                if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
+                if os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true":
                     if STORAGE_PROVIDER == "aws":
                         aws_profile = "transformerlab-s3"
                         aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(
@@ -1272,6 +1305,23 @@ async def launch_template_on_provider(
     and launches multiple child REMOTE jobs with different parameter combinations.
     """
 
+    team_id = user_and_team["team_id"]
+    user = user_and_team["user"]
+    user_id = str(user.id)
+
+    # Load team + user secrets once and validate that any referenced secrets exist
+    team_secrets = await load_team_secrets(user_id=user_id)
+    missing_secrets = _find_missing_secrets_for_template_launch(request, team_secrets)
+    if missing_secrets:
+        missing_list = ", ".join(sorted(missing_secrets))
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Missing secrets referenced in task configuration: "
+                f"{missing_list}. Please define these secrets at the team or user level before launching."
+            ),
+        )
+
     # Check if sweeps are enabled
     if request.run_sweeps and request.sweep_config:
         from itertools import product
@@ -1325,25 +1375,20 @@ async def launch_template_on_provider(
         }
 
     # Normal single job launch (existing logic)
-    team_id = user_and_team["team_id"]
-    user = user_and_team["user"]
-
     provider = await get_team_provider(session, team_id, provider_id)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
     # Quota checking and hold creation (only for REMOTE jobs)
     if request.minutes_requested is not None and request.minutes_requested > 0:
-        user_id_str = str(user.id)
         has_quota, available, message = await quota_service.check_quota_available(
-            session, user_id_str, team_id, request.minutes_requested
+            session, user_id, team_id, request.minutes_requested
         )
         if not has_quota:
             raise HTTPException(status_code=403, detail=message)
 
     # Get provider instance (resolves user's slurm_user for SLURM when user_id/team_id set)
-    user_id_str = str(user.id)
-    provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
+    provider_instance = await get_provider_instance(provider, user_id=user_id, team_id=team_id)
 
     # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING,
     # except for LOCAL providers where we introduce a WAITING status while queued.
@@ -1386,10 +1431,6 @@ async def launch_template_on_provider(
 
     provider_display_name = request.provider_name or provider.name
 
-    # Load team secrets and user secrets for template replacement (user secrets override team secrets)
-    user_id = str(user_and_team["user"].id)
-    team_secrets = await load_team_secrets(user_id=user_id)
-
     # Prepare environment variables - start with a copy of requested env_vars
     env_vars = request.env_vars.copy() if request.env_vars else {}
 
@@ -1399,7 +1440,7 @@ async def launch_template_on_provider(
 
     # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
     aws_profile = "transformerlab-s3"
-    if os.getenv("TFL_REMOTE_STORAGE_ENABLED"):
+    if os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true":
         aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(_get_aws_credentials_from_file, aws_profile)
     else:
         aws_access_key_id, aws_secret_access_key = None, None
