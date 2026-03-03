@@ -71,6 +71,13 @@ async def _local_launch_worker() -> None:
                 set_current_org_id(item.team_id)
                 lab_dirs.set_organization_id(item.team_id)
                 try:
+                    await job_service.job_update_launch_progress(
+                        item.job_id,
+                        item.experiment_id,
+                        phase="starting",
+                        percent=5,
+                        message="Starting launch",
+                    )
                     provider = await get_provider_by_id(session, item.provider_id)
                     if not provider:
                         await job_service.job_update_status(
@@ -95,6 +102,14 @@ async def _local_launch_worker() -> None:
                         session=session,
                     )
                     await session.commit()
+
+                    await job_service.job_update_launch_progress(
+                        item.job_id,
+                        item.experiment_id,
+                        phase="launching_cluster",
+                        percent=50,
+                        message="Starting local cluster",
+                    )
 
                     loop = asyncio.get_running_loop()
                     try:
@@ -122,6 +137,13 @@ async def _local_launch_worker() -> None:
 
                     # On success, we keep the job in LAUNCHING/INTERACTIVE; status checks will
                     # complete it when the local process exits.
+                    await job_service.job_update_launch_progress(
+                        item.job_id,
+                        item.experiment_id,
+                        phase="cluster_started",
+                        percent=100,
+                        message="Local cluster started",
+                    )
                     if isinstance(launch_result, dict):
                         await job_service.job_update_job_data_insert_key_value(
                             item.job_id,

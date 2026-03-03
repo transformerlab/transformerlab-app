@@ -323,10 +323,7 @@ function stableSort<T>(
 
 type Order = 'asc' | 'desc';
 
-export default function Documents({
-  fullPage = false,
-  fixedFolder = '',
-}) {
+export default function Documents({ fullPage = false, fixedFolder = '' }) {
   const { experimentInfo } = useExperimentInfo();
   const isLocalMode = window?.platform?.multiuser !== true;
   const [doc, setDoc] = React.useState<Doc>('desc');
