@@ -148,7 +148,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
   // When navigating to /experiment/chat, set the mode to the first supported mode
   // If there's no supports array or it's empty, default to 'chat'
   useEffect(() => {
-    if (location.pathname.endsWith('/chat')) {
+    if (location.pathname.match(/^\/experiment\/[^/]+\/chat$/)) {
       if (Array.isArray(modelSupports) && modelSupports.length > 0) {
         // Always set mode to the first supported mode when navigating to the route
         setSelectedInteractSubpage(modelSupports[0]);
