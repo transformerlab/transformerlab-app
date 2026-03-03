@@ -717,9 +717,19 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
 
       // Create template with flat structure
+      // Use env_parameters from the gallery-defined structure (generic handling)
       const envVars: Record<string, string> = {};
 
-      // Add vLLM-specific environment variables
+      // Merge generic env_parameters from the modal (keyed by env_var name)
+      if (data.env_parameters) {
+        for (const [key, value] of Object.entries(data.env_parameters)) {
+          if (typeof value === 'string' && value.trim()) {
+            envVars[key] = value;
+          }
+        }
+      }
+
+      // Add vLLM-specific environment variables (legacy fallback)
       if (interactiveType === 'vllm') {
         if (data.model_name) {
           envVars['MODEL_NAME'] = data.model_name;
@@ -732,14 +742,14 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         }
       }
 
-      // Add Ollama-specific environment variables
+      // Add Ollama-specific environment variables (legacy fallback)
       if (interactiveType === 'ollama') {
         if (data.model_name) {
           envVars['MODEL_NAME'] = data.model_name;
         }
       }
 
-      // Add SSH-specific environment variables
+      // Add SSH-specific environment variables (legacy fallback)
       if (interactiveType === 'ssh') {
         if (data.ngrok_auth_token) {
           envVars['NGROK_AUTH_TOKEN'] = data.ngrok_auth_token;
@@ -786,9 +796,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               ? 'vLLM'
               : (data.interactive_type || 'vscode') === 'ollama'
                 ? 'Ollama'
-                : (data.interactive_type || 'vscode') === 'ssh'
-                  ? 'SSH'
-                  : 'VS Code';
+                : (data.interactive_type || 'vscode') === 'mlx_lm'
+                  ? 'MLX LM'
+                  : (data.interactive_type || 'vscode') === 'ssh'
+                    ? 'SSH'
+                    : 'VS Code';
         addNotification({
           type: 'success',
           message: `Interactive template created. Use Queue to launch the ${interactiveTypeLabel} tunnel.`,
