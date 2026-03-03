@@ -36,7 +36,9 @@ interface ExperimentMenuItemsProps {
 
 function ExperimentMenuItems({ experimentInfo }: ExperimentMenuItemsProps) {
   const experimentReady = Boolean(experimentInfo?.name);
-  const basePath = `/experiment/${experimentInfo?.name || ''}`;
+  const basePath = experimentReady
+    ? `/experiment/${encodeURIComponent(experimentInfo.name)}`
+    : '#';
 
   return (
     <List
