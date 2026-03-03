@@ -353,7 +353,7 @@ class RunpodProvider(ComputeProvider):
                     gpu_count = 1
 
             # Use GPU-enabled image
-            default_image = "runpod/pytorch:2.1.0-py3.10-cuda11.8.0-devel-ubuntu22.04"
+            default_image = "runpod/pytorch:1.0.3-cu1281-torch290-ubuntu2204"
         else:
             # CPU pod
             compute_type = "CPU"
