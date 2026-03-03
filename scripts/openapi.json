@@ -1540,46 +1540,6 @@
         }
       }
     },
-    "/experiment/{experimentId}/rag/reindex": {
-      "get": {
-        "tags": ["rag", "rag"],
-        "summary": "Reindex",
-        "description": "Reindex the RAG engine",
-        "operationId": "reindex_experiment__experimentId__rag_reindex_get",
-        "parameters": [
-          {
-            "name": "experimentId",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "title": "Experimentid" }
-          },
-          {
-            "name": "rag_folder",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "rag",
-              "title": "Rag Folder"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": { "application/json": { "schema": {} } }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
-              }
-            }
-          }
-        }
-      }
-    },
     "/experiment/{experimentId}/documents/open/{document_name}": {
       "get": {
         "tags": ["documents", "documents"],

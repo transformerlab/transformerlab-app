@@ -217,13 +217,20 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     }
   }
 
+  const method = (options.method ?? 'GET').toUpperCase();
+  const isHealthCheck =
+    fullUrl.endsWith('/healthz') || fullUrl.endsWith('/server/worker_healthz');
+
+  // Important: avoid forcing CORS preflight on GET/HEAD (especially health checks)
+  // by not attaching non-simple headers unless needed.
   const headers: Record<string, string> = {
     ...((options.headers as Record<string, string>) || {}),
-    // Only set Content-Type if body is not FormData (browser will set it with boundary for FormData)
-    ...(options.body instanceof FormData
-      ? {}
-      : { 'Content-Type': 'application/json' }),
-    ...(currentTeam
+    // Only set Content-Type when we actually have a non-FormData body.
+    ...(options.body && !(options.body instanceof FormData)
+      ? { 'Content-Type': 'application/json' }
+      : {}),
+    // Only attach team headers when not doing lightweight health checks.
+    ...(currentTeam && !isHealthCheck
       ? { 'X-Team-Id': currentTeam.id, 'X-Team-Name': currentTeam.name }
       : {}),
   };
@@ -231,6 +238,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   // Cookie-based auth: credentials: 'include' sends cookies automatically
   const response = await fetch(fullUrl, {
     ...options,
+    method,
     headers,
     credentials: 'include',
   });
