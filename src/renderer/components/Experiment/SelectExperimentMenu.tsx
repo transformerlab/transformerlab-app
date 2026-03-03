@@ -154,7 +154,7 @@ export default function SelectExperimentMenu({ models }) {
     // If currently on an experiment page, update the URL to reflect the new experiment
     const match = location.pathname.match(/^\/experiment\/[^/]+\/(.+)$/);
     if (match) {
-      navigate(`/experiment/${experimentName}/${match[1]}`);
+      navigate(`/experiment/${encodeURIComponent(experimentName)}/${match[1]}`);
     }
   };
 
@@ -213,7 +213,7 @@ export default function SelectExperimentMenu({ models }) {
 
       // Navigate to Notes page if experiment was created from a recipe AND recipe is not blank
       if (fromRecipeId !== null && fromRecipeId !== -1) {
-        navigate(`/experiment/${name}/notes`);
+        navigate(`/experiment/${encodeURIComponent(name)}/notes`);
       }
     },
     [setExperimentId, mutate, navigate, isLoading, data],
