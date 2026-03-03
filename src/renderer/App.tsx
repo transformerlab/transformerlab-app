@@ -18,6 +18,7 @@ import './styles.css';
 import OutputTerminal from './components/OutputTerminal';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
 import AnnouncementsModal from './components/Shared/AnnouncementsModal';
+import InsecurePasswordBanner from './components/Shared/InsecurePasswordBanner';
 import { NotificationProvider } from './components/Shared/NotificationSystem';
 import {
   ExperimentInfoProvider,
@@ -92,13 +93,15 @@ function AppContent({
   }
 
   return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100dvw', overflow: 'hidden' }}>
+    <InsecurePasswordBanner />
     <Box
       component="main"
       className="MainContent"
       sx={() => ({
         display: 'grid',
-        height: '100dvh',
-        width: '100dvw',
+        flex: 1,
+        width: '100%',
         overflow: 'hidden',
         gridTemplateColumns: '180px 1fr',
         gridTemplateRows: !isLocalMode
@@ -141,6 +144,7 @@ function AppContent({
         }}
         id="main-app-panel"
       >
+        <AnnouncementBanner />
         <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
       </Box>
       {isLocalMode && (
@@ -200,7 +204,7 @@ function AppContent({
           </Box>
         </Box>
       )}
-      <AnnouncementsModal />
+    </Box>
     </Box>
   );
 }

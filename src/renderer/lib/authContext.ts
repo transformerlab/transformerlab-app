@@ -80,6 +80,8 @@ export interface AuthContextValue {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
   team: Team | null;
   setTeam: React.Dispatch<React.SetStateAction<Team | null>>;
+  isDefaultPassword: boolean;
+  setIsDefaultPassword: (value: boolean) => void;
 }
 
 interface AuthProviderProps {
@@ -274,6 +276,7 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [initializing, setInitializing] = useState<boolean>(true);
   const [team, setTeamState] = useState<Team | null>(null);
+  const [isDefaultPassword, setIsDefaultPassword] = useState(false);
 
   useEffect(() => {
     // Initialize team from localStorage
@@ -524,6 +527,8 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       fetchWithAuth,
       team,
       setTeam: handleSetTeam,
+      isDefaultPassword,
+      setIsDefaultPassword,
     }),
     [
       user,
@@ -536,6 +541,8 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       initializing,
       team,
       handleSetTeam,
+      isDefaultPassword,
+      setIsDefaultPassword,
     ],
   );
 

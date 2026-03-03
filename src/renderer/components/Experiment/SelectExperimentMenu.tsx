@@ -30,7 +30,7 @@ import {
   useAuth,
   useAPI,
 } from 'renderer/lib/authContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import RecipesModal from './Recipes';
@@ -119,6 +119,7 @@ function ExperimentSettingsMenu({
 export default function SelectExperimentMenu({ models }) {
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { experimentInfo, setExperimentId } = useExperimentInfo();
   const { team } = useAuth();
 
@@ -148,8 +149,13 @@ export default function SelectExperimentMenu({ models }) {
     mutate();
   }, [experimentInfo]);
 
-  const createHandleClose = (id: string) => () => {
-    setExperimentId(id);
+  const createHandleClose = (experimentName: string) => () => {
+    setExperimentId(experimentName);
+    // If currently on an experiment page, update the URL to reflect the new experiment
+    const match = location.pathname.match(/^\/experiment\/[^/]+\/(.+)$/);
+    if (match) {
+      navigate(`/experiment/${encodeURIComponent(experimentName)}/${match[1]}`);
+    }
   };
 
   const createNewExperiment = useCallback(
@@ -207,7 +213,7 @@ export default function SelectExperimentMenu({ models }) {
 
       // Navigate to Notes page if experiment was created from a recipe AND recipe is not blank
       if (fromRecipeId !== null && fromRecipeId !== -1) {
-        navigate('/experiment/notes');
+        navigate(`/experiment/${encodeURIComponent(name)}/notes`);
       }
     },
     [setExperimentId, mutate, navigate, isLoading, data],
@@ -383,7 +389,7 @@ export default function SelectExperimentMenu({ models }) {
                             ? 'soft'
                             : undefined
                         }
-                        onClick={createHandleClose(experiment.id)}
+                        onClick={createHandleClose(experiment.name)}
                         key={experiment.id}
                         sx={{
                           display: 'flex',

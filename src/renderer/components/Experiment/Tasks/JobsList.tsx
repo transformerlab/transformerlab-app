@@ -321,7 +321,8 @@ const JobsList: React.FC<JobsListProps> = ({
                     )}
                   {(job?.job_data?.artifacts ||
                     job?.job_data?.artifacts_dir ||
-                    job?.job_data?.generated_datasets) && (
+                    job?.job_data?.generated_datasets ||
+                    job?.job_data?.models) && (
                     <Dropdown>
                       <MenuButton
                         size="sm"
@@ -347,12 +348,18 @@ const JobsList: React.FC<JobsListProps> = ({
                             View Artifacts
                           </MenuItem>
                         )}
-                        <MenuItem onClick={() => onViewJobDatasets?.(job?.id)}>
-                          View Datasets
-                        </MenuItem>
-                        <MenuItem onClick={() => onViewJobModels?.(job?.id)}>
-                          View Models
-                        </MenuItem>
+                        {job?.job_data?.generated_datasets && (
+                          <MenuItem
+                            onClick={() => onViewJobDatasets?.(job?.id)}
+                          >
+                            View Datasets
+                          </MenuItem>
+                        )}
+                        {job?.job_data?.models && (
+                          <MenuItem onClick={() => onViewJobModels?.(job?.id)}>
+                            View Models
+                          </MenuItem>
+                        )}
                       </Menu>
                     </Dropdown>
                   )}
