@@ -143,10 +143,6 @@ async def refresh_active_sweeps_once() -> Dict[str, int]:
 
     org_ids = await _list_all_org_ids()
 
-    # Backward compatibility for single-org workspaces where org directories may not exist yet.
-    if not org_ids:
-        org_ids = [None]
-
     for org_id in org_ids:
         try:
             _set_org_context(org_id)
