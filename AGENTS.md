@@ -36,6 +36,12 @@
   - **Pydantic**: Use Pydantic models (in `schemas/`) for distinct data validation and serialization layers.
   - **Service Pattern**: Business logic goes in `api/transformerlab/services/`, NOT in routers. Routers (`api/transformerlab/routers/`) should only handle HTTP request/response validation and calling services.
 
+
+## Storing Data
+
+- In general we are biased towards storing data in the filesystem versus storing in a database. This is so that nodes that are all coordinating in an ML cluster can all use the filesystem to synchronize data
+- Our database is a SQLlite DB but we also support Postgres (by using sqlalchemy) so avoid DB operations that would only work on one or the other
+
 ## Testing
 
 - **Frontend**:
