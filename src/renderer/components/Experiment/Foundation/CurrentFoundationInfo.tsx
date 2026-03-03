@@ -373,12 +373,16 @@ export default function CurrentFoundationInfo({
   }, [experimentInfo?.config?.embedding_model]);
 
   const handleEmbeddingModelClick = () => {
-    navigate('/experiment/embedding-model', {
-      state: {
-        currentEmbeddingModel: embeddingModel,
-        experimentId: experimentInfo?.id,
+    if (!experimentInfo?.name) return;
+    navigate(
+      `/experiment/${encodeURIComponent(experimentInfo.name)}/embedding-model`,
+      {
+        state: {
+          currentEmbeddingModel: embeddingModel,
+          experimentId: experimentInfo.id,
+        },
       },
-    });
+    );
   };
 
   const { data, error, isLoading } = useAPI(

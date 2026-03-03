@@ -409,9 +409,9 @@ export default function TasksGallery() {
 
       // Navigate to the appropriate page
       if (activeTab === 'interactive' || activeTab === 'team-interactive') {
-        navigate(`/experiment/interactive`);
+        navigate(`/experiment/${experimentInfo?.name}/interactive`);
       } else {
-        navigate(`/experiment/tasks`);
+        navigate(`/experiment/${experimentInfo?.name}/tasks`);
       }
     } catch (err: any) {
       console.error('Error importing template:', err);
