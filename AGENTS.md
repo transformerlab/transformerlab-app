@@ -1,5 +1,14 @@
 # AGENTS.md
 
+## Git Workflow
+
+- The `main` branch is protected. **Never commit directly to `main`.**
+- Always create a new branch for your work: `git checkout -b <descriptive-branch-name>`
+- Use a clear branch naming convention, e.g. `feat/short-description`, `fix/short-description`, `chore/short-description`.
+- Commit early and often with meaningful commit messages.
+- When work is complete, push the branch and open a pull request: `gh pr create --fill`
+- Do not merge PRs yourself — let the reviewer merge.
+
 ## Build/Lint/Test Commands
 
 - **Frontend dev**: `npm start` (Node v22, not v23+)
