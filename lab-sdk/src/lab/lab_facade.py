@@ -264,9 +264,10 @@ class Lab:
 
     def copy_file_mounts(self) -> None:
         """
-        Copy all files in the task directory to ~/src.
+        Copy all files in the task directory to the user's home directory,
+        or to ~/sky_workdir if that directory already exists.
         Uses _TFL_JOB_ID to get the job, reads task_id from job_data, then copies
-        from the task dir (workspace/task/<task_id>) to ~/src. No network/URL;
+        from the task dir (workspace/task/<task_id>) to the chosen destination. No network/URL;
         assumes the runner has access to the same storage (e.g. mounted workspace).
         No-op if _TFL_JOB_ID is not set or job_data has no task_id.
         """
@@ -290,8 +291,12 @@ class Lab:
         task_dir = await task_template.get_dir()
         if not await storage.exists(task_dir):
             return
-        dest_dir = os.path.expanduser("~/src")
-        os.makedirs(dest_dir, exist_ok=True)
+        home_dir = os.path.expanduser("~")
+        sky_workdir = os.path.join(home_dir, "sky_workdir")
+        if os.path.isdir(sky_workdir):
+            dest_dir = sky_workdir
+        else:
+            dest_dir = home_dir
 
         # Determine if we're working with a remote URI (e.g., s3://)
         is_remote = storage.is_remote_path(task_dir)
