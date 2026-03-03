@@ -92,7 +92,10 @@ export default function LoginPage() {
 
       try {
         console.log('Attempting auto-login for single user mode');
-        await authContext.login('admin@example.com', 'admin123');
+        const result = await authContext.login('admin@example.com', 'admin123');
+        if (!(result instanceof Error)) {
+          authContext.setIsDefaultPassword(true);
+        }
       } catch (error) {
         console.error('Auto-login failed:', error);
       }

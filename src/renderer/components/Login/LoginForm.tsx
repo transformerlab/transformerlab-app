@@ -27,7 +27,7 @@ export default function LoginForm() {
     Array<{ id: string; name: string }>
   >([]);
 
-  const { login } = useAuth();
+  const { login, setIsDefaultPassword } = useAuth();
   const { addNotification } = useNotification();
   const navigate = useNavigate();
 
@@ -54,7 +54,10 @@ export default function LoginForm() {
 
       try {
         console.log('Attempting auto-login for single user mode');
-        await login('admin@example.com', 'admin123');
+        const result = await login('admin@example.com', 'admin123');
+        if (!(result instanceof Error)) {
+          setIsDefaultPassword(true);
+        }
       } catch (error) {
         console.error('Auto-login failed:', error);
       }
@@ -160,11 +163,7 @@ export default function LoginForm() {
         );
       } else {
         if (password === 'admin123') {
-          addNotification({
-            type: 'danger',
-            message:
-              'You are using a default insecure password. Please change it in User Settings.',
-          });
+          setIsDefaultPassword(true);
         }
       }
     } catch (err) {
