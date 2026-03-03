@@ -1,6 +1,5 @@
 """Local compute provider: runs tasks in a uv venv synced with the base environment."""
 
-import hashlib
 import json
 import os
 import shlex
