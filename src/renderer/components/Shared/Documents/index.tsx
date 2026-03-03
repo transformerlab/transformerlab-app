@@ -37,7 +37,6 @@ import {
   FileUpIcon,
   FolderIcon,
   PlusCircleIcon,
-  RotateCcwIcon,
   SearchIcon,
   FilterIcon as FilterAltIcon,
   MoreVerticalIcon as MoreHorizRoundedIcon,
@@ -57,7 +56,6 @@ import {
   FaRegFilePdf,
   LuFileJson,
 } from 'renderer/components/Icons';
-import TinyButton from 'renderer/components/Shared/TinyButton';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
@@ -327,7 +325,6 @@ type Order = 'asc' | 'desc';
 
 export default function Documents({
   fullPage = false,
-  additionalMessage = false,
   fixedFolder = '',
 }) {
   const { experimentInfo } = useExperimentInfo();
@@ -956,25 +953,7 @@ export default function Documents({
         <Typography level="body-xs" color="neutral">
           Allowed filetypes: .txt, .pdf, .csv, .epub, .ipynb, .mbox, .md, .ppt
         </Typography>
-        <TinyButton
-          startDecorator={<RotateCcwIcon size="12px" />}
-          color="neutral"
-          variant="outlined"
-          onClick={() => {
-            chatAPI.authenticatedFetch(
-              chatAPI.Endpoints.Rag.ReIndex(experimentInfo?.id),
-            );
-          }}
-        >
-          Reindex
-        </TinyButton>
       </Stack>
-      {additionalMessage && (
-        <Typography level="body-xs" mt={1}>
-          Documents for RAG should be uploaded in a folder called "rag" and only
-          those will be indexed for RAG.
-        </Typography>
-      )}
     </>
   );
 }

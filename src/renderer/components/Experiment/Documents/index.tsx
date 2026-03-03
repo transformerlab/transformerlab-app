@@ -12,7 +12,7 @@ export default function BigDocumentsPage({}) {
         pb: 2,
       }}
     >
-      <Documents fullPage additionalMessage />
+      <Documents fullPage />
     </Sheet>
   );
 }
