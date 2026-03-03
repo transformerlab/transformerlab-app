@@ -18,7 +18,9 @@ import './styles.css';
 import OutputTerminal from './components/OutputTerminal';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
 import AnnouncementsModal from './components/Shared/AnnouncementsModal';
+import AnnouncementBanner from './components/Shared/AnnouncementBanner';
 import InsecurePasswordBanner from './components/Shared/InsecurePasswordBanner';
+import AnnouncementBanner from './components/Shared/AnnouncementBanner';
 import { NotificationProvider } from './components/Shared/NotificationSystem';
 import {
   ExperimentInfoProvider,
