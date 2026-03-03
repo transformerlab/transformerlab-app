@@ -323,9 +323,7 @@ async def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
     fs = await filesystem()
     # Materialise the generator in a thread so the blocking filesystem
     # traversal never stalls the event loop.
-    return await asyncio.to_thread(
-        lambda: list(fs.walk(path, maxdepth=maxdepth, topdown=topdown, on_error=on_error))
-    )
+    return await asyncio.to_thread(lambda: list(fs.walk(path, maxdepth=maxdepth, topdown=topdown, on_error=on_error)))
 
 
 async def rm(path: str) -> None:
