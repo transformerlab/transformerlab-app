@@ -6,7 +6,7 @@ from lab import Experiment
 from lab.dirs import set_organization_id as lab_set_org_id
 
 from transformerlab.services import job_service, team_service
-from transformerlab.shared.request_context import set_current_org_id, get_current_org_id
+from transformerlab.shared.request_context import set_current_org_id
 
 ACTIVE_SWEEP_PARENT_STATUSES = {"RUNNING", "LAUNCHING"}
 RUNNING_CHILD_STATUSES = {"RUNNING", "LAUNCHING"}
