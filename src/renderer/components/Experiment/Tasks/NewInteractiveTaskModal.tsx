@@ -86,7 +86,13 @@ type NewInteractiveTaskModalProps = {
       cpus?: string;
       memory?: string;
       accelerators?: string;
-      interactive_type: 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama' | 'mlx_lm';
+      interactive_type:
+        | 'vscode'
+        | 'jupyter'
+        | 'vllm'
+        | 'ssh'
+        | 'ollama'
+        | 'mlx_lm';
       provider_id?: string;
       env_parameters?: Record<string, string>;
       local?: boolean;
