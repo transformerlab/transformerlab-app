@@ -287,6 +287,8 @@ async def ls(path: str, detail: bool = False, fs=None):
     filesys = fs if fs is not None else await filesystem()
     # Let fsspec parse the URI
     paths = filesys.ls(path, detail=detail)
+    if detail:
+        return paths
     # Dont include the current path in the list
     # Ensure paths are full URIs for remote filesystems
     if path.startswith(("s3://", "gs://", "abfs://", "gcs://")):
