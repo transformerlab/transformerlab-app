@@ -138,7 +138,7 @@ export default function Welcome() {
 
     // Navigate to Notes page if experiment was created from a recipe AND recipe is not blank
     if (fromRecipeId !== null && fromRecipeId !== -1) {
-      navigate('/experiment/notes');
+      navigate(`/experiment/${name}/notes`);
     }
   };
 
