@@ -520,6 +520,12 @@ async def copy_dir(src_dir: str, dest_dir: str) -> None:
     await makedirs(dest_dir, exist_ok=True)
     # Determine the source filesystem independently of destination
     src_fs, _ = _get_fs_for_path(src_dir)
+    # Remember protocol for remote paths so that we can reconstruct full URIs
+    # from keys returned by fsspec (which may omit the protocol).
+    src_protocol: Optional[str] = None
+    if is_remote_path(src_dir):
+        src_protocol = src_dir.split("://", 1)[0]
+
     try:
         src_files = src_fs.find(src_dir)
     except Exception:
@@ -529,8 +535,14 @@ async def copy_dir(src_dir: str, dest_dir: str) -> None:
             for f in files:
                 src_files.append(f)
 
-    for src_file in src_files:
-        # Compute relative path with respect to the source dir
+    for raw_src_file in src_files:
+        # For remote filesystems, ensure we have a full URI (e.g., s3://bucket/...)
+        src_file = raw_src_file
+        if src_protocol is not None and not is_remote_path(raw_src_file):
+            src_file = f"{src_protocol}://{raw_src_file.lstrip('/')}"
+
+        # Compute relative path with respect to the source dir using the
+        # normalized src_file URI/path.
         rel_path = src_file[len(src_dir) :].lstrip("/")
         dest_file = join(dest_dir, rel_path)
         # Ensure destination directory exists
