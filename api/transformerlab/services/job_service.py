@@ -829,6 +829,10 @@ async def format_dataset(dir_path: str, storage) -> Optional[Dict[str, any]]:
     try:
         dataset_name = dir_path.split("/")[-1] if "/" in dir_path else dir_path
 
+        # Skip internal metadata files that should not be exposed as datasets
+        if dataset_name == "index.json":
+            return None
+
         dataset = {
             "name": dataset_name,
             "full_path": dir_path,
