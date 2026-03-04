@@ -1142,11 +1142,11 @@ export default function QueueTaskModal({
                     </Button>
                   </Stack>
                   <FormHelperText>
-                    These flags apply only to this queued run and are added as{' '}
+                    These flags apply only to this queued run and are added as
                     #SBATCH directives in the SLURM script. They start from your
-                    defaults in User Settings &rarr; Provider Settings, but
-                    edits here affect this run only. Examples: --time=4:00:00,{' '}
-                    --ntasks-per-node=4
+                    defaults in User Settings → Provider Settings, but edits
+                    here affect this run only. Examples: --time=4:00:00,
+                    --ntasks-per-node=4.
                   </FormHelperText>
                 </FormControl>
               )}
