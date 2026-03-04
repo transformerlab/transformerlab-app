@@ -438,7 +438,7 @@ def parse_mlx_lm_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str], O
     try:
         lines = logs.split("\n")
 
-        found_urls: list[str] = []
+        found_tunnel_urls: list[str] = []
 
         for line in lines:
             # Look for any HTTPS tunnel URL from supported providers
@@ -448,24 +448,25 @@ def parse_mlx_lm_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str], O
             )
             if match:
                 url = match.group(1)
-                if url not in found_urls:
-                    found_urls.append(url)
+                if url not in found_tunnel_urls:
+                    found_tunnel_urls.append(url)
 
-            # Check for local URL patterns: "Local MLX LM API: http://localhost:8001" or "Local Open WebUI: http://localhost:8080"
-            match = re.search(r"Local (?:MLX LM API|Open WebUI):\s*(http://localhost:\d+)", line)
-            if match:
-                url = match.group(1)
-                if url not in found_urls:
-                    found_urls.append(url)
+            # Check for local MLX LM API URL pattern: "Local MLX LM API: http://localhost:8001"
+            match = re.search(r"Local MLX LM API:\s*(http://localhost:\d+)", line)
+            if match and not mlx_lm_url:
+                mlx_lm_url = match.group(1)
 
-        # Assign URLs by discovery order:
-        #  - first URL: MLX LM API tunnel
-        #  - second URL (if present): Open WebUI tunnel
-        if found_urls:
-            tunnel_url = found_urls[0]
-            mlx_lm_url = tunnel_url
-        if len(found_urls) > 1:
-            openwebui_url = found_urls[1]
+            # Check for local Open WebUI URL pattern: "Local Open WebUI: http://localhost:8080"
+            match = re.search(r"Local Open WebUI:\s*(http://localhost:\d+)", line)
+            if match and not openwebui_url:
+                openwebui_url = match.group(1)
+
+        # Assign HTTPS tunnel URL as the primary tunnel_url
+        if found_tunnel_urls:
+            tunnel_url = found_tunnel_urls[0]
+            # If we don't have mlx_lm_url from local pattern, use the tunnel URL
+            if not mlx_lm_url:
+                mlx_lm_url = tunnel_url
 
         return tunnel_url, mlx_lm_url, openwebui_url
 
