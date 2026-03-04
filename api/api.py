@@ -94,6 +94,7 @@ from transformerlab.shared.request_context import set_current_org_id  # noqa: E4
 from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
 from lab import storage  # noqa: E402
 from transformerlab.shared.remote_workspace import validate_cloud_credentials  # noqa: E402
+from transformerlab.services.sweep_status_service import start_sweep_status_worker, stop_sweep_status_worker  # noqa: E402
 
 
 # The following environment variable can be used by other scripts
@@ -154,9 +155,13 @@ async def lifespan(app: FastAPI):
 
     if "--reload" in sys.argv:
         await install_all_plugins()
+
+    # Start background sweep status updater after all startup steps succeed.
+    await start_sweep_status_worker()
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
     # Do the following at API Shutdown:
+    await stop_sweep_status_worker()
     await db.close()
     # Run the clean up function
     cleanup_at_exit()
