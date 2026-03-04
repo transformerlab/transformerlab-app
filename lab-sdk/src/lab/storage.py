@@ -1,3 +1,4 @@
+import asyncio
 import os
 import posixpath
 import contextvars
@@ -17,7 +18,9 @@ logging.getLogger("s3fs").setLevel(logging.CRITICAL)
 class AsyncFileWrapper:
     """
     Wrapper to make sync file objects work with async context managers.
-    This allows sync filesystem file objects to be used with 'async with'.
+
+    All I/O methods dispatch to a thread pool via asyncio.to_thread so that
+    blocking S3/GCS network calls never stall the event loop.
     """
 
     def __init__(self, file_obj):
@@ -27,9 +30,10 @@ class AsyncFileWrapper:
         self._is_context_manager = hasattr(file_obj, "__enter__") and hasattr(file_obj, "__exit__")
 
     async def __aenter__(self):
-        # Enter the sync context manager if it is one
+        # Enter the sync context manager in a thread — for S3 this is where
+        # the actual HTTP connection / GetObject request is initiated.
         if self._is_context_manager:
-            self.file_obj = self._file_obj.__enter__()
+            self.file_obj = await asyncio.to_thread(self._file_obj.__enter__)
         else:
             self.file_obj = self._file_obj
         return self
@@ -41,55 +45,52 @@ class AsyncFileWrapper:
         exc_tb: Optional[TracebackType],
     ) -> None:
         if self._is_context_manager:
-            # Exit the sync context manager
-            self._file_obj.__exit__(exc_type, exc_val, exc_tb)
+            await asyncio.to_thread(self._file_obj.__exit__, exc_type, exc_val, exc_tb)
         elif self.file_obj and hasattr(self.file_obj, "close"):
-            # Just close if no context manager protocol
-            self.file_obj.close()
+            await asyncio.to_thread(self.file_obj.close)
         self.file_obj = None
 
-    # Override common I/O methods to make them async-compatible
     async def read(self, size=-1):
-        """Read from the file (async wrapper for sync read)."""
+        """Read bytes from the file."""
         if self.file_obj is None:
             raise ValueError("File object not initialized. Use 'async with' to open the file.")
-        return self.file_obj.read(size)
+        return await asyncio.to_thread(self.file_obj.read, size)
 
     async def write(self, data):
-        """Write to the file (async wrapper for sync write)."""
+        """Write data to the file."""
         if self.file_obj is None:
             raise ValueError("File object not initialized. Use 'async with' to open the file.")
-        return self.file_obj.write(data)
+        return await asyncio.to_thread(self.file_obj.write, data)
 
     async def readline(self, size=-1):
-        """Read a line from the file (async wrapper for sync readline)."""
+        """Read a single line from the file."""
         if self.file_obj is None:
             raise ValueError("File object not initialized. Use 'async with' to open the file.")
-        return self.file_obj.readline(size)
+        return await asyncio.to_thread(self.file_obj.readline, size)
 
     async def readlines(self, hint=-1):
-        """Read all lines from the file (async wrapper for sync readlines)."""
+        """Read all lines from the file."""
         if self.file_obj is None:
             raise ValueError("File object not initialized. Use 'async with' to open the file.")
-        return self.file_obj.readlines(hint)
+        return await asyncio.to_thread(self.file_obj.readlines, hint)
 
     async def seek(self, offset, whence=0):
-        """Seek to a position in the file (async wrapper for sync seek)."""
+        """Seek to the given position in the file."""
         if self.file_obj is None:
             raise ValueError("File object not initialized. Use 'async with' to open the file.")
-        return self.file_obj.seek(offset, whence)
+        return await asyncio.to_thread(self.file_obj.seek, offset, whence)
 
     async def tell(self):
-        """Get current file position (async wrapper for sync tell)."""
+        """Return the current file position."""
         if self.file_obj is None:
             raise ValueError("File object not initialized. Use 'async with' to open the file.")
-        return self.file_obj.tell()
+        return await asyncio.to_thread(self.file_obj.tell)
 
     async def flush(self):
-        """Flush the file buffer (async wrapper for sync flush)."""
+        """Flush any buffered writes to the file."""
         if self.file_obj is None:
             raise ValueError("File object not initialized. Use 'async with' to open the file.")
-        return self.file_obj.flush()
+        return await asyncio.to_thread(self.file_obj.flush)
 
     def __getattr__(self, name):
         # Delegate all other attributes to the underlying file object
@@ -103,14 +104,13 @@ class AsyncFileWrapper:
         return iter(self.file_obj)
 
     def __aiter__(self):
-        # For async iteration, we need to wrap the sync iterator
         return self
 
     async def __anext__(self):
         if self.file_obj is None:
             raise ValueError("File object not initialized. Use 'async with' to open the file.")
         try:
-            return next(self.file_obj)
+            return await asyncio.to_thread(next, self.file_obj)
         except StopIteration:
             raise StopAsyncIteration
 
@@ -253,13 +253,13 @@ async def root_join(*parts: str) -> str:
 
 async def exists(path: str) -> bool:
     fs = await filesystem()
-    return fs.exists(path)
+    return await asyncio.to_thread(fs.exists, path)
 
 
 async def isdir(path: str, fs=None) -> bool:
     try:
         filesys = fs if fs is not None else await filesystem()
-        return filesys.isdir(path)
+        return await asyncio.to_thread(filesys.isdir, path)
     except Exception:
         return False
 
@@ -267,7 +267,7 @@ async def isdir(path: str, fs=None) -> bool:
 async def isfile(path: str) -> bool:
     try:
         fs = await filesystem()
-        return fs.isfile(path)
+        return await asyncio.to_thread(fs.isfile, path)
     except Exception:
         return False
 
@@ -275,22 +275,23 @@ async def isfile(path: str) -> bool:
 async def makedirs(path: str, exist_ok: bool = True) -> None:
     fs = await filesystem()
     try:
-        fs.makedirs(path, exist_ok=exist_ok)
+        await asyncio.to_thread(fs.makedirs, path, exist_ok=exist_ok)
     except TypeError:
         # Some filesystems don't support exist_ok parameter
         if not exist_ok or not await exists(path):
-            fs.makedirs(path)
+            await asyncio.to_thread(fs.makedirs, path)
 
 
 async def ls(path: str, detail: bool = False, fs=None):
     # Use provided filesystem or get default
     filesys = fs if fs is not None else await filesystem()
-    # Let fsspec parse the URI
-    paths = filesys.ls(path, detail=detail)
-    # Dont include the current path in the list
+    paths = await asyncio.to_thread(filesys.ls, path, detail=detail)
+    # When we enable detail, we return the raw list of paths from the filesystem as they don't contain the current path
+    # and using filesys.ls on any of those would add the prefix correctly
+    if detail:
+        return paths
     # Ensure paths are full URIs for remote filesystems
     if path.startswith(("s3://", "gs://", "abfs://", "gcs://")):
-        # For remote filesystems, ensure returned paths are full URIs
         full_paths = []
         for p in paths:
             if not p.startswith(("s3://", "gs://", "abfs://", "gcs://")):
@@ -307,12 +308,12 @@ async def ls(path: str, detail: bool = False, fs=None):
 
 async def find(path: str) -> list[str]:
     fs = await filesystem()
-    return fs.find(path)
+    return await asyncio.to_thread(fs.find, path)
 
 
 async def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
     """
-    Walk directory tree, yielding (root, dirs, files) tuples.
+    Walk directory tree, returning a list of (root, dirs, files) tuples.
 
     Args:
         path: Root directory to start the walk
@@ -320,30 +321,32 @@ async def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
         topdown: If True, traverse top-down; if False, bottom-up
         on_error: Error behavior ('omit', 'raise', or callable)
 
-    Yields:
-        (root, dirs, files) tuples similar to os.walk()
+    Returns:
+        List of (root, dirs, files) tuples similar to os.walk()
     """
     fs = await filesystem()
-    return fs.walk(path, maxdepth=maxdepth, topdown=topdown, on_error=on_error)
+    # Materialise the generator in a thread so the blocking filesystem
+    # traversal never stalls the event loop.
+    return await asyncio.to_thread(lambda: list(fs.walk(path, maxdepth=maxdepth, topdown=topdown, on_error=on_error)))
 
 
 async def rm(path: str) -> None:
     if await exists(path):
         fs = await filesystem()
-        fs.rm(path)
+        await asyncio.to_thread(fs.rm, path)
 
 
 async def rm_tree(path: str) -> None:
     if await exists(path):
         fs = await filesystem()
         try:
-            fs.rm(path, recursive=True)
+            await asyncio.to_thread(fs.rm, path, recursive=True)
         except TypeError:
             # Some filesystems don't support recursive parameter
             # Use find() to get all files and remove them individually
             files = await find(path)
             for file_path in reversed(files):  # Remove files before directories
-                fs.rm(file_path)
+                await asyncio.to_thread(fs.rm, file_path)
 
 
 async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kwargs):
@@ -351,7 +354,9 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
     Open a file for reading or writing.
 
     For local files, uses aiofiles for truly async file I/O.
-    For remote files (S3, GCS, etc.), uses fsspec sync file objects.
+    For remote files (S3, GCS, etc.), dispatches the blocking open() call to a
+    thread pool and wraps the result in AsyncFileWrapper whose I/O methods are
+    also thread-dispatched, so no S3 network call ever blocks the event loop.
 
     Args:
         path: Path to the file
@@ -361,7 +366,7 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
         **kwargs: Additional arguments passed to filesystem.open()
 
     Returns:
-        File-like object (context manager for remote, async context manager for local)
+        Async context manager wrapping the file object.
     """
     if uncached:
         # Create an uncached filesystem instance
@@ -374,12 +379,13 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
     is_local = isinstance(filesys, fsspec.implementations.local.LocalFileSystem)
 
     if is_local:
-        # Use aiofiles for local files to get truly async file I/O
+        # Use aiofiles for local files — already truly async, no change needed
         return aiofiles.open(path, mode=mode, **kwargs)
     else:
-        # Use sync filesystem open method, but wrap it in async context manager
-        # so it can be used with 'async with'
-        sync_file = filesys.open(path, mode=mode, **kwargs)
+        # Open the remote file in a thread (the open() call itself initiates the
+        # S3/GCS connection), then wrap it so subsequent reads/writes are also
+        # dispatched to threads via AsyncFileWrapper.
+        sync_file = await asyncio.to_thread(filesys.open, path, mode, **kwargs)
         return AsyncFileWrapper(sync_file)
 
 
@@ -494,16 +500,18 @@ def _get_fs_for_path(path: str):
 
 async def copy_file(src: str, dest: str) -> None:
     """Copy a single file from src to dest across arbitrary filesystems."""
-    # Use streaming copy to be robust across different filesystems
-    # Get sync filesystems with proper storage_options handling
+    # Run the entire streaming copy in a thread — src_fs.open() and dest_fs.open()
+    # both make blocking network calls for remote filesystems.
     src_fs, _ = _get_fs_for_path(src)
     dest_fs, _ = _get_fs_for_path(dest)
 
-    # Use sync filesystem methods (wrapped in async function for API compatibility)
-    with src_fs.open(src, "rb") as r:
-        with dest_fs.open(dest, "wb") as w:
-            for chunk in iter_chunks(r):
-                w.write(chunk)
+    def _do_copy():
+        with src_fs.open(src, "rb") as r:
+            with dest_fs.open(dest, "wb") as w:
+                for chunk in iter_chunks(r):
+                    w.write(chunk)
+
+    await asyncio.to_thread(_do_copy)
 
 
 def iter_chunks(file_obj, chunk_size: int = 8 * 1024 * 1024):
@@ -527,11 +535,12 @@ async def copy_dir(src_dir: str, dest_dir: str) -> None:
         src_protocol = src_dir.split("://", 1)[0]
 
     try:
-        src_files = src_fs.find(src_dir)
+        src_files = await asyncio.to_thread(src_fs.find, src_dir)
     except Exception:
         # If find is not available, fall back to listing via walk
         src_files = []
-        for _, _, files in src_fs.walk(src_dir):
+        walk_result = await asyncio.to_thread(lambda: list(src_fs.walk(src_dir)))
+        for _, _, files in walk_result:
             for f in files:
                 src_files.append(f)
 

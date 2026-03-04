@@ -1,23 +1,29 @@
 """Service layer for bridging database provider records to ProviderConfig."""
 
-from typing import Optional, List
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from fastapi import HTTPException
-from transformerlab.shared.models.models import (
-    TeamComputeProvider,
-    Team,
-    UserTeam,
-    User,
-    ProviderType,
-    AcceleratorType,
-)
-from transformerlab.compute_providers.config import ComputeProviderConfig, create_compute_provider
-from transformerlab.compute_providers.base import ComputeProvider
-from transformerlab.compute_providers.local import _check_nvidia_gpu, _check_amd_gpu
-import sys
-import platform
 import asyncio
+import os
+import platform
+import sys
+from typing import List, Optional
+
+from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from transformerlab.compute_providers.base import ComputeProvider
+from transformerlab.compute_providers.config import ComputeProviderConfig, create_compute_provider
+from transformerlab.compute_providers.local import _check_amd_gpu, _check_nvidia_gpu, ensure_base_venv_and_requirements
+from transformerlab.shared.models.models import AcceleratorType, ProviderType, Team, TeamComputeProvider, User, UserTeam
+
+
+def _get_local_provider_setup() -> str:
+    """
+    Return TFL_LOCAL_PROVIDER_SETUP mode: "auto" | "disabled" | "manual".
+
+    - auto: auto-create a default local provider on team creation/seed; manual add allowed.
+    - disabled: no local provider creation (auto or manual).
+    - manual (default): manual add allowed; auto-add disabled.
+    """
+    return os.getenv("TFL_LOCAL_PROVIDER_SETUP", "manual").lower().strip()
 
 
 async def validate_team_exists(session: AsyncSession, team_id: str) -> None:
@@ -311,11 +317,15 @@ async def create_team_provider(
         Created TeamComputeProvider record
 
     Raises:
-        HTTPException: If validation fails
+        HTTPException: If validation fails or local providers are disabled
     """
     # Validate referential integrity before creating
     if validate:
         await validate_provider_data(session, team_id, created_by_user_id, validate_membership=True)
+
+    # Respect global disable flag for local providers
+    if provider_type == ProviderType.LOCAL.value and _get_local_provider_setup() == "disabled":
+        raise HTTPException(status_code=400, detail="Local providers are disabled by server configuration.")
 
     provider = TeamComputeProvider(
         team_id=team_id, name=name, type=provider_type, config=config, created_by_user_id=created_by_user_id
@@ -323,6 +333,12 @@ async def create_team_provider(
     session.add(provider)
     await session.commit()
     await session.refresh(provider)
+
+    # When a local provider is created for any team, ensure the shared base venv
+    # under HOME_DIR is initialized (no-op if it already exists).
+    if provider.type == ProviderType.LOCAL.value:
+        await asyncio.to_thread(ensure_base_venv_and_requirements)
+
     return provider
 
 
@@ -345,8 +361,15 @@ async def ensure_default_local_provider_for_team(
         provider_name: Name for the local provider (default: "Local")
 
     Returns:
-        The created TeamComputeProvider record, or None if one already existed.
+        The created TeamComputeProvider record, or None if one already existed or auto-creation is disabled.
     """
+    # Respect global setup: disabled = no local providers; manual = no auto-create
+    setup = _get_local_provider_setup()
+    if setup == "disabled":
+        return None
+    if setup != "auto":
+        return None
+
     # Check for existing local provider with the same name
     existing_providers = await list_team_providers(session, team_id)
     for provider in existing_providers:
