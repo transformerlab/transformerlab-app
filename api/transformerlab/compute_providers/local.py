@@ -1,12 +1,16 @@
 """Local compute provider: runs tasks in a uv venv synced with the base environment."""
 
-import contextlib
+import json
 import os
+import shlex
+import contextlib
 import signal
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+
+from lab.dirs import HOME_DIR
 
 from .base import ComputeProvider
 from .models import (
@@ -18,6 +22,22 @@ from .models import (
     ClusterState,
     JobState,
 )
+
+
+def _read_local_provider_config() -> Optional[Dict[str, Any]]:
+    """
+    Read the local provider config snapshot written by `transformerlab.scripts.local_provider_config`.
+
+    This is the same JSON payload that was previously served by `/server/config`.
+    """
+    config_path = Path(HOME_DIR) / "local_provider_config.json"
+    if not config_path.exists():
+        return None
+    try:
+        raw = config_path.read_text(encoding="utf-8")
+        return json.loads(raw)
+    except (OSError, json.JSONDecodeError):
+        return None
 
 
 def _check_nvidia_gpu() -> bool:
@@ -85,6 +105,9 @@ def _get_uv_pip_install_flags() -> str:
     if not sys.platform == "darwin":
         return "--index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
     return ""
+
+
+_PYTHON_VERSION = "3.11"
 
 
 def _terminate_process_tree(pid: int, sig: int = signal.SIGTERM) -> None:
@@ -169,41 +192,57 @@ class LocalProvider(ComputeProvider):
     def __init__(self, extra_config: Optional[Dict[str, Any]] = None):
         self.extra_config = extra_config or {}
 
-    def _ensure_venv_and_sync(self, venv_path: Path) -> None:
-        """Create uv venv and sync with base env (pyproject.toml from source)."""
+    def _get_source_code_and_pyproject(self) -> Path:
+        """Return path to pyproject.toml in the transformerlab API source tree."""
         source_code_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
         if not source_code_dir or not os.path.isdir(source_code_dir):
             raise FileNotFoundError("_TFL_SOURCE_CODE_DIR is not set or not a directory; cannot sync base environment")
         pyproject_path = Path(source_code_dir) / "pyproject.toml"
         if not pyproject_path.exists():
             raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
+        return pyproject_path
+
+    def _ensure_job_venv_from_base(self, venv_path: Path, team_requirements: Path) -> None:
+        """Create or refresh a per-job venv by installing from the shared team requirements."""
+        team_requirements = Path(team_requirements)
+        if not team_requirements.exists():
+            raise FileNotFoundError(f"team requirements file not found at {team_requirements}")
 
         venv_path = Path(venv_path)
         venv_path.mkdir(parents=True, exist_ok=True)
 
-        # uv venv --python 3.11 (match plugin install default)
+        # uv venv --python (match plugin install default)
         subprocess.run(
-            ["uv", "venv", str(venv_path), "--python", "3.11", "--clear"],
+            ["uv", "venv", str(venv_path), "--python", _PYTHON_VERSION, "--clear"],
             cwd=venv_path.parent,
             check=True,
             capture_output=True,
             timeout=120,
         )
 
-        extra = _get_pyproject_extra()
         additional_flags = _get_uv_pip_install_flags()
-        # Run with venv activated: source venv/bin/activate && cd source_code_dir && uv pip install ...
-        activate = str(venv_path / "bin" / "activate")
-        full_cmd = f"source {activate} && cd {source_code_dir} && uv pip install {additional_flags} .{extra}"
+
+        # Use uv pip with an explicit --python target so installs go into this venv.
+        python_bin = venv_path / "bin" / "python"
+        env = os.environ.copy()
+
+        install_cmd = ["uv", "pip", "install"]
+        if additional_flags:
+            install_cmd.extend(shlex.split(additional_flags))
+        install_cmd.extend(["--python", str(python_bin), "-r", str(team_requirements)])
+
         result = subprocess.run(
-            ["/bin/bash", "-c", full_cmd],
+            install_cmd,
             cwd=venv_path.parent,
+            env=env,
             capture_output=True,
             text=True,
-            timeout=600,
+            timeout=900,
         )
         if result.returncode != 0:
-            raise RuntimeError(f"uv pip install failed: {result.stderr or result.stdout or 'unknown error'}")
+            raise RuntimeError(
+                f"uv pip install failed for job venv: {result.stderr or result.stdout or 'unknown error'}"
+            )
 
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         """
@@ -227,7 +266,10 @@ class LocalProvider(ComputeProvider):
         # environment state (including Python packages) lives under HOME.
         venv_path = workspace_home / "venv"
 
-        self._ensure_venv_and_sync(venv_path)
+        # Ensure the shared base venv (common across all teams) exists and is up to date,
+        # then create a per-job venv from its frozen requirements.
+        base_requirements = ensure_base_venv_and_requirements()
+        self._ensure_job_venv_from_base(venv_path, base_requirements)
 
         venv_bin = venv_path / "bin"
         env = os.environ.copy()
@@ -327,8 +369,70 @@ class LocalProvider(ComputeProvider):
             )
 
     def get_clusters_detailed(self) -> List[Dict[str, Any]]:
-        """Local provider has no persistent clusters; return empty list."""
-        return []
+        """
+        Return a single "local machine" cluster snapshot.
+
+        We model the local machine as a fixed (non-elastic) cluster so the UI can use the same
+        response type as remote providers: a list of clusters with nodes + resource summaries.
+        """
+        cfg = _read_local_provider_config()
+        if not cfg:
+            return []
+
+        def _bytes_to_gb(value: Any) -> float:
+            try:
+                v = float(value)
+                return round(v / (1024.0**3), 2)
+            except Exception:
+                return 0.0
+
+        cpu_count = int(cfg.get("cpu_count") or 0)
+
+        mem = cfg.get("memory") or {}
+        mem_total_b = mem.get("total") or 0
+        mem_avail_b = mem.get("available") or 0
+        mem_used_b = max(float(mem_total_b) - float(mem_avail_b), 0.0) if mem_total_b and mem_avail_b else 0.0
+
+        gpu_list = cfg.get("gpu") or []
+        gpu_counts: Dict[str, int] = {}
+        if isinstance(gpu_list, list):
+            for g in gpu_list:
+                if not isinstance(g, dict):
+                    continue
+                name = g.get("name")
+                if not name or name == "cpu":
+                    continue
+                gpu_counts[str(name)] = gpu_counts.get(str(name), 0) + 1
+
+        node_name = str(cfg.get("name") or "local")
+
+        cluster: Dict[str, Any] = {
+            "cluster_id": "local",
+            "cluster_name": "Local Machine",
+            "backend_type": "local",
+            "elastic_enabled": False,
+            "max_nodes": 1,
+            "nodes": [
+                {
+                    "node_name": node_name,
+                    "is_fixed": True,
+                    "is_active": True,
+                    "state": "UP",
+                    "reason": "",
+                    "resources": {
+                        "cpus_total": cpu_count,
+                        "cpus_allocated": 0,
+                        "gpus": gpu_counts,
+                        "memory_gb_total": _bytes_to_gb(mem_total_b),
+                        "memory_gb_allocated": _bytes_to_gb(mem_used_b),
+                    },
+                }
+            ],
+            # Keep the full snapshot for richer UI use (GPU names, CUDA version, etc.)
+            "provider_data": cfg,
+        }
+
+        return [cluster]
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         """Return minimal local resource info. Resources are not applicable for local runs."""
@@ -391,7 +495,112 @@ class LocalProvider(ComputeProvider):
         ]
 
     def check(self) -> bool:
-        """Local provider is always available if uv is installed."""
-        import shutil
+        """Local provider is available local config exists."""
+        from pathlib import Path
 
-        return shutil.which("uv") is not None
+        config_path = Path(HOME_DIR) / "local_provider_config.json"
+        return config_path.exists()
+
+
+def ensure_base_venv_and_requirements() -> Path:
+    """
+    Ensure the shared base venv under HOME_DIR and its frozen requirements exist and are up to date.
+
+    This base venv is common across all teams and is created at:
+        HOME_DIR / "local_provider_base_venv"
+
+    Returns the path to the base requirements file.
+    """
+    pyproject_path = LocalProvider()._get_source_code_and_pyproject()
+    home_dir_path = Path(HOME_DIR)
+    home_dir_path.mkdir(parents=True, exist_ok=True)
+
+    base_venv_path = home_dir_path / "local_provider_base_venv"
+    base_requirements = home_dir_path / "local_provider_base_requirements.txt"
+
+    source_code_dir = str(pyproject_path.parent)
+
+    base_venv_path.mkdir(parents=True, exist_ok=True)
+
+    # uv venv --python (match plugin install default)
+    subprocess.run(
+        ["uv", "venv", str(base_venv_path), "--python", _PYTHON_VERSION, "--clear"],
+        cwd=base_venv_path.parent,
+        check=True,
+        capture_output=True,
+        timeout=120,
+    )
+
+    extra = _get_pyproject_extra()
+    additional_flags = _get_uv_pip_install_flags()
+
+    # Use uv pip with an explicit --python target so installs go into the base venv.
+    python_bin = base_venv_path / "bin" / "python"
+    env = os.environ.copy()
+
+    install_cmd = ["uv", "pip", "install"]
+    if additional_flags:
+        install_cmd.extend(shlex.split(additional_flags))
+    install_cmd.extend(["--python", str(python_bin), f".{extra}"])
+
+    result = subprocess.run(
+        install_cmd,
+        cwd=source_code_dir,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=900,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(f"uv pip install failed for base venv: {result.stderr or result.stdout or 'unknown error'}")
+
+    freeze_cmd = ["uv", "pip", "freeze", "--python", str(python_bin)]
+    try:
+        with base_requirements.open("w", encoding="utf-8") as req_file:
+            result = subprocess.run(
+                freeze_cmd,
+                cwd=source_code_dir,
+                env=env,
+                stdout=req_file,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=300,
+            )
+    except OSError as exc:
+        raise RuntimeError(f"Failed to write base requirements file: {exc}") from exc
+
+    if result.returncode != 0:
+        raise RuntimeError(f"uv pip freeze failed for base venv: {result.stderr or 'unknown error'}")
+
+    # Always ensure the local provider config snapshot is generated via the base venv.
+    # This uses the same logic as /server/info but runs inside the shared base venv and
+    # writes the result to HOME_DIR/local_provider_config.json.
+    python_bin = base_venv_path / "bin" / "python"
+    script_path = (
+        Path(source_code_dir)
+        / "transformerlab"
+        / "compute_providers"
+        / "services"
+        / "local"
+        / "local_provider_config.py"
+    )
+    env = os.environ.copy()
+    venv_bin = base_venv_path / "bin"
+    env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
+
+    result = subprocess.run(
+        [str(python_bin), str(script_path)],
+        cwd=source_code_dir,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            "Failed to generate local provider config "
+            f"(exit {result.returncode}): {result.stderr or result.stdout or 'unknown error'}"
+        )
+
+    return base_requirements

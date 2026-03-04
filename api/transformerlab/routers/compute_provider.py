@@ -19,6 +19,7 @@ from transformerlab.services.provider_service import (
     update_team_provider,
     delete_team_provider,
     get_provider_instance,
+    _get_local_provider_setup,
 )
 from transformerlab.schemas.compute_providers import (
     ProviderCreate,
@@ -188,6 +189,10 @@ async def create_provider(
             status_code=400,
             detail=f"Invalid provider type. Must be one of: {ProviderType.SLURM.value}, {ProviderType.SKYPILOT.value}, {ProviderType.RUNPOD.value}, {ProviderType.LOCAL.value}",
         )
+
+    # Respect global disable flag for local providers
+    if provider_data.type == ProviderType.LOCAL and _get_local_provider_setup() == "disabled":
+        raise HTTPException(status_code=400, detail="Local providers are disabled by server configuration.")
 
     # Check if provider name already exists for this team
     existing = await list_team_providers(session, team_id)
@@ -2203,69 +2208,6 @@ async def ensure_quota_recorded_for_completed_jobs(
     }
 
 
-async def _update_sweep_job_status(job_id: str, experiment_id: str):
-    """
-    Helper function to update a single sweep job's status by checking child jobs.
-    Returns the updated job data.
-    """
-    job = await job_service.job_get(job_id)
-    if not job:
-        return None
-
-    if job.get("type") != "SWEEP":
-        return None
-
-    job_data = job.get("job_data", {}) or {}
-    if not job_data.get("sweep_parent"):
-        return None
-
-    sweep_job_ids = job_data.get("sweep_job_ids", [])
-    sweep_total = job_data.get("sweep_total", 0)
-
-    # Poll all child jobs to get their status
-    completed_count = 0
-    running_count = 0
-    failed_count = 0
-    queued_count = 0
-
-    for child_job_id in sweep_job_ids:
-        child_job = await job_service.job_get(child_job_id)
-        if not child_job:
-            continue
-
-        child_status = child_job.get("status", "")
-        if child_status == "COMPLETE":
-            completed_count += 1
-        elif child_status == "FAILED":
-            failed_count += 1
-        elif child_status in ("RUNNING", "LAUNCHING"):
-            running_count += 1
-        elif child_status == "QUEUED":
-            queued_count += 1
-
-    # Update parent job with current counts
-    await job_service.job_update_job_data_insert_key_value(job_id, "sweep_completed", completed_count, experiment_id)
-    await job_service.job_update_job_data_insert_key_value(job_id, "sweep_running", running_count, experiment_id)
-    await job_service.job_update_job_data_insert_key_value(job_id, "sweep_failed", failed_count, experiment_id)
-    await job_service.job_update_job_data_insert_key_value(job_id, "sweep_queued", queued_count, experiment_id)
-
-    # Calculate progress percentage
-    progress = int((completed_count / sweep_total * 100)) if sweep_total > 0 else 0
-    await job_service.job_update_sweep_progress(job_id, progress, experiment_id)
-
-    # Check if all jobs are done
-    all_complete = completed_count + failed_count == sweep_total
-    if all_complete and job.get("status") == "RUNNING":
-        # Mark parent as complete if all children are done
-        await job_service.job_update_job_data_insert_key_value(
-            job_id, "end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), experiment_id
-        )
-        await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
-
-    # Get the updated job data after status updates
-    return await job_service.job_get(job_id)
-
-
 @router.get("/jobs/sweep-status")
 async def check_sweep_status_all(
     experiment_id: str = Query(..., description="Experiment ID to fetch all SWEEP jobs for"),
@@ -2273,35 +2215,16 @@ async def check_sweep_status_all(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Fetch all SWEEP jobs for an experiment, update their status, and return the list.
-    Only updates status for running/launching jobs.
+    Fetch all SWEEP jobs for an experiment and return current persisted status.
+    Status updates are handled by a background worker.
     """
-    # Get all SWEEP jobs for this experiment
     all_sweep_jobs = await job_service.jobs_get_all(experiment_id=experiment_id, type="SWEEP", status="")
-
-    # Update status for each running/launching sweep job
-    updated_jobs = []
-    for job in all_sweep_jobs:
-        job_id_str = str(job.get("id", ""))
-        job_status = job.get("status", "")
-
-        # Only update status for running/launching jobs
-        if job_status in ("RUNNING", "LAUNCHING"):
-            updated_job = await _update_sweep_job_status(job_id_str, experiment_id)
-            if updated_job:
-                updated_jobs.append(updated_job)
-            else:
-                # If update failed, include original job
-                updated_jobs.append(job)
-        else:
-            # Include non-running jobs as-is
-            updated_jobs.append(job)
 
     return {
         "status": "success",
         "experiment_id": experiment_id,
-        "jobs": updated_jobs,
-        "total": len(updated_jobs),
+        "jobs": all_sweep_jobs,
+        "total": len(all_sweep_jobs),
     }
 
 
@@ -2312,8 +2235,8 @@ async def check_sweep_status(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Check status of a specific sweep job by polling all child jobs and updating parent job status.
-    Returns current sweep status with counts and the updated job data.
+    Check status of a specific sweep job from current persisted values.
+    Returns current sweep status with counts and job data.
     """
     job = await job_service.job_get(job_id)
     if not job:
@@ -2326,27 +2249,18 @@ async def check_sweep_status(
     if not job_data.get("sweep_parent"):
         raise HTTPException(status_code=400, detail="Job is not a sweep parent")
 
-    exp_id = job.get("experiment_id")
-    updated_job = await _update_sweep_job_status(job_id, exp_id)
-
-    if not updated_job:
-        raise HTTPException(status_code=500, detail="Failed to update sweep job status")
-
-    # Extract status info from updated job
-    updated_job_data = updated_job.get("job_data", {}) or {}
-
     return {
         "status": "success",
         "job_id": job_id,
-        "sweep_total": updated_job_data.get("sweep_total", 0),
-        "sweep_completed": updated_job_data.get("sweep_completed", 0),
-        "sweep_running": updated_job_data.get("sweep_running", 0),
-        "sweep_failed": updated_job_data.get("sweep_failed", 0),
-        "sweep_queued": updated_job_data.get("sweep_queued", 0),
-        "sweep_progress": updated_job_data.get("sweep_progress", 0),
-        "all_complete": updated_job_data.get("sweep_completed", 0) + updated_job_data.get("sweep_failed", 0)
-        == updated_job_data.get("sweep_total", 0),
-        "job": updated_job,  # Include the full updated job data
+        "sweep_total": job_data.get("sweep_total", 0),
+        "sweep_completed": job_data.get("sweep_completed", 0),
+        "sweep_running": job_data.get("sweep_running", 0),
+        "sweep_failed": job_data.get("sweep_failed", 0),
+        "sweep_queued": job_data.get("sweep_queued", 0),
+        "sweep_progress": job_data.get("sweep_progress", 0),
+        "all_complete": job_data.get("sweep_completed", 0) + job_data.get("sweep_failed", 0)
+        == job_data.get("sweep_total", 0),
+        "job": job,
     }
 
 
