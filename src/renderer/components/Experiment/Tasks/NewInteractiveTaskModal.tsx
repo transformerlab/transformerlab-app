@@ -524,31 +524,18 @@ export default function NewInteractiveTaskModal({
 
                 <FormControl>
                   <FormLabel>Provider</FormLabel>
-                  <Select
-                    placeholder={
-                      providers.length
-                        ? 'Select a provider'
-                        : 'No providers configured'
+                  <Input
+                    value={
+                      selectedProvider?.name ||
+                      (providers.length
+                        ? 'Provider selected in previous step'
+                        : 'No providers configured')
                     }
-                    value={selectedProviderId || null}
-                    onChange={(_, value) => setSelectedProviderId(value || '')}
-                    disabled={
-                      isSubmitting ||
-                      isProvidersLoading ||
-                      providers.length === 0
-                    }
-                    slotProps={{
-                      listbox: { sx: { maxHeight: 240 } },
-                    }}
-                  >
-                    {providers.map((provider) => (
-                      <Option key={provider.id} value={provider.id}>
-                        {provider.name}
-                      </Option>
-                    ))}
-                  </Select>
+                    disabled
+                    readOnly
+                  />
                   <FormHelperText>
-                    Choose which provider should run this interactive session.
+                    Provider was chosen on the previous screen.
                   </FormHelperText>
                 </FormControl>
 
