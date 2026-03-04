@@ -469,8 +469,11 @@ async def get_user_provider_settings(
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
-    config_key = f"provider:{provider_id}:slurm_user"
-    slurm_user = await db.config_get(key=config_key, user_id=user_id, team_id=team_id)
+    slurm_user_key = f"provider:{provider_id}:slurm_user"
+    slurm_user = await db.config_get(key=slurm_user_key, user_id=user_id, team_id=team_id)
+
+    custom_flags_key = f"provider:{provider_id}:slurm_custom_sbatch_flags"
+    custom_sbatch_flags = await db.config_get(key=custom_flags_key, user_id=user_id, team_id=team_id)
 
     has_ssh_key = False
     if provider.type == ProviderType.SLURM.value:
@@ -479,6 +482,7 @@ async def get_user_provider_settings(
     return {
         "provider_id": provider_id,
         "slurm_user": slurm_user,
+        "custom_sbatch_flags": custom_sbatch_flags,
         "has_ssh_key": has_ssh_key,
     }
 
@@ -504,9 +508,12 @@ async def set_user_provider_settings(
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
-    # Only allow SLURM providers to have slurm_user setting
+    # Only allow SLURM providers to have user-specific SLURM settings
     if provider.type != ProviderType.SLURM.value:
-        raise HTTPException(status_code=400, detail="slurm_user setting is only available for SLURM providers")
+        raise HTTPException(
+            status_code=400,
+            detail="User-specific SLURM settings are only available for SLURM providers",
+        )
 
     # Read slurm_user from request body (frontend sends JSON body)
     slurm_user = (body or {}).get("slurm_user")
@@ -515,12 +522,40 @@ async def set_user_provider_settings(
     elif slurm_user is not None and not isinstance(slurm_user, str):
         slurm_user = str(slurm_user).strip() or None
 
-    # Set user-specific slurm_user setting
-    config_key = f"provider:{provider_id}:slurm_user"
-    if slurm_user:
-        await db.config_set(key=config_key, value=slurm_user, user_id=user_id, team_id=team_id)
+    # Read custom SBATCH flags from request body (optional, free-form string)
+    raw_flags = (body or {}).get("custom_sbatch_flags")
+    if isinstance(raw_flags, str):
+        custom_sbatch_flags = raw_flags.strip() or None
+    elif raw_flags is None:
+        custom_sbatch_flags = None
     else:
-        await db.config_set(key=config_key, value="", user_id=user_id, team_id=team_id)
+        # Coerce non-string values to string for robustness
+        custom_sbatch_flags = str(raw_flags).strip() or None
+
+    # Set user-specific slurm_user setting
+    slurm_user_key = f"provider:{provider_id}:slurm_user"
+    if slurm_user:
+        await db.config_set(key=slurm_user_key, value=slurm_user, user_id=user_id, team_id=team_id)
+    else:
+        await db.config_set(key=slurm_user_key, value="", user_id=user_id, team_id=team_id)
+
+    # Set user-specific custom SBATCH flags
+    custom_flags_key = f"provider:{provider_id}:slurm_custom_sbatch_flags"
+    if custom_sbatch_flags:
+        await db.config_set(
+            key=custom_flags_key,
+            value=custom_sbatch_flags,
+            user_id=user_id,
+            team_id=team_id,
+        )
+    else:
+        # Store as empty string when cleared
+        await db.config_set(
+            key=custom_flags_key,
+            value="",
+            user_id=user_id,
+            team_id=team_id,
+        )
 
     has_ssh_key = False
     if provider.type == ProviderType.SLURM.value:
@@ -531,6 +566,7 @@ async def set_user_provider_settings(
     return {
         "provider_id": provider_id,
         "slurm_user": slurm_user,
+        "custom_sbatch_flags": custom_sbatch_flags,
         "has_ssh_key": has_ssh_key,
     }
 
@@ -1631,6 +1667,15 @@ async def launch_template_on_provider(
     if request.config:
         merged_parameters.update(request.config)
 
+    # Extract any per-run custom SBATCH flags from config (used by SLURM provider)
+    custom_sbatch_flags = None
+    if request.config and "custom_sbatch_flags" in request.config:
+        raw_flags = request.config.get("custom_sbatch_flags")
+        if isinstance(raw_flags, str):
+            custom_sbatch_flags = raw_flags.strip() or None
+        elif raw_flags is not None:
+            custom_sbatch_flags = str(raw_flags).strip() or None
+
     # Replace secrets in merged parameters
     parameters_with_secrets = None
     if merged_parameters and team_secrets:
@@ -1640,6 +1685,10 @@ async def launch_template_on_provider(
 
     # Build provider_config for cluster_config (and job_data for local provider)
     provider_config_dict = {"requested_disk_space": request.disk_space}
+    # For SLURM, pass through any per-run custom SBATCH flags so the provider
+    # can inject them into the generated SLURM script.
+    if provider.type == ProviderType.SLURM.value and custom_sbatch_flags:
+        provider_config_dict["custom_sbatch_flags"] = custom_sbatch_flags
     if provider.type == ProviderType.LOCAL.value:
         # Use a dedicated local-only job directory for the local provider.
         # This directory is always on the host filesystem and does not depend
