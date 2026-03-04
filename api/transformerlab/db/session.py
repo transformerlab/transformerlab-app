@@ -5,6 +5,7 @@ import subprocess
 import sys
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 from transformerlab.db.constants import DATABASE_FILE_NAME, DATABASE_URL
 from lab.dirs import get_workspace_dir
@@ -13,7 +14,12 @@ from lab.dirs import get_workspace_dir
 # --- SQLAlchemy Async Engine ---
 # This engine is the core entry point to the database.
 # It is created once and can be imported elsewhere.
-async_engine = create_async_engine(DATABASE_URL, echo=False, pool_size=20, max_overflow=40, pool_timeout=60)
+# Use NullPool for SQLite (pooling provides no benefit since SQLite serializes writes).
+# Use higher pool limits for Postgres to handle concurrent connections.
+if DATABASE_URL.startswith("sqlite"):
+    async_engine = create_async_engine(DATABASE_URL, echo=False, poolclass=NullPool)
+else:
+    async_engine = create_async_engine(DATABASE_URL, echo=False, pool_size=20, max_overflow=40, pool_timeout=60)
 
 # --- SQLAlchemy Async Session Factory ---
 # This is a factory that creates new AsyncSession objects.
