@@ -62,6 +62,17 @@
   - **Mocking**: Mock external interactions (S3, GPU providers, filesystem operations) using `unittest.mock` or `pytest-mock`. Tests should be fast and deterministic.
   - **Service Tests**: Prefer testing the Service layer directly over testing the full API stack when checking business logic constants.
 
+### Visual UI Verification (Chrome DevTools MCP)
+
+The Chrome DevTools MCP is enabled. When requested, verify the result with the following steps:
+
+1. Run `npm run docker-test:up` to ensure the app is running.
+2. Use the browser tool to navigate to the page you just changed.
+3. If the app requires login, use the default credentials: **email:** `admin@example.com` / **password:** `admin123`.
+4. Explore related pages (e.g., if you changed the Header, also check the Dashboard and Login pages).
+5. Take screenshots and verify that no layouts are broken.
+6. If you see a visual bug in the screenshot, fix it immediately.
+
 ## Architecture Deep Dives
 
 This section documents complex flows in the codebase to help agents quickly understand how things work.
