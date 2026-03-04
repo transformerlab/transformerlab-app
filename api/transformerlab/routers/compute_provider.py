@@ -7,6 +7,7 @@ import configparser
 from pathlib import Path
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request, Body
+from fastapi import WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, List, Optional, Union, Tuple
@@ -616,6 +617,172 @@ async def delete_user_slurm_ssh_key(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete SSH key: {str(e)}")
+
+
+@router.post("/user-settings/{provider_id}/slurm-auth/start")
+async def start_slurm_auth_session(
+    provider_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Start an interactive PTY-based SSH auth session for a SLURM provider.
+
+    Spawns a system SSH process with a real PTY and ControlMaster=yes so the user
+    can complete password / 2FA interactively via the companion WebSocket endpoint.
+    After auth the ControlMaster socket persists (ControlPersist=86400) and all
+    subsequent SSH calls reuse it without re-prompting.
+
+    Returns {"session_id": "...", "control_path": "...", "already_authenticated": bool}
+    """
+    from transformerlab.services.slurm_auth_manager import get_slurm_auth_manager
+    from transformerlab.services.user_slurm_key_service import get_user_slurm_key_path, user_slurm_key_exists
+
+    team_id = user_and_team["team_id"]
+    user_id = str(user_and_team["user"].id)
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if provider.type != ProviderType.SLURM.value:
+        raise HTTPException(status_code=400, detail="slurm-auth is only available for SLURM providers")
+
+    config = provider.config or {}
+    ssh_host = config.get("ssh_host") or config.get("host")
+    ssh_port = int(config.get("ssh_port") or config.get("port") or 22)
+
+    import transformerlab.db.db as db
+
+    config_key = f"provider:{provider_id}:slurm_user"
+    ssh_user = await db.config_get(key=config_key, user_id=user_id, team_id=team_id)
+    ssh_user = ssh_user or config.get("ssh_user") or config.get("user") or os.getenv("USER", "root")
+
+    if not ssh_host:
+        raise HTTPException(status_code=400, detail="Provider has no SSH host configured")
+
+    # Resolve user's SSH key path (optional)
+    ssh_key_path: Optional[str] = None
+    try:
+        if await user_slurm_key_exists(team_id, provider_id, user_id):
+            ssh_key_path = await get_user_slurm_key_path(team_id, provider_id, user_id)
+    except Exception:
+        pass
+
+    manager = get_slurm_auth_manager()
+    session_id = manager.create_session(
+        provider_id=provider_id,
+        ssh_host=ssh_host,
+        ssh_user=ssh_user,
+        ssh_port=ssh_port,
+        ssh_key_path=ssh_key_path,
+    )
+    auth_session = manager.get_session(session_id)
+    already_authenticated = auth_session is not None and auth_session.master_fd == -1
+
+    return {
+        "session_id": session_id,
+        "control_path": auth_session.control_path if auth_session else "",
+        "already_authenticated": already_authenticated,
+    }
+
+
+@router.websocket("/user-settings/{provider_id}/slurm-auth/ws/{session_id}")
+async def slurm_auth_ws(
+    provider_id: str,
+    session_id: str,
+    websocket: WebSocket,
+):
+    """
+    WebSocket PTY proxy for an interactive SLURM SSH auth session.
+
+    Proxies PTY I/O between the browser and the SSH process spawned by
+    /slurm-auth/start.  Sends {"type": "authenticated"} JSON once the
+    ControlMaster socket appears on disk, then keeps the socket open until
+    the client disconnects.
+
+    Auth is implicitly the session_id (created by an authenticated POST).
+    """
+    import json
+
+    from transformerlab.services.slurm_auth_manager import get_slurm_auth_manager
+
+    manager = get_slurm_auth_manager()
+    auth_session = manager.get_session(session_id)
+
+    if auth_session is None or auth_session.provider_id != provider_id:
+        await websocket.close(code=4004)
+        return
+
+    await websocket.accept()
+
+    # If the ControlMaster socket already existed when the session was created,
+    # immediately signal authenticated and close.
+    if auth_session.master_fd == -1:
+        await websocket.send_text(json.dumps({"type": "authenticated"}))
+        manager.cleanup_session(session_id)
+        await websocket.close()
+        return
+
+    master_fd = auth_session.master_fd
+    loop = asyncio.get_event_loop()
+
+    async def read_loop() -> None:
+        """Forward PTY output → WebSocket."""
+        while True:
+            try:
+                data = await loop.run_in_executor(None, os.read, master_fd, 4096)
+                if not data:
+                    break
+                await websocket.send_bytes(data)
+            except OSError:
+                # EIO / EBADF — PTY closed
+                break
+            except WebSocketDisconnect:
+                break
+            except Exception:
+                break
+
+    async def write_loop() -> None:
+        """Forward WebSocket input → PTY."""
+        while True:
+            try:
+                data = await websocket.receive_bytes()
+                os.write(master_fd, data)
+            except WebSocketDisconnect:
+                break
+            except Exception:
+                break
+
+    async def status_loop() -> None:
+        """Poll for ControlMaster socket; notify client when authenticated."""
+        while True:
+            await asyncio.sleep(1)
+            if manager.is_control_master_alive(auth_session.control_path):
+                try:
+                    await websocket.send_text(json.dumps({"type": "authenticated"}))
+                except Exception:
+                    pass
+                break
+
+    tasks = [
+        asyncio.ensure_future(read_loop()),
+        asyncio.ensure_future(write_loop()),
+        asyncio.ensure_future(status_loop()),
+    ]
+    try:
+        # Wait until the first task finishes, then cancel the rest
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for t in pending:
+            t.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+    except Exception:
+        pass
+    finally:
+        manager.cleanup_session(session_id)
+        try:
+            await websocket.close()
+        except Exception:
+            pass
 
 
 @router.get("/{provider_id}", response_model=ProviderRead)

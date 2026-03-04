@@ -59,8 +59,76 @@ class SLURMProvider(ComputeProvider):
         if mode == "ssh" and not ssh_host:
             raise ValueError("SSH mode requires ssh_host")
 
+    # ------------------------------------------------------------------
+    # ControlMaster fast-path helpers (POSIX only: Linux / macOS)
+    # ------------------------------------------------------------------
+
+    def _get_control_path(self) -> str:
+        """Return the canonical ControlMaster socket path for this connection."""
+        import re
+
+        def _sanitize(v: str) -> str:
+            return re.sub(r"[^A-Za-z0-9_-]", "_", v)
+
+        ctl_dir = os.path.expanduser("~/.transformerlab/ssh_ctl")
+        os.makedirs(ctl_dir, mode=0o700, exist_ok=True)
+        safe = f"{_sanitize(self.ssh_user)}_{_sanitize(str(self.ssh_host))}_{self.ssh_port}"
+        return os.path.join(ctl_dir, safe)
+
+    def _is_control_master_alive(self) -> bool:
+        """Return True if a ControlMaster socket exists for this connection."""
+        return os.path.exists(self._get_control_path())
+
+    def _ssh_execute_via_subprocess(self, command: str) -> str:
+        """Execute *command* via the system SSH binary reusing a ControlMaster socket."""
+        import subprocess
+
+        ctl = self._get_control_path()
+        result = subprocess.run(
+            [
+                "ssh",
+                "-o", "ControlMaster=no",
+                "-o", f"ControlPath={ctl}",
+                "-p", str(self.ssh_port),
+                f"{self.ssh_user}@{self.ssh_host}",
+                command,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"SSH command failed (exit {result.returncode}): {result.stderr.strip()}")
+        return result.stdout
+
+    def _ssh_sftp_upload_via_scp(self, local_path: str, remote_path: str) -> None:
+        """Upload *local_path* to *remote_path* using scp via the ControlMaster socket."""
+        import subprocess
+
+        ctl = self._get_control_path()
+        result = subprocess.run(
+            [
+                "scp",
+                "-o", f"ControlPath={ctl}",
+                "-P", str(self.ssh_port),
+                "-r",
+                local_path,
+                f"{self.ssh_user}@{self.ssh_host}:{remote_path}",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"scp upload failed (exit {result.returncode}): {result.stderr.strip()}")
+
     def _ssh_execute(self, command: str) -> str:
-        """Execute command via SSH."""
+        """Execute command via SSH.
+
+        Uses the ControlMaster fast-path (system ssh binary) when a ControlMaster
+        socket already exists; falls back to paramiko for key-based auth otherwise.
+        """
+        if self._is_control_master_alive():
+            return self._ssh_execute_via_subprocess(command)
+
         try:
             import paramiko
         except ImportError:
@@ -105,9 +173,15 @@ class SLURMProvider(ComputeProvider):
         Used to implement ClusterConfig.file_mounts semantics for SSH mode.
         The mapping is interpreted as {remote_path: local_path}.
 
+        Uses the ControlMaster fast-path (scp) when a ControlMaster socket exists;
+        falls back to paramiko SFTP otherwise.
+
         The local_path is interpreted using lab.storage first (workspace-aware),
         falling back to the OS filesystem if needed.
         """
+        if self._is_control_master_alive():
+            return self._ssh_sftp_upload_via_scp(os.path.expanduser(local_path), remote_path)
+
         try:
             import paramiko
         except ImportError:
