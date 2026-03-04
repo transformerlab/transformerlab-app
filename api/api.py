@@ -60,7 +60,6 @@ from transformerlab.services.experiment_service import experiment_get  # noqa: E
 from transformerlab.services.job_service import job_create, job_get, job_update_status  # noqa: E402
 from transformerlab.services.experiment_init import (  # noqa: E402
     seed_default_experiments,
-    cancel_in_progress_jobs,
     seed_default_admin_user,
 )
 import transformerlab.db.session as db  # noqa: E402
@@ -137,8 +136,6 @@ async def lifespan(app: FastAPI):
     await seed_default_experiments()
     # Seed default admin user
     await seed_default_admin_user()
-    # Cancel any running jobs
-    await cancel_in_progress_jobs()
 
     # Create buckets/folders for all existing teams if cloud or localfs storage is enabled
     tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
