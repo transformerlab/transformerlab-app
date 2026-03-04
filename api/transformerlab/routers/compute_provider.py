@@ -19,6 +19,7 @@ from transformerlab.services.provider_service import (
     update_team_provider,
     delete_team_provider,
     get_provider_instance,
+    _get_local_provider_setup,
 )
 from transformerlab.schemas.compute_providers import (
     ProviderCreate,
@@ -188,6 +189,10 @@ async def create_provider(
             status_code=400,
             detail=f"Invalid provider type. Must be one of: {ProviderType.SLURM.value}, {ProviderType.SKYPILOT.value}, {ProviderType.RUNPOD.value}, {ProviderType.LOCAL.value}",
         )
+
+    # Respect global disable flag for local providers
+    if provider_data.type == ProviderType.LOCAL and _get_local_provider_setup() == "disabled":
+        raise HTTPException(status_code=400, detail="Local providers are disabled by server configuration.")
 
     # Check if provider name already exists for this team
     existing = await list_team_providers(session, team_id)

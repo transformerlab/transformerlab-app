@@ -15,7 +15,6 @@ from werkzeug.utils import secure_filename
 
 import fastapi
 
-# Using torch to test for CUDA and MPS support.
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.exceptions import RequestValidationError
@@ -81,16 +80,8 @@ from transformerlab.routers import (  # noqa: E402
     ssh_keys,
 )
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
-import torch  # noqa: E402
 
-try:
-    from pynvml import nvmlShutdown  # noqa: E402
 
-    HAS_AMD = False
-except Exception:
-    from pyrsmi import rocml  # noqa: E402
-
-    HAS_AMD = True
 from transformerlab import fastchat_openai_api  # noqa: E402
 from transformerlab.routers.experiment import experiment  # noqa: E402
 from transformerlab.routers.experiment import jobs  # noqa: E402
@@ -629,16 +620,6 @@ def cleanup_at_exit():
                 except Exception as e:
                     print(f"Error killing process {pid}: {e}")
             os.remove("worker.pid")
-    # Perform NVML Shutdown if CUDA is available
-    if torch.cuda.is_available():
-        try:
-            print("🔴 Releasing allocated GPU Resources")
-            if not HAS_AMD:
-                nvmlShutdown()
-            else:
-                rocml.smi_shutdown()
-        except Exception as e:
-            print(f"Error shutting down NVML: {e}")
     print("🔴 Quitting Transformer Lab API server.")
 
 

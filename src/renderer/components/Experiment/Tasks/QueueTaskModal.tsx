@@ -29,7 +29,7 @@ import { PlayIcon, AlertTriangleIcon, CheckCircleIcon } from 'lucide-react';
 import { setTheme } from 'renderer/lib/monacoConfig';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
 import SweepConfigSection from './SweepConfigSection';
 
@@ -169,11 +169,26 @@ export default function QueueTaskModal({
   );
   const isLocalProvider = selectedProvider?.type === 'local';
 
-  // Fetch server info (local machine resources) when modal is open and local provider selected
-  const { data: serverInfoData } = useSWR(
-    open && isLocalProvider ? chatAPI.Endpoints.ServerInfo.Get() : null,
-    fetcher,
-  );
+  // Fetch local provider snapshot via the same response type as remote providers (/compute_provider/{id}/clusters).
+  const clustersKey =
+    open && isLocalProvider && selectedProviderId
+      ? getAPIFullPath('compute_provider', ['providerClusters'], {
+          providerId: selectedProviderId,
+        })
+      : null;
+  const { data: providerClustersData } = useSWR(clustersKey, fetcher);
+  const localProviderConfig = React.useMemo(() => {
+    const clusters = Array.isArray(providerClustersData)
+      ? providerClustersData
+      : [];
+    const localCluster =
+      clusters.find(
+        (c: any) => String(c?.backend_type).toLowerCase() === 'local',
+      ) ??
+      clusters[0] ??
+      null;
+    return (localCluster?.provider_data as any) ?? null;
+  }, [providerClustersData]);
 
   // Extract task resource requirements from the task object (must be before isProviderCompatible)
   const taskResources = React.useMemo(() => {
@@ -258,7 +273,7 @@ export default function QueueTaskModal({
       if (/^\d+$/.test(reqAcc)) {
         if (
           provider.type === 'local' &&
-          serverInfoData?.device_type === 'mps'
+          localProviderConfig?.device === 'mps'
         ) {
           return supported.includes('AppleSilicon');
         }
@@ -267,7 +282,7 @@ export default function QueueTaskModal({
 
       return false;
     },
-    [taskResources, serverInfoData],
+    [taskResources, localProviderConfig],
   );
 
   React.useEffect(() => {
@@ -282,7 +297,7 @@ export default function QueueTaskModal({
 
   // Validate local provider resources against task requirements
   const resourceValidation = React.useMemo(() => {
-    if (!isLocalProvider || !serverInfoData || !taskResources) return null;
+    if (!isLocalProvider || !localProviderConfig || !taskResources) return null;
 
     const issues: Array<{
       type: 'error' | 'warning';
@@ -296,8 +311,8 @@ export default function QueueTaskModal({
       const accStr = String(taskResources.accelerators);
       // Parse accelerator spec like "RTX3090:1", "A100:2", "V100:4", or just "1" (count only)
       const match = accStr.match(/^(.+):(\d+)$/);
-      const gpuList: any[] = serverInfoData.gpu || [];
-      const deviceType = serverInfoData.device_type || 'cpu';
+      const gpuList: any[] = localProviderConfig.gpu || [];
+      const deviceType = localProviderConfig.device_type || 'cpu';
 
       if (match) {
         // Named GPU requirement e.g. "RTX3090:1"
@@ -382,7 +397,7 @@ export default function QueueTaskModal({
       hasWarnings,
       isCompatible: issues.length === 0,
     };
-  }, [isLocalProvider, serverInfoData, taskResources]);
+  }, [isLocalProvider, localProviderConfig, taskResources]);
 
   // Helper function to parse parameter value and schema
   const parseParameter = (key: string, value: any): ProcessedParameter => {
