@@ -13,7 +13,7 @@ from lab.dirs import get_workspace_dir
 # --- SQLAlchemy Async Engine ---
 # This engine is the core entry point to the database.
 # It is created once and can be imported elsewhere.
-async_engine = create_async_engine(DATABASE_URL, echo=False)
+async_engine = create_async_engine(DATABASE_URL, echo=False, pool_size=20, max_overflow=40, pool_timeout=60)
 
 # --- SQLAlchemy Async Session Factory ---
 # This is a factory that creates new AsyncSession objects.
