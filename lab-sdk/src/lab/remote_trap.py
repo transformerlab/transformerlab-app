@@ -10,12 +10,16 @@ from lab import Job, storage
 
 
 async def _set_live_status_async(job_id: str, status: str) -> None:
-    """Async helper to set live_status on a job."""
+    """Async helper to set live_status on a job and mirror failures to job status."""
     try:
         job = await Job.get(job_id)
         if job is None:
             return
         await job.update_job_data_field("live_status", status)
+
+        # If the remote command crashed, also mark the job as FAILED.
+        if status == "crashed":
+            await job.update_status("FAILED")
     except Exception:
         # This helper should never cause the wrapped command to fail.
         return

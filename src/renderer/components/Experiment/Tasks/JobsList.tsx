@@ -18,6 +18,7 @@ import {
   LogsIcon,
   FileTextIcon,
   DatabaseIcon,
+  FolderOpenIcon,
 } from 'lucide-react';
 import { Typography } from '@mui/joy';
 import JobProgress from './JobProgress';
@@ -44,6 +45,7 @@ interface JobsListProps {
   onViewInteractive?: (jobId: string) => void;
   onViewJobDatasets?: (jobId: string) => void;
   onViewJobModels?: (jobId: string) => void;
+  onViewFileBrowser?: (jobId: string) => void;
   loading: boolean;
   selectMode?: boolean;
   selectedJobIds?: string[];
@@ -66,6 +68,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewInteractive,
   onViewJobDatasets,
   onViewJobModels,
+  onViewFileBrowser,
   loading,
   selectMode = false,
   selectedJobIds = [],
@@ -447,6 +450,26 @@ const JobsList: React.FC<JobsListProps> = ({
                         }}
                       >
                         Checkpoints
+                      </Box>
+                    </Button>
+                  )}
+                  {!job?.placeholder && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => onViewFileBrowser?.(job?.id)}
+                      startDecorator={<FolderOpenIcon />}
+                    >
+                      <Box
+                        sx={{
+                          display: {
+                            xs: 'none',
+                            sm: 'none',
+                            md: 'inline-flex',
+                          },
+                        }}
+                      >
+                        Files
                       </Box>
                     </Button>
                   )}
