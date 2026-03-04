@@ -286,6 +286,8 @@ async def ls(path: str, detail: bool = False, fs=None):
     # Use provided filesystem or get default
     filesys = fs if fs is not None else await filesystem()
     paths = await asyncio.to_thread(filesys.ls, path, detail=detail)
+    # When we enable detail, we return the raw list of paths from the filesystem as they don't contain the current path
+    # and using filesys.ls on any of those would add the prefix correctly
     if detail:
         return paths
     # Ensure paths are full URIs for remote filesystems
