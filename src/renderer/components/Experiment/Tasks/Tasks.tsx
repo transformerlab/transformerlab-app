@@ -740,29 +740,29 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         }
       }
 
-      // Add vLLM-specific environment variables (legacy fallback)
+      // Add vLLM-specific environment variables (legacy fallback - only if not already set)
       if (interactiveType === 'vllm') {
-        if (data.model_name) {
+        if (data.model_name && !envVars['MODEL_NAME']) {
           envVars['MODEL_NAME'] = data.model_name;
         }
-        if (data.hf_token) {
+        if (data.hf_token && !envVars['HF_TOKEN']) {
           envVars['HF_TOKEN'] = data.hf_token;
         }
-        if (data.tp_size) {
+        if (data.tp_size && !envVars['TP_SIZE']) {
           envVars['TP_SIZE'] = data.tp_size;
         }
       }
 
-      // Add Ollama-specific environment variables (legacy fallback)
+      // Add Ollama-specific environment variables (legacy fallback - only if not already set)
       if (interactiveType === 'ollama') {
-        if (data.model_name) {
+        if (data.model_name && !envVars['MODEL_NAME']) {
           envVars['MODEL_NAME'] = data.model_name;
         }
       }
 
-      // Add SSH-specific environment variables (legacy fallback)
+      // Add SSH-specific environment variables (legacy fallback - only if not already set)
       if (interactiveType === 'ssh') {
-        if (data.ngrok_auth_token) {
+        if (data.ngrok_auth_token && !envVars['NGROK_AUTH_TOKEN']) {
           envVars['NGROK_AUTH_TOKEN'] = data.ngrok_auth_token;
         }
       }
