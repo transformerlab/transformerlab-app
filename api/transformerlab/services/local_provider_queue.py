@@ -26,6 +26,7 @@ class LocalLaunchWorkItem(BaseModel):
 
 _local_launch_queue: "asyncio.Queue[LocalLaunchWorkItem]" = asyncio.Queue()
 _worker_started = False
+_worker_started_lock = asyncio.Lock()
 _worker_lock = asyncio.Lock()
 
 
@@ -40,8 +41,6 @@ async def enqueue_local_launch(
     initial_status: str,
 ) -> None:
     """Enqueue a local provider launch work item and lazily start the worker."""
-    global _worker_started
-
     item = LocalLaunchWorkItem(
         job_id=str(job_id),
         experiment_id=str(experiment_id),
@@ -54,10 +53,11 @@ async def enqueue_local_launch(
     )
     await _local_launch_queue.put(item)
 
-    if not _worker_started:
-        # Lazily start a single background worker
-        asyncio.create_task(_local_launch_worker())
-        _worker_started = True
+    global _worker_started
+    async with _worker_started_lock:
+        if not _worker_started:
+            asyncio.create_task(_local_launch_worker())
+            _worker_started = True
 
 
 async def _local_launch_worker() -> None:
