@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime as _dt
 import ipaddress as _ip
 from pathlib import Path
@@ -9,7 +10,6 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
-from filelock import FileLock
 
 from lab.dirs import get_workspace_dir
 from lab import storage
@@ -17,6 +17,11 @@ from lab import storage
 __all__ = [
     "ensure_persistent_self_signed_cert",
 ]
+
+# In-process lock: prevents concurrent async tasks from racing to generate
+# the cert simultaneously. FileLock is not suitable here because the storage
+# awaits inside the critical section now genuinely yield to the event loop.
+_cert_lock = asyncio.Lock()
 
 
 async def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
@@ -26,8 +31,7 @@ async def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
     cert_path = cert_dir / "server-cert.pem"
     key_path = cert_dir / "server-key.pem"
 
-    lock = cert_dir / ".cert.lock"
-    with FileLock(str(lock)):
+    async with _cert_lock:
         if await storage.exists(str(cert_path)) and await storage.exists(str(key_path)):
             return str(cert_path), str(key_path)
         await storage.makedirs(str(cert_dir), exist_ok=True)
