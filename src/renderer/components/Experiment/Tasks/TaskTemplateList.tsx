@@ -185,8 +185,6 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     );
   }
 
-  console.log(tasksList);
-
   return (
     <Table stickyHeader>
       <thead>
