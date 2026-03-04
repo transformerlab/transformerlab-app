@@ -190,7 +190,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
       <thead>
         <tr>
           <th style={{ width: '150px' }}>Name</th>
-            <th>Provider</th>
+          <th>Provider</th>
           <th>Command</th>
           <th>Resources</th>
           <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
