@@ -6,6 +6,7 @@
 - Always create a new branch for your work: `git checkout -b <descriptive-branch-name>`
 - Use a clear branch naming convention, e.g. `feat/short-description`, `fix/short-description`, `chore/short-description`.
 - Commit early and often with meaningful commit messages.
+- **Never use `git commit --amend`** — it rewrites history and causes divergence with remote branches. Make a new commit instead.
 - When work is complete, push the branch and open a pull request: `gh pr create --fill`
 - Do not merge PRs yourself — let the reviewer merge.
 
