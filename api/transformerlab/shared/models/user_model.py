@@ -8,7 +8,7 @@ from fastapi import Depends
 from os import getenv
 import uuid
 
-from transformerlab.db.session import async_engine, async_session as AsyncSessionLocal
+from transformerlab.db.session import async_session as AsyncSessionLocal
 from transformerlab.shared.models.models import Team, User, OAuthAccount
 from transformerlab.shared.remote_workspace import create_bucket_for_team
 
