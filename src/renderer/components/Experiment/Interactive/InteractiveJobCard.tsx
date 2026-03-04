@@ -17,6 +17,7 @@ import InteractiveJupyterModal from '../Tasks/InteractiveJupyterModal';
 import InteractiveVllmModal from '../Tasks/InteractiveVllmModal';
 import InteractiveSshModal from '../Tasks/InteractiveSshModal';
 import InteractiveOllamaModal from '../Tasks/InteractiveOllamaModal';
+import InteractiveMlxLmModal from '../Tasks/InteractiveMlxLmModal';
 import EmbeddableStreamingOutput from '../Tasks/EmbeddableStreamingOutput';
 
 interface InteractiveJobCardProps {
@@ -84,6 +85,18 @@ function OllamaIcon() {
   );
 }
 
+function MlxLmIcon() {
+  return (
+    <img
+      src="https://github.com/ml-explore.png"
+      alt="MLX LM"
+      width={20}
+      height={20}
+      style={{ display: 'block' }}
+    />
+  );
+}
+
 const INTERACTIVE_TYPE_CONFIG: Record<
   string,
   {
@@ -97,6 +110,7 @@ const INTERACTIVE_TYPE_CONFIG: Record<
   vllm: { label: 'vLLM', color: 'success', icon: VllmIcon },
   ollama: { label: 'Ollama', color: 'primary', icon: OllamaIcon },
   ssh: { label: 'SSH', color: 'danger', icon: SshIcon },
+  mlx_lm: { label: 'MLX LM', color: 'success', icon: MlxLmIcon },
 };
 
 const DEFAULT_TYPE_CONFIG = INTERACTIVE_TYPE_CONFIG.vscode;
@@ -111,6 +125,7 @@ const INTERACTIVE_MODALS: Record<string, React.ElementType> = {
   vllm: InteractiveVllmModal,
   ollama: InteractiveOllamaModal,
   ssh: InteractiveSshModal,
+  mlx_lm: InteractiveMlxLmModal,
 };
 
 export default function InteractiveJobCard({
