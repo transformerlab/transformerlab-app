@@ -310,9 +310,7 @@ export default function InteractiveMlxLmModal({
             </Stack>
 
             <Box>
-              <Typography level="title-md">
-                Access MLX LM API Server
-              </Typography>
+              <Typography level="title-md">Access MLX LM API Server</Typography>
               <Typography level="body-sm" sx={{ mt: 0.5 }}>
                 Once ready, use the URL below to access your MLX LM server. The
                 MLX LM server provides an OpenAI-compatible API endpoint.
