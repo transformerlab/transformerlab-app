@@ -62,6 +62,35 @@
   - **Mocking**: Mock external interactions (S3, GPU providers, filesystem operations) using `unittest.mock` or `pytest-mock`. Tests should be fast and deterministic.
   - **Service Tests**: Prefer testing the Service layer directly over testing the full API stack when checking business logic constants.
 
+### Visual UI Verification (Chrome DevTools MCP)
+
+The Chrome DevTools MCP is enabled. When requested, verify the result with the following steps:
+
+1. Run `npm run docker-test:up` to ensure the app is running.
+2. Use the browser tool to navigate to the page you just changed.
+3. If the app requires login, use the default credentials: **email:** `admin@example.com` / **password:** `admin123`.
+4. Explore related pages (e.g., if you changed the Header, also check the Dashboard and Login pages).
+5. Take screenshots and verify that no layouts are broken.
+6. If you see a visual bug in the screenshot, fix it immediately.
+
+## Architecture Deep Dives
+
+This section documents complex flows in the codebase to help agents quickly understand how things work.
+
+### Job Execution on Local Providers
+
+When a job is queued for a local provider, it flows through several layers:
+
+1. **Queueing** (`api/transformerlab/routers/compute_provider.py`, ~line 1727): The router builds a `ClusterConfig` and calls `enqueue_local_launch()`, returning immediately with `WAITING` status. For remote (non-local) providers, the command is wrapped with `tfl-remote-trap` to track `live_status` (`started`/`finished`/`crashed`).
+
+2. **Serialized worker** (`api/transformerlab/services/local_provider_queue.py`): A background `asyncio` worker (`_local_launch_worker`) pulls items from the queue one at a time. It resolves the provider via `get_provider_instance()`, transitions the job to `LAUNCHING`/`INTERACTIVE`, then calls `provider_instance.launch_cluster()` inside a `try/except` block that catches errors, releases quota holds, and marks the job `FAILED`.
+
+3. **Local execution** (`api/transformerlab/compute_providers/local.py`, `LocalProvider.launch_cluster()`): Creates a per-job `uv` virtual environment, runs any setup commands, then launches the job command via `subprocess.Popen` in a detached session with stdout/stderr written to log files in the job directory.
+
+4. **Error handling**: Local providers rely on the queue worker's `try/except` for error capture. Remote providers use the `tfl-remote-trap` SDK helper (`lab-sdk/src/lab/remote_trap.py`) which wraps the command and sets `job_data.live_status` on success or failure.
+
+5. **Plugin harness** (`api/transformerlab/plugin_sdk/plugin_harness.py`): For plugin-based jobs (training, eval), the subprocess entry point that loads and executes plugin logic with its own error/traceback handling.
+
 ## Agentic Performance Optimization
 
 - **Context**: When making changes, look at similar existing files (e.g., "Implement the new `ModelService` following the pattern in `api/transformerlab/services/job_service.py`").
