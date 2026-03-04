@@ -25,6 +25,8 @@ from transformerlab.shared import shared, zip_utils
 from transformerlab.shared.models.models import ProviderType
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.shared.tunnel_parser import get_tunnel_info
+from transformerlab.shared import galleries
+from transformerlab.shared.interactive_gallery_utils import find_interactive_gallery_entry
 from lab.dirs import (
     get_workspace_dir,
     get_local_provider_job_dir,
@@ -471,12 +473,21 @@ async def get_tunnel_info_for_job(
 
     tunnel_info = get_tunnel_info(logs_text, interactive_type)
 
+    # Look up the gallery entry to include port definitions in the response
+    interactive_gallery_id = job_data.get("interactive_gallery_id")
+    gallery_list = await galleries.get_interactive_gallery()
+    gallery_entry = find_interactive_gallery_entry(
+        gallery_list, interactive_gallery_id=interactive_gallery_id, interactive_type=interactive_type
+    )
+    ports = gallery_entry.get("ports", []) if gallery_entry else []
+
     return {
         **tunnel_info,
         "cluster_name": cluster_name,
         "provider_id": provider_id,
         "provider_job_id": str(provider_job_id),
         "interactive_type": interactive_type,
+        "ports": ports,
     }
 
 

@@ -75,6 +75,8 @@ export default function InteractiveOllamaModal({
   const tunnelUrl = data?.tunnel_url || null;
   const openwebuiUrl = data?.openwebui_url || null;
   const isReady = Boolean(data?.is_ready);
+  const ports: { port: number; label: string; protocol: string }[] =
+    data?.ports || [];
 
   return (
     <Modal open={jobId !== -1} onClose={handleClose}>
@@ -271,6 +273,30 @@ export default function InteractiveOllamaModal({
                     )}
                   </Box>
                 </Box>
+
+                {ports.length > 0 && (
+                  <>
+                    <Divider />
+                    <Box>
+                      <Typography level="title-md">Exposed Ports</Typography>
+                      <Typography level="body-sm" sx={{ mt: 0.5 }}>
+                        This service exposes the following ports on the remote
+                        host:
+                      </Typography>
+                      <Stack spacing={1} direction="row" sx={{ mt: 1 }}>
+                        {ports.map((p) => (
+                          <Chip
+                            key={p.port}
+                            variant="outlined"
+                            color="neutral"
+                          >
+                            {p.label}: port {p.port} ({p.protocol})
+                          </Chip>
+                        ))}
+                      </Stack>
+                    </Box>
+                  </>
+                )}
               </Box>
             </Box>
             <Box
@@ -447,6 +473,29 @@ export default function InteractiveOllamaModal({
                 )}
               </Box>
             </Box>
+
+            {ports.length > 0 && (
+              <>
+                <Divider />
+                <Box>
+                  <Typography level="title-md">Exposed Ports</Typography>
+                  <Typography level="body-sm" sx={{ mt: 0.5 }}>
+                    This service exposes the following ports on the remote host:
+                  </Typography>
+                  <Stack spacing={1} direction="row" sx={{ mt: 1 }}>
+                    {ports.map((p) => (
+                      <Chip
+                        key={p.port}
+                        variant="outlined"
+                        color="neutral"
+                      >
+                        {p.label}: port {p.port} ({p.protocol})
+                      </Chip>
+                    ))}
+                  </Stack>
+                </Box>
+              </>
+            )}
           </Box>
         )}
       </ModalDialog>
