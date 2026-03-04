@@ -292,14 +292,21 @@ class LocalProvider(ComputeProvider):
                 raise RuntimeError(f"Setup failed: {setup_result.stderr or setup_result.stdout or 'unknown'}")
 
         # Start main command in background (detached subprocess)
-        proc = subprocess.Popen(
-            ["/bin/bash", "-c", config.command or "true"],
-            cwd=str(job_dir),
-            env=env,
-            stdout=open(job_dir / "stdout.log", "w"),
-            stderr=open(job_dir / "stderr.log", "w"),
-            start_new_session=True,
-        )
+        stdout_f = open(job_dir / "stdout.log", "w")
+        stderr_f = open(job_dir / "stderr.log", "w")
+        try:
+            proc = subprocess.Popen(
+                ["/bin/bash", "-c", config.command or "true"],
+                cwd=str(job_dir),
+                env=env,
+                stdout=stdout_f,
+                stderr=stderr_f,
+                start_new_session=True,
+            )
+        except Exception:
+            stdout_f.close()
+            stderr_f.close()
+            raise
         pid = proc.pid
         with open(job_dir / "pid", "w") as f:
             f.write(str(pid))
