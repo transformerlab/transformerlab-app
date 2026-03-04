@@ -252,13 +252,13 @@ class LocalProvider(ComputeProvider):
                     with open(stdout_path, "a", encoding="utf-8") as f:
                         f.write(setup_result.stdout)
                 except OSError:
-                    pass
+                    print(f"DEBUG: LocalProvider.launch_cluster: Failed to write setup stdout to {stdout_path}")
             if setup_result.stderr:
                 try:
                     with open(stderr_path, "a", encoding="utf-8") as f:
                         f.write(setup_result.stderr)
                 except OSError:
-                    pass
+                    print(f"DEBUG: LocalProvider.launch_cluster: Failed to write setup stderr to {stderr_path}")
             if setup_result.returncode != 0:
                 print(f"DEBUG: LocalProvider.launch_cluster: setup failed with code {setup_result.returncode}")
                 print(f"DEBUG: LocalProvider.launch_cluster: setup stderr: {setup_result.stderr}")
