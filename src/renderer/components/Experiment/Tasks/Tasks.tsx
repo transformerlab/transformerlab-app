@@ -33,6 +33,7 @@ import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
 import ViewJobDatasetsModal from '../Train/ViewJobDatasetsModal';
 import ViewJobModelsModal from '../Train/ViewJobModelsModal';
+import FileBrowserModal from './FileBrowserModal';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
@@ -69,7 +70,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [compareEvalJobIds, setCompareEvalJobIds] = useState<number[]>([]);
   const [isCompareSelectMode, setIsCompareSelectMode] = useState(false);
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
+  const [viewFileBrowserFromJob, setViewFileBrowserFromJob] = useState(-1);
   const [yamlEditorTaskId, setYamlEditorTaskId] = useState<string | null>(null);
+  const [launchProgressByJobId, setLaunchProgressByJobId] = useState<
+    Record<string, { phase?: string; percent?: number; message?: string }>
+  >({});
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const { fetchWithAuth, team } = useAuth();
@@ -303,8 +308,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         return false;
       }
 
-      // Always check LAUNCHING jobs
-      if (job.status === 'LAUNCHING') {
+      // Always check LAUNCHING and WAITING jobs (for launch progress)
+      if (job.status === 'LAUNCHING' || job.status === 'WAITING') {
         return true;
       }
 
@@ -337,7 +342,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             if (result.updated && result.new_status === 'COMPLETE') {
               setTimeout(() => jobsMutate(), 0);
             }
-            // For completed jobs, check-status will ensure quota is recorded if missing
+            if (result.launch_progress) {
+              setLaunchProgressByJobId((prev) => ({
+                ...prev,
+                [String(job.id)]: result.launch_progress,
+              }));
+            }
           }
         } catch (error) {
           // Silently ignore errors for individual job checks
@@ -346,9 +356,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
     };
 
-    // Check immediately and then every 10 seconds
+    // Check immediately and then every 2s when there are LAUNCHING/WAITING jobs (for progress), else 10s
+    const hasLaunching = jobsToCheck.some(
+      (j: any) => j.status === 'LAUNCHING' || j.status === 'WAITING',
+    );
+    const intervalMs = hasLaunching ? 2000 : 10000;
     checkJobs();
-    const interval = setInterval(checkJobs, 10000);
+    const interval = setInterval(checkJobs, intervalMs);
 
     return () => clearInterval(interval);
   }, [jobs, fetchWithAuth, jobsMutate]);
@@ -1205,6 +1219,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
         <JobsList
           jobs={jobsWithPlaceholders as any}
+          launchProgressByJobId={launchProgressByJobId}
           onDeleteJob={handleDeleteJob}
           onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
           onViewTensorboard={(jobId) =>
@@ -1227,6 +1242,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             setViewJobDatasetsFromJob(parseInt(jobId))
           }
           onViewJobModels={(jobId) => setViewJobModelsFromJob(parseInt(jobId))}
+          onViewFileBrowser={(jobId) =>
+            setViewFileBrowserFromJob(parseInt(jobId))
+          }
           onViewSweepOutput={(jobId) => {
             setViewOutputFromSweepJob(true);
             setViewOutputFromJob(parseInt(jobId));
@@ -1355,6 +1373,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewJobModelsFromJob !== -1}
         onClose={() => setViewJobModelsFromJob(-1)}
         jobId={viewJobModelsFromJob}
+      />
+      <FileBrowserModal
+        open={viewFileBrowserFromJob !== -1}
+        onClose={() => setViewFileBrowserFromJob(-1)}
+        jobId={viewFileBrowserFromJob}
       />
     </Sheet>
   );
