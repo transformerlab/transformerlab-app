@@ -251,8 +251,11 @@ async def update_gallery_cache_file(filename: str):
 
 async def update_cache_from_remote(gallery_filename: str):
     """
-    Fetches a gallery file from source and updates the cache
+    Fetches a gallery file from source and updates the cache.
+    Set TLAB_USE_LOCAL_GALLERIES=1 to skip remote fetching and use the local fallback only.
     """
+    if os.environ.get("TLAB_USE_LOCAL_GALLERIES", "").strip() in ("1", "true", "yes"):
+        return
     try:
         remote_gallery = TLAB_REMOTE_GALLERIES_URL + gallery_filename
         local_cache_filename = await gallery_cache_file_path(gallery_filename)

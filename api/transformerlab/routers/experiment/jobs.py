@@ -480,6 +480,9 @@ async def get_tunnel_info_for_job(
         gallery_list, interactive_gallery_id=interactive_gallery_id, interactive_type=interactive_type
     )
     ports = gallery_entry.get("ports", []) if gallery_entry else []
+    modal_title = gallery_entry.get("modal_title", "") if gallery_entry else ""
+    modal_subtitle = gallery_entry.get("modal_subtitle", "") if gallery_entry else ""
+    instructions = gallery_entry.get("instructions", []) if gallery_entry else []
 
     return {
         **tunnel_info,
@@ -488,6 +491,9 @@ async def get_tunnel_info_for_job(
         "provider_job_id": str(provider_job_id),
         "interactive_type": interactive_type,
         "ports": ports,
+        "modal_title": modal_title,
+        "modal_subtitle": modal_subtitle,
+        "instructions": instructions,
     }
 
 

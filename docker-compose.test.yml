@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: test/docker/Dockerfile
+    environment:
+      - TLAB_USE_LOCAL_GALLERIES=1
     ports:
       - "8338:8338"
     healthcheck:

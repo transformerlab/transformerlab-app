@@ -12,7 +12,32 @@
     "remoteOnly": true,
 
     "_comment_ports": "VS Code tunnel does not expose fixed local ports; the tunnel URL is generated dynamically by the VS Code CLI.",
-    "ports": []
+    "ports": [],
+
+    "modal_title": "VS Code Interactive Session",
+    "modal_subtitle": "Follow the steps below to authenticate and open your VS Code session.",
+    "instructions": [
+      {
+        "kind": "code",
+        "title": "Step 1: Authorize VS Code",
+        "description": "When the VS Code service starts, it may print an authorization code. Copy the code below (when available), go to https://github.com/login/device and complete the sign-in flow in your browser.",
+        "value_key": "auth_code",
+        "placeholder": "Waiting for auth code from provider logs...",
+        "help_links": [
+          {
+            "label": "https://github.com/login/device",
+            "href": "https://github.com/login/device"
+          }
+        ]
+      },
+      {
+        "kind": "url",
+        "title": "Step 2: Open VS Code",
+        "description": "After you finish authorization, the URL will appear here. Use it to open the remote environment in your browser-based VS Code.",
+        "value_key": "tunnel_url",
+        "placeholder": "Waiting for VS Code to print a URL in the provider logs..."
+      }
+    ]
   },
   {
     "id": "jupyter",
@@ -43,6 +68,18 @@
     "_comment_ports": "Jupyter Lab listens on port 8888. The ngrok tunnel exposes this port externally.",
     "ports": [
       { "port": 8888, "label": "Jupyter Lab", "protocol": "http" }
+    ],
+
+    "modal_title": "Jupyter Notebook Interactive Session",
+    "modal_subtitle": "Access your Jupyter notebook through the URL below.",
+    "instructions": [
+      {
+        "kind": "url",
+        "title": "Access Jupyter Notebook",
+        "description": "Once ready, click the link below to open your Jupyter notebook in your browser.",
+        "value_key": "jupyter_url",
+        "placeholder": "Waiting for service to start. The URL will appear here once the connection is available..."
+      }
     ]
   },
   {
@@ -100,6 +137,26 @@
     "ports": [
       { "port": 8000, "label": "vLLM API", "protocol": "http" },
       { "port": 8080, "label": "Open WebUI", "protocol": "http" }
+    ],
+
+    "modal_title": "vLLM Server Interactive Session",
+    "modal_subtitle": "Access your vLLM API server through the URL below.",
+    "instructions": [
+      {
+        "kind": "url",
+        "title": "Access vLLM API Server",
+        "description": "Once ready, use the URL below to access your vLLM server. The vLLM server provides an OpenAI-compatible API endpoint.",
+        "value_key": "vllm_url",
+        "placeholder": "Waiting for service to start. The URL will appear here once the connection is available...",
+        "example_template": "curl {{vllm_url}}/v1/completions \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"model\": \"your-model-name\",\n    \"prompt\": \"Hello, world!\",\n    \"max_tokens\": 50\n  }'"
+      },
+      {
+        "kind": "url",
+        "title": "Access Open WebUI",
+        "description": "Use the URL below to open Open WebUI connected to this vLLM server. This provides a browser-based chat UI backed by the same vLLM API.",
+        "value_key": "openwebui_url",
+        "placeholder": "Waiting for the Open WebUI service to start..."
+      }
     ]
   },
   {
@@ -140,6 +197,26 @@
     "ports": [
       { "port": 11434, "label": "Ollama API", "protocol": "http" },
       { "port": 8080, "label": "Open WebUI", "protocol": "http" }
+    ],
+
+    "modal_title": "Ollama Server Interactive Session",
+    "modal_subtitle": "Access your Ollama API server through the URL below.",
+    "instructions": [
+      {
+        "kind": "url",
+        "title": "Access Ollama API Server",
+        "description": "Once ready, use the URL below to access your Ollama server. The Ollama server provides an OpenAI-compatible API endpoint.",
+        "value_key": "ollama_url",
+        "placeholder": "Waiting for service to start. The URL will appear here once the connection is available...",
+        "example_template": "curl {{ollama_url}}/api/generate -d '{\n  \"model\": \"your-model-name\",\n  \"prompt\": \"Why is the sky blue?\",\n  \"stream\": false\n}'"
+      },
+      {
+        "kind": "url",
+        "title": "Access Open WebUI",
+        "description": "Use the URL below to open Open WebUI connected to this Ollama server. This gives you a convenient browser chat UI backed by the same Ollama API.",
+        "value_key": "openwebui_url",
+        "placeholder": "Waiting for the Open WebUI service to start..."
+      }
     ]
   },
   {
@@ -172,6 +249,32 @@
     "_comment_ports": "SSH runs on port 22, tunneled via ngrok TCP tunnel.",
     "ports": [
       { "port": 22, "label": "SSH", "protocol": "tcp" }
+    ],
+
+    "modal_title": "SSH Tunnel Interactive Session",
+    "modal_subtitle": "Access your remote machine via SSH through the ngrok tunnel.",
+    "instructions": [
+      {
+        "kind": "kv",
+        "title": "Connection Information",
+        "items": [
+          { "label": "Domain", "value_key": "domain" },
+          { "label": "Port", "value_key": "port" },
+          { "label": "Username", "value_key": "username", "optional": true }
+        ]
+      },
+      {
+        "kind": "command",
+        "title": "SSH Command",
+        "description": "Use the command below to connect to your remote machine.",
+        "value_key": "ssh_command",
+        "placeholder": "Waiting for tunnel to start. The SSH command will appear here once ngrok creates the tunnel..."
+      },
+      {
+        "kind": "text",
+        "title": "Usage Instructions",
+        "template": "1. Download your organization's SSH key from Team Settings\n2. Save the key file (e.g., ~/org_ssh_key_{{team_id}})\n3. Set permissions: chmod 600 ~/org_ssh_key_{{team_id}}\n4. Copy the SSH command above\n5. Open your terminal\n6. Paste and run the command"
+      }
     ]
   }
 ]
