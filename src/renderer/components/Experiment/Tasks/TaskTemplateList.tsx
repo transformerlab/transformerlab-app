@@ -149,6 +149,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
         <thead>
           <tr>
             <th style={{ width: '150px' }}>Name</th>
+            <th>Provider</th>
             <th>Command</th>
             <th>Resources</th>
             <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
@@ -157,6 +158,9 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
         <tbody>
           {[1, 2, 3, 4].map((i) => (
             <tr key={i}>
+              <td>
+                <Skeleton variant="text" level="title-sm" />
+              </td>
               <td>
                 <Skeleton variant="text" level="title-sm" />
               </td>
@@ -181,11 +185,14 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     );
   }
 
+  console.log(tasksList);
+
   return (
     <Table stickyHeader>
       <thead>
         <tr>
           <th style={{ width: '150px' }}>Name</th>
+            <th>Provider</th>
           <th>Command</th>
           <th>Resources</th>
           <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
@@ -198,6 +205,9 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
               <Typography level="title-sm" sx={{ overflow: 'clip' }}>
                 {getTitle(row)}
               </Typography>
+            </td>
+            <td style={{ overflow: 'clip' }}>
+              <Typography level="body-sm">{row.provider_name}</Typography>
             </td>
             <td style={{ overflow: 'clip' }}>
               <Typography level="body-sm">{getCommandInfo(row)}</Typography>
