@@ -66,7 +66,7 @@ export default function LocalMachineSummary({
     clusters[0] ??
     null;
   const server = localCluster?.provider_data ?? null;
-  const isError = !!swrIsError || !server;
+  const isError = !!swrIsError;
 
   if (isLoading) {
     return (
@@ -80,6 +80,15 @@ export default function LocalMachineSummary({
     return (
       <Typography level="body-sm" sx={{ color: 'danger.plainColor' }}>
         Unable to load local machine information.
+      </Typography>
+    );
+  }
+
+  if (!server) {
+    return (
+      <Typography level="body-sm" sx={{ color: 'danger.plainColor' }}>
+        Your local provider was not setup correctly. Please re-add your local
+        provider
       </Typography>
     );
   }
