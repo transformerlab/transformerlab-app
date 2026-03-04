@@ -278,18 +278,20 @@ class LocalProvider(ComputeProvider):
         env["HOME"] = str(workspace_home)
 
         if config.setup:
-            setup_result = subprocess.run(
-                ["/bin/bash", "-c", config.setup],
-                cwd=job_dir,
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=300,
-            )
+            setup_log = job_dir / "setup.log"
+            with open(setup_log, "w") as setup_log_f:
+                setup_result = subprocess.run(
+                    ["/bin/bash", "-c", config.setup],
+                    cwd=job_dir,
+                    env=env,
+                    stdout=setup_log_f,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    timeout=300,
+                )
             if setup_result.returncode != 0:
-                print(f"DEBUG: LocalProvider.launch_cluster: setup failed with code {setup_result.returncode}")
-                print(f"DEBUG: LocalProvider.launch_cluster: setup stderr: {setup_result.stderr}")
-                raise RuntimeError(f"Setup failed: {setup_result.stderr or setup_result.stdout or 'unknown'}")
+                setup_output = setup_log.read_text(errors="replace") if setup_log.exists() else "unknown"
+                raise RuntimeError(f"Setup failed (exit {setup_result.returncode}): {setup_output}")
 
         # Start main command in background (detached subprocess)
         stdout_f = open(job_dir / "stdout.log", "w")
