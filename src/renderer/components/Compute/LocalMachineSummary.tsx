@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Chip, Grid, LinearProgress, Stack, Typography } from '@mui/joy';
-import { useServerStats } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath, fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import {
   FaComputer,
   FaApple,
@@ -23,8 +24,49 @@ function StatRow({ title, value }: { title: string; value: React.ReactNode }) {
   );
 }
 
-export default function LocalMachineSummary() {
-  const { server, isLoading, isError } = useServerStats();
+type LocalProviderConfig = {
+  os?: string;
+  name?: string;
+  platform?: string;
+  python_version?: string;
+  cpu_percent?: number;
+  cpu_count?: number;
+  device?: string;
+  device_type?: string;
+  cuda_version?: string;
+  memory?: { total: number; available: number; percent?: number };
+  disk?: { total: number; used: number; free: number; percent?: number };
+  gpu?: Array<{ name?: string; total_memory?: number; free_memory?: number }>;
+  mac_metrics?: unknown;
+};
+
+type ProviderCluster = {
+  backend_type?: string;
+  provider_data?: LocalProviderConfig;
+};
+
+export default function LocalMachineSummary({
+  providerId,
+}: {
+  providerId: string;
+}) {
+  const clustersKey = providerId
+    ? getAPIFullPath('compute_provider', ['providerClusters'], { providerId })
+    : null;
+
+  const {
+    data,
+    isError: swrIsError,
+    isLoading,
+  } = useSWR(clustersKey, fetcher, { refreshInterval: 2000 });
+
+  const clusters: ProviderCluster[] = Array.isArray(data) ? data : [];
+  const localCluster =
+    clusters.find((c) => String(c.backend_type).toLowerCase() === 'local') ??
+    clusters[0] ??
+    null;
+  const server = localCluster?.provider_data ?? null;
+  const isError = !!swrIsError;
 
   if (isLoading) {
     return (
@@ -34,10 +76,19 @@ export default function LocalMachineSummary() {
     );
   }
 
-  if (isError || !server) {
+  if (isError) {
     return (
       <Typography level="body-sm" sx={{ color: 'danger.plainColor' }}>
         Unable to load local machine information.
+      </Typography>
+    );
+  }
+
+  if (!server) {
+    return (
+      <Typography level="body-sm" sx={{ color: 'danger.plainColor' }}>
+        Your local provider was not setup correctly. Please re-add your local
+        provider
       </Typography>
     );
   }
