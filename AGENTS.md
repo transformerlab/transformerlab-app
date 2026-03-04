@@ -19,7 +19,7 @@
 - **API start**: `cd api && ./run.sh` or `npm run api:start`
 - **API test**: `cd api && pytest`
 - **API single test**: `cd api && pytest test/<file>::<test>`
-- **Python lint**: `ruff check api/` (line-length=120, indent=4)
+- **Python lint**: `ruff check api/` (line-length=120, indent=4). **Always run `ruff check` on changed Python files before committing.**
 - **DB migrations**: `cd api && alembic upgrade head`
 
 ## Architecture
