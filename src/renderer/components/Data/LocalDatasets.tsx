@@ -39,7 +39,10 @@ export function filterByFiltersDatasetID(
     }
 
     for (const filterKey in filters) {
-      if (filters[filterKey] !== 'All' && row[filterKey] !== filters[filterKey]) {
+      if (
+        filters[filterKey] !== 'All' &&
+        row[filterKey] !== filters[filterKey]
+      ) {
         return false;
       }
     }
