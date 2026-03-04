@@ -33,6 +33,7 @@ import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
 import ViewJobDatasetsModal from '../Train/ViewJobDatasetsModal';
 import ViewJobModelsModal from '../Train/ViewJobModelsModal';
+import FileBrowserModal from './FileBrowserModal';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
@@ -69,6 +70,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [compareEvalJobIds, setCompareEvalJobIds] = useState<number[]>([]);
   const [isCompareSelectMode, setIsCompareSelectMode] = useState(false);
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
+  const [viewFileBrowserFromJob, setViewFileBrowserFromJob] = useState(-1);
   const [yamlEditorTaskId, setYamlEditorTaskId] = useState<string | null>(null);
   const [launchProgressByJobId, setLaunchProgressByJobId] = useState<
     Record<string, { phase?: string; percent?: number; message?: string }>
@@ -1243,6 +1245,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             setViewJobDatasetsFromJob(parseInt(jobId))
           }
           onViewJobModels={(jobId) => setViewJobModelsFromJob(parseInt(jobId))}
+          onViewFileBrowser={(jobId) =>
+            setViewFileBrowserFromJob(parseInt(jobId))
+          }
           onViewSweepOutput={(jobId) => {
             setViewOutputFromSweepJob(true);
             setViewOutputFromJob(parseInt(jobId));
@@ -1371,6 +1376,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewJobModelsFromJob !== -1}
         onClose={() => setViewJobModelsFromJob(-1)}
         jobId={viewJobModelsFromJob}
+      />
+      <FileBrowserModal
+        open={viewFileBrowserFromJob !== -1}
+        onClose={() => setViewFileBrowserFromJob(-1)}
+        jobId={viewFileBrowserFromJob}
       />
     </Sheet>
   );

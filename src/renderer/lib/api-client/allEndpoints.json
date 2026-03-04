@@ -229,6 +229,14 @@
     "downloadAllArtifacts": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/artifacts/download_all"
+    },
+    "listFiles": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/files?subpath={subpath}"
+    },
+    "getFile": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/file/{filePath}"
     }
   },
   "datasets": {
