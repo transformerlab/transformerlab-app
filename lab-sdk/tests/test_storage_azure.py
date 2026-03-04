@@ -29,6 +29,10 @@ async def test_root_uri_azure_with_org_and_remote_enabled(monkeypatch):
         monkeypatch,
         TFL_STORAGE_PROVIDER="azure",
         TFL_REMOTE_STORAGE_ENABLED="true",
+        # Provide minimal Azure config so the adlfs/abfs filesystem can be
+        # constructed without raising, while still avoiding any real network I/O.
+        AZURE_STORAGE_ACCOUNT="dummyaccount",
+        AZURE_STORAGE_KEY="dummykey",
     )
     from lab import dirs
 

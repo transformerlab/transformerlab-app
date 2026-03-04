@@ -8,6 +8,9 @@ def test_validate_azure_credentials_missing_env_exits(monkeypatch):
     monkeypatch.delenv("AZURE_STORAGE_ACCOUNT", raising=False)
     monkeypatch.setenv("TFL_REMOTE_STORAGE_ENABLED", "true")
     monkeypatch.setenv("TFL_STORAGE_PROVIDER", "azure")
+    # Ensure the remote_workspace module follows the Azure path regardless of how
+    # lab.storage.STORAGE_PROVIDER was initialised at import time.
+    monkeypatch.setattr(remote_workspace, "STORAGE_PROVIDER", "azure", raising=False)
 
     # Reload module state if needed (validate_cloud_credentials reads STORAGE_PROVIDER at import)
     with patch("sys.stderr") as mock_stderr:
@@ -28,6 +31,9 @@ def test_create_bucket_for_team_azure_calls_helper(monkeypatch):
     monkeypatch.setenv("TFL_REMOTE_STORAGE_ENABLED", "true")
     monkeypatch.setenv("TFL_STORAGE_PROVIDER", "azure")
     monkeypatch.setenv("AZURE_STORAGE_CONNECTION_STRING", "UseDevelopmentStorage=true")
+    # Force the Azure branch in create_bucket_for_team even if STORAGE_PROVIDER
+    # was resolved earlier from a different default.
+    monkeypatch.setattr(remote_workspace, "STORAGE_PROVIDER", "azure", raising=False)
 
     called = {}
 
