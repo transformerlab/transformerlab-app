@@ -38,6 +38,8 @@ def validate_cloud_credentials() -> None:
         _validate_aws_credentials()
     elif STORAGE_PROVIDER == "gcp":
         _validate_gcp_credentials()
+    elif STORAGE_PROVIDER == "azure":
+        _validate_azure_credentials()
 
 
 def _validate_aws_credentials() -> None:
@@ -161,6 +163,77 @@ def _validate_gcp_credentials() -> None:
         sys.exit(1)
 
 
+def _validate_azure_credentials() -> None:
+    """
+    Validate that Azure storage credentials are available.
+
+    This supports either a connection string or account-based configuration
+    using environment variables. It performs a simple list operation to
+    verify that credentials are valid.
+
+    Raises:
+        SystemExit: If Azure credentials are missing or invalid
+    """
+    connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+    account_name = os.getenv("AZURE_STORAGE_ACCOUNT")
+    account_key = os.getenv("AZURE_STORAGE_KEY")
+    sas_token = os.getenv("AZURE_STORAGE_SAS_TOKEN")
+
+    if not connection_string and not account_name:
+        print(
+            "❌ ERROR: Azure storage is configured (TFL_STORAGE_PROVIDER=azure) "
+            "but neither AZURE_STORAGE_CONNECTION_STRING nor AZURE_STORAGE_ACCOUNT "
+            "is set.\n"
+            "   Please configure Azure storage credentials via one of:\n"
+            "   - AZURE_STORAGE_CONNECTION_STRING\n"
+            "   - AZURE_STORAGE_ACCOUNT plus AZURE_STORAGE_KEY or AZURE_STORAGE_SAS_TOKEN",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    try:
+        from azure.storage.blob import BlobServiceClient
+    except ImportError:
+        print(
+            "❌ ERROR: azure-storage-blob is not installed. Cannot validate Azure storage credentials.\n"
+            "   Please ensure 'azure-storage-blob' is included in API dependencies.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    try:
+        if connection_string:
+            client = BlobServiceClient.from_connection_string(connection_string)
+        elif account_key:
+            client = BlobServiceClient(
+                account_url=f"https://{account_name}.blob.core.windows.net", credential=account_key
+            )
+        elif sas_token:
+            client = BlobServiceClient(
+                account_url=f"https://{account_name}.blob.core.windows.net",
+                credential=sas_token,
+            )
+        else:
+            print(
+                "❌ ERROR: AZURE_STORAGE_ACCOUNT is set but neither AZURE_STORAGE_KEY "
+                "nor AZURE_STORAGE_SAS_TOKEN is configured.\n"
+                "   Please set one of AZURE_STORAGE_KEY or AZURE_STORAGE_SAS_TOKEN.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        # Try a lightweight list operation to validate credentials
+        _ = next(client.list_containers(results_per_page=1).by_page(), [])
+        print("✅ Azure storage credentials validated")
+    except Exception as e:
+        print(
+            f"❌ ERROR: Failed to validate Azure storage credentials: {e}\n"
+            f"   Cloud storage is enabled but Azure credentials validation failed.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3") -> bool:
     """
     Create a bucket (S3 or GCS) for a team using the appropriate cloud provider.
@@ -216,12 +289,17 @@ def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3"
     if STORAGE_PROVIDER == "aws":
         print(f"Creating S3 bucket for team {team_id} (bucket: {bucket_name})")
         return _create_s3_bucket(bucket_name, team_id, profile_name)
-    elif STORAGE_PROVIDER == "gcp":
+    if STORAGE_PROVIDER == "gcp":
         print(f"Creating GCS bucket for team {team_id} (bucket: {bucket_name})")
         return _create_gcs_bucket(bucket_name, team_id)
-    else:
-        print(f"Unsupported TFL_STORAGE_PROVIDER: {STORAGE_PROVIDER}. Supported values: 'aws', 'gcp', or 'localfs'")
-        return False
+    if STORAGE_PROVIDER == "azure":
+        print(f"Creating Azure container for team {team_id} (container: {bucket_name})")
+        return _create_azure_container(bucket_name, team_id)
+
+    print(
+        f"Unsupported TFL_STORAGE_PROVIDER: {STORAGE_PROVIDER}. Supported values: 'aws', 'gcp', 'azure', or 'localfs'"
+    )
+    return False
 
 
 def _create_s3_bucket(bucket_name: str, team_id: str, profile_name: str) -> bool:
@@ -322,6 +400,68 @@ def _create_gcs_bucket(bucket_name: str, team_id: str) -> bool:
         return False
 
 
+def _create_azure_container(container_name: str, team_id: str) -> bool:
+    """
+    Create or verify an Azure Blob Storage container for a team.
+    """
+    connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+    account_name = os.getenv("AZURE_STORAGE_ACCOUNT")
+    account_key = os.getenv("AZURE_STORAGE_KEY")
+    sas_token = os.getenv("AZURE_STORAGE_SAS_TOKEN")
+
+    if not connection_string and not account_name:
+        print(
+            "AZURE_STORAGE_PROVIDER=azure but neither AZURE_STORAGE_CONNECTION_STRING "
+            "nor AZURE_STORAGE_ACCOUNT is set. Cannot create Azure container."
+        )
+        return False
+
+    try:
+        from azure.storage.blob import BlobServiceClient
+        from azure.core.exceptions import ResourceNotFoundError
+    except ImportError:
+        print("azure-storage-blob is not installed. Cannot create Azure container.")
+        return False
+
+    try:
+        if connection_string:
+            service_client = BlobServiceClient.from_connection_string(connection_string)
+        elif account_key:
+            service_client = BlobServiceClient(
+                account_url=f"https://{account_name}.blob.core.windows.net", credential=account_key
+            )
+        elif sas_token:
+            service_client = BlobServiceClient(
+                account_url=f"https://{account_name}.blob.core.windows.net", credential=sas_token
+            )
+        else:
+            print(
+                "AZURE_STORAGE_ACCOUNT is set but neither AZURE_STORAGE_KEY nor "
+                "AZURE_STORAGE_SAS_TOKEN is configured. Cannot create Azure container."
+            )
+            return False
+
+        container_client = service_client.get_container_client(container_name)
+
+        try:
+            # If this succeeds, container already exists
+            container_client.get_container_properties()
+            print(f"Azure container '{container_name}' already exists for team {team_id}")
+            return True
+        except ResourceNotFoundError:
+            # Container does not exist; create it
+            container_client.create_container()
+            print(f"Successfully created Azure container '{container_name}' for team {team_id}")
+            return True
+        except Exception as e:
+            print(f"Error checking Azure container '{container_name}': {e}")
+            return False
+
+    except Exception as e:
+        print(f"Unexpected error creating Azure container '{container_name}' for team {team_id}: {e}")
+        return False
+
+
 async def create_buckets_for_all_teams(session, profile_name: str = "transformerlab-s3") -> Tuple[int, int, List[str]]:
     """
     Create buckets for all existing teams that don't have buckets yet.
@@ -349,7 +489,12 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
         if not tfl_remote_storage_enabled:
             print("TFL_REMOTE_STORAGE_ENABLED is not set, skipping bucket creation for existing teams")
             return (0, 0, ["TFL_REMOTE_STORAGE_ENABLED is not set"])
-        remote_label = "GCS" if STORAGE_PROVIDER == "gcp" else "S3"
+        if STORAGE_PROVIDER == "gcp":
+            remote_label = "GCS"
+        elif STORAGE_PROVIDER == "azure":
+            remote_label = "Azure"
+        else:
+            remote_label = "S3"
         print(f"Creating buckets for all teams using {remote_label} (TFL_STORAGE_PROVIDER={STORAGE_PROVIDER})")
 
     from sqlalchemy import select

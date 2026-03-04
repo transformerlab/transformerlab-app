@@ -883,6 +883,42 @@ def _generate_gcp_credentials_setup(service_account_json: str, credentials_path:
     return setup_script
 
 
+def _generate_azure_credentials_setup(
+    connection_string: Optional[str],
+    account_name: Optional[str],
+    account_key: Optional[str],
+    sas_token: Optional[str],
+) -> str:
+    """
+    Generate bash script to export Azure storage credentials on the remote host.
+
+    This mirrors the pattern used for AWS/GCP: we materialise the minimal
+    environment required for fsspec/adlfs to authenticate against Azure
+    Blob Storage.
+    """
+
+    def escape_bash_single_quoted(s: str) -> str:
+        # Safely embed arbitrary values into a single-quoted string in bash.
+        return s.replace("'", "'\"'\"'")
+
+    exports: list[str] = ["echo 'Setting up Azure storage credentials...'"]
+    if connection_string:
+        escaped = escape_bash_single_quoted(connection_string)
+        exports.append(f"export AZURE_STORAGE_CONNECTION_STRING='{escaped}'")
+    if account_name:
+        escaped = escape_bash_single_quoted(account_name)
+        exports.append(f"export AZURE_STORAGE_ACCOUNT='{escaped}'")
+    if account_key:
+        escaped = escape_bash_single_quoted(account_key)
+        exports.append(f"export AZURE_STORAGE_KEY='{escaped}'")
+    if sas_token:
+        escaped = escape_bash_single_quoted(sas_token)
+        exports.append(f"export AZURE_STORAGE_SAS_TOKEN='{escaped}'")
+
+    exports.append("echo 'Azure storage credentials configured successfully'")
+    return "; ".join(exports)
+
+
 def _find_missing_secrets_for_template_launch(
     request: ProviderTemplateLaunchRequest, secrets: Dict[str, Any]
 ) -> set[str]:
@@ -1119,6 +1155,7 @@ async def _launch_sweep_jobs(
                 # Cloud credentials setup:
                 # - For AWS (TFL_STORAGE_PROVIDER=aws), inject ~/.aws/credentials profile if available.
                 # - For GCP (TFL_STORAGE_PROVIDER=gcp), optionally inject a service account JSON if provided.
+                # - For Azure (TFL_STORAGE_PROVIDER=azure), export Azure storage env vars if configured.
                 if os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true":
                     if STORAGE_PROVIDER == "aws":
                         aws_profile = "transformerlab-s3"
@@ -1146,6 +1183,24 @@ async def _launch_sweep_jobs(
                         if gcp_sa_json:
                             gcp_setup = _generate_gcp_credentials_setup(gcp_sa_json)
                             setup_commands.append(gcp_setup)
+                    elif STORAGE_PROVIDER == "azure":
+                        azure_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+                        azure_account = os.getenv("AZURE_STORAGE_ACCOUNT")
+                        azure_key = os.getenv("AZURE_STORAGE_KEY")
+                        azure_sas = os.getenv("AZURE_STORAGE_SAS_TOKEN")
+                        if azure_connection_string or azure_account:
+                            azure_setup = _generate_azure_credentials_setup(
+                                azure_connection_string, azure_account, azure_key, azure_sas
+                            )
+                            setup_commands.append(azure_setup)
+                            if azure_connection_string:
+                                env_vars["AZURE_STORAGE_CONNECTION_STRING"] = azure_connection_string
+                            if azure_account:
+                                env_vars["AZURE_STORAGE_ACCOUNT"] = azure_account
+                            if azure_key:
+                                env_vars["AZURE_STORAGE_KEY"] = azure_key
+                            if azure_sas:
+                                env_vars["AZURE_STORAGE_SAS_TOKEN"] = azure_sas
 
                 if request.file_mounts is True and request.task_id:
                     setup_commands.append(COPY_FILE_MOUNTS_SETUP)
@@ -1459,23 +1514,43 @@ async def launch_template_on_provider(
     if env_vars and team_secrets:
         env_vars = replace_secrets_in_dict(env_vars, team_secrets)
 
-    # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
-    aws_profile = "transformerlab-s3"
-    if os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true":
-        aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(_get_aws_credentials_from_file, aws_profile)
-    else:
-        aws_access_key_id, aws_secret_access_key = None, None
+    # Build setup script - add cloud credential helpers first, then file_mounts and other setup.
+    setup_commands: list[str] = []
 
-    # Build setup script - add copy_file_mounts after AWS credentials when file_mounts is True (task dir -> ~/src)
-    setup_commands = []
-    if aws_access_key_id and aws_secret_access_key:
-        aws_credentials_dir = RUNPOD_AWS_CREDENTIALS_DIR if provider.type == ProviderType.RUNPOD.value else None
-        aws_setup = _generate_aws_credentials_setup(
-            aws_access_key_id, aws_secret_access_key, aws_profile, aws_credentials_dir=aws_credentials_dir
-        )
-        setup_commands.append(aws_setup)
-        if aws_credentials_dir:
-            env_vars["AWS_SHARED_CREDENTIALS_FILE"] = f"{aws_credentials_dir}/credentials"
+    if os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true":
+        if STORAGE_PROVIDER == "aws":
+            # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
+            aws_profile = "transformerlab-s3"
+            aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(
+                _get_aws_credentials_from_file, aws_profile
+            )
+            if aws_access_key_id and aws_secret_access_key:
+                aws_credentials_dir = RUNPOD_AWS_CREDENTIALS_DIR if provider.type == ProviderType.RUNPOD.value else None
+                aws_setup = _generate_aws_credentials_setup(
+                    aws_access_key_id, aws_secret_access_key, aws_profile, aws_credentials_dir=aws_credentials_dir
+                )
+                setup_commands.append(aws_setup)
+                if aws_credentials_dir:
+                    env_vars["AWS_SHARED_CREDENTIALS_FILE"] = f"{aws_credentials_dir}/credentials"
+        elif STORAGE_PROVIDER == "azure":
+            azure_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+            azure_account = os.getenv("AZURE_STORAGE_ACCOUNT")
+            azure_key = os.getenv("AZURE_STORAGE_KEY")
+            azure_sas = os.getenv("AZURE_STORAGE_SAS_TOKEN")
+            if azure_connection_string or azure_account:
+                azure_setup = _generate_azure_credentials_setup(
+                    azure_connection_string, azure_account, azure_key, azure_sas
+                )
+                setup_commands.append(azure_setup)
+                if azure_connection_string:
+                    env_vars["AZURE_STORAGE_CONNECTION_STRING"] = azure_connection_string
+                if azure_account:
+                    env_vars["AZURE_STORAGE_ACCOUNT"] = azure_account
+                if azure_key:
+                    env_vars["AZURE_STORAGE_KEY"] = azure_key
+                if azure_sas:
+                    env_vars["AZURE_STORAGE_SAS_TOKEN"] = azure_sas
+
     if request.file_mounts is True and request.task_id:
         setup_commands.append(COPY_FILE_MOUNTS_SETUP)
     # Ensure transformerlab SDK is available on remote machines for live_status tracking and other helpers.
@@ -1561,11 +1636,6 @@ async def launch_template_on_provider(
 
     if tfl_storage_uri:
         env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
-        # Only mark as remote SkyPilot workspace and set AWS profile for true remote URIs
-        if storage.is_remote_path(tfl_storage_uri):
-            env_vars["AWS_PROFILE"] = aws_profile
-        # env_vars["AWS_ACCESS_KEY_ID"] = aws_access_key_id
-        # env_vars["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
 
     # For local provider, set TFL_WORKSPACE_DIR so the lab SDK in the subprocess can find
     # the job directory (workspace/jobs/<job_id>). The organization context for the API
