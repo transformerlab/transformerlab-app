@@ -16,10 +16,10 @@ import {
   Alert,
   Chip,
 } from '@mui/joy';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
-import { TrashIcon, KeyIcon } from 'lucide-react';
-import { getAPIFullPath } from 'renderer/lib/api-client/urls';
+import { TrashIcon, KeyIcon, TerminalIcon } from 'lucide-react';
+import { getAPIFullPath, API_URL, getPath } from 'renderer/lib/api-client/urls';
 
 export default function ProviderSettingsSection() {
   const authContext = useAuth();
@@ -43,6 +43,21 @@ export default function ProviderSettingsSection() {
   );
   const [uploadingKey, setUploadingKey] = useState<Record<string, boolean>>({});
   const [deletingKey, setDeletingKey] = useState<Record<string, boolean>>({});
+
+  // Interactive 2FA / password auth via PTY + WebSocket
+  const [authModalOpen, setAuthModalOpen] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [authConnecting, setAuthConnecting] = useState<
+    Record<string, boolean>
+  >({});
+  const [authAuthenticated, setAuthAuthenticated] = useState<
+    Record<string, boolean>
+  >({});
+  const [authOutput, setAuthOutput] = useState<Record<string, string>>({});
+  const [authInput, setAuthInput] = useState<Record<string, string>>({});
+  const authWsRef = useRef<Record<string, WebSocket>>({});
+  const authOutputEndRef = useRef<Record<string, HTMLDivElement | null>>({});
 
   const slurmProviders = (Array.isArray(providers) ? providers : []).filter(
     (p: { type: string }) => p.type === 'slurm',
@@ -219,6 +234,140 @@ export default function ProviderSettingsSection() {
     }
   };
 
+  const handleOpenAuthModal = async (providerId: string) => {
+    setAuthConnecting((prev) => ({ ...prev, [providerId]: true }));
+    setAuthAuthenticated((prev) => ({ ...prev, [providerId]: false }));
+    setAuthOutput((prev) => ({ ...prev, [providerId]: '' }));
+    setAuthModalOpen((prev) => ({ ...prev, [providerId]: true }));
+
+    try {
+      const response = await fetchWithAuth(
+        getAPIFullPath('compute_provider', ['slurm-auth-start'], {
+          providerId,
+        }) || '',
+        { method: 'POST' },
+      );
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        setAuthOutput((prev) => ({
+          ...prev,
+          [providerId]: `Error: ${err.detail || response.statusText}\r\n`,
+        }));
+        setAuthConnecting((prev) => ({ ...prev, [providerId]: false }));
+        return;
+      }
+
+      const { session_id, already_authenticated } = await response.json();
+
+      if (already_authenticated) {
+        setAuthAuthenticated((prev) => ({ ...prev, [providerId]: true }));
+        setAuthOutput((prev) => ({
+          ...prev,
+          [providerId]: 'Already authenticated — ControlMaster socket is active.\r\n',
+        }));
+        setAuthConnecting((prev) => ({ ...prev, [providerId]: false }));
+        return;
+      }
+
+      // Build WebSocket URL: swap http(s):// → ws(s)://
+      const apiBase = API_URL() || '';
+      const wsBase = apiBase.replace(/^http/, 'ws');
+      const wsPath = getPath('compute_provider', ['slurm-auth-ws'], {
+        providerId,
+        sessionId: session_id,
+      });
+      const ws = new WebSocket(`${wsBase}${wsPath}`);
+      ws.binaryType = 'arraybuffer';
+      authWsRef.current[providerId] = ws;
+
+      ws.onopen = () => {
+        setAuthConnecting((prev) => ({ ...prev, [providerId]: false }));
+      };
+
+      ws.onmessage = (event) => {
+        // Check for JSON control messages first
+        if (typeof event.data === 'string') {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'authenticated') {
+              setAuthAuthenticated((prev) => ({ ...prev, [providerId]: true }));
+              setAuthOutput((prev) => ({
+                ...prev,
+                [providerId]:
+                  (prev[providerId] || '') +
+                  '\r\n\x1b[32m✓ Authenticated successfully!\x1b[0m\r\n',
+              }));
+              return;
+            }
+          } catch {
+            // not JSON — fall through to render as text
+          }
+          setAuthOutput((prev) => ({
+            ...prev,
+            [providerId]: (prev[providerId] || '') + event.data,
+          }));
+        } else {
+          // Binary PTY bytes — decode as UTF-8
+          const text = new TextDecoder().decode(new Uint8Array(event.data));
+          setAuthOutput((prev) => ({
+            ...prev,
+            [providerId]: (prev[providerId] || '') + text,
+          }));
+        }
+        // Scroll to bottom
+        setTimeout(() => {
+          const el = authOutputEndRef.current[providerId];
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 0);
+      };
+
+      ws.onerror = () => {
+        setAuthOutput((prev) => ({
+          ...prev,
+          [providerId]: (prev[providerId] || '') + '\r\nConnection error.\r\n',
+        }));
+        setAuthConnecting((prev) => ({ ...prev, [providerId]: false }));
+      };
+
+      ws.onclose = () => {
+        setAuthConnecting((prev) => ({ ...prev, [providerId]: false }));
+      };
+    } catch (error) {
+      console.error('Error starting SLURM auth session:', error);
+      setAuthOutput((prev) => ({
+        ...prev,
+        [providerId]: `Error: ${String(error)}\r\n`,
+      }));
+      setAuthConnecting((prev) => ({ ...prev, [providerId]: false }));
+    }
+  };
+
+  const handleCloseAuthModal = (providerId: string) => {
+    const ws = authWsRef.current[providerId];
+    if (ws) {
+      ws.close();
+      delete authWsRef.current[providerId];
+    }
+    setAuthModalOpen((prev) => ({ ...prev, [providerId]: false }));
+    setAuthOutput((prev) => ({ ...prev, [providerId]: '' }));
+    setAuthInput((prev) => ({ ...prev, [providerId]: '' }));
+    setAuthConnecting((prev) => ({ ...prev, [providerId]: false }));
+  };
+
+  const handleAuthInputKeyDown = (
+    providerId: string,
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (e.key !== 'Enter') return;
+    const ws = authWsRef.current[providerId];
+    const text = authInput[providerId] || '';
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      // Send as raw bytes (PTY expects bytes, not JSON)
+      ws.send(new TextEncoder().encode(text + '\n'));
+    }
+    setAuthInput((prev) => ({ ...prev, [providerId]: '' }));
+  };
+
   if (!authContext.team?.id) return null;
 
   if (slurmProviders.length === 0) {
@@ -336,6 +485,17 @@ export default function ProviderSettingsSection() {
                         <KeyIcon size={16} style={{ marginRight: 4 }} />
                         {settings.has_ssh_key ? 'Update Key' : 'Upload Key'}
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="outlined"
+                        color="neutral"
+                        onClick={() => handleOpenAuthModal(provider.id)}
+                        loading={authConnecting[provider.id]}
+                        disabled={authConnecting[provider.id]}
+                      >
+                        <TerminalIcon size={16} style={{ marginRight: 4 }} />
+                        Connect
+                      </Button>
                     </Stack>
                   </Stack>
                   <Alert color="neutral" sx={{ mt: 1 }}>
@@ -430,6 +590,83 @@ export default function ProviderSettingsSection() {
                         disabled={!!uploadingKey[provider.id]}
                       >
                         Upload
+                      </Button>
+                    </DialogActions>
+                  </ModalDialog>
+                </Modal>
+                {/* Interactive 2FA / password auth terminal modal */}
+                <Modal
+                  open={!!authModalOpen[provider.id]}
+                  onClose={() => handleCloseAuthModal(provider.id)}
+                >
+                  <ModalDialog sx={{ maxWidth: 640, width: '100%' }}>
+                    <DialogTitle>
+                      <TerminalIcon size={18} style={{ marginRight: 8 }} />
+                      Connect to {provider.name}
+                    </DialogTitle>
+                    <DialogContent>
+                      {authAuthenticated[provider.id] ? (
+                        <Alert color="success" sx={{ mb: 1 }}>
+                          <Typography level="body-sm">
+                            <strong>Authenticated!</strong> The ControlMaster
+                            socket is active. All SSH operations will reuse this
+                            session for the next 24 hours.
+                          </Typography>
+                        </Alert>
+                      ) : (
+                        <Typography level="body-sm" color="neutral" mb={1}>
+                          Enter your password or 2FA code when prompted below.
+                        </Typography>
+                      )}
+                      {/* Terminal output */}
+                      <Box
+                        sx={{
+                          bgcolor: '#1a1a1a',
+                          color: '#e0e0e0',
+                          fontFamily: 'monospace',
+                          fontSize: '0.8rem',
+                          p: 1.5,
+                          borderRadius: 'sm',
+                          minHeight: 200,
+                          maxHeight: 300,
+                          overflowY: 'auto',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-all',
+                        }}
+                      >
+                        {authOutput[provider.id] || ''}
+                        <div
+                          ref={(el) => {
+                            authOutputEndRef.current[provider.id] = el;
+                          }}
+                        />
+                      </Box>
+                      {/* Input row */}
+                      {!authAuthenticated[provider.id] && (
+                        <Input
+                          sx={{ mt: 1, fontFamily: 'monospace' }}
+                          placeholder="Type password / 2FA code and press Enter"
+                          type="password"
+                          value={authInput[provider.id] || ''}
+                          onChange={(e) =>
+                            setAuthInput((prev) => ({
+                              ...prev,
+                              [provider.id]: e.target.value,
+                            }))
+                          }
+                          onKeyDown={(e) =>
+                            handleAuthInputKeyDown(provider.id, e)
+                          }
+                          autoFocus
+                        />
+                      )}
+                    </DialogContent>
+                    <DialogActions>
+                      <Button
+                        variant="plain"
+                        onClick={() => handleCloseAuthModal(provider.id)}
+                      >
+                        {authAuthenticated[provider.id] ? 'Close' : 'Cancel'}
                       </Button>
                     </DialogActions>
                   </ModalDialog>

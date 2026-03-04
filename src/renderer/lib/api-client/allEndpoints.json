@@ -392,6 +392,14 @@
       "method": "DELETE",
       "path": "compute_provider/user-settings/{providerId}/ssh-key"
     },
+    "slurm-auth-start": {
+      "method": "POST",
+      "path": "compute_provider/user-settings/{providerId}/slurm-auth/start"
+    },
+    "slurm-auth-ws": {
+      "method": "WS",
+      "path": "compute_provider/user-settings/{providerId}/slurm-auth/ws/{sessionId}"
+    },
     "downloadSshKey": {
       "method": "GET",
       "path": "ssh-key/download"
