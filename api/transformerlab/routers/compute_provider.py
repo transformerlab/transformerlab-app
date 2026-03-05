@@ -1859,8 +1859,8 @@ async def check_provider_job_status(
             "launch_progress": launch_progress,
         }
 
-    # Only check provider status for jobs in LAUNCHING state
-    if job_status != "LAUNCHING":
+    # Only check provider status for jobs that are still launching or running
+    if job_status not in ("LAUNCHING", "RUNNING"):
         return {
             "status": "success",
             "job_id": job_id,

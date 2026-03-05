@@ -25,6 +25,18 @@ async def _set_live_status_async(job_id: str, status: str) -> None:
         return
 
 
+async def _set_status_async(job_id: str, status: str) -> None:
+    """Async helper to set the high-level job status."""
+    try:
+        job = await Job.get(job_id)
+        if job is None:
+            return
+        await job.update_status(status)
+    except Exception:
+        # This helper should never cause the wrapped command to fail.
+        return
+
+
 def _set_live_status(status: str) -> None:
     """Set live_status on the current remote job, if _TFL_JOB_ID is available."""
     job_id = os.environ.get("_TFL_JOB_ID")
@@ -43,6 +55,26 @@ def _set_live_status(status: str) -> None:
                 loop.create_task(_set_live_status_async(job_id, status))
             else:
                 loop.run_until_complete(_set_live_status_async(job_id, status))
+        except Exception:
+            return
+
+
+def _set_status(status: str) -> None:
+    """Set high-level job status for the current remote job, if _TFL_JOB_ID is available."""
+    job_id = os.environ.get("_TFL_JOB_ID")
+    if not job_id:
+        return
+
+    try:
+        asyncio.run(_set_status_async(job_id, status))
+    except RuntimeError:
+        # Fallback in case an event loop already exists.
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(_set_status_async(job_id, status))
+            else:
+                loop.run_until_complete(_set_status_async(job_id, status))
         except Exception:
             return
 
@@ -124,6 +156,7 @@ def main(argv: List[str] | None = None) -> int:
 
     # Mark job as started.
     _set_live_status("started")
+    _set_status("RUNNING")
 
     # Run the original command in the shell so it behaves exactly as submitted.
     # Stream output line-by-line to avoid buffering large logs in memory (training

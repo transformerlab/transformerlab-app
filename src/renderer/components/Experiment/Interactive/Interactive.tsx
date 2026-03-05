@@ -761,6 +761,7 @@ export default function Interactive() {
           onQueueTask={handleQueue}
           onEditTask={handleEditTask}
           loading={templatesIsLoading || !experimentInfo?.id}
+          interactTasks
         />
       </Sheet>
     </Sheet>
