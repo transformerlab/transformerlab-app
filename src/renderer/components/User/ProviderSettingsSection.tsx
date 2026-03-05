@@ -224,9 +224,9 @@ export default function ProviderSettingsSection() {
   if (slurmProviders.length === 0) {
     return (
       <Box mt={4}>
-        <Typography level="title-lg">Provider Settings</Typography>
+        <Typography level="title-lg">Compute Provider Settings</Typography>
         <Typography level="body-md" color="neutral" mt={1}>
-          No SLURM providers configured for your team.
+          No SLURM compute providers configured for your team.
         </Typography>
       </Box>
     );
@@ -235,11 +235,11 @@ export default function ProviderSettingsSection() {
   return (
     <Box mt={4}>
       <Typography level="title-lg" mb={2}>
-        Provider Settings
+        Compute Provider Settings
       </Typography>
       <Typography level="body-sm" color="neutral" mb={2}>
-        Configure your personal settings for SLURM providers. These settings are
-        specific to your account.
+        Configure your personal settings for SLURM compute providers. These
+        settings are specific to your account.
       </Typography>
 
       <Stack gap={2}>
