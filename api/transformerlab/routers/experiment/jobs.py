@@ -457,9 +457,7 @@ async def get_tunnel_info_for_job(
         if getattr(provider, "type", None) == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
             job_dir = get_local_provider_job_dir(job_id, org_id=user_and_team["team_id"])
             provider_instance.extra_config["workspace_dir"] = job_dir
-            print(f"[tunnel_info] Job {job_id}: local provider, job_dir={job_dir}")
 
-        print(f"[tunnel_info] Job {job_id}: fetching logs (provider_job_id={provider_job_id}, tail_lines={tail_lines})")
         try:
             if provider.type == ProviderType.RUNPOD.value:
                 raw_logs = await fetch_runpod_provider_logs(
@@ -492,13 +490,7 @@ async def get_tunnel_info_for_job(
             except TypeError:
                 logs_text = str(raw_logs)
 
-        log_length = len(logs_text)
-        log_line_count = logs_text.count("\n")
-        print(f"[tunnel_info] Job {job_id}: got {log_length} chars / {log_line_count} lines of logs")
-
         tunnel_info = get_tunnel_info(logs_text, interactive_type)
-        is_ready = tunnel_info.get("is_ready")
-        print(f"[tunnel_info] Job {job_id}: parsed tunnel_info is_ready={is_ready}, keys={list(tunnel_info.keys())}")
 
         # If parsing the logs found a ready service, cache the tunnel info in job_data
         # so it survives log rotation / truncation and can be reused without log fetches.
@@ -508,9 +500,6 @@ async def get_tunnel_info_for_job(
             )
             await job_service.job_update_job_data_insert_key_value(
                 job_id, "tunnel_info_urls", tunnel_info, experimentId
-            )
-            print(
-                f"[tunnel_info] Job {job_id}: cached tunnel_info to job_data under cached_tunnel_info and tunnel_info_urls"
             )
         else:
             print(f"[tunnel_info] Job {job_id}: no URLs found in logs and no cache available")
