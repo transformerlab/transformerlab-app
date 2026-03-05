@@ -13,6 +13,13 @@ ACTIVE_SWEEP_PARENT_STATUSES = {"RUNNING", "LAUNCHING"}
 RUNNING_CHILD_STATUSES = {"RUNNING", "LAUNCHING"}
 SWEEP_STATUS_INTERVAL_SECONDS = int(os.getenv("SWEEP_STATUS_INTERVAL_SECONDS", "30"))
 
+# Cap concurrent S3 reads when fetching child jobs within a single sweep refresh.
+# Without a bound, a large sweep fires N simultaneous requests, which can spike
+# memory and approach S3 per-prefix rate limits (~5,500 GET/s).  Ten concurrent
+# reads already gives most of the latency win over purely serial fetches.
+_CHILD_FETCH_CONCURRENCY = 10
+_child_fetch_semaphore = asyncio.Semaphore(_CHILD_FETCH_CONCURRENCY)
+
 _sweep_status_worker_task: Optional[asyncio.Task] = None
 
 
@@ -109,6 +116,11 @@ async def apply_parent_sweep_updates(
     return await job_service.job_get(job_id)
 
 
+async def _fetch_child_job(child_job_id: str) -> Optional[Dict[str, Any]]:
+    async with _child_fetch_semaphore:
+        return await job_service.job_get(child_job_id)
+
+
 async def refresh_sweep_parent(job: Dict[str, Any], experiment_id: str) -> Optional[Dict[str, Any]]:
     if job.get("type") != "SWEEP":
         return None
@@ -118,12 +130,14 @@ async def refresh_sweep_parent(job: Dict[str, Any], experiment_id: str) -> Optio
         return None
 
     sweep_job_ids = job_data.get("sweep_job_ids", [])
-    child_jobs: List[Dict[str, Any]] = []
 
-    for child_job_id in sweep_job_ids:
-        child_job = await job_service.job_get(str(child_job_id))
-        if child_job:
-            child_jobs.append(child_job)
+    # Fetch all child jobs concurrently instead of serially.  return_exceptions=True
+    # means one failed fetch doesn't abort the rest; non-dict results are filtered out.
+    results = await asyncio.gather(
+        *[_fetch_child_job(str(cid)) for cid in sweep_job_ids],
+        return_exceptions=True,
+    )
+    child_jobs: List[Dict[str, Any]] = [r for r in results if isinstance(r, dict)]
 
     counts = compute_parent_sweep_counts(job, child_jobs)
     job_id = str(job.get("id", ""))
