@@ -53,17 +53,20 @@ async def enqueue_local_launch(
         initial_status=initial_status,
     )
     await _local_launch_queue.put(item)
+    print(f"[local_provider_queue] Enqueued job {job_id} (cluster={cluster_name}, status={initial_status})")
 
     if not _worker_started:
         # Lazily start a single background worker
         asyncio.create_task(_local_launch_worker())
         _worker_started = True
+        print("[local_provider_queue] Background worker started")
 
 
 async def _local_launch_worker() -> None:
     """Background worker that serializes local provider launches."""
     while True:
         item = await _local_launch_queue.get()
+        print(f"[local_provider_queue] Picked up job {item.job_id} from queue (cluster={item.cluster_name})")
         try:
             # Use a dedicated DB session inside the worker
             async with async_session() as session:
@@ -80,6 +83,7 @@ async def _local_launch_worker() -> None:
                     )
                     provider = await get_provider_by_id(session, item.provider_id)
                     if not provider:
+                        print(f"[local_provider_queue] Provider {item.provider_id} not found, job {item.job_id} FAILED")
                         await job_service.job_update_status(
                             item.job_id,
                             "FAILED",
@@ -95,6 +99,7 @@ async def _local_launch_worker() -> None:
                     provider_instance = await get_provider_instance(provider)
 
                     # Transition from WAITING -> initial_status (LAUNCHING / INTERACTIVE)
+                    print(f"[local_provider_queue] Job {item.job_id}: transitioning to {item.initial_status}")
                     await job_service.job_update_status(
                         item.job_id,
                         item.initial_status,
@@ -111,6 +116,7 @@ async def _local_launch_worker() -> None:
                         message="Starting local cluster",
                     )
 
+                    print(f"[local_provider_queue] Job {item.job_id}: launching cluster {item.cluster_name}")
                     loop = asyncio.get_running_loop()
                     try:
                         # Ensure only one local launch runs at a time
@@ -120,6 +126,7 @@ async def _local_launch_worker() -> None:
                                 lambda: provider_instance.launch_cluster(item.cluster_name, item.cluster_config),
                             )
                     except Exception as exc:  # noqa: BLE001
+                        print(f"[local_provider_queue] Job {item.job_id}: launch_cluster failed: {exc}")
                         # Release quota hold and mark job failed
                         if item.quota_hold_id:
                             await quota_service.release_quota_hold(session, hold_id=item.quota_hold_id)
@@ -135,6 +142,7 @@ async def _local_launch_worker() -> None:
                         await session.commit()
                         continue
 
+                    print(f"[local_provider_queue] Job {item.job_id}: cluster started successfully — {launch_result}")
                     # On success, we keep the job in LAUNCHING/INTERACTIVE; status checks will
                     # complete it when the local process exits.
                     await job_service.job_update_launch_progress(
