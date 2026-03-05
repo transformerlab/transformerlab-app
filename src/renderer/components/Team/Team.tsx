@@ -122,7 +122,9 @@ export default function UserLoginTest(): JSX.Element {
 
   const currentTeam = authContext.team;
   const usernameForPersonal =
-    authContext.user?.first_name || authContext.user?.email?.split('@')[0] || '';
+    authContext.user?.first_name ||
+    authContext.user?.email?.split('@')[0] ||
+    '';
   const isPersonalTeam =
     currentTeam && usernameForPersonal
       ? currentTeam.name === `${usernameForPersonal}'s Team`
@@ -138,9 +140,12 @@ export default function UserLoginTest(): JSX.Element {
     if (!confirmed) return;
 
     try {
-      const res = await authContext.fetchWithAuth(`teams/${currentTeam.id}/members/me`, {
-        method: 'DELETE',
-      });
+      const res = await authContext.fetchWithAuth(
+        `teams/${currentTeam.id}/members/me`,
+        {
+          method: 'DELETE',
+        },
+      );
 
       if (!res.ok) {
         let bodyText: string;

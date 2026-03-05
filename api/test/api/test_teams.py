@@ -590,9 +590,7 @@ def test_owner_leaving_with_other_owner_keeps_team_owner(
     member_id = member_data["user_id"]
 
     role_data = {"role": "owner"}
-    resp = client.put(
-        f"/teams/{test_team['id']}/members/{member_id}/role", json=role_data, headers=headers_owner
-    )
+    resp = client.put(f"/teams/{test_team['id']}/members/{member_id}/role", json=role_data, headers=headers_owner)
     assert resp.status_code == 200
 
     # Now leave as the original owner
@@ -608,9 +606,7 @@ def test_owner_leaving_with_other_owner_keeps_team_owner(
     assert any(m["email"] == member_user["email"] and m["role"] == "owner" for m in members_after)
 
 
-def test_owner_leaving_as_last_owner_promotes_member(
-    client, owner_user, member_user, test_team, member_in_test_team
-):
+def test_owner_leaving_as_last_owner_promotes_member(client, owner_user, member_user, test_team, member_in_test_team):
     """Test that when the last owner leaves but there are members, one member is promoted to owner."""
     assert member_in_test_team
 
