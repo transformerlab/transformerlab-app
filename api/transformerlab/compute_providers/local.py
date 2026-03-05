@@ -276,6 +276,7 @@ class LocalProvider(ComputeProvider):
         env.update(config.env_vars or {})
         env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
         env["HOME"] = str(workspace_home)
+        env["UV_CACHE_DIR"] = os.path.join(HOME_DIR, "uv_cache")
 
         # Open log files early so setup output is visible to get_job_logs / tunnel_info
         # while packages are still being installed.
