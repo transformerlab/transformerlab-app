@@ -511,7 +511,6 @@ async def leave_team(
         raise HTTPException(status_code=400, detail="Cannot leave personal team")
 
     # If the user is not an owner, simply remove their membership.
-    print(f"user_and_team['role']: {user_and_team['role']}")
     if user_and_team["role"] != TeamRole.OWNER.value:
         stmt = delete(UserTeam).where(UserTeam.user_id == str(user.id), UserTeam.team_id == team_id)
         await session.execute(stmt)
@@ -526,7 +525,6 @@ async def leave_team(
     )
     result = await session.execute(stmt)
     owner_count = result.scalar()
-    print(f"owner_count: {owner_count}")
 
     # If there are other owners, it's safe to leave without any promotion.
     if owner_count > 1:
@@ -541,7 +539,6 @@ async def leave_team(
     )
     result = await session.execute(stmt)
     next_member = result.scalars().first()
-    print(f"next_member: {next_member}")
 
     if next_member:
         # Promote the selected member to owner, then remove the current owner.
@@ -559,7 +556,6 @@ async def leave_team(
 
     # No other members exist; remove this final membership, leaving the team
     # unreachable from the UI but preserving the Team row and workspace
-    print(f"Deleting user team for user {user.id} and team {team_id}")
     stmt = delete(UserTeam).where(UserTeam.user_id == str(user.id), UserTeam.team_id == team_id)
     await session.execute(stmt)
     await session.commit()
