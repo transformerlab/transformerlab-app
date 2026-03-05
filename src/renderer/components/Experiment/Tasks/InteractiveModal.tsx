@@ -322,9 +322,7 @@ function TextBlock({
   block: InstructionBlock;
   values: Record<string, string>;
 }) {
-  const content = block.template
-    ? resolveTemplate(block.template, values)
-    : '';
+  const content = block.template ? resolveTemplate(block.template, values) : '';
   if (!content) return null;
 
   return (
@@ -417,9 +415,7 @@ function InstructionsContent({
 
       {instructions.map((block, i) => (
         <React.Fragment key={i}>
-          {i > 0 && block.kind !== 'text' && block.kind !== 'kv' && (
-            <Divider />
-          )}
+          {i > 0 && block.kind !== 'text' && block.kind !== 'kv' && <Divider />}
           <InstructionRenderer block={block} values={values} />
         </React.Fragment>
       ))}

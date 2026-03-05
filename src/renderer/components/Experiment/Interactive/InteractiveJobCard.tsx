@@ -101,8 +101,6 @@ function getTypeConfig(interactiveType: string) {
   return INTERACTIVE_TYPE_CONFIG[interactiveType] || DEFAULT_TYPE_CONFIG;
 }
 
-
-
 export default function InteractiveJobCard({
   job,
   onDeleteJob,
