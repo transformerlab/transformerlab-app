@@ -1010,7 +1010,7 @@ export default function QueueTaskModal({
             <Stack spacing={2}>
               <Typography level="title-sm">Run Settings</Typography>
               <FormControl required>
-                <FormLabel>Provider</FormLabel>
+                <FormLabel>Compute Provider</FormLabel>
                 <Select
                   placeholder={
                     providers.length

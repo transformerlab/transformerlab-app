@@ -87,8 +87,8 @@ export default function LocalMachineSummary({
   if (!server) {
     return (
       <Typography level="body-sm" sx={{ color: 'danger.plainColor' }}>
-        Your local provider was not setup correctly. Please re-add your local
-        provider
+        Your local compute provider was not setup correctly. Please re-add your
+        local compute provider
       </Typography>
     );
   }
