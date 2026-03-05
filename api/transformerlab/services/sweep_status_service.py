@@ -170,7 +170,9 @@ async def refresh_active_sweeps_once() -> Dict[str, int]:
                         experiment_id=experiment_id, type="SWEEP", status=""
                     )
                 except Exception as exc:
-                    logger.warning("Sweep status worker: failed listing sweep jobs for experiment %s: %s", experiment_id, exc)
+                    logger.warning(
+                        "Sweep status worker: failed listing sweep jobs for experiment %s: %s", experiment_id, exc
+                    )
                     cycle_stats["errors"] += 1
                     continue
 
