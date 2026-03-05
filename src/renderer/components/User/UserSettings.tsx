@@ -228,7 +228,7 @@ export default function UserSettings(): JSX.Element {
               )}
             </Stack>
           </Tab>
-          <Tab>Provider Settings</Tab>
+          <Tab>Compute Provider Settings</Tab>
           <Tab>Quota</Tab>
         </TabList>
 
