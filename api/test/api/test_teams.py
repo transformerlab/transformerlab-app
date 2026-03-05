@@ -522,24 +522,140 @@ def test_member_cannot_delete_team(client, member_user, test_team, member_in_tes
     assert "owner" in detail or "not a member" in detail
 
 
-def test_cannot_delete_team_with_multiple_users(client, owner_user, member_user, test_team, member_in_test_team):
-    """Test that a team with multiple users cannot be deleted"""
+def test_delete_team_with_multiple_users_removes_all_memberships(
+    client, owner_user, member_user, test_team, member_in_test_team
+):
+    """Test that deleting a team with multiple users removes all memberships but keeps the team record."""
     # Ensure member was added successfully
     assert member_in_test_team
 
-    headers = {"Authorization": f"Bearer {owner_user['token']}", "X-Team-Id": test_team["id"]}
-
     # Verify team has multiple members before attempting delete
-    resp = client.get(f"/teams/{test_team['id']}/members", headers=headers)
+    headers_owner = {"Authorization": f"Bearer {owner_user['token']}", "X-Team-Id": test_team["id"]}
+    resp = client.get(f"/teams/{test_team['id']}/members", headers=headers_owner)
     assert resp.status_code == 200
     members = resp.json()["members"]
     assert len(members) >= 2, f"Team should have at least 2 members, but has {len(members)}"
 
-    # Now try to delete - should fail
-    resp = client.delete(f"/teams/{test_team['id']}", headers=headers)
+    # Delete the team as owner - this should remove all memberships
+    resp = client.delete(f"/teams/{test_team['id']}", headers=headers_owner)
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Team deleted"
 
-    assert resp.status_code == 400
-    assert "multiple users" in resp.json()["detail"].lower()
+    # Owner should no longer see this team in their team list
+    headers_owner_no_team = {"Authorization": f"Bearer {owner_user['token']}"}
+    resp = client.get("/users/me/teams", headers=headers_owner_no_team)
+    assert resp.status_code == 200
+    owner_teams = resp.json()["teams"]
+    assert all(t["id"] != test_team["id"] for t in owner_teams)
+
+    # Member should also no longer see this team
+    headers_member = {"Authorization": f"Bearer {member_user['token']}"}
+    resp = client.get("/users/me/teams", headers=headers_member)
+    assert resp.status_code == 200
+    member_teams = resp.json()["teams"]
+    assert all(t["id"] != test_team["id"] for t in member_teams)
+
+
+def test_member_can_leave_team(client, member_user, test_team, member_in_test_team):
+    """Test that a member can leave a non-personal team."""
+    assert member_in_test_team
+
+    # Leave the team as the member
+    headers_member = {"Authorization": f"Bearer {member_user['token']}", "X-Team-Id": test_team["id"]}
+    resp = client.delete(f"/teams/{test_team['id']}/members/me", headers=headers_member)
+
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Left team"
+
+    # Verify member is no longer in the team's members list
+    # Reuse member headers to confirm they no longer have access to members endpoint
+    resp = client.get(f"/teams/{test_team['id']}/members", headers=headers_member)
+    assert resp.status_code in (400, 403)
+
+
+def test_owner_leaving_with_other_owner_keeps_team_owner(
+    client, owner_user, member_user, test_team, member_in_test_team
+):
+    """Test that when an owner leaves and there is another owner, the team still has an owner."""
+    assert member_in_test_team
+
+    headers_owner = {"Authorization": f"Bearer {owner_user['token']}", "X-Team-Id": test_team["id"]}
+
+    # Promote member to owner so we have two owners
+    resp = client.get(f"/teams/{test_team['id']}/members", headers=headers_owner)
+    assert resp.status_code == 200
+    members = resp.json()["members"]
+    member_data = next((m for m in members if m["email"] == member_user["email"]), None)
+    assert member_data is not None
+    member_id = member_data["user_id"]
+
+    role_data = {"role": "owner"}
+    resp = client.put(
+        f"/teams/{test_team['id']}/members/{member_id}/role", json=role_data, headers=headers_owner
+    )
+    assert resp.status_code == 200
+
+    # Now leave as the original owner
+    resp = client.delete(f"/teams/{test_team['id']}/members/me", headers=headers_owner)
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Left team"
+
+    # Confirm that the remaining member is still an owner
+    headers_member = {"Authorization": f"Bearer {member_user['token']}", "X-Team-Id": test_team["id"]}
+    resp = client.get(f"/teams/{test_team['id']}/members", headers=headers_member)
+    assert resp.status_code == 200
+    members_after = resp.json()["members"]
+    assert any(m["email"] == member_user["email"] and m["role"] == "owner" for m in members_after)
+
+
+def test_owner_leaving_as_last_owner_promotes_member(
+    client, owner_user, member_user, test_team, member_in_test_team
+):
+    """Test that when the last owner leaves but there are members, one member is promoted to owner."""
+    assert member_in_test_team
+
+    # Ensure member is currently a regular member
+    headers_owner = {"Authorization": f"Bearer {owner_user['token']}", "X-Team-Id": test_team["id"]}
+    resp = client.get(f"/teams/{test_team['id']}/members", headers=headers_owner)
+    assert resp.status_code == 200
+    members = resp.json()["members"]
+    member_data = next((m for m in members if m["email"] == member_user["email"]), None)
+    assert member_data is not None
+    assert member_data["role"] == "member"
+
+    # Leave as the (only) owner
+    resp = client.delete(f"/teams/{test_team['id']}/members/me", headers=headers_owner)
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Left team"
+
+    # After leaving, the remaining user (former member) should now be owner
+    headers_member = {"Authorization": f"Bearer {member_user['token']}", "X-Team-Id": test_team["id"]}
+    resp = client.get(f"/teams/{test_team['id']}/members", headers=headers_member)
+    assert resp.status_code == 200
+    members_after = resp.json()["members"]
+    assert any(m["email"] == member_user["email"] and m["role"] == "owner" for m in members_after)
+
+
+def test_owner_leaving_as_only_member_makes_team_unreachable(client, owner_user):
+    """Test that when an owner leaves a team with no other members, the team becomes unreachable but is not deleted."""
+    # Create a standalone team
+    headers_owner = {"Authorization": f"Bearer {owner_user['token']}"}
+    team_data = {"name": "Solo Owner Team"}
+    resp = client.post("/teams", json=team_data, headers=headers_owner)
+    assert resp.status_code == 200
+    team = resp.json()
+
+    # Leave the team as the only member/owner
+    headers_owner_team = {"Authorization": f"Bearer {owner_user['token']}", "X-Team-Id": team["id"]}
+    resp = client.delete(f"/teams/{team['id']}/members/me", headers=headers_owner_team)
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Left team"
+
+    # The team should no longer appear in the user's team list
+    resp = client.get("/users/me/teams", headers=headers_owner)
+    assert resp.status_code == 200
+    teams = resp.json()["teams"]
+    assert all(t["id"] != team["id"] for t in teams)
 
 
 # ==================== Team Invitation Tests ====================
