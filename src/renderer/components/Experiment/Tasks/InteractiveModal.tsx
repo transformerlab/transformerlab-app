@@ -13,7 +13,7 @@ import {
   Stack,
   Typography,
 } from '@mui/joy';
-import { CopyIcon } from 'lucide-react';
+import { CopyIcon, ExternalLinkIcon } from 'lucide-react';
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -110,6 +110,7 @@ function UrlBlock({
               rel="noreferrer"
               level="title-md"
               sx={{ wordBreak: 'break-all', flex: 1, minWidth: 0 }}
+              endDecorator={<ExternalLinkIcon size={14} />}
             >
               {urlValue}
             </Link>
