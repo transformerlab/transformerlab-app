@@ -423,7 +423,7 @@ export default function NewInteractiveTaskModal({
         <ModalClose />
         <DialogTitle>
           {step === 'provider'
-            ? 'Select Provider'
+            ? 'Select Compute Provider'
             : step === 'gallery'
               ? 'New Interactive Task'
               : 'Configure Task'}
@@ -440,12 +440,12 @@ export default function NewInteractiveTaskModal({
                   next step.
                 </Typography>
                 <FormControl required>
-                  <FormLabel>Provider</FormLabel>
+                  <FormLabel>Compute Provider</FormLabel>
                   <Select
                     placeholder={
                       providers.length
-                        ? 'Select a provider'
-                        : 'No providers configured'
+                        ? 'Select a compute provider'
+                        : 'No compute providers configured'
                     }
                     value={selectedProviderId || null}
                     onChange={(_, value) => setSelectedProviderId(value || '')}
@@ -516,7 +516,7 @@ export default function NewInteractiveTaskModal({
                 </FormControl>
 
                 <FormControl>
-                  <FormLabel>Provider</FormLabel>
+                  <FormLabel>Compute Provider</FormLabel>
                   <Input
                     value={
                       selectedProvider?.name ||
