@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import time
 from typing import Any, Dict, List, Optional
@@ -8,6 +9,8 @@ from lab.dirs import set_organization_id as lab_set_org_id
 
 from transformerlab.services import job_service, team_service
 from transformerlab.shared.request_context import set_current_org_id
+
+logger = logging.getLogger(__name__)
 
 ACTIVE_SWEEP_PARENT_STATUSES = {"RUNNING", "LAUNCHING"}
 RUNNING_CHILD_STATUSES = {"RUNNING", "LAUNCHING"}
@@ -37,7 +40,7 @@ async def _list_all_org_ids() -> List[str]:
     try:
         return await team_service.get_all_team_ids()
     except Exception as exc:
-        print(f"Sweep status worker: failed listing orgs from DB: {exc}")
+        logger.warning("Sweep status worker: failed listing orgs from DB: %s", exc)
         return []
 
 
@@ -45,7 +48,7 @@ async def _list_experiment_ids_for_current_org() -> List[str]:
     try:
         experiments_data = await Experiment.get_all()
     except Exception as exc:
-        print(f"Sweep status worker: failed getting experiments: {exc}")
+        logger.warning("Sweep status worker: failed getting experiments: %s", exc)
         return []
 
     experiment_ids = [str(exp.get("id")) for exp in experiments_data if exp.get("id")]
@@ -167,7 +170,7 @@ async def refresh_active_sweeps_once() -> Dict[str, int]:
                         experiment_id=experiment_id, type="SWEEP", status=""
                     )
                 except Exception as exc:
-                    print(f"Sweep status worker: failed listing sweep jobs for experiment {experiment_id}: {exc}")
+                    logger.warning("Sweep status worker: failed listing sweep jobs for experiment %s: %s", experiment_id, exc)
                     cycle_stats["errors"] += 1
                     continue
 
@@ -181,8 +184,11 @@ async def refresh_active_sweeps_once() -> Dict[str, int]:
                         if updated:
                             cycle_stats["sweeps_refreshed"] += 1
                     except Exception as exc:
-                        print(
-                            f"Sweep status worker: failed refreshing sweep job {sweep_job.get('id')} in experiment {experiment_id}: {exc}"
+                        logger.warning(
+                            "Sweep status worker: failed refreshing sweep job %s in experiment %s: %s",
+                            sweep_job.get("id"),
+                            experiment_id,
+                            exc,
                         )
                         cycle_stats["errors"] += 1
         finally:
@@ -192,26 +198,30 @@ async def refresh_active_sweeps_once() -> Dict[str, int]:
 
 
 async def _sweep_status_worker_loop() -> None:
-    print("Sweep status worker: started")
+    logger.info("Sweep status worker: started")
     try:
         while True:
             try:
                 _cycle_start = time.monotonic()
                 cycle_stats = await refresh_active_sweeps_once()
                 _cycle_elapsed = time.monotonic() - _cycle_start
-                print(
-                    f"Sweep status worker: cycle done in {_cycle_elapsed:.3f}s — "
-                    f"orgs={cycle_stats['orgs']} experiments={cycle_stats['experiments']} "
-                    f"sweeps_seen={cycle_stats['sweeps_seen']} sweeps_refreshed={cycle_stats['sweeps_refreshed']} "
-                    f"errors={cycle_stats['errors']}"
+                logger.debug(
+                    "Sweep status worker: cycle done in %.3fs — "
+                    "orgs=%d experiments=%d sweeps_seen=%d sweeps_refreshed=%d errors=%d",
+                    _cycle_elapsed,
+                    cycle_stats["orgs"],
+                    cycle_stats["experiments"],
+                    cycle_stats["sweeps_seen"],
+                    cycle_stats["sweeps_refreshed"],
+                    cycle_stats["errors"],
                 )
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                print(f"Sweep status worker: unhandled error in cycle, continuing: {exc}")
+                logger.warning("Sweep status worker: unhandled error in cycle, continuing: %s", exc)
             await asyncio.sleep(SWEEP_STATUS_INTERVAL_SECONDS)
     except asyncio.CancelledError:
-        print("Sweep status worker: stopping")
+        logger.info("Sweep status worker: stopping")
         raise
     finally:
         _clear_org_context()
