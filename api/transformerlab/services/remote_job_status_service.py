@@ -218,7 +218,7 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
                         experiment_id=experiment_id, type="REMOTE", status=""
                     )
                 except Exception as exc:
-                    print(f"Remote job status worker: failed listing jobs for " f"experiment {experiment_id}: {exc}")
+                    print(f"Remote job status worker: failed listing jobs for experiment {experiment_id}: {exc}")
                     cycle_stats["errors"] += 1
                     continue
 
@@ -257,7 +257,7 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
                                 record = await get_provider_by_id(session, provider_id)
                             provider_record_cache[provider_id] = record
                         except Exception as exc:
-                            print(f"Remote job status worker: failed to fetch provider record " f"{provider_id}: {exc}")
+                            print(f"Remote job status worker: failed to fetch provider record {provider_id}: {exc}")
                             cycle_stats["errors"] += 1
                             continue
 
@@ -270,7 +270,7 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
                         try:
                             provider_instance_cache[provider_id] = await get_provider_instance(provider_record)
                         except Exception as exc:
-                            print(f"Remote job status worker: failed to instantiate provider " f"{provider_id}: {exc}")
+                            print(f"Remote job status worker: failed to instantiate provider {provider_id}: {exc}")
                             cycle_stats["errors"] += 1
                             continue
 
@@ -285,16 +285,11 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
                         if updated:
                             cycle_stats["jobs_updated"] += 1
                     except ConnectionError as exc:
-                        print(
-                            f"Remote job status worker: provider {provider_id} unreachable " f"for job {job_id}: {exc}"
-                        )
+                        print(f"Remote job status worker: provider {provider_id} unreachable for job {job_id}: {exc}")
                         _record_provider_failure(provider_id)
                         cycle_stats["errors"] += 1
                     except Exception as exc:
-                        print(
-                            f"Remote job status worker: error checking job {job_id} "
-                            f"on provider {provider_id}: {exc}"
-                        )
+                        print(f"Remote job status worker: error checking job {job_id} on provider {provider_id}: {exc}")
                         _record_provider_failure(provider_id)
                         cycle_stats["errors"] += 1
 
