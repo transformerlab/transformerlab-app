@@ -75,10 +75,11 @@ _TASK_COPY_EXCLUDE = {"index.json"}
 
 async def _copy_task_files_to_dir(task_src: str, dest_dir: str) -> None:
     """Copy task files from task_src into dest_dir, excluding internal metadata."""
-    await storage.makedirs(dest_dir, exist_ok=True)
     try:
+        await storage.makedirs(dest_dir, exist_ok=True)
         entries = await storage.ls(task_src, detail=False)
     except Exception:
+        logger.warning("Failed to prepare task file copy from %s to %s, skipping", task_src, dest_dir, exc_info=True)
         return
     for entry in entries:
         name = entry.rstrip("/").rsplit("/", 1)[-1]
