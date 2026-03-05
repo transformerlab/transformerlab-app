@@ -241,7 +241,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       : null,
     fetcher,
     {
-      refreshInterval: 3000,
+      refreshInterval: 10000,
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
       refreshWhenHidden: true,
@@ -308,8 +308,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         return false;
       }
 
-      // Always check LAUNCHING and WAITING jobs (for launch progress)
-      if (job.status === 'LAUNCHING' || job.status === 'WAITING') {
+      // Always check LAUNCHING, RUNNING, and WAITING jobs (for launch progress and live status)
+      if (
+        job.status === 'LAUNCHING' ||
+        job.status === 'RUNNING' ||
+        job.status === 'WAITING'
+      ) {
         return true;
       }
 
@@ -356,11 +360,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
     };
 
-    // Check immediately and then every 2s when there are LAUNCHING/WAITING jobs (for progress), else 10s
-    const hasLaunching = jobsToCheck.some(
-      (j: any) => j.status === 'LAUNCHING' || j.status === 'WAITING',
+    // Check immediately and then every 2s when there are active jobs (LAUNCHING/RUNNING/WAITING),
+    // else every 10s (mainly for recent COMPLETE jobs to ensure quota is recorded).
+    const hasActiveRemoteJobs = jobsToCheck.some(
+      (j: any) =>
+        j.status === 'LAUNCHING' ||
+        j.status === 'RUNNING' ||
+        j.status === 'WAITING',
     );
-    const intervalMs = hasLaunching ? 2000 : 10000;
+    const intervalMs = hasActiveRemoteJobs ? 2000 : 10000;
     checkJobs();
     const interval = setInterval(checkJobs, intervalMs);
 

@@ -214,7 +214,7 @@ export default function UsageReport(): JSX.Element {
           <CardContent>
             <Stack direction="row" alignItems="center" gap={1} mb={1}>
               <ServerIcon size={20} />
-              <Typography level="title-md">Providers</Typography>
+              <Typography level="title-md">Compute Providers</Typography>
             </Stack>
             <Typography level="h2">
               {usageData.summary.total_providers}
@@ -290,7 +290,7 @@ export default function UsageReport(): JSX.Element {
       {providerChartData.length > 0 && (
         <Box mb={4}>
           <Typography level="title-lg" mb={2}>
-            Usage by Provider (Top 10)
+            Usage by Compute Provider (Top 10)
           </Typography>
           <Card variant="outlined">
             <Box sx={{ height: 400, width: '100%' }}>
@@ -309,7 +309,7 @@ export default function UsageReport(): JSX.Element {
                   tickSize: 5,
                   tickPadding: 5,
                   tickRotation: -45,
-                  legend: 'Provider',
+                  legend: 'Compute Provider',
                   legendPosition: 'middle',
                   legendOffset: 80,
                 }}
@@ -341,7 +341,7 @@ export default function UsageReport(): JSX.Element {
                   },
                 ]}
                 role="application"
-                ariaLabel="Usage by provider chart"
+                ariaLabel="Usage by compute provider chart"
                 barAriaLabel={(e) => `${e.id}: ${e.formattedValue} minutes`}
               />
             </Box>
@@ -451,12 +451,12 @@ export default function UsageReport(): JSX.Element {
       {/* Detailed Table by Provider */}
       <Box mb={4}>
         <Typography level="title-lg" mb={2}>
-          Detailed Usage by Provider
+          Detailed Usage by Compute Provider
         </Typography>
         <Table variant="soft" sx={{ mb: 2 }}>
           <thead>
             <tr>
-              <th>Provider</th>
+              <th>Compute Provider</th>
               <th>Type</th>
               <th>Total Jobs</th>
               <th>Total Duration</th>

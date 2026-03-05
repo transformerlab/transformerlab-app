@@ -235,7 +235,7 @@ export default function EmbeddableStreamingOutput({
         {tabs.includes('output') && activeTab === 'output' ? (
           <Box
             sx={{
-              padding: 0,
+              padding: '8px 11px',
               backgroundColor: '#000',
               width: '100%',
               flex: 1,

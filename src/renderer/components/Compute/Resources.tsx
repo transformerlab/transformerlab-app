@@ -212,7 +212,7 @@ const Resources = () => {
         </Button>
       </Stack>
       <FormControl sx={{ mb: 3, maxWidth: 400 }}>
-        <FormLabel>Select Provider</FormLabel>
+        <FormLabel>Select Compute Provider</FormLabel>
         <Select
           value={selectedProvider}
           onChange={(event, newValue) => setSelectedProvider(newValue || '')}

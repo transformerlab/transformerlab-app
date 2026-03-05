@@ -15,15 +15,15 @@ from transformerlab.compute_providers.local import _check_amd_gpu, _check_nvidia
 from transformerlab.shared.models.models import AcceleratorType, ProviderType, Team, TeamComputeProvider, User, UserTeam
 
 
-def _get_local_provider_setup() -> str:
+def _local_providers_disabled() -> bool:
     """
-    Return TFL_LOCAL_PROVIDER_SETUP mode: "auto" | "disabled" | "manual".
+    Return True when local providers are globally disabled.
 
-    - auto: auto-create a default local provider on team creation/seed; manual add allowed.
-    - disabled: no local provider creation (auto or manual).
-    - manual (default): manual add allowed; auto-add disabled.
+    Controlled by DISABLE_LOCAL_PROVIDERS env var:
+    - "true" (case-insensitive): no local provider creation (automatic or manual).
+    - any other value (including unset): local providers are enabled.
     """
-    return os.getenv("TFL_LOCAL_PROVIDER_SETUP", "manual").lower().strip()
+    return os.getenv("DISABLE_LOCAL_PROVIDERS", "").lower().strip() == "true"
 
 
 async def validate_team_exists(session: AsyncSession, team_id: str) -> None:
@@ -340,7 +340,7 @@ async def create_team_provider(
         await validate_provider_data(session, team_id, created_by_user_id, validate_membership=True)
 
     # Respect global disable flag for local providers
-    if provider_type == ProviderType.LOCAL.value and _get_local_provider_setup() == "disabled":
+    if provider_type == ProviderType.LOCAL.value and _local_providers_disabled():
         raise HTTPException(status_code=400, detail="Local providers are disabled by server configuration.")
 
     provider = TeamComputeProvider(
@@ -358,7 +358,7 @@ async def create_team_provider(
     return provider
 
 
-async def ensure_default_local_provider_for_team(
+async def initialize_team_local_provider(
     session: AsyncSession,
     team_id: str,
     created_by_user_id: str,
@@ -377,13 +377,10 @@ async def ensure_default_local_provider_for_team(
         provider_name: Name for the local provider (default: "Local")
 
     Returns:
-        The created TeamComputeProvider record, or None if one already existed or auto-creation is disabled.
+        The created TeamComputeProvider record, or None if one already existed or local providers are disabled.
     """
-    # Respect global setup: disabled = no local providers; manual = no auto-create
-    setup = _get_local_provider_setup()
-    if setup == "disabled":
-        return None
-    if setup != "auto":
+    # Respect global setup: disabled = no local providers at all.
+    if _local_providers_disabled():
         return None
 
     # Check for existing local provider with the same name
