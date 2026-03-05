@@ -117,6 +117,17 @@ class Lab:
         # Update status to RUNNING for both cases
         _run_async(self._job.update_status("RUNNING"))
 
+        # Best-effort marker so UIs can distinguish jobs where lab has been
+        # explicitly initialized. This reuses the existing live_status field
+        # that remote_trap also writes to (started/finished/crashed). Depending
+        # on ordering, live_status may briefly be "lab_init" before or after
+        # "started" is set by tfl-remote-trap.
+        try:
+            _run_async(self._job.update_job_data_field("live_status", "lab_init"))
+        except Exception:
+            # Never let status marker failures break user code.
+            logger.debug("Failed to set live_status=lab_init on job", exc_info=True)
+
         # Check for wandb integration and capture URL if available
         self._detect_and_capture_wandb_url()
 
