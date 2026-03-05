@@ -58,7 +58,7 @@
       }
     ],
     "icon": "https://lab.cloud/img/icons/jupyter.png",
-    "supported_accelerators": ["cpu", "NVIDIA", "AMD"],
+    "supported_accelerators": ["cpu", "NVIDIA", "AMD", "AppleSilicon"],
     "logic": {
       "core": "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password='' --notebook-dir=~ > /tmp/jupyter.log 2>&1 & sleep 3",
       "tunnel": "command -v ngrok >/dev/null 2>&1 || (curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | $SUDO tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null && echo \"deb https://ngrok-agent.s3.amazonaws.com bookworm main\" | $SUDO tee /etc/apt/sources.list.d/ngrok.list && $SUDO apt-get update && $SUDO apt-get install -y ngrok); ngrok config add-authtoken $NGROK_AUTH_TOKEN; ngrok http 8888 --log=stdout 2>&1 | tee /tmp/ngrok.log",
@@ -66,9 +66,7 @@
     },
 
     "_comment_ports": "Jupyter Lab listens on port 8888. The ngrok tunnel exposes this port externally.",
-    "ports": [
-      { "port": 8888, "label": "Jupyter Lab", "protocol": "http" }
-    ],
+    "ports": [{ "port": 8888, "label": "Jupyter Lab", "protocol": "http" }],
 
     "modal_title": "Jupyter Notebook Interactive Session",
     "modal_subtitle": "Access your Jupyter notebook through the URL below.",
@@ -247,9 +245,7 @@
     "remoteOnly": true,
 
     "_comment_ports": "SSH runs on port 22, tunneled via ngrok TCP tunnel.",
-    "ports": [
-      { "port": 22, "label": "SSH", "protocol": "tcp" }
-    ],
+    "ports": [{ "port": 22, "label": "SSH", "protocol": "tcp" }],
 
     "modal_title": "SSH Tunnel Interactive Session",
     "modal_subtitle": "Access your remote machine via SSH through the ngrok tunnel.",
