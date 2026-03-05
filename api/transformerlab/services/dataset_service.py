@@ -32,8 +32,10 @@ async def load_local_dataset(dataset_dir, data_files=None, streaming=False):
     # For remote paths, try load_from_disk first (works better with datasets saved via save_to_disk)
     if is_remote:
         try:
-            # load_from_disk doesn't support streaming parameter
-            dataset = load_from_disk(dataset_dir, storage_options={"profile": "transformerlab-s3"})
+            # load_from_disk doesn't support streaming parameter. We rely on the
+            # underlying fsspec filesystem configuration (including any cloud
+            # credentials) instead of hard-coding provider-specific options.
+            dataset = load_from_disk(dataset_dir)
             # If streaming was requested, we can't use load_from_disk, so fall through
             if streaming:
                 raise ValueError("streaming not supported with load_from_disk")
