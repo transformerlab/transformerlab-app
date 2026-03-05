@@ -1,5 +1,6 @@
 """Router for managing team-scoped compute providers."""
 
+import logging
 import os
 import time
 import json
@@ -64,6 +65,8 @@ from transformerlab.shared.interactive_gallery_utils import (
 )
 from typing import Any
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
 
 
@@ -82,10 +85,13 @@ async def _copy_task_files_to_dir(task_src: str, dest_dir: str) -> None:
         if name in _TASK_COPY_EXCLUDE:
             continue
         dest_path = storage.join(dest_dir, name)
-        if await storage.isdir(entry):
-            await storage.copy_dir(entry, dest_path)
-        else:
-            await storage.copy_file(entry, dest_path)
+        try:
+            if await storage.isdir(entry):
+                await storage.copy_dir(entry, dest_path)
+            else:
+                await storage.copy_file(entry, dest_path)
+        except Exception:
+            logger.warning("Failed to copy task file %s to %s, skipping", entry, dest_path, exc_info=True)
 
 
 def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
