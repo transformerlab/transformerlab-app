@@ -246,11 +246,14 @@ export default function NewInteractiveTaskModal({
       return;
     }
     if (!selectedProviderId) {
-      // Don't auto-select first one, let user pick in the first step
+      // Auto-select the first provider by default for a smoother experience
+      setSelectedProviderId(providers[0].id);
       return;
     }
     if (!providers.find((p) => p.id === selectedProviderId)) {
-      setSelectedProviderId('');
+      // If the previously selected provider is no longer available,
+      // fall back to the first available provider.
+      setSelectedProviderId(providers[0].id);
     }
   }, [open, providers, selectedProviderId]);
 
