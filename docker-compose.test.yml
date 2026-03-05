@@ -3,6 +3,11 @@ services:
     build:
       context: .
       dockerfile: test/docker/Dockerfile
+    environment:
+      - TLAB_USE_LOCAL_GALLERIES=1
+      - TFL_LOCAL_PROVIDER_SETUP=auto
+      - TFL_STORAGE_PROVIDER=localfs
+      - TFL_STORAGE_URI=/root/tlab_local_workspace
     ports:
       - "8338:8338"
     healthcheck:

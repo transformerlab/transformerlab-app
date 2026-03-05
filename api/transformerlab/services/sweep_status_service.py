@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import time
 from typing import Any, Dict, List, Optional
@@ -9,9 +10,18 @@ from lab.dirs import set_organization_id as lab_set_org_id
 from transformerlab.services import job_service, team_service
 from transformerlab.shared.request_context import set_current_org_id
 
+logger = logging.getLogger(__name__)
+
 ACTIVE_SWEEP_PARENT_STATUSES = {"RUNNING", "LAUNCHING"}
 RUNNING_CHILD_STATUSES = {"RUNNING", "LAUNCHING"}
 SWEEP_STATUS_INTERVAL_SECONDS = int(os.getenv("SWEEP_STATUS_INTERVAL_SECONDS", "30"))
+
+# Cap concurrent S3 reads when fetching child jobs within a single sweep refresh.
+# Without a bound, a large sweep fires N simultaneous requests, which can spike
+# memory and approach S3 per-prefix rate limits (~5,500 GET/s).  Ten concurrent
+# reads already gives most of the latency win over purely serial fetches.
+_CHILD_FETCH_CONCURRENCY = 10
+_child_fetch_semaphore = asyncio.Semaphore(_CHILD_FETCH_CONCURRENCY)
 
 _sweep_status_worker_task: Optional[asyncio.Task] = None
 
@@ -30,7 +40,7 @@ async def _list_all_org_ids() -> List[str]:
     try:
         return await team_service.get_all_team_ids()
     except Exception as exc:
-        print(f"Sweep status worker: failed listing orgs from DB: {exc}")
+        logger.warning("Sweep status worker: failed listing orgs from DB: %s", exc)
         return []
 
 
@@ -38,7 +48,7 @@ async def _list_experiment_ids_for_current_org() -> List[str]:
     try:
         experiments_data = await Experiment.get_all()
     except Exception as exc:
-        print(f"Sweep status worker: failed getting experiments: {exc}")
+        logger.warning("Sweep status worker: failed getting experiments: %s", exc)
         return []
 
     experiment_ids = [str(exp.get("id")) for exp in experiments_data if exp.get("id")]
@@ -78,10 +88,10 @@ def compute_parent_sweep_counts(parent_job: Dict[str, Any], child_jobs: List[Dic
 
 
 async def apply_parent_sweep_updates(
-    job_id: str, experiment_id: str, counts: Dict[str, int]
+    job: Dict[str, Any], experiment_id: str, counts: Dict[str, int]
 ) -> Optional[Dict[str, Any]]:
-    job = await job_service.job_get(job_id)
-    if not job:
+    job_id = str(job.get("id", ""))
+    if not job_id:
         return None
 
     job_data = job.get("job_data", {}) or {}
@@ -106,7 +116,12 @@ async def apply_parent_sweep_updates(
         )
         await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
 
-    return await job_service.job_get(job_id)
+    return job  # caller only checks truthiness; avoids a redundant S3 re-fetch
+
+
+async def _fetch_child_job(child_job_id: str) -> Optional[Dict[str, Any]]:
+    async with _child_fetch_semaphore:
+        return await job_service.job_get(child_job_id)
 
 
 async def refresh_sweep_parent(job: Dict[str, Any], experiment_id: str) -> Optional[Dict[str, Any]]:
@@ -118,19 +133,17 @@ async def refresh_sweep_parent(job: Dict[str, Any], experiment_id: str) -> Optio
         return None
 
     sweep_job_ids = job_data.get("sweep_job_ids", [])
-    child_jobs: List[Dict[str, Any]] = []
 
-    for child_job_id in sweep_job_ids:
-        child_job = await job_service.job_get(str(child_job_id))
-        if child_job:
-            child_jobs.append(child_job)
+    # Fetch all child jobs concurrently instead of serially.  return_exceptions=True
+    # means one failed fetch doesn't abort the rest; non-dict results are filtered out.
+    results = await asyncio.gather(
+        *[_fetch_child_job(str(cid)) for cid in sweep_job_ids],
+        return_exceptions=True,
+    )
+    child_jobs: List[Dict[str, Any]] = [r for r in results if isinstance(r, dict)]
 
     counts = compute_parent_sweep_counts(job, child_jobs)
-    job_id = str(job.get("id", ""))
-    if not job_id:
-        return None
-
-    return await apply_parent_sweep_updates(job_id, experiment_id, counts)
+    return await apply_parent_sweep_updates(job, experiment_id, counts)
 
 
 async def refresh_active_sweeps_once() -> Dict[str, int]:
@@ -157,7 +170,9 @@ async def refresh_active_sweeps_once() -> Dict[str, int]:
                         experiment_id=experiment_id, type="SWEEP", status=""
                     )
                 except Exception as exc:
-                    print(f"Sweep status worker: failed listing sweep jobs for experiment {experiment_id}: {exc}")
+                    logger.warning(
+                        "Sweep status worker: failed listing sweep jobs for experiment %s: %s", experiment_id, exc
+                    )
                     cycle_stats["errors"] += 1
                     continue
 
@@ -171,8 +186,11 @@ async def refresh_active_sweeps_once() -> Dict[str, int]:
                         if updated:
                             cycle_stats["sweeps_refreshed"] += 1
                     except Exception as exc:
-                        print(
-                            f"Sweep status worker: failed refreshing sweep job {sweep_job.get('id')} in experiment {experiment_id}: {exc}"
+                        logger.warning(
+                            "Sweep status worker: failed refreshing sweep job %s in experiment %s: %s",
+                            sweep_job.get("id"),
+                            experiment_id,
+                            exc,
                         )
                         cycle_stats["errors"] += 1
         finally:
@@ -182,18 +200,30 @@ async def refresh_active_sweeps_once() -> Dict[str, int]:
 
 
 async def _sweep_status_worker_loop() -> None:
-    print("Sweep status worker: started")
+    logger.info("Sweep status worker: started")
     try:
         while True:
             try:
-                await refresh_active_sweeps_once()
+                _cycle_start = time.monotonic()
+                cycle_stats = await refresh_active_sweeps_once()
+                _cycle_elapsed = time.monotonic() - _cycle_start
+                logger.debug(
+                    "Sweep status worker: cycle done in %.3fs — "
+                    "orgs=%d experiments=%d sweeps_seen=%d sweeps_refreshed=%d errors=%d",
+                    _cycle_elapsed,
+                    cycle_stats["orgs"],
+                    cycle_stats["experiments"],
+                    cycle_stats["sweeps_seen"],
+                    cycle_stats["sweeps_refreshed"],
+                    cycle_stats["errors"],
+                )
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                print(f"Sweep status worker: unhandled error in cycle, continuing: {exc}")
+                logger.warning("Sweep status worker: unhandled error in cycle, continuing: %s", exc)
             await asyncio.sleep(SWEEP_STATUS_INTERVAL_SECONDS)
     except asyncio.CancelledError:
-        print("Sweep status worker: stopping")
+        logger.info("Sweep status worker: stopping")
         raise
     finally:
         _clear_org_context()
