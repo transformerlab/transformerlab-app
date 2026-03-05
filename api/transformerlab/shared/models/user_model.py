@@ -1,7 +1,6 @@
 # database.py
 from typing import AsyncGenerator, Optional
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi_users.db import SQLAlchemyUserDatabase
 from sqlalchemy.dialects.sqlite import insert
@@ -9,14 +8,9 @@ from fastapi import Depends
 from os import getenv
 import uuid
 
-from transformerlab.db.constants import DATABASE_URL
+from transformerlab.db.session import async_session as AsyncSessionLocal
 from transformerlab.shared.models.models import Team, User, OAuthAccount
 from transformerlab.shared.remote_workspace import create_bucket_for_team
-
-
-# 3. Setup the Async Engine and Session
-engine = create_async_engine(DATABASE_URL)
-AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
 # 5. Database session dependency
