@@ -147,11 +147,9 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
 
         # Read and return the file content as JSON array of lines
         if await storage.exists(output_file_name):
-            lines = []
             async with await storage.open(output_file_name, "r") as f:
-                async for line in f:
-                    lines.append(line.rstrip("\n"))  # Remove trailing newline
-            return lines
+                content = await f.read()
+            return content.splitlines()
         else:
             return ["Output file not found"]
 
@@ -164,11 +162,9 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
             try:
                 output_file_name = await shared.get_job_output_file_name(job_id)
                 if await storage.exists(output_file_name):
-                    lines = []
                     async with await storage.open(output_file_name, "r") as f:
-                        async for line in f:
-                            lines.append(line.rstrip("\n"))  # Remove trailing newline
-                    return lines
+                        content = await f.read()
+                    return content.splitlines()
                 else:
                     return ["Output file not found after retry"]
             except Exception as retry_e:

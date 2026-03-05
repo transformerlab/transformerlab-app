@@ -67,7 +67,7 @@
 The Chrome DevTools MCP is enabled. When requested, verify the result with the following steps:
 
 1. Run `npm run docker-test:up` to ensure the app is running.
-2. Use the browser tool to navigate to the page you just changed.
+2. Use the browser tool to navigate to the page you just changed. Remember that the app usually serves on port 8338
 3. If the app requires login, use the default credentials: **email:** `admin@example.com` / **password:** `admin123`.
 4. Explore related pages (e.g., if you changed the Header, also check the Dashboard and Login pages).
 5. Take screenshots and verify that no layouts are broken.
