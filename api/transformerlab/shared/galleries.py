@@ -275,6 +275,15 @@ async def update_cache_from_remote(gallery_filename: str):
 async def get_gallery_file(filename: str):
     # default empty gallery returned in case of failed gallery file open
     gallery = []
+
+    # When developing locally, prefer the in-repo gallery file over the cached copy.
+    if os.environ.get("TLAB_USE_LOCAL_GALLERIES", "").strip() in ("1", "true", "yes"):
+        local_path = os.path.join(dirs.GALLERIES_LOCAL_FALLBACK_DIR, filename)
+        if os.path.isfile(local_path):
+            with open(local_path, "r") as f:
+                gallery = json.load(f)
+            return gallery
+
     gallery_path = await gallery_cache_file_path(filename)
 
     # Check for the cached file. If it's not there then initialize.
