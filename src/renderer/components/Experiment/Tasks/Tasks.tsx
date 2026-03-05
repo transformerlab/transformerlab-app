@@ -3,8 +3,6 @@ import Sheet from '@mui/joy/Sheet';
 
 import { Button, LinearProgress, Skeleton, Stack, Typography } from '@mui/joy';
 
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import { PlusIcon, TerminalIcon } from 'lucide-react';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 
@@ -39,9 +37,9 @@ import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
 
 const duration = require('dayjs/plugin/duration');
+const dayjs = require('dayjs');
 
 dayjs.extend(duration);
-dayjs.extend(relativeTime);
 
 export default function Tasks({ subtype }: { subtype?: string }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -295,40 +293,24 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         return template.experiment_id === experimentInfo?.id;
       }) || [];
 
-  // Check each LAUNCHING and recently completed REMOTE job individually via provider endpoints
+  // Poll LAUNCHING/WAITING REMOTE jobs for live launch_progress and status transitions.
+  // Provider polling and status mutations are handled server-side by the
+  // remote_job_status_service background worker. This effect only reads current
+  // state, so each poll is a fast filesystem read with no provider latency risk.
   useEffect(() => {
     if (!jobs || !Array.isArray(jobs)) return;
 
-    const now = dayjs();
-    const RECENT_COMPLETION_WINDOW_MINUTES = 5; // Only check jobs completed within last 5 minutes
-
-    const jobsToCheck = jobs.filter((job: any) => {
-      // Must be REMOTE type with provider_id
-      if (job.type !== 'REMOTE' || !job.job_data?.provider_id) {
-        return false;
-      }
-
-      // Always check LAUNCHING and WAITING jobs (for launch progress)
-      if (job.status === 'LAUNCHING' || job.status === 'WAITING') {
-        return true;
-      }
-
-      // Only check COMPLETE jobs that finished recently (to ensure quota is recorded)
-      if (job.status === 'COMPLETE' && job.job_data?.end_time) {
-        const endTime = dayjs(job.job_data.end_time);
-        const minutesSinceCompletion = now.diff(endTime, 'minute', true);
-        return (
-          minutesSinceCompletion >= 0 &&
-          minutesSinceCompletion <= RECENT_COMPLETION_WINDOW_MINUTES
-        );
-      }
-
-      return false;
-    });
+    // Only poll jobs that are actively in-flight (LAUNCHING or WAITING).
+    // Quota recording and terminal-state transitions are handled by the background worker.
+    const jobsToCheck = jobs.filter(
+      (job: any) =>
+        job.type === 'REMOTE' &&
+        job.job_data?.provider_id &&
+        (job.status === 'LAUNCHING' || job.status === 'WAITING'),
+    );
 
     if (jobsToCheck.length === 0) return;
 
-    // Check each job individually
     const checkJobs = async () => {
       for (const job of jobsToCheck) {
         try {
@@ -338,8 +320,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           );
           if (response.ok) {
             const result = await response.json();
-            // If job was updated to COMPLETE, refresh jobs list
-            if (result.updated && result.new_status === 'COMPLETE') {
+            // If the background worker has transitioned the job to a terminal state,
+            // refresh the jobs list so the UI reflects the new status.
+            if (
+              result.current_status === 'COMPLETE' ||
+              result.current_status === 'FAILED' ||
+              result.current_status === 'STOPPED'
+            ) {
               setTimeout(() => jobsMutate(), 0);
             }
             if (result.launch_progress) {
@@ -356,13 +343,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
     };
 
-    // Check immediately and then every 2s when there are LAUNCHING/WAITING jobs (for progress), else 10s
-    const hasLaunching = jobsToCheck.some(
-      (j: any) => j.status === 'LAUNCHING' || j.status === 'WAITING',
-    );
-    const intervalMs = hasLaunching ? 2000 : 10000;
+    // Poll every 3s while jobs are in-flight.
     checkJobs();
-    const interval = setInterval(checkJobs, intervalMs);
+    const interval = setInterval(checkJobs, 3000);
 
     return () => clearInterval(interval);
   }, [jobs, fetchWithAuth, jobsMutate]);
