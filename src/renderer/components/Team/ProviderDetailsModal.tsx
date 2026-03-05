@@ -340,16 +340,16 @@ export default function ProviderDetailsModal({
           ) : (
             <>
               <FormControl sx={{ mt: 2 }}>
-                <FormLabel>Provider Name</FormLabel>
+                <FormLabel>Compute Provider Name</FormLabel>
                 <Input
                   value={name}
                   onChange={(event) => setName(event.currentTarget.value)}
-                  placeholder="Enter friendly name for provider"
+                  placeholder="Enter friendly name for compute provider"
                   fullWidth
                 />
               </FormControl>
               <FormControl sx={{ mt: 1 }}>
-                <FormLabel>Provider Type</FormLabel>
+                <FormLabel>Compute Provider Type</FormLabel>
                 <Select
                   value={type}
                   onChange={(event, value) => setType(value ?? 'skypilot')}
@@ -615,7 +615,7 @@ export default function ProviderDetailsModal({
               loading={loading}
               disabled={!!providerId && providerDataLoading}
             >
-              {providerId ? 'Save Provider' : 'Add Provider'}
+              {providerId ? 'Save Compute Provider' : 'Add Compute Provider'}
             </Button>
           </Box>
         </DialogActions>
