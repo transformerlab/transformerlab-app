@@ -241,7 +241,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       : null,
     fetcher,
     {
-      refreshInterval: 3000,
+      refreshInterval: 10000,
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
       refreshWhenHidden: true,

@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 from typing import Any, Dict, List, Optional
 
@@ -10,7 +11,7 @@ from transformerlab.shared.request_context import set_current_org_id
 
 ACTIVE_SWEEP_PARENT_STATUSES = {"RUNNING", "LAUNCHING"}
 RUNNING_CHILD_STATUSES = {"RUNNING", "LAUNCHING"}
-SWEEP_STATUS_INTERVAL_SECONDS = 3
+SWEEP_STATUS_INTERVAL_SECONDS = int(os.getenv("SWEEP_STATUS_INTERVAL_SECONDS", "30"))
 
 _sweep_status_worker_task: Optional[asyncio.Task] = None
 
