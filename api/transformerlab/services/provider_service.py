@@ -342,7 +342,7 @@ async def create_team_provider(
     return provider
 
 
-async def ensure_default_local_provider_for_team(
+async def initialize_team_local_provider(
     session: AsyncSession,
     team_id: str,
     created_by_user_id: str,
