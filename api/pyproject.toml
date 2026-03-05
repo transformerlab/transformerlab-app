@@ -33,7 +33,11 @@ dependencies = [
   "soundfile==0.13.1",
   "tensorboardX==2.6.2.2",
   "timm==1.0.15",
+<<<<<<< fix/improve-live-status-remote-trap
   "transformerlab==0.0.91",
+=======
+  "transformerlab==0.0.90",
+>>>>>>> main
   "transformerlab-inference==0.2.52",
   "transformers==4.57.1",
   "wandb==0.23.1",
