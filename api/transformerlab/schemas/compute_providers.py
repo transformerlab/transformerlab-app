@@ -3,7 +3,7 @@
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
-from transformerlab.shared.models.models import ProviderType
+from transformerlab.shared.models.models import ProviderType, AcceleratorType
 
 
 class ProviderConfigBase(BaseModel):
@@ -30,6 +30,9 @@ class ProviderConfigBase(BaseModel):
     default_region: Optional[str] = None  # Default region
     default_template_id: Optional[str] = None  # Default Docker template ID
     default_network_volume_id: Optional[str] = None  # Default network volume ID
+
+    # Accelerators supported by this provider
+    supported_accelerators: Optional[List[AcceleratorType]] = Field(default=None)
 
     # Additional provider-specific config
     extra_config: Dict[str, Any] = Field(default_factory=dict)
@@ -104,6 +107,10 @@ class ProviderTemplateLaunchRequest(BaseModel):
     command: str = Field(..., description="Command to execute on the cluster")
     subtype: Optional[str] = Field(None, description="Optional subtype for filtering")
     interactive_type: Optional[str] = Field(None, description="Interactive task type (e.g. vscode)")
+    interactive_gallery_id: Optional[str] = Field(
+        None,
+        description="Interactive gallery entry id (e.g. jupyter, ollama-macos) for launch-time command resolution.",
+    )
     cpus: Optional[str] = None
     memory: Optional[str] = None
     disk_space: Optional[str] = None
@@ -144,6 +151,10 @@ class ProviderTemplateLaunchRequest(BaseModel):
     lower_is_better: Optional[bool] = Field(
         default=True,
         description="Whether lower values of sweep_metric are better. If False, higher values are better.",
+    )
+    local: Optional[bool] = Field(
+        default=False,
+        description="Whether to use direct local access for interactive sessions (skip tunnels).",
     )
     minutes_requested: Optional[int] = Field(
         default=None,

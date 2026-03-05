@@ -1,4 +1,5 @@
 import {
+  Badge,
   Box,
   Button,
   List,
@@ -30,6 +31,7 @@ import {
 } from '@mui/joy';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
+import { useNotificationsSummary } from 'renderer/lib/useNotificationsSummary';
 import { CopyIcon, TrashIcon, PlusIcon } from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/api-client/urls';
 import QuotaReportSection from './QuotaReportSection';
@@ -187,6 +189,7 @@ export default function UserSettings(): JSX.Element {
     ['me'],
     {},
   );
+  const notificationsSummary = useNotificationsSummary(null);
   const [activeTab, setActiveTab] = useState<number>(0);
 
   return (
@@ -210,7 +213,21 @@ export default function UserSettings(): JSX.Element {
           <Tab>Profile</Tab>
           <Tab>Secrets</Tab>
           <Tab>API Keys</Tab>
-          <Tab>Team Invitations</Tab>
+          <Tab>
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1}
+              sx={{ gap: 1 }}
+            >
+              <span>Team Invitations</span>
+              {notificationsSummary.byCategory.teamInvites > 0 && (
+                <Chip size="sm" color="danger" variant="soft">
+                  {notificationsSummary.byCategory.teamInvites}
+                </Chip>
+              )}
+            </Stack>
+          </Tab>
           <Tab>Provider Settings</Tab>
           <Tab>Quota</Tab>
         </TabList>

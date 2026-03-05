@@ -155,7 +155,10 @@ class LocalProvider(ComputeProvider):
         env.update(config.env_vars or {})
         env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
 
+        print(f"DEBUG: LocalProvider.launch_cluster: cluster_name={cluster_name}")
+        print(f"DEBUG: LocalProvider.launch_cluster: job_dir={job_dir}")
         if config.setup:
+            print(f"DEBUG: LocalProvider.launch_cluster: running setup: {config.setup}")
             setup_result = subprocess.run(
                 ["/bin/bash", "-c", config.setup],
                 cwd=job_dir,
@@ -165,9 +168,12 @@ class LocalProvider(ComputeProvider):
                 timeout=300,
             )
             if setup_result.returncode != 0:
+                print(f"DEBUG: LocalProvider.launch_cluster: setup failed with code {setup_result.returncode}")
+                print(f"DEBUG: LocalProvider.launch_cluster: setup stderr: {setup_result.stderr}")
                 raise RuntimeError(f"Setup failed: {setup_result.stderr or setup_result.stdout or 'unknown'}")
 
         # Start main command in background (detached subprocess)
+        print(f"DEBUG: LocalProvider.launch_cluster: running command: {config.command}")
         proc = subprocess.Popen(
             ["/bin/bash", "-c", config.command or "true"],
             cwd=str(job_dir),

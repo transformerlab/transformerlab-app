@@ -8,6 +8,7 @@ import FormControl from '@mui/joy/FormControl';
 import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
 import {
+  Alert,
   FormHelperText,
   ModalClose,
   ModalDialog,
@@ -21,9 +22,10 @@ import {
   Select,
   Option,
   Checkbox,
+  Chip,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
-import { PlayIcon } from 'lucide-react';
+import { PlayIcon, AlertTriangleIcon, CheckCircleIcon } from 'lucide-react';
 import { setTheme } from 'renderer/lib/monacoConfig';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -124,6 +126,114 @@ export default function QueueTaskModal({
     [providerListData],
   );
 
+  // Determine if the selected provider is a local provider (must be before isProviderCompatible)
+  const selectedProvider = React.useMemo(
+    () => providers.find((p: any) => p.id === selectedProviderId),
+    [providers, selectedProviderId],
+  );
+  const isLocalProvider = selectedProvider?.type === 'local';
+
+  // Fetch server info (local machine resources) when modal is open and local provider selected
+  const { data: serverInfoData } = useSWR(
+    open && isLocalProvider ? chatAPI.Endpoints.ServerInfo.Get() : null,
+    fetcher,
+  );
+
+  // Extract task resource requirements from the task object (must be before isProviderCompatible)
+  const taskResources = React.useMemo(() => {
+    if (!task) return null;
+    const cfg =
+      task.config !== undefined
+        ? typeof task.config === 'string'
+          ? JSON.parse(task.config)
+          : task.config
+        : task;
+
+    let accelerators = cfg.accelerators || task.accelerators || null;
+    const cpus = cfg.cpus || task.cpus || null;
+    const memory = cfg.memory || task.memory || null;
+
+    // The YAML resources.compute_provider field can contain an accelerator
+    // spec like "RTX3090:1" — the backend stores it as provider_name.
+    // If there's no explicit accelerators field, check if compute_provider /
+    // provider_name looks like an accelerator spec (e.g. "Name:Count").
+    if (!accelerators) {
+      const computeProvider =
+        cfg.compute_provider ||
+        task.compute_provider ||
+        cfg.provider_name ||
+        task.provider_name ||
+        null;
+      if (computeProvider && /^.+:\d+$/.test(String(computeProvider))) {
+        accelerators = String(computeProvider);
+      }
+    }
+
+    if (!accelerators && !cpus && !memory) return null;
+
+    return { accelerators, cpus, memory };
+  }, [task]);
+
+  // Helper to check if a provider supports requested accelerators
+  const isProviderCompatible = React.useCallback(
+    (provider: any) => {
+      if (!taskResources || !taskResources.accelerators) return true;
+
+      const supported = provider.config?.supported_accelerators || [];
+      if (supported.length === 0) return true; // Default to compatible if not specified
+
+      const reqAcc = String(taskResources.accelerators).toLowerCase();
+
+      // Check for Apple Silicon
+      if (
+        (reqAcc.includes('apple') || reqAcc.includes('mps')) &&
+        supported.includes('AppleSilicon')
+      ) {
+        return true;
+      }
+
+      // Check for NVIDIA
+      if (
+        (reqAcc.includes('nvidia') ||
+          reqAcc.includes('cuda') ||
+          reqAcc.includes('rtx') ||
+          reqAcc.includes('a100') ||
+          reqAcc.includes('h100') ||
+          reqAcc.includes('v100')) &&
+        supported.includes('NVIDIA')
+      ) {
+        return true;
+      }
+
+      // Check for AMD
+      if (
+        (reqAcc.includes('amd') || reqAcc.includes('rocm')) &&
+        supported.includes('AMD')
+      ) {
+        return true;
+      }
+
+      // Check for CPU
+      if (reqAcc.includes('cpu') && supported.includes('cpu')) {
+        return true;
+      }
+
+      // If it's just a number, we assume it's NVIDIA/CUDA unless it's a local provider on Mac
+      if (/^\d+$/.test(reqAcc)) {
+        if (
+          provider.type === 'local' &&
+          serverInfoData?.device_type === 'mps'
+        ) {
+          return supported.includes('AppleSilicon');
+        }
+        return supported.includes('NVIDIA');
+      }
+
+      return false;
+    },
+    [taskResources, serverInfoData],
+  );
+
   React.useEffect(() => {
     if (providerListError) {
       // eslint-disable-next-line no-console
@@ -133,6 +243,144 @@ export default function QueueTaskModal({
 
   const models = modelsData || [];
   const datasets = datasetsData || [];
+
+  // Validate local provider resources against task requirements
+  const resourceValidation = React.useMemo(() => {
+    if (!isLocalProvider || !serverInfoData || !taskResources) return null;
+
+    const issues: Array<{
+      type: 'error' | 'warning';
+      label: string;
+      required: string;
+      available: string;
+    }> = [];
+
+    // Check accelerators / GPU requirement
+    if (taskResources.accelerators) {
+      const accStr = String(taskResources.accelerators);
+      // Parse accelerator spec like "RTX3090:1", "A100:2", "V100:4", or just "1" (count only)
+      const match = accStr.match(/^(.+):(\d+)$/);
+      const gpuList: any[] = serverInfoData.gpu || [];
+      const deviceType = serverInfoData.device_type || 'cpu';
+
+      if (match) {
+        // Named GPU requirement e.g. "RTX3090:1"
+        const requiredGpuName = match[1].trim();
+        const requiredCount = parseInt(match[2], 10);
+
+        // Count matching GPUs on local machine (fuzzy name match)
+        const matchingGpus = gpuList.filter(
+          (g: any) =>
+            g.name &&
+            g.name !== 'cpu' &&
+            g.name.toLowerCase().includes(requiredGpuName.toLowerCase()),
+        );
+
+        if (
+          deviceType === 'cpu' ||
+          gpuList.length === 0 ||
+          (gpuList.length === 1 && gpuList[0]?.name === 'cpu')
+        ) {
+          issues.push({
+            type: 'error',
+            label: 'GPU',
+            required: `${requiredGpuName} ×${requiredCount}`,
+            available: 'No GPU detected',
+          });
+        } else if (matchingGpus.length === 0) {
+          const availableNames = [
+            ...new Set(
+              gpuList
+                .map((g: any) => g.name)
+                .filter((n: string) => n && n !== 'cpu'),
+            ),
+          ];
+          issues.push({
+            type: 'warning',
+            label: 'GPU',
+            required: `${requiredGpuName} ×${requiredCount}`,
+            available:
+              availableNames.length > 0
+                ? `${availableNames.join(', ')} ×${gpuList.filter((g: any) => g.name !== 'cpu').length}`
+                : 'None',
+          });
+        } else if (matchingGpus.length < requiredCount) {
+          issues.push({
+            type: 'warning',
+            label: 'GPU Count',
+            required: `${requiredGpuName} ×${requiredCount}`,
+            available: `${requiredGpuName} ×${matchingGpus.length}`,
+          });
+        }
+      } else {
+        // Just a count or a name without count
+        const requiredCount = parseInt(accStr, 10);
+        if (!isNaN(requiredCount) && requiredCount > 0) {
+          const realGpus = gpuList.filter(
+            (g: any) => g.name && g.name !== 'cpu',
+          );
+          if (realGpus.length < requiredCount) {
+            issues.push({
+              type: realGpus.length === 0 ? 'error' : 'warning',
+              label: 'GPU',
+              required: `${requiredCount} GPU(s)`,
+              available:
+                realGpus.length === 0
+                  ? 'No GPU detected'
+                  : `${realGpus.length} GPU(s)`,
+            });
+          }
+        }
+      }
+    }
+
+    // Check CPU requirement
+    if (taskResources.cpus) {
+      const requiredCpus = parseInt(String(taskResources.cpus), 10);
+      const availableCpus = serverInfoData.cpu_count || 0;
+      if (
+        !isNaN(requiredCpus) &&
+        requiredCpus > 0 &&
+        availableCpus < requiredCpus
+      ) {
+        issues.push({
+          type: 'warning',
+          label: 'CPUs',
+          required: `${requiredCpus}`,
+          available: `${availableCpus}`,
+        });
+      }
+    }
+
+    // Check memory requirement (task specifies in GB)
+    if (taskResources.memory) {
+      const requiredMemoryGB = parseFloat(String(taskResources.memory));
+      const availableMemoryBytes = serverInfoData.memory?.total || 0;
+      const availableMemoryGB = availableMemoryBytes / (1024 * 1024 * 1024);
+      if (
+        !isNaN(requiredMemoryGB) &&
+        requiredMemoryGB > 0 &&
+        availableMemoryGB < requiredMemoryGB
+      ) {
+        issues.push({
+          type: 'warning',
+          label: 'Memory',
+          required: `${requiredMemoryGB} GB`,
+          available: `${availableMemoryGB.toFixed(1)} GB`,
+        });
+      }
+    }
+
+    const hasErrors = issues.some((i) => i.type === 'error');
+    const hasWarnings = issues.some((i) => i.type === 'warning');
+
+    return {
+      issues,
+      hasErrors,
+      hasWarnings,
+      isCompatible: issues.length === 0,
+    };
+  }, [isLocalProvider, serverInfoData, taskResources]);
 
   // Helper function to parse parameter value and schema
   const parseParameter = (key: string, value: any): ProcessedParameter => {
@@ -761,16 +1009,118 @@ export default function QueueTaskModal({
                     listbox: { sx: { maxHeight: 240 } },
                   }}
                 >
-                  {providers.map((provider: any) => (
-                    <Option key={provider.id} value={provider.id}>
-                      {provider.name}
-                    </Option>
-                  ))}
+                  {providers.map((provider: any) => {
+                    const compatible = isProviderCompatible(provider);
+                    return (
+                      <Option key={provider.id} value={provider.id}>
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="center"
+                          sx={{ width: '100%' }}
+                        >
+                          <Typography>{provider.name}</Typography>
+                          {taskResources?.accelerators && compatible && (
+                            <Chip size="sm" color="success" variant="soft">
+                              Compatible
+                            </Chip>
+                          )}
+                        </Stack>
+                      </Option>
+                    );
+                  })}
                 </Select>
                 <FormHelperText>
                   Choose which compute provider should run this task.
                 </FormHelperText>
               </FormControl>
+
+              {/* Incompatibility Warning */}
+              {selectedProvider &&
+                taskResources?.accelerators &&
+                !isProviderCompatible(selectedProvider) && (
+                  <Alert
+                    variant="soft"
+                    color="warning"
+                    startDecorator={<AlertTriangleIcon size={18} />}
+                    sx={{ mt: 1 }}
+                  >
+                    <Typography level="body-sm">
+                      This provider may not support the requested accelerators (
+                      <strong>{taskResources.accelerators}</strong>).
+                    </Typography>
+                  </Alert>
+                )}
+
+              {/* Local Provider Resource Validation */}
+              {isLocalProvider &&
+                resourceValidation &&
+                !resourceValidation.isCompatible && (
+                  <Alert
+                    variant="soft"
+                    color={resourceValidation.hasErrors ? 'danger' : 'warning'}
+                    startDecorator={<AlertTriangleIcon size={18} />}
+                    sx={{ mt: 1 }}
+                  >
+                    <Stack spacing={1}>
+                      <Typography
+                        level="title-sm"
+                        color={
+                          resourceValidation.hasErrors ? 'danger' : 'warning'
+                        }
+                      >
+                        {resourceValidation.hasErrors
+                          ? 'Local provider cannot meet task requirements'
+                          : 'Local provider may not meet task requirements'}
+                      </Typography>
+                      <Stack spacing={0.5}>
+                        {resourceValidation.issues.map((issue, idx) => (
+                          <Stack
+                            key={idx}
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                          >
+                            <Chip
+                              size="sm"
+                              variant="solid"
+                              color={
+                                issue.type === 'error' ? 'danger' : 'warning'
+                              }
+                            >
+                              {issue.label}
+                            </Chip>
+                            <Typography level="body-xs">
+                              Required: <strong>{issue.required}</strong> —
+                              Available: <strong>{issue.available}</strong>
+                            </Typography>
+                          </Stack>
+                        ))}
+                      </Stack>
+                      {resourceValidation.hasErrors && (
+                        <Typography level="body-xs" color="danger">
+                          Consider selecting a different provider with the
+                          required resources.
+                        </Typography>
+                      )}
+                    </Stack>
+                  </Alert>
+                )}
+
+              {isLocalProvider &&
+                resourceValidation?.isCompatible &&
+                taskResources && (
+                  <Alert
+                    variant="soft"
+                    color="success"
+                    startDecorator={<CheckCircleIcon size={18} />}
+                    sx={{ mt: 1 }}
+                  >
+                    <Typography level="body-sm" color="success">
+                      Local provider meets the task resource requirements.
+                    </Typography>
+                  </Alert>
+                )}
             </Stack>
 
             <Divider />

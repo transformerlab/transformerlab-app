@@ -14,7 +14,6 @@ import sys
 from werkzeug.utils import secure_filename
 
 import fastapi
-import httpx
 
 # Using torch to test for CUDA and MPS support.
 import uvicorn
@@ -29,6 +28,27 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+# Optional Datadog APM (does nothing unless enabled + installed)
+def _enable_datadog_if_setup():
+    if not os.getenv("DD_SERVICE"):
+        return
+
+    try:
+        from ddtrace import patch_all
+        from ddtrace.contrib.asgi import TraceMiddleware
+
+        print("Datadog trace middleware enabled")
+    except ImportError:
+        print("Datadog Init Error: Failed to import library")
+        return None
+
+    patch_all(fastapi=True, httpx=True)
+    return TraceMiddleware
+
+
+TRACE_MIDDLEWARE = _enable_datadog_if_setup()
+
+import httpx  # noqa: E402
 from fastchat.constants import (  # noqa: E402
     ErrorCode,
 )
@@ -128,9 +148,8 @@ async def lifespan(app: FastAPI):
     await cancel_in_progress_jobs()
 
     # Create buckets/folders for all existing teams if cloud or localfs storage is enabled
-    if os.getenv("TFL_REMOTE_STORAGE_ENABLED") or (
-        os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI")
-    ):
+    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
+    if tfl_remote_storage_enabled or (os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI")):
         print("✅ CHECKING STORAGE FOR EXISTING TEAMS")
         try:
             from transformerlab.db.session import async_session
@@ -224,6 +243,10 @@ app = fastapi.FastAPI(
     lifespan=lifespan,
     openapi_tags=tags_metadata,
 )
+
+# Add tracing middleware only if setup and enabled
+if TRACE_MIDDLEWARE is not None:
+    app.add_middleware(TRACE_MIDDLEWARE)
 
 # CORS configuration
 # When using cookies, allow_credentials must be True and allow_origins cannot be ["*"]

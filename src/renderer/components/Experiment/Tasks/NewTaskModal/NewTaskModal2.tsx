@@ -46,6 +46,7 @@ export default function NewTaskModal2({
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [showCreateBlank, setShowCreateBlank] = React.useState(false);
   const [creatingBlank, setCreatingBlank] = React.useState(false);
+  const [creatingBlankTask, setCreatingBlankTask] = React.useState(false);
 
   // Reset state when modal opens/closes
   React.useEffect(() => {
@@ -53,12 +54,37 @@ export default function NewTaskModal2({
       setShowCreateBlank(false);
       setSubmitError(null);
       setCreatingBlank(false);
+      setCreatingBlankTask(false);
     }
   }, [open]);
 
   const handleSubmit = async (createIfMissing = false) => {
     setSubmitError(null);
     setShowCreateBlank(false);
+    if (selectedOption === 'blank') {
+      setCreatingBlankTask(true);
+      try {
+        const response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.BlankFromYaml(experimentId),
+          {
+            method: 'POST',
+          },
+        );
+        if (!response.ok) {
+          const errText = await response.text().catch(() => '');
+          setSubmitError(errText || `Request failed: ${response.status}`);
+          return;
+        }
+        const data = await response.json();
+        onTaskCreated(data.id);
+        onClose();
+      } catch (e) {
+        setSubmitError(e instanceof Error ? e.message : 'Request failed');
+      } finally {
+        setCreatingBlankTask(false);
+      }
+      return;
+    }
     if (selectedOption === 'git') {
       const url = gitUrl.trim();
       if (!url) {
@@ -165,7 +191,11 @@ export default function NewTaskModal2({
               <FormLabel>Choose how to add a new task:</FormLabel>
               <RadioGroup
                 value={selectedOption}
-                onChange={(e) => setSelectedOption(e.target.value)}
+                onChange={(e) => {
+                  setSelectedOption(e.target.value);
+                  setSubmitError(null);
+                  setShowCreateBlank(false);
+                }}
                 sx={{ gap: 2, mt: 1 }}
               >
                 <Stack spacing={1}>
@@ -195,6 +225,7 @@ export default function NewTaskModal2({
                   )}
                 </Stack>
                 <Radio value="upload" label="Upload from your Computer" />
+                <Radio value="blank" label="Start with a blank task template" />
               </RadioGroup>
             </FormControl>
 
@@ -259,8 +290,8 @@ export default function NewTaskModal2({
             startDecorator={<PlayIcon />}
             color="success"
             onClick={() => handleSubmit(false)}
-            loading={submitting && !creatingBlank}
-            disabled={creatingBlank}
+            loading={submitting || creatingBlankTask}
+            disabled={creatingBlank || creatingBlankTask}
           >
             Submit
           </Button>

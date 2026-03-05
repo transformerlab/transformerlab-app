@@ -312,9 +312,10 @@ class AddTeamTaskToGalleryRequest(BaseModel):
     command: str
     cpus: Optional[str] = None
     memory: Optional[str] = None
-    accelerators: Optional[str] = None
+    supported_accelerators: Optional[str] = None
     github_repo_url: Optional[str] = None
     github_repo_dir: Optional[str] = None
+    github_branch: Optional[str] = None
 
 
 @router.post("/gallery/import", summary="Import a task from the tasks gallery")
@@ -589,8 +590,8 @@ async def add_team_task_to_gallery(
         config["cpus"] = request.cpus
     if request.memory:
         config["memory"] = request.memory
-    if request.accelerators:
-        config["accelerators"] = request.accelerators
+    if request.supported_accelerators:
+        config["supported_accelerators"] = request.supported_accelerators
     if request.github_repo_url:
         config["github_repo_url"] = request.github_repo_url
     if request.github_repo_dir:

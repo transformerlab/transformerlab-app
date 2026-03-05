@@ -35,12 +35,11 @@ import {
 
 import {
   useModelStatus,
-  usePluginStatus,
   getAPIFullPath,
 } from 'renderer/lib/transformerlab-api-sdk';
-
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
+import { useNotificationsSummary } from 'renderer/lib/useNotificationsSummary';
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 
 import SubNavItem from './SubNavItem';
@@ -410,7 +409,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const { experimentInfo } = useExperimentInfo();
   const { models } = useModelStatus();
-  const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
+  const notificationsSummary = useNotificationsSummary(experimentInfo);
 
   const navigate = useNavigate();
 
@@ -460,11 +459,13 @@ export default function Sidebar({
       <SelectExperimentMenu models={models} />
       <ExperimentMenuItems experimentInfo={experimentInfo} models={models} />
       <GlobalMenuItems
-        outdatedPluginsCount={outdatedPlugins?.length}
+        outdatedPluginsCount={notificationsSummary.byCategory.outdatedPlugins}
         hasProviders={hasProviders}
         experimentInfo={experimentInfo}
       />
-      {window?.platform?.multiuser === true && <LoginChip />}
+      {window?.platform?.multiuser === true && (
+        <LoginChip notificationsSummary={notificationsSummary} />
+      )}
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
     </Sheet>
   );

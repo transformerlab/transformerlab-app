@@ -1,31 +1,30 @@
 import asyncio
+import csv
+from datetime import datetime
 from fnmatch import fnmatch
 import json
 import os
-import csv
 from typing import List, Optional
+
 import pandas as pd
 from fastapi import APIRouter, Response, Request, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse, FileResponse
-from lab import storage
-
-from transformerlab.shared import shared
 from json import JSONDecodeError
-
+from lab import Job, storage
+from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.utils import secure_filename
 
-from transformerlab.routers.serverinfo import watch_file
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
-import transformerlab.services.job_service as job_service
-from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
-from transformerlab.services.provider_service import get_team_provider, get_provider_instance
-from transformerlab.routers.auth import get_user_and_team
-from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.compute_providers.models import JobState
+from transformerlab.compute_providers.runpod import fetch_runpod_provider_logs
+from transformerlab.routers.auth import get_user_and_team
+from transformerlab.routers.serverinfo import watch_file
+from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
+import transformerlab.services.job_service as job_service
+from transformerlab.services.provider_service import get_team_provider, get_provider_instance
+from transformerlab.shared import shared, zip_utils
+from transformerlab.shared.models.models import ProviderType
+from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.shared.tunnel_parser import get_tunnel_info
-from lab import Job
 from lab.dirs import (
     get_workspace_dir,
     get_local_provider_job_dir,
@@ -34,8 +33,6 @@ from lab.dirs import (
     get_job_models_dir,
     get_models_dir,
 )
-from transformerlab.shared import zip_utils
-from datetime import datetime
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -244,11 +241,22 @@ async def get_provider_job_logs(
     experimentId: str,
     job_id: str,
     tail_lines: int = Query(400, ge=100, le=2000),
+    live: bool = Query(
+        False,
+        description=(
+            "If true, bypass cached provider_logs.txt and fetch logs directly from the underlying compute provider."
+        ),
+    ),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
     Fetch the raw job logs directly from the underlying compute provider for a REMOTE job.
+
+    Preferred order:
+      1. If `provider_logs.txt` exists in the job directory (written by the SDK wrapper),
+         read and return that.
+      2. Otherwise, fall back to provider-native log retrieval (existing behavior).
     """
 
     job = await job_service.job_get(job_id)
@@ -269,6 +277,36 @@ async def get_provider_job_logs(
             status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
         )
 
+    # 1) If live=False (default), first try to read provider logs from the job directory
+    #    via the SDK's job_dir helper. This file is written by tfl-remote-trap inside
+    #    the remote environment.
+    if not live:
+        try:
+            from lab.dirs import get_job_dir
+
+            job_dir = await get_job_dir(job_id)
+            provider_logs_path = storage.join(job_dir, "provider_logs.txt")
+            if await storage.exists(provider_logs_path):
+                async with await storage.open(provider_logs_path, "r", encoding="utf-8") as f:
+                    logs_text = await f.read()
+                if tail_lines is not None:
+                    lines = logs_text.splitlines()
+                    logs_text = "\n".join(lines[-tail_lines:])
+
+                return {
+                    "cluster_name": cluster_name,
+                    "provider_id": provider_id,
+                    "provider_job_id": None,
+                    "provider_name": job_data.get("provider_name"),
+                    "tail_lines": tail_lines,
+                    "logs": logs_text,
+                    "job_candidates": [],
+                }
+        except Exception:
+            # If anything goes wrong with the file-based path, fall back to provider-native logs.
+            pass
+
+    # 2) Fall back to existing provider-native log retrieval.
     provider = await get_team_provider(session, user_and_team["team_id"], provider_id)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
@@ -295,8 +333,9 @@ async def get_provider_job_logs(
             provider_job_id = provider_launch_result.get("job_id")
 
     if provider_job_id is None:
+        provider_jobs: List = []
         try:
-            provider_jobs = provider_instance.list_jobs(cluster_name)
+            provider_jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
         except NotImplementedError:
             # Provider doesn't support listing jobs (e.g., Runpod)
             # For Runpod, we can't determine a job_id, so we'll use the cluster_name as a fallback
@@ -331,12 +370,18 @@ async def get_provider_job_logs(
         provider_instance.extra_config["workspace_dir"] = job_dir
 
     try:
-        raw_logs = provider_instance.get_job_logs(
-            cluster_name,
-            provider_job_id,
-            tail_lines=tail_lines or None,
-            follow=False,
-        )
+        if provider.type == ProviderType.RUNPOD.value:
+            raw_logs = await fetch_runpod_provider_logs(
+                provider_instance, cluster_name, user_and_team["team_id"], tail_lines
+            )
+        else:
+            raw_logs = await asyncio.to_thread(
+                provider_instance.get_job_logs,
+                cluster_name,
+                provider_job_id,
+                tail_lines=tail_lines or None,
+                follow=False,
+            )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
 
@@ -370,10 +415,12 @@ async def get_tunnel_info_for_job(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Parse provider logs for a REMOTE job and extract tunnel information based on job type.
+    Parse provider logs and extract tunnel or local URLs based on job type.
 
-    This route automatically determines the tunnel type from job_data.interactive_type
-    and uses the appropriate parser. Supports: 'vscode', 'jupyter', 'vllm', 'ssh'
+    For remote jobs with a tunnel (e.g. ngrok), parses tunnel URLs from logs.
+    For local provider jobs (no tunnel), parses local URLs (e.g. Local Ollama API:
+    http://localhost:11434) from stdout/stderr. Uses job_data.interactive_type to
+    choose the parser. Supports: 'vscode', 'jupyter', 'vllm', 'ollama', 'ssh'.
     """
 
     job = await job_service.job_get(job_id)
@@ -419,8 +466,9 @@ async def get_tunnel_info_for_job(
             provider_job_id = provider_job_ids[-1]
 
     if provider_job_id is None:
+        provider_jobs = None
         try:
-            provider_jobs = provider_instance.list_jobs(cluster_name)
+            provider_jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
         except NotImplementedError:
             # Provider doesn't support listing jobs (e.g., Runpod)
             # For Runpod, we can't determine a job_id, so we'll use the cluster_name as a fallback
@@ -436,13 +484,24 @@ async def get_tunnel_info_for_job(
     if provider_job_id is None:
         raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
 
+    # For local provider, set workspace_dir (job dir) so LocalProvider can read logs.
+    if getattr(provider, "type", None) == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
+        job_dir = get_local_provider_job_dir(job_id, org_id=user_and_team["team_id"])
+        provider_instance.extra_config["workspace_dir"] = job_dir
+
     try:
-        raw_logs = provider_instance.get_job_logs(
-            cluster_name,
-            provider_job_id,
-            tail_lines=tail_lines or None,
-            follow=False,
-        )
+        if provider.type == ProviderType.RUNPOD.value:
+            raw_logs = await fetch_runpod_provider_logs(
+                provider_instance, cluster_name, user_and_team["team_id"], tail_lines
+            )
+        else:
+            raw_logs = await asyncio.to_thread(
+                provider_instance.get_job_logs,
+                cluster_name,
+                provider_job_id,
+                tail_lines=tail_lines or None,
+                follow=False,
+            )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
 

@@ -414,10 +414,14 @@ install_dependencies() {
   echo "HAS_NVIDIA=$HAS_NVIDIA, HAS_AMD=$HAS_AMD"
   PIP_WHEEL_FLAGS=""
 
-  # Detect DGX Spark for CUDA 13.0 PyTorch index (cu130); otherwise use cu128
-  # /etc/dgx-release exists only on DGX systems; DGX_NAME="DGX Spark" identifies Spark
+  # Detect DGX Spark for CUDA 13.0 PyTorch index (cu130); otherwise use cu128.
+  # /etc/dgx-release exists only on DGX systems; DGX_NAME="DGX Spark" identifies Spark.
+  # You can also manually force CUDA 13.0 by setting TLAB_FORCE_CUDA13=1 in the environment.
   TLAB_CUDA_INDEX="cu128"
-  if [ -r /etc/dgx-release ] && grep -qi 'DGX Spark' /etc/dgx-release 2>/dev/null; then
+  if [ "${TLAB_FORCE_CUDA13:-}" = "1" ] || [ "${TLAB_FORCE_CUDA13:-}" = "true" ]; then
+    TLAB_CUDA_INDEX="cu130"
+    echo "TLAB_FORCE_CUDA13 is set; forcing PyTorch index $TLAB_CUDA_INDEX"
+  elif [ -r /etc/dgx-release ] && grep -qi 'DGX Spark' /etc/dgx-release 2>/dev/null; then
     TLAB_CUDA_INDEX="cu130"
     echo "DGX Spark detected (/etc/dgx-release); using PyTorch index $TLAB_CUDA_INDEX"
   fi

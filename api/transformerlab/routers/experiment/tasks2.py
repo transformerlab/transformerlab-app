@@ -38,6 +38,34 @@ async def _get_task_dir_path(task_id: str) -> str:
     return await task.get_dir()
 
 
+@router.post("/blank", summary="Create a blank task template")
+async def create_blank_task(
+    experimentId: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Create a new task with a sample task.yaml template, similar to the
+    'Create Blank' buttons in the UI. This lets users immediately edit
+    task.yaml in the editor without uploading or fetching from GitHub.
+    """
+    task_data = {
+        "experiment_id": experimentId,
+        "type": "REMOTE",
+        "plugin": "remote_orchestrator",
+        "name": "my-task",
+    }
+    await _resolve_provider(task_data, user_and_team, session)
+    task_id = await task_service.add_task(task_data)
+    task_dir = await _get_task_dir_path(task_id)
+    await storage.makedirs(task_dir, exist_ok=True)
+    yaml_path = storage.join(task_dir, "task.yaml")
+    default_yaml = 'name: my-task\nresources:\n  cpus: 2\n  memory: 4\nrun: "echo hello"'
+    async with await storage.open(yaml_path, "w", encoding="utf-8") as f:
+        await f.write(default_yaml)
+    return {"id": task_id}
+
+
 @router.options("/from_directory")
 async def from_directory_options():
     """CORS preflight for POST /from_directory."""

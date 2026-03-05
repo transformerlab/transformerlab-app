@@ -476,13 +476,19 @@ const LocalModelsTable = ({
                     justifyContent="center"
                     margin={5}
                   >
-                    You do not have any models on your local machine. You can
-                    download a model by going to the{' '}
-                    <ReactRouterLink to="/zoo">
-                      <StoreIcon />
-                      Model Registry
-                    </ReactRouterLink>
-                    .
+                    {window?.platform?.multiuser === true ? (
+                      'No models are currently available. Models saved from jobs in this experiment will be available here.'
+                    ) : (
+                      <>
+                        You do not have any models on your local machine. You
+                        can download a model by going to the{' '}
+                        <ReactRouterLink to="/zoo">
+                          <StoreIcon />
+                          Model Registry
+                        </ReactRouterLink>
+                        .
+                      </>
+                    )}
                   </Typography>
                 </td>
               </tr>
@@ -490,10 +496,12 @@ const LocalModelsTable = ({
           </tbody>
         </Table>
       </Sheet>
-      <Typography mt={2} level="body-sm">
-        Looking for more models? Go to the{' '}
-        <ReactRouterLink to="/zoo">Model Registry</ReactRouterLink>
-      </Typography>
+      {window?.platform?.multiuser !== true && (
+        <Typography mt={2} level="body-sm">
+          Looking for more models? Go to the{' '}
+          <ReactRouterLink to="/zoo">Model Registry</ReactRouterLink>
+        </Typography>
+      )}
     </>
   );
 };

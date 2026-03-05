@@ -26,7 +26,7 @@ class AddTeamTaskToGalleryRequest(BaseModel):
     command: str
     cpus: Optional[str] = None
     memory: Optional[str] = None
-    accelerators: Optional[str] = None
+    supported_accelerators: Optional[str] = None
     github_repo_url: Optional[str] = None
     github_repo_dir: Optional[str] = None
     github_branch: Optional[str] = None
