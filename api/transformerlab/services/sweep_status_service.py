@@ -85,10 +85,10 @@ def compute_parent_sweep_counts(parent_job: Dict[str, Any], child_jobs: List[Dic
 
 
 async def apply_parent_sweep_updates(
-    job_id: str, experiment_id: str, counts: Dict[str, int]
+    job: Dict[str, Any], experiment_id: str, counts: Dict[str, int]
 ) -> Optional[Dict[str, Any]]:
-    job = await job_service.job_get(job_id)
-    if not job:
+    job_id = str(job.get("id", ""))
+    if not job_id:
         return None
 
     job_data = job.get("job_data", {}) or {}
@@ -113,7 +113,7 @@ async def apply_parent_sweep_updates(
         )
         await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
 
-    return await job_service.job_get(job_id)
+    return job  # caller only checks truthiness; avoids a redundant S3 re-fetch
 
 
 async def _fetch_child_job(child_job_id: str) -> Optional[Dict[str, Any]]:
@@ -140,11 +140,7 @@ async def refresh_sweep_parent(job: Dict[str, Any], experiment_id: str) -> Optio
     child_jobs: List[Dict[str, Any]] = [r for r in results if isinstance(r, dict)]
 
     counts = compute_parent_sweep_counts(job, child_jobs)
-    job_id = str(job.get("id", ""))
-    if not job_id:
-        return None
-
-    return await apply_parent_sweep_updates(job_id, experiment_id, counts)
+    return await apply_parent_sweep_updates(job, experiment_id, counts)
 
 
 async def refresh_active_sweeps_once() -> Dict[str, int]:
