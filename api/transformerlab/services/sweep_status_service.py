@@ -196,7 +196,15 @@ async def _sweep_status_worker_loop() -> None:
     try:
         while True:
             try:
-                await refresh_active_sweeps_once()
+                _cycle_start = time.monotonic()
+                cycle_stats = await refresh_active_sweeps_once()
+                _cycle_elapsed = time.monotonic() - _cycle_start
+                print(
+                    f"Sweep status worker: cycle done in {_cycle_elapsed:.3f}s — "
+                    f"orgs={cycle_stats['orgs']} experiments={cycle_stats['experiments']} "
+                    f"sweeps_seen={cycle_stats['sweeps_seen']} sweeps_refreshed={cycle_stats['sweeps_refreshed']} "
+                    f"errors={cycle_stats['errors']}"
+                )
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
