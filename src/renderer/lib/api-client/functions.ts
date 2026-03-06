@@ -149,20 +149,6 @@ export async function localaiHealthz() {
   }
 }
 
-export async function getComputerInfo() {
-  let response;
-  try {
-    // Pass just the path - fetchWithAuth will handle prepending the base URL
-    response = await authenticatedFetch('server/info');
-    // console.log('response ok?' + response.ok);
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.log('error with fetching computer info', error);
-    return null;
-  }
-}
-
 export async function activateWorker(
   modelName: string,
   modelFilename: string | null = null,

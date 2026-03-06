@@ -17,11 +17,7 @@ import { analytics } from 'renderer/components/Shared/analytics/AnalyticsContext
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
-import InteractiveVSCodeModal from './InteractiveVSCodeModal';
-import InteractiveJupyterModal from './InteractiveJupyterModal';
-import InteractiveVllmModal from './InteractiveVllmModal';
-import InteractiveSshModal from './InteractiveSshModal';
-import InteractiveOllamaModal from './InteractiveOllamaModal';
+import InteractiveModal from './InteractiveModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -33,6 +29,7 @@ import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
 import ViewJobDatasetsModal from '../Train/ViewJobDatasetsModal';
 import ViewJobModelsModal from '../Train/ViewJobModelsModal';
+import FileBrowserModal from './FileBrowserModal';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
@@ -69,6 +66,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [compareEvalJobIds, setCompareEvalJobIds] = useState<number[]>([]);
   const [isCompareSelectMode, setIsCompareSelectMode] = useState(false);
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
+  const [viewFileBrowserFromJob, setViewFileBrowserFromJob] = useState(-1);
   const [yamlEditorTaskId, setYamlEditorTaskId] = useState<string | null>(null);
   const [launchProgressByJobId, setLaunchProgressByJobId] = useState<
     Record<string, { phase?: string; percent?: number; message?: string }>
@@ -232,14 +230,14 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     },
   );
 
-  // Fetch SWEEP jobs using sweep-status endpoint (which also updates their status)
+  // Fetch SWEEP jobs using sweep-status endpoint (status is updated by backend background worker)
   const { data: sweepStatusData, mutate: jobsSweepMutate } = useSWR(
     experimentInfo?.id
       ? chatAPI.Endpoints.ComputeProvider.CheckSweepStatus(experimentInfo.id)
       : null,
     fetcher,
     {
-      refreshInterval: 3000,
+      refreshInterval: 10000,
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
       refreshWhenHidden: true,
@@ -306,8 +304,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         return false;
       }
 
-      // Always check LAUNCHING and WAITING jobs (for launch progress)
-      if (job.status === 'LAUNCHING' || job.status === 'WAITING') {
+      // Always check LAUNCHING, RUNNING, and WAITING jobs (for launch progress and live status)
+      if (
+        job.status === 'LAUNCHING' ||
+        job.status === 'RUNNING' ||
+        job.status === 'WAITING'
+      ) {
         return true;
       }
 
@@ -354,11 +356,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
     };
 
-    // Check immediately and then every 2s when there are LAUNCHING/WAITING jobs (for progress), else 10s
-    const hasLaunching = jobsToCheck.some(
-      (j: any) => j.status === 'LAUNCHING' || j.status === 'WAITING',
+    // Check immediately and then every 2s when there are active jobs (LAUNCHING/RUNNING/WAITING),
+    // else every 10s (mainly for recent COMPLETE jobs to ensure quota is recorded).
+    const hasActiveRemoteJobs = jobsToCheck.some(
+      (j: any) =>
+        j.status === 'LAUNCHING' ||
+        j.status === 'RUNNING' ||
+        j.status === 'WAITING',
     );
-    const intervalMs = hasLaunching ? 2000 : 10000;
+    const intervalMs = hasActiveRemoteJobs ? 2000 : 10000;
     checkJobs();
     const interval = setInterval(checkJobs, intervalMs);
 
@@ -396,9 +402,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
   //   return () => clearInterval(interval);
   // }, [experimentInfo?.id, fetchWithAuth, jobsMutate]);
-
-  // Note: SWEEP job status is automatically updated when fetching via sweep-status endpoint
-  // No separate status check needed - the endpoint updates and returns all SWEEP jobs
 
   const loading = templatesIsLoading || jobsIsLoading;
 
@@ -1243,6 +1246,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             setViewJobDatasetsFromJob(parseInt(jobId))
           }
           onViewJobModels={(jobId) => setViewJobModelsFromJob(parseInt(jobId))}
+          onViewFileBrowser={(jobId) =>
+            setViewFileBrowserFromJob(parseInt(jobId))
+          }
           onViewSweepOutput={(jobId) => {
             setViewOutputFromSweepJob(true);
             setViewOutputFromJob(parseInt(jobId));
@@ -1299,61 +1305,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         onClose={() => setCompareEvalModalOpen(false)}
         jobIds={compareEvalJobIds}
       />
-      {(() => {
-        // Find the job to determine which modal to show
-        const job = jobs.find(
-          (j: any) => String(j.id) === String(interactiveJobForModal),
-        );
-        const interactiveType =
-          job?.job_data?.interactive_type ||
-          (typeof job?.job_data === 'string'
-            ? JSON.parse(job?.job_data || '{}')?.interactive_type
-            : null) ||
-          'vscode';
-
-        if (interactiveType === 'jupyter') {
-          return (
-            <InteractiveJupyterModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'vllm') {
-          return (
-            <InteractiveVllmModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'ssh') {
-          return (
-            <InteractiveSshModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'ollama') {
-          return (
-            <InteractiveOllamaModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        return (
-          <InteractiveVSCodeModal
-            jobId={interactiveJobForModal}
-            setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-          />
-        );
-      })()}
+      <InteractiveModal
+        jobId={interactiveJobForModal}
+        setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+      />
       <PreviewDatasetModal
         open={previewDatasetModal.open}
         setOpen={(open: boolean) =>
@@ -1371,6 +1326,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewJobModelsFromJob !== -1}
         onClose={() => setViewJobModelsFromJob(-1)}
         jobId={viewJobModelsFromJob}
+      />
+      <FileBrowserModal
+        open={viewFileBrowserFromJob !== -1}
+        onClose={() => setViewFileBrowserFromJob(-1)}
+        jobId={viewFileBrowserFromJob}
       />
     </Sheet>
   );

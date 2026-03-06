@@ -38,12 +38,10 @@
     "format:api": "prettier --write \"api/transformerlab/plugins/**/*.json\"",
     "api:install": "cd api && ./install.sh",
     "api:start": "cd api && ./run.sh",
-    "docker-test:build": "docker build -t transformerlab-test -f test/docker/Dockerfile .",
-    "docker-test:run": "docker run --name transformerlab-test -p 8338:8338 transformerlab-test",
     "docker-test:up": "docker compose -f docker-compose.test.yml up -d --build --wait",
     "docker-test:down": "docker compose -f docker-compose.test.yml down",
-    "docker-test:playwright": "npm run docker-test:up && npx playwright test; npm run docker-test:down",
-    "docker-test:test": "docker rm -f transformerlab-test || true && npm run docker-test:build && npm run docker-test:run"
+    "docker-test:logs": "docker compose -f docker-compose.test.yml logs -f",
+    "docker-test:playwright": "npm run docker-test:up && npx playwright test; npm run docker-test:down"
   },
   "browserslist": [],
   "prettier": {

@@ -212,7 +212,7 @@ const Resources = () => {
         </Button>
       </Stack>
       <FormControl sx={{ mb: 3, maxWidth: 400 }}>
-        <FormLabel>Select Provider</FormLabel>
+        <FormLabel>Select Compute Provider</FormLabel>
         <Select
           value={selectedProvider}
           onChange={(event, newValue) => setSelectedProvider(newValue || '')}
@@ -230,22 +230,10 @@ const Resources = () => {
           <Grid xs={12}>
             <Card>
               <CardContent>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  mb={2}
-                >
-                  <Typography level="title-lg">Local Machine</Typography>
-                  <Button
-                    size="sm"
-                    variant="soft"
-                    onClick={() => navigate('/computer')}
-                  >
-                    View full details
-                  </Button>
-                </Stack>
-                <LocalMachineSummary />
+                <Typography level="title-lg" sx={{ mb: 2 }}>
+                  Local Machine
+                </Typography>
+                <LocalMachineSummary providerId={selectedProviderObj.id} />
               </CardContent>
             </Card>
           </Grid>

@@ -124,14 +124,6 @@
     }
   },
   "server": {
-    "info": {
-      "method": "GET",
-      "path": "server/info"
-    },
-    "pythonLibraries": {
-      "method": "GET",
-      "path": "server/python_libraries"
-    },
     "download_logs": {
       "method": "GET",
       "path": "server/download_logs"
@@ -229,6 +221,14 @@
     "downloadAllArtifacts": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/artifacts/download_all"
+    },
+    "listFiles": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/files?subpath={subpath}"
+    },
+    "getFile": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/file/{filePath}"
     }
   },
   "datasets": {

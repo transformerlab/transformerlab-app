@@ -122,6 +122,14 @@ export default function JobProgress({
     const liveStatus = job?.job_data?.live_status;
     if (!liveStatus) return null;
 
+    if (liveStatus === 'lab_init') {
+      return (
+        <Typography level="body-xs" color="neutral">
+          Lab instance initialized inside remote job.
+        </Typography>
+      );
+    }
+
     if (liveStatus === 'started') {
       return (
         <Typography level="body-xs" color="neutral">

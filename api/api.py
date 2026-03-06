@@ -15,7 +15,6 @@ from werkzeug.utils import secure_filename
 
 import fastapi
 
-# Using torch to test for CUDA and MPS support.
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.exceptions import RequestValidationError
@@ -81,16 +80,8 @@ from transformerlab.routers import (  # noqa: E402
     ssh_keys,
 )
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
-import torch  # noqa: E402
 
-try:
-    from pynvml import nvmlShutdown  # noqa: E402
 
-    HAS_AMD = False
-except Exception:
-    from pyrsmi import rocml  # noqa: E402
-
-    HAS_AMD = True
 from transformerlab import fastchat_openai_api  # noqa: E402
 from transformerlab.routers.experiment import experiment  # noqa: E402
 from transformerlab.routers.experiment import jobs  # noqa: E402
@@ -103,6 +94,7 @@ from transformerlab.shared.request_context import set_current_org_id  # noqa: E4
 from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
 from lab import storage  # noqa: E402
 from transformerlab.shared.remote_workspace import validate_cloud_credentials  # noqa: E402
+from transformerlab.services.sweep_status_service import start_sweep_status_worker, stop_sweep_status_worker  # noqa: E402
 
 
 # The following environment variable can be used by other scripts
@@ -163,9 +155,13 @@ async def lifespan(app: FastAPI):
 
     if "--reload" in sys.argv:
         await install_all_plugins()
+
+    # Start background sweep status updater after all startup steps succeed.
+    await start_sweep_status_worker()
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
     # Do the following at API Shutdown:
+    await stop_sweep_status_worker()
     await db.close()
     # Run the clean up function
     cleanup_at_exit()
@@ -272,7 +268,6 @@ async def set_org_context(request: Request, call_next):
     # remain responsive even if other requests are busy or holding DB locks.
     path = request.url.path
     if path == "/healthz" or path == "/server/worker_healthz":
-        print(f"Health check request: {request.url.path}")
         return await call_next(request)
 
     try:
@@ -625,16 +620,6 @@ def cleanup_at_exit():
                 except Exception as e:
                     print(f"Error killing process {pid}: {e}")
             os.remove("worker.pid")
-    # Perform NVML Shutdown if CUDA is available
-    if torch.cuda.is_available():
-        try:
-            print("🔴 Releasing allocated GPU Resources")
-            if not HAS_AMD:
-                nvmlShutdown()
-            else:
-                rocml.smi_shutdown()
-        except Exception as e:
-            print(f"Error shutting down NVML: {e}")
     print("🔴 Quitting Transformer Lab API server.")
 
 
