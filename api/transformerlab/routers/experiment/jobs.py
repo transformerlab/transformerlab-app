@@ -1398,7 +1398,22 @@ async def save_dataset_to_registry(
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
+<<<<<<< Updated upstream
     """Copy a dataset from job's datasets directory to the global datasets registry"""
+=======
+    """Copy a dataset from job's datasets directory to the global datasets registry.
+
+    Supports two modes:
+    - mode='new': Save as a new dataset. Uses target_name if provided, otherwise uses the original dataset_name.
+      If a dataset with that name already exists, a timestamped suffix is added.
+    - mode='existing': Merge into an existing dataset in the registry. target_name must be provided and must
+      refer to an existing dataset. Files from the job dataset are copied into the existing dataset directory.
+
+    In both modes a new version entry is recorded in the asset_versions table
+    so the asset can be tracked as part of a versioned group.
+    """
+    from transformerlab.services import asset_version_service
+>>>>>>> Stashed changes
 
     try:
         # Secure the dataset name
@@ -1429,7 +1444,56 @@ async def save_dataset_to_registry(
             # If shutil fails, fallback to storage.copy_dir
             print(f"Storage.copy_dir failed: {copy_err}")
 
+<<<<<<< Updated upstream
         return {"status": "success", "message": f"Dataset saved to registry as '{dataset_name_secure}'"}
+=======
+            # Record a new version for the existing group
+            version_entry = await asset_version_service.create_version(
+                asset_type="dataset",
+                group_name=target_name_secure,
+                asset_id=target_name_secure,
+                job_id=job_id,
+                description=f"Merged from job {job_id}, source: {dataset_name}",
+            )
+
+            return {
+                "status": "success",
+                "message": f"Dataset merged into existing registry entry '{target_name_secure}'",
+                "version": version_entry,
+            }
+        else:
+            # Save as a new dataset
+            final_name = secure_filename(target_name) if target_name else dataset_name_secure
+            dest_path = storage.join(datasets_registry_dir, final_name)
+
+            # Check if dataset already exists in registry and generate a unique name if needed
+            if await storage.exists(dest_path):
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                final_name = f"{final_name}_{timestamp}"
+                dest_path = storage.join(datasets_registry_dir, final_name)
+
+            # Copy the dataset to the registry
+            try:
+                await storage.copy_dir(source_path, dest_path)
+            except Exception as copy_err:
+                print(f"Storage.copy_dir failed: {copy_err}")
+
+            # Determine the group name: use target_name (without timestamp) as the group
+            group_name = secure_filename(target_name) if target_name else dataset_name_secure
+            version_entry = await asset_version_service.create_version(
+                asset_type="dataset",
+                group_name=group_name,
+                asset_id=final_name,
+                job_id=job_id,
+                description=f"Created from job {job_id}",
+            )
+
+            return {
+                "status": "success",
+                "message": f"Dataset saved to registry as '{final_name}'",
+                "version": version_entry,
+            }
+>>>>>>> Stashed changes
 
     except HTTPException:
         raise
@@ -1442,8 +1506,31 @@ async def save_dataset_to_registry(
 
 
 @router.post("/{job_id}/models/{model_name}/save_to_registry")
+<<<<<<< Updated upstream
 async def save_model_to_registry(job_id: str, model_name: str):
     """Copy a model from job's models directory to the global models registry"""
+=======
+async def save_model_to_registry(
+    job_id: str,
+    model_name: str,
+    target_name: Optional[str] = Query(None, description="Custom name for the model in the registry"),
+    mode: str = Query(
+        "new", description="'new' to create a new entry, 'existing' to merge into an existing registry model"
+    ),
+):
+    """Copy a model from job's models directory to the global models registry.
+
+    Supports two modes:
+    - mode='new': Save as a new model. Uses target_name if provided, otherwise uses the original model_name.
+      If a model with that name already exists, a timestamped suffix is added.
+    - mode='existing': Merge into an existing model in the registry. target_name must be provided and must
+      refer to an existing model. Files from the job model are copied into the existing model directory.
+
+    In both modes a new version entry is recorded in the asset_versions table
+    so the asset can be tracked as part of a versioned group.
+    """
+    from transformerlab.services import asset_version_service
+>>>>>>> Stashed changes
 
     try:
         # Secure the model name
@@ -1473,7 +1560,56 @@ async def save_model_to_registry(job_id: str, model_name: str):
             print(f"storage.copy_dir failed: {copy_err}")
             await storage.copy_dir(source_path, dest_path)
 
+<<<<<<< Updated upstream
         return {"status": "success", "message": f"Model saved to registry as '{model_name_secure}'"}
+=======
+            # Record a new version for the existing group
+            version_entry = await asset_version_service.create_version(
+                asset_type="model",
+                group_name=target_name_secure,
+                asset_id=target_name_secure,
+                job_id=job_id,
+                description=f"Merged from job {job_id}, source: {model_name}",
+            )
+
+            return {
+                "status": "success",
+                "message": f"Model merged into existing registry entry '{target_name_secure}'",
+                "version": version_entry,
+            }
+        else:
+            # Save as a new model
+            final_name = secure_filename(target_name) if target_name else model_name_secure
+            dest_path = storage.join(models_registry_dir, final_name)
+
+            # Check if model already exists in registry and generate a unique name if needed
+            if await storage.exists(dest_path):
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                final_name = f"{final_name}_{timestamp}"
+                dest_path = storage.join(models_registry_dir, final_name)
+
+            # Copy the model directory to the registry
+            try:
+                await storage.copy_dir(source_path, dest_path)
+            except Exception as copy_err:
+                print(f"storage.copy_dir failed: {copy_err}")
+
+            # Determine the group name: use target_name (without timestamp) as the group
+            group_name = secure_filename(target_name) if target_name else model_name_secure
+            version_entry = await asset_version_service.create_version(
+                asset_type="model",
+                group_name=group_name,
+                asset_id=final_name,
+                job_id=job_id,
+                description=f"Created from job {job_id}",
+            )
+
+            return {
+                "status": "success",
+                "message": f"Model saved to registry as '{final_name}'",
+                "version": version_entry,
+            }
+>>>>>>> Stashed changes
 
     except HTTPException:
         raise

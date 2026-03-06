@@ -143,6 +143,7 @@ export default function LocalDatasets() {
                   downloaded={true}
                   local={true}
                   parentMutate={mutate}
+                  versionGroups={row?.version_groups || []}
                 />
               </Grid>
             ))}

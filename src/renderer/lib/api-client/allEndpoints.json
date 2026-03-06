@@ -592,5 +592,47 @@
       "method": "DELETE",
       "path": "experiment/{experimentId}/conversations/delete_transcription?id={id}"
     }
+  },
+  "assetVersions": {
+    "listGroups": {
+      "method": "GET",
+      "path": "asset_versions/groups?asset_type={assetType}"
+    },
+    "deleteGroup": {
+      "method": "DELETE",
+      "path": "asset_versions/groups/{assetType}/{groupName}"
+    },
+    "createVersion": {
+      "method": "POST",
+      "path": "asset_versions/versions"
+    },
+    "listVersions": {
+      "method": "GET",
+      "path": "asset_versions/versions/{assetType}/{groupName}"
+    },
+    "getVersion": {
+      "method": "GET",
+      "path": "asset_versions/versions/{assetType}/{groupName}/{version}"
+    },
+    "deleteVersion": {
+      "method": "DELETE",
+      "path": "asset_versions/versions/{assetType}/{groupName}/{version}"
+    },
+    "setTag": {
+      "method": "PUT",
+      "path": "asset_versions/versions/{assetType}/{groupName}/{version}/tag"
+    },
+    "clearTag": {
+      "method": "DELETE",
+      "path": "asset_versions/versions/{assetType}/{groupName}/{version}/tag"
+    },
+    "resolve": {
+      "method": "GET",
+      "path": "asset_versions/resolve/{assetType}/{groupName}"
+    },
+    "getAssetGroupMap": {
+      "method": "GET",
+      "path": "asset_versions/map/{assetType}"
+    }
   }
 }
