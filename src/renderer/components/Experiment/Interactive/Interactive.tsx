@@ -393,9 +393,11 @@ export default function Interactive() {
               ? 'vLLM'
               : (data.interactive_type || 'vscode') === 'ollama'
                 ? 'Ollama'
-                : (data.interactive_type || 'vscode') === 'ssh'
-                  ? 'SSH'
-                  : 'VS Code';
+                : (data.interactive_type || 'vscode') === 'mlx_lm'
+                  ? 'MLX LM'
+                  : (data.interactive_type || 'vscode') === 'ssh'
+                    ? 'SSH'
+                    : 'VS Code';
 
         if (shouldLaunch && taskId) {
           // Construct task object from payload for launching

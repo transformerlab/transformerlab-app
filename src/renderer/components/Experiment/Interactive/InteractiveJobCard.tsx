@@ -80,6 +80,18 @@ function OllamaIcon() {
   );
 }
 
+function MlxLmIcon() {
+  return (
+    <img
+      src="https://github.com/ml-explore.png"
+      alt="MLX LM"
+      width={20}
+      height={20}
+      style={{ display: 'block' }}
+    />
+  );
+}
+
 const INTERACTIVE_TYPE_CONFIG: Record<
   string,
   {
@@ -93,6 +105,7 @@ const INTERACTIVE_TYPE_CONFIG: Record<
   vllm: { label: 'vLLM', color: 'success', icon: VllmIcon },
   ollama: { label: 'Ollama', color: 'primary', icon: OllamaIcon },
   ssh: { label: 'SSH', color: 'danger', icon: SshIcon },
+  mlx_lm: { label: 'MLX LM', color: 'success', icon: MlxLmIcon },
 };
 
 const DEFAULT_TYPE_CONFIG = INTERACTIVE_TYPE_CONFIG.vscode;

@@ -421,6 +421,84 @@ def get_ssh_tunnel_info(logs: str) -> dict:
     }
 
 
+def parse_mlx_lm_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """
+    Parse MLX LM server logs to extract tunnel URLs.
+
+    Args:
+        logs: Job logs as string
+
+    Returns:
+        Tuple of (tunnel_url, mlx_lm_url, openwebui_url) - all can be None if not found
+    """
+    tunnel_url: Optional[str] = None
+    mlx_lm_url: Optional[str] = None
+    openwebui_url: Optional[str] = None
+
+    try:
+        lines = logs.split("\n")
+
+        found_tunnel_urls: list[str] = []
+
+        for line in lines:
+            # Look for any HTTPS tunnel URL from supported providers
+            match = re.search(
+                r"(https://[a-zA-Z0-9-]+\.(?:trycloudflare\.com|ngrok-free\.app|ngrok-free\.dev|ngrok\.io))",
+                line,
+            )
+            if match:
+                url = match.group(1)
+                if url not in found_tunnel_urls:
+                    found_tunnel_urls.append(url)
+
+            # Check for local MLX LM API URL pattern: "Local MLX LM API: http://localhost:8001"
+            match = re.search(r"Local MLX LM API:\s*(http://localhost:\d+)", line)
+            if match and not mlx_lm_url:
+                mlx_lm_url = match.group(1)
+
+            # Check for local Open WebUI URL pattern: "Local Open WebUI: http://localhost:8080"
+            match = re.search(r"Local Open WebUI:\s*(http://localhost:\d+)", line)
+            if match and not openwebui_url:
+                openwebui_url = match.group(1)
+
+        # Assign HTTPS tunnel URL as the primary tunnel_url
+        if found_tunnel_urls:
+            tunnel_url = found_tunnel_urls[0]
+            # If we don't have mlx_lm_url from local pattern, use the tunnel URL
+            if not mlx_lm_url:
+                mlx_lm_url = tunnel_url
+
+        return tunnel_url, mlx_lm_url, openwebui_url
+
+    except Exception as e:
+        print(f"Error parsing MLX LM tunnel logs: {e}")
+        return None, None, None
+
+
+def get_mlx_lm_tunnel_info(logs: str) -> dict:
+    """
+    Get complete MLX LM tunnel information from logs.
+
+    Args:
+        logs: Job logs as string
+
+    Returns:
+        Dictionary with tunnel information including full MLX LM and Open WebUI URLs
+    """
+    tunnel_url, mlx_lm_url, openwebui_url = parse_mlx_lm_tunnel_logs(logs)
+
+    # Tunnel is ready if we have the primary tunnel URL
+    is_ready = tunnel_url is not None
+
+    return {
+        "tunnel_url": tunnel_url,
+        "mlx_lm_url": mlx_lm_url,
+        "openwebui_url": openwebui_url,
+        "is_ready": is_ready,
+        "status": "ready" if is_ready else "loading",
+    }
+
+
 def get_tunnel_info(logs: str, interactive_type: str) -> dict:
     """
     Get tunnel information based on the interactive type.
@@ -442,6 +520,8 @@ def get_tunnel_info(logs: str, interactive_type: str) -> dict:
         return get_ollama_tunnel_info(logs)
     elif interactive_type == "ssh":
         return get_ssh_tunnel_info(logs)
+    elif interactive_type == "mlx_lm":
+        return get_mlx_lm_tunnel_info(logs)
     else:
         return {
             "error": f"Unknown interactive type: {interactive_type}",
