@@ -53,10 +53,11 @@ Patterns
 
 Backend
 -------
-Configure via the ``TLAB_CACHE_URL`` environment variable (default: ``mem://``).
-To switch to Redis for multi-node deployments::
+The backend is configured by the ``CACHE_URL`` constant defined at the top of
+this module (default: ``"mem://"``).  To switch backends, change that variable:
 
-    TLAB_CACHE_URL=redis://localhost:6379/0
+* ``"mem://?size=5000"``       – memory with a custom max-entry cap
+* ``"redis://localhost:6379"`` – Redis for multi-node deployments
 
 ``setup()`` must be called once at application startup (the API lifespan handler
 does this automatically).
@@ -75,6 +76,16 @@ from cashews import cache as _cashews
 from transformerlab.shared.request_context import get_current_org_id
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Backend configuration
+# ---------------------------------------------------------------------------
+
+# Change this variable to switch cache backends.  Common options:
+#   "mem://"                 – in-process memory (default, single-node)
+#   "mem://?size=5000"       – memory with a custom max-entry cap
+#   "redis://localhost:6379" – Redis for multi-node deployments
+CACHE_URL = "mem://"
 
 # ---------------------------------------------------------------------------
 # Internal sentinels
@@ -286,17 +297,11 @@ class OrgScopedCache:
 cache = OrgScopedCache()
 
 
-def setup(cache_url: str = "mem://") -> None:
+def setup(cache_url: str = CACHE_URL) -> None:
     """Configure the cashews backend.  Call once at application startup.
 
-    Parameters
-    ----------
-    cache_url:
-        A cashews connection URL.  Defaults to ``"mem://"`` (in-process
-        memory).  Common overrides via ``TLAB_CACHE_URL``:
-
-        * ``"mem://?size=5000"``      – memory with a custom max-entry cap
-        * ``"redis://localhost:6379"`` – Redis for multi-node deployments
+    Uses ``CACHE_URL`` defined at the top of this module by default.
+    Pass an explicit URL to override (useful in tests).
     """
     _cashews.setup(cache_url)
     backend = cache_url.split("://")[0]
