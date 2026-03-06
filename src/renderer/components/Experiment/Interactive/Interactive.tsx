@@ -24,6 +24,9 @@ dayjs.extend(relativeTime);
 
 export default function Interactive() {
   const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
+  const [interactiveModalError, setInteractiveModalError] = useState<
+    string | null
+  >(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskBeingEdited, setTaskBeingEdited] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -293,6 +296,7 @@ export default function Interactive() {
       providers.find((p) => p.id === data.provider_id) || providers[0];
 
     setIsSubmitting(true);
+    setInteractiveModalError(null);
     try {
       const interactiveType = data.interactive_type || 'vscode';
 
@@ -397,14 +401,28 @@ export default function Interactive() {
                   ? 'SSH'
                   : 'VS Code';
 
-        if (shouldLaunch && taskId) {
+        if (shouldLaunch) {
+          if (!taskId) {
+            setInteractiveModalError(
+              'Template was created, but no task ID was returned. Please refresh and try launching from the task list.',
+            );
+            return;
+          }
+
           // Construct task object from payload for launching
           const newTask = {
             id: taskId,
             ...templatePayload,
           };
-          // Launch the task immediately
-          await handleQueue(newTask);
+
+          // Launch the task immediately. If launch fails (e.g. missing secrets),
+          // keep the modal open and show the error inline.
+          const launch = await launchInteractiveTask(newTask);
+          if (!launch.ok) {
+            setInteractiveModalError(launch.error);
+            return;
+          }
+
           addNotification({
             type: 'success',
             message: `Interactive ${interactiveTypeLabel} session launched!`,
@@ -419,21 +437,152 @@ export default function Interactive() {
         setInteractiveModalOpen(false);
       } else {
         const txt = await response.text();
-        addNotification({
-          type: 'danger',
-          message: `Failed to create interactive template: ${txt}`,
-        });
+        setInteractiveModalError(
+          `Failed to create interactive template: ${txt}`,
+        );
       }
     } catch (error) {
       console.error('Error creating interactive template:', error);
-      addNotification({
-        type: 'danger',
-        message: 'Failed to create interactive template. Please try again.',
-      });
+      setInteractiveModalError(
+        'Failed to create interactive template. Please try again.',
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const launchInteractiveTask = useCallback(
+    async (task: any): Promise<{ ok: true } | { ok: false; error: string }> => {
+      if (!experimentInfo?.id) {
+        return { ok: false, error: 'No experiment selected.' };
+      }
+
+      const cfg =
+        task.config !== undefined
+          ? typeof task.config === 'string'
+            ? JSON.parse(task.config)
+            : task.config
+          : task;
+
+      const providerId =
+        cfg.provider_id ||
+        task.provider_id ||
+        (providers.length ? providers[0]?.id : null);
+      if (!providerId) {
+        return {
+          ok: false,
+          error:
+            'No providers available. Add a provider in the team settings first.',
+        };
+      }
+
+      const providerMeta = providers.find(
+        (provider) => provider.id === providerId,
+      );
+
+      if (!providerMeta) {
+        return {
+          ok: false,
+          error:
+            'Selected provider is unavailable. Please create or update providers in team settings.',
+        };
+      }
+
+      if (!cfg.command) {
+        return { ok: false, error: 'Task is missing a command to run.' };
+      }
+
+      const payload = {
+        experiment_id: experimentInfo.id,
+        task_id: task.id,
+        task_name: task.name,
+        cluster_name: cfg.cluster_name || task.cluster_name,
+        command: cfg.command || task.command,
+        subtype: cfg.subtype || task.subtype,
+        interactive_type: cfg.interactive_type || task.interactive_type,
+        interactive_gallery_id:
+          cfg.interactive_gallery_id ??
+          task?.interactive_gallery_id ??
+          undefined,
+        cpus: cfg.cpus || task.cpus,
+        memory: cfg.memory || task.memory,
+        disk_space: cfg.disk_space || task.disk_space,
+        accelerators: cfg.accelerators || task.accelerators,
+        num_nodes: cfg.num_nodes || task.num_nodes,
+        setup: cfg.setup || task.setup,
+        env_vars: cfg.env_vars || task.env_vars || {},
+        parameters: cfg.parameters || task.parameters || undefined,
+        file_mounts: cfg.file_mounts || task.file_mounts,
+        provider_name: providerMeta.name,
+        github_repo_url: cfg.github_repo_url || task.github_repo_url,
+        github_directory: cfg.github_directory || task.github_directory,
+        github_branch: cfg.github_branch || task.github_branch,
+        run_sweeps: cfg.run_sweeps || task.run_sweeps || undefined,
+        sweep_config: cfg.sweep_config || task.sweep_config || undefined,
+        sweep_metric:
+          cfg.sweep_metric ||
+          task.sweep_metric ||
+          (cfg.run_sweeps || task.run_sweeps ? 'eval/loss' : undefined),
+        lower_is_better:
+          cfg.lower_is_better !== undefined
+            ? cfg.lower_is_better
+            : task.lower_is_better !== undefined
+              ? task.lower_is_better
+              : undefined,
+        minutes_requested:
+          cfg.minutes_requested || task.minutes_requested || undefined,
+      };
+
+      try {
+        const response = await fetchWithAuth(
+          chatAPI.Endpoints.ComputeProvider.LaunchTemplate(providerId),
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          },
+        );
+
+        let launchResult: any = {};
+        try {
+          launchResult = await response.json();
+        } catch {
+          launchResult = {};
+        }
+
+        if (response.ok && launchResult?.status === 'success') {
+          const newId = String(launchResult.job_id);
+          const pending = getPendingJobIds();
+          if (!pending.includes(newId)) {
+            setPendingJobIds([newId, ...pending]);
+          }
+          setTimeout(() => jobsMutate(), 0);
+          await Promise.all([jobsMutate(), templatesMutate()]);
+          return { ok: true };
+        }
+
+        const message =
+          launchResult?.detail ||
+          launchResult?.message ||
+          'Failed to queue provider-backed task.';
+        return { ok: false, error: String(message) };
+      } catch (e: any) {
+        console.error(e);
+        return { ok: false, error: 'Failed to queue provider-backed task.' };
+      }
+    },
+    [
+      experimentInfo?.id,
+      fetchWithAuth,
+      getPendingJobIds,
+      jobsMutate,
+      providers,
+      setPendingJobIds,
+      templatesMutate,
+    ],
+  );
 
   const handleQueue = async (task: any) => {
     if (!experimentInfo?.id) return;
@@ -496,7 +645,6 @@ export default function Interactive() {
         interactive_gallery_id:
           cfg.interactive_gallery_id ??
           task?.interactive_gallery_id ??
-          config?.interactive_gallery_id ??
           undefined,
         cpus: cfg.cpus || task.cpus,
         memory: cfg.memory || task.memory,
@@ -595,7 +743,12 @@ export default function Interactive() {
     >
       <NewInteractiveTaskModal
         open={interactiveModalOpen}
-        onClose={() => setInteractiveModalOpen(false)}
+        onClose={() => {
+          setInteractiveModalOpen(false);
+          setInteractiveModalError(null);
+        }}
+        submitError={interactiveModalError}
+        onClearSubmitError={() => setInteractiveModalError(null)}
         onSubmit={(data, shouldLaunch) =>
           handleSubmitInteractive(data, shouldLaunch)
         }
