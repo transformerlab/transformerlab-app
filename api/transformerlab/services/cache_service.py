@@ -1,0 +1,303 @@
+"""General-purpose in-memory cache with automatic org/team scoping.
+
+Overview
+--------
+The module exposes a single **``cache``** singleton.  Import it anywhere in the
+API layer (services, routers) and call its async methods directly.  All keys and
+tags are automatically prefixed with the **current org/team ID** (read from the
+request context ``ContextVar``), so two different tenants hitting the same URL
+can never see each other's cached data.
+
+When there is **no org context** (e.g. background tasks at startup) the cache is
+bypassed transparently – all reads return ``None`` and writes are no-ops.
+
+Patterns
+--------
+**Pattern 1 – ``get_or_set`` (most common)**::
+
+    from transformerlab.services.cache_service import cache
+
+    models = await cache.get_or_set(
+        "models:list",
+        factory=lab.list_models,   # sync or async callable, called on miss
+        ttl="30s",
+        tags=["models"],
+    )
+
+**Pattern 2 – conditional caching (e.g. jobs with lifecycle-aware TTLs)**::
+
+    job = await lab.get_job(job_id)
+    if job["status"] == "COMPLETED":
+        await cache.set(f"job:{job_id}", job, ttl="24h", tags=["jobs", f"job:{job_id}"])
+    elif job["status"] == "FAILED":
+        await cache.set(f"job:{job_id}", job, ttl="10m", tags=["jobs", f"job:{job_id}"])
+    # RUNNING / QUEUED: skip caching entirely – fall through
+    return job
+
+**Pattern 3 – explicit get / set**::
+
+    result = await cache.get("experiment:abc")
+    if result is None:
+        result = await lab.get_experiment("abc")
+        await cache.set("experiment:abc", result,
+                        ttl="60s", tags=["experiments", "experiment:abc"])
+
+**Pattern 4 – tag invalidation**::
+
+    await cache.invalidate("models")                    # all models for current org
+    await cache.invalidate(f"experiment:{exp_id}")      # single experiment
+    await cache.invalidate("jobs", "experiments")       # multiple tags at once
+
+    # Admin: wipe everything (all orgs)
+    await cache.clear_all()
+
+Backend
+-------
+Configure via the ``TLAB_CACHE_URL`` environment variable (default: ``mem://``).
+To switch to Redis for multi-node deployments::
+
+    TLAB_CACHE_URL=redis://localhost:6379/0
+
+``setup()`` must be called once at application startup (the API lifespan handler
+does this automatically).
+"""
+
+from __future__ import annotations
+
+import inspect
+import logging
+from collections.abc import Callable
+from datetime import timedelta
+from typing import Any
+
+from cashews import cache as _cashews
+
+from transformerlab.shared.request_context import get_current_org_id
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Internal sentinels
+# ---------------------------------------------------------------------------
+
+# Returned by cashews.get(default=_MISS) when the key does not exist.
+# Using a module-level object() gives us fast identity checks with the
+# in-memory backend.  If a Redis backend is ever added, swap this for a
+# unique string constant and compare with == instead of `is`.
+_MISS = object()
+
+# Stored in the cache when the caller explicitly caches Python ``None``.
+# A unique string survives serialisation (pickle / JSON) so it works with
+# both in-memory and remote backends.
+_NONE_SENTINEL = "__tlab_cached_none__"
+
+# Type alias for TTL values accepted by cashews.
+TTL = str | int | timedelta
+
+
+# ---------------------------------------------------------------------------
+# Main cache class
+# ---------------------------------------------------------------------------
+
+
+class OrgScopedCache:
+    """Thin wrapper around cashews that scopes every key/tag to the current org.
+
+    Never instantiate this class directly – use the module-level ``cache``
+    singleton created at the bottom of this file.
+    """
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _scoped_key(self, key: str) -> str | None:
+        """Return ``{org_id}:{key}``, or *None* when there is no org context."""
+        org_id = get_current_org_id()
+        if not org_id:
+            return None
+        return f"{org_id}:{key}"
+
+    def _scoped_tags(self, tags: list[str] | None) -> list[str]:
+        """Prefix every tag with the current org ID."""
+        org_id = get_current_org_id()
+        if not org_id or not tags:
+            return []
+        return [f"{org_id}:{t}" for t in tags]
+
+    @staticmethod
+    async def _call(factory: Callable[[], Any]) -> Any:
+        """Invoke *factory*, awaiting it when it returns a coroutine."""
+        result = factory()
+        if inspect.isawaitable(result):
+            result = await result
+        return result
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    async def get(self, key: str) -> Any | None:
+        """Return the cached value for *key* in the current org, or ``None``.
+
+        ``None`` is returned both on a cache miss *and* when ``None`` itself
+        was explicitly cached.  Use :meth:`get_or_set` when you need to
+        distinguish these cases.
+        """
+        scoped = self._scoped_key(key)
+        if scoped is None:
+            return None
+        try:
+            result = await _cashews.get(scoped, default=_MISS)
+            if result is _MISS:
+                return None  # cache miss
+            return None if result == _NONE_SENTINEL else result
+        except Exception:
+            logger.exception("cache.get failed for key=%r – bypassing cache", key)
+            return None
+
+    async def set(
+        self,
+        key: str,
+        value: Any,
+        ttl: TTL = "60s",
+        tags: list[str] | None = None,
+    ) -> None:
+        """Store *value* under *key* for the current org.
+
+        Parameters
+        ----------
+        key:
+            Plain string key, e.g. ``"models:list"`` or ``"job:abc123"``.
+        value:
+            Any picklable Python object.  ``None`` is stored safely.
+        ttl:
+            Time-to-live passed directly to cashews.  Accepts an integer
+            (seconds), a :class:`~datetime.timedelta`, or a human-readable
+            string such as ``"30s"``, ``"5m"``, ``"2h"``.
+        tags:
+            Optional list of tag strings used for bulk invalidation.
+            Tags are automatically scoped to the current org.
+        """
+        scoped = self._scoped_key(key)
+        if scoped is None:
+            return  # no org context – skip
+        stored = _NONE_SENTINEL if value is None else value
+        scoped_tags = self._scoped_tags(tags)
+        try:
+            await _cashews.set(scoped, stored, expire=ttl, tags=scoped_tags)
+        except Exception:
+            logger.exception("cache.set failed for key=%r – continuing without cache", key)
+
+    async def get_or_set(
+        self,
+        key: str,
+        factory: Callable[[], Any],
+        ttl: TTL = "60s",
+        tags: list[str] | None = None,
+    ) -> Any:
+        """Return the cached value, or call *factory* to populate it on a miss.
+
+        *factory* may be a plain callable or an async callable; both are
+        supported.  Its return value is cached, including ``None``.
+
+        Example::
+
+            models = await cache.get_or_set(
+                "models:list",
+                factory=lab.list_models,
+                ttl="30s",
+                tags=["models"],
+            )
+        """
+        scoped = self._scoped_key(key)
+        if scoped is None:
+            # No org context → bypass cache entirely.
+            return await self._call(factory)
+
+        try:
+            raw = await _cashews.get(scoped, default=_MISS)
+        except Exception:
+            logger.exception("cache.get failed inside get_or_set for key=%r – calling factory", key)
+            return await self._call(factory)
+
+        if raw is not _MISS:
+            # Cache hit – unwrap None sentinel if needed.
+            return None if raw == _NONE_SENTINEL else raw
+
+        # Cache miss – call factory then store result.
+        value = await self._call(factory)
+        stored = _NONE_SENTINEL if value is None else value
+        scoped_tags = self._scoped_tags(tags)
+        try:
+            await _cashews.set(scoped, stored, expire=ttl, tags=scoped_tags)
+        except Exception:
+            logger.exception("cache.set failed inside get_or_set for key=%r – continuing", key)
+        return value
+
+    async def delete(self, key: str) -> None:
+        """Remove a single cache entry for the current org."""
+        scoped = self._scoped_key(key)
+        if scoped is None:
+            return
+        try:
+            await _cashews.delete(scoped)
+        except Exception:
+            logger.exception("cache.delete failed for key=%r", key)
+
+    async def invalidate(self, *tags: str) -> None:
+        """Invalidate all cache entries carrying any of *tags* for the current org.
+
+        Tags are automatically scoped to the current org, so this never
+        affects another tenant's data.
+
+        Example::
+
+            await cache.invalidate("models")                    # wipe model list
+            await cache.invalidate(f"experiment:{exp_id}")      # single experiment
+            await cache.invalidate("jobs", "experiments")       # multiple tags
+        """
+        if not tags:
+            return
+        scoped_tags = self._scoped_tags(list(tags))
+        if not scoped_tags:
+            return
+        try:
+            await _cashews.delete_tags(*scoped_tags)
+        except Exception:
+            logger.exception("cache.invalidate failed for tags=%r", tags)
+
+    async def clear_all(self) -> None:
+        """Wipe the **entire** cache across all orgs.
+
+        Intended for admin use (e.g. a ``POST /admin/cache/clear`` endpoint)
+        or test teardown.  Prefer :meth:`invalidate` for targeted eviction.
+        """
+        try:
+            await _cashews.clear()
+        except Exception:
+            logger.exception("cache.clear_all failed")
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton and setup
+# ---------------------------------------------------------------------------
+
+cache = OrgScopedCache()
+
+
+def setup(cache_url: str = "mem://") -> None:
+    """Configure the cashews backend.  Call once at application startup.
+
+    Parameters
+    ----------
+    cache_url:
+        A cashews connection URL.  Defaults to ``"mem://"`` (in-process
+        memory).  Common overrides via ``TLAB_CACHE_URL``:
+
+        * ``"mem://?size=5000"``      – memory with a custom max-entry cap
+        * ``"redis://localhost:6379"`` – Redis for multi-node deployments
+    """
+    _cashews.setup(cache_url)
+    backend = cache_url.split("://")[0]
+    logger.info("Cache configured with backend: %s", backend)
