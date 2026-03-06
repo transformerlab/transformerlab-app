@@ -41,6 +41,7 @@ dependencies = [
   "controlnet_aux==0.0.10",
   "google-cloud-storage==2.18.2",
   "azure-storage-blob==12.28.0",
+  "cashews==7.5.0",
 
 ]
 
