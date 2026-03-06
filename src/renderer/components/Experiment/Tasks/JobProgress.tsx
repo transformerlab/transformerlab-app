@@ -14,7 +14,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import duration from 'dayjs/plugin/duration';
 import utc from 'dayjs/plugin/utc';
 import { jobChipColor } from 'renderer/lib/utils';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
@@ -57,7 +57,7 @@ export default function JobProgress({
 }: JobProps) {
   const { experimentInfo } = useExperimentInfo();
   const { fetchWithAuth } = useAuth();
-  const [stopping, setStopping] = useState(false);
+  const stopping = job?.status === 'STOPPING';
 
   // Shared stop handler for both LAUNCHING and RUNNING states
   const handleStopJob = useCallback(async () => {
@@ -65,8 +65,6 @@ export default function JobProgress({
     if (!confirm('Are you sure you want to stop this job?')) {
       return;
     }
-
-    setStopping(true);
 
     if (job.type === 'REMOTE') {
       // For REMOTE jobs, check if they have provider_id (new provider-based jobs)
