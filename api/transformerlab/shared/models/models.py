@@ -283,3 +283,36 @@ class QuotaHold(Base):
         Index("idx_quota_holds_task_id", "task_id"),
         Index("idx_quota_holds_job_id", "job_id"),
     )
+
+
+class AssetVersion(Base):
+    """Tracks versioned groups of models and datasets.
+
+    Each row represents a single version of a named asset group.
+    A group is identified by (asset_type, group_name).
+    Versions within a group are numbered sequentially starting from 1.
+    Each version can optionally carry a tag such as 'latest', 'production', or 'draft'.
+    Only one version per group may hold a given tag at a time (enforced by the service layer).
+    """
+
+    __tablename__ = "asset_versions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    asset_type: Mapped[str] = mapped_column(String, nullable=False, index=True)  # 'model' or 'dataset'
+    group_name: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)  # Sequential version number within group
+    asset_id: Mapped[str] = mapped_column(
+        String, nullable=False
+    )  # The actual model_id or dataset_id on the filesystem
+    tag: Mapped[Optional[str]] = mapped_column(
+        String, nullable=True, index=True
+    )  # 'latest', 'production', 'draft', or NULL
+    job_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # The job that produced this version
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index("idx_asset_versions_group", "asset_type", "group_name"),
+        Index("idx_asset_versions_tag", "asset_type", "group_name", "tag"),
+        Index("idx_asset_versions_asset_id", "asset_id"),
+    )

@@ -550,3 +550,36 @@ Endpoints.Users = {
   GetSecrets: () => `${API_URL()}users/me/secrets`,
   SetSecrets: () => `${API_URL()}users/me/secrets`,
 };
+
+Endpoints.AssetVersions = {
+  ListGroups: (assetType: string) =>
+    `${API_URL()}asset_versions/groups?asset_type=${assetType}`,
+  DeleteGroup: (assetType: string, groupName: string) =>
+    `${API_URL()}asset_versions/groups/${assetType}/${groupName}`,
+  CreateVersion: () => `${API_URL()}asset_versions/versions`,
+  ListVersions: (assetType: string, groupName: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}`,
+  GetVersion: (assetType: string, groupName: string, version: number) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${version}`,
+  DeleteVersion: (assetType: string, groupName: string, version: number) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${version}`,
+  SetTag: (assetType: string, groupName: string, version: number) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${version}/tag`,
+  ClearTag: (assetType: string, groupName: string, version: number) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${version}/tag`,
+  Resolve: (
+    assetType: string,
+    groupName: string,
+    tag?: string,
+    version?: number,
+  ) => {
+    let url = `${API_URL()}asset_versions/resolve/${assetType}/${groupName}`;
+    const params: string[] = [];
+    if (tag) params.push(`tag=${tag}`);
+    if (version !== undefined) params.push(`version=${version}`);
+    if (params.length > 0) url += `?${params.join('&')}`;
+    return url;
+  },
+  GetAssetGroupMap: (assetType: string) =>
+    `${API_URL()}asset_versions/map/${assetType}`,
+};

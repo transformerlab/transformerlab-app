@@ -1392,7 +1392,18 @@ async def save_dataset_to_registry(
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Copy a dataset from job's datasets directory to the global datasets registry"""
+    """Copy a dataset from job's datasets directory to the global datasets registry.
+
+    Supports two modes:
+    - mode='new': Save as a new dataset. Uses target_name if provided, otherwise uses the original dataset_name.
+      If a dataset with that name already exists, a timestamped suffix is added.
+    - mode='existing': Merge into an existing dataset in the registry. target_name must be provided and must
+      refer to an existing dataset. Files from the job dataset are copied into the existing dataset directory.
+
+    In both modes a new version entry is recorded in the asset_versions table
+    so the asset can be tracked as part of a versioned group.
+    """
+    from transformerlab.services import asset_version_service
 
     try:
         # Secure the dataset name
@@ -1423,7 +1434,21 @@ async def save_dataset_to_registry(
             # If shutil fails, fallback to storage.copy_dir
             print(f"Storage.copy_dir failed: {copy_err}")
 
-        return {"status": "success", "message": f"Dataset saved to registry as '{dataset_name_secure}'"}
+        # Create a version entry for the dataset
+        group_name = dataset_name_secure
+        version_entry = await asset_version_service.create_version(
+            asset_type="dataset",
+            group_name=group_name,
+            asset_id=dataset_name_secure,
+            job_id=job_id,
+            description=f"Created from job {job_id}",
+        )
+
+        return {
+            "status": "success",
+            "message": f"Dataset saved to registry as '{dataset_name_secure}'",
+            "version": version_entry,
+        }
 
     except HTTPException:
         raise
@@ -1438,6 +1463,7 @@ async def save_dataset_to_registry(
 @router.post("/{job_id}/models/{model_name}/save_to_registry")
 async def save_model_to_registry(job_id: str, model_name: str):
     """Copy a model from job's models directory to the global models registry"""
+    from transformerlab.services import asset_version_service
 
     try:
         # Secure the model name
@@ -1467,7 +1493,21 @@ async def save_model_to_registry(job_id: str, model_name: str):
             print(f"storage.copy_dir failed: {copy_err}")
             await storage.copy_dir(source_path, dest_path)
 
-        return {"status": "success", "message": f"Model saved to registry as '{model_name_secure}'"}
+        # Create a version entry for the model
+        group_name = model_name_secure
+        version_entry = await asset_version_service.create_version(
+            asset_type="model",
+            group_name=group_name,
+            asset_id=model_name_secure,
+            job_id=job_id,
+            description=f"Created from job {job_id}",
+        )
+
+        return {
+            "status": "success",
+            "message": f"Model saved to registry as '{model_name_secure}'",
+            "version": version_entry,
+        }
 
     except HTTPException:
         raise
