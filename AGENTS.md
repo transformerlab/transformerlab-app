@@ -4,8 +4,9 @@
 
 - The `main` branch is protected. **Never commit directly to `main`.**
 - Always create a new branch for your work: `git checkout -b <descriptive-branch-name>`
-- Use a clear branch naming convention, e.g. `feat/short-description`, `fix/short-description`, `chore/short-description`.
+- Use a clear branch naming convention, e.g. `add/short-description`, `fix/short-description`.
 - Commit early and often with meaningful commit messages.
+- **Never use `git commit --amend`** — it rewrites history and causes divergence with remote branches. Make a new commit instead.
 - When work is complete, push the branch and open a pull request: `gh pr create --fill`
 - Do not merge PRs yourself — let the reviewer merge.
 
@@ -13,13 +14,13 @@
 
 - **Frontend dev**: `npm start` (Node v22, not v23+)
 - **Frontend test**: `npm test` (Jest); single test: `npm test -- --testPathPattern="<pattern>"`
-- **Frontend format**: `npm run format` (Prettier, single quotes)
+- **Frontend lint**: `npm run format`
 - **Python env (run once per shell)**: `source ~/.transformerlab/miniforge3/bin/activate && conda activate ~/.transformerlab/envs/transformerlab`
 - **API install**: `cd api && ./install.sh` or `npm run api:install`
 - **API start**: `cd api && ./run.sh` or `npm run api:start`
 - **API test**: `cd api && pytest`
 - **API single test**: `cd api && pytest test/<file>::<test>`
-- **Python lint**: `ruff check api/` (line-length=120, indent=4). **Always run `ruff check` on changed Python files before committing.**
+- **Python lint**: `ruff check`. **Always run `ruff check` and `ruff format` before committing.**
 - **DB migrations**: `cd api && alembic upgrade head`
 
 ## Architecture

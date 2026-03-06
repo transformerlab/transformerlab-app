@@ -1,5 +1,6 @@
 """Router for managing team-scoped compute providers."""
 
+import logging
 import os
 import time
 import json
@@ -45,7 +46,7 @@ from transformerlab.services import quota_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
 from lab import storage
 from lab.storage import STORAGE_PROVIDER
-from lab.dirs import get_workspace_dir, get_local_provider_job_dir, set_organization_id
+from lab.dirs import get_workspace_dir, get_local_provider_job_dir, get_job_dir, set_organization_id, get_task_dir
 from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
     generate_github_clone_setup,
@@ -56,14 +57,43 @@ from transformerlab.shared.secret_utils import (
     replace_secrets_in_dict,
     replace_secret_placeholders,
 )
+from werkzeug.utils import secure_filename
 from transformerlab.shared import galleries
 from transformerlab.shared.interactive_gallery_utils import (
     resolve_interactive_command,
     find_interactive_gallery_entry,
 )
+from transformerlab.schemas.secrets import SPECIAL_SECRET_TYPES
 from typing import Any
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
+
+
+_TASK_COPY_EXCLUDE = {"index.json"}
+
+
+async def _copy_task_files_to_dir(task_src: str, dest_dir: str) -> None:
+    """Copy task files from task_src into dest_dir, excluding internal metadata."""
+    try:
+        await storage.makedirs(dest_dir, exist_ok=True)
+        entries = await storage.ls(task_src, detail=False)
+    except Exception:
+        logger.warning("Failed to prepare task file copy from %s to %s, skipping", task_src, dest_dir, exc_info=True)
+        return
+    for entry in entries:
+        name = entry.rstrip("/").rsplit("/", 1)[-1]
+        if name in _TASK_COPY_EXCLUDE:
+            continue
+        dest_path = storage.join(dest_dir, name)
+        try:
+            if await storage.isdir(entry):
+                await storage.copy_dir(entry, dest_path)
+            else:
+                await storage.copy_file(entry, dest_path)
+        except Exception:
+            logger.warning("Failed to copy task file %s to %s, skipping", entry, dest_path, exc_info=True)
 
 
 def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
@@ -469,8 +499,11 @@ async def get_user_provider_settings(
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
-    config_key = f"provider:{provider_id}:slurm_user"
-    slurm_user = await db.config_get(key=config_key, user_id=user_id, team_id=team_id)
+    slurm_user_key = f"provider:{provider_id}:slurm_user"
+    slurm_user = await db.config_get(key=slurm_user_key, user_id=user_id, team_id=team_id)
+
+    custom_flags_key = f"provider:{provider_id}:slurm_custom_sbatch_flags"
+    custom_sbatch_flags = await db.config_get(key=custom_flags_key, user_id=user_id, team_id=team_id)
 
     has_ssh_key = False
     if provider.type == ProviderType.SLURM.value:
@@ -479,6 +512,7 @@ async def get_user_provider_settings(
     return {
         "provider_id": provider_id,
         "slurm_user": slurm_user,
+        "custom_sbatch_flags": custom_sbatch_flags,
         "has_ssh_key": has_ssh_key,
     }
 
@@ -504,9 +538,12 @@ async def set_user_provider_settings(
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
-    # Only allow SLURM providers to have slurm_user setting
+    # Only allow SLURM providers to have user-specific SLURM settings
     if provider.type != ProviderType.SLURM.value:
-        raise HTTPException(status_code=400, detail="slurm_user setting is only available for SLURM providers")
+        raise HTTPException(
+            status_code=400,
+            detail="User-specific SLURM settings are only available for SLURM providers",
+        )
 
     # Read slurm_user from request body (frontend sends JSON body)
     slurm_user = (body or {}).get("slurm_user")
@@ -515,12 +552,40 @@ async def set_user_provider_settings(
     elif slurm_user is not None and not isinstance(slurm_user, str):
         slurm_user = str(slurm_user).strip() or None
 
-    # Set user-specific slurm_user setting
-    config_key = f"provider:{provider_id}:slurm_user"
-    if slurm_user:
-        await db.config_set(key=config_key, value=slurm_user, user_id=user_id, team_id=team_id)
+    # Read custom SBATCH flags from request body (optional, free-form string)
+    raw_flags = (body or {}).get("custom_sbatch_flags")
+    if isinstance(raw_flags, str):
+        custom_sbatch_flags = raw_flags.strip() or None
+    elif raw_flags is None:
+        custom_sbatch_flags = None
     else:
-        await db.config_set(key=config_key, value="", user_id=user_id, team_id=team_id)
+        # Coerce non-string values to string for robustness
+        custom_sbatch_flags = str(raw_flags).strip() or None
+
+    # Set user-specific slurm_user setting
+    slurm_user_key = f"provider:{provider_id}:slurm_user"
+    if slurm_user:
+        await db.config_set(key=slurm_user_key, value=slurm_user, user_id=user_id, team_id=team_id)
+    else:
+        await db.config_set(key=slurm_user_key, value="", user_id=user_id, team_id=team_id)
+
+    # Set user-specific custom SBATCH flags
+    custom_flags_key = f"provider:{provider_id}:slurm_custom_sbatch_flags"
+    if custom_sbatch_flags:
+        await db.config_set(
+            key=custom_flags_key,
+            value=custom_sbatch_flags,
+            user_id=user_id,
+            team_id=team_id,
+        )
+    else:
+        # Store as empty string when cleared
+        await db.config_set(
+            key=custom_flags_key,
+            value="",
+            user_id=user_id,
+            team_id=team_id,
+        )
 
     has_ssh_key = False
     if provider.type == ProviderType.SLURM.value:
@@ -531,6 +596,7 @@ async def set_user_provider_settings(
     return {
         "provider_id": provider_id,
         "slurm_user": slurm_user,
+        "custom_sbatch_flags": custom_sbatch_flags,
         "has_ssh_key": has_ssh_key,
     }
 
@@ -1372,12 +1438,14 @@ async def launch_template_on_provider(
     # Load team + user secrets once and validate that any referenced secrets exist
     team_secrets = await load_team_secrets(user_id=user_id)
     missing_secrets = _find_missing_secrets_for_template_launch(request, team_secrets)
+
     if missing_secrets:
-        missing_list = ", ".join(sorted(missing_secrets))
+        display_names = [SPECIAL_SECRET_TYPES.get(name, name) for name in sorted(missing_secrets)]
+        missing_list = ", ".join(display_names)
         raise HTTPException(
             status_code=400,
             detail=(
-                "Missing secrets referenced in task configuration: "
+                "Missing secrets: "
                 f"{missing_list}. Please define these secrets at the team or user level before launching."
             ),
         )
@@ -1701,6 +1769,15 @@ async def launch_template_on_provider(
     if request.config:
         merged_parameters.update(request.config)
 
+    # Extract any per-run custom SBATCH flags from config (used by SLURM provider)
+    custom_sbatch_flags = None
+    if request.config and "custom_sbatch_flags" in request.config:
+        raw_flags = request.config.get("custom_sbatch_flags")
+        if isinstance(raw_flags, str):
+            custom_sbatch_flags = raw_flags.strip() or None
+        elif raw_flags is not None:
+            custom_sbatch_flags = str(raw_flags).strip() or None
+
     # Replace secrets in merged parameters
     parameters_with_secrets = None
     if merged_parameters and team_secrets:
@@ -1710,12 +1787,28 @@ async def launch_template_on_provider(
 
     # Build provider_config for cluster_config (and job_data for local provider)
     provider_config_dict = {"requested_disk_space": request.disk_space}
+    # For SLURM, pass through any per-run custom SBATCH flags so the provider
+    # can inject them into the generated SLURM script.
+    if provider.type == ProviderType.SLURM.value and custom_sbatch_flags:
+        provider_config_dict["custom_sbatch_flags"] = custom_sbatch_flags
     if provider.type == ProviderType.LOCAL.value:
         # Use a dedicated local-only job directory for the local provider.
         # This directory is always on the host filesystem and does not depend
         # on TFL_REMOTE_STORAGE_ENABLED / remote storage configuration.
         job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id, org_id=team_id)
         provider_config_dict["workspace_dir"] = job_dir
+
+    # Copy task files (task.yaml and any attachments) into the job directory
+    # so they are available to the running command on any provider.
+    # index.json is excluded because the job system uses its own index.json
+    # for metadata and overwriting it with the task's index.json would break
+    # job status tracking.
+    if request.task_id:
+        task_dir_root = await get_task_dir()
+        task_src = storage.join(task_dir_root, secure_filename(str(request.task_id)))
+        if await storage.isdir(task_src):
+            workspace_job_dir = await get_job_dir(job_id)
+            await _copy_task_files_to_dir(task_src, workspace_job_dir)
 
     job_data = {
         "task_name": request.task_name,
@@ -1759,15 +1852,12 @@ async def launch_template_on_provider(
     # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
     file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
 
-    # For non-local (remote) providers, wrap the user command so we can track live_status in job_data.
+    # Wrap the user command with tfl-remote-trap so we can track live_status in job_data.
     # This uses the tfl-remote-trap helper from the transformerlab SDK, which:
     #   - sets job_data.live_status="started" when execution begins
     #   - sets job_data.live_status="finished" on success
     #   - sets job_data.live_status="crashed" on failure
-    wrapped_command = command_with_secrets
-    if provider.type != ProviderType.LOCAL.value:
-        # Preserve the original command in job_data but execute through the wrapper on the provider.
-        wrapped_command = f"tfl-remote-trap -- {command_with_secrets}"
+    wrapped_command = f"tfl-remote-trap -- {command_with_secrets}"
 
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
