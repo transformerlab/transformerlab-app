@@ -89,6 +89,16 @@ export default function JobProgress({
         } catch (error) {
           // eslint-disable-next-line no-console
           console.error('Failed to stop provider cluster:', error);
+          // Roll back from STOPPING so the user can retry
+          if (experimentInfo?.id && job?.id) {
+            await chatAPI.authenticatedFetch(
+              chatAPI.Endpoints.Jobs.Update(
+                experimentInfo.id,
+                job.id,
+                'RUNNING',
+              ),
+            );
+          }
         }
       } else {
         // eslint-disable-next-line no-console
