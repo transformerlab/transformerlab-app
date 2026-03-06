@@ -1849,15 +1849,12 @@ async def launch_template_on_provider(
     # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
     file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
 
-    # For non-local (remote) providers, wrap the user command so we can track live_status in job_data.
+    # Wrap the user command with tfl-remote-trap so we can track live_status in job_data.
     # This uses the tfl-remote-trap helper from the transformerlab SDK, which:
     #   - sets job_data.live_status="started" when execution begins
     #   - sets job_data.live_status="finished" on success
     #   - sets job_data.live_status="crashed" on failure
-    wrapped_command = command_with_secrets
-    if provider.type != ProviderType.LOCAL.value:
-        # Preserve the original command in job_data but execute through the wrapper on the provider.
-        wrapped_command = f"tfl-remote-trap -- {command_with_secrets}"
+    wrapped_command = f"tfl-remote-trap -- {command_with_secrets}"
 
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
