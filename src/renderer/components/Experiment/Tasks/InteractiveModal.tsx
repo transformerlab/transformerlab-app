@@ -378,6 +378,25 @@ function InstructionRenderer({
   }
 }
 
+const POLL_INTERVAL_SEC = 3;
+
+function useCountdown(isActive: boolean) {
+  const [secondsLeft, setSecondsLeft] = React.useState(POLL_INTERVAL_SEC);
+
+  React.useEffect(() => {
+    if (!isActive) return undefined;
+    setSecondsLeft(POLL_INTERVAL_SEC);
+    const interval = setInterval(() => {
+      setSecondsLeft((prev) => {
+        return prev <= 1 ? POLL_INTERVAL_SEC : prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isActive]);
+
+  return secondsLeft;
+}
+
 function InstructionsContent({
   instructions,
   ports,
@@ -393,6 +412,8 @@ function InstructionsContent({
   isReady: boolean;
   error: boolean;
 }) {
+  const secondsLeft = useCountdown(!isReady);
+
   return (
     <Box
       sx={{
@@ -402,14 +423,24 @@ function InstructionsContent({
       }}
     >
       <Stack direction="row" spacing={1} alignItems="center">
-        <Chip color={isReady ? 'success' : 'warning'} variant="soft">
-          {isReady ? 'Ready' : 'Waiting for connection'}
-        </Chip>
-        {isLoading && <CircularProgress size="sm" />}
-        {error && (
-          <Typography level="body-xs" color="danger">
-            Failed to load connection info
-          </Typography>
+        {isReady ? (
+          <Chip color="success" variant="soft">
+            Ready
+          </Chip>
+        ) : (
+          <>
+            <Chip color="warning" variant="soft">
+              Waiting for the job to start
+            </Chip>
+            {isLoading && <CircularProgress size="sm" />}
+            {!isLoading && (
+              <Typography level="body-xs" color="neutral">
+                {error
+                  ? `Could not reach server; retrying in ${secondsLeft}s`
+                  : `refreshing in ${secondsLeft}s`}
+              </Typography>
+            )}
+          </>
         )}
       </Stack>
 
