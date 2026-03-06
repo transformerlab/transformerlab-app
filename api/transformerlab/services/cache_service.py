@@ -67,6 +67,7 @@ from __future__ import annotations
 
 import inspect
 import logging
+import os
 from collections.abc import Callable
 from datetime import timedelta
 from typing import Any
@@ -86,6 +87,11 @@ logger = logging.getLogger(__name__)
 #   "mem://?size=5000"       – memory with a custom max-entry cap
 #   "redis://localhost:6379" – Redis for multi-node deployments
 CACHE_URL = "mem://"
+
+# Set TLAB_CACHE_DISABLED=true to turn the cache into a no-op.
+# All reads will miss and all writes will be skipped.  Useful for debugging
+# or in environments where stale data is never acceptable.
+CACHE_DISABLED: bool = os.getenv("TLAB_CACHE_DISABLED", "").lower() == "true"
 
 # ---------------------------------------------------------------------------
 # Internal sentinels
@@ -302,7 +308,15 @@ def setup(cache_url: str = CACHE_URL) -> None:
 
     Uses ``CACHE_URL`` defined at the top of this module by default.
     Pass an explicit URL to override (useful in tests).
+
+    When ``TLAB_CACHE_DISABLED=true`` the cache is configured but immediately
+    disabled via cashews's built-in no-op mode, so all operations pass through
+    without caching.
     """
-    _cashews.setup(cache_url)
-    backend = cache_url.split("://")[0]
-    logger.info("Cache configured with backend: %s", backend)
+    if CACHE_DISABLED:
+        _cashews.setup(cache_url, disable=True)
+        logger.info("Cache disabled via TLAB_CACHE_DISABLED")
+    else:
+        _cashews.setup(cache_url)
+        backend = cache_url.split("://")[0]
+        logger.info("Cache configured with backend: %s", backend)
