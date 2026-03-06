@@ -177,6 +177,7 @@ async def job_update_job_data_insert_key_value(job_id, key, value, experiment_id
 async def job_stop(job_id, experiment_id):
     print("Stopping job: " + str(job_id))
     await job_update_job_data_insert_key_value(job_id, "stop", True, experiment_id)
+    await job_update_status(job_id, "STOPPING", experiment_id=experiment_id)
 
 
 async def job_update_progress(job_id, progress, experiment_id):

@@ -2019,8 +2019,8 @@ async def check_provider_job_status(
             "launch_progress": launch_progress,
         }
 
-    # Only check provider status for jobs that are still launching or running
-    if job_status not in ("LAUNCHING", "RUNNING"):
+    # Only check provider status for jobs that are still launching, running, or stopping
+    if job_status not in ("LAUNCHING", "RUNNING", "STOPPING"):
         return {
             "status": "success",
             "job_id": job_id,
@@ -2140,19 +2140,21 @@ async def check_provider_job_status(
             terminal_states_local = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
             if cluster_status.state in terminal_states_local:
                 try:
+                    # If job was being stopped, transition to STOPPED; otherwise COMPLETE
+                    final_status = "STOPPED" if job_status == "STOPPING" else "COMPLETE"
                     end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
                     await job_service.job_update_job_data_insert_key_value(
                         job_id, "end_time", end_time_str, experiment_id
                     )
                     await job_service.job_update_status(
-                        job_id, "COMPLETE", experiment_id=experiment_id, session=session
+                        job_id, final_status, experiment_id=experiment_id, session=session
                     )
                     await session.commit()
                     return {
                         "status": "success",
                         "job_id": job_id,
                         "updated": True,
-                        "new_status": "COMPLETE",
+                        "new_status": final_status,
                         "message": f"Local job finished (status: {cluster_status.state.value})",
                         "launch_progress": launch_progress,
                     }

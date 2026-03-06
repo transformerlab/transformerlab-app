@@ -8,12 +8,13 @@ import {
 } from '@mui/joy';
 import { StopCircleIcon, Info } from 'lucide-react';
 import Skeleton from '@mui/joy/Skeleton';
+import CircularProgress from '@mui/joy/CircularProgress';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import duration from 'dayjs/plugin/duration';
 import utc from 'dayjs/plugin/utc';
 import { jobChipColor } from 'renderer/lib/utils';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
@@ -56,6 +57,7 @@ export default function JobProgress({
 }: JobProps) {
   const { experimentInfo } = useExperimentInfo();
   const { fetchWithAuth } = useAuth();
+  const [stopping, setStopping] = useState(false);
 
   // Shared stop handler for both LAUNCHING and RUNNING states
   const handleStopJob = useCallback(async () => {
@@ -63,6 +65,8 @@ export default function JobProgress({
     if (!confirm('Are you sure you want to stop this job?')) {
       return;
     }
+
+    setStopping(true);
 
     if (job.type === 'REMOTE') {
       // For REMOTE jobs, check if they have provider_id (new provider-based jobs)
@@ -72,6 +76,16 @@ export default function JobProgress({
       if (providerId && clusterName) {
         // Use the providers stop endpoint
         try {
+          // Immediately mark as STOPPING for responsive UI
+          if (experimentInfo?.id && job?.id) {
+            await chatAPI.authenticatedFetch(
+              chatAPI.Endpoints.Jobs.Update(
+                experimentInfo.id,
+                job.id,
+                'STOPPING',
+              ),
+            );
+          }
           const response = await fetchWithAuth(
             chatAPI.Endpoints.ComputeProvider.StopCluster(
               providerId,
@@ -212,6 +226,23 @@ export default function JobProgress({
             sx={{ my: 0.5 }}
           />
         </>
+      ) : job?.status === 'STOPPING' ? (
+        <>
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Chip
+              sx={{
+                backgroundColor: jobChipColor(job.status),
+                color: 'var(--joy-palette-neutral-800)',
+              }}
+            >
+              STOPPING
+            </Chip>
+            <CircularProgress size="sm" thickness={2} />
+            <Typography level="body-xs" color="warning">
+              Shutting down&hellip;
+            </Typography>
+          </Stack>
+        </>
       ) : job?.status === 'LAUNCHING' ||
         job?.status === 'INTERACTIVE' ||
         job?.status === 'WAITING' ? (
@@ -258,9 +289,22 @@ export default function JobProgress({
                   </IconButton>
                 </Tooltip>
               )}
-            <IconButton color="danger" onClick={handleStopJob}>
-              <StopCircleIcon size="20px" />
+            <IconButton
+              color="danger"
+              onClick={handleStopJob}
+              disabled={stopping}
+            >
+              {stopping ? (
+                <CircularProgress size="sm" thickness={2} />
+              ) : (
+                <StopCircleIcon size="20px" />
+              )}
             </IconButton>
+            {stopping && (
+              <Typography level="body-xs" color="warning">
+                Stopping&hellip;
+              </Typography>
+            )}
           </Stack>
           {(launchProgress?.message || launchProgress?.percent != null) && (
             <Stack
@@ -331,9 +375,22 @@ export default function JobProgress({
               }
               sx={{ my: 1 }}
             />
-            <IconButton color="danger" onClick={handleStopJob}>
-              <StopCircleIcon size="20px" />
+            <IconButton
+              color="danger"
+              onClick={handleStopJob}
+              disabled={stopping}
+            >
+              {stopping ? (
+                <CircularProgress size="sm" thickness={2} />
+              ) : (
+                <StopCircleIcon size="20px" />
+              )}
             </IconButton>
+            {stopping && (
+              <Typography level="body-xs" color="warning">
+                Stopping&hellip;
+              </Typography>
+            )}
           </Stack>
           {renderLiveStatusSubtitle()}
           {/* Add smaller sweep subprogress bar when job.progress is -1 */}
