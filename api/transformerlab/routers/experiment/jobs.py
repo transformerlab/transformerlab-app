@@ -1396,7 +1396,9 @@ async def save_dataset_to_registry(
     job_id: str,
     dataset_name: str,
     target_name: Optional[str] = Query(None, description="Custom name for the dataset in the registry"),
-    mode: str = Query("new", description="'new' to create a new entry, 'existing' to merge into an existing registry dataset"),
+    mode: str = Query(
+        "new", description="'new' to create a new entry, 'existing' to merge into an existing registry dataset"
+    ),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -1438,7 +1440,10 @@ async def save_dataset_to_registry(
             except Exception as copy_err:
                 print(f"Storage.copy_dir failed: {copy_err}")
 
-            return {"status": "success", "message": f"Dataset merged into existing registry entry '{target_name_secure}'"}
+            return {
+                "status": "success",
+                "message": f"Dataset merged into existing registry entry '{target_name_secure}'",
+            }
         else:
             # Save as a new dataset
             final_name = secure_filename(target_name) if target_name else dataset_name_secure
@@ -1473,7 +1478,9 @@ async def save_model_to_registry(
     job_id: str,
     model_name: str,
     target_name: Optional[str] = Query(None, description="Custom name for the model in the registry"),
-    mode: str = Query("new", description="'new' to create a new entry, 'existing' to merge into an existing registry model"),
+    mode: str = Query(
+        "new", description="'new' to create a new entry, 'existing' to merge into an existing registry model"
+    ),
 ):
     """Copy a model from job's models directory to the global models registry.
 
