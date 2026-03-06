@@ -12,6 +12,7 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 import TaskTemplateList from '../Tasks/TaskTemplateList';
 import NewInteractiveTaskModal from '../Tasks/NewInteractiveTaskModal';
 import EditInteractiveTaskModal from '../Tasks/EditInteractiveTaskModal';
@@ -72,15 +73,11 @@ export default function Interactive() {
   );
 
   const getPendingJobIds = useCallback((): string[] => {
-    try {
-      const raw = window.localStorage.getItem(pendingJobsStorageKey);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      const result = Array.isArray(parsed) ? parsed : [];
-      return result;
-    } catch {
-      return [];
-    }
+    const raw = window.localStorage.getItem(pendingJobsStorageKey);
+    if (!raw) return [];
+    const parsed = SafeJSONParse(raw, []);
+    const result = Array.isArray(parsed) ? parsed : [];
+    return result;
   }, [pendingJobsStorageKey]);
 
   const setPendingJobIds = useCallback(
@@ -463,11 +460,7 @@ export default function Interactive() {
       }
 
       const cfg =
-        task.config !== undefined
-          ? typeof task.config === 'string'
-            ? JSON.parse(task.config)
-            : task.config
-          : task;
+        task.config !== undefined ? SafeJSONParse(task.config, task) : task;
 
       const providerId =
         cfg.provider_id ||
@@ -593,11 +586,7 @@ export default function Interactive() {
     if (!experimentInfo?.id) return;
 
     const cfg =
-      task.config !== undefined
-        ? typeof task.config === 'string'
-          ? JSON.parse(task.config)
-          : task.config
-        : task;
+      task.config !== undefined ? SafeJSONParse(task.config, task) : task;
 
     const providerId =
       cfg.provider_id ||
