@@ -27,7 +27,7 @@ import {
   Box,
   Chip,
 } from '@mui/joy';
-import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightIcon, XIcon } from 'lucide-react';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
@@ -79,6 +79,8 @@ type ImportedTask = {
 type NewInteractiveTaskModalProps = {
   open: boolean;
   onClose: () => void;
+  submitError?: string | null;
+  onClearSubmitError?: () => void;
   onSubmit: (
     data: {
       title: string;
@@ -105,6 +107,8 @@ type NewInteractiveTaskModalProps = {
 export default function NewInteractiveTaskModal({
   open,
   onClose,
+  submitError = null,
+  onClearSubmitError,
   onSubmit,
   isSubmitting = false,
   providers,
@@ -477,6 +481,29 @@ export default function NewInteractiveTaskModal({
           <DialogContent
             sx={{ maxHeight: '60vh', overflow: 'auto', padding: 1 }}
           >
+            {submitError && (
+              <Alert
+                variant="soft"
+                color="danger"
+                sx={{ mb: 1 }}
+                endDecorator={
+                  onClearSubmitError ? (
+                    <IconButton
+                      variant="plain"
+                      color="danger"
+                      onClick={onClearSubmitError}
+                      aria-label="Dismiss error"
+                    >
+                      <XIcon size={16} />
+                    </IconButton>
+                  ) : null
+                }
+              >
+                <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap' }}>
+                  {submitError}
+                </Typography>
+              </Alert>
+            )}
             {step === 'provider' && (
               <Stack spacing={3} sx={{ py: 2 }}>
                 <Typography level="body-md">
