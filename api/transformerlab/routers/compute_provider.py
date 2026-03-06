@@ -63,6 +63,7 @@ from transformerlab.shared.interactive_gallery_utils import (
     resolve_interactive_command,
     find_interactive_gallery_entry,
 )
+from transformerlab.schemas.secrets import SPECIAL_SECRET_TYPES
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -1437,12 +1438,14 @@ async def launch_template_on_provider(
     # Load team + user secrets once and validate that any referenced secrets exist
     team_secrets = await load_team_secrets(user_id=user_id)
     missing_secrets = _find_missing_secrets_for_template_launch(request, team_secrets)
+
     if missing_secrets:
-        missing_list = ", ".join(sorted(missing_secrets))
+        display_names = [SPECIAL_SECRET_TYPES.get(name, name) for name in sorted(missing_secrets)]
+        missing_list = ", ".join(display_names)
         raise HTTPException(
             status_code=400,
             detail=(
-                "Missing secrets referenced in task configuration: "
+                "Missing secrets: "
                 f"{missing_list}. Please define these secrets at the team or user level before launching."
             ),
         )
