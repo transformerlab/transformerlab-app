@@ -14,9 +14,13 @@ import {
 } from '@mui/joy';
 import { Save } from 'lucide-react';
 import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { formatBytes } from 'renderer/lib/utils';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetchWithAuth } from 'renderer/lib/authContext';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
+import SaveToRegistryDialog from './SaveToRegistryDialog';
 
 interface ViewJobDatasetsModalProps {
   open: boolean;
@@ -44,10 +48,25 @@ export default function ViewJobDatasetsModal({
   const [savingDataset, setSavingDataset] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+  const [saveDialogDataset, setSaveDialogDataset] = useState<string | null>(null);
+
+  // Fetch existing datasets in the registry for "Add to existing" option
+  const { data: registryDatasets } = useSWR(
+    open ? chatAPI.Endpoints.Dataset.LocalList() : null,
+    fetcher,
+  );
+
+  const existingDatasetNames: string[] = Array.isArray(registryDatasets)
+    ? registryDatasets.map((d: any) => d.dataset_id || d.name || d.id).filter(Boolean)
+    : [];
 
   const datasets: Dataset[] = data?.datasets || [];
 
-  const handleSaveToRegistry = async (datasetName: string) => {
+  const handleSaveToRegistry = async (
+    datasetName: string,
+    targetName: string,
+    mode: 'new' | 'existing',
+  ) => {
     setSavingDataset(datasetName);
     setSaveError(null);
     setSaveSuccess(null);
@@ -57,6 +76,8 @@ export default function ViewJobDatasetsModal({
         experimentId: experimentInfo?.id,
         jobId: jobId.toString(),
         datasetName,
+        targetName: targetName,
+        mode: mode,
       });
 
       const response = await fetchWithAuth(url, {
@@ -75,7 +96,9 @@ export default function ViewJobDatasetsModal({
         throw new Error(errorMessage);
       }
 
-      setSaveSuccess(`Successfully saved ${datasetName} to registry`);
+      const result = await response.json();
+      setSaveSuccess(result.message || `Successfully saved ${datasetName} to registry`);
+      setSaveDialogDataset(null);
       // Refresh the dataset list
       mutate();
     } catch (error) {
@@ -101,6 +124,7 @@ export default function ViewJobDatasetsModal({
   const noDatasetsFound = !isLoading && datasets.length === 0;
 
   return (
+    <>
     <Modal open={open} onClose={onClose}>
       <ModalDialog
         sx={{
@@ -206,7 +230,7 @@ export default function ViewJobDatasetsModal({
                           <Button
                             size="sm"
                             variant="outlined"
-                            onClick={() => handleSaveToRegistry(dataset.name)}
+                            onClick={() => setSaveDialogDataset(dataset.name)}
                             startDecorator={<Save size={16} />}
                             loading={savingDataset === dataset.name}
                             disabled={savingDataset !== null}
@@ -224,5 +248,19 @@ export default function ViewJobDatasetsModal({
         )}
       </ModalDialog>
     </Modal>
+    <SaveToRegistryDialog
+      open={saveDialogDataset !== null}
+      onClose={() => setSaveDialogDataset(null)}
+      sourceName={saveDialogDataset || ''}
+      type="dataset"
+      existingNames={existingDatasetNames}
+      saving={savingDataset !== null}
+      onSave={(targetName, mode) => {
+        if (saveDialogDataset) {
+          handleSaveToRegistry(saveDialogDataset, targetName, mode);
+        }
+      }}
+    />
+    </>
   );
 }
