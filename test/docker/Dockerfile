@@ -16,8 +16,8 @@ COPY tsconfig.json ./
 COPY assets ./assets
 COPY release ./release
 
-# Create a dummy .env file to satisfy dotenv-cli
-RUN touch .env
+# Create .env with local-mode settings to satisfy dotenv-cli and configure the build
+RUN printf 'TFL_LOCAL_PROVIDER_SETUP=auto\nTFL_STORAGE_PROVIDER=localfs\nTFL_STORAGE_URI=/root/tlab_local_workspace\n' > .env
 
 # Build the frontend (outputs to release/cloud)
 RUN npm run build
@@ -51,11 +51,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # 3. Now copy the actual API source code (Changes every build)
 COPY api ./
 
-# Generate JWT secrets and setup environment
+# Generate JWT secrets and setup environment with local-mode settings
 RUN mkdir -p /root/.transformerlab && \
     JWT_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')" && \
     REFRESH_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')" && \
-    printf "TRANSFORMERLAB_JWT_SECRET=%s\nTRANSFORMERLAB_REFRESH_SECRET=%s\n" "$JWT_SECRET" "$REFRESH_SECRET" > /root/.transformerlab/.env && \
+    printf "TRANSFORMERLAB_JWT_SECRET=%s\nTRANSFORMERLAB_REFRESH_SECRET=%s\nTFL_LOCAL_PROVIDER_SETUP=auto\nTFL_STORAGE_PROVIDER=localfs\nTFL_STORAGE_URI=/root/tlab_local_workspace\n" "$JWT_SECRET" "$REFRESH_SECRET" > /root/.transformerlab/.env && \
     cp /root/.transformerlab/.env /app/api/.env
 
 # Setup webapp directory and copy built frontend from Stage 1

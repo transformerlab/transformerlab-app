@@ -276,42 +276,54 @@ class LocalProvider(ComputeProvider):
         env.update(config.env_vars or {})
         env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
         env["HOME"] = str(workspace_home)
+        env["UV_CACHE_DIR"] = os.path.join(HOME_DIR, "uv_cache")
+
+        # Open log files early so setup output is visible to get_job_logs / tunnel_info
+        # while packages are still being installed.
+        stdout_log = open(job_dir / "stdout.log", "w")
+        stderr_log = open(job_dir / "stderr.log", "w")
 
         if config.setup:
-            setup_log = job_dir / "setup.log"
-            with open(setup_log, "w") as setup_log_f:
-                setup_result = subprocess.run(
-                    ["/bin/bash", "-c", config.setup],
-                    cwd=job_dir,
-                    env=env,
-                    stdout=setup_log_f,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    timeout=300,
-                )
+            print(f"[LocalProvider] Running setup in {job_dir}: {config.setup!r}")
+            setup_result = subprocess.run(
+                ["/bin/bash", "-c", config.setup],
+                cwd=job_dir,
+                env=env,
+                stdout=stdout_log,
+                stderr=stderr_log,
+                text=True,
+                timeout=600,
+            )
+            # Flush so tunnel_info can see the output immediately
+            stdout_log.flush()
+            stderr_log.flush()
             if setup_result.returncode != 0:
-                setup_output = setup_log.read_text(errors="replace") if setup_log.exists() else "unknown"
-                raise RuntimeError(f"Setup failed (exit {setup_result.returncode}): {setup_output}")
+                # Read the last few lines from the log files for the error message
+                stderr_log.close()
+                tail = ""
+                try:
+                    with open(job_dir / "stderr.log") as f:
+                        lines = f.readlines()
+                        tail = "".join(lines[-20:])
+                except OSError:
+                    pass
+                print(f"[LocalProvider] Setup failed with code {setup_result.returncode}")
+                raise RuntimeError(f"Setup failed (exit {setup_result.returncode}). Last lines:\n{tail}")
 
         # Start main command in background (detached subprocess)
-        stdout_f = open(job_dir / "stdout.log", "w")
-        stderr_f = open(job_dir / "stderr.log", "w")
-        try:
-            proc = subprocess.Popen(
-                ["/bin/bash", "-c", config.command or "true"],
-                cwd=str(job_dir),
-                env=env,
-                stdout=stdout_f,
-                stderr=stderr_f,
-                start_new_session=True,
-            )
-        except Exception:
-            stdout_f.close()
-            stderr_f.close()
-            raise
+        print(f"[LocalProvider] Launching command in {job_dir}: {config.command!r}")
+        proc = subprocess.Popen(
+            ["/bin/bash", "-c", config.command or "true"],
+            cwd=str(job_dir),
+            env=env,
+            stdout=stdout_log,
+            stderr=stderr_log,
+            start_new_session=True,
+        )
         pid = proc.pid
         with open(job_dir / "pid", "w") as f:
             f.write(str(pid))
+        print(f"[LocalProvider] Process started with pid={pid}, logs at {job_dir}/stdout.log")
 
         return {
             "cluster_name": cluster_name,
@@ -468,21 +480,32 @@ class LocalProvider(ComputeProvider):
         """Read stdout/stderr logs from job directory."""
         job_dir = self.extra_config.get("workspace_dir")
         if not job_dir:
+            print(f"[LocalProvider.get_job_logs] workspace_dir not set for cluster={cluster_name}")
             return "workspace_dir (job dir) not set"
         job_dir = Path(job_dir)
         log_file = job_dir / "stdout.log"
         err_file = job_dir / "stderr.log"
-        if not log_file.exists() and not err_file.exists():
+        stdout_exists = log_file.exists()
+        stderr_exists = err_file.exists()
+        if not stdout_exists and not stderr_exists:
+            print(f"[LocalProvider.get_job_logs] No log files in {job_dir}")
             return "No log files found"
         lines = []
-        if log_file.exists():
+        if stdout_exists:
             lines.append(log_file.read_text())
-        if err_file.exists():
+        if stderr_exists:
             lines.append(err_file.read_text())
         out = "\n".join(lines)
+        total_lines = out.count("\n")
         if tail_lines is not None:
             out_lines = out.splitlines()
             out = "\n".join(out_lines[-tail_lines:])
+        print(
+            f"[LocalProvider.get_job_logs] cluster={cluster_name}: "
+            f"stdout={stdout_exists} ({log_file.stat().st_size if stdout_exists else 0}B), "
+            f"stderr={stderr_exists} ({err_file.stat().st_size if stderr_exists else 0}B), "
+            f"total_lines={total_lines}, tail_lines={tail_lines}"
+        )
         return out
 
     def cancel_job(self, cluster_name: str, job_id: Union[str, int]) -> Dict[str, Any]:
