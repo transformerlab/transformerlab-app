@@ -25,6 +25,7 @@ const SPECIAL_SECRET_TYPES = {
   _GITHUB_PAT_TOKEN: 'GitHub Personal Access Token',
   _HF_TOKEN: 'HuggingFace Token',
   _WANDB_API_KEY: 'Weights & Biases API Key',
+  _NGROK_AUTH_TOKEN: 'ngrok Auth Token',
 };
 
 export default function SpecialSecretsSection({
@@ -194,10 +195,17 @@ export default function SpecialSecretsSection({
           <br />• HuggingFace Token: <code>{'{{secret._HF_TOKEN}}'}</code>
           <br />• Weights & Biases API Key:{' '}
           <code>{'{{secret._WANDB_API_KEY}}'}</code>
+          <br />• ngrok Auth Token:{' '}
+          <code>{'{{secret._NGROK_AUTH_TOKEN}}'}</code>
           <br />
           <br />
-          Example:{' '}
+          Example (HuggingFace):{' '}
           <code>huggingface-cli login --token {'{{secret._HF_TOKEN}}'}</code>
+          <br />
+          Example (ngrok):{' '}
+          <code>
+            ngrok config add-authtoken {'{{secret._NGROK_AUTH_TOKEN}}'}
+          </code>
         </Typography>
       </Alert>
 
