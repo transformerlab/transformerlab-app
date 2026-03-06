@@ -7,7 +7,6 @@ import Button from '@mui/joy/Button';
 import FormControl from '@mui/joy/FormControl';
 import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
-import Checkbox from '@mui/joy/Checkbox';
 import {
   ModalClose,
   ModalDialog,
@@ -87,6 +86,7 @@ type NewInteractiveTaskModalProps = {
       memory?: string;
       accelerators?: string;
       interactive_type: 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama';
+      template_id: string;
       provider_id?: string;
       env_parameters?: Record<string, string>;
       local?: boolean;
@@ -277,9 +277,51 @@ export default function NewInteractiveTaskModal({
       if (field.field_type === 'integer' && field.env_var === 'TP_SIZE') {
         initialValues[field.env_var] = '1';
       }
+      if (
+        field.env_var === 'NGROK_AUTH_TOKEN' &&
+        !isLocal &&
+        selectedProvider?.type !== 'local'
+      ) {
+        initialValues[field.env_var] = '{{secret._NGROK_AUTH_TOKEN}}';
+      }
     });
     setConfigFieldValues(initialValues);
   };
+
+  // Keep NGROK_AUTH_TOKEN aligned with local/remote behavior:
+  // - For remote (non-local) sessions, default to {{secret._NGROK_AUTH_TOKEN}} if empty.
+  // - For local/direct sessions, drop NGROK_AUTH_TOKEN so secret is not required.
+  React.useEffect(() => {
+    if (!selectedTemplate) return;
+
+    const hasNgrokField = selectedTemplate.env_parameters?.some(
+      (field) => field.env_var === 'NGROK_AUTH_TOKEN',
+    );
+    if (!hasNgrokField) return;
+
+    if (isLocal || selectedProvider?.type === 'local') {
+      // Remove NGROK_AUTH_TOKEN entirely for local/direct sessions
+      setConfigFieldValues((prev) => {
+        if (!Object.prototype.hasOwnProperty.call(prev, 'NGROK_AUTH_TOKEN')) {
+          return prev;
+        }
+        const { NGROK_AUTH_TOKEN: _omit, ...rest } = prev;
+        return rest;
+      });
+    } else if (selectedProvider?.type !== 'local') {
+      // Ensure remote sessions have a default secret placeholder if none is set
+      setConfigFieldValues((prev) => {
+        const current = prev['NGROK_AUTH_TOKEN'];
+        if (current && current.trim().length > 0) {
+          return prev;
+        }
+        return {
+          ...prev,
+          NGROK_AUTH_TOKEN: '{{secret._NGROK_AUTH_TOKEN}}',
+        };
+      });
+    }
+  }, [isLocal, selectedProvider, selectedTemplate]);
 
   const handleBack = () => {
     if (step === 'config') {
@@ -552,58 +594,45 @@ export default function NewInteractiveTaskModal({
                   </Alert>
                 )}
 
-                {selectedProvider?.type !== 'local' && (
-                  <>
-                    <Checkbox
-                      label="Enable direct web access (no tunnel)"
-                      checked={isLocal}
-                      onChange={(e) => setIsLocal(e.target.checked)}
-                    />
-                    <FormHelperText sx={{ mt: -2 }}>
-                      When enabled, the session will be accessible directly via
-                      a local address (e.g. http://localhost:8888). Recommended
-                      for local providers only.
-                    </FormHelperText>
-                  </>
-                )}
-
                 {selectedTemplate?.env_parameters &&
                   selectedTemplate.env_parameters.length > 0 && (
                     <>
-                      {selectedTemplate.env_parameters.map((field) => (
-                        <FormControl
-                          key={field.env_var}
-                          required={
-                            field.required &&
-                            !(isLocal && field.env_var === 'NGROK_AUTH_TOKEN')
-                          }
-                          disabled={
-                            isLocal && field.env_var === 'NGROK_AUTH_TOKEN'
-                          }
-                        >
-                          <FormLabel>{field.field_name}</FormLabel>
-                          <Input
-                            type={
-                              field.password
-                                ? 'password'
-                                : field.field_type === 'integer'
-                                  ? 'number'
-                                  : 'text'
+                      {selectedTemplate.env_parameters
+                        .filter((field) => field.env_var !== 'NGROK_AUTH_TOKEN')
+                        .map((field) => (
+                          <FormControl
+                            key={field.env_var}
+                            required={
+                              field.required &&
+                              !(isLocal && field.env_var === 'NGROK_AUTH_TOKEN')
                             }
-                            value={configFieldValues[field.env_var] || ''}
-                            onChange={(e) =>
-                              handleConfigFieldChange(
-                                field.env_var,
-                                e.target.value,
-                              )
+                            disabled={
+                              isLocal && field.env_var === 'NGROK_AUTH_TOKEN'
                             }
-                            placeholder={field.placeholder}
-                          />
-                          {field.help_text && (
-                            <FormHelperText>{field.help_text}</FormHelperText>
-                          )}
-                        </FormControl>
-                      ))}
+                          >
+                            <FormLabel>{field.field_name}</FormLabel>
+                            <Input
+                              type={
+                                field.password
+                                  ? 'password'
+                                  : field.field_type === 'integer'
+                                    ? 'number'
+                                    : 'text'
+                              }
+                              value={configFieldValues[field.env_var] || ''}
+                              onChange={(e) =>
+                                handleConfigFieldChange(
+                                  field.env_var,
+                                  e.target.value,
+                                )
+                              }
+                              placeholder={field.placeholder}
+                            />
+                            {field.help_text && (
+                              <FormHelperText>{field.help_text}</FormHelperText>
+                            )}
+                          </FormControl>
+                        ))}
                     </>
                   )}
 
