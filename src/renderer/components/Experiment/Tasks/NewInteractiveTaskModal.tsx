@@ -277,9 +277,51 @@ export default function NewInteractiveTaskModal({
       if (field.field_type === 'integer' && field.env_var === 'TP_SIZE') {
         initialValues[field.env_var] = '1';
       }
+      if (
+        field.env_var === 'NGROK_AUTH_TOKEN' &&
+        !isLocal &&
+        selectedProvider?.type !== 'local'
+      ) {
+        initialValues[field.env_var] = '{{secret._NGROK_AUTH_TOKEN}}';
+      }
     });
     setConfigFieldValues(initialValues);
   };
+
+  // Keep NGROK_AUTH_TOKEN aligned with local/remote behavior:
+  // - For remote (non-local) sessions, default to {{secret._NGROK_AUTH_TOKEN}} if empty.
+  // - For local/direct sessions, drop NGROK_AUTH_TOKEN so secret is not required.
+  React.useEffect(() => {
+    if (!selectedTemplate) return;
+
+    const hasNgrokField = selectedTemplate.env_parameters?.some(
+      (field) => field.env_var === 'NGROK_AUTH_TOKEN',
+    );
+    if (!hasNgrokField) return;
+
+    if (isLocal || selectedProvider?.type === 'local') {
+      // Remove NGROK_AUTH_TOKEN entirely for local/direct sessions
+      setConfigFieldValues((prev) => {
+        if (!Object.prototype.hasOwnProperty.call(prev, 'NGROK_AUTH_TOKEN')) {
+          return prev;
+        }
+        const { NGROK_AUTH_TOKEN: _omit, ...rest } = prev;
+        return rest;
+      });
+    } else if (selectedProvider?.type !== 'local') {
+      // Ensure remote sessions have a default secret placeholder if none is set
+      setConfigFieldValues((prev) => {
+        const current = prev['NGROK_AUTH_TOKEN'];
+        if (current && current.trim().length > 0) {
+          return prev;
+        }
+        return {
+          ...prev,
+          NGROK_AUTH_TOKEN: '{{secret._NGROK_AUTH_TOKEN}}',
+        };
+      });
+    }
+  }, [isLocal, selectedProvider, selectedTemplate]);
 
   const handleBack = () => {
     if (step === 'config') {
