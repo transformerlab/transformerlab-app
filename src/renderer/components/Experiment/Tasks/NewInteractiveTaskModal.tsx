@@ -1035,32 +1035,19 @@ export default function NewInteractiveTaskModal({
                 </Button>
               )}
               {step === 'config' && (
-                <Stack direction="row" spacing={2}>
-                  <Button
-                    variant="outlined"
-                    loading={isSubmitting}
-                    disabled={isSubmitting || !canSubmit}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleSubmit(e, false);
-                    }}
-                  >
-                    Save
-                  </Button>
-                  <Button
-                    variant="solid"
-                    color="primary"
-                    loading={isSubmitting}
-                    disabled={isSubmitting || !canSubmit}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleSubmit(e, true);
-                    }}
-                    endDecorator={<ArrowRightIcon size={16} />}
-                  >
-                    Launch
-                  </Button>
-                </Stack>
+                <Button
+                  variant="solid"
+                  color="primary"
+                  loading={isSubmitting}
+                  disabled={isSubmitting || !canSubmit}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleSubmit(e, true);
+                  }}
+                  endDecorator={<ArrowRightIcon size={16} />}
+                >
+                  Launch
+                </Button>
               )}
             </Stack>
           </DialogActions>
