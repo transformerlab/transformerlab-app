@@ -25,6 +25,8 @@ from transformerlab.shared import shared, zip_utils
 from transformerlab.shared.models.models import ProviderType
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.shared.tunnel_parser import get_tunnel_info
+from transformerlab.shared import galleries
+from transformerlab.shared.interactive_gallery_utils import find_interactive_gallery_entry
 from lab.dirs import (
     get_workspace_dir,
     get_local_provider_job_dir,
@@ -145,11 +147,9 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
 
         # Read and return the file content as JSON array of lines
         if await storage.exists(output_file_name):
-            lines = []
             async with await storage.open(output_file_name, "r") as f:
-                async for line in f:
-                    lines.append(line.rstrip("\n"))  # Remove trailing newline
-            return lines
+                content = await f.read()
+            return content.splitlines()
         else:
             return ["Output file not found"]
 
@@ -162,11 +162,9 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
             try:
                 output_file_name = await shared.get_job_output_file_name(job_id)
                 if await storage.exists(output_file_name):
-                    lines = []
                     async with await storage.open(output_file_name, "r") as f:
-                        async for line in f:
-                            lines.append(line.rstrip("\n"))  # Remove trailing newline
-                    return lines
+                        content = await f.read()
+                    return content.splitlines()
                 else:
                     return ["Output file not found after retry"]
             except Exception as retry_e:
@@ -387,6 +385,15 @@ async def get_tunnel_info_for_job(
             job_data = json.loads(job_data)
         except JSONDecodeError:
             job_data = {}
+    # If we have previously cached tunnel info URLs and they are ready, use them immediately
+    # and skip any provider log fetching for a faster response.
+    cached_urls = job_data.get("tunnel_info_urls")
+    cached_legacy = job_data.get("cached_tunnel_info")
+    tunnel_info: dict | None = None
+    if isinstance(cached_urls, dict) and cached_urls.get("is_ready"):
+        tunnel_info = cached_urls
+    elif isinstance(cached_legacy, dict) and cached_legacy.get("is_ready"):
+        tunnel_info = cached_legacy
 
     # Get interactive_type from job_data, default to 'vscode' for backward compatibility
     interactive_type = job_data.get("interactive_type", "vscode")
@@ -438,38 +445,69 @@ async def get_tunnel_info_for_job(
     if provider_job_id is None:
         raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
 
-    # For local provider, set workspace_dir (job dir) so LocalProvider can read logs.
-    if getattr(provider, "type", None) == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
-        job_dir = get_local_provider_job_dir(job_id, org_id=user_and_team["team_id"])
-        provider_instance.extra_config["workspace_dir"] = job_dir
+    # If we don't have ready tunnel info from cache, fetch logs and parse them.
+    if tunnel_info is None or not tunnel_info.get("is_ready"):
+        # For local provider, set workspace_dir (job dir) so LocalProvider can read logs.
+        if getattr(provider, "type", None) == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
+            job_dir = get_local_provider_job_dir(job_id, org_id=user_and_team["team_id"])
+            provider_instance.extra_config["workspace_dir"] = job_dir
 
-    try:
-        if provider.type == ProviderType.RUNPOD.value:
-            raw_logs = await fetch_runpod_provider_logs(
-                provider_instance, cluster_name, user_and_team["team_id"], tail_lines
+        try:
+            if provider.type == ProviderType.RUNPOD.value:
+                raw_logs = await fetch_runpod_provider_logs(
+                    provider_instance, cluster_name, user_and_team["team_id"], tail_lines
+                )
+            else:
+                # For local providers, read full logs so the initial local URL echoes
+                # are always visible even if the log is long.
+                effective_tail = None
+                if provider.type != ProviderType.LOCAL.value:
+                    effective_tail = tail_lines or None
+
+                raw_logs = await asyncio.to_thread(
+                    provider_instance.get_job_logs,
+                    cluster_name,
+                    provider_job_id,
+                    tail_lines=effective_tail,
+                    follow=False,
+                )
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
+
+        if isinstance(raw_logs, (bytes, bytearray)):
+            logs_text = raw_logs.decode("utf-8", errors="replace")
+        elif isinstance(raw_logs, str):
+            logs_text = raw_logs
+        else:
+            try:
+                logs_text = json.dumps(raw_logs, indent=2)
+            except TypeError:
+                logs_text = str(raw_logs)
+
+        tunnel_info = get_tunnel_info(logs_text, interactive_type)
+
+        # If parsing the logs found a ready service, cache the tunnel info in job_data
+        # so it survives log rotation / truncation and can be reused without log fetches.
+        if tunnel_info.get("is_ready"):
+            await job_service.job_update_job_data_insert_key_value(
+                job_id, "cached_tunnel_info", tunnel_info, experimentId
+            )
+            await job_service.job_update_job_data_insert_key_value(
+                job_id, "tunnel_info_urls", tunnel_info, experimentId
             )
         else:
-            raw_logs = await asyncio.to_thread(
-                provider_instance.get_job_logs,
-                cluster_name,
-                provider_job_id,
-                tail_lines=tail_lines or None,
-                follow=False,
-            )
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
+            print(f"[tunnel_info] Job {job_id}: no URLs found in logs and no cache available")
 
-    if isinstance(raw_logs, (bytes, bytearray)):
-        logs_text = raw_logs.decode("utf-8", errors="replace")
-    elif isinstance(raw_logs, str):
-        logs_text = raw_logs
-    else:
-        try:
-            logs_text = json.dumps(raw_logs, indent=2)
-        except TypeError:
-            logs_text = str(raw_logs)
-
-    tunnel_info = get_tunnel_info(logs_text, interactive_type)
+    # Look up the gallery entry to include port definitions in the response
+    interactive_gallery_id = job_data.get("interactive_gallery_id")
+    gallery_list = await galleries.get_interactive_gallery()
+    gallery_entry = find_interactive_gallery_entry(
+        gallery_list, interactive_gallery_id=interactive_gallery_id, interactive_type=interactive_type
+    )
+    ports = gallery_entry.get("ports", []) if gallery_entry else []
+    modal_title = gallery_entry.get("modal_title", "") if gallery_entry else ""
+    modal_subtitle = gallery_entry.get("modal_subtitle", "") if gallery_entry else ""
+    instructions = gallery_entry.get("instructions", []) if gallery_entry else []
 
     return {
         **tunnel_info,
@@ -477,6 +515,10 @@ async def get_tunnel_info_for_job(
         "provider_id": provider_id,
         "provider_job_id": str(provider_job_id),
         "interactive_type": interactive_type,
+        "ports": ports,
+        "modal_title": modal_title,
+        "modal_subtitle": modal_subtitle,
+        "instructions": instructions,
     }
 
 

@@ -338,6 +338,19 @@ export default function Interactive() {
       // Use env_parameters from the gallery-defined structure
       const envVars: Record<string, string> = data.env_parameters || {};
 
+      const needsNgrok =
+        interactiveType === 'jupyter' ||
+        interactiveType === 'vllm' ||
+        interactiveType === 'ollama' ||
+        interactiveType === 'ssh';
+      if (
+        needsNgrok &&
+        providerMeta.type !== 'local' &&
+        !envVars.NGROK_AUTH_TOKEN
+      ) {
+        envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
+      }
+
       const templatePayload: any = {
         name: data.title,
         type: 'REMOTE',
@@ -763,6 +776,7 @@ export default function Interactive() {
           onQueueTask={handleQueue}
           onEditTask={handleEditTask}
           loading={templatesIsLoading || !experimentInfo?.id}
+          interactTasks
         />
       </Sheet>
     </Sheet>

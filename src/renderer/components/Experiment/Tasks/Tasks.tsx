@@ -17,11 +17,7 @@ import { analytics } from 'renderer/components/Shared/analytics/AnalyticsContext
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
-import InteractiveVSCodeModal from './InteractiveVSCodeModal';
-import InteractiveJupyterModal from './InteractiveJupyterModal';
-import InteractiveVllmModal from './InteractiveVllmModal';
-import InteractiveSshModal from './InteractiveSshModal';
-import InteractiveOllamaModal from './InteractiveOllamaModal';
+import InteractiveModal from './InteractiveModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -241,7 +237,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       : null,
     fetcher,
     {
-      refreshInterval: 3000,
+      refreshInterval: 10000,
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
       refreshWhenHidden: true,
@@ -308,8 +304,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         return false;
       }
 
-      // Always check LAUNCHING and WAITING jobs (for launch progress)
-      if (job.status === 'LAUNCHING' || job.status === 'WAITING') {
+      // Always check LAUNCHING, RUNNING, and WAITING jobs (for launch progress and live status)
+      if (
+        job.status === 'LAUNCHING' ||
+        job.status === 'RUNNING' ||
+        job.status === 'WAITING'
+      ) {
         return true;
       }
 
@@ -356,11 +356,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
     };
 
-    // Check immediately and then every 2s when there are LAUNCHING/WAITING jobs (for progress), else 10s
-    const hasLaunching = jobsToCheck.some(
-      (j: any) => j.status === 'LAUNCHING' || j.status === 'WAITING',
+    // Check immediately and then every 2s when there are active jobs (LAUNCHING/RUNNING/WAITING),
+    // else every 10s (mainly for recent COMPLETE jobs to ensure quota is recorded).
+    const hasActiveRemoteJobs = jobsToCheck.some(
+      (j: any) =>
+        j.status === 'LAUNCHING' ||
+        j.status === 'RUNNING' ||
+        j.status === 'WAITING',
     );
-    const intervalMs = hasLaunching ? 2000 : 10000;
+    const intervalMs = hasActiveRemoteJobs ? 2000 : 10000;
     checkJobs();
     const interval = setInterval(checkJobs, intervalMs);
 
@@ -728,43 +732,20 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
 
       // Create template with flat structure
-      // Use env_parameters from the gallery-defined structure (generic handling)
-      const envVars: Record<string, string> = {};
+      // Use env_parameters from the gallery-defined structure (including NGROK)
+      const envVars: Record<string, string> = data.env_parameters || {};
 
-      // Merge generic env_parameters from the modal (keyed by env_var name)
-      if (data.env_parameters) {
-        for (const [key, value] of Object.entries(data.env_parameters)) {
-          if (typeof value === 'string' && value.trim()) {
-            envVars[key] = value;
-          }
-        }
-      }
-
-      // Add vLLM-specific environment variables (legacy fallback - only if not already set)
-      if (interactiveType === 'vllm') {
-        if (data.model_name && !envVars['MODEL_NAME']) {
-          envVars['MODEL_NAME'] = data.model_name;
-        }
-        if (data.hf_token && !envVars['HF_TOKEN']) {
-          envVars['HF_TOKEN'] = data.hf_token;
-        }
-        if (data.tp_size && !envVars['TP_SIZE']) {
-          envVars['TP_SIZE'] = data.tp_size;
-        }
-      }
-
-      // Add Ollama-specific environment variables (legacy fallback - only if not already set)
-      if (interactiveType === 'ollama') {
-        if (data.model_name && !envVars['MODEL_NAME']) {
-          envVars['MODEL_NAME'] = data.model_name;
-        }
-      }
-
-      // Add SSH-specific environment variables (legacy fallback - only if not already set)
-      if (interactiveType === 'ssh') {
-        if (data.ngrok_auth_token && !envVars['NGROK_AUTH_TOKEN']) {
-          envVars['NGROK_AUTH_TOKEN'] = data.ngrok_auth_token;
-        }
+      const needsNgrok =
+        interactiveType === 'jupyter' ||
+        interactiveType === 'vllm' ||
+        interactiveType === 'ollama' ||
+        interactiveType === 'ssh';
+      if (
+        needsNgrok &&
+        providerMeta.type !== 'local' &&
+        !envVars.NGROK_AUTH_TOKEN
+      ) {
+        envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
       }
 
       const templatePayload: any = {
@@ -1313,61 +1294,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         onClose={() => setCompareEvalModalOpen(false)}
         jobIds={compareEvalJobIds}
       />
-      {(() => {
-        // Find the job to determine which modal to show
-        const job = jobs.find(
-          (j: any) => String(j.id) === String(interactiveJobForModal),
-        );
-        const interactiveType =
-          job?.job_data?.interactive_type ||
-          (typeof job?.job_data === 'string'
-            ? JSON.parse(job?.job_data || '{}')?.interactive_type
-            : null) ||
-          'vscode';
-
-        if (interactiveType === 'jupyter') {
-          return (
-            <InteractiveJupyterModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'vllm') {
-          return (
-            <InteractiveVllmModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'ssh') {
-          return (
-            <InteractiveSshModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'ollama') {
-          return (
-            <InteractiveOllamaModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        return (
-          <InteractiveVSCodeModal
-            jobId={interactiveJobForModal}
-            setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-          />
-        );
-      })()}
+      <InteractiveModal
+        jobId={interactiveJobForModal}
+        setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+      />
       <PreviewDatasetModal
         open={previewDatasetModal.open}
         setOpen={(open: boolean) =>

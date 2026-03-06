@@ -1,5 +1,6 @@
 """Router for managing team-scoped compute providers."""
 
+import logging
 import os
 import time
 import json
@@ -19,7 +20,7 @@ from transformerlab.services.provider_service import (
     update_team_provider,
     delete_team_provider,
     get_provider_instance,
-    _get_local_provider_setup,
+    _local_providers_disabled,
 )
 from transformerlab.schemas.compute_providers import (
     ProviderCreate,
@@ -45,7 +46,7 @@ from transformerlab.services import quota_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
 from lab import storage
 from lab.storage import STORAGE_PROVIDER
-from lab.dirs import get_workspace_dir, get_local_provider_job_dir, set_organization_id
+from lab.dirs import get_workspace_dir, get_local_provider_job_dir, get_job_dir, set_organization_id, get_task_dir
 from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
     generate_github_clone_setup,
@@ -56,6 +57,7 @@ from transformerlab.shared.secret_utils import (
     replace_secrets_in_dict,
     replace_secret_placeholders,
 )
+from werkzeug.utils import secure_filename
 from transformerlab.shared import galleries
 from transformerlab.shared.interactive_gallery_utils import (
     resolve_interactive_command,
@@ -63,7 +65,34 @@ from transformerlab.shared.interactive_gallery_utils import (
 )
 from typing import Any
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
+
+
+_TASK_COPY_EXCLUDE = {"index.json"}
+
+
+async def _copy_task_files_to_dir(task_src: str, dest_dir: str) -> None:
+    """Copy task files from task_src into dest_dir, excluding internal metadata."""
+    try:
+        await storage.makedirs(dest_dir, exist_ok=True)
+        entries = await storage.ls(task_src, detail=False)
+    except Exception:
+        logger.warning("Failed to prepare task file copy from %s to %s, skipping", task_src, dest_dir, exc_info=True)
+        return
+    for entry in entries:
+        name = entry.rstrip("/").rsplit("/", 1)[-1]
+        if name in _TASK_COPY_EXCLUDE:
+            continue
+        dest_path = storage.join(dest_dir, name)
+        try:
+            if await storage.isdir(entry):
+                await storage.copy_dir(entry, dest_path)
+            else:
+                await storage.copy_file(entry, dest_path)
+        except Exception:
+            logger.warning("Failed to copy task file %s to %s, skipping", entry, dest_path, exc_info=True)
 
 
 def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
@@ -191,7 +220,7 @@ async def create_provider(
         )
 
     # Respect global disable flag for local providers
-    if provider_data.type == ProviderType.LOCAL and _get_local_provider_setup() == "disabled":
+    if provider_data.type == ProviderType.LOCAL and _local_providers_disabled():
         raise HTTPException(status_code=400, detail="Local providers are disabled by server configuration.")
 
     # Check if provider name already exists for this team
@@ -469,8 +498,11 @@ async def get_user_provider_settings(
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
-    config_key = f"provider:{provider_id}:slurm_user"
-    slurm_user = await db.config_get(key=config_key, user_id=user_id, team_id=team_id)
+    slurm_user_key = f"provider:{provider_id}:slurm_user"
+    slurm_user = await db.config_get(key=slurm_user_key, user_id=user_id, team_id=team_id)
+
+    custom_flags_key = f"provider:{provider_id}:slurm_custom_sbatch_flags"
+    custom_sbatch_flags = await db.config_get(key=custom_flags_key, user_id=user_id, team_id=team_id)
 
     has_ssh_key = False
     if provider.type == ProviderType.SLURM.value:
@@ -479,6 +511,7 @@ async def get_user_provider_settings(
     return {
         "provider_id": provider_id,
         "slurm_user": slurm_user,
+        "custom_sbatch_flags": custom_sbatch_flags,
         "has_ssh_key": has_ssh_key,
     }
 
@@ -504,9 +537,12 @@ async def set_user_provider_settings(
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
-    # Only allow SLURM providers to have slurm_user setting
+    # Only allow SLURM providers to have user-specific SLURM settings
     if provider.type != ProviderType.SLURM.value:
-        raise HTTPException(status_code=400, detail="slurm_user setting is only available for SLURM providers")
+        raise HTTPException(
+            status_code=400,
+            detail="User-specific SLURM settings are only available for SLURM providers",
+        )
 
     # Read slurm_user from request body (frontend sends JSON body)
     slurm_user = (body or {}).get("slurm_user")
@@ -515,12 +551,40 @@ async def set_user_provider_settings(
     elif slurm_user is not None and not isinstance(slurm_user, str):
         slurm_user = str(slurm_user).strip() or None
 
-    # Set user-specific slurm_user setting
-    config_key = f"provider:{provider_id}:slurm_user"
-    if slurm_user:
-        await db.config_set(key=config_key, value=slurm_user, user_id=user_id, team_id=team_id)
+    # Read custom SBATCH flags from request body (optional, free-form string)
+    raw_flags = (body or {}).get("custom_sbatch_flags")
+    if isinstance(raw_flags, str):
+        custom_sbatch_flags = raw_flags.strip() or None
+    elif raw_flags is None:
+        custom_sbatch_flags = None
     else:
-        await db.config_set(key=config_key, value="", user_id=user_id, team_id=team_id)
+        # Coerce non-string values to string for robustness
+        custom_sbatch_flags = str(raw_flags).strip() or None
+
+    # Set user-specific slurm_user setting
+    slurm_user_key = f"provider:{provider_id}:slurm_user"
+    if slurm_user:
+        await db.config_set(key=slurm_user_key, value=slurm_user, user_id=user_id, team_id=team_id)
+    else:
+        await db.config_set(key=slurm_user_key, value="", user_id=user_id, team_id=team_id)
+
+    # Set user-specific custom SBATCH flags
+    custom_flags_key = f"provider:{provider_id}:slurm_custom_sbatch_flags"
+    if custom_sbatch_flags:
+        await db.config_set(
+            key=custom_flags_key,
+            value=custom_sbatch_flags,
+            user_id=user_id,
+            team_id=team_id,
+        )
+    else:
+        # Store as empty string when cleared
+        await db.config_set(
+            key=custom_flags_key,
+            value="",
+            user_id=user_id,
+            team_id=team_id,
+        )
 
     has_ssh_key = False
     if provider.type == ProviderType.SLURM.value:
@@ -531,6 +595,7 @@ async def set_user_provider_settings(
     return {
         "provider_id": provider_id,
         "slurm_user": slurm_user,
+        "custom_sbatch_flags": custom_sbatch_flags,
         "has_ssh_key": has_ssh_key,
     }
 
@@ -883,6 +948,42 @@ def _generate_gcp_credentials_setup(service_account_json: str, credentials_path:
     return setup_script
 
 
+def _generate_azure_credentials_setup(
+    connection_string: Optional[str],
+    account_name: Optional[str],
+    account_key: Optional[str],
+    sas_token: Optional[str],
+) -> str:
+    """
+    Generate bash script to export Azure storage credentials on the remote host.
+
+    This mirrors the pattern used for AWS/GCP: we materialise the minimal
+    environment required for fsspec/adlfs to authenticate against Azure
+    Blob Storage.
+    """
+
+    def escape_bash_single_quoted(s: str) -> str:
+        # Safely embed arbitrary values into a single-quoted string in bash.
+        return s.replace("'", "'\"'\"'")
+
+    exports: list[str] = ["echo 'Setting up Azure storage credentials...'"]
+    if connection_string:
+        escaped = escape_bash_single_quoted(connection_string)
+        exports.append(f"export AZURE_STORAGE_CONNECTION_STRING='{escaped}'")
+    if account_name:
+        escaped = escape_bash_single_quoted(account_name)
+        exports.append(f"export AZURE_STORAGE_ACCOUNT='{escaped}'")
+    if account_key:
+        escaped = escape_bash_single_quoted(account_key)
+        exports.append(f"export AZURE_STORAGE_KEY='{escaped}'")
+    if sas_token:
+        escaped = escape_bash_single_quoted(sas_token)
+        exports.append(f"export AZURE_STORAGE_SAS_TOKEN='{escaped}'")
+
+    exports.append("echo 'Azure storage credentials configured successfully'")
+    return "; ".join(exports)
+
+
 def _find_missing_secrets_for_template_launch(
     request: ProviderTemplateLaunchRequest, secrets: Dict[str, Any]
 ) -> set[str]:
@@ -1119,6 +1220,7 @@ async def _launch_sweep_jobs(
                 # Cloud credentials setup:
                 # - For AWS (TFL_STORAGE_PROVIDER=aws), inject ~/.aws/credentials profile if available.
                 # - For GCP (TFL_STORAGE_PROVIDER=gcp), optionally inject a service account JSON if provided.
+                # - For Azure (TFL_STORAGE_PROVIDER=azure), export Azure storage env vars if configured.
                 if os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true":
                     if STORAGE_PROVIDER == "aws":
                         aws_profile = "transformerlab-s3"
@@ -1146,6 +1248,24 @@ async def _launch_sweep_jobs(
                         if gcp_sa_json:
                             gcp_setup = _generate_gcp_credentials_setup(gcp_sa_json)
                             setup_commands.append(gcp_setup)
+                    elif STORAGE_PROVIDER == "azure":
+                        azure_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+                        azure_account = os.getenv("AZURE_STORAGE_ACCOUNT")
+                        azure_key = os.getenv("AZURE_STORAGE_KEY")
+                        azure_sas = os.getenv("AZURE_STORAGE_SAS_TOKEN")
+                        if azure_connection_string or azure_account:
+                            azure_setup = _generate_azure_credentials_setup(
+                                azure_connection_string, azure_account, azure_key, azure_sas
+                            )
+                            setup_commands.append(azure_setup)
+                            if azure_connection_string:
+                                env_vars["AZURE_STORAGE_CONNECTION_STRING"] = azure_connection_string
+                            if azure_account:
+                                env_vars["AZURE_STORAGE_ACCOUNT"] = azure_account
+                            if azure_key:
+                                env_vars["AZURE_STORAGE_KEY"] = azure_key
+                            if azure_sas:
+                                env_vars["AZURE_STORAGE_SAS_TOKEN"] = azure_sas
 
                 if request.file_mounts is True and request.task_id:
                     setup_commands.append(COPY_FILE_MOUNTS_SETUP)
@@ -1459,23 +1579,43 @@ async def launch_template_on_provider(
     if env_vars and team_secrets:
         env_vars = replace_secrets_in_dict(env_vars, team_secrets)
 
-    # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
-    aws_profile = "transformerlab-s3"
-    if os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true":
-        aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(_get_aws_credentials_from_file, aws_profile)
-    else:
-        aws_access_key_id, aws_secret_access_key = None, None
+    # Build setup script - add cloud credential helpers first, then file_mounts and other setup.
+    setup_commands: list[str] = []
 
-    # Build setup script - add copy_file_mounts after AWS credentials when file_mounts is True (task dir -> ~/src)
-    setup_commands = []
-    if aws_access_key_id and aws_secret_access_key:
-        aws_credentials_dir = RUNPOD_AWS_CREDENTIALS_DIR if provider.type == ProviderType.RUNPOD.value else None
-        aws_setup = _generate_aws_credentials_setup(
-            aws_access_key_id, aws_secret_access_key, aws_profile, aws_credentials_dir=aws_credentials_dir
-        )
-        setup_commands.append(aws_setup)
-        if aws_credentials_dir:
-            env_vars["AWS_SHARED_CREDENTIALS_FILE"] = f"{aws_credentials_dir}/credentials"
+    if os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true":
+        if STORAGE_PROVIDER == "aws":
+            # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
+            aws_profile = "transformerlab-s3"
+            aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(
+                _get_aws_credentials_from_file, aws_profile
+            )
+            if aws_access_key_id and aws_secret_access_key:
+                aws_credentials_dir = RUNPOD_AWS_CREDENTIALS_DIR if provider.type == ProviderType.RUNPOD.value else None
+                aws_setup = _generate_aws_credentials_setup(
+                    aws_access_key_id, aws_secret_access_key, aws_profile, aws_credentials_dir=aws_credentials_dir
+                )
+                setup_commands.append(aws_setup)
+                if aws_credentials_dir:
+                    env_vars["AWS_SHARED_CREDENTIALS_FILE"] = f"{aws_credentials_dir}/credentials"
+        elif STORAGE_PROVIDER == "azure":
+            azure_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+            azure_account = os.getenv("AZURE_STORAGE_ACCOUNT")
+            azure_key = os.getenv("AZURE_STORAGE_KEY")
+            azure_sas = os.getenv("AZURE_STORAGE_SAS_TOKEN")
+            if azure_connection_string or azure_account:
+                azure_setup = _generate_azure_credentials_setup(
+                    azure_connection_string, azure_account, azure_key, azure_sas
+                )
+                setup_commands.append(azure_setup)
+                if azure_connection_string:
+                    env_vars["AZURE_STORAGE_CONNECTION_STRING"] = azure_connection_string
+                if azure_account:
+                    env_vars["AZURE_STORAGE_ACCOUNT"] = azure_account
+                if azure_key:
+                    env_vars["AZURE_STORAGE_KEY"] = azure_key
+                if azure_sas:
+                    env_vars["AZURE_STORAGE_SAS_TOKEN"] = azure_sas
+
     if request.file_mounts is True and request.task_id:
         setup_commands.append(COPY_FILE_MOUNTS_SETUP)
     # Ensure transformerlab SDK is available on remote machines for live_status tracking and other helpers.
@@ -1561,11 +1701,6 @@ async def launch_template_on_provider(
 
     if tfl_storage_uri:
         env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
-        # Only mark as remote SkyPilot workspace and set AWS profile for true remote URIs
-        if storage.is_remote_path(tfl_storage_uri):
-            env_vars["AWS_PROFILE"] = aws_profile
-        # env_vars["AWS_ACCESS_KEY_ID"] = aws_access_key_id
-        # env_vars["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
 
     # For local provider, set TFL_WORKSPACE_DIR so the lab SDK in the subprocess can find
     # the job directory (workspace/jobs/<job_id>). The organization context for the API
@@ -1631,6 +1766,15 @@ async def launch_template_on_provider(
     if request.config:
         merged_parameters.update(request.config)
 
+    # Extract any per-run custom SBATCH flags from config (used by SLURM provider)
+    custom_sbatch_flags = None
+    if request.config and "custom_sbatch_flags" in request.config:
+        raw_flags = request.config.get("custom_sbatch_flags")
+        if isinstance(raw_flags, str):
+            custom_sbatch_flags = raw_flags.strip() or None
+        elif raw_flags is not None:
+            custom_sbatch_flags = str(raw_flags).strip() or None
+
     # Replace secrets in merged parameters
     parameters_with_secrets = None
     if merged_parameters and team_secrets:
@@ -1640,12 +1784,28 @@ async def launch_template_on_provider(
 
     # Build provider_config for cluster_config (and job_data for local provider)
     provider_config_dict = {"requested_disk_space": request.disk_space}
+    # For SLURM, pass through any per-run custom SBATCH flags so the provider
+    # can inject them into the generated SLURM script.
+    if provider.type == ProviderType.SLURM.value and custom_sbatch_flags:
+        provider_config_dict["custom_sbatch_flags"] = custom_sbatch_flags
     if provider.type == ProviderType.LOCAL.value:
         # Use a dedicated local-only job directory for the local provider.
         # This directory is always on the host filesystem and does not depend
         # on TFL_REMOTE_STORAGE_ENABLED / remote storage configuration.
         job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id, org_id=team_id)
         provider_config_dict["workspace_dir"] = job_dir
+
+    # Copy task files (task.yaml and any attachments) into the job directory
+    # so they are available to the running command on any provider.
+    # index.json is excluded because the job system uses its own index.json
+    # for metadata and overwriting it with the task's index.json would break
+    # job status tracking.
+    if request.task_id:
+        task_dir_root = await get_task_dir()
+        task_src = storage.join(task_dir_root, secure_filename(str(request.task_id)))
+        if await storage.isdir(task_src):
+            workspace_job_dir = await get_job_dir(job_id)
+            await _copy_task_files_to_dir(task_src, workspace_job_dir)
 
     job_data = {
         "task_name": request.task_name,
@@ -1689,15 +1849,12 @@ async def launch_template_on_provider(
     # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
     file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
 
-    # For non-local (remote) providers, wrap the user command so we can track live_status in job_data.
+    # Wrap the user command with tfl-remote-trap so we can track live_status in job_data.
     # This uses the tfl-remote-trap helper from the transformerlab SDK, which:
     #   - sets job_data.live_status="started" when execution begins
     #   - sets job_data.live_status="finished" on success
     #   - sets job_data.live_status="crashed" on failure
-    wrapped_command = command_with_secrets
-    if provider.type != ProviderType.LOCAL.value:
-        # Preserve the original command in job_data but execute through the wrapper on the provider.
-        wrapped_command = f"tfl-remote-trap -- {command_with_secrets}"
+    wrapped_command = f"tfl-remote-trap -- {command_with_secrets}"
 
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
@@ -1862,8 +2019,8 @@ async def check_provider_job_status(
             "launch_progress": launch_progress,
         }
 
-    # Only check provider status for jobs in LAUNCHING state
-    if job_status != "LAUNCHING":
+    # Only check provider status for jobs that are still launching or running
+    if job_status not in ("LAUNCHING", "RUNNING"):
         return {
             "status": "success",
             "job_id": job_id,
