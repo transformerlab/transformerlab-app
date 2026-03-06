@@ -40,10 +40,15 @@ def set_organization_id(organization_id: str | None) -> None:
         # If TFL_REMOTE_STORAGE_ENABLED is true, use <cloud_protocol>://workspace_<team_id> instead of the value itself
         tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
         if tfl_remote_storage_enabled:
-            # Determine protocol based on TFL_STORAGE_PROVIDER (aws | gcp)
-            protocol = "gs://" if STORAGE_PROVIDER == "gcp" else "s3://"
+            # Determine protocol based on TFL_STORAGE_PROVIDER (aws | gcp | azure)
+            if STORAGE_PROVIDER == "gcp":
+                protocol = "gs://"
+            elif STORAGE_PROVIDER == "azure":
+                protocol = "abfs://"
+            else:
+                protocol = "s3://"
 
-            # Use cloud://workspace_<team_id> format
+            # Use <protocol>workspace-<team_id> format
             _current_tfl_storage_uri.set(f"{protocol}workspace-{organization_id}")
         elif STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI"):
             # Localfs: root_uri() should be org-scoped so set context to TFL_STORAGE_URI/orgs/<org_id>

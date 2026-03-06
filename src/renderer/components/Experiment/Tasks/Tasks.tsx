@@ -17,11 +17,7 @@ import { analytics } from 'renderer/components/Shared/analytics/AnalyticsContext
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
-import InteractiveVSCodeModal from './InteractiveVSCodeModal';
-import InteractiveJupyterModal from './InteractiveJupyterModal';
-import InteractiveVllmModal from './InteractiveVllmModal';
-import InteractiveSshModal from './InteractiveSshModal';
-import InteractiveOllamaModal from './InteractiveOllamaModal';
+import InteractiveModal from './InteractiveModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -1309,61 +1305,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         onClose={() => setCompareEvalModalOpen(false)}
         jobIds={compareEvalJobIds}
       />
-      {(() => {
-        // Find the job to determine which modal to show
-        const job = jobs.find(
-          (j: any) => String(j.id) === String(interactiveJobForModal),
-        );
-        const interactiveType =
-          job?.job_data?.interactive_type ||
-          (typeof job?.job_data === 'string'
-            ? JSON.parse(job?.job_data || '{}')?.interactive_type
-            : null) ||
-          'vscode';
-
-        if (interactiveType === 'jupyter') {
-          return (
-            <InteractiveJupyterModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'vllm') {
-          return (
-            <InteractiveVllmModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'ssh') {
-          return (
-            <InteractiveSshModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'ollama') {
-          return (
-            <InteractiveOllamaModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        return (
-          <InteractiveVSCodeModal
-            jobId={interactiveJobForModal}
-            setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-          />
-        );
-      })()}
+      <InteractiveModal
+        jobId={interactiveJobForModal}
+        setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+      />
       <PreviewDatasetModal
         open={previewDatasetModal.open}
         setOpen={(open: boolean) =>
