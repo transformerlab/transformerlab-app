@@ -15,6 +15,7 @@ import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import TaskTemplateList from '../Tasks/TaskTemplateList';
 import NewInteractiveTaskModal from '../Tasks/NewInteractiveTaskModal';
 import EditInteractiveTaskModal from '../Tasks/EditInteractiveTaskModal';
+import DeleteTaskConfirmModal from '../Tasks/DeleteTaskConfirmModal';
 import InteractiveJobCard from './InteractiveJobCard';
 
 const duration = require('dayjs/plugin/duration');
@@ -27,6 +28,10 @@ export default function Interactive() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskBeingEdited, setTaskBeingEdited] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<{
+    id: string;
+    name?: string;
+  } | null>(null);
 
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
@@ -197,42 +202,42 @@ export default function Interactive() {
     return [...placeholders, ...filteredJobs];
   }, [jobs, getPendingJobIds, pendingIdsTrigger]);
 
-  const handleDeleteTask = async (taskId: string) => {
-    if (!experimentInfo?.id) return;
+  const handleDeleteTask = (taskId: string, taskName?: string) => {
+    setTaskToDelete({ id: taskId, name: taskName });
+  };
 
-    // eslint-disable-next-line no-alert
-    if (!confirm('Are you sure you want to delete this template?')) {
-      return;
-    }
-
-    try {
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo?.id || '', taskId),
-        {
-          method: 'GET',
-        },
-      );
-
-      if (response.ok) {
-        addNotification({
-          type: 'success',
-          message: 'Template deleted successfully!',
-        });
-        await templatesMutate();
-      } else {
+  const handleConfirmDeleteTask = useCallback(
+    async (taskId: string): Promise<boolean> => {
+      if (!experimentInfo?.id) return false;
+      try {
+        const response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo.id, taskId),
+          { method: 'GET' },
+        );
+        if (response.ok) {
+          addNotification({
+            type: 'success',
+            message: 'Template deleted successfully!',
+          });
+          await templatesMutate();
+          return true;
+        }
         addNotification({
           type: 'danger',
           message: 'Failed to delete template. Please try again.',
         });
+        return false;
+      } catch (error) {
+        console.error('Error deleting template:', error);
+        addNotification({
+          type: 'danger',
+          message: 'Failed to delete template. Please try again.',
+        });
+        return false;
       }
-    } catch (error) {
-      console.error('Error deleting template:', error);
-      addNotification({
-        type: 'danger',
-        message: 'Failed to delete template. Please try again.',
-      });
-    }
-  };
+    },
+    [experimentInfo?.id, addNotification, templatesMutate],
+  );
 
   const handleDeleteJob = async (jobId: string) => {
     if (!experimentInfo?.id) return;
@@ -777,6 +782,13 @@ export default function Interactive() {
           interactTasks
         />
       </Sheet>
+      <DeleteTaskConfirmModal
+        open={taskToDelete !== null}
+        onClose={() => setTaskToDelete(null)}
+        taskId={taskToDelete?.id ?? null}
+        taskName={taskToDelete?.name ?? null}
+        onConfirm={handleConfirmDeleteTask}
+      />
     </Sheet>
   );
 }

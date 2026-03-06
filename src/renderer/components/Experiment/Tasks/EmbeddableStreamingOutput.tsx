@@ -151,7 +151,9 @@ export default function EmbeddableStreamingOutput({
     data: any;
     isError: any;
     isLoading: boolean;
-  } = useSWR(providerLogsUrl);
+  } = useSWR(providerLogsUrl, undefined, {
+    refreshInterval: 10000,
+  });
 
   const isNoProviderLogsYet =
     providerLogsError && (providerLogsError as any).status === 404;
