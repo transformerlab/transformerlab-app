@@ -19,6 +19,7 @@ import JobsList from './JobsList';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveModal from './InteractiveModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
+import DeleteTaskConfirmModal from './DeleteTaskConfirmModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
@@ -68,6 +69,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
   const [viewFileBrowserFromJob, setViewFileBrowserFromJob] = useState(-1);
   const [yamlEditorTaskId, setYamlEditorTaskId] = useState<string | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<{
+    id: string;
+    name?: string;
+  } | null>(null);
   const [launchProgressByJobId, setLaunchProgressByJobId] = useState<
     Record<string, { phase?: string; percent?: number; message?: string }>
   >({});
@@ -459,43 +464,42 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     return combined;
   }, [jobs, getPendingJobIds, subtype, pendingIdsTrigger]);
 
-  const handleDeleteTask = async (taskId: string) => {
-    if (!experimentInfo?.id) return;
+  const handleDeleteTask = (taskId: string, taskName?: string) => {
+    setTaskToDelete({ id: taskId, name: taskName });
+  };
 
-    // eslint-disable-next-line no-alert
-    if (!confirm('Are you sure you want to delete this template?')) {
-      return;
-    }
-
-    try {
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo?.id || '', taskId),
-        {
-          method: 'GET',
-        },
-      );
-
-      if (response.ok) {
-        addNotification({
-          type: 'success',
-          message: 'Template deleted successfully!',
-        });
-        // Refresh the data to remove the deleted template
-        await templatesMutate();
-      } else {
+  const handleConfirmDeleteTask = useCallback(
+    async (taskId: string): Promise<boolean> => {
+      if (!experimentInfo?.id) return false;
+      try {
+        const response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo.id, taskId),
+          { method: 'GET' },
+        );
+        if (response.ok) {
+          addNotification({
+            type: 'success',
+            message: 'Template deleted successfully!',
+          });
+          await templatesMutate();
+          return true;
+        }
         addNotification({
           type: 'danger',
           message: 'Failed to delete template. Please try again.',
         });
+        return false;
+      } catch (error) {
+        console.error('Error deleting template:', error);
+        addNotification({
+          type: 'danger',
+          message: 'Failed to delete template. Please try again.',
+        });
+        return false;
       }
-    } catch (error) {
-      console.error('Error deleting template:', error);
-      addNotification({
-        type: 'danger',
-        message: 'Failed to delete template. Please try again.',
-      });
-    }
-  };
+    },
+    [experimentInfo?.id, addNotification, templatesMutate],
+  );
 
   const handleDeleteJob = async (jobId: string) => {
     if (!experimentInfo?.id) return;
@@ -819,11 +823,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     // For templates, all fields are stored directly (not nested in config)
     // For backward compatibility, check if it's an old task format with nested config
     const cfg =
-      task.config !== undefined
-        ? typeof task.config === 'string'
-          ? JSON.parse(task.config)
-          : task.config
-        : task; // If no config field, assume it's a template with flat structure
+      task.config !== undefined ? SafeJSONParse(task.config, task) : task; // If no config field, assume it's a template with flat structure
 
     if (!providers.length) {
       addNotification({
@@ -858,11 +858,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     // For templates, all fields are stored directly (not nested in config)
     // For backward compatibility, check if it's an old task format with nested config
     const cfg =
-      task.config !== undefined
-        ? typeof task.config === 'string'
-          ? JSON.parse(task.config)
-          : task.config
-        : task; // If no config field, assume it's a template with flat structure
+      task.config !== undefined ? SafeJSONParse(task.config, task) : task; // If no config field, assume it's a template with flat structure
 
     // Use provider from modal override first, then task/cfg
     const providerId =
@@ -1318,6 +1314,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewFileBrowserFromJob !== -1}
         onClose={() => setViewFileBrowserFromJob(-1)}
         jobId={viewFileBrowserFromJob}
+      />
+      <DeleteTaskConfirmModal
+        open={taskToDelete !== null}
+        onClose={() => setTaskToDelete(null)}
+        taskId={taskToDelete?.id ?? null}
+        taskName={taskToDelete?.name ?? null}
+        onConfirm={handleConfirmDeleteTask}
       />
     </Sheet>
   );
