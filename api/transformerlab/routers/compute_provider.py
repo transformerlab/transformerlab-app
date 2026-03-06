@@ -2140,8 +2140,13 @@ async def check_provider_job_status(
             terminal_states_local = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
             if cluster_status.state in terminal_states_local:
                 try:
-                    # If job was being stopped, transition to STOPPED; otherwise COMPLETE
-                    final_status = "STOPPED" if job_status == "STOPPING" else "COMPLETE"
+                    # Map cluster terminal state to the appropriate job status
+                    if job_status == "STOPPING":
+                        final_status = "STOPPED"
+                    elif cluster_status.state == ClusterState.FAILED:
+                        final_status = "FAILED"
+                    else:
+                        final_status = "COMPLETE"
                     end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
                     await job_service.job_update_job_data_insert_key_value(
                         job_id, "end_time", end_time_str, experiment_id
