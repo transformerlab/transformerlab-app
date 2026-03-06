@@ -72,35 +72,20 @@ export default function JobProgress({
       const clusterName = job.job_data?.cluster_name;
 
       if (providerId && clusterName) {
-        // Use the providers stop endpoint
         try {
-          // Immediately mark as STOPPING for responsive UI
+          // Let the backend handle STOPPING status transition
           if (experimentInfo?.id && job?.id) {
             await chatAPI.authenticatedFetch(
-              chatAPI.Endpoints.Jobs.Update(
-                experimentInfo.id,
-                job.id,
-                'STOPPING',
-              ),
+              chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, job.id),
             );
           }
-          const response = await fetchWithAuth(
+          await fetchWithAuth(
             chatAPI.Endpoints.ComputeProvider.StopCluster(
               providerId,
               clusterName,
             ),
             { method: 'POST' },
           );
-          if (response.ok && experimentInfo?.id && job?.id) {
-            // Update job status to STOPPED
-            await chatAPI.authenticatedFetch(
-              chatAPI.Endpoints.Jobs.Update(
-                experimentInfo.id,
-                job.id,
-                'STOPPED',
-              ),
-            );
-          }
         } catch (error) {
           // eslint-disable-next-line no-console
           console.error('Failed to stop provider cluster:', error);
