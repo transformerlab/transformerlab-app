@@ -823,11 +823,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     // For templates, all fields are stored directly (not nested in config)
     // For backward compatibility, check if it's an old task format with nested config
     const cfg =
-      task.config !== undefined
-        ? typeof task.config === 'string'
-          ? JSON.parse(task.config)
-          : task.config
-        : task; // If no config field, assume it's a template with flat structure
+      task.config !== undefined ? SafeJSONParse(task.config, task) : task; // If no config field, assume it's a template with flat structure
 
     if (!providers.length) {
       addNotification({
@@ -862,11 +858,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     // For templates, all fields are stored directly (not nested in config)
     // For backward compatibility, check if it's an old task format with nested config
     const cfg =
-      task.config !== undefined
-        ? typeof task.config === 'string'
-          ? JSON.parse(task.config)
-          : task.config
-        : task; // If no config field, assume it's a template with flat structure
+      task.config !== undefined ? SafeJSONParse(task.config, task) : task; // If no config field, assume it's a template with flat structure
 
     // Use provider from modal override first, then task/cfg
     const providerId =
