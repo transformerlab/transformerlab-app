@@ -17,11 +17,7 @@ import { analytics } from 'renderer/components/Shared/analytics/AnalyticsContext
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
-import InteractiveVSCodeModal from './InteractiveVSCodeModal';
-import InteractiveJupyterModal from './InteractiveJupyterModal';
-import InteractiveVllmModal from './InteractiveVllmModal';
-import InteractiveSshModal from './InteractiveSshModal';
-import InteractiveOllamaModal from './InteractiveOllamaModal';
+import InteractiveModal from './InteractiveModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -308,8 +304,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         return false;
       }
 
-      // Always check LAUNCHING and WAITING jobs (for launch progress)
-      if (job.status === 'LAUNCHING' || job.status === 'WAITING') {
+      // Always check LAUNCHING, RUNNING, and WAITING jobs (for launch progress and live status)
+      if (
+        job.status === 'LAUNCHING' ||
+        job.status === 'RUNNING' ||
+        job.status === 'WAITING'
+      ) {
         return true;
       }
 
@@ -356,11 +356,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
     };
 
-    // Check immediately and then every 2s when there are LAUNCHING/WAITING jobs (for progress), else 10s
-    const hasLaunching = jobsToCheck.some(
-      (j: any) => j.status === 'LAUNCHING' || j.status === 'WAITING',
+    // Check immediately and then every 2s when there are active jobs (LAUNCHING/RUNNING/WAITING),
+    // else every 10s (mainly for recent COMPLETE jobs to ensure quota is recorded).
+    const hasActiveRemoteJobs = jobsToCheck.some(
+      (j: any) =>
+        j.status === 'LAUNCHING' ||
+        j.status === 'RUNNING' ||
+        j.status === 'WAITING',
     );
-    const intervalMs = hasLaunching ? 2000 : 10000;
+    const intervalMs = hasActiveRemoteJobs ? 2000 : 10000;
     checkJobs();
     const interval = setInterval(checkJobs, intervalMs);
 
@@ -1301,61 +1305,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         onClose={() => setCompareEvalModalOpen(false)}
         jobIds={compareEvalJobIds}
       />
-      {(() => {
-        // Find the job to determine which modal to show
-        const job = jobs.find(
-          (j: any) => String(j.id) === String(interactiveJobForModal),
-        );
-        const interactiveType =
-          job?.job_data?.interactive_type ||
-          (typeof job?.job_data === 'string'
-            ? JSON.parse(job?.job_data || '{}')?.interactive_type
-            : null) ||
-          'vscode';
-
-        if (interactiveType === 'jupyter') {
-          return (
-            <InteractiveJupyterModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'vllm') {
-          return (
-            <InteractiveVllmModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'ssh') {
-          return (
-            <InteractiveSshModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'ollama') {
-          return (
-            <InteractiveOllamaModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        return (
-          <InteractiveVSCodeModal
-            jobId={interactiveJobForModal}
-            setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-          />
-        );
-      })()}
+      <InteractiveModal
+        jobId={interactiveJobForModal}
+        setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+      />
       <PreviewDatasetModal
         open={previewDatasetModal.open}
         setOpen={(open: boolean) =>
