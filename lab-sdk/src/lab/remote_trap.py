@@ -159,41 +159,32 @@ def main(argv: List[str] | None = None) -> int:
     _set_status("RUNNING")
 
     # Run the original command in the shell so it behaves exactly as submitted.
-    # Capture stdout/stderr so we can save a copy to provider_logs.txt while still
-    # echoing output to the current process streams.
-    completed = subprocess.run(
+    # Stream output line-by-line to avoid buffering large logs in memory (training
+    # jobs can produce GBs of output). stdout and stderr are merged into a single
+    # stream (stderr redirected to stdout) so we can tee to both the console and
+    # the provider_logs.txt file.
+    log_lines: List[str] = []
+    proc = subprocess.Popen(
         command_str,
         shell=True,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         text=True,
     )
 
-    # Echo captured output back to the current stdout/stderr so provider-native logs
-    # (e.g., SkyPilot, SLURM, RunPod) still see the same content.
-    if completed.stdout:
+    assert proc.stdout is not None
+    for line in proc.stdout:
         try:
-            sys.stdout.write(completed.stdout)
+            sys.stdout.write(line)
             sys.stdout.flush()
         except Exception:
             pass
-    if completed.stderr:
-        try:
-            sys.stderr.write(completed.stderr)
-            sys.stderr.flush()
-        except Exception:
-            pass
+        log_lines.append(line)
 
-    # Combine stdout + stderr into a single text blob and store it alongside the job.
-    combined_logs_parts: List[str] = []
-    if completed.stdout:
-        combined_logs_parts.append(completed.stdout)
-    if completed.stderr:
-        combined_logs_parts.append(completed.stderr)
-    combined_logs = "\n".join(part.rstrip("\n") for part in combined_logs_parts)
+    exit_code = proc.wait()
 
+    combined_logs = "".join(log_lines)
     _write_provider_logs(combined_logs)
-
-    exit_code = completed.returncode
 
     # Update live_status based on outcome (best-effort).
     if exit_code == 0:
