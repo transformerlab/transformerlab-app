@@ -324,6 +324,10 @@
       "method": "GET",
       "path": "compute_provider/"
     },
+    "listAll": {
+      "method": "GET",
+      "path": "compute_provider/?include_disabled=true"
+    },
     "create": {
       "method": "POST",
       "path": "compute_provider/"
