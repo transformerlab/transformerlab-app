@@ -1,5 +1,6 @@
 """Router for managing team-scoped compute providers."""
 
+import logging
 import os
 import time
 import json
@@ -45,7 +46,7 @@ from transformerlab.services import quota_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
 from lab import storage
 from lab.storage import STORAGE_PROVIDER
-from lab.dirs import get_workspace_dir, get_local_provider_job_dir, set_organization_id
+from lab.dirs import get_workspace_dir, get_local_provider_job_dir, get_job_dir, set_organization_id, get_task_dir
 from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
     generate_github_clone_setup,
@@ -56,6 +57,7 @@ from transformerlab.shared.secret_utils import (
     replace_secrets_in_dict,
     replace_secret_placeholders,
 )
+from werkzeug.utils import secure_filename
 from transformerlab.shared import galleries
 from transformerlab.shared.interactive_gallery_utils import (
     resolve_interactive_command,
@@ -63,7 +65,34 @@ from transformerlab.shared.interactive_gallery_utils import (
 )
 from typing import Any
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
+
+
+_TASK_COPY_EXCLUDE = {"index.json"}
+
+
+async def _copy_task_files_to_dir(task_src: str, dest_dir: str) -> None:
+    """Copy task files from task_src into dest_dir, excluding internal metadata."""
+    try:
+        await storage.makedirs(dest_dir, exist_ok=True)
+        entries = await storage.ls(task_src, detail=False)
+    except Exception:
+        logger.warning("Failed to prepare task file copy from %s to %s, skipping", task_src, dest_dir, exc_info=True)
+        return
+    for entry in entries:
+        name = entry.rstrip("/").rsplit("/", 1)[-1]
+        if name in _TASK_COPY_EXCLUDE:
+            continue
+        dest_path = storage.join(dest_dir, name)
+        try:
+            if await storage.isdir(entry):
+                await storage.copy_dir(entry, dest_path)
+            else:
+                await storage.copy_file(entry, dest_path)
+        except Exception:
+            logger.warning("Failed to copy task file %s to %s, skipping", entry, dest_path, exc_info=True)
 
 
 def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
@@ -1716,6 +1745,18 @@ async def launch_template_on_provider(
         # on TFL_REMOTE_STORAGE_ENABLED / remote storage configuration.
         job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id, org_id=team_id)
         provider_config_dict["workspace_dir"] = job_dir
+
+    # Copy task files (task.yaml and any attachments) into the job directory
+    # so they are available to the running command on any provider.
+    # index.json is excluded because the job system uses its own index.json
+    # for metadata and overwriting it with the task's index.json would break
+    # job status tracking.
+    if request.task_id:
+        task_dir_root = await get_task_dir()
+        task_src = storage.join(task_dir_root, secure_filename(str(request.task_id)))
+        if await storage.isdir(task_src):
+            workspace_job_dir = await get_job_dir(job_id)
+            await _copy_task_files_to_dir(task_src, workspace_job_dir)
 
     job_data = {
         "task_name": request.task_name,
