@@ -145,7 +145,7 @@ async def list_enabled_team_providers(session: AsyncSession, team_id: str) -> li
     stmt = (
         select(TeamComputeProvider)
         .where(TeamComputeProvider.team_id == team_id)
-        .where(TeamComputeProvider.disabled == False)
+        .where(~TeamComputeProvider.disabled)
         .order_by(TeamComputeProvider.created_at.desc())
     )
     result = await session.execute(stmt)
