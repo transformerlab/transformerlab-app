@@ -70,9 +70,7 @@ export default function SaveToRegistryDialog({
     <Modal open={open} onClose={onClose}>
       <ModalDialog sx={{ width: 480, maxWidth: '95vw' }}>
         <ModalClose />
-        <Typography level="h4">
-          Save {typeLabel} to Registry
-        </Typography>
+        <Typography level="h4">Save {typeLabel} to Registry</Typography>
         <Typography level="body-sm" sx={{ mb: 2 }}>
           Choose how to publish <strong>{sourceName}</strong> to the{' '}
           {typeLabel.toLowerCase()} registry.
@@ -108,9 +106,7 @@ export default function SaveToRegistryDialog({
             />
             {mode === 'existing' && (
               <FormControl sx={{ ml: 4, mt: 1 }}>
-                <FormLabel>
-                  Select existing {typeLabel.toLowerCase()}
-                </FormLabel>
+                <FormLabel>Select existing {typeLabel.toLowerCase()}</FormLabel>
                 <Autocomplete
                   options={existingNames}
                   value={existingTarget}
@@ -123,8 +119,18 @@ export default function SaveToRegistryDialog({
           </Box>
         </RadioGroup>
 
-        <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 3 }}>
-          <Button variant="plain" color="neutral" onClick={onClose} disabled={saving}>
+        <Stack
+          direction="row"
+          justifyContent="flex-end"
+          spacing={1}
+          sx={{ mt: 3 }}
+        >
+          <Button
+            variant="plain"
+            color="neutral"
+            onClick={onClose}
+            disabled={saving}
+          >
             Cancel
           </Button>
           <Button
