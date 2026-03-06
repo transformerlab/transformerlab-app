@@ -5,6 +5,7 @@ The Entrypoint File for Transformer Lab's API Server.
 import os
 import argparse
 import asyncio
+import re
 
 import json
 import signal
@@ -603,6 +604,22 @@ async def healthz():
         "message": "OK",
         "mode": mode,
     }
+
+
+# Middleware to set cache-control headers for static frontend assets.
+# index.html is never cached so users always get the latest version,
+# while content-hashed JS/CSS files are cached for 1 year.
+@app.middleware("http")
+async def static_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    # Hashed assets (e.g. main.a1b2c3d4.js, style.e5f6g7h8.css) — cache immutably
+    if re.search(r"\.[0-9a-f]{8}\.(js|css)$", path):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    # HTML files — never cache
+    elif path == "/" or path.endswith(".html"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
 
 
 # Add an endpoint that serves the static files in the ~/.transformerlab/webapp directory:
