@@ -23,9 +23,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 
+import logging
+
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Allow the log level for all transformerlab.* loggers to be controlled via
+# an env var.  Set TLAB_LOG_LEVEL=DEBUG to enable debug output across the
+# entire application (e.g. sweep-status cycle timings).  Defaults to WARNING
+# so debug/info messages are silent unless explicitly requested.
+logging.getLogger("transformerlab").setLevel(
+    getattr(logging, os.getenv("TLAB_LOG_LEVEL", "WARNING").upper(), logging.WARNING)
+)
 
 
 # Optional Datadog APM (does nothing unless enabled + installed)
