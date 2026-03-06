@@ -14,9 +14,12 @@ import {
 } from '@mui/joy';
 import { Save } from 'lucide-react';
 import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { formatBytes } from 'renderer/lib/utils';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-import { fetchWithAuth } from 'renderer/lib/authContext';
+import { fetchWithAuth, useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
+import SaveToRegistryDialog from './SaveToRegistryDialog';
 
 interface ViewJobModelsModalProps {
   open: boolean;
@@ -44,10 +47,25 @@ export default function ViewJobModelsModal({
   const [savingModel, setSavingModel] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+  const [saveDialogModel, setSaveDialogModel] = useState<string | null>(null);
+
+  // Fetch existing models in the registry for "Add to existing" option
+  const { data: registryModels } = useSWR(
+    open ? chatAPI.Endpoints.Models.LocalList() : null,
+    fetcher,
+  );
+
+  const existingModelNames: string[] = Array.isArray(registryModels)
+    ? registryModels.map((m: any) => m.model_id || m.name || m.id).filter(Boolean)
+    : [];
 
   const models: Model[] = data?.models || [];
 
-  const handleSaveToRegistry = async (modelName: string) => {
+  const handleSaveToRegistry = async (
+    modelName: string,
+    targetName: string,
+    mode: 'new' | 'existing',
+  ) => {
     setSavingModel(modelName);
     setSaveError(null);
     setSaveSuccess(null);
@@ -57,6 +75,8 @@ export default function ViewJobModelsModal({
         experimentId: experimentInfo?.id,
         jobId: jobId.toString(),
         modelName,
+        targetName: targetName,
+        mode: mode,
       });
 
       const response = await fetchWithAuth(url, {
@@ -75,7 +95,9 @@ export default function ViewJobModelsModal({
         throw new Error(errorMessage);
       }
 
-      setSaveSuccess(`Successfully saved ${modelName} to registry`);
+      const result = await response.json();
+      setSaveSuccess(result.message || `Successfully saved ${modelName} to registry`);
+      setSaveDialogModel(null);
       // Refresh the model list
       mutate();
     } catch (error) {
@@ -101,6 +123,7 @@ export default function ViewJobModelsModal({
   const noModelsFound = !isLoading && models.length === 0;
 
   return (
+    <>
     <Modal open={open} onClose={onClose}>
       <ModalDialog
         sx={{
@@ -204,7 +227,7 @@ export default function ViewJobModelsModal({
                           <Button
                             size="sm"
                             variant="outlined"
-                            onClick={() => handleSaveToRegistry(model.name)}
+                            onClick={() => setSaveDialogModel(model.name)}
                             startDecorator={<Save size={16} />}
                             loading={savingModel === model.name}
                             disabled={savingModel !== null}
@@ -222,5 +245,19 @@ export default function ViewJobModelsModal({
         )}
       </ModalDialog>
     </Modal>
+    <SaveToRegistryDialog
+      open={saveDialogModel !== null}
+      onClose={() => setSaveDialogModel(null)}
+      sourceName={saveDialogModel || ''}
+      type="model"
+      existingNames={existingModelNames}
+      saving={savingModel !== null}
+      onSave={(targetName, mode) => {
+        if (saveDialogModel) {
+          handleSaveToRegistry(saveDialogModel, targetName, mode);
+        }
+      }}
+    />
+    </>
   );
 }
