@@ -12,7 +12,10 @@ class UserSecretsRequest(BaseModel):
 
 
 class SpecialSecretRequest(BaseModel):
-    secret_type: str = Field(..., description="Type of special secret: _GITHUB_PAT_TOKEN, _HF_TOKEN, or _WANDB_API_KEY")
+    secret_type: str = Field(
+        ...,
+        description=("Type of special secret: _GITHUB_PAT_TOKEN, _HF_TOKEN, _WANDB_API_KEY, or _NGROK_AUTH_TOKEN"),
+    )
     value: str = Field(..., description="Secret value")
 
 
@@ -21,7 +24,13 @@ SPECIAL_SECRET_TYPES = {
     "_GITHUB_PAT_TOKEN": "GitHub Personal Access Token",
     "_HF_TOKEN": "HuggingFace Token",
     "_WANDB_API_KEY": "Weights & Biases API Key",
+    "_NGROK_AUTH_TOKEN": "ngrok Auth Token",
 }
 
 # Special secret keys that cannot be set via regular secrets endpoints
-SPECIAL_SECRET_KEYS = {"_GITHUB_PAT_TOKEN", "_HF_TOKEN", "_WANDB_API_KEY"}
+SPECIAL_SECRET_KEYS = {
+    "_GITHUB_PAT_TOKEN",
+    "_HF_TOKEN",
+    "_WANDB_API_KEY",
+    "_NGROK_AUTH_TOKEN",
+}

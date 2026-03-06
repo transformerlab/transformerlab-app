@@ -385,10 +385,6 @@ async def get_tunnel_info_for_job(
             job_data = json.loads(job_data)
         except JSONDecodeError:
             job_data = {}
-
-    job_status = job.get("status")
-    print(f"[tunnel_info] Job {job_id}: status={job_status}, job_data keys={list(job_data.keys())}")
-
     # If we have previously cached tunnel info URLs and they are ready, use them immediately
     # and skip any provider log fetching for a faster response.
     cached_urls = job_data.get("tunnel_info_urls")
@@ -396,10 +392,8 @@ async def get_tunnel_info_for_job(
     tunnel_info: dict | None = None
     if isinstance(cached_urls, dict) and cached_urls.get("is_ready"):
         tunnel_info = cached_urls
-        print(f"[tunnel_info] Job {job_id}: using tunnel_info_urls from job_data cache")
     elif isinstance(cached_legacy, dict) and cached_legacy.get("is_ready"):
         tunnel_info = cached_legacy
-        print(f"[tunnel_info] Job {job_id}: using cached_tunnel_info from legacy job_data cache")
 
     # Get interactive_type from job_data, default to 'vscode' for backward compatibility
     interactive_type = job_data.get("interactive_type", "vscode")
