@@ -31,6 +31,18 @@ async def _set_status_async(job_id: str, status: str) -> None:
         job = await Job.get(job_id)
         if job is None:
             return
+
+        # Avoid overriding INTERACTIVE jobs with RUNNING. Interactive jobs are
+        # already considered active, and their status transitions are managed
+        # by the interactive flow instead of tfl-remote-trap.
+        if status == "RUNNING":
+            try:
+                current_status = await job.get_status()
+            except Exception:
+                current_status = None
+            if current_status == "INTERACTIVE":
+                return
+
         await job.update_status(status)
     except Exception:
         # This helper should never cause the wrapped command to fail.
