@@ -237,7 +237,7 @@ export default function EmbeddableStreamingOutput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId, tabsKey]);
 
-  const providerLogsUrl = useMemo(() => {
+  const storedProviderLogsUrl = useMemo(() => {
     if (jobId === -1 || !experimentInfo?.id) {
       return null;
     }
@@ -245,9 +245,21 @@ export default function EmbeddableStreamingOutput({
       experimentInfo.id,
       String(jobId),
       400,
-      viewLiveProviderLogs,
+      false,
     );
-  }, [experimentInfo?.id, jobId, viewLiveProviderLogs]);
+  }, [experimentInfo?.id, jobId]);
+
+  const liveProviderLogsUrl = useMemo(() => {
+    if (jobId === -1 || !experimentInfo?.id) {
+      return null;
+    }
+    return chatAPI.Endpoints.Experiment.GetProviderLogs(
+      experimentInfo.id,
+      String(jobId),
+      400,
+      true,
+    );
+  }, [experimentInfo?.id, jobId]);
 
   const [outputIsValidating, setOutputIsValidating] = useState(false);
   const handleOutputValidatingChange = useCallback(
@@ -268,20 +280,50 @@ export default function EmbeddableStreamingOutput({
     : PROVIDER_IDLE_SEC * 1000;
 
   const {
-    data: providerLogsData,
-    isError: providerLogsError,
-    isLoading: providerLogsLoading,
-    isValidating: providerIsValidating,
-    mutate: mutateProviderLogs,
+    data: storedLogsData,
+    isError: storedLogsError,
+    isLoading: storedLogsLoading,
+    isValidating: storedIsValidating,
+    mutate: mutateStoredLogs,
   }: {
     data: any;
     isError: any;
     isLoading: boolean;
     isValidating: boolean;
     mutate: () => void;
-  } = useSWR(providerLogsUrl, undefined, {
+  } = useSWR(storedProviderLogsUrl, undefined, {
     refreshInterval: providerRefreshMs,
   });
+
+  const {
+    data: liveLogsData,
+    isError: liveLogsError,
+    isLoading: liveLogsLoading,
+    isValidating: liveIsValidating,
+    mutate: mutateLiveLogs,
+  }: {
+    data: any;
+    isError: any;
+    isLoading: boolean;
+    isValidating: boolean;
+    mutate: () => void;
+  } = useSWR(liveProviderLogsUrl, undefined, {
+    refreshInterval: providerRefreshMs,
+  });
+
+  const providerLogsData = viewLiveProviderLogs ? liveLogsData : storedLogsData;
+  const providerLogsError = viewLiveProviderLogs
+    ? liveLogsError
+    : storedLogsError;
+  const providerLogsLoading = viewLiveProviderLogs
+    ? liveLogsLoading
+    : storedLogsLoading;
+  const providerIsValidating = viewLiveProviderLogs
+    ? liveIsValidating
+    : storedIsValidating;
+  const mutateProviderLogs = viewLiveProviderLogs
+    ? mutateLiveLogs
+    : mutateStoredLogs;
 
   const isNoProviderLogsYet =
     providerLogsError && (providerLogsError as any).status === 404;
