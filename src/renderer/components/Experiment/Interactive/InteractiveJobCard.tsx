@@ -116,7 +116,8 @@ export default function InteractiveJobCard({
 
   const typeConfig = getTypeConfig(interactiveType);
   const TypeIcon = typeConfig.icon;
-  const isInteractive = job.status === 'INTERACTIVE';
+  const isInteractive =
+    job.status === 'INTERACTIVE' || job.status === 'RUNNING';
   const title =
     jobData.cluster_name || jobData.template_name || `Job ${job.id}`;
   const jobIdNum = parseInt(job.id, 10);

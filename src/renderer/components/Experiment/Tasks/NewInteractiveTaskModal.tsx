@@ -141,6 +141,40 @@ export default function NewInteractiveTaskModal({
   >(null);
   const { addNotification } = useNotification();
 
+  const loadingMessages = React.useMemo(
+    () => [
+      'Contacting compute provider…',
+      'Reserving resources…',
+      'Preparing environment…',
+      'Submitting job configuration…',
+      'Waiting for job ID…',
+    ],
+    [],
+  );
+  const [loadingMessageIndex, setLoadingMessageIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!open || !isSubmitting || loadingMessages.length === 0) {
+      return;
+    }
+
+    setLoadingMessageIndex(0);
+
+    const interval = window.setInterval(() => {
+      setLoadingMessageIndex((prev) => {
+        const lastIndex = loadingMessages.length - 1;
+        if (prev >= lastIndex) {
+          return lastIndex;
+        }
+        return prev + 1;
+      });
+    }, 1500);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [open, isSubmitting, loadingMessages]);
+
   // Helper to check if a provider supports requested accelerators
   const isProviderCompatible = React.useCallback(
     (provider: any, taskSupportedAccelerators: string | undefined) => {
@@ -1062,19 +1096,26 @@ export default function NewInteractiveTaskModal({
                 </Button>
               )}
               {step === 'config' && (
-                <Button
-                  variant="solid"
-                  color="primary"
-                  loading={isSubmitting}
-                  disabled={isSubmitting || !canSubmit}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleSubmit(e, true);
-                  }}
-                  endDecorator={<ArrowRightIcon size={16} />}
-                >
-                  Launch
-                </Button>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {isSubmitting && (
+                    <Typography level="body-sm">
+                      {loadingMessages[loadingMessageIndex]}
+                    </Typography>
+                  )}
+                  <Button
+                    variant="solid"
+                    color="primary"
+                    loading={isSubmitting}
+                    disabled={isSubmitting || !canSubmit}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleSubmit(e, true);
+                    }}
+                    endDecorator={<ArrowRightIcon size={16} />}
+                  >
+                    Launch
+                  </Button>
+                </Stack>
               )}
             </Stack>
           </DialogActions>
