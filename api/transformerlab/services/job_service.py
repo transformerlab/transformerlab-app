@@ -641,7 +641,7 @@ def job_mark_as_complete_if_running(job_id: int, org_id: str) -> None:
             pass
 
 
-async def format_artifact(file_path: str, storage) -> Optional[Dict[str, any]]:
+async def format_artifact(file_path: str) -> Optional[Dict[str, any]]:
     """
     Format a single artifact file into the response structure.
     Returns None if the artifact can't be processed.
@@ -655,7 +655,7 @@ async def format_artifact(file_path: str, storage) -> Optional[Dict[str, any]]:
         return None
 
 
-async def get_artifacts_from_sdk(job_id: str, storage) -> Optional[List[Dict]]:
+async def get_artifacts_from_sdk(job_id: str) -> Optional[List[Dict]]:
     """
     Get artifacts using the SDK method.
     Returns list of artifacts or None if SDK method fails.
@@ -671,7 +671,7 @@ async def get_artifacts_from_sdk(job_id: str, storage) -> Optional[List[Dict]]:
 
         artifacts = []
         for artifact_path in artifact_paths:
-            artifact = await format_artifact(artifact_path, storage)
+            artifact = await format_artifact(artifact_path)
             if artifact:
                 artifacts.append(artifact)
 
@@ -681,7 +681,7 @@ async def get_artifacts_from_sdk(job_id: str, storage) -> Optional[List[Dict]]:
         return None
 
 
-async def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict]:
+async def get_artifacts_from_directory(artifacts_dir: str) -> List[Dict]:
     """
     Get artifacts by listing files in the artifacts directory.
     Returns list of artifacts (empty if directory can't be read).
@@ -713,7 +713,7 @@ async def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict
                 file_path = str(item)
 
             if item:
-                artifact = await format_artifact(file_path, storage)
+                artifact = await format_artifact(file_path)
                 artifacts.append(artifact)
     except Exception as e:
         print(f"Error reading artifacts directory {artifacts_dir}: {e}")
@@ -721,13 +721,13 @@ async def get_artifacts_from_directory(artifacts_dir: str, storage) -> List[Dict
     return artifacts
 
 
-async def get_all_artifact_paths(job_id: str, storage) -> List[str]:
+async def get_all_artifact_paths(job_id: str) -> List[str]:
     """
     Get all artifact file paths for a job.
     Uses get_artifacts_from_sdk and get_artifacts_from_directory to retrieve paths.
     """
     # 1. Try SDK method
-    sdk_artifacts = await get_artifacts_from_sdk(job_id, storage)
+    sdk_artifacts = await get_artifacts_from_sdk(job_id)
     if sdk_artifacts:
         return [a.get("full_path") for a in sdk_artifacts if a.get("full_path")]
 
@@ -746,14 +746,14 @@ async def get_all_artifact_paths(job_id: str, storage) -> List[str]:
                 pass
 
         if artifacts_dir:
-            dir_artifacts = await get_artifacts_from_directory(artifacts_dir, storage)
+            dir_artifacts = await get_artifacts_from_directory(artifacts_dir)
             if dir_artifacts:
                 return [a.get("full_path") for a in dir_artifacts if a.get("full_path")]
 
     return []
 
 
-async def get_datasets_from_directory(datasets_dir: str, storage) -> List[Dict]:
+async def get_datasets_from_directory(datasets_dir: str) -> List[Dict]:
     """
     Get datasets by listing both directories and files in the datasets directory.
     Datasets can be either directories (containing multiple files) or single files (.hdf, .npy, etc.)
@@ -780,13 +780,13 @@ async def get_datasets_from_directory(datasets_dir: str, storage) -> List[Dict]:
                 # Extract path from dict (some storage backends return dicts even with detail=False)
                 item_path = item.get("name") or item.get("path") or str(item)
                 # Process both directories and files
-                dataset = await format_dataset(item_path, storage)
+                dataset = await format_dataset(item_path)
                 if dataset:
                     datasets.append(dataset)
             else:
                 # For string responses, process both files and directories
                 item_path = str(item)
-                dataset = await format_dataset(item_path, storage)
+                dataset = await format_dataset(item_path)
                 if dataset:
                     datasets.append(dataset)
     except Exception as e:
@@ -795,7 +795,7 @@ async def get_datasets_from_directory(datasets_dir: str, storage) -> List[Dict]:
     return datasets
 
 
-async def get_models_from_directory(models_dir: str, storage) -> List[Dict]:
+async def get_models_from_directory(models_dir: str) -> List[Dict]:
     """
     Get models by listing both directories and files in the models directory.
     Models can be either directories (containing multiple files) or single files (.pt, .safetensors, etc.)
@@ -822,13 +822,13 @@ async def get_models_from_directory(models_dir: str, storage) -> List[Dict]:
                 # Extract path from dict (some storage backends return dicts even with detail=False)
                 item_path = item.get("name") or item.get("path") or str(item)
                 # Accept both directories and files (models can be either)
-                model = await format_model(item_path, storage)
+                model = await format_model(item_path)
                 if model:
                     models.append(model)
             else:
                 # For string responses, process all items
                 item_path = str(item)
-                model = await format_model(item_path, storage)
+                model = await format_model(item_path)
                 if model:
                     models.append(model)
     except Exception as e:
@@ -837,7 +837,7 @@ async def get_models_from_directory(models_dir: str, storage) -> List[Dict]:
     return models
 
 
-async def format_dataset(dir_path: str, storage) -> Optional[Dict[str, any]]:
+async def format_dataset(dir_path: str) -> Optional[Dict[str, any]]:
     """
     Format a single dataset directory into the response structure.
     Returns None if the dataset can't be processed.
@@ -859,7 +859,7 @@ async def format_dataset(dir_path: str, storage) -> Optional[Dict[str, any]]:
         return None
 
 
-async def format_model(dir_path: str, storage) -> Optional[Dict[str, any]]:
+async def format_model(dir_path: str) -> Optional[Dict[str, any]]:
     """
     Format a single model directory into the response structure.
     Returns None if the model can't be processed.
