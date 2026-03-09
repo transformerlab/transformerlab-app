@@ -47,7 +47,7 @@ export default function ModelZoo({ tab = 'store' }) {
         }}
         value={filteredTab}
         onChange={(e, newValue) => {
-          navigate('/zoo/' + newValue);
+          navigate(`/zoo/${newValue}`);
         }}
       >
         <TabList>
@@ -64,7 +64,7 @@ export default function ModelZoo({ tab = 'store' }) {
           value="local"
           sx={{ p: 0, py: 1, height: '100%', overflow: 'hidden' }}
         >
-          <LocalModels pickAModelMode={false} experimentInfo={experimentInfo} />
+          <LocalModels experimentInfo={experimentInfo} />
         </TabPanel>
         {isLocalMode && (
           <TabPanel
@@ -72,7 +72,6 @@ export default function ModelZoo({ tab = 'store' }) {
             sx={{ p: 0, py: 1, height: '100%', overflow: 'hidden' }}
           >
             <LocalModels
-              pickAModelMode={false}
               experimentInfo={experimentInfo}
               showOnlyGeneratedModels
             />

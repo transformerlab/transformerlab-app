@@ -120,10 +120,14 @@ _current_tfl_storage_uri: contextvars.ContextVar[str | None] = contextvars.Conte
     "current_tfl_storage_uri", default=None
 )
 
-# Single source: aws | gcp | localfs (default aws for backward compatibility)
+# Single source: aws | gcp | azure | localfs (default aws for backward compatibility)
 STORAGE_PROVIDER = (os.getenv("TFL_STORAGE_PROVIDER") or "aws").strip().lower()
 _AWS_PROFILE = os.getenv("AWS_PROFILE", "transformerlab-s3")
 _GCP_PROJECT = os.getenv("GCP_PROJECT", "transformerlab-workspace")
+_AZURE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+_AZURE_ACCOUNT_NAME = os.getenv("AZURE_STORAGE_ACCOUNT")
+_AZURE_ACCOUNT_KEY = os.getenv("AZURE_STORAGE_KEY")
+_AZURE_SAS_TOKEN = os.getenv("AZURE_STORAGE_SAS_TOKEN")
 
 # Common prefixes that represent remote storage locations handled by this module
 _REMOTE_PATH_PREFIXES: tuple[str, ...] = ("s3://", "gs://", "gcs://", "abfs://")
@@ -140,13 +144,27 @@ def is_remote_path(path: str) -> bool:
 
 
 def _get_storage_options() -> dict:
-    """Get storage options based on TFL_STORAGE_PROVIDER (aws | gcp)."""
+    """Get storage options based on TFL_STORAGE_PROVIDER (aws | gcp | azure)."""
     if STORAGE_PROVIDER == "aws":
         return {"profile": _AWS_PROFILE} if _AWS_PROFILE else {}
-    elif STORAGE_PROVIDER == "gcp":
+    if STORAGE_PROVIDER == "gcp":
         return {"project": _GCP_PROJECT} if _GCP_PROJECT else {}
-    else:
-        return {}
+    if STORAGE_PROVIDER == "azure":
+        # Prefer a single connection string if provided; otherwise fall back to
+        # account-based configuration. These map directly onto adlfs/fsspec
+        # keyword arguments.
+        options: dict[str, str] = {}
+        if _AZURE_CONNECTION_STRING:
+            options["connection_string"] = _AZURE_CONNECTION_STRING
+            return options
+        if _AZURE_ACCOUNT_NAME:
+            options["account_name"] = _AZURE_ACCOUNT_NAME
+        if _AZURE_ACCOUNT_KEY:
+            options["account_key"] = _AZURE_ACCOUNT_KEY
+        if _AZURE_SAS_TOKEN:
+            options["sas_token"] = _AZURE_SAS_TOKEN
+        return options
+    return {}
 
 
 def _get_fs_for_uri(uri: str):
@@ -192,6 +210,12 @@ def _get_fs_for_uri(uri: str):
         fs_kwargs["use_listings_cache"] = False
     elif protocol in ("gcs", "gs") and _GCP_PROJECT:
         fs_kwargs["project"] = _GCP_PROJECT
+    elif protocol == "abfs":
+        # Azure storage via adlfs; options depend on how credentials are
+        # supplied. We only attach options when Azure is the selected
+        # storage provider so we don't accidentally mix providers.
+        if STORAGE_PROVIDER == "azure":
+            fs_kwargs.update(_get_storage_options())
 
     # Explicitly create sync filesystem to avoid async s3fs issues
     # Use filesystem() directly with asynchronous=False to force sync version
@@ -286,6 +310,10 @@ async def ls(path: str, detail: bool = False, fs=None):
     # Use provided filesystem or get default
     filesys = fs if fs is not None else await filesystem()
     paths = await asyncio.to_thread(filesys.ls, path, detail=detail)
+    # When we enable detail, we return the raw list of paths from the filesystem as they don't contain the current path
+    # and using filesys.ls on any of those would add the prefix correctly
+    if detail:
+        return paths
     # Ensure paths are full URIs for remote filesystems
     if path.startswith(("s3://", "gs://", "abfs://", "gcs://")):
         full_paths = []

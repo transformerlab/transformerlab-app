@@ -521,28 +521,41 @@ export default function EditInteractiveTaskModal({
 
               {!galleryIsLoading && templateConfigFields.length > 0 && (
                 <>
-                  {templateConfigFields.map((field) => (
-                    <FormControl key={field.env_var} required={field.required}>
-                      <FormLabel>{field.field_name}</FormLabel>
-                      <Input
-                        type={
-                          field.password
-                            ? 'password'
-                            : field.field_type === 'integer'
-                              ? 'number'
-                              : 'text'
-                        }
-                        value={configFieldValues[field.env_var] || ''}
-                        onChange={(e) =>
-                          handleConfigFieldChange(field.env_var, e.target.value)
-                        }
-                        placeholder={field.placeholder}
-                      />
-                      {field.help_text && (
-                        <FormHelperText>{field.help_text}</FormHelperText>
-                      )}
-                    </FormControl>
-                  ))}
+                  {templateConfigFields.map((field) => {
+                    const isNgrokField = field.env_var === 'NGROK_AUTH_TOKEN';
+                    return (
+                      <FormControl
+                        key={field.env_var}
+                        required={field.required && !isNgrokField}
+                      >
+                        <FormLabel>{field.field_name}</FormLabel>
+                        <Input
+                          type={
+                            field.password
+                              ? 'password'
+                              : field.field_type === 'integer'
+                                ? 'number'
+                                : 'text'
+                          }
+                          value={configFieldValues[field.env_var] || ''}
+                          onChange={
+                            isNgrokField
+                              ? undefined
+                              : (e) =>
+                                  handleConfigFieldChange(
+                                    field.env_var,
+                                    e.target.value,
+                                  )
+                          }
+                          placeholder={field.placeholder}
+                          disabled={isNgrokField}
+                        />
+                        {field.help_text && (
+                          <FormHelperText>{field.help_text}</FormHelperText>
+                        )}
+                      </FormControl>
+                    );
+                  })}
                 </>
               )}
 

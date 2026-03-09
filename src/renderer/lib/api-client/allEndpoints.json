@@ -124,14 +124,6 @@
     }
   },
   "server": {
-    "info": {
-      "method": "GET",
-      "path": "server/info"
-    },
-    "pythonLibraries": {
-      "method": "GET",
-      "path": "server/python_libraries"
-    },
     "download_logs": {
       "method": "GET",
       "path": "server/download_logs"
@@ -212,11 +204,11 @@
     },
     "saveDatasetToRegistry": {
       "method": "POST",
-      "path": "experiment/{experimentId}/jobs/{jobId}/datasets/{datasetName}/save_to_registry"
+      "path": "experiment/{experimentId}/jobs/{jobId}/datasets/{datasetName}/save_to_registry?target_name={targetName}&mode={mode}"
     },
     "saveModelToRegistry": {
       "method": "POST",
-      "path": "experiment/{experimentId}/jobs/{jobId}/models/{modelName}/save_to_registry"
+      "path": "experiment/{experimentId}/jobs/{jobId}/models/{modelName}/save_to_registry?target_name={targetName}&mode={mode}"
     },
     "getJobsOfType": {
       "method": "GET",

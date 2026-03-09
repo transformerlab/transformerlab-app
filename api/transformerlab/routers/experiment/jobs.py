@@ -25,6 +25,8 @@ from transformerlab.shared import shared, zip_utils
 from transformerlab.shared.models.models import ProviderType
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.shared.tunnel_parser import get_tunnel_info
+from transformerlab.shared import galleries
+from transformerlab.shared.interactive_gallery_utils import find_interactive_gallery_entry
 from lab.dirs import (
     get_workspace_dir,
     get_local_provider_job_dir,
@@ -104,7 +106,7 @@ async def job_delete_all(experimentId: str):
 
 @router.get("/{job_id}")
 async def get_training_job(job_id: str):
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get_cached(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     return job
@@ -117,7 +119,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
     Uses the same logic as stream_job_output but returns content directly.
     """
     try:
-        job = await job_service.job_get(job_id)
+        job = await job_service.job_get_cached(job_id)
         if job is None:
             return "Job not found"
 
@@ -145,11 +147,9 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
 
         # Read and return the file content as JSON array of lines
         if await storage.exists(output_file_name):
-            lines = []
             async with await storage.open(output_file_name, "r") as f:
-                async for line in f:
-                    lines.append(line.rstrip("\n"))  # Remove trailing newline
-            return lines
+                content = await f.read()
+            return content.splitlines()
         else:
             return ["Output file not found"]
 
@@ -162,11 +162,9 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
             try:
                 output_file_name = await shared.get_job_output_file_name(job_id)
                 if await storage.exists(output_file_name):
-                    lines = []
                     async with await storage.open(output_file_name, "r") as f:
-                        async for line in f:
-                            lines.append(line.rstrip("\n"))  # Remove trailing newline
-                    return lines
+                        content = await f.read()
+                    return content.splitlines()
                 else:
                     return ["Output file not found after retry"]
             except Exception as retry_e:
@@ -213,7 +211,7 @@ async def get_provider_job_logs(
       2. Otherwise, fall back to provider-native log retrieval (existing behavior).
     """
 
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get_cached(job_id)
     if not job or str(job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -387,6 +385,15 @@ async def get_tunnel_info_for_job(
             job_data = json.loads(job_data)
         except JSONDecodeError:
             job_data = {}
+    # If we have previously cached tunnel info URLs and they are ready, use them immediately
+    # and skip any provider log fetching for a faster response.
+    cached_urls = job_data.get("tunnel_info_urls")
+    cached_legacy = job_data.get("cached_tunnel_info")
+    tunnel_info: dict | None = None
+    if isinstance(cached_urls, dict) and cached_urls.get("is_ready"):
+        tunnel_info = cached_urls
+    elif isinstance(cached_legacy, dict) and cached_legacy.get("is_ready"):
+        tunnel_info = cached_legacy
 
     # Get interactive_type from job_data, default to 'vscode' for backward compatibility
     interactive_type = job_data.get("interactive_type", "vscode")
@@ -438,38 +445,69 @@ async def get_tunnel_info_for_job(
     if provider_job_id is None:
         raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
 
-    # For local provider, set workspace_dir (job dir) so LocalProvider can read logs.
-    if getattr(provider, "type", None) == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
-        job_dir = get_local_provider_job_dir(job_id, org_id=user_and_team["team_id"])
-        provider_instance.extra_config["workspace_dir"] = job_dir
+    # If we don't have ready tunnel info from cache, fetch logs and parse them.
+    if tunnel_info is None or not tunnel_info.get("is_ready"):
+        # For local provider, set workspace_dir (job dir) so LocalProvider can read logs.
+        if getattr(provider, "type", None) == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
+            job_dir = get_local_provider_job_dir(job_id, org_id=user_and_team["team_id"])
+            provider_instance.extra_config["workspace_dir"] = job_dir
 
-    try:
-        if provider.type == ProviderType.RUNPOD.value:
-            raw_logs = await fetch_runpod_provider_logs(
-                provider_instance, cluster_name, user_and_team["team_id"], tail_lines
+        try:
+            if provider.type == ProviderType.RUNPOD.value:
+                raw_logs = await fetch_runpod_provider_logs(
+                    provider_instance, cluster_name, user_and_team["team_id"], tail_lines
+                )
+            else:
+                # For local providers, read full logs so the initial local URL echoes
+                # are always visible even if the log is long.
+                effective_tail = None
+                if provider.type != ProviderType.LOCAL.value:
+                    effective_tail = tail_lines or None
+
+                raw_logs = await asyncio.to_thread(
+                    provider_instance.get_job_logs,
+                    cluster_name,
+                    provider_job_id,
+                    tail_lines=effective_tail,
+                    follow=False,
+                )
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
+
+        if isinstance(raw_logs, (bytes, bytearray)):
+            logs_text = raw_logs.decode("utf-8", errors="replace")
+        elif isinstance(raw_logs, str):
+            logs_text = raw_logs
+        else:
+            try:
+                logs_text = json.dumps(raw_logs, indent=2)
+            except TypeError:
+                logs_text = str(raw_logs)
+
+        tunnel_info = get_tunnel_info(logs_text, interactive_type)
+
+        # If parsing the logs found a ready service, cache the tunnel info in job_data
+        # so it survives log rotation / truncation and can be reused without log fetches.
+        if tunnel_info.get("is_ready"):
+            await job_service.job_update_job_data_insert_key_value(
+                job_id, "cached_tunnel_info", tunnel_info, experimentId
+            )
+            await job_service.job_update_job_data_insert_key_value(
+                job_id, "tunnel_info_urls", tunnel_info, experimentId
             )
         else:
-            raw_logs = await asyncio.to_thread(
-                provider_instance.get_job_logs,
-                cluster_name,
-                provider_job_id,
-                tail_lines=tail_lines or None,
-                follow=False,
-            )
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
+            print(f"[tunnel_info] Job {job_id}: no URLs found in logs and no cache available")
 
-    if isinstance(raw_logs, (bytes, bytearray)):
-        logs_text = raw_logs.decode("utf-8", errors="replace")
-    elif isinstance(raw_logs, str):
-        logs_text = raw_logs
-    else:
-        try:
-            logs_text = json.dumps(raw_logs, indent=2)
-        except TypeError:
-            logs_text = str(raw_logs)
-
-    tunnel_info = get_tunnel_info(logs_text, interactive_type)
+    # Look up the gallery entry to include port definitions in the response
+    interactive_gallery_id = job_data.get("interactive_gallery_id")
+    gallery_list = await galleries.get_interactive_gallery()
+    gallery_entry = find_interactive_gallery_entry(
+        gallery_list, interactive_gallery_id=interactive_gallery_id, interactive_type=interactive_type
+    )
+    ports = gallery_entry.get("ports", []) if gallery_entry else []
+    modal_title = gallery_entry.get("modal_title", "") if gallery_entry else ""
+    modal_subtitle = gallery_entry.get("modal_subtitle", "") if gallery_entry else ""
+    instructions = gallery_entry.get("instructions", []) if gallery_entry else []
 
     return {
         **tunnel_info,
@@ -477,6 +515,10 @@ async def get_tunnel_info_for_job(
         "provider_id": provider_id,
         "provider_job_id": str(provider_job_id),
         "interactive_type": interactive_type,
+        "ports": ports,
+        "modal_title": modal_title,
+        "modal_subtitle": modal_subtitle,
+        "instructions": instructions,
     }
 
 
@@ -1347,13 +1389,24 @@ async def get_job_models(job_id: str, request: Request):
 async def save_dataset_to_registry(
     job_id: str,
     dataset_name: str,
+    target_name: Optional[str] = Query(None, description="Custom name for the dataset in the registry"),
+    mode: str = Query(
+        "new", description="'new' to create a new entry, 'existing' to merge into an existing registry dataset"
+    ),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Copy a dataset from job's datasets directory to the global datasets registry"""
+    """Copy a dataset from job's datasets directory to the global datasets registry.
+
+    Supports two modes:
+    - mode='new': Save as a new dataset. Uses target_name if provided, otherwise uses the original dataset_name.
+      If a dataset with that name already exists, a timestamped suffix is added.
+    - mode='existing': Merge into an existing dataset in the registry. target_name must be provided and must
+      refer to an existing dataset. Files from the job dataset are copied into the existing dataset directory.
+    """
 
     try:
-        # Secure the dataset name
+        # Secure the source dataset name
         dataset_name_secure = secure_filename(dataset_name)
 
         # Get source path (job's datasets directory)
@@ -1363,25 +1416,46 @@ async def save_dataset_to_registry(
         if not await storage.exists(source_path):
             raise HTTPException(status_code=404, detail=f"Dataset '{dataset_name}' not found in job directory")
 
-        # Get destination path (global datasets registry)
+        # Get the registry directory
         datasets_registry_dir = await get_datasets_dir()
-        dest_path = storage.join(datasets_registry_dir, dataset_name_secure)
 
-        # Check if dataset already exists in registry and generate a unique name if needed
-        if await storage.exists(dest_path):
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            dataset_name_secure = f"{dataset_name_secure}_{timestamp}"
-            dest_path = storage.join(datasets_registry_dir, dataset_name_secure)
+        if mode == "existing":
+            # Merge into an existing dataset
+            if not target_name:
+                raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
+            target_name_secure = secure_filename(target_name)
+            dest_path = storage.join(datasets_registry_dir, target_name_secure)
+            if not await storage.exists(dest_path):
+                raise HTTPException(status_code=404, detail=f"Dataset '{target_name}' not found in registry")
 
-        # Copy the dataset to the registry
-        # Try local copy first (if both are local paths)
-        try:
-            await storage.copy_dir(source_path, dest_path)
-        except Exception as copy_err:
-            # If shutil fails, fallback to storage.copy_dir
-            print(f"Storage.copy_dir failed: {copy_err}")
+            # Copy files from source into the existing dataset directory (merge)
+            try:
+                await storage.copy_dir(source_path, dest_path)
+            except Exception as copy_err:
+                print(f"Storage.copy_dir failed: {copy_err}")
 
-        return {"status": "success", "message": f"Dataset saved to registry as '{dataset_name_secure}'"}
+            return {
+                "status": "success",
+                "message": f"Dataset merged into existing registry entry '{target_name_secure}'",
+            }
+        else:
+            # Save as a new dataset
+            final_name = secure_filename(target_name) if target_name else dataset_name_secure
+            dest_path = storage.join(datasets_registry_dir, final_name)
+
+            # Check if dataset already exists in registry and generate a unique name if needed
+            if await storage.exists(dest_path):
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                final_name = f"{final_name}_{timestamp}"
+                dest_path = storage.join(datasets_registry_dir, final_name)
+
+            # Copy the dataset to the registry
+            try:
+                await storage.copy_dir(source_path, dest_path)
+            except Exception as copy_err:
+                print(f"Storage.copy_dir failed: {copy_err}")
+
+            return {"status": "success", "message": f"Dataset saved to registry as '{final_name}'"}
 
     except HTTPException:
         raise
@@ -1394,11 +1468,25 @@ async def save_dataset_to_registry(
 
 
 @router.post("/{job_id}/models/{model_name}/save_to_registry")
-async def save_model_to_registry(job_id: str, model_name: str):
-    """Copy a model from job's models directory to the global models registry"""
+async def save_model_to_registry(
+    job_id: str,
+    model_name: str,
+    target_name: Optional[str] = Query(None, description="Custom name for the model in the registry"),
+    mode: str = Query(
+        "new", description="'new' to create a new entry, 'existing' to merge into an existing registry model"
+    ),
+):
+    """Copy a model from job's models directory to the global models registry.
+
+    Supports two modes:
+    - mode='new': Save as a new model. Uses target_name if provided, otherwise uses the original model_name.
+      If a model with that name already exists, a timestamped suffix is added.
+    - mode='existing': Merge into an existing model in the registry. target_name must be provided and must
+      refer to an existing model. Files from the job model are copied into the existing model directory.
+    """
 
     try:
-        # Secure the model name
+        # Secure the source model name
         model_name_secure = secure_filename(model_name)
 
         # Get source path (job's models directory)
@@ -1408,24 +1496,43 @@ async def save_model_to_registry(job_id: str, model_name: str):
         if not await storage.exists(source_path):
             raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found in job directory")
 
-        # Get destination path (global models registry)
+        # Get the registry directory
         models_registry_dir = await get_models_dir()
-        dest_path = storage.join(models_registry_dir, model_name_secure)
 
-        # Check if model already exists in registry
-        if await storage.exists(dest_path):
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            model_name_secure = f"{model_name_secure}_{timestamp}"
-            dest_path = storage.join(models_registry_dir, model_name_secure)
+        if mode == "existing":
+            # Merge into an existing model
+            if not target_name:
+                raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
+            target_name_secure = secure_filename(target_name)
+            dest_path = storage.join(models_registry_dir, target_name_secure)
+            if not await storage.exists(dest_path):
+                raise HTTPException(status_code=404, detail=f"Model '{target_name}' not found in registry")
 
-        # Copy the model directory to the registry
-        try:
-            await storage.copy_dir(source_path, dest_path)
-        except Exception as copy_err:
-            print(f"storage.copy_dir failed: {copy_err}")
-            await storage.copy_dir(source_path, dest_path)
+            # Copy files from source into the existing model directory (merge)
+            try:
+                await storage.copy_dir(source_path, dest_path)
+            except Exception as copy_err:
+                print(f"storage.copy_dir failed: {copy_err}")
 
-        return {"status": "success", "message": f"Model saved to registry as '{model_name_secure}'"}
+            return {"status": "success", "message": f"Model merged into existing registry entry '{target_name_secure}'"}
+        else:
+            # Save as a new model
+            final_name = secure_filename(target_name) if target_name else model_name_secure
+            dest_path = storage.join(models_registry_dir, final_name)
+
+            # Check if model already exists in registry and generate a unique name if needed
+            if await storage.exists(dest_path):
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                final_name = f"{final_name}_{timestamp}"
+                dest_path = storage.join(models_registry_dir, final_name)
+
+            # Copy the model directory to the registry
+            try:
+                await storage.copy_dir(source_path, dest_path)
+            except Exception as copy_err:
+                print(f"storage.copy_dir failed: {copy_err}")
+
+            return {"status": "success", "message": f"Model saved to registry as '{final_name}'"}
 
     except HTTPException:
         raise

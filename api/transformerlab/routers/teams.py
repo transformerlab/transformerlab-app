@@ -8,7 +8,6 @@ from transformerlab.models.users import current_active_user
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
 from transformerlab.shared.remote_workspace import create_bucket_for_team
-from transformerlab.services.provider_service import ensure_default_local_provider_for_team
 
 from pydantic import BaseModel, EmailStr
 from typing import Optional
@@ -99,14 +98,6 @@ async def create_team(
     user_team = UserTeam(user_id=str(user.id), team_id=team.id, role=TeamRole.OWNER.value)
     session.add(user_team)
     await session.commit()
-
-    # Ensure a default local compute provider is created for this team,
-    # with supported_accelerators detected from the current machine.
-    try:
-        await ensure_default_local_provider_for_team(session, team.id, str(user.id))
-    except Exception as e:
-        # Log error but don't fail team creation if provider creation fails
-        print(f"Warning: Failed to create default local provider for team {team.id}: {e}")
 
     # Create storage (cloud bucket or local folder) for the new team
     remote_storage_enabled = getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
@@ -261,20 +252,16 @@ async def delete_team(
     if len(user_teams) <= 1:
         raise HTTPException(status_code=400, detail="Cannot delete the last team")
 
-    # Check if team has only this user
-    stmt = select(UserTeam).where(UserTeam.team_id == team_id)
-    result = await session.execute(stmt)
-    team_users = result.scalars().all()
-    if len(team_users) > 1:
-        raise HTTPException(
-            status_code=400, detail="Cannot delete team with multiple users. Remove other members first."
-        )
-
-    # Delete associations and team
+    # Delete all user-team associations for this team so no one can access it anymore.
+    # We intentionally keep the Team row and underlying workspace/storage so that
+    # historical data remains available for internal use.
     stmt = delete(UserTeam).where(UserTeam.team_id == team_id)
     await session.execute(stmt)
-    stmt = delete(Team).where(Team.id == team_id)
+
+    # Also remove any outstanding invitations for this team to prevent future joins.
+    stmt = delete(TeamInvitation).where(TeamInvitation.team_id == team_id)
     await session.execute(stmt)
+
     await session.commit()
 
     return {"message": "Team deleted"}
@@ -495,6 +482,85 @@ async def invite_member(
         "email_sent": email_sent,
         "email_error": email_error,
     }
+
+
+@router.delete("/teams/{team_id}/members/me")
+async def leave_team(
+    team_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Allow the current user to leave a non-personal team."""
+    # Verify team_id matches the one resolved by get_user_and_team
+    resolved_team_id = user_and_team["team_id"]
+    if team_id != resolved_team_id:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    user: User = user_and_team["user"]
+
+    # Fetch team to check personal-team constraint
+    stmt = select(Team).where(Team.id == resolved_team_id)
+    result = await session.execute(stmt)
+    team = result.scalar_one_or_none()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    # Prevent leaving the personal team
+    expected_personal_name = f"{user.first_name or user.email.split('@')[0]}'s Team"
+    if team.name == expected_personal_name:
+        raise HTTPException(status_code=400, detail="Cannot leave personal team")
+
+    # If the user is not an owner, simply remove their membership.
+    if user_and_team["role"] != TeamRole.OWNER.value:
+        stmt = delete(UserTeam).where(UserTeam.user_id == str(user.id), UserTeam.team_id == team_id)
+        await session.execute(stmt)
+        await session.commit()
+        return {"message": "Left team"}
+
+    # User is an owner. Determine how many owners the team has.
+    stmt = (
+        select(func.count())
+        .select_from(UserTeam)
+        .where(UserTeam.team_id == team_id, UserTeam.role == TeamRole.OWNER.value)
+    )
+    result = await session.execute(stmt)
+    owner_count = result.scalar()
+
+    # If there are other owners, it's safe to leave without any promotion.
+    if owner_count > 1:
+        stmt = delete(UserTeam).where(UserTeam.user_id == str(user.id), UserTeam.team_id == team_id)
+        await session.execute(stmt)
+        await session.commit()
+        return {"message": "Left team"}
+
+    # User is the only owner. Look for another member to promote.
+    stmt = (
+        select(UserTeam).where(UserTeam.team_id == team_id, UserTeam.user_id != str(user.id)).order_by(UserTeam.user_id)
+    )
+    result = await session.execute(stmt)
+    next_member = result.scalars().first()
+
+    if next_member:
+        # Promote the selected member to owner, then remove the current owner.
+        stmt = (
+            update(UserTeam)
+            .where(UserTeam.user_id == next_member.user_id, UserTeam.team_id == team_id)
+            .values(role=TeamRole.OWNER.value)
+        )
+        await session.execute(stmt)
+
+        stmt = delete(UserTeam).where(UserTeam.user_id == str(user.id), UserTeam.team_id == team_id)
+        await session.execute(stmt)
+        await session.commit()
+        return {"message": "Left team"}
+
+    # No other members exist; remove this final membership, leaving the team
+    # unreachable from the UI but preserving the Team row and workspace
+    stmt = delete(UserTeam).where(UserTeam.user_id == str(user.id), UserTeam.team_id == team_id)
+    await session.execute(stmt)
+    await session.commit()
+
+    return {"message": "Left team"}
 
 
 @router.delete("/teams/{team_id}/members/{user_id}")

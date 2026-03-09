@@ -23,20 +23,30 @@ import NewDatasetModal from './NewDatasetModal';
 
 import { fetcher } from '../../lib/transformerlab-api-sdk';
 
-export function filterByFiltersDatasetID(data, searchText = '', filters = {}) {
+export function filterByFiltersDatasetID(
+  data: Array<{ dataset_id?: string } & Record<string, any>>,
+  searchText = '',
+  filters: Record<string, string> = {},
+) {
+  const normalizedSearch = (searchText || '').toLowerCase();
+
   return data.filter((row) => {
-    if (row.dataset_id.toLowerCase().includes(searchText.toLowerCase())) {
-      for (const filterKey in filters) {
-        console.log(filterKey, filters[filterKey]);
-        if (filters[filterKey] !== 'All') {
-          if (row[filterKey] !== filters[filterKey]) {
-            return false;
-          }
-        }
-      }
-      return true;
+    const datasetId = (row?.dataset_id || '').toLowerCase();
+
+    if (!datasetId.includes(normalizedSearch)) {
+      return false;
     }
-    return false;
+
+    for (const filterKey in filters) {
+      if (
+        filters[filterKey] !== 'All' &&
+        row[filterKey] !== filters[filterKey]
+      ) {
+        return false;
+      }
+    }
+
+    return true;
   });
 }
 export default function GeneratedDatasets() {
