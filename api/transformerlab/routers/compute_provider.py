@@ -2266,18 +2266,35 @@ async def check_provider_job_status(
         }
 
     terminal_states = {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
-    jobs_finished = bool(provider_jobs) and all(
+    # Treat an empty list of provider jobs as "finished" – once the provider
+    # reports no jobs, there's nothing left running for this cluster.
+    jobs_finished = not provider_jobs or all(
         getattr(provider_job, "state", JobState.UNKNOWN) in terminal_states for provider_job in provider_jobs
     )
 
     if jobs_finished:
         try:
-            # Set end_time when marking job as complete
+            # Derive the appropriate final job status based on the current job
+            # status and the provider-reported job states.
+            provider_states = [getattr(job, "state", JobState.UNKNOWN) for job in provider_jobs]
+
+            # If the user requested a stop or the provider reports cancelled jobs,
+            # prefer STOPPED as the final status.
+            if job_status == JobStatus.STOPPING or any(state == JobState.CANCELLED for state in provider_states):
+                final_status = JobStatus.STOPPED
+            # If any provider job failed, propagate FAILED.
+            elif any(state == JobState.FAILED for state in provider_states):
+                final_status = JobStatus.FAILED
+            # Otherwise, consider the job COMPLETE.
+            else:
+                final_status = JobStatus.COMPLETE
+
+            # Set end_time when marking job as finished
             end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
             await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
             # Pass session to job_update_status so quota tracking uses the same session
             await job_service.job_update_status(
-                job_id, JobStatus.COMPLETE, experiment_id=experiment_id, session=session
+                job_id, final_status, experiment_id=experiment_id, session=session
             )
             # Commit the session to ensure quota tracking is persisted
             await session.commit()
@@ -2286,7 +2303,7 @@ async def check_provider_job_status(
                 "status": "success",
                 "job_id": job_id,
                 "updated": True,
-                "new_status": JobStatus.COMPLETE,
+                "new_status": final_status,
                 "message": "All provider jobs completed",
                 "launch_progress": launch_progress,
             }
@@ -2303,7 +2320,7 @@ async def check_provider_job_status(
             "status": "success",
             "job_id": job_id,
             "updated": False,
-            "current_status": JobStatus.LAUNCHING,
+            "current_status": job_status,
             "message": "Jobs still running on provider",
             "launch_progress": launch_progress,
         }
