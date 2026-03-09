@@ -97,7 +97,7 @@ const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
   );
 };
 
-const OUTPUT_REFRESH_SEC = 2;
+const OUTPUT_REFRESH_SEC = 5;
 const PROVIDER_REFRESH_SEC = 10;
 
 function useCountdown(intervalSec: number, isValidating: boolean) {
@@ -335,7 +335,7 @@ export default function EmbeddableStreamingOutput({
               jobId={jobId}
               experimentId={experimentInfo.id}
               lineAnimationDelay={5}
-              refreshInterval={2000}
+              refreshInterval={5000}
               initialMessage="Loading job output..."
               onValidatingChange={handleOutputValidatingChange}
             />
