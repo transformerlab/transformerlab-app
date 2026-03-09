@@ -35,28 +35,19 @@ from lab.dirs import (
     get_job_models_dir,
     get_models_dir,
 )
-from transformerlab.services.cache_service import cache
+from transformerlab.services.cache_service import cache, cached
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
+@cached(key="jobs:list:{experimentId}:{type}:{status}:{subtype}", ttl="30s", tags=["jobs", "jobs:list:{experimentId}"])
 async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subtype: str = ""):
     """
     Return the list of jobs for an experiment, optionally filtered by type/status/subtype.
     Results are cached per provider/remote/org using the shared OrgScopedCache.
     """
-    cache_key = f"jobs:list:{experimentId}:{type}:{status}"
-
-    async def _load() -> List[dict]:
-        return await job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
-
-    jobs = await cache.get_or_set(
-        cache_key,
-        fn=_load,
-        ttl="30s",
-        tags=["jobs", f"jobs:list:{experimentId}"],
-    )
+    jobs = await job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
 
     # Optional filter by job_data.subtype
     if subtype:
