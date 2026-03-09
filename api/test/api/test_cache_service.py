@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from transformerlab.services.cache_service import _NONE_SENTINEL, cache, setup
+from transformerlab.services.cache_service import _NONE_SENTINEL, cache, cached, setup
 from transformerlab.shared.request_context import set_current_org_id
 
 
@@ -316,3 +316,93 @@ async def test_clear_all_wipes_all_orgs():
 
     set_current_org_id("org-2")
     assert await cache.get("k2") is None
+
+
+# ---------------------------------------------------------------------------
+# @cached decorator
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_cached_decorator_caches_async_function():
+    set_current_org_id("org-1")
+    call_count = 0
+
+    @cached(key="dec:static", ttl="5m", tags=["dec"])
+    async def my_func() -> list[str]:
+        nonlocal call_count
+        call_count += 1
+        return ["hello"]
+
+    assert await my_func() == ["hello"]
+    assert await my_func() == ["hello"]
+    assert call_count == 1  # factory called only once
+
+
+@pytest.mark.asyncio
+async def test_cached_decorator_caches_sync_function():
+    set_current_org_id("org-1")
+    call_count = 0
+
+    @cached(key="dec:sync", ttl="5m")
+    def my_sync_func() -> dict[str, str]:
+        nonlocal call_count
+        call_count += 1
+        return {"sync": True}
+
+    assert await my_sync_func() == {"sync": True}
+    assert await my_sync_func() == {"sync": True}
+    assert call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_cached_decorator_interpolates_key_from_args():
+    set_current_org_id("org-1")
+    call_count = 0
+
+    @cached(key="item:{item_id}", ttl="5m", tags=["items"])
+    async def get_item(item_id: str) -> dict[str, str]:
+        nonlocal call_count
+        call_count += 1
+        return {"id": item_id}
+
+    assert await get_item("abc") == {"id": "abc"}
+    assert await get_item("abc") == {"id": "abc"}
+    assert call_count == 1
+
+    # Different arg → different cache key → calls factory again
+    assert await get_item("xyz") == {"id": "xyz"}
+    assert call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_cached_decorator_bypasses_without_org():
+    set_current_org_id(None)
+    call_count = 0
+
+    @cached(key="dec:noorg", ttl="5m")
+    async def my_func() -> str:
+        nonlocal call_count
+        call_count += 1
+        return "data"
+
+    await my_func()
+    await my_func()
+    assert call_count == 2  # no caching without org
+
+
+@pytest.mark.asyncio
+async def test_cached_decorator_respects_invalidation():
+    set_current_org_id("org-1")
+    call_count = 0
+
+    @cached(key="dec:inv", ttl="5m", tags=["mytag"])
+    async def my_func() -> str:
+        nonlocal call_count
+        call_count += 1
+        return f"v{call_count}"
+
+    assert await my_func() == "v1"
+    await cache.invalidate("mytag")
+    assert await my_func() == "v2"
+    assert call_count == 2

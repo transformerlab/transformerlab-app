@@ -13,7 +13,26 @@ bypassed transparently – all reads return ``None`` and writes are no-ops.
 
 Patterns
 --------
-**Pattern 1 – ``get_or_set`` (most common)**::
+**Pattern 1 – ``@cached`` decorator (most common)**::
+
+    from transformerlab.services.cache_service import cached
+
+    @cached(key="models:list", ttl="30s", tags=["models"])
+    async def list_models():
+        ...
+
+    # Dynamic keys with {param} interpolation:
+    @cached(key="job:{job_id}", ttl="5m", tags=["jobs"])
+    async def get_job(job_id: str):
+        ...
+
+    # Works on FastAPI routes too (place @cached below @router.get):
+    @router.get("/models")
+    @cached(key="models:list", ttl="30s", tags=["models"])
+    async def list_models_route():
+        ...
+
+**Pattern 2 – ``get_or_set`` (when you need the factory pattern)**::
 
     from transformerlab.services.cache_service import cache
 
@@ -24,7 +43,7 @@ Patterns
         tags=["models"],
     )
 
-**Pattern 2 – conditional caching (e.g. jobs with lifecycle-aware TTLs)**::
+**Pattern 3 – conditional caching (e.g. jobs with lifecycle-aware TTLs)**::
 
     job = await lab.get_job(job_id)
     if job["status"] == "COMPLETED":
@@ -34,7 +53,7 @@ Patterns
     # RUNNING / QUEUED: skip caching entirely – fall through
     return job
 
-**Pattern 3 – explicit get / set**::
+**Pattern 4 – explicit get / set**::
 
     result = await cache.get("experiment:abc")
     if result is None:
@@ -42,7 +61,7 @@ Patterns
         await cache.set("experiment:abc", result,
                         ttl="60s", tags=["experiments", "experiment:abc"])
 
-**Pattern 4 – tag invalidation**::
+**Pattern 5 – tag invalidation**::
 
     await cache.invalidate("models")                    # all models for current org
     await cache.invalidate(f"experiment:{exp_id}")      # single experiment
@@ -65,6 +84,7 @@ does this automatically).
 
 from __future__ import annotations
 
+import functools
 import inspect
 import logging
 import os
@@ -301,6 +321,61 @@ class OrgScopedCache:
 # ---------------------------------------------------------------------------
 
 cache = OrgScopedCache()
+
+
+# ---------------------------------------------------------------------------
+# Decorator
+# ---------------------------------------------------------------------------
+
+
+def cached(
+    key: str,
+    ttl: TTL = "60s",
+    tags: list[str] | None = None,
+) -> Callable:
+    """Decorator that caches the return value of a sync or async function.
+
+    Works on plain functions, service methods, and FastAPI route handlers.
+    The *key* string may contain ``{param}`` placeholders that are
+    interpolated from the decorated function's arguments at call time.
+
+    Examples::
+
+        @cached(key="models:list", ttl="30s", tags=["models"])
+        async def list_models():
+            ...
+
+        @cached(key="job:{job_id}", ttl="5m", tags=["jobs"])
+        async def get_job(job_id: str):
+            ...
+
+        @router.get("/models")
+        @cached(key="models:list", ttl="30s", tags=["models"])
+        async def list_models_route():
+            ...
+    """
+
+    def decorator(fn: Callable) -> Callable:
+        sig = inspect.signature(fn)
+
+        @functools.wraps(fn)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Bind actual call arguments so we can interpolate {param} in the key.
+            bound = sig.bind(*args, **kwargs)
+            bound.apply_defaults()
+            resolved_key = key.format(**bound.arguments)
+
+            async def factory() -> Any:
+                result = fn(*args, **kwargs)
+                if inspect.isawaitable(result):
+                    result = await result
+                return result
+
+            return await cache.get_or_set(resolved_key, factory, ttl=ttl, tags=tags)
+
+        return wrapper
+
+    return decorator
 
 
 def setup(cache_url: str = CACHE_URL) -> None:
