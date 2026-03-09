@@ -22,6 +22,8 @@ class JobStatus(str, Enum):
     CANCELLED = "CANCELLED"
     DELETED = "DELETED"
     UNAUTHORIZED = "UNAUTHORIZED"
+    CREATED = "CREATED"
+    STARTED = "STARTED"
 
 
 # Terminal states: once a job enters one of these it should not transition further.
