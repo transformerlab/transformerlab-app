@@ -70,6 +70,9 @@ class Lab:
     def __init__(self) -> None:
         self._experiment: Optional[Experiment] = None
         self._job: Optional[Job] = None
+        # Trackio integration flags (best-effort; do not affect core behavior)
+        self._trackio_available: bool = False
+        self._trackio_managed: bool = False
 
     # ------------- lifecycle -------------
     def init(self, experiment_id: str | None = None, config: Optional[Dict[str, Any]] = None) -> None:
@@ -130,6 +133,28 @@ class Lab:
 
         # Check for wandb integration and capture URL if available
         self._detect_and_capture_wandb_url()
+
+        # Initialize Trackio automatically if requested and available.
+        # This is entirely best-effort and never affects core job behavior.
+        self._trackio_available = False
+        self._trackio_managed = False
+        auto_init_trackio = os.environ.get("TLAB_TRACKIO_AUTO_INIT", "false").lower() == "true"
+        if auto_init_trackio:
+            try:
+                import trackio  # type: ignore[import]
+                from trackio import context_vars  # type: ignore[import]
+
+                self._trackio_available = True
+                existing_run = context_vars.current_run.get()
+                if existing_run is None:
+                    # Use experiment_id as a natural default project name if available
+                    project_name = str(experiment_id or "TransformerLab")
+                    trackio.init(project=project_name)
+                    self._trackio_managed = True
+                    logger.info(f"📊 Trackio auto-init enabled for project '{project_name}'")
+            except Exception:
+                # Silently ignore any Trackio issues; lab core behavior must not be affected
+                self._trackio_available = False
 
         # Set config if provided, otherwise auto-load from job_data if available
         if config is not None:
@@ -500,7 +525,34 @@ class Lab:
         _run_async(self._job.update_status("COMPLETE"))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_status", "success"))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_details", message))  # type: ignore[union-attr]
-        _run_async(self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))  # type: ignore[union-attr]
+        _run_async(
+            self._job.update_job_data_field(
+                "end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+            )
+        )  # type: ignore[union-attr]
+        # Best-effort Trackio integration: finish our own run if we created one,
+        # then capture the active Trackio DB (managed or user-created) into job artifacts.
+        try:
+            if self._trackio_available:
+                try:
+                    import trackio  # type: ignore[import]
+                    from trackio import context_vars  # type: ignore[import]
+
+                    current_run = context_vars.current_run.get()
+                    if self._trackio_managed and current_run is not None:
+                        trackio.finish()
+                except Exception:
+                    # Ignore Trackio finish errors
+                    pass
+
+                # Capture any active Trackio run (managed or external) into artifacts
+                try:
+                    self._capture_existing_trackio_run()
+                except Exception:
+                    pass
+        except Exception:
+            # Never let optional Trackio integration break finish()
+            logger.debug("Trackio integration failed during finish()", exc_info=True)
         if score is not None:
             _run_async(self._job.update_job_data_field("score", score))  # type: ignore[union-attr]
         if additional_output_path is not None and additional_output_path.strip() != "":
@@ -1530,6 +1582,34 @@ class Lab:
         logger.info(f"📊 Saved Trackio metrics for job to: {trackio_dir}")
         return trackio_dir
 
+    def _capture_existing_trackio_run(self) -> None:
+        """
+        If trackio is installed and there is an active project, capture its DB into this
+        job's artifacts using capture_trackio_metadata().
+
+        Safe to call even if trackio is not installed or no run is active.
+        """
+        try:
+            from trackio import context_vars  # type: ignore[import]
+            from trackio.utils import TRACKIO_DIR  # type: ignore[import]
+
+            current_project = context_vars.current_project.get()
+            if current_project:
+                db_path = str(TRACKIO_DIR)
+                self.capture_trackio_metadata(db_path=db_path, project=str(current_project))
+        except Exception:
+            # Completely best-effort; ignore all errors here
+            return
+
+    def capture_active_trackio_run(self) -> None:
+        """
+        Public wrapper for scripts that already use Trackio and want to register
+        their metrics with TransformerLab. This snapshots the current Trackio DB
+        into this job's artifacts.
+        """
+        self._ensure_initialized()
+        self._capture_existing_trackio_run()
+
     # ------------- helpers -------------
     def _ensure_initialized(self) -> None:
         if self._experiment is None or self._job is None:
@@ -1720,6 +1800,7 @@ class Lab:
         - Logs training metrics (loss, etc.)
         - Saves checkpoints to TransformerLab when they are created
         - Logs epoch completion and training end events
+        - When Trackio is installed and a run is active, logs metrics to Trackio as well
 
         Returns:
             LabCallback: A TrainerCallback instance that can be passed to HuggingFace Trainer
@@ -1757,6 +1838,25 @@ class Lab:
                 self.lab = lab_instance
                 self.training_started = False
                 self.total_steps = None
+                # Optional Trackio integration (best-effort)
+                self._trackio_available = False
+                self._trackio = None
+
+                try:
+                    import trackio  # type: ignore[import]
+                    from trackio import context_vars  # type: ignore[import]
+
+                    # Only enable Trackio logging if either:
+                    # - The env flag is set (user/QueueTask explicitly requested it), OR
+                    # - There is already an active Trackio run (user is managing Trackio manually).
+                    auto_init = os.environ.get("TLAB_TRACKIO_AUTO_INIT", "false").lower() == "true"
+                    existing_run = context_vars.current_run.get()
+                    if auto_init or existing_run is not None:
+                        self._trackio_available = True
+                        self._trackio = trackio
+                except Exception:
+                    # Trackio is entirely optional; ignore if not installed or misconfigured
+                    self._trackio_available = False
 
             def on_train_begin(self, args, state, control, **kwargs):
                 """Called when training begins"""
@@ -1780,6 +1880,16 @@ class Lab:
                     latest_log = state.log_history[-1]
                     if "loss" in latest_log:
                         self.lab.log(f"Step {state.global_step}: loss={latest_log['loss']:.4f}")
+
+                    # Best-effort: also log raw metrics dict to Trackio if it's available.
+                    # This assumes that trackio.init() has been called elsewhere (either by
+                    # the user script or via TLAB_TRACKIO_AUTO_INIT in lab.init()).
+                    if self._trackio_available and self._trackio is not None:
+                        try:
+                            self._trackio.log(latest_log)
+                        except Exception:
+                            # Never let Trackio issues break training
+                            pass
 
             def on_save(self, args, state, control, **kwargs):
                 """Called when a checkpoint is saved"""
@@ -1813,6 +1923,18 @@ class Lab:
                 """Called when training ends"""
                 self.lab.log("✅ Training completed successfully")
                 self.lab.update_progress(95)
+
+                # If Trackio is active, attempt to snapshot its DB into this job's artifacts
+                # so the dashboard can be viewed from the Tasks UI. This is best-effort and
+                # complements the capture that may happen in lab.finish().
+                try:
+                    if self._trackio_available:
+                        try:
+                            self.lab._capture_existing_trackio_run()
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
 
         return LabCallback(self)
 

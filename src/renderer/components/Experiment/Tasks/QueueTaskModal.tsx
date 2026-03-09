@@ -105,6 +105,7 @@ export default function QueueTaskModal({
   const [sweepMetric, setSweepMetric] = React.useState('eval/loss');
   const [lowerIsBetter, setLowerIsBetter] = React.useState(true);
   const [jobSlurmFlags, setJobSlurmFlags] = React.useState<string[]>(['']);
+  const [useTrackio, setUseTrackio] = React.useState(false);
   const loadingMessages = React.useMemo(
     () => [
       'Contacting compute provider…',
@@ -603,6 +604,12 @@ export default function QueueTaskModal({
       }
       config.sweep_metric = sweepMetric;
       config.lower_is_better = lowerIsBetter;
+    }
+
+    // Trackio auto-init flag: when enabled, backend will set TLAB_TRACKIO_AUTO_INIT
+    // in the job environment so Lab can automatically integrate with Trackio.
+    if (useTrackio) {
+      config.enable_trackio = true;
     }
 
     onSubmit(config);
@@ -1278,6 +1285,28 @@ export default function QueueTaskModal({
                 Parameters can be accessed in your task script using{' '}
                 <code>lab.get_config()</code>
               </Typography>
+            </Stack>
+
+            <Divider />
+
+            {/* Tracking Section */}
+            <Stack spacing={2}>
+              <Typography level="title-sm">Tracking</Typography>
+              <FormControl orientation="horizontal" sx={{ alignItems: 'center' }}>
+                <Checkbox
+                  checked={useTrackio}
+                  onChange={(e) => setUseTrackio(e.target.checked)}
+                  disabled={isSubmitting}
+                />
+                <FormLabel sx={{ ml: 1 }}>
+                  Enable Trackio metrics tracking for this run
+                </FormLabel>
+              </FormControl>
+              <FormHelperText>
+                When enabled, the job will set <code>TLAB_TRACKIO_AUTO_INIT=true</code>{' '}
+                so scripts that use the <code>lab</code> SDK can automatically log
+                metrics to Trackio and expose a Trackio dashboard in the Tasks UI.
+              </FormHelperText>
             </Stack>
 
             <Divider />

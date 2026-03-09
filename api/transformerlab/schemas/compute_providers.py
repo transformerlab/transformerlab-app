@@ -160,6 +160,10 @@ class ProviderTemplateLaunchRequest(BaseModel):
         default=None,
         description="Number of minutes requested for this task. Required for quota tracking.",
     )
+    enable_trackio: Optional[bool] = Field(
+        default=False,
+        description="When True, set TLAB_TRACKIO_AUTO_INIT=true in the job environment so lab SDK can auto-integrate with Trackio.",
+    )
 
 
 class ProviderTemplateFileUploadResponse(BaseModel):
