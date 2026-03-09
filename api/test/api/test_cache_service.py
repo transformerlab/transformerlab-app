@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import pytest
 
+from lab.dirs import set_organization_id
 from transformerlab.services.cache_service import _NONE_SENTINEL, cache, cached, setup
 
 
@@ -19,9 +20,11 @@ from transformerlab.services.cache_service import _NONE_SENTINEL, cache, cached,
 @pytest.fixture(autouse=True)
 async def fresh_cache():
     """Fresh in-memory cache + clean org context for every test."""
+    set_organization_id(None)
     setup("mem://")
     yield
     await cache.clear_all()
+    set_organization_id(None)
 
 
 # ---------------------------------------------------------------------------
@@ -31,11 +34,13 @@ async def fresh_cache():
 
 @pytest.mark.asyncio
 async def test_cache_miss_returns_none():
+    set_organization_id("org-1")
     assert await cache.get("nonexistent:key") is None
 
 
 @pytest.mark.asyncio
 async def test_set_and_get_roundtrip():
+    set_organization_id("org-1")
     payload = {"model_id": "llama-3", "size": 8}
     await cache.set("models:detail:llama-3", payload, ttl="5m")
     result = await cache.get("models:detail:llama-3")
@@ -44,6 +49,7 @@ async def test_set_and_get_roundtrip():
 
 @pytest.mark.asyncio
 async def test_set_and_get_list():
+    set_organization_id("org-1")
     await cache.set("models:list", ["model-a", "model-b"], ttl="5m")
     assert await cache.get("models:list") == ["model-a", "model-b"]
 
@@ -56,15 +62,18 @@ async def test_set_and_get_list():
 @pytest.mark.asyncio
 async def test_org_isolation_different_orgs_get_different_values():
     """Two distinct orgs must never share cache entries."""
+    set_organization_id("org-1")
     await cache.set("models:list", ["org1-model"], ttl="5m")
 
     # org-2 has no entry for this key yet
+    set_organization_id("org-2")
     assert await cache.get("models:list") is None
 
     await cache.set("models:list", ["org2-model"], ttl="5m")
     assert await cache.get("models:list") == ["org2-model"]
 
     # confirm org-1 value is unchanged
+    set_organization_id("org-1")
     assert await cache.get("models:list") == ["org1-model"]
 
 
@@ -75,11 +84,13 @@ async def test_org_isolation_different_orgs_get_different_values():
 
 @pytest.mark.asyncio
 async def test_get_without_org_context_returns_none():
+    set_organization_id(None)
     assert await cache.get("any:key") is None
 
 
 @pytest.mark.asyncio
 async def test_set_without_org_context_is_noop():
+    set_organization_id(None)
     await cache.set("any:key", "value", ttl="5m")
     # Still None because set was skipped
     assert await cache.get("any:key") is None
@@ -92,6 +103,7 @@ async def test_set_without_org_context_is_noop():
 
 @pytest.mark.asyncio
 async def test_invalidate_by_tag_removes_all_tagged_entries():
+    set_organization_id("org-1")
     await cache.set("models:list", ["m1", "m2"], ttl="5m", tags=["models"])
     await cache.set("models:detail:m1", {"id": "m1"}, ttl="5m", tags=["models", "model:m1"])
 
@@ -103,6 +115,7 @@ async def test_invalidate_by_tag_removes_all_tagged_entries():
 
 @pytest.mark.asyncio
 async def test_invalidate_single_tag_leaves_other_tags_intact():
+    set_organization_id("org-1")
     await cache.set("models:list", ["m1"], ttl="5m", tags=["models"])
     await cache.set("datasets:list", ["d1"], ttl="5m", tags=["datasets"])
 
@@ -115,7 +128,7 @@ async def test_invalidate_single_tag_leaves_other_tags_intact():
 
 @pytest.mark.asyncio
 async def test_invalidate_multiple_tags_at_once():
-    set_current_org_id("org-1")
+    set_organization_id("org-1")
     await cache.set("models:list", ["m1"], ttl="5m", tags=["models"])
     await cache.set("datasets:list", ["d1"], ttl="5m", tags=["datasets"])
     await cache.set("experiments:list", ["e1"], ttl="5m", tags=["experiments"])
@@ -130,27 +143,33 @@ async def test_invalidate_multiple_tags_at_once():
 @pytest.mark.asyncio
 async def test_tag_invalidation_is_org_scoped():
     """Invalidating a tag for org-1 must not affect org-2's entries."""
+    set_organization_id("org-1")
     await cache.set("models:list", ["org1-model"], ttl="5m", tags=["models"])
 
+    set_organization_id("org-2")
     await cache.set("models:list", ["org2-model"], ttl="5m", tags=["models"])
 
     # Invalidate only org-1's "models" tag
+    set_organization_id("org-1")
     await cache.invalidate("models")
     assert await cache.get("models:list") is None
 
     # org-2's data survives
-    set_current_org_id("org-2")
+    set_organization_id("org-2")
     assert await cache.get("models:list") == ["org2-model"]
 
 
 @pytest.mark.asyncio
 async def test_invalidate_without_org_context_is_noop():
     """With no org context invalidate() should silently do nothing."""
+    set_organization_id("org-1")
     await cache.set("models:list", ["m1"], ttl="5m", tags=["models"])
 
+    set_organization_id(None)
     await cache.invalidate("models")  # should be a no-op
 
     # org-1's entry must still be present
+    set_organization_id("org-1")
     assert await cache.get("models:list") == ["m1"]
 
 
@@ -161,6 +180,7 @@ async def test_invalidate_without_org_context_is_noop():
 
 @pytest.mark.asyncio
 async def test_delete_removes_single_entry():
+    set_organization_id("org-1")
     await cache.set("experiments:abc", {"id": "abc"}, ttl="5m")
     await cache.delete("experiments:abc")
     assert await cache.get("experiments:abc") is None
@@ -168,6 +188,7 @@ async def test_delete_removes_single_entry():
 
 @pytest.mark.asyncio
 async def test_delete_does_not_affect_sibling_keys():
+    set_organization_id("org-1")
     await cache.set("experiments:abc", {"id": "abc"}, ttl="5m")
     await cache.set("experiments:xyz", {"id": "xyz"}, ttl="5m")
     await cache.delete("experiments:abc")
@@ -181,6 +202,7 @@ async def test_delete_does_not_affect_sibling_keys():
 
 @pytest.mark.asyncio
 async def test_get_or_set_calls_fn_on_miss():
+    set_organization_id("org-1")
     call_count = 0
 
     async def loader() -> list[str]:
@@ -195,6 +217,7 @@ async def test_get_or_set_calls_fn_on_miss():
 
 @pytest.mark.asyncio
 async def test_get_or_set_does_not_call_fn_on_hit():
+    set_organization_id("org-1")
     call_count = 0
 
     async def loader() -> list[str]:
@@ -211,7 +234,7 @@ async def test_get_or_set_does_not_call_fn_on_hit():
 
 @pytest.mark.asyncio
 async def test_get_or_set_accepts_sync_fn():
-
+    set_organization_id("org-1")
     def sync_loader() -> dict[str, str]:
         return {"sync": "result"}
 
@@ -224,6 +247,7 @@ async def test_get_or_set_accepts_sync_fn():
 @pytest.mark.asyncio
 async def test_get_or_set_caches_none_result():
     """A None return from fn should be cached so fn is not called again."""
+    set_organization_id("org-1")
     call_count = 0
 
     async def loader() -> None:
@@ -242,6 +266,7 @@ async def test_get_or_set_caches_none_result():
 @pytest.mark.asyncio
 async def test_get_or_set_without_org_bypasses_cache():
     """No org context → fn is called on every invocation."""
+    set_organization_id(None)
     call_count = 0
 
     async def loader() -> str:
@@ -263,6 +288,7 @@ async def test_get_or_set_without_org_bypasses_cache():
 @pytest.mark.asyncio
 async def test_none_sentinel_is_not_leaked_to_callers():
     """The internal _NONE_SENTINEL string must never be returned to callers."""
+    set_organization_id("org-1")
     await cache.set("null:key", None, ttl="5m")
     result = await cache.get("null:key")
     # Caller receives None, not the raw sentinel string
@@ -277,14 +303,18 @@ async def test_none_sentinel_is_not_leaked_to_callers():
 
 @pytest.mark.asyncio
 async def test_clear_all_wipes_all_orgs():
+    set_organization_id("org-1")
     await cache.set("k1", "v1", ttl="5m")
 
+    set_organization_id("org-2")
     await cache.set("k2", "v2", ttl="5m")
 
     await cache.clear_all()
 
+    set_organization_id("org-1")
     assert await cache.get("k1") is None
 
+    set_organization_id("org-2")
     assert await cache.get("k2") is None
 
 
@@ -296,6 +326,8 @@ async def test_clear_all_wipes_all_orgs():
 @pytest.mark.asyncio
 async def test_cached_decorator_caches_async_function():
     call_count = 0
+
+    set_organization_id("org-1")
 
     @cached(key="dec:static", ttl="5m", tags=["dec"])
     async def my_func() -> list[str]:
@@ -312,6 +344,8 @@ async def test_cached_decorator_caches_async_function():
 async def test_cached_decorator_caches_sync_function():
     call_count = 0
 
+    set_organization_id("org-1")
+
     @cached(key="dec:sync", ttl="5m")
     def my_sync_func() -> dict[str, str]:
         nonlocal call_count
@@ -326,6 +360,8 @@ async def test_cached_decorator_caches_sync_function():
 @pytest.mark.asyncio
 async def test_cached_decorator_interpolates_key_from_args():
     call_count = 0
+
+    set_organization_id("org-1")
 
     @cached(key="item:{item_id}", ttl="5m", tags=["items"])
     async def get_item(item_id: str) -> dict[str, str]:
@@ -360,6 +396,8 @@ async def test_cached_decorator_bypasses_without_org():
 @pytest.mark.asyncio
 async def test_cached_decorator_respects_invalidation():
     call_count = 0
+
+    set_organization_id("org-1")
 
     @cached(key="dec:inv", ttl="5m", tags=["mytag"])
     async def my_func() -> str:
