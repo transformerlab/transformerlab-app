@@ -146,35 +146,6 @@ async def job_count_running():
     return await Job.count_running_jobs()
 
 
-async def job_count_running_across_all_orgs() -> int:
-    """
-    Count running jobs across all organizations.
-    Returns the total count of jobs with status "RUNNING" across all orgs.
-    """
-    count = 0
-
-    # Check all org directories (localfs-aware)
-    orgs_dir = lab_dirs.get_orgs_base_dir()
-    if await storage.exists(orgs_dir) and await storage.isdir(orgs_dir):
-        try:
-            org_entries = await storage.ls(orgs_dir, detail=False)
-            for org_path in org_entries:
-                if await storage.isdir(org_path):
-                    org_id = org_path.rstrip("/").split("/")[-1]
-                    lab_dirs.set_organization_id(org_id)
-                    try:
-                        count += await Job.count_running_jobs()
-                    except Exception:
-                        continue
-        except Exception:
-            pass
-
-    # Clear org context
-    lab_dirs.set_organization_id(None)
-
-    return count
-
-
 async def job_delete_all(experiment_id):
     if experiment_id is not None:
         experiment = Experiment(experiment_id)
