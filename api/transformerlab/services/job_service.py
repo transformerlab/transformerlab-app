@@ -1,7 +1,6 @@
 import asyncio
 import datetime
 import json
-import os
 import time
 from typing import List, Dict, Optional, Any
 
@@ -85,20 +84,14 @@ def is_terminal_state(status: Optional[str]) -> bool:
 
 def _job_cache_key(job_id: str) -> str:
     """
-    Build the per-node job cache key.
-
-    Shape (before org scoping by OrgScopedCache):
-        jobs:{TFL_STORAGE_PROVIDER+TFL_REMOTE_STORAGE_ENABLED}:{job_id}
+    Build the logical job cache key.
 
     The OrgScopedCache wrapper will automatically prefix this with the current
-    org ID, so the underlying cashews key is effectively:
-        {org_id}:jobs:{provider+remote}:{job_id}
+    provider/remote segment and org ID, so the underlying cashews key is
+    effectively:
+        {provider_segment}:{org_id}:jobs:{job_id}
     """
-    provider = (os.getenv("TFL_STORAGE_PROVIDER") or "aws").strip().lower()
-    remote_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
-    remote_flag = "true" if remote_enabled else "false"
-    provider_segment = f"{provider}+{remote_flag}"
-    return f"jobs:{provider_segment}:{job_id}"
+    return f"jobs:{job_id}"
 
 
 async def _job_get_live(job_id: str) -> Optional[Dict[str, Any]]:
@@ -130,7 +123,6 @@ async def job_get_cached(job_id: str) -> Optional[Dict[str, Any]]:
 
     # 1) Try cache first
     cached = await cache.get(key)
-    print("cached", cached)
     if cached is not None:
         return cached
 
