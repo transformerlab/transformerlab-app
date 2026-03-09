@@ -19,6 +19,8 @@ interface PollingOutputTerminalProps {
   lineAnimationDelay?: number;
   initialMessage?: string;
   refreshInterval?: number;
+  onValidatingChange?: (isValidating: boolean) => void;
+  onMutateReady?: (mutate: () => void) => void;
 }
 
 const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
@@ -27,6 +29,8 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
   lineAnimationDelay = 10,
   initialMessage = '',
   refreshInterval = 2000, // Poll every 2 seconds
+  onValidatingChange,
+  onMutateReady,
 }) => {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
@@ -78,7 +82,12 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
     jobId.toString(),
   );
 
-  const { data: outputData, error } = useSWR(
+  const {
+    data: outputData,
+    error,
+    isValidating,
+    mutate,
+  } = useSWR(
     outputEndpoint,
     async (url: string) => {
       const response = await chatAPI.authenticatedFetch(url);
@@ -95,6 +104,14 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
       errorRetryInterval: 5000,
     },
   );
+
+  useEffect(() => {
+    onValidatingChange?.(isValidating);
+  }, [isValidating, onValidatingChange]);
+
+  useEffect(() => {
+    onMutateReady?.(() => mutate());
+  }, [mutate, onMutateReady]);
 
   // Reset state when jobId changes
   useEffect(() => {
