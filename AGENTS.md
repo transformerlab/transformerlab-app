@@ -22,6 +22,9 @@
 - **API single test**: `cd api && pytest test/<file>::<test>`
 - **Python lint**: `ruff check`. **Always run `ruff check` and `ruff format` before committing.**
 - **DB migrations**: `cd api && alembic upgrade head`
+- **Dev (no Docker)**: `python scripts/dev.py` — runs both frontend and API side by side with hot reload. Requires the API conda env and Node v22. Checks ports 8338 (API) and 1212 (frontend) on startup and reports conflicts.
+  - `dev.py` calls `api/run.sh` which automatically activates the conda env at `~/.transformerlab/envs/transformerlab`, so you do **not** need to activate conda yourself.
+  - The conda env and dependencies must already be installed via `cd api && ./install.sh`. If Python dependencies change, the user needs to re-run `./install.sh` manually.
 
 ## Architecture
 
