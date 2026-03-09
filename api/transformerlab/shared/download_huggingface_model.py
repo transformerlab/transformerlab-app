@@ -15,6 +15,7 @@ from werkzeug.utils import secure_filename
 from lab import HOME_DIR, Job
 from lab import storage
 from lab.dirs import set_organization_id
+from lab.job_status import JobStatus
 
 DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
 
@@ -759,9 +760,9 @@ def main():
 
             # Set status to FAILED by default
             # But returncode 77 means the model was gated and unauthorized.
-            status = "FAILED"
+            status = JobStatus.FAILED
             if returncode == 77:
-                status = "UNAUTHORIZED"
+                status = JobStatus.UNAUTHORIZED
 
             # If the error is that the database is locked then this call might also fail
             # for the same reason! Better catch and at least print a message.
