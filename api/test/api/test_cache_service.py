@@ -9,7 +9,6 @@ from __future__ import annotations
 import pytest
 
 from transformerlab.services.cache_service import _NONE_SENTINEL, cache, cached, setup
-from transformerlab.shared.request_context import set_current_org_id
 
 
 # ---------------------------------------------------------------------------
