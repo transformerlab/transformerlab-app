@@ -1473,6 +1473,63 @@ class Lab:
             _run_async(self._job.update_job_data_field("wandb_run_url", clean_url))
             logger.info(f"📊 Captured wandb run URL: {clean_url}")
 
+    def capture_trackio_metadata(self, db_path: str, project: Optional[str] = None) -> str:
+        """
+        Save a local Trackio metrics directory or database file into this job's artifacts and
+        record its location in job_data.
+
+        This is a sync wrapper around the async implementation.
+
+        Args:
+            db_path: Path to the Trackio directory (or single DB file) on the current machine.
+            project: Optional Trackio project name to record for convenience when launching dashboards.
+
+        Returns:
+            The destination path under this job's artifacts directory where the Trackio data was saved.
+        """
+        return _run_async(self.async_capture_trackio_metadata(db_path, project))
+
+    async def async_capture_trackio_metadata(self, db_path: str, project: Optional[str] = None) -> str:
+        """
+        Async implementation of capture_trackio_metadata().
+        """
+        self._ensure_initialized()
+
+        if not isinstance(db_path, str) or db_path.strip() == "":
+            raise ValueError("db_path must be a non-empty string")
+
+        src = os.path.abspath(db_path)
+
+        if not os.path.exists(src):
+            raise FileNotFoundError(f"Trackio path does not exist: {src}")
+
+        # Resolve the job's artifacts directory and create a dedicated 'trackio' subfolder
+        artifacts_dir = await self._job.get_artifacts_dir()  # type: ignore[union-attr]
+        trackio_dir = storage.join(artifacts_dir, "trackio")
+
+        # Ensure the destination directory exists and is clean
+        if await storage.exists(trackio_dir):
+            # Remove any previous Trackio data for this job to avoid stale metrics
+            await storage.rm_tree(trackio_dir)
+
+        await storage.makedirs(trackio_dir, exist_ok=True)
+
+        # Copy directory contents or single file into the trackio subfolder
+        if os.path.isdir(src):
+            await storage.copy_dir(src, trackio_dir)
+        else:
+            base_name = posixpath.basename(src)
+            dest_file = storage.join(trackio_dir, base_name)
+            await storage.copy_file(src, dest_file)
+
+        # Record the artifact location in job_data so the backend/UI can locate it
+        await self._job.update_job_data_field("trackio_db_artifact_path", trackio_dir)  # type: ignore[union-attr]
+        if project is not None and isinstance(project, str) and project.strip() != "":
+            await self._job.update_job_data_field("trackio_project", project.strip())  # type: ignore[union-attr]
+
+        logger.info(f"📊 Saved Trackio metrics for job to: {trackio_dir}")
+        return trackio_dir
+
     # ------------- helpers -------------
     def _ensure_initialized(self) -> None:
         if self._experiment is None or self._job is None:

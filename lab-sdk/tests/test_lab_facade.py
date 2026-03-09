@@ -419,6 +419,37 @@ def test_lab_save_checkpoint_directory(tmp_path, monkeypatch):
     assert os.path.exists(os.path.join(dest_path, "model.bin"))
 
 
+def test_lab_capture_trackio_metadata_directory(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+
+    lab = Lab()
+    lab.init(experiment_id="test_exp")
+
+    # Create a fake Trackio directory representing the local metrics DB
+    trackio_src = tmp_path / "trackio_src"
+    trackio_src.mkdir()
+    (trackio_src / "metrics.sqlite").write_text("db")
+
+    dest_path = lab.capture_trackio_metadata(str(trackio_src), project="my-project")
+
+    assert os.path.exists(dest_path)
+    assert os.path.isdir(dest_path)
+    # The copied DB file should exist under the destination
+    assert os.path.exists(os.path.join(dest_path, "metrics.sqlite"))
+
+    job_data = lab.get_job_data()
+    assert job_data.get("trackio_db_artifact_path") == dest_path
+    assert job_data.get("trackio_project") == "my-project"
+
+
 def test_lab_save_dataset(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"

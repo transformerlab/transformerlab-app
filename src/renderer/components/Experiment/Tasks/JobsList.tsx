@@ -47,6 +47,7 @@ interface JobsListProps {
   onViewJobModels?: (jobId: string) => void;
   onViewFileBrowser?: (jobId: string) => void;
   loading: boolean;
+  onViewTrackio?: (jobId: string) => void;
   selectMode?: boolean;
   selectedJobIds?: string[];
   onToggleJobSelected?: (jobId: string) => void;
@@ -70,6 +71,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewJobModels,
   onViewFileBrowser,
   loading,
+  onViewTrackio,
   selectMode = false,
   selectedJobIds = [],
   onToggleJobSelected,
@@ -269,6 +271,27 @@ const JobsList: React.FC<JobsListProps> = ({
                         }}
                       >
                         W&B Tracking
+                      </Box>
+                    </Button>
+                  )}
+
+                  {job?.job_data?.trackio_db_artifact_path && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => onViewTrackio?.(String(job?.id))}
+                      startDecorator={<LineChartIcon />}
+                    >
+                      <Box
+                        sx={{
+                          display: {
+                            xs: 'none',
+                            sm: 'none',
+                            md: 'inline-flex',
+                          },
+                        }}
+                      >
+                        Trackio
                       </Box>
                     </Button>
                   )}
