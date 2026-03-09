@@ -309,11 +309,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         return false;
       }
 
-      // Always check LAUNCHING, RUNNING, and WAITING jobs (for launch progress and live status)
+      // Always check LAUNCHING, RUNNING, WAITING, and STOPPING jobs
       if (
         job.status === 'LAUNCHING' ||
         job.status === 'RUNNING' ||
-        job.status === 'WAITING'
+        job.status === 'WAITING' ||
+        job.status === 'STOPPING'
       ) {
         return true;
       }
@@ -367,7 +368,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       (j: any) =>
         j.status === 'LAUNCHING' ||
         j.status === 'RUNNING' ||
-        j.status === 'WAITING',
+        j.status === 'WAITING' ||
+        j.status === 'STOPPING',
     );
     const intervalMs = hasActiveRemoteJobs ? 2000 : 10000;
     checkJobs();
@@ -1267,6 +1269,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={(jobId: number) => setViewOutputFromJob(jobId)}
+        jobStatus={
+          jobs?.find((j: any) => j.id === viewOutputFromJob)?.status || ''
+        }
       />
       <ViewArtifactsModal
         open={viewArtifactsFromJob !== -1}

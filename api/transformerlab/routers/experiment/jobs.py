@@ -106,7 +106,7 @@ async def job_delete_all(experimentId: str):
 
 @router.get("/{job_id}")
 async def get_training_job(job_id: str):
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get_cached(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     return job
@@ -119,7 +119,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
     Uses the same logic as stream_job_output but returns content directly.
     """
     try:
-        job = await job_service.job_get(job_id)
+        job = await job_service.job_get_cached(job_id)
         if job is None:
             return "Job not found"
 
@@ -211,7 +211,7 @@ async def get_provider_job_logs(
       2. Otherwise, fall back to provider-native log retrieval (existing behavior).
     """
 
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get_cached(job_id)
     if not job or str(job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -1389,6 +1389,10 @@ async def get_job_models(job_id: str, request: Request):
 async def save_dataset_to_registry(
     job_id: str,
     dataset_name: str,
+    target_name: Optional[str] = Query(None, description="Custom name for the dataset in the registry"),
+    mode: str = Query(
+        "new", description="'new' to create a new entry, 'existing' to merge into an existing registry dataset"
+    ),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -1399,14 +1403,18 @@ async def save_dataset_to_registry(
       If a dataset with that name already exists, a timestamped suffix is added.
     - mode='existing': Merge into an existing dataset in the registry. target_name must be provided and must
       refer to an existing dataset. Files from the job dataset are copied into the existing dataset directory.
+<<<<<<< add/model-dataset-group
 
     In both modes a new version entry is recorded in the asset_versions table
     so the asset can be tracked as part of a versioned group.
     """
     from transformerlab.services import asset_version_service
+=======
+    """
+>>>>>>> main
 
     try:
-        # Secure the dataset name
+        # Secure the source dataset name
         dataset_name_secure = secure_filename(dataset_name)
 
         # Get source path (job's datasets directory)
@@ -1416,24 +1424,46 @@ async def save_dataset_to_registry(
         if not await storage.exists(source_path):
             raise HTTPException(status_code=404, detail=f"Dataset '{dataset_name}' not found in job directory")
 
-        # Get destination path (global datasets registry)
+        # Get the registry directory
         datasets_registry_dir = await get_datasets_dir()
-        dest_path = storage.join(datasets_registry_dir, dataset_name_secure)
 
-        # Check if dataset already exists in registry and generate a unique name if needed
-        if await storage.exists(dest_path):
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            dataset_name_secure = f"{dataset_name_secure}_{timestamp}"
-            dest_path = storage.join(datasets_registry_dir, dataset_name_secure)
+        if mode == "existing":
+            # Merge into an existing dataset
+            if not target_name:
+                raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
+            target_name_secure = secure_filename(target_name)
+            dest_path = storage.join(datasets_registry_dir, target_name_secure)
+            if not await storage.exists(dest_path):
+                raise HTTPException(status_code=404, detail=f"Dataset '{target_name}' not found in registry")
 
-        # Copy the dataset to the registry
-        # Try local copy first (if both are local paths)
-        try:
-            await storage.copy_dir(source_path, dest_path)
-        except Exception as copy_err:
-            # If shutil fails, fallback to storage.copy_dir
-            print(f"Storage.copy_dir failed: {copy_err}")
+            # Copy files from source into the existing dataset directory (merge)
+            try:
+                await storage.copy_dir(source_path, dest_path)
+            except Exception as copy_err:
+                print(f"Storage.copy_dir failed: {copy_err}")
 
+            return {
+                "status": "success",
+                "message": f"Dataset merged into existing registry entry '{target_name_secure}'",
+            }
+        else:
+            # Save as a new dataset
+            final_name = secure_filename(target_name) if target_name else dataset_name_secure
+            dest_path = storage.join(datasets_registry_dir, final_name)
+
+            # Check if dataset already exists in registry and generate a unique name if needed
+            if await storage.exists(dest_path):
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                final_name = f"{final_name}_{timestamp}"
+                dest_path = storage.join(datasets_registry_dir, final_name)
+
+            # Copy the dataset to the registry
+            try:
+                await storage.copy_dir(source_path, dest_path)
+            except Exception as copy_err:
+                print(f"Storage.copy_dir failed: {copy_err}")
+
+<<<<<<< add/model-dataset-group
         # Create a version entry for the dataset
         group_name = dataset_name_secure
         version_entry = await asset_version_service.create_version(
@@ -1449,6 +1479,9 @@ async def save_dataset_to_registry(
             "message": f"Dataset saved to registry as '{dataset_name_secure}'",
             "version": version_entry,
         }
+=======
+            return {"status": "success", "message": f"Dataset saved to registry as '{final_name}'"}
+>>>>>>> main
 
     except HTTPException:
         raise
@@ -1461,12 +1494,31 @@ async def save_dataset_to_registry(
 
 
 @router.post("/{job_id}/models/{model_name}/save_to_registry")
+<<<<<<< add/model-dataset-group
 async def save_model_to_registry(job_id: str, model_name: str):
     """Copy a model from job's models directory to the global models registry"""
     from transformerlab.services import asset_version_service
+=======
+async def save_model_to_registry(
+    job_id: str,
+    model_name: str,
+    target_name: Optional[str] = Query(None, description="Custom name for the model in the registry"),
+    mode: str = Query(
+        "new", description="'new' to create a new entry, 'existing' to merge into an existing registry model"
+    ),
+):
+    """Copy a model from job's models directory to the global models registry.
+
+    Supports two modes:
+    - mode='new': Save as a new model. Uses target_name if provided, otherwise uses the original model_name.
+      If a model with that name already exists, a timestamped suffix is added.
+    - mode='existing': Merge into an existing model in the registry. target_name must be provided and must
+      refer to an existing model. Files from the job model are copied into the existing model directory.
+    """
+>>>>>>> main
 
     try:
-        # Secure the model name
+        # Secure the source model name
         model_name_secure = secure_filename(model_name)
 
         # Get source path (job's models directory)
@@ -1476,23 +1528,43 @@ async def save_model_to_registry(job_id: str, model_name: str):
         if not await storage.exists(source_path):
             raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found in job directory")
 
-        # Get destination path (global models registry)
+        # Get the registry directory
         models_registry_dir = await get_models_dir()
-        dest_path = storage.join(models_registry_dir, model_name_secure)
 
-        # Check if model already exists in registry
-        if await storage.exists(dest_path):
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            model_name_secure = f"{model_name_secure}_{timestamp}"
-            dest_path = storage.join(models_registry_dir, model_name_secure)
+        if mode == "existing":
+            # Merge into an existing model
+            if not target_name:
+                raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
+            target_name_secure = secure_filename(target_name)
+            dest_path = storage.join(models_registry_dir, target_name_secure)
+            if not await storage.exists(dest_path):
+                raise HTTPException(status_code=404, detail=f"Model '{target_name}' not found in registry")
 
-        # Copy the model directory to the registry
-        try:
-            await storage.copy_dir(source_path, dest_path)
-        except Exception as copy_err:
-            print(f"storage.copy_dir failed: {copy_err}")
-            await storage.copy_dir(source_path, dest_path)
+            # Copy files from source into the existing model directory (merge)
+            try:
+                await storage.copy_dir(source_path, dest_path)
+            except Exception as copy_err:
+                print(f"storage.copy_dir failed: {copy_err}")
 
+            return {"status": "success", "message": f"Model merged into existing registry entry '{target_name_secure}'"}
+        else:
+            # Save as a new model
+            final_name = secure_filename(target_name) if target_name else model_name_secure
+            dest_path = storage.join(models_registry_dir, final_name)
+
+            # Check if model already exists in registry and generate a unique name if needed
+            if await storage.exists(dest_path):
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                final_name = f"{final_name}_{timestamp}"
+                dest_path = storage.join(models_registry_dir, final_name)
+
+            # Copy the model directory to the registry
+            try:
+                await storage.copy_dir(source_path, dest_path)
+            except Exception as copy_err:
+                print(f"storage.copy_dir failed: {copy_err}")
+
+<<<<<<< add/model-dataset-group
         # Create a version entry for the model
         group_name = model_name_secure
         version_entry = await asset_version_service.create_version(
@@ -1508,6 +1580,9 @@ async def save_model_to_registry(job_id: str, model_name: str):
             "message": f"Model saved to registry as '{model_name_secure}'",
             "version": version_entry,
         }
+=======
+            return {"status": "success", "message": f"Model saved to registry as '{final_name}'"}
+>>>>>>> main
 
     except HTTPException:
         raise
