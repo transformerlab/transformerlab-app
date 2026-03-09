@@ -235,6 +235,7 @@ async def test_get_or_set_does_not_call_fn_on_hit():
 @pytest.mark.asyncio
 async def test_get_or_set_accepts_sync_fn():
     set_organization_id("org-1")
+
     def sync_loader() -> dict[str, str]:
         return {"sync": "result"}
 
