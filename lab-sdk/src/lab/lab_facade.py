@@ -156,6 +156,8 @@ class Lab:
                 # Silently ignore any Trackio issues; lab core behavior must not be affected
                 self._trackio_available = False
 
+        print(f"Trackio available: {self._trackio_available}")
+
         # Set config if provided, otherwise auto-load from job_data if available
         if config is not None:
             self.set_config(config)
@@ -525,11 +527,7 @@ class Lab:
         _run_async(self._job.update_status("COMPLETE"))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_status", "success"))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_details", message))  # type: ignore[union-attr]
-        _run_async(
-            self._job.update_job_data_field(
-                "end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-            )
-        )  # type: ignore[union-attr]
+        _run_async(self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))  # type: ignore[union-attr]
         # Best-effort Trackio integration: finish our own run if we created one,
         # then capture the active Trackio DB (managed or user-created) into job artifacts.
         try:
