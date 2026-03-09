@@ -200,82 +200,82 @@ async def test_delete_does_not_affect_sibling_keys():
 
 
 @pytest.mark.asyncio
-async def test_get_or_set_calls_factory_on_miss():
+async def test_get_or_set_calls_fn_on_miss():
     set_current_org_id("org-1")
     call_count = 0
 
-    async def factory() -> list[str]:
+    async def loader() -> list[str]:
         nonlocal call_count
         call_count += 1
         return ["model-x"]
 
-    result = await cache.get_or_set("models:list", factory, ttl="5m", tags=["models"])
+    result = await cache.get_or_set("models:list", loader, ttl="5m", tags=["models"])
     assert result == ["model-x"]
     assert call_count == 1
 
 
 @pytest.mark.asyncio
-async def test_get_or_set_does_not_call_factory_on_hit():
+async def test_get_or_set_does_not_call_fn_on_hit():
     set_current_org_id("org-1")
     call_count = 0
 
-    async def factory() -> list[str]:
+    async def loader() -> list[str]:
         nonlocal call_count
         call_count += 1
         return ["model-x"]
 
-    await cache.get_or_set("models:list", factory, ttl="5m", tags=["models"])
-    result2 = await cache.get_or_set("models:list", factory, ttl="5m", tags=["models"])
+    await cache.get_or_set("models:list", loader, ttl="5m", tags=["models"])
+    result2 = await cache.get_or_set("models:list", loader, ttl="5m", tags=["models"])
 
     assert result2 == ["model-x"]
-    assert call_count == 1  # factory called only once
+    assert call_count == 1  # fn called only once
 
 
 @pytest.mark.asyncio
-async def test_get_or_set_accepts_sync_factory():
+async def test_get_or_set_accepts_sync_fn():
     set_current_org_id("org-1")
 
-    def sync_factory() -> dict[str, str]:
+    def sync_loader() -> dict[str, str]:
         return {"sync": "result"}
 
-    result = await cache.get_or_set("sync:key", sync_factory, ttl="5m")
+    result = await cache.get_or_set("sync:key", sync_loader, ttl="5m")
     assert result == {"sync": "result"}
     # Second call hits cache
-    assert await cache.get_or_set("sync:key", sync_factory, ttl="5m") == {"sync": "result"}
+    assert await cache.get_or_set("sync:key", sync_loader, ttl="5m") == {"sync": "result"}
 
 
 @pytest.mark.asyncio
 async def test_get_or_set_caches_none_result():
-    """A None return from factory should be cached so factory is not called again."""
+    """A None return from fn should be cached so fn is not called again."""
     set_current_org_id("org-1")
     call_count = 0
 
-    async def factory() -> None:
+    async def loader() -> None:
         nonlocal call_count
         call_count += 1
         return None
 
-    result1 = await cache.get_or_set("missing:resource", factory, ttl="5m")
-    result2 = await cache.get_or_set("missing:resource", factory, ttl="5m")
+    result1 = await cache.get_or_set("missing:resource", loader, ttl="5m")
+    result2 = await cache.get_or_set("missing:resource", loader, ttl="5m")
 
     assert result1 is None
     assert result2 is None
-    assert call_count == 1  # factory invoked only once; None was cached
+    assert call_count == 1  # fn invoked only once; None was cached
 
 
 @pytest.mark.asyncio
 async def test_get_or_set_without_org_bypasses_cache():
-    """No org context → factory is called on every invocation."""
+    """No org context → fn is called on every invocation."""
     set_current_org_id(None)
     call_count = 0
 
-    async def factory() -> str:
+    async def loader() -> str:
         nonlocal call_count
         call_count += 1
         return "data"
 
-    await cache.get_or_set("key", factory, ttl="5m")
-    await cache.get_or_set("key", factory, ttl="5m")
+    await cache.get_or_set("key", loader, ttl="5m")
+    await cache.get_or_set("key", loader, ttl="5m")
 
     assert call_count == 2  # no caching without org context
 

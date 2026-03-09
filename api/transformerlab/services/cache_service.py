@@ -38,7 +38,7 @@ Patterns
 
     models = await cache.get_or_set(
         "models:list",
-        factory=lab.list_models,   # sync or async callable, called on miss
+        fn=lab.list_models,   # sync or async callable, called on miss
         ttl="30s",
         tags=["models"],
     )
@@ -163,9 +163,9 @@ class OrgScopedCache:
         return [f"{org_id}:{t}" for t in tags]
 
     @staticmethod
-    async def _call(factory: Callable[[], Any]) -> Any:
-        """Invoke *factory*, awaiting it when it returns a coroutine."""
-        result = factory()
+    async def _call(fn: Callable[[], Any]) -> Any:
+        """Invoke *fn*, awaiting it when it returns a coroutine."""
+        result = fn()
         if inspect.isawaitable(result):
             result = await result
         return result
@@ -229,20 +229,20 @@ class OrgScopedCache:
     async def get_or_set(
         self,
         key: str,
-        factory: Callable[[], Any],
+        fn: Callable[[], Any],
         ttl: TTL = "60s",
         tags: list[str] | None = None,
     ) -> Any:
-        """Return the cached value, or call *factory* to populate it on a miss.
+        """Return the cached value, or call *fn* to populate it on a miss.
 
-        *factory* may be a plain callable or an async callable; both are
+        *fn* may be a plain callable or an async callable; both are
         supported.  Its return value is cached, including ``None``.
 
         Example::
 
             models = await cache.get_or_set(
                 "models:list",
-                factory=lab.list_models,
+                fn=lab.list_models,
                 ttl="30s",
                 tags=["models"],
             )
@@ -250,20 +250,20 @@ class OrgScopedCache:
         scoped = self._scoped_key(key)
         if scoped is None:
             # No org context → bypass cache entirely.
-            return await self._call(factory)
+            return await self._call(fn)
 
         try:
             raw = await _cashews.get(scoped, default=_MISS)
         except Exception:
-            logger.exception("cache.get failed inside get_or_set for key=%r – calling factory", key)
-            return await self._call(factory)
+            logger.exception("cache.get failed inside get_or_set for key=%r – calling fn", key)
+            return await self._call(fn)
 
         if raw is not _MISS:
             # Cache hit – unwrap None sentinel if needed.
             return None if raw == _NONE_SENTINEL else raw
 
-        # Cache miss – call factory then store result.
-        value = await self._call(factory)
+        # Cache miss – call fn then store result.
+        value = await self._call(fn)
         stored = _NONE_SENTINEL if value is None else value
         scoped_tags = self._scoped_tags(tags)
         try:
@@ -365,13 +365,13 @@ def cached(
             bound.apply_defaults()
             resolved_key = key.format(**bound.arguments)
 
-            async def factory() -> Any:
+            async def _call_wrapped() -> Any:
                 result = fn(*args, **kwargs)
                 if inspect.isawaitable(result):
                     result = await result
                 return result
 
-            return await cache.get_or_set(resolved_key, factory, ttl=ttl, tags=tags)
+            return await cache.get_or_set(resolved_key, _call_wrapped, ttl=ttl, tags=tags)
 
         return wrapper
 
