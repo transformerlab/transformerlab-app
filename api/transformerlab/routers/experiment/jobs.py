@@ -241,10 +241,15 @@ async def get_provider_job_logs(
             status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
         )
 
-    # 1) If live=False (default), first try to read provider logs from the job directory
-    #    via the SDK's job_dir helper. This file is written by tfl-remote-trap inside
-    #    the remote environment.
-    if not live:
+    # 1) If live=False (default) and the provider is NOT local, first try to read
+    #    provider logs from the SDK job directory.  provider_logs.txt is written by
+    #    tfl-remote-trap at the END of a remote command, so for local providers it may
+    #    be empty or stale while stdout.log (the real log) is available via
+    #    get_job_logs(). Skipping this path for local providers lets us fall through
+    #    to the native log retrieval which reads stdout.log/stderr.log directly.
+    provider_name = (job_data.get("provider_name") or "").lower()
+    is_local_provider = job_data.get("provider_type") == "local" or provider_name == "local"
+    if not live and not is_local_provider:
         try:
             from lab.dirs import get_job_dir
 
