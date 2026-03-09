@@ -8,6 +8,9 @@ from lab import Experiment, Job
 from lab import dirs as lab_dirs
 from lab import storage
 
+from transformerlab.compute_providers.models import JobState
+from transformerlab.services.cache_service import cache
+
 # Allowed job types:
 ALLOWED_JOB_TYPES = [
     "TRAIN",
@@ -64,13 +67,80 @@ async def jobs_get_by_experiment(experiment_id):
     return await jobs_get_all(experiment_id)
 
 
-async def job_get(job_id):
+def is_terminal_state(status: Optional[str]) -> bool:
+    """
+    Determine whether a job status represents a terminal state.
+    Uses the normalized JobState enum where possible but accepts raw strings.
+    """
+    if not status:
+        return False
+    try:
+        state = JobState(status)
+    except ValueError:
+        # Fall back to common terminal strings for legacy statuses.
+        return status.lower() in ("complete", "completed", "stopped", "failed", "deleted", "cancelled")
+    return state in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
+
+
+def _job_cache_key(job_id: str) -> str:
+    """
+    Build the logical job cache key.
+
+    The OrgScopedCache wrapper will automatically prefix this with the current
+    provider/remote segment and org ID, so the underlying cashews key is
+    effectively:
+        {provider_segment}:{org_id}:jobs:{job_id}
+    """
+    return f"jobs:{job_id}"
+
+
+async def _job_get_live(job_id: str) -> Optional[Dict[str, Any]]:
     try:
         job = await Job.get(job_id)
         return await job.get_json_data(uncached=True)
     except Exception as e:
         print("Error getting job data", e)
         return None
+
+
+async def job_get(job_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Backward-compatible live getter that bypasses the per-node cache.
+    """
+    return await _job_get_live(job_id)
+
+
+async def job_get_cached(job_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Per-node cached getter for job JSON backed by cashews.
+
+    Order of precedence:
+      1. Try the org-scoped cashews cache.
+      2. Fallback to live Job.get(...).get_json_data(uncached=True).
+      3. If live status is terminal, persist to cache for future reads.
+    """
+    key = _job_cache_key(job_id)
+
+    # 1) Try cache first
+    cached = await cache.get(key)
+    if cached is not None:
+        return cached
+
+    # 2) Fallback to live
+    job_dict = await _job_get_live(job_id)
+    if not job_dict:
+        return None
+
+    # 3) If terminal, write to cache (best-effort)
+    status = job_dict.get("status")
+    if is_terminal_state(status):
+        try:
+            await cache.set(key, job_dict, ttl="7d", tags=["jobs", f"job:{job_id}"])
+        except Exception:
+            # Best-effort – ignore cache errors.
+            pass
+
+    return job_dict
 
 
 async def job_count_running():
@@ -497,6 +567,16 @@ async def job_update_status(
                     )
         except Exception as e:
             print(f"Error initiating quota tracking for job {job_id}: {e}")
+
+    # Populate per-node cache for terminal jobs (best-effort).
+    if is_terminal_state(status):
+        try:
+            live_dict = await _job_get_live(job_id)
+            if live_dict:
+                key = _job_cache_key(job_id)
+                await cache.set(key, live_dict, ttl="7d", tags=["jobs", f"job:{job_id}"])
+        except Exception as e:
+            print(f"Error writing job cache for job {job_id}: {e}")
 
 
 async def job_update(job_id: str, type: str, status: str, experiment_id: Optional[str] = None):

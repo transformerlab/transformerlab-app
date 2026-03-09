@@ -149,11 +149,19 @@ class OrgScopedCache:
     # ------------------------------------------------------------------
 
     def _scoped_key(self, key: str) -> str | None:
-        """Return ``{org_id}:{key}``, or *None* when there is no org context."""
+        """Return ``{provider_segment}:{org_id}:{key}``, or *None* when no org."""
+        from os import getenv
+
         org_id = get_current_org_id()
         if not org_id:
             return None
-        return f"{org_id}:{key}"
+
+        provider = (getenv("TFL_STORAGE_PROVIDER") or "aws").strip().lower()
+        remote_enabled = (getenv("TFL_REMOTE_STORAGE_ENABLED") or "false").lower() == "true"
+        remote_flag = "true" if remote_enabled else "false"
+        provider_segment = f"{provider}+{remote_flag}"
+
+        return f"{provider_segment}:{org_id}:{key}"
 
     def _scoped_tags(self, tags: list[str] | None) -> list[str]:
         """Prefix every tag with the current org ID."""
