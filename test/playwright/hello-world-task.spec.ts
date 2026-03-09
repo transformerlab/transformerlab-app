@@ -1,30 +1,10 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { login, selectFirstExperiment } from './helpers';
 
 /**
  * End-to-end test: create a blank task, run "echo hello" on the local provider,
  * and verify the output appears in the Machine Logs.
  */
-
-async function login(page: Page) {
-  await page.goto('/');
-  await page.getByPlaceholder('Email Address').fill('admin@example.com');
-  await page.getByPlaceholder('Password').fill('admin123');
-  await page.getByRole('button', { name: 'Sign In' }).click();
-  await expect(page.getByText('Transformer Lab')).toBeVisible({
-    timeout: 15000,
-  });
-}
-
-async function selectFirstExperiment(page: Page) {
-  const dropdown = page.locator('.select-experiment-menu').first();
-  await page.locator('.Sidebar button[aria-haspopup="menu"]').first().click();
-  await dropdown.waitFor({ state: 'visible', timeout: 10000 });
-  const firstExperiment = dropdown.getByRole('menuitem').first();
-  await firstExperiment.click();
-  await expect(page.getByRole('button', { name: 'Interact' })).toBeEnabled({
-    timeout: 5000,
-  });
-}
 
 test.describe('Hello World Task', () => {
   test.setTimeout(120_000);

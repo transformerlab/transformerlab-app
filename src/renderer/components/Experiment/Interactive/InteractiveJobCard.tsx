@@ -199,7 +199,11 @@ export default function InteractiveJobCard({
         jobId={connectOpen ? jobIdNum : -1}
         setJobId={() => setConnectOpen(false)}
         embeddedOutput={
-          <EmbeddableStreamingOutput jobId={jobIdNum} tabs={['provider']} />
+          <EmbeddableStreamingOutput
+            jobId={jobIdNum}
+            tabs={['provider']}
+            jobStatus={job?.status || ''}
+          />
         }
       />
     </Card>
