@@ -29,11 +29,12 @@ type TaskRow = {
 
 type TaskTemplateListProps = {
   tasksList: TaskRow[];
-  onDeleteTask: (taskId: string) => void;
+  onDeleteTask?: (taskId: string, taskName?: string) => void;
   onQueueTask: (task: TaskRow) => void;
   onEditTask: (task: TaskRow) => void;
   onExportTask?: (taskId: string) => void;
   loading: boolean;
+  interactTasks?: boolean;
 };
 
 function getTitle(task: TaskRow) {
@@ -50,6 +51,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   onEditTask,
   onExportTask,
   loading,
+  interactTasks = false,
 }) => {
   const getResourcesInfo = (task: TaskRow) => {
     if (task.type !== 'REMOTE') {
@@ -149,6 +151,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
         <thead>
           <tr>
             <th style={{ width: '150px' }}>Name</th>
+            {interactTasks && <th>Provider</th>}
             <th>Command</th>
             <th>Resources</th>
             <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
@@ -160,6 +163,11 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
               <td>
                 <Skeleton variant="text" level="title-sm" />
               </td>
+              {interactTasks && (
+                <td>
+                  <Skeleton variant="text" level="title-sm" />
+                </td>
+              )}
               <td>
                 <Skeleton variant="text" level="body-sm" />
               </td>
@@ -186,6 +194,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
       <thead>
         <tr>
           <th style={{ width: '150px' }}>Name</th>
+          {interactTasks && <th>Provider</th>}
           <th>Command</th>
           <th>Resources</th>
           <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
@@ -199,6 +208,11 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
                 {getTitle(row)}
               </Typography>
             </td>
+            {interactTasks && (
+              <td style={{ overflow: 'clip' }}>
+                <Typography level="body-sm">{row.provider_name}</Typography>
+              </td>
+            )}
             <td style={{ overflow: 'clip' }}>
               <Typography level="body-sm">{getCommandInfo(row)}</Typography>
             </td>
@@ -225,7 +239,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
                 <IconButton
                   variant="plain"
                   color="danger"
-                  onClick={() => onDeleteTask?.(row.id)}
+                  onClick={() => onDeleteTask?.(row.id, getTitle(row))}
                   title="Delete task"
                 >
                   <Trash2Icon style={{ cursor: 'pointer' }} />

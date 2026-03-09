@@ -27,7 +27,14 @@ export default function ProviderSettingsSection() {
   const { data: providers } = useAPI('compute_provider', ['list'], {});
 
   const [userSettings, setUserSettings] = useState<
-    Record<string, { slurm_user: string | null; has_ssh_key: boolean }>
+    Record<
+      string,
+      {
+        slurm_user: string | null;
+        custom_sbatch_flags: string | null;
+        has_ssh_key: boolean;
+      }
+    >
   >({});
   const [loadingSettings, setLoadingSettings] = useState<
     Record<string, boolean>
@@ -67,6 +74,7 @@ export default function ProviderSettingsSection() {
               ...prev,
               [provider.id]: {
                 slurm_user: data.slurm_user || null,
+                custom_sbatch_flags: data.custom_sbatch_flags || '',
                 has_ssh_key: data.has_ssh_key || false,
               },
             }));
@@ -85,10 +93,13 @@ export default function ProviderSettingsSection() {
     loadSettings();
   }, [authContext.team?.id, providers, fetchWithAuth]);
 
-  const handleSaveSlurmUser = async (providerId: string) => {
+  const handleSaveProviderSettings = async (providerId: string) => {
     setSavingSettings((prev) => ({ ...prev, [providerId]: true }));
     try {
-      const currentSettings = userSettings[providerId] || { slurm_user: null };
+      const currentSettings = userSettings[providerId] || {
+        slurm_user: null,
+        custom_sbatch_flags: '',
+      };
       const response = await fetchWithAuth(
         getAPIFullPath('compute_provider', ['user-settings-update'], {
           providerId,
@@ -98,6 +109,7 @@ export default function ProviderSettingsSection() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             slurm_user: currentSettings.slurm_user || null,
+            custom_sbatch_flags: currentSettings.custom_sbatch_flags || '',
           }),
         },
       );
@@ -113,6 +125,7 @@ export default function ProviderSettingsSection() {
         ...prev,
         [providerId]: {
           slurm_user: data.slurm_user || null,
+          custom_sbatch_flags: data.custom_sbatch_flags || '',
           has_ssh_key:
             data.has_ssh_key ?? prev[providerId]?.has_ssh_key ?? false,
         },
@@ -160,6 +173,10 @@ export default function ProviderSettingsSection() {
           ...prev,
           [providerId]: {
             slurm_user: data.slurm_user ?? prev[providerId]?.slurm_user ?? null,
+            custom_sbatch_flags:
+              data.custom_sbatch_flags ??
+              prev[providerId]?.custom_sbatch_flags ??
+              '',
             has_ssh_key: data.has_ssh_key || false,
           },
         }));
@@ -207,6 +224,10 @@ export default function ProviderSettingsSection() {
           ...prev,
           [providerId]: {
             slurm_user: data.slurm_user ?? prev[providerId]?.slurm_user ?? null,
+            custom_sbatch_flags:
+              data.custom_sbatch_flags ??
+              prev[providerId]?.custom_sbatch_flags ??
+              '',
             has_ssh_key: data.has_ssh_key || false,
           },
         }));
@@ -224,9 +245,9 @@ export default function ProviderSettingsSection() {
   if (slurmProviders.length === 0) {
     return (
       <Box mt={4}>
-        <Typography level="title-lg">Provider Settings</Typography>
+        <Typography level="title-lg">Compute Provider Settings</Typography>
         <Typography level="body-md" color="neutral" mt={1}>
-          No SLURM providers configured for your team.
+          No SLURM compute providers configured for your team.
         </Typography>
       </Box>
     );
@@ -235,17 +256,18 @@ export default function ProviderSettingsSection() {
   return (
     <Box mt={4}>
       <Typography level="title-lg" mb={2}>
-        Provider Settings
+        Compute Provider Settings
       </Typography>
       <Typography level="body-sm" color="neutral" mb={2}>
-        Configure your personal settings for SLURM providers. These settings are
-        specific to your account.
+        Configure your personal settings for SLURM compute providers. These
+        settings are specific to your account.
       </Typography>
 
       <Stack gap={2}>
         {slurmProviders.map((provider: { id: string; name: string }) => {
           const settings = userSettings[provider.id] || {
             slurm_user: null,
+            custom_sbatch_flags: '',
             has_ssh_key: false,
           };
           const isLoading = loadingSettings[provider.id] || false;
@@ -282,7 +304,7 @@ export default function ProviderSettingsSection() {
                     endDecorator={
                       <Button
                         size="sm"
-                        onClick={() => handleSaveSlurmUser(provider.id)}
+                        onClick={() => handleSaveProviderSettings(provider.id)}
                         loading={isSaving}
                         disabled={isLoading || isSaving}
                       >
@@ -293,6 +315,138 @@ export default function ProviderSettingsSection() {
                   <Typography level="body-xs" color="neutral" mt={0.5}>
                     Your SLURM username on this cluster. This will be used when
                     launching jobs.
+                  </Typography>
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Custom SBATCH flags</FormLabel>
+                  <Stack gap={1}>
+                    {(settings.custom_sbatch_flags || '')
+                      .split('\n')
+                      .filter((_, idx, arr) => arr.length === 1 || true)
+                      .map((rawLine, idx, arr) => {
+                        const value = rawLine;
+                        return (
+                          <Stack
+                            key={idx}
+                            direction="row"
+                            alignItems="center"
+                            gap={1}
+                          >
+                            <Input
+                              placeholder={
+                                idx === 0
+                                  ? '--time=4:00:00'
+                                  : '--ntasks-per-node=4'
+                              }
+                              sx={{ fontFamily: 'monospace', fontSize: 'sm' }}
+                              value={value}
+                              onChange={(e) => {
+                                const current =
+                                  settings.custom_sbatch_flags || '';
+                                const lines = current.split('\n');
+                                // Ensure we have at least as many lines as the index
+                                while (lines.length < arr.length) {
+                                  lines.push('');
+                                }
+                                lines[idx] = e.target.value;
+                                const joined = lines
+                                  .filter(
+                                    (line, i) =>
+                                      i === 0 ||
+                                      line !== '' ||
+                                      i < lines.length - 1,
+                                  )
+                                  .join('\n');
+                                setUserSettings((prev) => ({
+                                  ...prev,
+                                  [provider.id]: {
+                                    ...(prev[provider.id] || {
+                                      slurm_user: null,
+                                      custom_sbatch_flags: '',
+                                      has_ssh_key: false,
+                                    }),
+                                    custom_sbatch_flags: joined,
+                                  },
+                                }));
+                              }}
+                              disabled={isLoading || isSaving}
+                            />
+                            {arr.length > 1 && (
+                              <Button
+                                size="sm"
+                                variant="outlined"
+                                color="neutral"
+                                onClick={() => {
+                                  const current =
+                                    settings.custom_sbatch_flags || '';
+                                  const lines = current.split('\n');
+                                  lines.splice(idx, 1);
+                                  const joined = lines.join('\n');
+                                  setUserSettings((prev) => ({
+                                    ...prev,
+                                    [provider.id]: {
+                                      ...(prev[provider.id] || {
+                                        slurm_user: null,
+                                        custom_sbatch_flags: '',
+                                        has_ssh_key: false,
+                                      }),
+                                      custom_sbatch_flags: joined,
+                                    },
+                                  }));
+                                }}
+                                disabled={isLoading || isSaving}
+                              >
+                                Remove
+                              </Button>
+                            )}
+                          </Stack>
+                        );
+                      })}
+                    <Stack direction="row" gap={1}>
+                      <Button
+                        size="sm"
+                        variant="outlined"
+                        onClick={() => {
+                          const current = settings.custom_sbatch_flags || '';
+                          const lines = current ? current.split('\n') : [''];
+                          lines.push('');
+                          const joined = lines.join('\n');
+                          setUserSettings((prev) => ({
+                            ...prev,
+                            [provider.id]: {
+                              ...(prev[provider.id] || {
+                                slurm_user: null,
+                                custom_sbatch_flags: '',
+                                has_ssh_key: false,
+                              }),
+                              custom_sbatch_flags: joined,
+                            },
+                          }));
+                        }}
+                        disabled={isLoading || isSaving}
+                      >
+                        Add flag
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="solid"
+                        onClick={() => handleSaveProviderSettings(provider.id)}
+                        loading={isSaving}
+                        disabled={isLoading || isSaving}
+                      >
+                        Save flags
+                      </Button>
+                    </Stack>
+                  </Stack>
+                  <Typography level="body-xs" color="neutral" mt={0.5}>
+                    Each text box is a separate set of SBATCH flags that will be
+                    added to the top of every SLURM script you launch on this
+                    provider as a <code>#SBATCH</code> directive. For example:
+                    <br />
+                    <code>--time=4:00:00</code>
+                    <br />
+                    <code>--ntasks-per-node=4</code>
                   </Typography>
                 </FormControl>
 

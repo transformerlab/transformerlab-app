@@ -4,7 +4,7 @@ from lab import HOME_DIR
 from sqlalchemy import select
 from transformerlab.shared.models.user_model import AsyncSessionLocal, create_personal_team
 from transformerlab.shared.models.models import User, UserTeam, TeamRole
-from transformerlab.services.provider_service import ensure_default_local_provider_for_team
+from transformerlab.services.provider_service import initialize_team_local_provider
 from transformerlab.models.users import UserManager, UserCreate
 from fastapi_users.db import SQLAlchemyUserDatabase
 import os
@@ -55,7 +55,7 @@ async def seed_default_admin_user():
 
                 # Ensure a default local provider exists for this team
                 try:
-                    await ensure_default_local_provider_for_team(session, team_id, str(admin_user_id))
+                    await initialize_team_local_provider(session, team_id, str(admin_user_id))
                 except Exception as e:
                     print(f"⚠️  Failed to create default local provider for existing admin team {team_id}: {e}")
 
@@ -113,7 +113,7 @@ async def seed_default_admin_user():
 
             # Ensure a default local provider exists for this team
             try:
-                await ensure_default_local_provider_for_team(session, team_id, str(admin_user_id))
+                await initialize_team_local_provider(session, team_id, str(admin_user_id))
             except Exception as e:
                 print(f"⚠️  Failed to create default local provider for admin team {team_id}: {e}")
 

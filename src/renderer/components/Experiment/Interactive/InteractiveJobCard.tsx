@@ -12,11 +12,7 @@ import {
 } from '@mui/joy';
 import { Trash2Icon } from 'lucide-react';
 import JobProgress from '../Tasks/JobProgress';
-import InteractiveVSCodeModal from '../Tasks/InteractiveVSCodeModal';
-import InteractiveJupyterModal from '../Tasks/InteractiveJupyterModal';
-import InteractiveVllmModal from '../Tasks/InteractiveVllmModal';
-import InteractiveSshModal from '../Tasks/InteractiveSshModal';
-import InteractiveOllamaModal from '../Tasks/InteractiveOllamaModal';
+import InteractiveModal from '../Tasks/InteractiveModal';
 import EmbeddableStreamingOutput from '../Tasks/EmbeddableStreamingOutput';
 
 interface InteractiveJobCardProps {
@@ -105,14 +101,6 @@ function getTypeConfig(interactiveType: string) {
   return INTERACTIVE_TYPE_CONFIG[interactiveType] || DEFAULT_TYPE_CONFIG;
 }
 
-const INTERACTIVE_MODALS: Record<string, React.ElementType> = {
-  vscode: InteractiveVSCodeModal,
-  jupyter: InteractiveJupyterModal,
-  vllm: InteractiveVllmModal,
-  ollama: InteractiveOllamaModal,
-  ssh: InteractiveSshModal,
-};
-
 export default function InteractiveJobCard({
   job,
   onDeleteJob,
@@ -128,13 +116,11 @@ export default function InteractiveJobCard({
 
   const typeConfig = getTypeConfig(interactiveType);
   const TypeIcon = typeConfig.icon;
-  const isInteractive = job.status === 'INTERACTIVE';
+  const isInteractive =
+    job.status === 'INTERACTIVE' || job.status === 'RUNNING';
   const title =
     jobData.cluster_name || jobData.template_name || `Job ${job.id}`;
   const jobIdNum = parseInt(job.id, 10);
-
-  const ConnectModal =
-    INTERACTIVE_MODALS[interactiveType] || InteractiveVSCodeModal;
 
   return (
     <Card
@@ -209,11 +195,15 @@ export default function InteractiveJobCard({
           </>
         )}
       </CardContent>
-      <ConnectModal
+      <InteractiveModal
         jobId={connectOpen ? jobIdNum : -1}
         setJobId={() => setConnectOpen(false)}
         embeddedOutput={
-          <EmbeddableStreamingOutput jobId={jobIdNum} tabs={['provider']} />
+          <EmbeddableStreamingOutput
+            jobId={jobIdNum}
+            tabs={['provider']}
+            jobStatus={job?.status || ''}
+          />
         }
       />
     </Card>
