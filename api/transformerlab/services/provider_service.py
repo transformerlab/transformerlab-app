@@ -419,7 +419,11 @@ async def initialize_team_local_provider(
 
 
 async def update_team_provider(
-    session: AsyncSession, provider: TeamComputeProvider, name: Optional[str] = None, config: Optional[dict] = None, disabled: Optional[bool] = None
+    session: AsyncSession,
+    provider: TeamComputeProvider,
+    name: Optional[str] = None,
+    config: Optional[dict] = None,
+    disabled: Optional[bool] = None,
 ) -> TeamComputeProvider:
     """Update an existing team provider record."""
     if name is not None:

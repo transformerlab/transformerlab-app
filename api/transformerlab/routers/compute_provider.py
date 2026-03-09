@@ -32,7 +32,7 @@ from transformerlab.schemas.compute_providers import (
     ProviderTemplateFileUploadResponse,
     ResumeFromCheckpointRequest,
 )
-from transformerlab.shared.models.models import ProviderType
+from transformerlab.shared.models.models import ProviderType, TeamRole
 from transformerlab.compute_providers.models import (
     ClusterConfig,
     ClusterStatus,
@@ -183,6 +183,8 @@ async def list_providers(
     """
     team_id = user_and_team["team_id"]
     if include_disabled:
+        if user_and_team.get("role") != TeamRole.OWNER.value:
+            raise HTTPException(status_code=403, detail="Only team owners can view disabled providers")
         providers = await list_team_providers(session, team_id)
     else:
         providers = await list_enabled_team_providers(session, team_id)
@@ -720,6 +722,7 @@ async def get_provider(
         created_by_user_id=provider.created_by_user_id,
         created_at=provider.created_at,
         updated_at=provider.updated_at,
+        disabled=provider.disabled,
     )
 
 
@@ -1462,6 +1465,13 @@ async def launch_template_on_provider(
             ),
         )
 
+    # Check if the provider is disabled before any launch path
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if provider.disabled:
+        raise HTTPException(status_code=403, detail="Provider is disabled and cannot be used to launch tasks")
+
     # Check if sweeps are enabled
     if request.run_sweeps and request.sweep_config:
         from itertools import product
@@ -1515,11 +1525,7 @@ async def launch_template_on_provider(
         }
 
     # Normal single job launch (existing logic)
-    provider = await get_team_provider(session, team_id, provider_id)
-    if not provider:
-        raise HTTPException(status_code=404, detail="Provider not found")
-    if provider.disabled:
-        raise HTTPException(status_code=403, detail="Provider is disabled and cannot be used to launch tasks")
+    # (provider already fetched and validated above)
 
     # Quota checking and hold creation (only for REMOTE jobs)
     if request.minutes_requested is not None and request.minutes_requested > 0:

@@ -1105,9 +1105,7 @@ export default function UserLoginTest(): JSX.Element {
               <tr>
                 <th style={{ width: 'auto' }}>Name</th>
                 <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Type</th>
-                <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>
-                  Enabled
-                </th>
+                <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Enabled</th>
                 <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Status</th>
                 <th
                   style={{
