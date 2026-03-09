@@ -1,9 +1,6 @@
-from lab import Experiment, Job
-from lab.dirs import get_jobs_dir
+from lab import Experiment
 from lab import storage
 from lab import HOME_DIR
-from lab import dirs as lab_dirs
-
 from sqlalchemy import select
 from transformerlab.shared.models.user_model import AsyncSessionLocal, create_personal_team
 from transformerlab.shared.models.models import User, UserTeam, TeamRole

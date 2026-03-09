@@ -7,7 +7,6 @@ from transformerlab.compute_providers.models import ClusterConfig
 from transformerlab.services import job_service, quota_service
 from transformerlab.services.provider_service import get_provider_by_id, get_provider_instance
 from transformerlab.db.session import async_session
-from transformerlab.shared.request_context import set_current_org_id
 from lab import dirs as lab_dirs
 
 
@@ -67,8 +66,7 @@ async def _local_launch_worker() -> None:
         try:
             # Use a dedicated DB session inside the worker
             async with async_session() as session:
-                # Ensure lab SDK and API request context are scoped to the correct organization
-                set_current_org_id(item.team_id)
+                # Ensure lab SDK is scoped to the correct organization
                 lab_dirs.set_organization_id(item.team_id)
                 try:
                     await job_service.job_update_launch_progress(
@@ -161,7 +159,6 @@ async def _local_launch_worker() -> None:
                             )
                 finally:
                     # Clear org context after each item
-                    set_current_org_id(None)
                     lab_dirs.set_organization_id(None)
         finally:
             _local_launch_queue.task_done()

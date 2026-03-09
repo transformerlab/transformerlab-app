@@ -98,7 +98,6 @@ from transformerlab.shared import galleries  # noqa: E402
 from lab.dirs import get_workspace_dir  # noqa: E402
 from lab import dirs as lab_dirs  # noqa: E402
 from transformerlab.shared import dirs  # noqa: E402
-from transformerlab.shared.request_context import set_current_org_id  # noqa: E402
 from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
 from lab import storage  # noqa: E402
 from transformerlab.shared.remote_workspace import validate_cloud_credentials  # noqa: E402
@@ -288,14 +287,12 @@ async def set_org_context(request: Request, call_next):
                     # If determination fails, leave as None (will be handled by dependency)
                     pass
 
-        set_current_org_id(org_id)
         if lab_set_org_id is not None:
             lab_set_org_id(org_id)
         response = await call_next(request)
         return response
     finally:
         # Clear at end of request
-        set_current_org_id(None)
         if lab_set_org_id is not None:
             lab_set_org_id(None)
 
@@ -474,9 +471,7 @@ async def server_worker_start(
         await global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
     # Pass organization_id as environment variable to subprocess
-    from transformerlab.shared.request_context import get_current_org_id
-
-    org_id = get_current_org_id()
+    org_id = await shared._get_org_id_for_subprocess()
     subprocess_env = {}
     if org_id:
         subprocess_env["_TFL_ORG_ID"] = org_id
