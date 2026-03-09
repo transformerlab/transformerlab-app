@@ -4,7 +4,7 @@
 
 - The `main` branch is protected. **Never commit directly to `main`.**
 - Always create a new branch for your work: `git checkout -b <descriptive-branch-name>`
-- Use a clear branch naming convention, e.g. `feat/short-description`, `fix/short-description`, `chore/short-description`.
+- Use a clear branch naming convention, e.g. `add/short-description`, `fix/short-description`.
 - Commit early and often with meaningful commit messages.
 - **Never use `git commit --amend`** — it rewrites history and causes divergence with remote branches. Make a new commit instead.
 - When work is complete, push the branch and open a pull request: `gh pr create --fill`
@@ -14,14 +14,17 @@
 
 - **Frontend dev**: `npm start` (Node v22, not v23+)
 - **Frontend test**: `npm test` (Jest); single test: `npm test -- --testPathPattern="<pattern>"`
-- **Frontend format**: `npm run format` (Prettier, single quotes)
+- **Frontend lint**: `npm run format`
 - **Python env (run once per shell)**: `source ~/.transformerlab/miniforge3/bin/activate && conda activate ~/.transformerlab/envs/transformerlab`
 - **API install**: `cd api && ./install.sh` or `npm run api:install`
 - **API start**: `cd api && ./run.sh` or `npm run api:start`
 - **API test**: `cd api && pytest`
 - **API single test**: `cd api && pytest test/<file>::<test>`
-- **Python lint**: `ruff check api/` (line-length=120, indent=4). **Always run `ruff check` on changed Python files before committing.**
+- **Python lint**: `ruff check`. **Always run `ruff check` and `ruff format` before committing.**
 - **DB migrations**: `cd api && alembic upgrade head`
+- **Dev (no Docker)**: `python scripts/dev.py` — runs both frontend and API side by side with hot reload. Requires the API conda env and Node v22. Checks ports 8338 (API) and 1212 (frontend) on startup and reports conflicts.
+  - `dev.py` calls `api/run.sh` which automatically activates the conda env at `~/.transformerlab/envs/transformerlab`, so you do **not** need to activate conda yourself.
+  - The conda env and dependencies must already be installed via `cd api && ./install.sh`. If Python dependencies change, the user needs to re-run `./install.sh` manually.
 
 ## Architecture
 
@@ -62,6 +65,17 @@
   - **Unit Tests**: Write `pytest` tests in `api/test/`.
   - **Mocking**: Mock external interactions (S3, GPU providers, filesystem operations) using `unittest.mock` or `pytest-mock`. Tests should be fast and deterministic.
   - **Service Tests**: Prefer testing the Service layer directly over testing the full API stack when checking business logic constants.
+- **Playwright (E2E)**:
+  - **Location**: Tests live in `test/playwright/`. Config is in `playwright.config.ts` (base URL `http://localhost:8338`).
+  - **Run all**: `npx playwright test` (requires the Docker test container).
+  - **Run one**: `npx playwright test <file-name>` (e.g. `npx playwright test hello-world-task`).
+  - **Full cycle**: `npm run docker-test:playwright` (starts container, runs tests, tears down).
+  - **Docker container**: `npm run docker-test:up` starts the app; `npm run docker-test:down` stops it. Wait for the healthcheck before running tests.
+  - **Auth**: Log in via UI with `admin@example.com` / `admin123`. Import the shared `login()` and `selectFirstExperiment()` helpers from `test/playwright/helpers.ts`.
+  - **Selectors**: Prefer `getByRole`, `getByText({ exact: true })`, and `getByPlaceholder`. Use `.first()` when prior test runs may leave duplicate elements (e.g. multiple tasks or jobs).
+  - **xterm.js content**: Terminal output rendered by xterm is not in the DOM. Verify it by polling the corresponding API endpoint (e.g. `/experiment/{id}/jobs/{jobId}/provider_logs`) via `page.request.get()` and `expect.poll()`.
+  - **Idempotency**: Tests must pass on repeated runs against the same container. Don't assume a clean DB; handle existing data gracefully with `.first()` or by checking for pre-existing state.
+  - **Timeouts**: Set `test.setTimeout(120_000)` for tests that queue jobs (local provider launch + execution can take time). Use generous `toBeVisible({ timeout: 60000 })` for status transitions like LAUNCHING → COMPLETE.
 
 ### Visual UI Verification (Chrome DevTools MCP)
 

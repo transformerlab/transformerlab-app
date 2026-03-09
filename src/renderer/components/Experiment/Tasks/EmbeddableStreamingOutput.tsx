@@ -1,20 +1,30 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Alert,
   Box,
   Checkbox,
+  Chip,
   CircularProgress,
+  IconButton,
   Tab,
   TabList,
   Tabs,
   Typography,
 } from '@mui/joy';
+import { RefreshCwIcon } from 'lucide-react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { jobChipColor } from 'renderer/lib/utils';
 import PollingOutputTerminal from './PollingOutputTerminal';
 
 interface ProviderLogsTerminalProps {
@@ -96,6 +106,98 @@ const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
   );
 };
 
+const ACTIVE_STATUSES = new Set([
+  'RUNNING',
+  'LAUNCHING',
+  'INTERACTIVE',
+  'WAITING',
+  'QUEUED',
+  'STOPPING',
+]);
+
+const OUTPUT_ACTIVE_SEC = 5;
+const OUTPUT_IDLE_SEC = 60;
+const PROVIDER_ACTIVE_SEC = 10;
+const PROVIDER_IDLE_SEC = 60;
+
+function useCountdown(intervalSec: number, isValidating: boolean) {
+  const [secondsLeft, setSecondsLeft] = useState(intervalSec);
+  const wasValidating = useRef(false);
+
+  // Reset countdown when a fetch completes (validating → not validating)
+  useEffect(() => {
+    if (wasValidating.current && !isValidating) {
+      setSecondsLeft(intervalSec);
+    }
+    wasValidating.current = isValidating;
+  }, [isValidating, intervalSec]);
+
+  // Only tick while not validating
+  useEffect(() => {
+    if (isValidating) return;
+    const interval = setInterval(() => {
+      setSecondsLeft((prev) => (prev <= 1 ? intervalSec : prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [intervalSec, isValidating]);
+
+  const reset = useCallback(() => setSecondsLeft(intervalSec), [intervalSec]);
+
+  return { secondsLeft, reset };
+}
+
+function RefreshIndicator({
+  seconds,
+  isRefreshing,
+  onRefresh,
+}: {
+  seconds: number;
+  isRefreshing: boolean;
+  onRefresh?: () => void;
+}) {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+      <Typography
+        level="body-xs"
+        sx={{
+          color: 'neutral.500',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+          userSelect: 'none',
+        }}
+      >
+        {isRefreshing ? (
+          <>
+            <CircularProgress
+              size="sm"
+              sx={{
+                '--CircularProgress-size': '12px',
+                '--CircularProgress-trackThickness': '2px',
+                '--CircularProgress-progressThickness': '2px',
+              }}
+            />
+            refreshing…
+          </>
+        ) : (
+          <>refreshing in {seconds}s</>
+        )}
+      </Typography>
+      {onRefresh && !isRefreshing && (
+        <IconButton
+          size="sm"
+          variant="plain"
+          color="neutral"
+          onClick={onRefresh}
+          sx={{ minHeight: 'unset', minWidth: 'unset', p: 0.25 }}
+        >
+          <RefreshCwIcon size={12} />
+        </IconButton>
+      )}
+    </Box>
+  );
+}
+
 const TAB_OPTIONS: { value: 'output' | 'provider'; label: string }[] = [
   { value: 'output', label: 'Lab SDK Output' },
   { value: 'provider', label: 'Machine Logs' },
@@ -105,11 +207,14 @@ export interface EmbeddableStreamingOutputProps {
   jobId: number;
   /** Which tabs to show, in order. e.g. ['output', 'provider'] or ['provider'] for interactive tasks. */
   tabs?: ('output' | 'provider')[];
+  /** Current job status string (e.g. 'RUNNING', 'COMPLETE'). Passed from the parent to avoid extra polling. */
+  jobStatus?: string;
 }
 
 export default function EmbeddableStreamingOutput({
   jobId,
   tabs: tabsProp = ['output', 'provider'],
+  jobStatus = '',
 }: EmbeddableStreamingOutputProps) {
   const { experimentInfo } = useExperimentInfo();
   const [activeTab, setActiveTab] = useState<'output' | 'provider'>('output');
@@ -143,18 +248,66 @@ export default function EmbeddableStreamingOutput({
     );
   }, [experimentInfo?.id, jobId, viewLiveProviderLogs]);
 
+  const [outputIsValidating, setOutputIsValidating] = useState(false);
+  const handleOutputValidatingChange = useCallback(
+    (v: boolean) => setOutputIsValidating(v),
+    [],
+  );
+  const outputMutateRef = useRef<(() => void) | null>(null);
+  const handleOutputMutateReady = useCallback((m: () => void) => {
+    outputMutateRef.current = m;
+  }, []);
+
+  const isActiveJob = ACTIVE_STATUSES.has(jobStatus);
+  const outputRefreshMs = isActiveJob
+    ? OUTPUT_ACTIVE_SEC * 1000
+    : OUTPUT_IDLE_SEC * 1000;
+  const providerRefreshMs = isActiveJob
+    ? PROVIDER_ACTIVE_SEC * 1000
+    : PROVIDER_IDLE_SEC * 1000;
+
   const {
     data: providerLogsData,
     isError: providerLogsError,
     isLoading: providerLogsLoading,
+    isValidating: providerIsValidating,
+    mutate: mutateProviderLogs,
   }: {
     data: any;
     isError: any;
     isLoading: boolean;
-  } = useSWR(providerLogsUrl);
+    isValidating: boolean;
+    mutate: () => void;
+  } = useSWR(providerLogsUrl, undefined, {
+    refreshInterval: providerRefreshMs,
+  });
 
   const isNoProviderLogsYet =
     providerLogsError && (providerLogsError as any).status === 404;
+
+  const outputCountdownSec = isActiveJob ? OUTPUT_ACTIVE_SEC : OUTPUT_IDLE_SEC;
+  const providerCountdownSec = isActiveJob
+    ? PROVIDER_ACTIVE_SEC
+    : PROVIDER_IDLE_SEC;
+  const { secondsLeft: outputCountdown, reset: resetOutputCountdown } =
+    useCountdown(outputCountdownSec, outputIsValidating);
+  const { secondsLeft: providerCountdown, reset: resetProviderCountdown } =
+    useCountdown(providerCountdownSec, providerIsValidating);
+
+  const handleManualRefresh = useCallback(() => {
+    if (activeTab === 'output') {
+      outputMutateRef.current?.();
+      resetOutputCountdown();
+    } else {
+      mutateProviderLogs();
+      resetProviderCountdown();
+    }
+  }, [
+    activeTab,
+    mutateProviderLogs,
+    resetOutputCountdown,
+    resetProviderCountdown,
+  ]);
 
   if (jobId === -1 || !experimentInfo) {
     return null;
@@ -197,31 +350,55 @@ export default function EmbeddableStreamingOutput({
           </TabList>
         </Tabs>
       )}
-      {activeTab === 'provider' && (
-        <Box
-          sx={{
-            mt: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-          }}
-        >
-          <Checkbox
-            size="sm"
-            checked={viewLiveProviderLogs}
-            onChange={(event) =>
-              setViewLiveProviderLogs(!!event.target.checked)
-            }
-            label="View live provider logs"
-          />
-          {viewLiveProviderLogs && (
-            <Typography level="body-xs" color="warning">
-              Live logs are fetched directly from the remote machine and may
-              disappear once the machine stops running.
-            </Typography>
+      <Box
+        sx={{
+          mt: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1.5,
+          minHeight: 28,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          {jobStatus && (
+            <Chip
+              size="sm"
+              sx={{
+                backgroundColor: jobChipColor(jobStatus),
+                color: 'var(--joy-palette-neutral-800)',
+              }}
+            >
+              {jobStatus}
+            </Chip>
+          )}
+          {activeTab === 'provider' && (
+            <>
+              <Checkbox
+                size="sm"
+                checked={viewLiveProviderLogs}
+                onChange={(event) =>
+                  setViewLiveProviderLogs(!!event.target.checked)
+                }
+                label="View live provider logs"
+              />
+              {viewLiveProviderLogs && (
+                <Typography level="body-xs" color="warning">
+                  Live logs are fetched directly from the remote machine and may
+                  disappear once the machine stops running.
+                </Typography>
+              )}
+            </>
           )}
         </Box>
-      )}
+        <RefreshIndicator
+          seconds={activeTab === 'output' ? outputCountdown : providerCountdown}
+          isRefreshing={
+            activeTab === 'output' ? outputIsValidating : providerIsValidating
+          }
+          onRefresh={handleManualRefresh}
+        />
+      </Box>
       <Box
         sx={{
           mt: activeTab === 'provider' ? 0.5 : 1,
@@ -250,8 +427,10 @@ export default function EmbeddableStreamingOutput({
               jobId={jobId}
               experimentId={experimentInfo.id}
               lineAnimationDelay={5}
-              refreshInterval={2000}
+              refreshInterval={outputRefreshMs}
               initialMessage="Loading job output..."
+              onValidatingChange={handleOutputValidatingChange}
+              onMutateReady={handleOutputMutateReady}
             />
           </Box>
         ) : (
@@ -334,4 +513,5 @@ export default function EmbeddableStreamingOutput({
 
 EmbeddableStreamingOutput.defaultProps = {
   tabs: ['output', 'provider'],
+  jobStatus: '',
 };

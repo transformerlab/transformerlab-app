@@ -96,7 +96,7 @@ class BaseLabResource(ABC):
         # On any error return an empty dict
         for attempt in range(max_retries):
             try:
-                async with await storage.open(json_file, "r", encoding="utf-8") as f:
+                async with await storage.open(json_file, "r", encoding="utf-8", uncached=uncached) as f:
                     content = await f.read()
                     # Clean the content - remove trailing whitespace and extra characters
                     content = content.strip()

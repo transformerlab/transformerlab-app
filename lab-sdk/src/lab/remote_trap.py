@@ -7,6 +7,7 @@ import sys
 from typing import List
 
 from lab import Job, storage
+from lab.job_status import JobStatus
 
 
 async def _set_live_status_async(job_id: str, status: str) -> None:
@@ -19,7 +20,7 @@ async def _set_live_status_async(job_id: str, status: str) -> None:
 
         # If the remote command crashed, also mark the job as FAILED.
         if status == "crashed":
-            await job.update_status("FAILED")
+            await job.update_status(JobStatus.FAILED)
     except Exception:
         # This helper should never cause the wrapped command to fail.
         return
@@ -31,6 +32,18 @@ async def _set_status_async(job_id: str, status: str) -> None:
         job = await Job.get(job_id)
         if job is None:
             return
+
+        # Avoid overriding INTERACTIVE jobs with RUNNING. Interactive jobs are
+        # already considered active, and their status transitions are managed
+        # by the interactive flow instead of tfl-remote-trap.
+        if status == JobStatus.RUNNING:
+            try:
+                current_status = await job.get_status()
+            except Exception:
+                current_status = None
+            if current_status == JobStatus.INTERACTIVE:
+                return
+
         await job.update_status(status)
     except Exception:
         # This helper should never cause the wrapped command to fail.
@@ -156,7 +169,7 @@ def main(argv: List[str] | None = None) -> int:
 
     # Mark job as started.
     _set_live_status("started")
-    _set_status("RUNNING")
+    _set_status(JobStatus.RUNNING)
 
     # Run the original command in the shell so it behaves exactly as submitted.
     # Stream output line-by-line to avoid buffering large logs in memory (training
