@@ -325,9 +325,6 @@ export default function EmbeddableStreamingOutput({
     ? mutateLiveLogs
     : mutateStoredLogs;
 
-  const isNoProviderLogsYet =
-    providerLogsError && (providerLogsError as any).status === 404;
-
   const outputCountdownSec = isActiveJob ? OUTPUT_ACTIVE_SEC : OUTPUT_IDLE_SEC;
   const providerCountdownSec = isActiveJob
     ? PROVIDER_ACTIVE_SEC
@@ -356,8 +353,10 @@ export default function EmbeddableStreamingOutput({
     return null;
   }
 
-  const providerLogText =
-    typeof providerLogsData?.logs === 'string' ? providerLogsData.logs : '';
+  const storedLogText =
+    typeof storedLogsData?.logs === 'string' ? storedLogsData.logs : '';
+  const liveLogText =
+    typeof liveLogsData?.logs === 'string' ? liveLogsData.logs : '';
 
   return (
     <Box
@@ -490,63 +489,142 @@ export default function EmbeddableStreamingOutput({
               gap: 1,
             }}
           >
-            {providerLogsLoading && (
-              <Box
-                sx={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <CircularProgress size="sm" />
-              </Box>
-            )}
-            {isNoProviderLogsYet && (
-              <Box
-                sx={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: 2,
-                }}
-              >
-                <Alert
-                  color="neutral"
-                  variant="soft"
-                  sx={{ maxWidth: '600px', width: '100%' }}
-                >
-                  No provider logs are available for this job yet. The cluster
-                  may not have started or may have already been destroyed.
-                  Please try again later.
-                </Alert>
-              </Box>
-            )}
-            {!providerLogsLoading &&
-              providerLogsError &&
-              !isNoProviderLogsYet && (
+            {/* Stored provider logs */}
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                display: viewLiveProviderLogs ? 'none' : 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              {storedLogsLoading && (
                 <Box
                   sx={{
                     flex: 1,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: 2,
                   }}
                 >
-                  <Alert
-                    color="danger"
-                    variant="soft"
-                    sx={{ maxWidth: '600px', width: '100%' }}
-                  >
-                    {providerLogsError.message}
-                  </Alert>
+                  <CircularProgress size="sm" />
                 </Box>
               )}
-            {!providerLogsLoading && !providerLogsError && (
-              <ProviderLogsTerminal logsText={providerLogText} />
-            )}
+              {storedLogsError &&
+                (storedLogsError as any).status === 404 && (
+                  <Box
+                    sx={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 2,
+                    }}
+                  >
+                    <Alert
+                      color="neutral"
+                      variant="soft"
+                      sx={{ maxWidth: '600px', width: '100%' }}
+                    >
+                      No provider logs are available for this job yet. The
+                      cluster may not have started or may have already been
+                      destroyed. Please try again later.
+                    </Alert>
+                  </Box>
+                )}
+              {!storedLogsLoading &&
+                storedLogsError &&
+                (storedLogsError as any).status !== 404 && (
+                  <Box
+                    sx={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 2,
+                    }}
+                  >
+                    <Alert
+                      color="danger"
+                      variant="soft"
+                      sx={{ maxWidth: '600px', width: '100%' }}
+                    >
+                      {storedLogsError.message}
+                    </Alert>
+                  </Box>
+                )}
+              {!storedLogsLoading && !storedLogsError && (
+                <ProviderLogsTerminal logsText={storedLogText} />
+              )}
+            </Box>
+            {/* Live provider logs */}
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                display: viewLiveProviderLogs ? 'flex' : 'none',
+                flexDirection: 'column',
+              }}
+            >
+              {liveLogsLoading && (
+                <Box
+                  sx={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <CircularProgress size="sm" />
+                </Box>
+              )}
+              {liveLogsError &&
+                (liveLogsError as any).status === 404 && (
+                  <Box
+                    sx={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 2,
+                    }}
+                  >
+                    <Alert
+                      color="neutral"
+                      variant="soft"
+                      sx={{ maxWidth: '600px', width: '100%' }}
+                    >
+                      No live provider logs are available for this job yet.
+                      The machine may not have started or may have already
+                      been destroyed.
+                    </Alert>
+                  </Box>
+                )}
+              {!liveLogsLoading &&
+                liveLogsError &&
+                (liveLogsError as any).status !== 404 && (
+                  <Box
+                    sx={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 2,
+                    }}
+                  >
+                    <Alert
+                      color="danger"
+                      variant="soft"
+                      sx={{ maxWidth: '600px', width: '100%' }}
+                    >
+                      {liveLogsError.message}
+                    </Alert>
+                  </Box>
+                )}
+              {!liveLogsLoading && !liveLogsError && (
+                <ProviderLogsTerminal logsText={liveLogText} />
+              )}
+            </Box>
           </Box>
         )}
       </Box>
