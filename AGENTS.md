@@ -22,6 +22,7 @@
 - **API single test**: `cd api && pytest test/<file>::<test>`
 - **Python lint**: `ruff check`. **Always run `ruff check` and `ruff format` before committing.**
 - **DB migrations**: `cd api && alembic upgrade head`
+- **Dev (no Docker)**: `python scripts/dev.py` — runs both frontend and API side by side with hot reload. Requires the API conda env and Node v22. Checks ports 8338 (API) and 1212 (frontend) on startup and reports conflicts.
 
 ## Architecture
 
