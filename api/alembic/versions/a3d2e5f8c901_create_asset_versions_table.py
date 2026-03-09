@@ -45,16 +45,10 @@ def upgrade() -> None:
             sa.PrimaryKeyConstraint("id"),
         )
         op.create_index("idx_asset_versions_group", "asset_versions", ["asset_type", "group_name"], unique=False)
-        op.create_index(
-            "idx_asset_versions_tag", "asset_versions", ["asset_type", "group_name", "tag"], unique=False
-        )
+        op.create_index("idx_asset_versions_tag", "asset_versions", ["asset_type", "group_name", "tag"], unique=False)
         op.create_index("idx_asset_versions_asset_id", "asset_versions", ["asset_id"], unique=False)
-        op.create_index(
-            op.f("ix_asset_versions_asset_type"), "asset_versions", ["asset_type"], unique=False
-        )
-        op.create_index(
-            op.f("ix_asset_versions_group_name"), "asset_versions", ["group_name"], unique=False
-        )
+        op.create_index(op.f("ix_asset_versions_asset_type"), "asset_versions", ["asset_type"], unique=False)
+        op.create_index(op.f("ix_asset_versions_group_name"), "asset_versions", ["group_name"], unique=False)
         op.create_index(op.f("ix_asset_versions_tag_col"), "asset_versions", ["tag"], unique=False)
 
 

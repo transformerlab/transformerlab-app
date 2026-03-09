@@ -116,8 +116,7 @@ async def list_groups(asset_type: str) -> list[dict]:
 
             # Get tags assigned in this group
             tag_result = await session.execute(
-                select(AssetVersion.tag)
-                .where(
+                select(AssetVersion.tag).where(
                     AssetVersion.asset_type == asset_type,
                     AssetVersion.group_name == group_name,
                     AssetVersion.tag.is_not(None),
@@ -193,7 +192,9 @@ async def resolve_by_tag(asset_type: str, group_name: str, tag: str = "latest") 
         return _row_to_dict(row) if row else None
 
 
-async def resolve(asset_type: str, group_name: str, tag: Optional[str] = None, version: Optional[int] = None) -> Optional[dict]:
+async def resolve(
+    asset_type: str, group_name: str, tag: Optional[str] = None, version: Optional[int] = None
+) -> Optional[dict]:
     """Resolve a specific version of a group.
 
     Resolution priority:
@@ -364,9 +365,7 @@ async def get_all_asset_group_map(asset_type: str) -> dict[str, list[dict]]:
     _validate_asset_type(asset_type)
 
     async with async_session() as session:
-        result = await session.execute(
-            select(AssetVersion).where(AssetVersion.asset_type == asset_type)
-        )
+        result = await session.execute(select(AssetVersion).where(AssetVersion.asset_type == asset_type))
         mapping: dict[str, list[dict]] = {}
         for row in result.scalars().all():
             entry = _row_to_dict(row)

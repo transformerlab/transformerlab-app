@@ -301,9 +301,7 @@ class AssetVersion(Base):
     asset_type: Mapped[str] = mapped_column(String, nullable=False, index=True)  # 'model' or 'dataset'
     group_name: Mapped[str] = mapped_column(String, nullable=False, index=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False)  # Sequential version number within group
-    asset_id: Mapped[str] = mapped_column(
-        String, nullable=False
-    )  # The actual model_id or dataset_id on the filesystem
+    asset_id: Mapped[str] = mapped_column(String, nullable=False)  # The actual model_id or dataset_id on the filesystem
     tag: Mapped[Optional[str]] = mapped_column(
         String, nullable=True, index=True
     )  # 'latest', 'production', 'draft', or NULL
