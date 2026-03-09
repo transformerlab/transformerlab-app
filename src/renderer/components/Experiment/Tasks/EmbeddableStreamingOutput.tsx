@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -9,6 +9,7 @@ import {
   Tabs,
   Typography,
 } from '@mui/joy';
+import { RefreshCwIcon } from 'lucide-react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
@@ -96,6 +97,66 @@ const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
   );
 };
 
+const OUTPUT_REFRESH_SEC = 2;
+const PROVIDER_REFRESH_SEC = 10;
+
+function useCountdown(intervalSec: number, isValidating: boolean) {
+  const [secondsLeft, setSecondsLeft] = useState(intervalSec);
+  const wasValidating = useRef(false);
+
+  // Reset countdown when a fetch completes (validating → not validating)
+  useEffect(() => {
+    if (wasValidating.current && !isValidating) {
+      setSecondsLeft(intervalSec);
+    }
+    wasValidating.current = isValidating;
+  }, [isValidating, intervalSec]);
+
+  // Only tick while not validating
+  useEffect(() => {
+    if (isValidating) return;
+    const interval = setInterval(() => {
+      setSecondsLeft((prev) => (prev <= 1 ? intervalSec : prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [intervalSec, isValidating]);
+
+  return secondsLeft;
+}
+
+function RefreshIndicator({
+  seconds,
+  isRefreshing,
+}: {
+  seconds: number;
+  isRefreshing: boolean;
+}) {
+  return (
+    <Typography
+      level="body-xs"
+      sx={{
+        color: 'neutral.500',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0.5,
+        userSelect: 'none',
+      }}
+    >
+      {isRefreshing ? (
+        <>
+          <CircularProgress size="sm" sx={{ '--CircularProgress-size': '12px', '--CircularProgress-trackThickness': '2px', '--CircularProgress-progressThickness': '2px' }} />
+          refreshing…
+        </>
+      ) : (
+        <>
+          <RefreshCwIcon size={11} />
+          refreshing in {seconds}s
+        </>
+      )}
+    </Typography>
+  );
+}
+
 const TAB_OPTIONS: { value: 'output' | 'provider'; label: string }[] = [
   { value: 'output', label: 'Lab SDK Output' },
   { value: 'provider', label: 'Machine Logs' },
@@ -143,20 +204,28 @@ export default function EmbeddableStreamingOutput({
     );
   }, [experimentInfo?.id, jobId, viewLiveProviderLogs]);
 
+  const [outputIsValidating, setOutputIsValidating] = useState(false);
+  const handleOutputValidatingChange = useCallback((v: boolean) => setOutputIsValidating(v), []);
+
   const {
     data: providerLogsData,
     isError: providerLogsError,
     isLoading: providerLogsLoading,
+    isValidating: providerIsValidating,
   }: {
     data: any;
     isError: any;
     isLoading: boolean;
+    isValidating: boolean;
   } = useSWR(providerLogsUrl, undefined, {
     refreshInterval: 10000,
   });
 
   const isNoProviderLogsYet =
     providerLogsError && (providerLogsError as any).status === 404;
+
+  const outputCountdown = useCountdown(OUTPUT_REFRESH_SEC, outputIsValidating);
+  const providerCountdown = useCountdown(PROVIDER_REFRESH_SEC, providerIsValidating);
 
   if (jobId === -1 || !experimentInfo) {
     return null;
@@ -199,31 +268,45 @@ export default function EmbeddableStreamingOutput({
           </TabList>
         </Tabs>
       )}
-      {activeTab === 'provider' && (
-        <Box
-          sx={{
-            mt: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-          }}
-        >
-          <Checkbox
-            size="sm"
-            checked={viewLiveProviderLogs}
-            onChange={(event) =>
-              setViewLiveProviderLogs(!!event.target.checked)
-            }
-            label="View live provider logs"
-          />
-          {viewLiveProviderLogs && (
-            <Typography level="body-xs" color="warning">
-              Live logs are fetched directly from the remote machine and may
-              disappear once the machine stops running.
-            </Typography>
+      <Box
+        sx={{
+          mt: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1.5,
+          minHeight: 28,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          {activeTab === 'provider' && (
+            <>
+              <Checkbox
+                size="sm"
+                checked={viewLiveProviderLogs}
+                onChange={(event) =>
+                  setViewLiveProviderLogs(!!event.target.checked)
+                }
+                label="View live provider logs"
+              />
+              {viewLiveProviderLogs && (
+                <Typography level="body-xs" color="warning">
+                  Live logs are fetched directly from the remote machine and
+                  may disappear once the machine stops running.
+                </Typography>
+              )}
+            </>
           )}
         </Box>
-      )}
+        <RefreshIndicator
+          seconds={
+            activeTab === 'output' ? outputCountdown : providerCountdown
+          }
+          isRefreshing={
+            activeTab === 'output' ? outputIsValidating : providerIsValidating
+          }
+        />
+      </Box>
       <Box
         sx={{
           mt: activeTab === 'provider' ? 0.5 : 1,
@@ -254,6 +337,7 @@ export default function EmbeddableStreamingOutput({
               lineAnimationDelay={5}
               refreshInterval={2000}
               initialMessage="Loading job output..."
+              onValidatingChange={handleOutputValidatingChange}
             />
           </Box>
         ) : (
