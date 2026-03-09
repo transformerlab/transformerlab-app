@@ -59,6 +59,11 @@ def set_organization_id(organization_id: str | None) -> None:
         _current_tfl_storage_uri.set(None)
 
 
+def get_organization_id() -> str | None:
+    """Return the current organization id from SDK context (or None)."""
+    return _current_org_id.get()
+
+
 def get_orgs_base_dir() -> str:
     """Return the base directory containing org subdirectories.
 
