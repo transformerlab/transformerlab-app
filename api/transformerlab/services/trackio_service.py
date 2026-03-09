@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shutil
 import subprocess
 import sys
 from typing import Any, Dict
@@ -63,29 +64,47 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
     if os.path.exists(cache_dir):
         await storage.rm_tree(cache_dir)
 
-    # Copy directory or file from storage into the local cache directory
+    # Copy directory or file into the local cache directory without going through
+    # the global storage backend for the destination (which may be remote).
     if storage.is_remote_path(source_path):
-        # Remote path (e.g., s3://...) - use storage API
-        src_is_dir = await storage.isdir(source_path)
-        if src_is_dir:
-            await storage.copy_dir(source_path, cache_dir)
-        else:
+        # Remote path (e.g., s3://...) - stream from remote FS into local files
+        src_fs, _ = storage._get_fs_for_path(source_path)  # type: ignore[attr-defined]
+
+        def _copy_remote_tree() -> None:
             os.makedirs(cache_dir, exist_ok=True)
-            dest_file = os.path.join(cache_dir, os.path.basename(source_path))
-            await storage.copy_file(source_path, dest_file)
+            try:
+                src_files = src_fs.find(source_path)
+            except Exception:
+                src_files = []
+                for _dirpath, _dirs, files in src_fs.walk(source_path):
+                    for f in files:
+                        src_files.append(os.path.join(_dirpath, f))
+
+            for raw_src_file in src_files:
+                src_file = raw_src_file
+                rel_path = src_file[len(source_path) :].lstrip("/").lstrip("\\")
+                dest_file = os.path.join(cache_dir, rel_path)
+                dest_parent = os.path.dirname(dest_file)
+                if dest_parent:
+                    os.makedirs(dest_parent, exist_ok=True)
+                with src_fs.open(src_file, "rb") as r, open(dest_file, "wb") as w:
+                    shutil.copyfileobj(r, w)
+
+        await asyncio.to_thread(_copy_remote_tree)
     else:
-        # Local filesystem path
+        # Local filesystem path -> local cache dir
         if not os.path.exists(source_path):
             raise HTTPException(
                 status_code=404,
                 detail=f"Trackio directory not found on server: {source_path}",
             )
         if os.path.isdir(source_path):
-            await storage.copy_dir(source_path, cache_dir)
+            # shutil.copytree with dirs_exist_ok to merge into an existing cache_dir
+            shutil.copytree(source_path, cache_dir, dirs_exist_ok=True)
         else:
             os.makedirs(cache_dir, exist_ok=True)
             dest_file = os.path.join(cache_dir, os.path.basename(source_path))
-            await storage.copy_file(source_path, dest_file)
+            shutil.copy2(source_path, dest_file)
 
     def _launch_trackio_subprocess() -> Dict[str, Any]:
         """
@@ -104,18 +123,16 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
         script_lines = [
             "import os, sys, time",
             "import trackio",
-            "project = os.environ.get('_TRACKIO_PROJECT')",
-            "kwargs = {'open_browser': False, 'block_thread': False}",
-            "if project:",
-            "    kwargs['project'] = project",
+            "kwargs = {'open_browser': False, 'block_thread': False, 'host': '0.0.0.0'}",
             "trackio.show(**kwargs)",
-            # trackio.show() prints a line like:",
-            # '* Trackio UI launched at: http://127.0.0.1:7860/?write_token=...'",
-            # We rely on the parent process to parse this line from stdout.",
             "while True:",
             "    time.sleep(3600)",
         ]
-        script = "; ".join(script_lines)
+        # Use newlines so the while loop has proper Python syntax
+        script = "\n".join(script_lines)
+
+        print(f"Trackio script: {script}")
+        print(f"Trackio env: {env}")
 
         proc = subprocess.Popen(
             [sys.executable, "-c", script],
@@ -177,13 +194,13 @@ async def stop_trackio_for_job(job_id: str) -> None:
         except Exception:
             # Best-effort; ignore termination errors
             pass
-
-    # Best-effort cleanup of the local cache directory for this job
+    # Best-effort cleanup of the local cache directory for this job.
+    # This cache is always on the local filesystem (under HOME_DIR), so we use
+    # shutil.rmtree directly rather than going through the storage backend.
     if isinstance(cache_dir, str) and cache_dir:
         try:
             if os.path.exists(cache_dir):
-                asyncio.get_event_loop().create_task(storage.rm_tree(cache_dir))
+                shutil.rmtree(cache_dir, ignore_errors=True)
         except Exception:
             # Ignore cleanup errors
             pass
-
