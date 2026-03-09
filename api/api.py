@@ -5,6 +5,7 @@ The Entrypoint File for Transformer Lab's API Server.
 import os
 import argparse
 import asyncio
+import re
 
 import json
 import signal
@@ -22,9 +23,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 
+import logging
+
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Allow the log level for all transformerlab.* loggers to be controlled via
+# an env var.  Set TLAB_LOG_LEVEL=DEBUG to enable debug output across the
+# entire application (e.g. sweep-status cycle timings).  Defaults to WARNING
+# so debug/info messages are silent unless explicitly requested.
+logging.getLogger("transformerlab").setLevel(
+    getattr(logging, os.getenv("TLAB_LOG_LEVEL", "WARNING").upper(), logging.WARNING)
+)
 
 
 # Optional Datadog APM (does nothing unless enabled + installed)
@@ -95,6 +106,7 @@ from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
 from lab import storage  # noqa: E402
 from transformerlab.shared.remote_workspace import validate_cloud_credentials  # noqa: E402
 from transformerlab.services.sweep_status_service import start_sweep_status_worker, stop_sweep_status_worker  # noqa: E402
+from transformerlab.services.cache_service import setup as setup_cache  # noqa: E402
 
 
 # The following environment variable can be used by other scripts
@@ -115,6 +127,10 @@ async def lifespan(app: FastAPI):
     from transformerlab.shared import dirs as shared_dirs
 
     await shared_dirs.initialize_dirs()
+
+    # Configure the response cache (backend set via CACHE_URL in cache_service.py)
+    setup_cache()
+    print("✅ CACHE ENABLED")
 
     # Set the temporary image directory for transformerlab (computed async)
     temp_image_dir = storage.join(await get_workspace_dir(), "temp", "images")
@@ -593,6 +609,22 @@ async def healthz():
         "message": "OK",
         "mode": mode,
     }
+
+
+# Middleware to set cache-control headers for static frontend assets.
+# index.html is never cached so users always get the latest version,
+# while content-hashed JS/CSS files are cached for 1 year.
+@app.middleware("http")
+async def static_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    # Hashed assets (e.g. main.a1b2c3d4.js, style.e5f6g7h8.css) — cache immutably
+    if re.search(r"\.[0-9a-f]{8}\.(js|css)$", path):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    # HTML files — never cache
+    elif path == "/" or path.endswith(".html"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
 
 
 # Add an endpoint that serves the static files in the ~/.transformerlab/webapp directory:
