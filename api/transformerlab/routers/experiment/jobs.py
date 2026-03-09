@@ -35,6 +35,8 @@ from lab.dirs import (
     get_job_models_dir,
     get_models_dir,
 )
+from transformerlab.services import asset_version_service
+
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -1403,15 +1405,11 @@ async def save_dataset_to_registry(
       If a dataset with that name already exists, a timestamped suffix is added.
     - mode='existing': Merge into an existing dataset in the registry. target_name must be provided and must
       refer to an existing dataset. Files from the job dataset are copied into the existing dataset directory.
-<<<<<<< add/model-dataset-group
 
     In both modes a new version entry is recorded in the asset_versions table
     so the asset can be tracked as part of a versioned group.
     """
     from transformerlab.services import asset_version_service
-=======
-    """
->>>>>>> main
 
     try:
         # Secure the source dataset name
@@ -1463,7 +1461,6 @@ async def save_dataset_to_registry(
             except Exception as copy_err:
                 print(f"Storage.copy_dir failed: {copy_err}")
 
-<<<<<<< add/model-dataset-group
         # Create a version entry for the dataset
         group_name = dataset_name_secure
         version_entry = await asset_version_service.create_version(
@@ -1479,9 +1476,6 @@ async def save_dataset_to_registry(
             "message": f"Dataset saved to registry as '{dataset_name_secure}'",
             "version": version_entry,
         }
-=======
-            return {"status": "success", "message": f"Dataset saved to registry as '{final_name}'"}
->>>>>>> main
 
     except HTTPException:
         raise
@@ -1494,11 +1488,6 @@ async def save_dataset_to_registry(
 
 
 @router.post("/{job_id}/models/{model_name}/save_to_registry")
-<<<<<<< add/model-dataset-group
-async def save_model_to_registry(job_id: str, model_name: str):
-    """Copy a model from job's models directory to the global models registry"""
-    from transformerlab.services import asset_version_service
-=======
 async def save_model_to_registry(
     job_id: str,
     model_name: str,
@@ -1515,7 +1504,6 @@ async def save_model_to_registry(
     - mode='existing': Merge into an existing model in the registry. target_name must be provided and must
       refer to an existing model. Files from the job model are copied into the existing model directory.
     """
->>>>>>> main
 
     try:
         # Secure the source model name
@@ -1564,7 +1552,6 @@ async def save_model_to_registry(
             except Exception as copy_err:
                 print(f"storage.copy_dir failed: {copy_err}")
 
-<<<<<<< add/model-dataset-group
         # Create a version entry for the model
         group_name = model_name_secure
         version_entry = await asset_version_service.create_version(
@@ -1580,9 +1567,6 @@ async def save_model_to_registry(
             "message": f"Model saved to registry as '{model_name_secure}'",
             "version": version_entry,
         }
-=======
-            return {"status": "success", "message": f"Model saved to registry as '{final_name}'"}
->>>>>>> main
 
     except HTTPException:
         raise
