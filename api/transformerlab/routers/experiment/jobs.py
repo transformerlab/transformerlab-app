@@ -106,7 +106,7 @@ async def job_delete_all(experimentId: str):
 
 @router.get("/{job_id}")
 async def get_training_job(job_id: str):
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get_cached(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     return job
@@ -119,7 +119,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
     Uses the same logic as stream_job_output but returns content directly.
     """
     try:
-        job = await job_service.job_get(job_id)
+        job = await job_service.job_get_cached(job_id)
         if job is None:
             return "Job not found"
 
@@ -211,7 +211,7 @@ async def get_provider_job_logs(
       2. Otherwise, fall back to provider-native log retrieval (existing behavior).
     """
 
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get_cached(job_id)
     if not job or str(job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
