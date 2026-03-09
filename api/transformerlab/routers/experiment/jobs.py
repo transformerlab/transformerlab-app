@@ -46,8 +46,7 @@ async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subt
     Return the list of jobs for an experiment, optionally filtered by type/status/subtype.
     Results are cached per provider/remote/org using the shared OrgScopedCache.
     """
-    subtype_key = subtype or "*"
-    cache_key = f"jobs:list:{experimentId}:{type}:{status}:{subtype_key}"
+    cache_key = f"jobs:list:{experimentId}:{type}:{status}"
 
     async def _load() -> List[dict]:
         return await job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
