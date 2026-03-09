@@ -6,13 +6,14 @@ from typing import Any, Dict, List, Optional
 
 from lab import Experiment
 from lab.dirs import set_organization_id as lab_set_org_id
+from lab.job_status import JobStatus
 
 from transformerlab.services import job_service, team_service
 
 logger = logging.getLogger(__name__)
 
-ACTIVE_SWEEP_PARENT_STATUSES = {"RUNNING", "LAUNCHING"}
-RUNNING_CHILD_STATUSES = {"RUNNING", "LAUNCHING"}
+ACTIVE_SWEEP_PARENT_STATUSES = {JobStatus.RUNNING, JobStatus.LAUNCHING}
+RUNNING_CHILD_STATUSES = {JobStatus.RUNNING, JobStatus.LAUNCHING}
 SWEEP_STATUS_INTERVAL_SECONDS = int(os.getenv("SWEEP_STATUS_INTERVAL_SECONDS", "30"))
 
 # Cap concurrent S3 reads when fetching child jobs within a single sweep refresh.
@@ -64,13 +65,13 @@ def compute_parent_sweep_counts(parent_job: Dict[str, Any], child_jobs: List[Dic
 
     for child_job in child_jobs:
         child_status = child_job.get("status", "")
-        if child_status == "COMPLETE":
+        if child_status == JobStatus.COMPLETE:
             completed_count += 1
-        elif child_status in {"FAILED", "STOPPED", "DELETED"}:
+        elif child_status in {JobStatus.FAILED, JobStatus.STOPPED, JobStatus.DELETED}:
             failed_count += 1
         elif child_status in RUNNING_CHILD_STATUSES:
             running_count += 1
-        elif child_status == "QUEUED":
+        elif child_status == JobStatus.QUEUED:
             queued_count += 1
 
     progress = int((completed_count / sweep_total) * 100) if sweep_total > 0 else 0
@@ -112,7 +113,7 @@ async def apply_parent_sweep_updates(
             time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
             experiment_id,
         )
-        await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
+        await job_service.job_update_status(job_id, JobStatus.COMPLETE, experiment_id=experiment_id)
 
     return job  # caller only checks truthiness; avoids a redundant S3 re-fetch
 
