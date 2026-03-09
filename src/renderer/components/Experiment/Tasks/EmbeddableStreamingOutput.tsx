@@ -83,8 +83,9 @@ const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
     if (!termRef.current) return;
 
     const text = logsText || 'No provider log data yet.';
-    // Clear screen and move cursor to home
-    termRef.current.write('\x1b[2J\x1b[H');
+    // Clear viewport and scrollback buffer, then move cursor to home
+    termRef.current.clear();
+    termRef.current.write('\x1b[H');
     const normalized = text.replace(/\r\n/g, '\n');
     const lines = normalized.split('\n');
     lines.forEach((line) => {
