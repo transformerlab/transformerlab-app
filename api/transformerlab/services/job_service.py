@@ -8,7 +8,7 @@ from lab import Experiment, Job
 from lab import dirs as lab_dirs
 from lab import storage
 
-from transformerlab.compute_providers.models import JobState
+from lab.job_status import JobStatus, TERMINAL_STATUSES
 from transformerlab.services.cache_service import cache
 
 # Allowed job types:
@@ -32,6 +32,11 @@ async def job_create(type, status, experiment_id, job_data="{}"):
     # check if type is allowed
     if type not in ALLOWED_JOB_TYPES:
         raise ValueError(f"Job type {type} is not allowed")
+
+    try:
+        JobStatus(status)
+    except ValueError:
+        raise ValueError(f"Invalid job status: {status!r}. Must be one of: {[s.value for s in JobStatus]}")
 
     # Ensure job_data is a dict. If it's a string convert it.
     if isinstance(job_data, str):
@@ -70,16 +75,10 @@ async def jobs_get_by_experiment(experiment_id):
 def is_terminal_state(status: Optional[str]) -> bool:
     """
     Determine whether a job status represents a terminal state.
-    Uses the normalized JobState enum where possible but accepts raw strings.
     """
     if not status:
         return False
-    try:
-        state = JobState(status)
-    except ValueError:
-        # Fall back to common terminal strings for legacy statuses.
-        return status.lower() in ("complete", "completed", "stopped", "failed", "deleted", "cancelled")
-    return state in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
+    return status in TERMINAL_STATUSES
 
 
 def _job_cache_key(job_id: str) -> str:
@@ -247,7 +246,7 @@ async def job_update_job_data_insert_key_value(job_id, key, value, experiment_id
 async def job_stop(job_id, experiment_id):
     print("Stopping job: " + str(job_id))
     await job_update_job_data_insert_key_value(job_id, "stop", True, experiment_id)
-    await job_update_status(job_id, "STOPPING", experiment_id=experiment_id)
+    await job_update_status(job_id, JobStatus.STOPPING, experiment_id=experiment_id)
 
 
 async def job_update_progress(job_id, progress, experiment_id):
@@ -452,11 +451,11 @@ async def _record_quota_usage_internal(
 
     # Get end time based on status
     end_time_str = None
-    if final_status == "COMPLETE":
+    if final_status == JobStatus.COMPLETE:
         end_time_str = job_data.get("end_time")
-    elif final_status == "STOPPED":
+    elif final_status == JobStatus.STOPPED:
         end_time_str = job_data.get("stop_time") or job_data.get("end_time")
-    elif final_status in ("FAILED", "DELETED"):
+    elif final_status in (JobStatus.FAILED, JobStatus.DELETED):
         end_time_str = job_data.get("end_time") or datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
     if not end_time_str:
@@ -534,6 +533,11 @@ async def job_update_status(
         error_msg: Optional error message to add to job data
         session: Optional database session for quota tracking. If not provided, quota tracking will use a background task.
     """
+    try:
+        JobStatus(status)
+    except ValueError:
+        raise ValueError(f"Invalid job status: {status!r}. Must be one of: {[s.value for s in JobStatus]}")
+
     # Get old status before updating for queue management
     try:
         job = await Job.get(job_id)
@@ -549,7 +553,7 @@ async def job_update_status(
         pass
 
     # Track quota for REMOTE jobs when they transition to terminal states
-    if status in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
+    if status in (JobStatus.COMPLETE, JobStatus.STOPPED, JobStatus.FAILED, JobStatus.DELETED):
         try:
             job_dict = await job.get_json_data() if job else {}
             if job_dict.get("type") == "REMOTE":
@@ -691,8 +695,8 @@ def job_mark_as_complete_if_running(job_id: int, org_id: str) -> None:
 
             # Only update if currently running
             status = asyncio.run(job.get_status())
-            if status == "RUNNING":
-                asyncio.run(job.update_status("COMPLETE"))
+            if status == JobStatus.RUNNING:
+                asyncio.run(job.update_status(JobStatus.COMPLETE))
         finally:
             # Clear org context
             if org_id:

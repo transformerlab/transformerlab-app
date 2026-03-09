@@ -1,5 +1,6 @@
 from lab import Experiment, Job
 from lab.dirs import get_jobs_dir
+from lab.job_status import JobStatus
 from lab import storage
 from lab import HOME_DIR
 from lab import dirs as lab_dirs
@@ -399,14 +400,14 @@ async def cancel_in_progress_jobs():
                                         # Extract the job ID from the path
                                         job_id = entry_path.rstrip("/").split("/")[-1]
                                         job = await Job.get(job_id)
-                                        if await job.get_status() == "RUNNING":
+                                        if await job.get_status() == JobStatus.RUNNING:
                                             # Skip REMOTE jobs - they should not be cancelled on startup
                                             job_data = await job.get_json_data(uncached=True)
                                             job_type = job_data.get("type", "")
                                             if job_type == "REMOTE":
                                                 print(f"Skipping REMOTE job: {job_id} (org: {org_id})")
                                             else:
-                                                await job.update_status("CANCELLED")
+                                                await job.update_status(JobStatus.CANCELLED)
                                                 print(f"Cancelled running job: {job_id} (org: {org_id})")
                                     except Exception:
                                         # If we can't access the job, continue to the next one

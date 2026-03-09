@@ -16,6 +16,7 @@ from . import storage
 from .dataset import Dataset
 from .task_template import TaskTemplate
 from .generation import GenerationModel, load_generation_model as _load_generation_model
+from .job_status import JobStatus
 
 
 logger = logging.getLogger(__name__)
@@ -115,7 +116,7 @@ class Lab:
             logger.info(f"Created new job ID: {self._job.id}")
 
         # Update status to RUNNING for both cases
-        _run_async(self._job.update_status("RUNNING"))
+        _run_async(self._job.update_status(JobStatus.RUNNING))
 
         # Best-effort marker so UIs can distinguish jobs where lab has been
         # explicitly initialized. This reuses the existing live_status field
@@ -497,7 +498,7 @@ class Lab:
         """
         self._ensure_initialized()
         _run_async(self._job.update_progress(100))  # type: ignore[union-attr]
-        _run_async(self._job.update_status("COMPLETE"))  # type: ignore[union-attr]
+        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_status", "success"))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_details", message))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))  # type: ignore[union-attr]
@@ -1370,11 +1371,11 @@ class Lab:
         Mark the job as failed and set completion metadata.
         """
         self._ensure_initialized()
-        _run_async(self._job.update_status("COMPLETE"))  # type: ignore[union-attr]
+        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_status", "failed"))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_details", message))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))  # type: ignore[union-attr]
-        _run_async(self._job.update_job_data_field("status", "FAILED"))  # type: ignore[union-attr]
+        _run_async(self._job.update_job_data_field("status", JobStatus.FAILED))  # type: ignore[union-attr]
 
     def _detect_and_capture_wandb_url(self) -> None:
         """
