@@ -26,6 +26,7 @@ from fastapi.responses import JSONResponse
 import logging
 
 from dotenv import load_dotenv
+from lab.job_status import JobStatus
 
 load_dotenv()
 
@@ -483,7 +484,9 @@ async def server_worker_start(
         await global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
     # Pass organization_id as environment variable to subprocess
-    org_id = await shared._get_org_id_for_subprocess()
+    from lab.dirs import get_organization_id
+
+    org_id = get_organization_id()
     subprocess_env = {}
     if org_id:
         subprocess_env["_TFL_ORG_ID"] = org_id
@@ -518,7 +521,7 @@ async def server_worker_start(
             error_msg = job["job_data"].get("error_msg")
         if not error_msg:
             error_msg = f"Exit code {exitcode}"
-            await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
+            await job_update_status(job_id, JobStatus.FAILED, experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "error", "message": error_msg}
     from lab.dirs import get_global_log_path
 

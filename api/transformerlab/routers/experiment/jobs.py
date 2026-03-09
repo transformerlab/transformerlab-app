@@ -1366,7 +1366,7 @@ async def get_job_datasets(job_id: str, request: Request):
         from lab.dirs import get_job_datasets_dir
 
         datasets_dir = await get_job_datasets_dir(job_id)
-        datasets = await job_service.get_datasets_from_directory(datasets_dir, storage)
+        datasets = await job_service.get_datasets_from_directory(datasets_dir)
     except Exception as e:
         print(f"Error getting datasets for job {job_id}: {e}")
         datasets = []
@@ -1387,7 +1387,7 @@ async def get_job_models(job_id: str, request: Request):
         from lab.dirs import get_job_models_dir
 
         models_dir = await get_job_models_dir(job_id)
-        models = await job_service.get_models_from_directory(models_dir, storage)
+        models = await job_service.get_models_from_directory(models_dir)
     except Exception as e:
         print(f"Error getting models for job {job_id}: {e}")
         models = []
