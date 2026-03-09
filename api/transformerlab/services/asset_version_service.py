@@ -8,7 +8,7 @@ and resolving assets by tag or version number.
 
 from typing import Optional
 
-from sqlalchemy import select, func, and_, update
+from sqlalchemy import select, func, update
 
 from transformerlab.shared.models.models import AssetVersion
 from transformerlab.db.session import async_session
