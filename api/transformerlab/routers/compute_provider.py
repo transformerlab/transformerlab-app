@@ -2293,9 +2293,7 @@ async def check_provider_job_status(
             end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
             await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
             # Pass session to job_update_status so quota tracking uses the same session
-            await job_service.job_update_status(
-                job_id, final_status, experiment_id=experiment_id, session=session
-            )
+            await job_service.job_update_status(job_id, final_status, experiment_id=experiment_id, session=session)
             # Commit the session to ensure quota tracking is persisted
             await session.commit()
 
