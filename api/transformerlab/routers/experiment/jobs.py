@@ -1466,14 +1466,14 @@ async def save_dataset_to_registry(
         version_entry = await asset_version_service.create_version(
             asset_type="dataset",
             group_name=group_name,
-            asset_id=dataset_name_secure,
+            asset_id=final_name,
             job_id=job_id,
             description=f"Created from job {job_id}",
         )
 
         return {
             "status": "success",
-            "message": f"Dataset saved to registry as '{dataset_name_secure}'",
+            "message": f"Dataset saved to registry as '{final_name}'",
             "version": version_entry,
         }
 
@@ -1557,14 +1557,14 @@ async def save_model_to_registry(
         version_entry = await asset_version_service.create_version(
             asset_type="model",
             group_name=group_name,
-            asset_id=model_name_secure,
+            asset_id=final_name,
             job_id=job_id,
             description=f"Created from job {job_id}",
         )
 
         return {
             "status": "success",
-            "message": f"Model saved to registry as '{model_name_secure}'",
+            "message": f"Model saved to registry as '{final_name}'",
             "version": version_entry,
         }
 
