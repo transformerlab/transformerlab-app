@@ -60,7 +60,7 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
     safe_org = str(org_id or "unknown_org")
     safe_exp = str(experiment_id or "unknown_exp")
     cache_root = os.path.join(HOME_DIR, "temp", "trackio")
-    cache_dir = os.path.join(cache_root, f"{safe_org}_{safe_exp}_{job_id}")
+    cache_dir = os.path.join(cache_root, f"{safe_org}_{safe_exp}_{safe_job_id}")
 
     # Ensure cache root exists
     os.makedirs(cache_root, exist_ok=True)
