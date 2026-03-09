@@ -82,7 +82,12 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
     jobId.toString(),
   );
 
-  const { data: outputData, error, isValidating, mutate } = useSWR(
+  const {
+    data: outputData,
+    error,
+    isValidating,
+    mutate,
+  } = useSWR(
     outputEndpoint,
     async (url: string) => {
       const response = await chatAPI.authenticatedFetch(url);

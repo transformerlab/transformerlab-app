@@ -50,7 +50,11 @@ function ViewOutputModalStreaming({
         <Typography level="title-lg" sx={{ mb: 1 }}>
           {title}
         </Typography>
-        <EmbeddableStreamingOutput jobId={jobId} tabs={tabs} jobStatus={jobStatus} />
+        <EmbeddableStreamingOutput
+          jobId={jobId}
+          tabs={tabs}
+          jobStatus={jobStatus}
+        />
       </ModalDialog>
     </Modal>
   );

@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Alert,
   Box,
@@ -100,7 +106,14 @@ const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
   );
 };
 
-const ACTIVE_STATUSES = new Set(['RUNNING', 'LAUNCHING', 'INTERACTIVE', 'WAITING', 'QUEUED', 'STOPPING']);
+const ACTIVE_STATUSES = new Set([
+  'RUNNING',
+  'LAUNCHING',
+  'INTERACTIVE',
+  'WAITING',
+  'QUEUED',
+  'STOPPING',
+]);
 
 const OUTPUT_ACTIVE_SEC = 5;
 const OUTPUT_IDLE_SEC = 60;
@@ -156,13 +169,18 @@ function RefreshIndicator({
       >
         {isRefreshing ? (
           <>
-            <CircularProgress size="sm" sx={{ '--CircularProgress-size': '12px', '--CircularProgress-trackThickness': '2px', '--CircularProgress-progressThickness': '2px' }} />
+            <CircularProgress
+              size="sm"
+              sx={{
+                '--CircularProgress-size': '12px',
+                '--CircularProgress-trackThickness': '2px',
+                '--CircularProgress-progressThickness': '2px',
+              }}
+            />
             refreshing…
           </>
         ) : (
-          <>
-            refreshing in {seconds}s
-          </>
+          <>refreshing in {seconds}s</>
         )}
       </Typography>
       {onRefresh && !isRefreshing && (
@@ -231,13 +249,22 @@ export default function EmbeddableStreamingOutput({
   }, [experimentInfo?.id, jobId, viewLiveProviderLogs]);
 
   const [outputIsValidating, setOutputIsValidating] = useState(false);
-  const handleOutputValidatingChange = useCallback((v: boolean) => setOutputIsValidating(v), []);
+  const handleOutputValidatingChange = useCallback(
+    (v: boolean) => setOutputIsValidating(v),
+    [],
+  );
   const outputMutateRef = useRef<(() => void) | null>(null);
-  const handleOutputMutateReady = useCallback((m: () => void) => { outputMutateRef.current = m; }, []);
+  const handleOutputMutateReady = useCallback((m: () => void) => {
+    outputMutateRef.current = m;
+  }, []);
 
   const isActiveJob = ACTIVE_STATUSES.has(jobStatus);
-  const outputRefreshMs = isActiveJob ? OUTPUT_ACTIVE_SEC * 1000 : OUTPUT_IDLE_SEC * 1000;
-  const providerRefreshMs = isActiveJob ? PROVIDER_ACTIVE_SEC * 1000 : PROVIDER_IDLE_SEC * 1000;
+  const outputRefreshMs = isActiveJob
+    ? OUTPUT_ACTIVE_SEC * 1000
+    : OUTPUT_IDLE_SEC * 1000;
+  const providerRefreshMs = isActiveJob
+    ? PROVIDER_ACTIVE_SEC * 1000
+    : PROVIDER_IDLE_SEC * 1000;
 
   const {
     data: providerLogsData,
@@ -259,9 +286,13 @@ export default function EmbeddableStreamingOutput({
     providerLogsError && (providerLogsError as any).status === 404;
 
   const outputCountdownSec = isActiveJob ? OUTPUT_ACTIVE_SEC : OUTPUT_IDLE_SEC;
-  const providerCountdownSec = isActiveJob ? PROVIDER_ACTIVE_SEC : PROVIDER_IDLE_SEC;
-  const { secondsLeft: outputCountdown, reset: resetOutputCountdown } = useCountdown(outputCountdownSec, outputIsValidating);
-  const { secondsLeft: providerCountdown, reset: resetProviderCountdown } = useCountdown(providerCountdownSec, providerIsValidating);
+  const providerCountdownSec = isActiveJob
+    ? PROVIDER_ACTIVE_SEC
+    : PROVIDER_IDLE_SEC;
+  const { secondsLeft: outputCountdown, reset: resetOutputCountdown } =
+    useCountdown(outputCountdownSec, outputIsValidating);
+  const { secondsLeft: providerCountdown, reset: resetProviderCountdown } =
+    useCountdown(providerCountdownSec, providerIsValidating);
 
   const handleManualRefresh = useCallback(() => {
     if (activeTab === 'output') {
@@ -271,7 +302,12 @@ export default function EmbeddableStreamingOutput({
       mutateProviderLogs();
       resetProviderCountdown();
     }
-  }, [activeTab, mutateProviderLogs, resetOutputCountdown, resetProviderCountdown]);
+  }, [
+    activeTab,
+    mutateProviderLogs,
+    resetOutputCountdown,
+    resetProviderCountdown,
+  ]);
 
   if (jobId === -1 || !experimentInfo) {
     return null;
@@ -348,17 +384,15 @@ export default function EmbeddableStreamingOutput({
               />
               {viewLiveProviderLogs && (
                 <Typography level="body-xs" color="warning">
-                  Live logs are fetched directly from the remote machine and
-                  may disappear once the machine stops running.
+                  Live logs are fetched directly from the remote machine and may
+                  disappear once the machine stops running.
                 </Typography>
               )}
             </>
           )}
         </Box>
         <RefreshIndicator
-          seconds={
-            activeTab === 'output' ? outputCountdown : providerCountdown
-          }
+          seconds={activeTab === 'output' ? outputCountdown : providerCountdown}
           isRefreshing={
             activeTab === 'output' ? outputIsValidating : providerIsValidating
           }

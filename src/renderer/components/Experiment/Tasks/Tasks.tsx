@@ -1269,7 +1269,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={(jobId: number) => setViewOutputFromJob(jobId)}
-        jobStatus={jobs?.find((j: any) => j.id === viewOutputFromJob)?.status || ''}
+        jobStatus={
+          jobs?.find((j: any) => j.id === viewOutputFromJob)?.status || ''
+        }
       />
       <ViewArtifactsModal
         open={viewArtifactsFromJob !== -1}
