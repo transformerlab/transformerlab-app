@@ -1695,8 +1695,6 @@ async def launch_template_on_provider(
     if request.enable_trackio:
         env_vars["TLAB_TRACKIO_AUTO_INIT"] = "true"
 
-    print(f"Trackio auto-init: {env_vars}")
-
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
     try:

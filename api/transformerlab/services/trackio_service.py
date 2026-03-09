@@ -10,6 +10,8 @@ from fastapi import HTTPException
 from lab import HOME_DIR, storage
 from lab.job import Job
 
+from werkzeug.utils import secure_filename
+
 
 _TRACKIO_PROCESSES: Dict[str, Dict[str, Any]] = {}
 
@@ -22,6 +24,9 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
     TRACKIO_DIR for a dedicated Trackio subprocess, so each job can have isolated
     metrics storage.
     """
+    # Sanitize identifiers before they are used in any filesystem paths or keys.
+    safe_job_id = secure_filename(job_id) or job_id
+
     try:
         job = await Job.get(job_id)
     except Exception:
@@ -93,18 +98,36 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
         await asyncio.to_thread(_copy_remote_tree)
     else:
         # Local filesystem path -> local cache dir
-        if not os.path.exists(source_path):
+        # Constrain local source paths to live under the lab HOME_DIR to avoid
+        # copying from arbitrary locations on the filesystem.
+        safe_root = os.path.realpath(HOME_DIR)
+        normalized_source_path = os.path.realpath(source_path)
+        try:
+            # Ensure the normalized source path is within the safe root.
+            if os.path.commonpath([safe_root, normalized_source_path]) != safe_root:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid Trackio directory path",
+                )
+        except ValueError:
+            # os.path.commonpath can raise ValueError on different drive letters
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid Trackio directory path",
+            )
+
+        if not os.path.exists(normalized_source_path):
             raise HTTPException(
                 status_code=404,
                 detail=f"Trackio directory not found on server: {source_path}",
             )
-        if os.path.isdir(source_path):
+        if os.path.isdir(normalized_source_path):
             # shutil.copytree with dirs_exist_ok to merge into an existing cache_dir
-            shutil.copytree(source_path, cache_dir, dirs_exist_ok=True)
+            shutil.copytree(normalized_source_path, cache_dir, dirs_exist_ok=True)
         else:
             os.makedirs(cache_dir, exist_ok=True)
-            dest_file = os.path.join(cache_dir, os.path.basename(source_path))
-            shutil.copy2(source_path, dest_file)
+            dest_file = os.path.join(cache_dir, os.path.basename(normalized_source_path))
+            shutil.copy2(normalized_source_path, dest_file)
 
     def _launch_trackio_subprocess() -> Dict[str, Any]:
         """
@@ -130,9 +153,6 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
         ]
         # Use newlines so the while loop has proper Python syntax
         script = "\n".join(script_lines)
-
-        print(f"Trackio script: {script}")
-        print(f"Trackio env: {env}")
 
         proc = subprocess.Popen(
             [sys.executable, "-c", script],
@@ -173,7 +193,9 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
             detail=f"Failed to start Trackio dashboard: {e}",
         ) from e
 
-    _TRACKIO_PROCESSES[job_id] = result
+    # Use sanitized job identifier as the key for tracking subprocess state.
+    safe_job_id = secure_filename(job_id) or job_id
+    _TRACKIO_PROCESSES[safe_job_id] = result
     return {"url": result["url"]}
 
 
@@ -181,7 +203,8 @@ async def stop_trackio_for_job(job_id: str) -> None:
     """
     Stop a Trackio dashboard subprocess for the given job, if one is running.
     """
-    info = _TRACKIO_PROCESSES.pop(job_id, None)
+    safe_job_id = secure_filename(job_id) or job_id
+    info = _TRACKIO_PROCESSES.pop(safe_job_id, None)
     if not info:
         return
 
