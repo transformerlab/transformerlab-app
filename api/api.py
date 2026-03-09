@@ -107,6 +107,7 @@ from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
 from lab import storage  # noqa: E402
 from transformerlab.shared.remote_workspace import validate_cloud_credentials  # noqa: E402
 from transformerlab.services.sweep_status_service import start_sweep_status_worker, stop_sweep_status_worker  # noqa: E402
+from transformerlab.services.cache_service import setup as setup_cache  # noqa: E402
 
 
 # The following environment variable can be used by other scripts
@@ -127,6 +128,10 @@ async def lifespan(app: FastAPI):
     from transformerlab.shared import dirs as shared_dirs
 
     await shared_dirs.initialize_dirs()
+
+    # Configure the response cache (backend set via CACHE_URL in cache_service.py)
+    setup_cache()
+    print("✅ CACHE ENABLED")
 
     # Set the temporary image directory for transformerlab (computed async)
     temp_image_dir = storage.join(await get_workspace_dir(), "temp", "images")
