@@ -283,3 +283,213 @@ def test_save_dataset_and_model_from_same_job(client, tmp_workspace):
     reg_model = tmp_workspace["models_dir"] / model_name
     assert reg_model.exists()
     assert (reg_model / "model.safetensors").read_text() == "trained-weights"
+
+
+# ---------------------------------------------------------------------------
+# Save dataset to registry with custom name (mode='new', target_name)
+# ---------------------------------------------------------------------------
+
+
+def test_save_dataset_to_registry_with_custom_name(client, tmp_workspace):
+    """Saving a dataset with a custom target_name uses that name in the registry."""
+    job_id = "42"
+    dataset_name = "my-dataset"
+    custom_name = "custom-dataset"
+    _seed_job_dataset(tmp_workspace, job_id, dataset_name, content='{"row":1}')
+
+    registry_path = tmp_workspace["datasets_dir"] / custom_name
+    assert not registry_path.exists()
+
+    resp = client.post(
+        f"/experiment/alpha/jobs/{job_id}/datasets/{dataset_name}/save_to_registry",
+        params={"target_name": custom_name, "mode": "new"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "success"
+    assert custom_name in resp.json()["message"]
+
+    assert registry_path.exists()
+    assert (registry_path / "data.jsonl").read_text() == '{"row":1}'
+
+
+def test_save_dataset_to_registry_custom_name_duplicate_gets_timestamp(client, tmp_workspace):
+    """Saving with a custom name that already exists adds a timestamp suffix."""
+    job_id = "42"
+    dataset_name = "my-dataset"
+    custom_name = "existing-ds"
+    _seed_job_dataset(tmp_workspace, job_id, dataset_name, content="v2")
+
+    # Pre-create the custom name in the registry
+    existing = tmp_workspace["datasets_dir"] / custom_name
+    existing.mkdir()
+    (existing / "data.jsonl").write_text("v1")
+
+    resp = client.post(
+        f"/experiment/alpha/jobs/{job_id}/datasets/{dataset_name}/save_to_registry",
+        params={"target_name": custom_name, "mode": "new"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    saved_name = body["message"].split("'")[1]
+    assert saved_name.startswith(custom_name)
+    assert saved_name != custom_name
+
+    # Original untouched
+    assert (existing / "data.jsonl").read_text() == "v1"
+    # New copy exists
+    assert (tmp_workspace["datasets_dir"] / saved_name).exists()
+
+
+# ---------------------------------------------------------------------------
+# Save dataset to registry with mode='existing'
+# ---------------------------------------------------------------------------
+
+
+def test_save_dataset_to_existing_registry_entry(client, tmp_workspace):
+    """mode='existing' merges files into an existing registry dataset."""
+    job_id = "42"
+    dataset_name = "my-dataset"
+    existing_name = "registry-dataset"
+    _seed_job_dataset(tmp_workspace, job_id, dataset_name, content='{"row":"new"}')
+
+    # Pre-create the target in the registry
+    existing = tmp_workspace["datasets_dir"] / existing_name
+    existing.mkdir()
+    (existing / "old_file.jsonl").write_text("old")
+
+    resp = client.post(
+        f"/experiment/alpha/jobs/{job_id}/datasets/{dataset_name}/save_to_registry",
+        params={"target_name": existing_name, "mode": "existing"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "success"
+    assert "merged" in resp.json()["message"].lower() or existing_name in resp.json()["message"]
+
+
+def test_save_dataset_to_existing_requires_target_name(client, tmp_workspace):
+    """mode='existing' without target_name returns 400."""
+    job_id = "42"
+    dataset_name = "my-dataset"
+    _seed_job_dataset(tmp_workspace, job_id, dataset_name)
+
+    resp = client.post(
+        f"/experiment/alpha/jobs/{job_id}/datasets/{dataset_name}/save_to_registry",
+        params={"mode": "existing"},
+    )
+    assert resp.status_code == 400
+
+
+def test_save_dataset_to_nonexistent_existing_returns_404(client, tmp_workspace):
+    """mode='existing' with a target_name that doesn't exist returns 404."""
+    job_id = "42"
+    dataset_name = "my-dataset"
+    _seed_job_dataset(tmp_workspace, job_id, dataset_name)
+
+    resp = client.post(
+        f"/experiment/alpha/jobs/{job_id}/datasets/{dataset_name}/save_to_registry",
+        params={"target_name": "nonexistent", "mode": "existing"},
+    )
+    assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Save model to registry with custom name (mode='new', target_name)
+# ---------------------------------------------------------------------------
+
+
+def test_save_model_to_registry_with_custom_name(client, tmp_workspace):
+    """Saving a model with a custom target_name uses that name in the registry."""
+    job_id = "42"
+    model_name = "my-model"
+    custom_name = "custom-model"
+    _seed_job_model(tmp_workspace, job_id, model_name, content="weights-v1")
+
+    registry_path = tmp_workspace["models_dir"] / custom_name
+    assert not registry_path.exists()
+
+    resp = client.post(
+        f"/experiment/alpha/jobs/{job_id}/models/{model_name}/save_to_registry",
+        params={"target_name": custom_name, "mode": "new"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "success"
+    assert custom_name in resp.json()["message"]
+
+    assert registry_path.exists()
+    assert (registry_path / "model.safetensors").read_text() == "weights-v1"
+
+
+def test_save_model_to_registry_custom_name_duplicate_gets_timestamp(client, tmp_workspace):
+    """Saving with a custom name that already exists adds a timestamp suffix."""
+    job_id = "42"
+    model_name = "my-model"
+    custom_name = "existing-model"
+    _seed_job_model(tmp_workspace, job_id, model_name, content="weights-v2")
+
+    existing = tmp_workspace["models_dir"] / custom_name
+    existing.mkdir()
+    (existing / "model.safetensors").write_text("weights-v1")
+
+    resp = client.post(
+        f"/experiment/alpha/jobs/{job_id}/models/{model_name}/save_to_registry",
+        params={"target_name": custom_name, "mode": "new"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    saved_name = body["message"].split("'")[1]
+    assert saved_name.startswith(custom_name)
+    assert saved_name != custom_name
+
+    assert (existing / "model.safetensors").read_text() == "weights-v1"
+    assert (tmp_workspace["models_dir"] / saved_name).exists()
+
+
+# ---------------------------------------------------------------------------
+# Save model to registry with mode='existing'
+# ---------------------------------------------------------------------------
+
+
+def test_save_model_to_existing_registry_entry(client, tmp_workspace):
+    """mode='existing' merges files into an existing registry model."""
+    job_id = "42"
+    model_name = "my-model"
+    existing_name = "registry-model"
+    _seed_job_model(tmp_workspace, job_id, model_name, content="new-weights")
+
+    existing = tmp_workspace["models_dir"] / existing_name
+    existing.mkdir()
+    (existing / "old_model.safetensors").write_text("old-weights")
+
+    resp = client.post(
+        f"/experiment/alpha/jobs/{job_id}/models/{model_name}/save_to_registry",
+        params={"target_name": existing_name, "mode": "existing"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "success"
+    assert "merged" in resp.json()["message"].lower() or existing_name in resp.json()["message"]
+
+
+def test_save_model_to_existing_requires_target_name(client, tmp_workspace):
+    """mode='existing' without target_name returns 400."""
+    job_id = "42"
+    model_name = "my-model"
+    _seed_job_model(tmp_workspace, job_id, model_name)
+
+    resp = client.post(
+        f"/experiment/alpha/jobs/{job_id}/models/{model_name}/save_to_registry",
+        params={"mode": "existing"},
+    )
+    assert resp.status_code == 400
+
+
+def test_save_model_to_nonexistent_existing_returns_404(client, tmp_workspace):
+    """mode='existing' with a target_name that doesn't exist returns 404."""
+    job_id = "42"
+    model_name = "my-model"
+    _seed_job_model(tmp_workspace, job_id, model_name)
+
+    resp = client.post(
+        f"/experiment/alpha/jobs/{job_id}/models/{model_name}/save_to_registry",
+        params={"target_name": "nonexistent", "mode": "existing"},
+    )
+    assert resp.status_code == 404
