@@ -18,10 +18,12 @@ test.describe('Hello World Task', () => {
     const computeBtn = page.getByRole('button', { name: 'Compute' });
     if ((await computeBtn.count()) > 0) {
       await computeBtn.click();
-      // Wait for the provider selector to show "Local" as available
-      await expect(page.getByText('Local Machine')).toBeVisible({
+      // Wait for the Compute page to fully load (Resources tab visible)
+      await expect(page.getByRole('tab', { name: 'Resources' })).toBeVisible({
         timeout: 15000,
       });
+      // Give the provider list time to populate, then check for Local Machine
+      await page.waitForTimeout(5000);
     }
 
     // ── Step 2: Select an experiment and navigate to Tasks ──

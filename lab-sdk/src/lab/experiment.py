@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 from .dirs import get_experiments_dir, get_jobs_dir, get_workspace_dir
 from .labresource import BaseLabResource
 from .job import Job
+from .job_status import JobStatus
 import json
 from . import storage
 import logging
@@ -229,10 +230,10 @@ class Experiment(BaseLabResource):
                     job_json = cached_jobs[job_id]
                     # Check status of job if not RUNNING, LAUNCHING, INTERACTIVE or NOT_STARTED, then remove from cache
                     if job_json.get("status", "") in [
-                        "RUNNING",
-                        "LAUNCHING",
-                        "INTERACTIVE",
-                        "NOT_STARTED",
+                        JobStatus.RUNNING,
+                        JobStatus.LAUNCHING,
+                        JobStatus.INTERACTIVE,
+                        JobStatus.NOT_STARTED,
                     ]:
                         old_status = job_json.get("status", "")
                         del cached_jobs[job_id]
@@ -249,7 +250,7 @@ class Experiment(BaseLabResource):
                     job = await Job.get(job_id)
                     job_json = await job.get_json_data(uncached=True)
                     # Check if job is COMPLETE, STOPPED or FAILED, then update cache
-                    if job_json.get("status", "") in ["COMPLETE", "STOPPED", "FAILED"]:
+                    if job_json.get("status", "") in [JobStatus.COMPLETE, JobStatus.STOPPED, JobStatus.FAILED]:
                         workspace = await get_workspace_dir()
                         self._trigger_cache_rebuild(workspace)
             except Exception:
@@ -261,7 +262,7 @@ class Experiment(BaseLabResource):
                 continue
 
             # Exclude DELETED jobs by default (unless explicitly requested)
-            if not status and job_json.get("status", "") == "DELETED":
+            if not status and job_json.get("status", "") == JobStatus.DELETED:
                 continue
 
             # If it passed filters then add as long as it has job_data
@@ -429,14 +430,14 @@ class Experiment(BaseLabResource):
                     continue
 
                 # Skip deleted jobs
-                if data.get("status") == "DELETED":
+                if data.get("status") == JobStatus.DELETED:
                     continue
 
                 job_type = data.get("type", "UNKNOWN")
                 results.setdefault(job_type, []).append(entry)
 
                 # Store full job data in cache (except for RUNNING jobs which need real-time updates)
-                if data.get("status") != "RUNNING":
+                if data.get("status") != JobStatus.RUNNING:
                     cached_jobs[entry] = data
 
             # Write discovered index to jobs.json with both structure and cached data
