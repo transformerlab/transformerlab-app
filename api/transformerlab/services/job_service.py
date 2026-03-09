@@ -146,46 +146,6 @@ async def job_count_running():
     return await Job.count_running_jobs()
 
 
-async def _find_org_id_for_job(job_id: str) -> Optional[str]:
-    """
-    Find which organization a job belongs to by searching all org directories.
-    Returns the org_id if found, None otherwise.
-    """
-    # Check if context is set correctly already
-    from lab.dirs import get_workspace_dir
-
-    workspace_dir = await get_workspace_dir()
-    if "/orgs/" in workspace_dir:
-        return workspace_dir.split("/orgs/")[-1].split("/")[0]
-
-    # Check all org directories (localfs-aware)
-    orgs_dir = lab_dirs.get_orgs_base_dir()
-    if await storage.exists(orgs_dir) and await storage.isdir(orgs_dir):
-        try:
-            org_entries = await storage.ls(orgs_dir, detail=False)
-            for org_path in org_entries:
-                if await storage.isdir(org_path):
-                    org_id = org_path.rstrip("/").split("/")[-1]
-
-                    # Set org context and check if job exists
-                    lab_dirs.set_organization_id(org_id)
-                    try:
-                        jobs_dir = await lab_dirs.get_jobs_dir()
-                        job_path = storage.join(jobs_dir, job_id)
-                        if await storage.exists(job_path) and await storage.isdir(job_path):
-                            # Job found in this org
-                            lab_dirs.set_organization_id(None)
-                            return org_id
-                    except Exception:
-                        continue
-        except Exception:
-            pass
-
-    # Clear org context
-    lab_dirs.set_organization_id(None)
-    return None
-
-
 async def job_count_running_across_all_orgs() -> int:
     """
     Count running jobs across all organizations.

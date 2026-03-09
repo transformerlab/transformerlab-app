@@ -3,8 +3,6 @@ from lab.dirs import get_jobs_dir
 from lab.job_status import JobStatus
 from lab import storage
 from lab import HOME_DIR
-from lab import dirs as lab_dirs
-
 from sqlalchemy import select
 from transformerlab.shared.models.user_model import AsyncSessionLocal, create_personal_team
 from transformerlab.shared.models.models import User, UserTeam, TeamRole
@@ -373,49 +371,3 @@ async def seed_default_experiments():
             # Best-effort seeding; ignore errors (e.g., partial setups)
             print(f"Error creating experiment {name}: {e}")
             pass
-
-
-async def cancel_in_progress_jobs():
-    """On startup, mark any RUNNING jobs as CANCELLED in the filesystem job store across all organizations.
-    REMOTE jobs are excluded from this cancellation as they run on external compute providers."""
-    # Check all org directories (localfs-aware)
-    orgs_dir = lab_dirs.get_orgs_base_dir()
-    if await storage.exists(orgs_dir) and await storage.isdir(orgs_dir):
-        try:
-            org_entries = await storage.ls(orgs_dir, detail=False)
-            for org_path in org_entries:
-                if await storage.isdir(org_path):
-                    org_id = org_path.rstrip("/").split("/")[-1]
-
-                    # Set org context to check jobs for this org
-                    lab_dirs.set_organization_id(org_id)
-
-                    try:
-                        jobs_dir = await get_jobs_dir()
-                        if await storage.exists(jobs_dir):
-                            entries = await storage.ls(jobs_dir, detail=False)
-                            for entry_path in entries:
-                                if await storage.isdir(entry_path):
-                                    try:
-                                        # Extract the job ID from the path
-                                        job_id = entry_path.rstrip("/").split("/")[-1]
-                                        job = await Job.get(job_id)
-                                        if await job.get_status() == JobStatus.RUNNING:
-                                            # Skip REMOTE jobs - they should not be cancelled on startup
-                                            job_data = await job.get_json_data(uncached=True)
-                                            job_type = job_data.get("type", "")
-                                            if job_type == "REMOTE":
-                                                print(f"Skipping REMOTE job: {job_id} (org: {org_id})")
-                                            else:
-                                                await job.update_status(JobStatus.CANCELLED)
-                                                print(f"Cancelled running job: {job_id} (org: {org_id})")
-                                    except Exception:
-                                        # If we can't access the job, continue to the next one
-                                        pass
-                    except Exception:
-                        continue
-        except Exception:
-            pass
-
-    # Clear org context
-    lab_dirs.set_organization_id(None)

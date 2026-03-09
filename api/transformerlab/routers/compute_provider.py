@@ -1112,12 +1112,10 @@ async def _launch_sweep_jobs(
     """
     from itertools import product
     from transformerlab.db.session import async_session
-    from transformerlab.shared.request_context import set_current_org_id
     from lab.dirs import set_organization_id as lab_set_org_id
 
     # Set org context explicitly since background tasks don't inherit request context
     team_id = user_and_team["team_id"]
-    set_current_org_id(team_id)
     if lab_set_org_id is not None:
         lab_set_org_id(team_id)
 
@@ -1412,7 +1410,6 @@ async def _launch_sweep_jobs(
             print(f"Completed launching {len(child_job_ids)} child jobs for sweep {parent_job_id}")
     finally:
         # Clear org context after background task completes
-        set_current_org_id(None)
         if lab_set_org_id is not None:
             lab_set_org_id(None)
 
