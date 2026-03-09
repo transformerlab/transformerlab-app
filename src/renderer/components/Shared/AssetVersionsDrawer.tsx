@@ -47,7 +47,10 @@ interface AssetVersionsDrawerProps {
   groupName: string;
 }
 
-const TAG_COLORS: Record<string, 'success' | 'primary' | 'warning' | 'neutral'> = {
+const TAG_COLORS: Record<
+  string,
+  'success' | 'primary' | 'warning' | 'neutral'
+> = {
   latest: 'primary',
   production: 'success',
   draft: 'warning',
@@ -240,11 +243,7 @@ export default function AssetVersionsDrawer({
                   </td>
                   <td>
                     <Tooltip title={v.description || v.asset_id}>
-                      <Typography
-                        level="body-sm"
-                        noWrap
-                        sx={{ maxWidth: 160 }}
-                      >
+                      <Typography level="body-sm" noWrap sx={{ maxWidth: 160 }}>
                         {v.asset_id}
                       </Typography>
                     </Tooltip>
