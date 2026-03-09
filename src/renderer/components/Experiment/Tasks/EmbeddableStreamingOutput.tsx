@@ -5,6 +5,7 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
+  IconButton,
   Tab,
   TabList,
   Tabs,
@@ -99,8 +100,12 @@ const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
   );
 };
 
-const OUTPUT_REFRESH_SEC = 5;
-const PROVIDER_REFRESH_SEC = 10;
+const ACTIVE_STATUSES = new Set(['RUNNING', 'LAUNCHING', 'INTERACTIVE', 'WAITING', 'QUEUED', 'STOPPING']);
+
+const OUTPUT_ACTIVE_SEC = 5;
+const OUTPUT_IDLE_SEC = 60;
+const PROVIDER_ACTIVE_SEC = 10;
+const PROVIDER_IDLE_SEC = 60;
 
 function useCountdown(intervalSec: number, isValidating: boolean) {
   const [secondsLeft, setSecondsLeft] = useState(intervalSec);
@@ -123,39 +128,55 @@ function useCountdown(intervalSec: number, isValidating: boolean) {
     return () => clearInterval(interval);
   }, [intervalSec, isValidating]);
 
-  return secondsLeft;
+  const reset = useCallback(() => setSecondsLeft(intervalSec), [intervalSec]);
+
+  return { secondsLeft, reset };
 }
 
 function RefreshIndicator({
   seconds,
   isRefreshing,
+  onRefresh,
 }: {
   seconds: number;
   isRefreshing: boolean;
+  onRefresh?: () => void;
 }) {
   return (
-    <Typography
-      level="body-xs"
-      sx={{
-        color: 'neutral.500',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 0.5,
-        userSelect: 'none',
-      }}
-    >
-      {isRefreshing ? (
-        <>
-          <CircularProgress size="sm" sx={{ '--CircularProgress-size': '12px', '--CircularProgress-trackThickness': '2px', '--CircularProgress-progressThickness': '2px' }} />
-          refreshing…
-        </>
-      ) : (
-        <>
-          <RefreshCwIcon size={11} />
-          refreshing in {seconds}s
-        </>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+      <Typography
+        level="body-xs"
+        sx={{
+          color: 'neutral.500',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+          userSelect: 'none',
+        }}
+      >
+        {isRefreshing ? (
+          <>
+            <CircularProgress size="sm" sx={{ '--CircularProgress-size': '12px', '--CircularProgress-trackThickness': '2px', '--CircularProgress-progressThickness': '2px' }} />
+            refreshing…
+          </>
+        ) : (
+          <>
+            refreshing in {seconds}s
+          </>
+        )}
+      </Typography>
+      {onRefresh && !isRefreshing && (
+        <IconButton
+          size="sm"
+          variant="plain"
+          color="neutral"
+          onClick={onRefresh}
+          sx={{ minHeight: 'unset', minWidth: 'unset', p: 0.25 }}
+        >
+          <RefreshCwIcon size={12} />
+        </IconButton>
       )}
-    </Typography>
+    </Box>
   );
 }
 
@@ -211,26 +232,46 @@ export default function EmbeddableStreamingOutput({
 
   const [outputIsValidating, setOutputIsValidating] = useState(false);
   const handleOutputValidatingChange = useCallback((v: boolean) => setOutputIsValidating(v), []);
+  const outputMutateRef = useRef<(() => void) | null>(null);
+  const handleOutputMutateReady = useCallback((m: () => void) => { outputMutateRef.current = m; }, []);
+
+  const isActiveJob = ACTIVE_STATUSES.has(jobStatus);
+  const outputRefreshMs = isActiveJob ? OUTPUT_ACTIVE_SEC * 1000 : OUTPUT_IDLE_SEC * 1000;
+  const providerRefreshMs = isActiveJob ? PROVIDER_ACTIVE_SEC * 1000 : PROVIDER_IDLE_SEC * 1000;
 
   const {
     data: providerLogsData,
     isError: providerLogsError,
     isLoading: providerLogsLoading,
     isValidating: providerIsValidating,
+    mutate: mutateProviderLogs,
   }: {
     data: any;
     isError: any;
     isLoading: boolean;
     isValidating: boolean;
+    mutate: () => void;
   } = useSWR(providerLogsUrl, undefined, {
-    refreshInterval: 10000,
+    refreshInterval: providerRefreshMs,
   });
 
   const isNoProviderLogsYet =
     providerLogsError && (providerLogsError as any).status === 404;
 
-  const outputCountdown = useCountdown(OUTPUT_REFRESH_SEC, outputIsValidating);
-  const providerCountdown = useCountdown(PROVIDER_REFRESH_SEC, providerIsValidating);
+  const outputCountdownSec = isActiveJob ? OUTPUT_ACTIVE_SEC : OUTPUT_IDLE_SEC;
+  const providerCountdownSec = isActiveJob ? PROVIDER_ACTIVE_SEC : PROVIDER_IDLE_SEC;
+  const { secondsLeft: outputCountdown, reset: resetOutputCountdown } = useCountdown(outputCountdownSec, outputIsValidating);
+  const { secondsLeft: providerCountdown, reset: resetProviderCountdown } = useCountdown(providerCountdownSec, providerIsValidating);
+
+  const handleManualRefresh = useCallback(() => {
+    if (activeTab === 'output') {
+      outputMutateRef.current?.();
+      resetOutputCountdown();
+    } else {
+      mutateProviderLogs();
+      resetProviderCountdown();
+    }
+  }, [activeTab, mutateProviderLogs, resetOutputCountdown, resetProviderCountdown]);
 
   if (jobId === -1 || !experimentInfo) {
     return null;
@@ -321,6 +362,7 @@ export default function EmbeddableStreamingOutput({
           isRefreshing={
             activeTab === 'output' ? outputIsValidating : providerIsValidating
           }
+          onRefresh={handleManualRefresh}
         />
       </Box>
       <Box
@@ -351,9 +393,10 @@ export default function EmbeddableStreamingOutput({
               jobId={jobId}
               experimentId={experimentInfo.id}
               lineAnimationDelay={5}
-              refreshInterval={5000}
+              refreshInterval={outputRefreshMs}
               initialMessage="Loading job output..."
               onValidatingChange={handleOutputValidatingChange}
+              onMutateReady={handleOutputMutateReady}
             />
           </Box>
         ) : (
