@@ -12,12 +12,15 @@ interface ViewOutputModalStreamingProps {
   setJobId: (jobId: number) => void;
   /** Which tabs to show, in order. e.g. ['output', 'provider'] or ['provider'] for interactive tasks. */
   tabs?: ('output' | 'provider')[];
+  /** Current job status string (e.g. 'RUNNING', 'COMPLETE'). */
+  jobStatus?: string;
 }
 
 function ViewOutputModalStreaming({
   jobId,
   setJobId,
   tabs = ['output', 'provider'],
+  jobStatus = '',
 }: ViewOutputModalStreamingProps) {
   if (jobId === -1) {
     return null;
@@ -47,7 +50,7 @@ function ViewOutputModalStreaming({
         <Typography level="title-lg" sx={{ mb: 1 }}>
           {title}
         </Typography>
-        <EmbeddableStreamingOutput jobId={jobId} tabs={tabs} />
+        <EmbeddableStreamingOutput jobId={jobId} tabs={tabs} jobStatus={jobStatus} />
       </ModalDialog>
     </Modal>
   );
@@ -55,6 +58,7 @@ function ViewOutputModalStreaming({
 
 ViewOutputModalStreaming.defaultProps = {
   tabs: ['output', 'provider'],
+  jobStatus: '',
 };
 
 export default ViewOutputModalStreaming;

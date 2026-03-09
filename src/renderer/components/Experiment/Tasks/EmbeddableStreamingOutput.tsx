@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Checkbox,
+  Chip,
   CircularProgress,
   Tab,
   TabList,
@@ -16,6 +17,7 @@ import '@xterm/xterm/css/xterm.css';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { jobChipColor } from 'renderer/lib/utils';
 import PollingOutputTerminal from './PollingOutputTerminal';
 
 interface ProviderLogsTerminalProps {
@@ -166,11 +168,14 @@ export interface EmbeddableStreamingOutputProps {
   jobId: number;
   /** Which tabs to show, in order. e.g. ['output', 'provider'] or ['provider'] for interactive tasks. */
   tabs?: ('output' | 'provider')[];
+  /** Current job status string (e.g. 'RUNNING', 'COMPLETE'). Passed from the parent to avoid extra polling. */
+  jobStatus?: string;
 }
 
 export default function EmbeddableStreamingOutput({
   jobId,
   tabs: tabsProp = ['output', 'provider'],
+  jobStatus = '',
 }: EmbeddableStreamingOutputProps) {
   const { experimentInfo } = useExperimentInfo();
   const [activeTab, setActiveTab] = useState<'output' | 'provider'>('output');
@@ -279,6 +284,17 @@ export default function EmbeddableStreamingOutput({
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          {jobStatus && (
+            <Chip
+              size="sm"
+              sx={{
+                backgroundColor: jobChipColor(jobStatus),
+                color: 'var(--joy-palette-neutral-800)',
+              }}
+            >
+              {jobStatus}
+            </Chip>
+          )}
           {activeTab === 'provider' && (
             <>
               <Checkbox
@@ -420,4 +436,5 @@ export default function EmbeddableStreamingOutput({
 
 EmbeddableStreamingOutput.defaultProps = {
   tabs: ['output', 'provider'],
+  jobStatus: '',
 };
