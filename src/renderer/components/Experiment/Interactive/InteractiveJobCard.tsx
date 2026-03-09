@@ -120,7 +120,9 @@ export default function InteractiveJobCard({
   const isInteractive =
     job.status === 'INTERACTIVE' || job.status === 'RUNNING';
   const title =
-    jobData.cluster_name || jobData.template_name || (isPlaceholder ? '' : `Job ${job.id}`);
+    jobData.cluster_name ||
+    jobData.template_name ||
+    (isPlaceholder ? '' : `Job ${job.id}`);
   const jobIdNum = parseInt(job.id, 10);
 
   return (
@@ -165,7 +167,11 @@ export default function InteractiveJobCard({
             >
               {title}
             </Typography>
-            <Chip variant="soft" color={typeConfig?.color ?? 'neutral'} size="sm">
+            <Chip
+              variant="soft"
+              color={typeConfig?.color ?? 'neutral'}
+              size="sm"
+            >
               {typeConfig?.label ?? '\u00A0'}
             </Chip>
           </Stack>
