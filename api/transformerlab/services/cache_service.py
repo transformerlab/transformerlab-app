@@ -94,7 +94,7 @@ from typing import Any
 
 from cashews import cache as _cashews
 
-from transformerlab.shared.request_context import get_current_org_id
+from lab.dirs import get_organization_id
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +152,7 @@ class OrgScopedCache:
         """Return ``{provider_segment}:{org_id}:{key}``, or *None* when no org."""
         from os import getenv
 
-        org_id = get_current_org_id()
+        org_id = get_organization_id()
         if not org_id:
             return None
 
@@ -165,7 +165,7 @@ class OrgScopedCache:
 
     def _scoped_tags(self, tags: list[str] | None) -> list[str]:
         """Prefix every tag with the current org ID."""
-        org_id = get_current_org_id()
+        org_id = get_organization_id()
         if not org_id or not tags:
             return []
         return [f"{org_id}:{t}" for t in tags]

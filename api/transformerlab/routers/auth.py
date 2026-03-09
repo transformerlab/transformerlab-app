@@ -257,10 +257,8 @@ async def get_user_and_team(
 
     # Context should already be set by middleware, but ensure it's correct
     # (in case middleware couldn't determine it, or for consistency)
-    from transformerlab.shared.request_context import set_current_org_id
     from lab.dirs import set_organization_id as lab_set_org_id
 
-    set_current_org_id(team_id)
     if lab_set_org_id is not None:
         lab_set_org_id(team_id)
 
