@@ -62,6 +62,17 @@
   - **Unit Tests**: Write `pytest` tests in `api/test/`.
   - **Mocking**: Mock external interactions (S3, GPU providers, filesystem operations) using `unittest.mock` or `pytest-mock`. Tests should be fast and deterministic.
   - **Service Tests**: Prefer testing the Service layer directly over testing the full API stack when checking business logic constants.
+- **Playwright (E2E)**:
+  - **Location**: Tests live in `test/playwright/`. Config is in `playwright.config.ts` (base URL `http://localhost:8338`).
+  - **Run all**: `npx playwright test` (requires the Docker test container).
+  - **Run one**: `npx playwright test <file-name>` (e.g. `npx playwright test hello-world-task`).
+  - **Full cycle**: `npm run docker-test:playwright` (starts container, runs tests, tears down).
+  - **Docker container**: `npm run docker-test:up` starts the app; `npm run docker-test:down` stops it. Wait for the healthcheck before running tests.
+  - **Auth**: Log in via UI with `admin@example.com` / `admin123`. Use the shared `login()` and `selectFirstExperiment()` helpers already defined in existing specs.
+  - **Selectors**: Prefer `getByRole`, `getByText({ exact: true })`, and `getByPlaceholder`. Use `.first()` when prior test runs may leave duplicate elements (e.g. multiple tasks or jobs).
+  - **xterm.js content**: Terminal output rendered by xterm is not in the DOM. Verify it by polling the corresponding API endpoint (e.g. `/experiment/{id}/jobs/{jobId}/provider_logs`) via `page.request.get()` and `expect.poll()`.
+  - **Idempotency**: Tests must pass on repeated runs against the same container. Don't assume a clean DB; handle existing data gracefully with `.first()` or by checking for pre-existing state.
+  - **Timeouts**: Set `test.setTimeout(120_000)` for tests that queue jobs (local provider launch + execution can take time). Use generous `toBeVisible({ timeout: 60000 })` for status transitions like LAUNCHING → COMPLETE.
 
 ### Visual UI Verification (Chrome DevTools MCP)
 
