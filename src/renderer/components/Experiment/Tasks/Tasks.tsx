@@ -897,6 +897,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       const {
         provider_id: _pid,
         provider_name: _pname,
+        enable_trackio,
         ...paramConfig
       } = config ?? {};
 
@@ -943,6 +944,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               : undefined,
         minutes_requested:
           cfg.minutes_requested || task.minutes_requested || undefined,
+        enable_trackio:
+          typeof enable_trackio === 'boolean' ? enable_trackio : undefined,
       };
 
       const response = await fetchWithAuth(

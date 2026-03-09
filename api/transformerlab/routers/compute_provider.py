@@ -1691,8 +1691,8 @@ async def launch_template_on_provider(
     # Enable Trackio auto-init for this job if requested. When set, the lab SDK
     # running inside the remote script can automatically initialize Trackio
     # and capture metrics for visualization in the Tasks UI.
-    # if request.enable_trackio:
-    env_vars["TLAB_TRACKIO_AUTO_INIT"] = "true"
+    if request.enable_trackio:
+        env_vars["TLAB_TRACKIO_AUTO_INIT"] = "true"
 
     print(f"Trackio auto-init: {env_vars}")
 
