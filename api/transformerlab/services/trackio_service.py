@@ -26,6 +26,8 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
     """
     # Sanitize identifiers before they are used in any filesystem paths or keys.
     safe_job_id = secure_filename(job_id) or job_id
+    safe_org_id = secure_filename(org_id) if org_id else ""
+    safe_experiment_id = secure_filename(experiment_id) if experiment_id else ""
 
     try:
         job = await Job.get(job_id)
@@ -57,10 +59,8 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
     # This works for both local and remote storage backends. Use HOME_DIR so the
     # cache is guaranteed to be on the local filesystem (even when workspace_dir
     # points to remote storage).
-    safe_org = str(org_id or "unknown_org")
-    safe_exp = str(experiment_id or "unknown_exp")
     cache_root = os.path.join(HOME_DIR, "temp", "trackio")
-    cache_dir = os.path.join(cache_root, f"{safe_org}_{safe_exp}_{safe_job_id}")
+    cache_dir = os.path.join(cache_root, f"{safe_org_id}_{safe_experiment_id}_{safe_job_id}")
 
     # Ensure cache root exists
     os.makedirs(cache_root, exist_ok=True)
