@@ -65,9 +65,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     open: boolean;
     datasetId: string | null;
   }>({ open: false, datasetId: null });
-  const [trackioJobIdForModal, setTrackioJobIdForModal] = useState<number | null>(
-    null,
-  );
+  const [trackioJobIdForModal, setTrackioJobIdForModal] = useState<
+    number | null
+  >(null);
   const [compareEvalJobIds, setCompareEvalJobIds] = useState<number[]>([]);
   const [isCompareSelectMode, setIsCompareSelectMode] = useState(false);
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);

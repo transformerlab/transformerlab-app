@@ -38,7 +38,8 @@ export default function TrackioModal({ jobId, onClose }: TrackioModalProps) {
         if (!response.ok) {
           const txt = await response.text();
           setError(
-            txt || 'Failed to start Trackio dashboard for this job. Please try again.',
+            txt ||
+              'Failed to start Trackio dashboard for this job. Please try again.',
           );
           return;
         }
@@ -51,7 +52,9 @@ export default function TrackioModal({ jobId, onClose }: TrackioModalProps) {
         // eslint-disable-next-line no-console
         console.error('Error starting Trackio dashboard', e);
         if (!cancelled) {
-          setError('Failed to start Trackio dashboard. Check server logs for details.');
+          setError(
+            'Failed to start Trackio dashboard. Check server logs for details.',
+          );
         }
       }
     };
@@ -67,7 +70,9 @@ export default function TrackioModal({ jobId, onClose }: TrackioModalProps) {
       cancelled = true;
       if (jobId !== null) {
         // Best-effort attempt to stop the Trackio server for this job
-        fetcher(`${chatAPI.API_URL()}trackio/stop?job_id=${jobId}`).catch(() => {});
+        fetcher(`${chatAPI.API_URL()}trackio/stop?job_id=${jobId}`).catch(
+          () => {},
+        );
       }
     };
   }, [jobId]);
@@ -128,7 +133,14 @@ export default function TrackioModal({ jobId, onClose }: TrackioModalProps) {
             </IconButton>
           )}
         </Box>
-        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           {error ? (
             <Box sx={{ textAlign: 'center' }}>
               <Typography level="body-md" color="danger">
@@ -159,7 +171,9 @@ export default function TrackioModal({ jobId, onClose }: TrackioModalProps) {
           ) : (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <CircularProgress />
-              <Typography level="body-sm">Waiting for Trackio dashboard to start...</Typography>
+              <Typography level="body-sm">
+                Waiting for Trackio dashboard to start...
+              </Typography>
             </Box>
           )}
         </Box>
@@ -167,4 +181,3 @@ export default function TrackioModal({ jobId, onClose }: TrackioModalProps) {
     </Modal>
   );
 }
-

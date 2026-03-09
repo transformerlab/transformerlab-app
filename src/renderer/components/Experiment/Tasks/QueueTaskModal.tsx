@@ -1292,7 +1292,10 @@ export default function QueueTaskModal({
             {/* Tracking Section */}
             <Stack spacing={2}>
               <Typography level="title-sm">Tracking</Typography>
-              <FormControl orientation="horizontal" sx={{ alignItems: 'center' }}>
+              <FormControl
+                orientation="horizontal"
+                sx={{ alignItems: 'center' }}
+              >
                 <Checkbox
                   checked={useTrackio}
                   onChange={(e) => setUseTrackio(e.target.checked)}
@@ -1303,9 +1306,10 @@ export default function QueueTaskModal({
                 </FormLabel>
               </FormControl>
               <FormHelperText>
-                When enabled, the job will set <code>TLAB_TRACKIO_AUTO_INIT=true</code>{' '}
-                so scripts that use the <code>lab</code> SDK can automatically log
-                metrics to Trackio and expose a Trackio dashboard in the Tasks UI.
+                When enabled, the job will set{' '}
+                <code>TLAB_TRACKIO_AUTO_INIT=true</code> so scripts that use the{' '}
+                <code>lab</code> SDK can automatically log metrics to Trackio
+                and expose a Trackio dashboard in the Tasks UI.
               </FormHelperText>
             </Stack>
 
