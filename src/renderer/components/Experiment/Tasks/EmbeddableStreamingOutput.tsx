@@ -37,6 +37,29 @@ const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const lastWrittenRef = useRef<string>('');
+
+  const writeToTerminal = useCallback((text: string) => {
+    if (!termRef.current) return;
+    termRef.current.clear();
+    termRef.current.write('\x1b[H');
+    const normalized = text.replace(/\r\n/g, '\n');
+    const lines = normalized.split('\n');
+    lines.forEach((line) => {
+      termRef.current!.writeln(line);
+    });
+    lastWrittenRef.current = text;
+  }, []);
+
+  const safeFit = useCallback(() => {
+    const el = containerRef.current;
+    if (!el || el.offsetWidth === 0 || el.offsetHeight === 0) return;
+    try {
+      fitAddonRef.current?.fit();
+    } catch {
+      // ignore resize errors
+    }
+  }, []);
 
   useEffect(() => {
     const term = new Terminal({
@@ -54,16 +77,24 @@ const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
 
     if (containerRef.current) {
       term.open(containerRef.current);
-      fit.fit();
+      safeFit();
     }
 
     termRef.current = term;
 
-    const resizeObserver = new ResizeObserver(() => {
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      if (width === 0 || height === 0) return;
       try {
         fit.fit();
       } catch {
         // ignore resize errors
+      }
+      // Re-render content after becoming visible (fit may have reset the buffer)
+      if (lastWrittenRef.current) {
+        writeToTerminal(lastWrittenRef.current);
       }
     });
 
@@ -77,21 +108,12 @@ const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
       termRef.current = null;
       fitAddonRef.current = null;
     };
-  }, []);
+  }, [safeFit, writeToTerminal]);
 
   useEffect(() => {
-    if (!termRef.current) return;
-
     const text = logsText || 'No provider log data yet.';
-    // Clear viewport and scrollback buffer, then move cursor to home
-    termRef.current.clear();
-    termRef.current.write('\x1b[H');
-    const normalized = text.replace(/\r\n/g, '\n');
-    const lines = normalized.split('\n');
-    lines.forEach((line) => {
-      termRef.current!.writeln(line);
-    });
-  }, [logsText]);
+    writeToTerminal(text);
+  }, [logsText, writeToTerminal]);
 
   return (
     <Box
