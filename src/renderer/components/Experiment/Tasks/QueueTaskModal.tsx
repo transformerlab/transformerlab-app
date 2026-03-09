@@ -32,6 +32,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
 import SweepConfigSection from './SweepConfigSection';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 
 type QueueTaskModalProps = {
   open: boolean;
@@ -205,11 +206,7 @@ export default function QueueTaskModal({
   const taskResources = React.useMemo(() => {
     if (!task) return null;
     const cfg =
-      task.config !== undefined
-        ? typeof task.config === 'string'
-          ? JSON.parse(task.config)
-          : task.config
-        : task;
+      task.config !== undefined ? SafeJSONParse(task.config, task) : task;
 
     let accelerators = cfg.accelerators || task.accelerators || null;
     const cpus = cfg.cpus || task.cpus || null;
@@ -449,11 +446,7 @@ export default function QueueTaskModal({
     if (open && task) {
       // Extract parameters from task
       const cfg =
-        task.config !== undefined
-          ? typeof task.config === 'string'
-            ? JSON.parse(task.config)
-            : task.config
-          : task;
+        task.config !== undefined ? SafeJSONParse(task.config, task) : task;
 
       const taskParameters = cfg.parameters || task.parameters || {};
 
@@ -482,7 +475,7 @@ export default function QueueTaskModal({
       if (cfg.sweep_config || task.sweep_config) {
         const sweepCfg =
           typeof cfg.sweep_config === 'string'
-            ? JSON.parse(cfg.sweep_config)
+            ? SafeJSONParse(cfg.sweep_config, cfg.sweep_config)
             : cfg.sweep_config || task.sweep_config;
         setSweepConfig(sweepCfg || {});
       } else {

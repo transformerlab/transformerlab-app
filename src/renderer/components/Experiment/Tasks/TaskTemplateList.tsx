@@ -29,7 +29,7 @@ type TaskRow = {
 
 type TaskTemplateListProps = {
   tasksList: TaskRow[];
-  onDeleteTask: (taskId: string) => void;
+  onDeleteTask?: (taskId: string, taskName?: string) => void;
   onQueueTask: (task: TaskRow) => void;
   onEditTask: (task: TaskRow) => void;
   onExportTask?: (taskId: string) => void;
@@ -239,7 +239,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
                 <IconButton
                   variant="plain"
                   color="danger"
-                  onClick={() => onDeleteTask?.(row.id)}
+                  onClick={() => onDeleteTask?.(row.id, getTitle(row))}
                   title="Delete task"
                 >
                   <Trash2Icon style={{ cursor: 'pointer' }} />

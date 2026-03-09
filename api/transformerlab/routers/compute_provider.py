@@ -63,6 +63,7 @@ from transformerlab.shared.interactive_gallery_utils import (
     resolve_interactive_command,
     find_interactive_gallery_entry,
 )
+from transformerlab.schemas.secrets import SPECIAL_SECRET_TYPES
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -1437,12 +1438,14 @@ async def launch_template_on_provider(
     # Load team + user secrets once and validate that any referenced secrets exist
     team_secrets = await load_team_secrets(user_id=user_id)
     missing_secrets = _find_missing_secrets_for_template_launch(request, team_secrets)
+
     if missing_secrets:
-        missing_list = ", ".join(sorted(missing_secrets))
+        display_names = [SPECIAL_SECRET_TYPES.get(name, name) for name in sorted(missing_secrets)]
+        missing_list = ", ".join(display_names)
         raise HTTPException(
             status_code=400,
             detail=(
-                "Missing secrets referenced in task configuration: "
+                "Missing secrets: "
                 f"{missing_list}. Please define these secrets at the team or user level before launching."
             ),
         )
@@ -2019,8 +2022,8 @@ async def check_provider_job_status(
             "launch_progress": launch_progress,
         }
 
-    # Only check provider status for jobs that are still launching or running
-    if job_status not in ("LAUNCHING", "RUNNING"):
+    # Only check provider status for jobs that are still launching, running, or stopping
+    if job_status not in ("LAUNCHING", "RUNNING", "STOPPING"):
         return {
             "status": "success",
             "job_id": job_id,
@@ -2140,19 +2143,26 @@ async def check_provider_job_status(
             terminal_states_local = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
             if cluster_status.state in terminal_states_local:
                 try:
+                    # Map cluster terminal state to the appropriate job status
+                    if job_status == "STOPPING":
+                        final_status = "STOPPED"
+                    elif cluster_status.state == ClusterState.FAILED:
+                        final_status = "FAILED"
+                    else:
+                        final_status = "COMPLETE"
                     end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
                     await job_service.job_update_job_data_insert_key_value(
                         job_id, "end_time", end_time_str, experiment_id
                     )
                     await job_service.job_update_status(
-                        job_id, "COMPLETE", experiment_id=experiment_id, session=session
+                        job_id, final_status, experiment_id=experiment_id, session=session
                     )
                     await session.commit()
                     return {
                         "status": "success",
                         "job_id": job_id,
                         "updated": True,
-                        "new_status": "COMPLETE",
+                        "new_status": final_status,
                         "message": f"Local job finished (status: {cluster_status.state.value})",
                         "launch_progress": launch_progress,
                     }
