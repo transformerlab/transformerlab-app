@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import json
+import os
 import time
 from typing import List, Dict, Optional, Any
 
@@ -9,7 +10,8 @@ from lab import dirs as lab_dirs
 from lab import storage
 
 from transformerlab.compute_providers.models import JobState
-from transformerlab.services.job_cache_local import read_local_job_cache, write_local_job_cache
+from transformerlab.services.cache_service import cache
+
 # Allowed job types:
 ALLOWED_JOB_TYPES = [
     "TRAIN",
@@ -81,6 +83,24 @@ def is_terminal_state(status: Optional[str]) -> bool:
     return state in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
 
 
+def _job_cache_key(job_id: str) -> str:
+    """
+    Build the per-node job cache key.
+
+    Shape (before org scoping by OrgScopedCache):
+        jobs:{TFL_STORAGE_PROVIDER+TFL_REMOTE_STORAGE_ENABLED}:{job_id}
+
+    The OrgScopedCache wrapper will automatically prefix this with the current
+    org ID, so the underlying cashews key is effectively:
+        {org_id}:jobs:{provider+remote}:{job_id}
+    """
+    provider = (os.getenv("TFL_STORAGE_PROVIDER") or "aws").strip().lower()
+    remote_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
+    remote_flag = "true" if remote_enabled else "false"
+    provider_segment = f"{provider}+{remote_flag}"
+    return f"jobs:{provider_segment}:{job_id}"
+
+
 async def _job_get_live(job_id: str) -> Optional[Dict[str, Any]]:
     try:
         job = await Job.get(job_id)
@@ -99,15 +119,18 @@ async def job_get(job_id: str) -> Optional[Dict[str, Any]]:
 
 async def job_get_cached(job_id: str) -> Optional[Dict[str, Any]]:
     """
-    Per-node cached getter for job JSON.
+    Per-node cached getter for job JSON backed by cashews.
 
     Order of precedence:
-      1. Try local node cache (~/.transformerlab/caches/...).
+      1. Try the org-scoped cashews cache.
       2. Fallback to live Job.get(...).get_json_data(uncached=True).
-      3. If live status is terminal, persist to local cache for future reads.
+      3. If live status is terminal, persist to cache for future reads.
     """
-    # 1) Try local cache first
-    cached = await read_local_job_cache(job_id)
+    key = _job_cache_key(job_id)
+
+    # 1) Try cache first
+    cached = await cache.get(key)
+    print("cached", cached)
     if cached is not None:
         return cached
 
@@ -116,10 +139,14 @@ async def job_get_cached(job_id: str) -> Optional[Dict[str, Any]]:
     if not job_dict:
         return None
 
-    # 3) If terminal, write to local cache (best-effort)
+    # 3) If terminal, write to cache (best-effort)
     status = job_dict.get("status")
     if is_terminal_state(status):
-        await write_local_job_cache(job_id, job_dict)
+        try:
+            await cache.set(key, job_dict, ttl="7d", tags=["jobs", f"job:{job_id}"])
+        except Exception:
+            # Best-effort – ignore cache errors.
+            pass
 
     return job_dict
 
@@ -554,9 +581,10 @@ async def job_update_status(
         try:
             live_dict = await _job_get_live(job_id)
             if live_dict:
-                await write_local_job_cache(job_id, live_dict)
+                key = _job_cache_key(job_id)
+                await cache.set(key, live_dict, ttl="7d", tags=["jobs", f"job:{job_id}"])
         except Exception as e:
-            print(f"Error writing local job cache for job {job_id}: {e}")
+            print(f"Error writing job cache for job {job_id}: {e}")
 
 
 async def job_update(job_id: str, type: str, status: str, experiment_id: Optional[str] = None):
