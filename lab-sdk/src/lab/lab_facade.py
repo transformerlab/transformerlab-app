@@ -403,6 +403,14 @@ class Lab:
         _run_async(self._job.log_info(message))  # type: ignore[union-attr]
         # Check for wandb URL on every log operation
         self._check_and_capture_wandb_url()
+        # Best-effort: keep Trackio metrics snapshot in sync so dashboards can be
+        # opened mid-run. This will overwrite any previous Trackio artifacts for
+        # this job with the latest DB from TRACKIO_DIR when Trackio is available.
+        try:
+            if self._trackio_available:
+                self._capture_existing_trackio_run()
+        except Exception:
+            logger.debug("Trackio snapshot failed during log()", exc_info=True)
 
     def update_progress(self, progress: int) -> None:
         """
@@ -412,6 +420,12 @@ class Lab:
         _run_async(self._job.update_progress(progress))  # type: ignore[union-attr]
         # Check for wandb URL on every progress update
         self._check_and_capture_wandb_url()
+        # Also try to keep Trackio snapshot reasonably fresh on progress updates.
+        try:
+            if self._trackio_available:
+                self._capture_existing_trackio_run()
+        except Exception:
+            logger.debug("Trackio snapshot failed during update_progress()", exc_info=True)
 
     # ------------- checkpoint resume support -------------
     def get_checkpoint_to_resume(self) -> Optional[str]:
