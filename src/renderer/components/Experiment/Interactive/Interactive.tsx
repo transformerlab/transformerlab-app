@@ -177,9 +177,13 @@ export default function Interactive() {
   const jobsWithPlaceholders = useMemo(() => {
     const baseJobs = Array.isArray(jobs) ? jobs : [];
 
-    // Only show INTERACTIVE status jobs (not STOPPED)
+    // Show active interactive jobs (INTERACTIVE, RUNNING, LAUNCHING)
     const filteredJobs = baseJobs.filter((job: any) => {
-      return job.status === 'INTERACTIVE';
+      return (
+        job.status === 'INTERACTIVE' ||
+        job.status === 'RUNNING' ||
+        job.status === 'LAUNCHING'
+      );
     });
 
     const pending = getPendingJobIds();
@@ -550,7 +554,11 @@ export default function Interactive() {
           launchResult = {};
         }
 
-        if (response.ok && launchResult?.status === 'success') {
+        if (
+          response.ok &&
+          (launchResult?.status === 'success' ||
+            (launchResult?.status === 'WAITING' && launchResult?.job_id))
+        ) {
           const newId = String(launchResult.job_id);
           const pending = getPendingJobIds();
           if (!pending.includes(newId)) {
@@ -687,7 +695,11 @@ export default function Interactive() {
         launchResult = {};
       }
 
-      if (response.ok && launchResult?.status === 'success') {
+      if (
+        response.ok &&
+        (launchResult?.status === 'success' ||
+          (launchResult?.status === 'WAITING' && launchResult?.job_id))
+      ) {
         const newId = String(launchResult.job_id);
         const pending = getPendingJobIds();
         if (!pending.includes(newId)) {
