@@ -626,6 +626,18 @@ async def import_task_from_gallery(
             if key in local_yaml_data:
                 task_data[key] = local_yaml_data[key]
 
+        # Merge user-provided env_vars from the request (e.g. MODEL_NAME)
+        print(f"[DEBUG import_task] request.env_vars = {request.env_vars}")
+        print(f"[DEBUG import_task] task_data env_vars before merge = {task_data.get('env_vars')}")
+        if request.env_vars:
+            existing = task_data.get("env_vars", {})
+            if not isinstance(existing, dict):
+                existing = {}
+            existing.update(request.env_vars)
+            task_data["env_vars"] = existing
+        print(f"[DEBUG import_task] task_data env_vars after merge = {task_data.get('env_vars')}")
+        print(f"[DEBUG import_task] full task_data = {task_data}")
+
         await _resolve_provider(task_data, user_and_team, session)
 
         # Create the task
