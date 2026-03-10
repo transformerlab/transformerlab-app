@@ -344,7 +344,7 @@ def cached(
     """Decorator that caches the return value of a sync or async function.
 
     Works on plain functions, service methods, and FastAPI route handlers.
-    The *key* string may contain ``{param}`` placeholders that are
+    Both *key* and *tags* may contain ``{param}`` placeholders that are
     interpolated from the decorated function's arguments at call time.
 
     Examples::
@@ -353,7 +353,7 @@ def cached(
         async def list_models():
             ...
 
-        @cached(key="job:{job_id}", ttl="5m", tags=["jobs"])
+        @cached(key="job:{job_id}", ttl="5m", tags=["jobs", "jobs:{job_id}"])
         async def get_job(job_id: str):
             ...
 
@@ -368,10 +368,11 @@ def cached(
 
         @functools.wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Bind actual call arguments so we can interpolate {param} in the key.
+            # Bind actual call arguments so we can interpolate {param} in the key and tags.
             bound = sig.bind(*args, **kwargs)
             bound.apply_defaults()
             resolved_key = key.format(**bound.arguments)
+            resolved_tags = [t.format(**bound.arguments) for t in tags] if tags else tags
 
             async def _call_wrapped() -> Any:
                 result = fn(*args, **kwargs)
@@ -379,7 +380,7 @@ def cached(
                     result = await result
                 return result
 
-            return await cache.get_or_set(resolved_key, _call_wrapped, ttl=ttl, tags=tags)
+            return await cache.get_or_set(resolved_key, _call_wrapped, ttl=ttl, tags=resolved_tags)
 
         return wrapper
 

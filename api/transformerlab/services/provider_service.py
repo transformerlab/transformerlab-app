@@ -140,6 +140,18 @@ async def list_team_providers(session: AsyncSession, team_id: str) -> list[TeamC
     return list(result.scalars().all())
 
 
+async def list_enabled_team_providers(session: AsyncSession, team_id: str) -> list[TeamComputeProvider]:
+    """List only enabled (non-disabled) providers for a team."""
+    stmt = (
+        select(TeamComputeProvider)
+        .where(TeamComputeProvider.team_id == team_id)
+        .where(~TeamComputeProvider.disabled)
+        .order_by(TeamComputeProvider.created_at.desc())
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
 def detect_local_supported_accelerators() -> List[str]:
     """
     Detect accelerators available on the current machine for the local provider.
@@ -407,13 +419,19 @@ async def initialize_team_local_provider(
 
 
 async def update_team_provider(
-    session: AsyncSession, provider: TeamComputeProvider, name: Optional[str] = None, config: Optional[dict] = None
+    session: AsyncSession,
+    provider: TeamComputeProvider,
+    name: Optional[str] = None,
+    config: Optional[dict] = None,
+    disabled: Optional[bool] = None,
 ) -> TeamComputeProvider:
     """Update an existing team provider record."""
     if name is not None:
         provider.name = name
     if config is not None:
         provider.config = config
+    if disabled is not None:
+        provider.disabled = disabled
     await session.commit()
     await session.refresh(provider)
     return provider
