@@ -2,7 +2,6 @@
 
 import os
 from lab import HOME_DIR
-from lab import storage
 
 
 """
@@ -18,19 +17,7 @@ ROOT_DIR is a legacy variable that we should replace with the above, eventually.
 
 # Note: These path constants are computed synchronously at module load.
 # Directory creation is deferred to async init function called at app startup.
-# We use None as sentinel to indicate these need to be computed lazily
-_fastchat_logs_dir = None
 _static_files_dir = None
-
-
-def get_fastchat_logs_dir_sync():
-    """Get FASTCHAT_LOGS_DIR synchronously - for module-level code only."""
-    global _fastchat_logs_dir
-    if _fastchat_logs_dir is None:
-        # This is a hack for module initialization - we'll set it properly in async init
-        # For now, just compute the path without async storage operations
-        _fastchat_logs_dir = os.path.join(HOME_DIR, "logs")
-    return _fastchat_logs_dir
 
 
 def get_static_files_dir_sync():
@@ -42,20 +29,12 @@ def get_static_files_dir_sync():
 
 
 # Export as module-level constants for backward compatibility
-FASTCHAT_LOGS_DIR = get_fastchat_logs_dir_sync()
 STATIC_FILES_DIR = get_static_files_dir_sync()
 
 
 async def initialize_dirs():
     """Initialize directories asynchronously. Should be called at app startup."""
-    global FASTCHAT_LOGS_DIR, STATIC_FILES_DIR
-    from lab.dirs import get_workspace_dir
-
-    # Compute FASTCHAT_LOGS_DIR using async storage
-    workspace_dir = await get_workspace_dir()
-    FASTCHAT_LOGS_DIR = storage.join(workspace_dir, "logs")
-    if not await storage.exists(FASTCHAT_LOGS_DIR):
-        await storage.makedirs(FASTCHAT_LOGS_DIR, exist_ok=True)
+    global STATIC_FILES_DIR
 
     # Ensure STATIC_FILES_DIR exists
     STATIC_FILES_DIR = os.path.join(HOME_DIR, "webapp")
