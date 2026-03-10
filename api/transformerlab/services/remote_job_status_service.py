@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional
 
 from lab import Experiment
 from lab.dirs import set_organization_id as lab_set_org_id
+from lab.job_status import JobStatus
 
 from transformerlab.services import job_service, team_service
 from transformerlab.shared.request_context import set_current_org_id
@@ -113,7 +114,7 @@ async def _handle_live_status(job: Dict[str, Any], experiment_id: str) -> bool:
         return False
 
     job_id = str(job.get("id", ""))
-    new_status = "COMPLETE" if live_status == "finished" else "FAILED"
+    new_status = JobStatus.COMPLETE.value if live_status == "finished" else JobStatus.FAILED.value
     try:
         end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
         await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
@@ -156,15 +157,15 @@ async def _check_job_via_provider(
             await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
             # Map cluster terminal state to the appropriate job status, mirroring the old check-status logic.
             if provider_type == ProviderType.LOCAL.value:
-                if job_status == "STOPPING":
-                    final_status = "STOPPED"
+                if job_status == JobStatus.STOPPING.value:
+                    final_status = JobStatus.STOPPED.value
                 elif cluster_status.state == ClusterState.FAILED:
-                    final_status = "FAILED"
+                    final_status = JobStatus.FAILED.value
                 else:
-                    final_status = "COMPLETE"
+                    final_status = JobStatus.COMPLETE.value
             else:
                 # RUNPOD previously always mapped terminal pod states to COMPLETE.
-                final_status = "COMPLETE"
+                final_status = JobStatus.COMPLETE.value
 
             await job_service.job_update_status(job_id, final_status, experiment_id=experiment_id)
             return True
@@ -191,12 +192,12 @@ async def _check_job_via_provider(
             # If the user requested a stop or the provider reports cancelled jobs,
             # prefer STOPPED as the final status. Otherwise propagate FAILED when
             # any provider job failed, else consider the job COMPLETE.
-            if job_status == "STOPPING" or any(state == JobState.CANCELLED for state in provider_states):
-                final_status = "STOPPED"
+            if job_status == JobStatus.STOPPING.value or any(state == JobState.CANCELLED for state in provider_states):
+                final_status = JobStatus.STOPPED.value
             elif any(state == JobState.FAILED for state in provider_states):
-                final_status = "FAILED"
+                final_status = JobStatus.FAILED.value
             else:
-                final_status = "COMPLETE"
+                final_status = JobStatus.COMPLETE.value
 
             await job_service.job_update_status(job_id, final_status, experiment_id=experiment_id)
             return True
@@ -252,7 +253,11 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
                 for job in all_remote_jobs:
                     job_status = job.get("status", "")
                     # Only check provider status for jobs that are still launching, running, or stopping.
-                    if job_status not in ("LAUNCHING", "RUNNING", "STOPPING"):
+                    if job_status not in (
+                        JobStatus.LAUNCHING.value,
+                        JobStatus.RUNNING.value,
+                        JobStatus.STOPPING.value,
+                    ):
                         continue
 
                     cycle_stats["jobs_seen"] += 1
