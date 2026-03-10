@@ -614,6 +614,18 @@ async def import_task_from_gallery(
         # Create the task
         task_id = await task_service.add_task(task_data)
 
+        # If the gallery entry specifies a local_task_dir, copy those files
+        # into the task directory (inside a subdirectory matching the source
+        # directory name, mirroring what github_repo_dir does at clone time).
+        local_task_dir = gallery_entry.get("local_task_dir")
+        if local_task_dir and os.path.isdir(local_task_dir):
+            task_template = TaskTemplate(secure_filename(str(task_id)))
+            task_dir = await task_template.get_dir()
+            await storage.makedirs(task_dir, exist_ok=True)
+            dest_subdir = storage.join(task_dir, os.path.basename(local_task_dir.rstrip("/")))
+            await storage.copy_dir(local_task_dir, dest_subdir)
+            await task_service.update_task(task_id, {"file_mounts": True})
+
         return {"status": "success", "message": f"Interactive task '{task_name}' imported successfully", "id": task_id}
 
     # Regular task import (existing logic)
