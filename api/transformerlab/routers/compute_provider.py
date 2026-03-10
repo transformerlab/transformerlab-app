@@ -44,6 +44,7 @@ from transformerlab.compute_providers.models import (
 from transformerlab.services import job_service
 from transformerlab.services import quota_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
+from transformerlab.services.cache_service import cache
 from lab import storage
 from lab.storage import STORAGE_PROVIDER
 from lab.dirs import get_workspace_dir, get_local_provider_job_dir, get_job_dir, set_organization_id, get_task_dir
@@ -1108,6 +1109,9 @@ async def _create_sweep_parent_job(
         if value is not None:
             await job_service.job_update_job_data_insert_key_value(parent_job_id, key, value, request.experiment_id)
 
+    # Ensure experiment job lists reflect the new parent sweep job.
+    await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
+
     return parent_job_id
 
 
@@ -1424,6 +1428,8 @@ async def _launch_sweep_jobs(
             )
 
             print(f"Completed launching {len(child_job_ids)} child jobs for sweep {parent_job_id}")
+            # Invalidate cached job lists now that all child jobs have been created.
+            await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
     finally:
         # Clear org context after background task completes
         if lab_set_org_id is not None:
@@ -1548,6 +1554,9 @@ async def launch_template_on_provider(
         status=initial_status,
         experiment_id=request.experiment_id,
     )
+
+    # Ensure experiment job lists include the newly created REMOTE job.
+    await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
 
     await job_service.job_update_launch_progress(
         job_id,
@@ -2324,6 +2333,9 @@ async def resume_from_checkpoint(
     new_job_id = await job_service.job_create(
         type="REMOTE", status=initial_status, experiment_id=experimentId, job_data={}
     )
+
+    # Ensure experiment job lists include the resumed REMOTE job.
+    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
 
     # Set parent_job_id and resumed_from_checkpoint in job_data
     await job_service.job_update_job_data_insert_key_value(new_job_id, "parent_job_id", job_id, experimentId)
