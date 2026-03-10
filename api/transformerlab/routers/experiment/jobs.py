@@ -35,12 +35,18 @@ from lab.dirs import (
     get_job_models_dir,
     get_models_dir,
 )
+from transformerlab.services.cache_service import cache, cached
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
+@cached(key="jobs:list:{experimentId}:{type}:{status}:{subtype}", ttl="30s", tags=["jobs", "jobs:list:{experimentId}"])
 async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subtype: str = ""):
+    """
+    Return the list of jobs for an experiment, optionally filtered by type/status/subtype.
+    Results are cached per provider/remote/org using the shared OrgScopedCache.
+    """
     jobs = await job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
 
     # Optional filter by job_data.subtype
@@ -63,6 +69,8 @@ async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subt
 @router.get("/delete/{job_id}")
 async def job_delete(job_id: str, experimentId: str):
     await job_service.job_delete(job_id, experiment_id=experimentId)
+    # Invalidate cached job lists for this experiment (best-effort).
+    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
     return {"message": "OK"}
 
 
@@ -74,6 +82,8 @@ async def job_create(
     data: str = "{}",
 ):
     jobid = await job_service.job_create(type=type, status=status, job_data=data, experiment_id=experimentId)
+    # Invalidate cached job lists so new job appears.
+    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
     return jobid
 
 
@@ -101,6 +111,8 @@ async def stop_job(job_id: str, experimentId: str):
 @router.get("/delete_all")
 async def job_delete_all(experimentId: str):
     await job_service.job_delete_all(experiment_id=experimentId)
+    # Invalidate cached job lists for this experiment.
+    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
     return {"message": "OK"}
 
 
@@ -229,10 +241,14 @@ async def get_provider_job_logs(
             status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
         )
 
-    # 1) If live=False (default), first try to read provider logs from the job directory
-    #    via the SDK's job_dir helper. This file is written by tfl-remote-trap inside
-    #    the remote environment.
-    if not live:
+    # 1) If live=False (default) and the provider is NOT local, try provider_logs.txt
+    #    from the SDK job directory.  This file is written by tfl-remote-trap at the
+    #    END of a remote command, so for local providers it may be empty or stale
+    #    while stdout.log (the real log) is available via get_job_logs().
+    is_local_provider = (
+        job_data.get("provider_type") == "local" or (job_data.get("provider_name") or "").lower() == "local"
+    )
+    if not live and not is_local_provider:
         try:
             from lab.dirs import get_job_dir
 
