@@ -51,6 +51,7 @@ class ProviderUpdate(BaseModel):
 
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     config: Optional[ProviderConfigBase] = None
+    disabled: Optional[bool] = None
 
 
 class ProviderRead(BaseModel):
@@ -64,6 +65,7 @@ class ProviderRead(BaseModel):
     created_by_user_id: str
     created_at: datetime
     updated_at: datetime
+    disabled: bool
 
     class Config:
         from_attributes = True
