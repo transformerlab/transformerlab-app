@@ -13,7 +13,7 @@ import {
 import { Trash2Icon } from 'lucide-react';
 import JobProgress from '../Tasks/JobProgress';
 import InteractiveModal from '../Tasks/InteractiveModal';
-import InteractModal from './InteractModal';
+import InteractIframeModal from './InteractIframeModal';
 import EmbeddableStreamingOutput from '../Tasks/EmbeddableStreamingOutput';
 
 interface InteractiveJobCardProps {
@@ -227,7 +227,7 @@ export default function InteractiveJobCard({
           />
         }
       />
-      <InteractModal
+      <InteractIframeModal
         jobId={jobIdNum}
         open={interactOpen}
         onClose={() => setInteractOpen(false)}

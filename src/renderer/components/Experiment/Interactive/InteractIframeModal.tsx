@@ -25,7 +25,7 @@ interface InteractModalProps {
   onClose: () => void;
 }
 
-export default function InteractModal({
+export default function InteractIframeModal({
   jobId,
   open,
   onClose,
