@@ -836,7 +836,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       return;
     }
 
-    if (!cfg.command && !task.command) {
+    if (!cfg.command && !task.command && !task.file_mounts && !cfg.interactive_gallery_id && !task.interactive_gallery_id) {
       addNotification({
         type: 'warning',
         message: 'Task is missing a command to run.',

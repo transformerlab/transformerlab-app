@@ -490,7 +490,7 @@ export default function Interactive() {
         };
       }
 
-      if (!cfg.command) {
+      if (!cfg.command && !task.file_mounts && !cfg.interactive_gallery_id && !task.interactive_gallery_id) {
         return { ok: false, error: 'Task is missing a command to run.' };
       }
 
@@ -622,7 +622,7 @@ export default function Interactive() {
       return;
     }
 
-    if (!cfg.command) {
+    if (!cfg.command && !task.file_mounts && !cfg.interactive_gallery_id && !task.interactive_gallery_id) {
       addNotification({
         type: 'warning',
         message: 'Task is missing a command to run.',
