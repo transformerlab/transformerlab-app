@@ -593,6 +593,17 @@ async def import_task_from_gallery(
         interactive_type = gallery_entry.get("interactive_type", "vscode")
         interactive_gallery_id = gallery_entry.get("id")
 
+        # If the gallery entry specifies a local_task_dir with a task.yaml,
+        # parse it to populate setup/command/parameters from the directory's
+        # task.yaml (just like a regular task import from GitHub).
+        local_task_dir = gallery_entry.get("local_task_dir")
+        local_yaml_data = {}
+        if local_task_dir and os.path.isdir(local_task_dir):
+            local_yaml_path = os.path.join(local_task_dir, "task.yaml")
+            if os.path.isfile(local_yaml_path):
+                with open(local_yaml_path, "r", encoding="utf-8") as f:
+                    local_yaml_data = _parse_yaml_to_task_data(f.read())
+
         # Resolve provider
         task_data = {
             "name": secure_filename(task_name),
@@ -602,27 +613,32 @@ async def import_task_from_gallery(
             "cluster_name": task_name,
             # Command is resolved at launch from gallery logic. Setup is stored so the
             # launch route can prepend SUDO prefix for remote; no full command in task.
-            "command": "",
-            "setup": gallery_entry.get("setup", ""),
+            "command": local_yaml_data.get("command", ""),
+            "setup": local_yaml_data.get("setup", "") or gallery_entry.get("setup", ""),
             "interactive_type": interactive_type,
             "subtype": "interactive",
             "interactive_gallery_id": interactive_gallery_id,
         }
+
+        # Merge additional fields from local task.yaml (parameters, env_vars, resources, github info)
+        for key in ("parameters", "env_vars", "github_repo_url", "github_directory", "github_branch",
+                     "cpus", "memory", "disk_space", "accelerators", "num_nodes"):
+            if key in local_yaml_data:
+                task_data[key] = local_yaml_data[key]
 
         await _resolve_provider(task_data, user_and_team, session)
 
         # Create the task
         task_id = await task_service.add_task(task_data)
 
-        # If the gallery entry specifies a local_task_dir, copy those files
-        # into the task directory (inside a subdirectory matching the source
-        # directory name, mirroring what github_repo_dir does at clone time).
-        local_task_dir = gallery_entry.get("local_task_dir")
+        # Copy local_task_dir files into the task directory (inside a subdirectory
+        # matching the source directory name, mirroring what github_repo_dir does
+        # at clone time) and mark file_mounts so the runner copies them at launch.
         if local_task_dir and os.path.isdir(local_task_dir):
             task_template = TaskTemplate(secure_filename(str(task_id)))
-            task_dir = await task_template.get_dir()
-            await storage.makedirs(task_dir, exist_ok=True)
-            dest_subdir = storage.join(task_dir, os.path.basename(local_task_dir.rstrip("/")))
+            task_dir_path = await task_template.get_dir()
+            await storage.makedirs(task_dir_path, exist_ok=True)
+            dest_subdir = storage.join(task_dir_path, os.path.basename(local_task_dir.rstrip("/")))
             await storage.copy_dir(local_task_dir, dest_subdir)
             await task_service.update_task(task_id, {"file_mounts": True})
 
