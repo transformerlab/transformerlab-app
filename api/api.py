@@ -9,7 +9,6 @@ import re
 
 import json
 import signal
-import subprocess
 from contextlib import asynccontextmanager
 import sys
 from werkzeug.utils import secure_filename
@@ -138,7 +137,6 @@ async def lifespan(app: FastAPI):
     # Validate cloud credentials early - fail fast if missing
     validate_cloud_credentials()
     await galleries.update_gallery_cache()
-    spawn_fastchat_controller_subprocess()
     await db.init()  # This now runs Alembic migrations internally
     print("✅ SEED DATA")
     # Initialize experiments
@@ -337,32 +335,7 @@ app.include_router(quota.router)
 app.include_router(ssh_keys.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(trackio.router, dependencies=[Depends(get_user_and_team)])
 
-controller_process = None
 worker_process = None
-
-
-def spawn_fastchat_controller_subprocess():
-    global controller_process
-    controller_log_path = storage.join(dirs.FASTCHAT_LOGS_DIR, "controller.log")
-    # Note: subprocess requires a local file handle, so we use open() directly
-    # but construct the path using storage.join for workspace consistency
-    logfile = open(controller_log_path, "w")
-    port = "21001"
-
-    controller_process = subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "fastchat.serve.controller",
-            "--port",
-            port,
-            "--log-file",
-            controller_log_path,
-        ],
-        stdout=logfile,
-        stderr=logfile,
-    )
-    print(f"Started fastchat controller on port {port}")
 
 
 async def install_all_plugins():
@@ -377,18 +350,6 @@ async def install_all_plugins():
 # @app.get("/")
 # async def home():
 #     return {"msg": "Welcome to Transformer Lab!"}
-
-
-@app.get("/server/controller_start", tags=["serverinfo"])
-async def server_controler_start():
-    spawn_fastchat_controller_subprocess()
-    return {"message": "OK"}
-
-
-@app.get("/server/controller_stop", tags=["serverinfo"])
-async def server_controller_stop():
-    controller_process.terminate()
-    return {"message": "OK"}
 
 
 def set_worker_process_id(process):
@@ -629,9 +590,6 @@ app.mount("/", StaticFiles(directory=dirs.STATIC_FILES_DIR, html=True), name="ap
 
 
 def cleanup_at_exit():
-    if controller_process is not None:
-        print("🔴 Quitting spawned controller.")
-        controller_process.kill()
     if worker_process is not None:
         print("🔴 Quitting spawned workers.")
         try:
