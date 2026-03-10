@@ -22,6 +22,7 @@ from fastapi.responses import JSONResponse
 import logging
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # Allow the log level for all transformerlab.* loggers to be controlled via
