@@ -1,8 +1,255 @@
 [
-    {
-        "id": "test_script_task",
-        "name": "test-script-remote",
-        "description": "Example remote task that uses transformerlab-sdk test_script and uploads its directory.",
-        "tag": "TRAIN"
+  {
+    "title": "HF Training with Evals",
+    "description": "A task to train a language model using the TRL library on a specified dataset with evaluation done using the EleutherAI Harness.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "trl-training-evals",
+    "metadata": {
+      "category": "finetuning",
+      "modality": "text",
+      "framework": ["huggingface"]
     }
+  },
+  {
+    "title": "PPO Trainer with TRL",
+    "description": "A task to train a language model using the PPO algorithm from the TRL library on a specified dataset.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "ppo-train",
+    "metadata": {
+      "category": "rlhf",
+      "modality": "text",
+      "framework": ["huggingface"]
+    }
+  },
+  {
+    "title": "AutoTrain SFT Training",
+    "description": "SFT training task using Hugging Face AutoTrain. Requires a Hugging Face token in HF_TOKEN env var for model access.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "autotrain-sft",
+    "metadata": {
+      "category": "finetuning",
+      "modality": "text",
+      "framework": ["huggingface"]
+    }
+  },
+  {
+    "title": "Unsloth LLM Fine-tuning",
+    "description": "LLM training task using Unsloth FastLanguageModel with LoRA fine-tuning. Requires a Hugging Face token in HF_TOKEN env var for model access.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "unsloth-llm-train",
+    "metadata": {
+      "category": "finetuning",
+      "modality": "text",
+      "framework": ["unsloth"]
+    }
+  },
+  {
+    "title": "Unsloth GRPO Training Task",
+    "description": "A GRPO trainer based on the unsloth grpo training notebooks for training models with reasoning capabilities.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "unsloth-grpo-train",
+    "metadata": {
+      "category": "training",
+      "modality": "text",
+      "framework": ["unsloth"]
+    }
+  },
+  {
+    "title": "Unsloth Text-to-Speech Training Task",
+    "description": "A Text-to-Speech (TTS) trainer based on the unsloth audio training notebooks.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "unsloth-text-to-speech-train",
+    "metadata": {
+      "category": "training",
+      "modality": "audio",
+      "framework": ["unsloth"]
+    }
+  },
+  {
+    "title": "Diffusion LoRA Trainer",
+    "description": "A LoRA trainer for Stable Diffusion models. Trains on images with captions and generates sample images before and after training.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "diffusion-train",
+    "metadata": {
+      "category": "training",
+      "modality": "image",
+      "framework": ["diffusers"]
+    }
+  },
+  {
+    "title": "Embedding Model Trainer",
+    "description": "A trainer for embedding models using Sentence Transformers. Supports various dataset types and loss functions for training high-quality embeddings.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "embedding-model-train",
+    "metadata": {
+      "category": "training",
+      "modality": "embedding",
+      "framework": ["sentence-transformers"]
+    }
+  },
+  {
+    "title": "GPT-OSS Trainer",
+    "description": "A trainer for GPT-OSS models using HuggingFace SFTTrainer with optional LoRA fine-tuning.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "gpt-oss",
+    "metadata": {
+      "category": "finetuning",
+      "modality": "text",
+      "framework": ["huggingface"]
+    }
+  },
+  {
+    "title": "NanoChat Trainer",
+    "description": "A complete NanoChat training task that runs the full speedrun pipeline including tokenizer training, base model pretraining, midtraining and supervised finetuning on GSM8K.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "nanochat",
+    "metadata": {
+      "category": "finetuning",
+      "modality": "text",
+      "framework": ["nanochat"]
+    }
+  },
+  {
+    "title": "LoRA Multi-GPU Trainer",
+    "description": "A multi-GPU LoRA fine-tuning trainer for LLMs supporting Llama2, Qwen, Gemma, and other causal LMs with 4-bit quantization and accelerate multi-GPU support.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "lora-trainer-multi-gpu",
+    "metadata": {
+      "category": "finetuning",
+      "modality": "text",
+      "framework": ["lora"]
+    }
+  },
+  {
+    "title": "GRPO Multi-GPU Trainer",
+    "description": "A GRPO trainer using multi-GPU setup trained with TRL and Accelerate for distributed training across multiple GPUs.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "grpo-multi-gpu-train",
+    "metadata": {
+      "category": "finetuning",
+      "modality": "text",
+      "framework": ["trl"]
+    }
+  },
+  {
+    "title": "MLX LoRA Train Task",
+    "description": "A LoRA fine-tuning trainer for LLMs using MLX with multi-GPU support.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "mlx_lora_train",
+    "metadata": {
+      "category": "finetuning",
+      "modality": "text",
+      "framework": ["mlx"]
+    }
+  },
+  {
+    "title": "MNIST JAX Train Task",
+    "description": "A task to train a neural network on the MNIST dataset using JAX and Flax.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples/",
+    "github_repo_dir": "mnist-jax-train",
+    "metadata": {
+      "category": "training",
+      "modality": "other",
+      "framework": ["jax", "flax"]
+    }
+  },
+  {
+    "title": "MNIST Train Task",
+    "description": "A task to train a neural network on the MNIST dataset using PyTorch.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples/",
+    "github_repo_dir": "mnist-train",
+    "metadata": {
+      "category": "training",
+      "modality": "other",
+      "framework": []
+    }
+  },
+  {
+    "title": "YOLO Object Detection Train Task Example",
+    "description": "A sample YOLO object detection train task that runs a YOLO object detection train script on COCO8 dataset for 10 epochs",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "yolo-train-task",
+    "metadata": {
+      "category": "training",
+      "modality": "vision",
+      "framework": ["yolo"]
+    }
+  },
+  {
+    "title": "Evaluation Task Example",
+    "description": "A sample evaluation task that runs an evaluation script and creates reports.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "demo-eval-task",
+    "metadata": {
+      "category": "eval",
+      "modality": "text",
+      "framework": ["huggingface"]
+    }
+  },
+  {
+    "title": "Basic Evaluation Metrics",
+    "description": "Evaluating outputs of LLMs using basic defined metrics including regex patterns, word counts, and custom Python code.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "basic-evals-metrics",
+    "metadata": {
+      "category": "eval",
+      "modality": "text",
+      "framework": [""]
+    }
+  },
+  {
+    "title": "EleutherAI LM Evaluation Harness",
+    "description": "EleutherAI LM Evaluation Harness for evaluating language models on various benchmarks.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "eleutherai-lm-evaluation-harness",
+    "metadata": {
+      "category": "eval",
+      "modality": "text",
+      "framework": ["eleutherai"]
+    }
+  },
+  {
+    "title": "Objective Metrics Evaluation",
+    "description": "Evaluating outputs of LLMs using objective metrics powered by DeepEval Framework. Supports metrics like Rouge, BLEU, Exact Match, Quasi Exact Match, Quasi Contains, and BERT Score.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "objective-eval",
+    "metadata": {
+      "category": "eval",
+      "modality": "text",
+      "framework": ["deepeval"]
+    }
+  },
+  {
+    "title": "Batch Image Generation using FLUX2",
+    "description": "A task to generate images in batch using the FLUX2 model.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "batch-image-gen-flux",
+    "metadata": {
+      "category": "generation",
+      "modality": "vision",
+      "framework": [""]
+    }
+  },
+  {
+    "title": "Sample Task Example",
+    "description": "A sample PyTorch training task that clones a repository and runs training script",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "sample-task",
+    "metadata": {
+      "category": "other",
+      "modality": "other",
+      "framework": []
+    }
+  },
+  {
+    "title": "Dataset Generation Task Example",
+    "description": "A sample dataset generation task that runs a dataset generation script and creates a dataset.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "demo-generate-task",
+    "metadata": {
+      "category": "dataset-generation",
+      "modality": "other",
+      "framework": []
+    }
+  }
 ]

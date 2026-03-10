@@ -1,5 +1,5 @@
 from typing import Optional
-from sqlalchemy import String, JSON, DateTime, func, Integer, Index, UUID, Date, Float, UniqueConstraint
+from sqlalchemy import String, JSON, DateTime, func, Integer, Index, UUID, Date, Float, UniqueConstraint, Boolean
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID
 import uuid
@@ -159,6 +159,7 @@ class TeamComputeProvider(Base):
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
+    disabled: Mapped[bool] = mapped_column(Boolean, server_default="0", nullable=False)
 
     __table_args__ = (Index("idx_compute_provider_name", "team_id", "name"),)
 
