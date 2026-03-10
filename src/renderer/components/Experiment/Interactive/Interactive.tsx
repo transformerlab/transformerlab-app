@@ -310,6 +310,7 @@ export default function Interactive() {
       let defaultSetup: string;
       let defaultCommand: string;
       let templateId: string | undefined;
+      let template: any;
 
       try {
         const galleryResponse = await chatAPI.authenticatedFetch(
@@ -321,7 +322,7 @@ export default function Interactive() {
 
         if (galleryResponse.ok) {
           const galleryData = await galleryResponse.json();
-          const template = galleryData.data?.find((t: any) => {
+          template = galleryData.data?.find((t: any) => {
             if (data.template_id) {
               return t.id === data.template_id;
             }
@@ -344,52 +345,73 @@ export default function Interactive() {
         throw error;
       }
 
-      // Create template with flat structure
-      // Use env_parameters from the gallery-defined structure
-      const envVars: Record<string, string> = data.env_parameters || {};
+      // For gallery entries with local_task_dir, use the gallery import API
+      // which reads setup/command from the directory's task.yaml and copies files.
+      let response: Response;
+      let templatePayload: any;
 
-      const needsNgrok =
-        interactiveType === 'jupyter' ||
-        interactiveType === 'vllm' ||
-        interactiveType === 'ollama' ||
-        interactiveType === 'ssh';
-      if (
-        needsNgrok &&
-        providerMeta.type !== 'local' &&
-        !envVars.NGROK_AUTH_TOKEN
-      ) {
-        envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
-      }
-
-      const templatePayload: any = {
-        name: data.title,
-        type: 'REMOTE',
-        plugin: 'remote_orchestrator',
-        experiment_id: experimentInfo.id,
-        cluster_name: data.title,
-        command: defaultCommand,
-        cpus: data.cpus || undefined,
-        memory: data.memory || undefined,
-        accelerators: data.accelerators || undefined,
-        setup: defaultSetup,
-        subtype: 'interactive',
-        interactive_type: interactiveType,
-        interactive_gallery_id: templateId,
-        provider_id: providerMeta.id,
-        provider_name: providerMeta.name,
-        env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
-      };
-
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+      if (template.local_task_dir) {
+        response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              gallery_id: templateId,
+              is_interactive: true,
+            }),
           },
-          body: JSON.stringify(templatePayload),
-        },
-      );
+        );
+        // Build a minimal payload for post-creation launch
+        templatePayload = { interactive_type: interactiveType };
+      } else {
+        // Create template with flat structure
+        // Use env_parameters from the gallery-defined structure
+        const envVars: Record<string, string> = data.env_parameters || {};
+
+        const needsNgrok =
+          interactiveType === 'jupyter' ||
+          interactiveType === 'vllm' ||
+          interactiveType === 'ollama' ||
+          interactiveType === 'ssh';
+        if (
+          needsNgrok &&
+          providerMeta.type !== 'local' &&
+          !envVars.NGROK_AUTH_TOKEN
+        ) {
+          envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
+        }
+
+        templatePayload = {
+          name: data.title,
+          type: 'REMOTE',
+          plugin: 'remote_orchestrator',
+          experiment_id: experimentInfo.id,
+          cluster_name: data.title,
+          command: defaultCommand,
+          cpus: data.cpus || undefined,
+          memory: data.memory || undefined,
+          accelerators: data.accelerators || undefined,
+          setup: defaultSetup,
+          subtype: 'interactive',
+          interactive_type: interactiveType,
+          interactive_gallery_id: templateId,
+          provider_id: providerMeta.id,
+          provider_name: providerMeta.name,
+          env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
+        };
+
+        response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(templatePayload),
+          },
+        );
+      }
 
       if (response.ok) {
         const result = await response.json();
@@ -415,11 +437,27 @@ export default function Interactive() {
             return;
           }
 
-          // Construct task object from payload for launching
-          const newTask = {
-            id: taskId,
-            ...templatePayload,
-          };
+          // For gallery-imported tasks (local_task_dir), fetch the full task
+          // from the refreshed list so we get command/setup from task.yaml.
+          let newTask: any;
+          if (template.local_task_dir) {
+            const refreshed = await templatesMutate();
+            const taskList = Array.isArray(refreshed)
+              ? refreshed
+              : (refreshed as any)?.data || [];
+            newTask = taskList.find((t: any) => t.id === taskId);
+            if (!newTask) {
+              setInteractiveModalError(
+                'Task was imported but could not be found. Please refresh and try launching from the task list.',
+              );
+              return;
+            }
+          } else {
+            newTask = {
+              id: taskId,
+              ...templatePayload,
+            };
+          }
 
           // Launch the task immediately. If launch fails (e.g. missing secrets),
           // keep the modal open and show the error inline.
