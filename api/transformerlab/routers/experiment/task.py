@@ -590,7 +590,7 @@ async def import_task_from_gallery(
 
         # Create interactive task template (store interactive_gallery_id for launch-time command resolution)
         task_name = gallery_entry.get("name", "Interactive Task")
-        interactive_type = gallery_entry.get("interactive_type", "vscode")
+        interactive_type = gallery_entry.get("interactive_type") or "custom"
         interactive_gallery_id = gallery_entry.get("id")
 
         # If the gallery entry specifies a local_task_dir with a task.yaml,
