@@ -518,7 +518,7 @@ async def get_tunnel_info_for_job(
     interactive_gallery_id = job_data.get("interactive_gallery_id")
     gallery_list = await galleries.get_interactive_gallery()
     gallery_entry = find_interactive_gallery_entry(
-        gallery_list, interactive_gallery_id=interactive_gallery_id, interactive_type=interactive_type
+        gallery_list, interactive_gallery_id=interactive_gallery_id,
     )
     ports = gallery_entry.get("ports", []) if gallery_entry else []
     modal_title = gallery_entry.get("modal_title", "") if gallery_entry else ""
