@@ -1,7 +1,7 @@
 """create_asset_versions_table
 
 Revision ID: a3d2e5f8c901
-Revises: 1f7cb465d15a
+Revises: a1b2c3d4e5f6
 Create Date: 2026-03-06 12:00:00.000000
 
 """
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "a3d2e5f8c901"
-down_revision: Union[str, Sequence[str], None] = "4937b0e0647c"
+down_revision: Union[str, Sequence[str], None] = "a1b2c3d4e5f6"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
