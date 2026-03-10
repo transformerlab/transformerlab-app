@@ -223,6 +223,16 @@
     "name": "Ollama + Gradio",
     "description": "Ollama model server with Gradio chat UI via ngrok tunnel",
     "local_task_dir": "/Users/ali/workspace/transformerlab-app/tmp/ollama-gradio-chat",
+    "env_parameters": [
+      {
+        "field_name": "Model Name",
+        "env_var": "MODEL_NAME",
+        "field_type": "str",
+        "required": true,
+        "placeholder": "e.g. llama2, mistral, codellama",
+        "help_text": "Ollama model name (e.g. llama2, mistral, codellama)."
+      }
+    ],
     "icon": "https://lab.cloud/img/icons/ollama.png",
     "supported_accelerators": ["cpu", "NVIDIA", "AMD", "AppleSilicon"],
     "_comment_ports": "Ollama API on 11434, Gradio UI on 7860. Both tunneled via ngrok.",

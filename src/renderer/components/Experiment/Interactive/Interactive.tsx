@@ -310,6 +310,7 @@ export default function Interactive() {
       let defaultSetup: string;
       let defaultCommand: string;
       let templateId: string | undefined;
+      let template: any;
 
       try {
         const galleryResponse = await chatAPI.authenticatedFetch(
@@ -321,7 +322,7 @@ export default function Interactive() {
 
         if (galleryResponse.ok) {
           const galleryData = await galleryResponse.json();
-          const template = galleryData.data?.find((t: any) => {
+          template = galleryData.data?.find((t: any) => {
             if (data.template_id) {
               return t.id === data.template_id;
             }
@@ -344,52 +345,73 @@ export default function Interactive() {
         throw error;
       }
 
-      // Create template with flat structure
-      // Use env_parameters from the gallery-defined structure
-      const envVars: Record<string, string> = data.env_parameters || {};
+      let response: Response;
+      let templatePayload: any = {};
 
-      const needsNgrok =
-        interactiveType === 'jupyter' ||
-        interactiveType === 'vllm' ||
-        interactiveType === 'ollama' ||
-        interactiveType === 'ssh';
-      if (
-        needsNgrok &&
-        providerMeta.type !== 'local' &&
-        !envVars.NGROK_AUTH_TOKEN
-      ) {
-        envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
-      }
-
-      const templatePayload: any = {
-        name: data.title,
-        type: 'REMOTE',
-        plugin: 'remote_orchestrator',
-        experiment_id: experimentInfo.id,
-        cluster_name: data.title,
-        command: defaultCommand,
-        cpus: data.cpus || undefined,
-        memory: data.memory || undefined,
-        accelerators: data.accelerators || undefined,
-        setup: defaultSetup,
-        subtype: 'interactive',
-        interactive_type: interactiveType,
-        interactive_gallery_id: templateId,
-        provider_id: providerMeta.id,
-        provider_name: providerMeta.name,
-        env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
-      };
-
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+      if (template.local_task_dir) {
+        // Use the gallery import API which reads task.yaml and copies files,
+        // just like the "Upload from Local Directory" flow.
+        response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              gallery_id: templateId,
+              experiment_id: experimentInfo.id,
+              is_interactive: true,
+            }),
           },
-          body: JSON.stringify(templatePayload),
-        },
-      );
+        );
+
+      } else {
+        // Create template with flat structure
+        // Use env_parameters from the gallery-defined structure
+        const envVars: Record<string, string> = data.env_parameters || {};
+
+        const needsNgrok =
+          interactiveType === 'jupyter' ||
+          interactiveType === 'vllm' ||
+          interactiveType === 'ollama' ||
+          interactiveType === 'ssh';
+        if (
+          needsNgrok &&
+          providerMeta.type !== 'local' &&
+          !envVars.NGROK_AUTH_TOKEN
+        ) {
+          envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
+        }
+
+        templatePayload = {
+          name: data.title,
+          type: 'REMOTE',
+          plugin: 'remote_orchestrator',
+          experiment_id: experimentInfo.id,
+          cluster_name: data.title,
+          command: defaultCommand,
+          cpus: data.cpus || undefined,
+          memory: data.memory || undefined,
+          accelerators: data.accelerators || undefined,
+          setup: defaultSetup,
+          subtype: 'interactive',
+          interactive_type: interactiveType,
+          interactive_gallery_id: templateId,
+          provider_id: providerMeta.id,
+          provider_name: providerMeta.name,
+          env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
+        };
+
+        response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(templatePayload),
+          },
+        );
+      }
 
       if (response.ok) {
         const result = await response.json();
@@ -415,8 +437,14 @@ export default function Interactive() {
             return;
           }
 
-          // Construct task object from payload for launching
-          const newTask = {
+          // Construct task object for launching. For local_task_dir imports
+          // the task metadata lives in the backend, so find it from the
+          // refreshed list instead of the (empty) templatePayload.
+          const refreshed = await templatesMutate();
+          const taskList = Array.isArray(refreshed)
+            ? refreshed
+            : (refreshed as any)?.data || [];
+          const newTask = taskList.find((t: any) => t.id === taskId) || {
             id: taskId,
             ...templatePayload,
           };
@@ -490,7 +518,7 @@ export default function Interactive() {
         };
       }
 
-      if (!cfg.command && !task.file_mounts && !cfg.interactive_gallery_id && !task.interactive_gallery_id) {
+      if (!cfg.command) {
         return { ok: false, error: 'Task is missing a command to run.' };
       }
 
@@ -622,7 +650,7 @@ export default function Interactive() {
       return;
     }
 
-    if (!cfg.command && !task.file_mounts && !cfg.interactive_gallery_id && !task.interactive_gallery_id) {
+    if (!cfg.command) {
       addNotification({
         type: 'warning',
         message: 'Task is missing a command to run.',
