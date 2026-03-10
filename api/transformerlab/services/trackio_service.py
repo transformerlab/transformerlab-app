@@ -62,12 +62,18 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
     cache_root = os.path.join(HOME_DIR, "temp", "trackio")
     cache_dir = os.path.join(cache_root, f"{safe_org_id}_{safe_experiment_id}_{safe_job_id}")
 
+    # Normalize and validate the cache directory to ensure it stays under cache_root.
+    cache_root_real = os.path.realpath(cache_root)
+    cache_dir_safe = os.path.realpath(cache_dir)
+    if not (cache_dir_safe == cache_root_real or cache_dir_safe.startswith(cache_root_real + os.sep)):
+        raise HTTPException(status_code=400, detail="Invalid cache directory for Trackio job")
+
     # Ensure cache root exists
-    os.makedirs(cache_root, exist_ok=True)
+    os.makedirs(cache_root_real, exist_ok=True)
 
     # Refresh cache for this job: remove any previous copy
-    if os.path.exists(cache_dir):
-        await storage.rm_tree(cache_dir)
+    if os.path.exists(cache_dir_safe):
+        await storage.rm_tree(cache_dir_safe)
 
     # Copy directory or file into the local cache directory without going through
     # the global storage backend for the destination (which may be remote).
@@ -76,7 +82,7 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
         src_fs, _ = storage._get_fs_for_path(source_path)  # type: ignore[attr-defined]
 
         def _copy_remote_tree() -> None:
-            os.makedirs(cache_dir, exist_ok=True)
+            os.makedirs(cache_dir_safe, exist_ok=True)
             try:
                 src_files = src_fs.find(source_path)
             except Exception:
@@ -88,7 +94,7 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
             for raw_src_file in src_files:
                 src_file = raw_src_file
                 rel_path = src_file[len(source_path) :].lstrip("/").lstrip("\\")
-                dest_file = os.path.join(cache_dir, rel_path)
+                dest_file = os.path.join(cache_dir_safe, rel_path)
                 dest_parent = os.path.dirname(dest_file)
                 if dest_parent:
                     os.makedirs(dest_parent, exist_ok=True)
