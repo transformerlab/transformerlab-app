@@ -7,6 +7,7 @@ import argparse
 import re
 
 import json
+import subprocess
 from contextlib import asynccontextmanager
 import sys
 import fastapi
@@ -127,6 +128,7 @@ async def lifespan(app: FastAPI):
     # Validate cloud credentials early - fail fast if missing
     validate_cloud_credentials()
     await galleries.update_gallery_cache()
+    spawn_fastchat_controller_subprocess()
     await db.init()  # This now runs Alembic migrations internally
     print("✅ SEED DATA")
     # Initialize experiments
@@ -165,6 +167,8 @@ async def lifespan(app: FastAPI):
     # Do the following at API Shutdown:
     await stop_sweep_status_worker()
     await db.close()
+    # Run the clean up function
+    cleanup_at_exit()
     print("FastAPI LIFESPAN: Complete")
 
 
@@ -322,6 +326,32 @@ app.include_router(api_keys.router)
 app.include_router(quota.router)
 app.include_router(ssh_keys.router, dependencies=[Depends(get_user_and_team)])
 
+controller_process = None
+
+
+def spawn_fastchat_controller_subprocess():
+    global controller_process
+    controller_log_path = storage.join(dirs.FASTCHAT_LOGS_DIR, "controller.log")
+    # Note: subprocess requires a local file handle, so we use open() directly
+    # but construct the path using storage.join for workspace consistency
+    logfile = open(controller_log_path, "w")
+    port = "21001"
+
+    controller_process = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "fastchat.serve.controller",
+            "--port",
+            port,
+            "--log-file",
+            controller_log_path,
+        ],
+        stdout=logfile,
+        stderr=logfile,
+    )
+    print(f"Started fastchat controller on port {port}")
+
 
 async def install_all_plugins():
     all_plugins = await plugins.list_plugins()
@@ -330,6 +360,23 @@ async def install_all_plugins():
         plugin_id = plugin["uniqueId"]
         print(f"Refreshing workspace plugin: {plugin_id}")
         await plugins.copy_plugin_files_to_workspace(plugin_id)
+
+
+# @app.get("/")
+# async def home():
+#     return {"msg": "Welcome to Transformer Lab!"}
+
+
+@app.get("/server/controller_start", tags=["serverinfo"])
+async def server_controler_start():
+    spawn_fastchat_controller_subprocess()
+    return {"message": "OK"}
+
+
+@app.get("/server/controller_stop", tags=["serverinfo"])
+async def server_controller_stop():
+    controller_process.terminate()
+    return {"message": "OK"}
 
 
 @app.get("/healthz")
@@ -366,6 +413,13 @@ async def static_cache_headers(request: Request, call_next):
 
 # Add an endpoint that serves the static files in the ~/.transformerlab/webapp directory:
 app.mount("/", StaticFiles(directory=dirs.STATIC_FILES_DIR, html=True), name="application")
+
+
+def cleanup_at_exit():
+    if controller_process is not None:
+        print("🔴 Quitting spawned controller.")
+        controller_process.kill()
+    print("🔴 Quitting Transformer Lab API server.")
 
 
 def parse_args():
