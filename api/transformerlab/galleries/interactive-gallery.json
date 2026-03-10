@@ -221,7 +221,8 @@
     "id": "ollama_gradio",
     "name": "Ollama + Gradio",
     "description": "Ollama model server with Gradio chat UI via ngrok tunnel",
-    "local_task_dir": "/Users/ali/workspace/transformerlab-app/tmp/ollama-gradio-chat",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "inference-ollama-gradio-chat",
     "env_parameters": [
       {
         "field_name": "Model Name",

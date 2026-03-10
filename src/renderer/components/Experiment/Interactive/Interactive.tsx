@@ -348,9 +348,9 @@ export default function Interactive() {
       let response: Response;
       let templatePayload: any = {};
 
-      if (template.local_task_dir) {
+      if (template.local_task_dir || template.github_repo_url) {
         // Use the gallery import API which reads task.yaml and copies files,
-        // just like the "Upload from Local Directory" flow.
+        // just like the "Upload from Local Directory" or GitHub import flow.
         response = await chatAPI.authenticatedFetch(
           chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id),
           {

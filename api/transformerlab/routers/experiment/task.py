@@ -593,16 +593,29 @@ async def import_task_from_gallery(
         interactive_type = gallery_entry.get("interactive_type") or "custom"
         interactive_gallery_id = gallery_entry.get("id")
 
-        # If the gallery entry specifies a local_task_dir with a task.yaml,
-        # parse it to populate setup/command/parameters from the directory's
-        # task.yaml (just like a regular task import from GitHub).
+        # Resolve task setup/command from the gallery entry's source:
+        # 1. github_repo_url + github_repo_dir -> fetch task.yaml from GitHub
+        # 2. local_task_dir -> read task.yaml from local filesystem
+        # 3. inline setup/command fields on the gallery entry
+        github_repo_url = gallery_entry.get("github_repo_url")
+        github_repo_dir = gallery_entry.get("github_repo_dir")
+        github_branch = gallery_entry.get("github_branch")
         local_task_dir = gallery_entry.get("local_task_dir")
-        local_yaml_data = {}
-        if local_task_dir and os.path.isdir(local_task_dir):
+        source_yaml_data = {}
+
+        if github_repo_url:
+            try:
+                task_yaml_content = await fetch_task_yaml_from_github(
+                    github_repo_url, directory=github_repo_dir, ref=github_branch
+                )
+                source_yaml_data = _parse_yaml_to_task_data(task_yaml_content)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to fetch task.yaml from GitHub: {e}")
+        elif local_task_dir and os.path.isdir(local_task_dir):
             local_yaml_path = os.path.join(local_task_dir, "task.yaml")
             if os.path.isfile(local_yaml_path):
                 with open(local_yaml_path, "r", encoding="utf-8") as f:
-                    local_yaml_data = _parse_yaml_to_task_data(f.read())
+                    source_yaml_data = _parse_yaml_to_task_data(f.read())
 
         # Resolve provider
         task_data = {
@@ -611,20 +624,26 @@ async def import_task_from_gallery(
             "plugin": "remote_orchestrator",
             "experiment_id": experimentId,
             "cluster_name": task_name,
-            # Command is resolved at launch from gallery logic. Setup is stored so the
-            # launch route can prepend SUDO prefix for remote; no full command in task.
-            "command": local_yaml_data.get("command", ""),
-            "setup": local_yaml_data.get("setup", "") or gallery_entry.get("setup", ""),
+            "command": source_yaml_data.get("command", ""),
+            "setup": source_yaml_data.get("setup", "") or gallery_entry.get("setup", ""),
             "interactive_type": interactive_type,
             "subtype": "interactive",
             "interactive_gallery_id": interactive_gallery_id,
         }
 
-        # Merge additional fields from local task.yaml (parameters, env_vars, resources, github info)
+        # Store GitHub repo info so the runner can clone files at launch time
+        if github_repo_url:
+            task_data["github_repo_url"] = github_repo_url
+            if github_repo_dir:
+                task_data["github_directory"] = github_repo_dir
+            if github_branch:
+                task_data["github_branch"] = github_branch
+
+        # Merge additional fields from source task.yaml (parameters, env_vars, resources, etc.)
         for key in ("parameters", "env_vars", "github_repo_url", "github_directory", "github_branch",
                      "cpus", "memory", "disk_space", "accelerators", "num_nodes"):
-            if key in local_yaml_data:
-                task_data[key] = local_yaml_data[key]
+            if key in source_yaml_data:
+                task_data[key] = source_yaml_data[key]
 
         # Merge user-provided env_vars from the request (e.g. MODEL_NAME)
         print(f"[DEBUG import_task] request.env_vars = {request.env_vars}")
@@ -642,6 +661,15 @@ async def import_task_from_gallery(
 
         # Create the task
         task_id = await task_service.add_task(task_data)
+
+        # Store task.yaml in the task directory for GitHub-sourced interactive tasks
+        if github_repo_url and source_yaml_data:
+            task_template = TaskTemplate(secure_filename(str(task_id)))
+            task_dir_path = await task_template.get_dir()
+            await storage.makedirs(task_dir_path, exist_ok=True)
+            yaml_path = storage.join(task_dir_path, "task.yaml")
+            async with await storage.open(yaml_path, "w", encoding="utf-8") as f:
+                await f.write(task_yaml_content)
 
         # Copy local_task_dir files into the task directory (inside a subdirectory
         # matching the source directory name, mirroring what github_repo_dir does
