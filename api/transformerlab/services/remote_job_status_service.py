@@ -19,7 +19,6 @@ from lab.dirs import set_organization_id as lab_set_org_id
 from lab.job_status import JobStatus
 
 from transformerlab.services import job_service, team_service
-from transformerlab.shared.request_context import set_current_org_id
 
 REMOTE_JOB_STATUS_INTERVAL_SECONDS = int(os.getenv("REMOTE_JOB_STATUS_INTERVAL_SECONDS", "15"))
 
@@ -40,7 +39,6 @@ _remote_job_status_worker_task: Optional[asyncio.Task] = None
 
 
 def _set_org_context(org_id: Optional[str]) -> None:
-    set_current_org_id(org_id)
     if lab_set_org_id is not None:
         lab_set_org_id(org_id)
 
