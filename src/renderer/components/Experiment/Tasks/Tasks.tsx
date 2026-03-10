@@ -15,12 +15,9 @@ import { analytics } from 'renderer/components/Shared/analytics/AnalyticsContext
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
-import InteractiveVSCodeModal from './InteractiveVSCodeModal';
-import InteractiveJupyterModal from './InteractiveJupyterModal';
-import InteractiveVllmModal from './InteractiveVllmModal';
-import InteractiveSshModal from './InteractiveSshModal';
-import InteractiveOllamaModal from './InteractiveOllamaModal';
+import InteractiveModal from './InteractiveModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
+import DeleteTaskConfirmModal from './DeleteTaskConfirmModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
@@ -70,6 +67,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
   const [viewFileBrowserFromJob, setViewFileBrowserFromJob] = useState(-1);
   const [yamlEditorTaskId, setYamlEditorTaskId] = useState<string | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<{
+    id: string;
+    name?: string;
+  } | null>(null);
   const [launchProgressByJobId, setLaunchProgressByJobId] = useState<
     Record<string, { phase?: string; percent?: number; message?: string }>
   >({});
@@ -438,43 +439,42 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     return combined;
   }, [jobs, getPendingJobIds, subtype, pendingIdsTrigger]);
 
-  const handleDeleteTask = async (taskId: string) => {
-    if (!experimentInfo?.id) return;
+  const handleDeleteTask = (taskId: string, taskName?: string) => {
+    setTaskToDelete({ id: taskId, name: taskName });
+  };
 
-    // eslint-disable-next-line no-alert
-    if (!confirm('Are you sure you want to delete this template?')) {
-      return;
-    }
-
-    try {
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo?.id || '', taskId),
-        {
-          method: 'GET',
-        },
-      );
-
-      if (response.ok) {
-        addNotification({
-          type: 'success',
-          message: 'Template deleted successfully!',
-        });
-        // Refresh the data to remove the deleted template
-        await templatesMutate();
-      } else {
+  const handleConfirmDeleteTask = useCallback(
+    async (taskId: string): Promise<boolean> => {
+      if (!experimentInfo?.id) return false;
+      try {
+        const response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo.id, taskId),
+          { method: 'GET' },
+        );
+        if (response.ok) {
+          addNotification({
+            type: 'success',
+            message: 'Template deleted successfully!',
+          });
+          await templatesMutate();
+          return true;
+        }
         addNotification({
           type: 'danger',
           message: 'Failed to delete template. Please try again.',
         });
+        return false;
+      } catch (error) {
+        console.error('Error deleting template:', error);
+        addNotification({
+          type: 'danger',
+          message: 'Failed to delete template. Please try again.',
+        });
+        return false;
       }
-    } catch (error) {
-      console.error('Error deleting template:', error);
-      addNotification({
-        type: 'danger',
-        message: 'Failed to delete template. Please try again.',
-      });
-    }
-  };
+    },
+    [experimentInfo?.id, addNotification, templatesMutate],
+  );
 
   const handleDeleteJob = async (jobId: string) => {
     if (!experimentInfo?.id) return;
@@ -711,33 +711,20 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
 
       // Create template with flat structure
-      const envVars: Record<string, string> = {};
+      // Use env_parameters from the gallery-defined structure (including NGROK)
+      const envVars: Record<string, string> = data.env_parameters || {};
 
-      // Add vLLM-specific environment variables
-      if (interactiveType === 'vllm') {
-        if (data.model_name) {
-          envVars['MODEL_NAME'] = data.model_name;
-        }
-        if (data.hf_token) {
-          envVars['HF_TOKEN'] = data.hf_token;
-        }
-        if (data.tp_size) {
-          envVars['TP_SIZE'] = data.tp_size;
-        }
-      }
-
-      // Add Ollama-specific environment variables
-      if (interactiveType === 'ollama') {
-        if (data.model_name) {
-          envVars['MODEL_NAME'] = data.model_name;
-        }
-      }
-
-      // Add SSH-specific environment variables
-      if (interactiveType === 'ssh') {
-        if (data.ngrok_auth_token) {
-          envVars['NGROK_AUTH_TOKEN'] = data.ngrok_auth_token;
-        }
+      const needsNgrok =
+        interactiveType === 'jupyter' ||
+        interactiveType === 'vllm' ||
+        interactiveType === 'ollama' ||
+        interactiveType === 'ssh';
+      if (
+        needsNgrok &&
+        providerMeta.type !== 'local' &&
+        !envVars.NGROK_AUTH_TOKEN
+      ) {
+        envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
       }
 
       const templatePayload: any = {
@@ -811,11 +798,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     // For templates, all fields are stored directly (not nested in config)
     // For backward compatibility, check if it's an old task format with nested config
     const cfg =
-      task.config !== undefined
-        ? typeof task.config === 'string'
-          ? JSON.parse(task.config)
-          : task.config
-        : task; // If no config field, assume it's a template with flat structure
+      task.config !== undefined ? SafeJSONParse(task.config, task) : task; // If no config field, assume it's a template with flat structure
 
     if (!providers.length) {
       addNotification({
@@ -850,11 +833,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     // For templates, all fields are stored directly (not nested in config)
     // For backward compatibility, check if it's an old task format with nested config
     const cfg =
-      task.config !== undefined
-        ? typeof task.config === 'string'
-          ? JSON.parse(task.config)
-          : task.config
-        : task; // If no config field, assume it's a template with flat structure
+      task.config !== undefined ? SafeJSONParse(task.config, task) : task; // If no config field, assume it's a template with flat structure
 
     // Use provider from modal override first, then task/cfg
     const providerId =
@@ -1263,6 +1242,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={(jobId: number) => setViewOutputFromJob(jobId)}
+        jobStatus={
+          jobs?.find((j: any) => j.id === viewOutputFromJob)?.status || ''
+        }
       />
       <ViewArtifactsModal
         open={viewArtifactsFromJob !== -1}
@@ -1284,61 +1266,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         onClose={() => setCompareEvalModalOpen(false)}
         jobIds={compareEvalJobIds}
       />
-      {(() => {
-        // Find the job to determine which modal to show
-        const job = jobs.find(
-          (j: any) => String(j.id) === String(interactiveJobForModal),
-        );
-        const interactiveType =
-          job?.job_data?.interactive_type ||
-          (typeof job?.job_data === 'string'
-            ? JSON.parse(job?.job_data || '{}')?.interactive_type
-            : null) ||
-          'vscode';
-
-        if (interactiveType === 'jupyter') {
-          return (
-            <InteractiveJupyterModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'vllm') {
-          return (
-            <InteractiveVllmModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'ssh') {
-          return (
-            <InteractiveSshModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        if (interactiveType === 'ollama') {
-          return (
-            <InteractiveOllamaModal
-              jobId={interactiveJobForModal}
-              setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-            />
-          );
-        }
-
-        return (
-          <InteractiveVSCodeModal
-            jobId={interactiveJobForModal}
-            setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
-          />
-        );
-      })()}
+      <InteractiveModal
+        jobId={interactiveJobForModal}
+        setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+      />
       <PreviewDatasetModal
         open={previewDatasetModal.open}
         setOpen={(open: boolean) =>
@@ -1361,6 +1292,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewFileBrowserFromJob !== -1}
         onClose={() => setViewFileBrowserFromJob(-1)}
         jobId={viewFileBrowserFromJob}
+      />
+      <DeleteTaskConfirmModal
+        open={taskToDelete !== null}
+        onClose={() => setTaskToDelete(null)}
+        taskId={taskToDelete?.id ?? null}
+        taskName={taskToDelete?.name ?? null}
+        onConfirm={handleConfirmDeleteTask}
       />
     </Sheet>
   );

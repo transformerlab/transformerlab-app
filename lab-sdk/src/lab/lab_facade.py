@@ -16,6 +16,7 @@ from . import storage
 from .dataset import Dataset
 from .task_template import TaskTemplate
 from .generation import GenerationModel, load_generation_model as _load_generation_model
+from .job_status import JobStatus
 
 
 logger = logging.getLogger(__name__)
@@ -115,7 +116,18 @@ class Lab:
             logger.info(f"Created new job ID: {self._job.id}")
 
         # Update status to RUNNING for both cases
-        _run_async(self._job.update_status("RUNNING"))
+        _run_async(self._job.update_status(JobStatus.RUNNING))
+
+        # Best-effort marker so UIs can distinguish jobs where lab has been
+        # explicitly initialized. This reuses the existing live_status field
+        # that remote_trap also writes to (started/finished/crashed). Depending
+        # on ordering, live_status may briefly be "lab_init" before or after
+        # "started" is set by tfl-remote-trap.
+        try:
+            _run_async(self._job.update_job_data_field("live_status", "lab_init"))
+        except Exception:
+            # Never let status marker failures break user code.
+            logger.debug("Failed to set live_status=lab_init on job", exc_info=True)
 
         # Check for wandb integration and capture URL if available
         self._detect_and_capture_wandb_url()
@@ -486,7 +498,7 @@ class Lab:
         """
         self._ensure_initialized()
         _run_async(self._job.update_progress(100))  # type: ignore[union-attr]
-        _run_async(self._job.update_status("COMPLETE"))  # type: ignore[union-attr]
+        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_status", "success"))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_details", message))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))  # type: ignore[union-attr]
@@ -1105,56 +1117,67 @@ class Lab:
         dataset_dir = await dirs.get_job_datasets_dir(job_id)
         await storage.makedirs(dataset_dir, exist_ok=True)
 
-        # Determine output filename
+        # Determine output location and filename
         if is_image:
+            # Image datasets already use a per-dataset subdirectory
             lines = True
             stem = dataset_id_with_prefix
             if isinstance(suffix, str) and suffix.strip() != "":
                 stem = f"{stem}_{suffix.strip()}"
             output_filename = "metadata.jsonl"
-            # For image datasets, create subdirectory with prefixed name
             dataset_subdir = storage.join(dataset_dir, stem)
             await storage.makedirs(dataset_subdir, exist_ok=True)
             output_path = storage.join(dataset_subdir, output_filename)
-        else:
-            lines = False
-            stem = dataset_id_with_prefix
-            if isinstance(suffix, str) and suffix.strip() != "":
-                stem = f"{stem}_{suffix.strip()}"
-            output_filename = f"{stem}.json"
-            output_path = storage.join(dataset_dir, output_filename)
 
-        # Handle duplicate names within the same job by adding suffix
-        if await storage.exists(output_path):
-            counter = 1
-            while True:
-                if is_image:
+            # Handle duplicate image dataset names by creating a new subdirectory
+            if await storage.exists(output_path):
+                counter = 1
+                while True:
                     stem_with_suffix = f"{dataset_id_with_prefix}_{counter}"
                     if isinstance(suffix, str) and suffix.strip() != "":
                         stem_with_suffix = f"{stem_with_suffix}_{suffix.strip()}"
                     dataset_subdir = storage.join(dataset_dir, stem_with_suffix)
                     output_path = storage.join(dataset_subdir, "metadata.jsonl")
-                else:
-                    stem_with_suffix = f"{dataset_id_with_prefix}_{counter}"
-                    if isinstance(suffix, str) and suffix.strip() != "":
-                        stem_with_suffix = f"{stem_with_suffix}_{suffix.strip()}"
-                    output_filename = f"{stem_with_suffix}.json"
-                    output_path = storage.join(dataset_dir, output_filename)
+                    if not await storage.exists(output_path):
+                        stem = stem_with_suffix
+                        output_filename = "metadata.jsonl"
+                        dataset_id_with_prefix = (
+                            stem_with_suffix.split("_")[0] + "_" + stem_with_suffix.split("_", 1)[1]
+                            if "_" in stem_with_suffix
+                            else stem_with_suffix
+                        )
+                        break
+                    counter += 1
 
-                if not await storage.exists(output_path):
-                    stem = stem_with_suffix
-                    output_filename = f"{stem}.json" if not is_image else "metadata.jsonl"
-                    dataset_id_with_prefix = (
-                        stem_with_suffix.split("_")[0] + "_" + stem_with_suffix.split("_", 1)[1]
-                        if "_" in stem_with_suffix
-                        else stem_with_suffix
-                    )
-                    break
-                counter += 1
-
-            # Create directory for image datasets with new name
-            if is_image:
                 await storage.makedirs(dataset_subdir, exist_ok=True)
+        else:
+            # For non-image datasets, store all dataset files inside a dedicated
+            # per-dataset folder under the job's datasets directory so that the job
+            # sees exactly one logical "dataset" entry instead of many files.
+            lines = False
+            stem = dataset_id_with_prefix
+            if isinstance(suffix, str) and suffix.strip() != "":
+                stem = f"{stem}_{suffix.strip()}"
+
+            # Create a subdirectory for this dataset using the job-prefixed id
+            dataset_subdir = storage.join(dataset_dir, dataset_id_with_prefix)
+            await storage.makedirs(dataset_subdir, exist_ok=True)
+
+            # Write the main data file inside this dataset folder
+            output_filename = f"{stem}.json"
+            output_path = storage.join(dataset_subdir, output_filename)
+
+            # Handle duplicate names within the same job by adding a numeric suffix
+            if await storage.exists(output_path):
+                counter = 1
+                while True:
+                    stem_with_suffix = f"{stem}_{counter}"
+                    output_filename = f"{stem_with_suffix}.json"
+                    output_path = storage.join(dataset_subdir, output_filename)
+                    if not await storage.exists(output_path):
+                        stem = stem_with_suffix
+                        break
+                    counter += 1
 
         # Persist dataframe
         try:
@@ -1348,11 +1371,11 @@ class Lab:
         Mark the job as failed and set completion metadata.
         """
         self._ensure_initialized()
-        _run_async(self._job.update_status("COMPLETE"))  # type: ignore[union-attr]
+        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_status", "failed"))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_details", message))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))  # type: ignore[union-attr]
-        _run_async(self._job.update_job_data_field("status", "FAILED"))  # type: ignore[union-attr]
+        _run_async(self._job.update_job_data_field("status", JobStatus.FAILED))  # type: ignore[union-attr]
 
     def _detect_and_capture_wandb_url(self) -> None:
         """

@@ -32,6 +32,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
 import SweepConfigSection from './SweepConfigSection';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 
 type QueueTaskModalProps = {
   open: boolean;
@@ -103,6 +104,7 @@ export default function QueueTaskModal({
   );
   const [sweepMetric, setSweepMetric] = React.useState('eval/loss');
   const [lowerIsBetter, setLowerIsBetter] = React.useState(true);
+  const [jobSlurmFlags, setJobSlurmFlags] = React.useState<string[]>(['']);
   const loadingMessages = React.useMemo(
     () => [
       'Contacting compute provider…',
@@ -168,6 +170,16 @@ export default function QueueTaskModal({
     [providers, selectedProviderId],
   );
   const isLocalProvider = selectedProvider?.type === 'local';
+  const isSlurmProvider = selectedProvider?.type === 'slurm';
+
+  // Fetch user-specific provider settings (including default custom SBATCH flags)
+  const slurmUserSettingsKey =
+    open && isSlurmProvider && selectedProviderId
+      ? getAPIFullPath('compute_provider', ['user-settings'], {
+          providerId: selectedProviderId,
+        })
+      : null;
+  const { data: slurmUserSettings } = useSWR(slurmUserSettingsKey, fetcher);
 
   // Fetch local provider snapshot via the same response type as remote providers (/compute_provider/{id}/clusters).
   const clustersKey =
@@ -194,11 +206,7 @@ export default function QueueTaskModal({
   const taskResources = React.useMemo(() => {
     if (!task) return null;
     const cfg =
-      task.config !== undefined
-        ? typeof task.config === 'string'
-          ? JSON.parse(task.config)
-          : task.config
-        : task;
+      task.config !== undefined ? SafeJSONParse(task.config, task) : task;
 
     let accelerators = cfg.accelerators || task.accelerators || null;
     const cpus = cfg.cpus || task.cpus || null;
@@ -438,11 +446,7 @@ export default function QueueTaskModal({
     if (open && task) {
       // Extract parameters from task
       const cfg =
-        task.config !== undefined
-          ? typeof task.config === 'string'
-            ? JSON.parse(task.config)
-            : task.config
-          : task;
+        task.config !== undefined ? SafeJSONParse(task.config, task) : task;
 
       const taskParameters = cfg.parameters || task.parameters || {};
 
@@ -471,7 +475,7 @@ export default function QueueTaskModal({
       if (cfg.sweep_config || task.sweep_config) {
         const sweepCfg =
           typeof cfg.sweep_config === 'string'
-            ? JSON.parse(cfg.sweep_config)
+            ? SafeJSONParse(cfg.sweep_config, cfg.sweep_config)
             : cfg.sweep_config || task.sweep_config;
         setSweepConfig(sweepCfg || {});
       } else {
@@ -491,6 +495,18 @@ export default function QueueTaskModal({
       );
     }
   }, [open, task, providers]);
+
+  // When opening for a SLURM provider, initialize job flags from the user's
+  // saved per-provider defaults so they can be edited for this run.
+  React.useEffect(() => {
+    if (!open || !isSlurmProvider || !slurmUserSettings) return;
+    const raw = (slurmUserSettings as any).custom_sbatch_flags || '';
+    const lines = String(raw)
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    setJobSlurmFlags(lines.length > 0 ? lines : ['']);
+  }, [open, isSlurmProvider, selectedProviderId, slurmUserSettings]);
 
   // Helper function to validate constraints
   const validateParameter = (param: ProcessedParameter): string | null => {
@@ -567,6 +583,16 @@ export default function QueueTaskModal({
     const provider = providers.find((p) => p.id === selectedProviderId);
     if (provider) {
       config.provider_name = provider.name;
+    }
+
+    // For SLURM providers, add optional per-job SBATCH flags override
+    if (provider?.type === 'slurm') {
+      const lines = jobSlurmFlags
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+      if (lines.length > 0) {
+        config.custom_sbatch_flags = lines.join('\n');
+      }
     }
 
     // Add sweep configuration if enabled
@@ -1055,6 +1081,68 @@ export default function QueueTaskModal({
                   Choose which compute provider should run this task.
                 </FormHelperText>
               </FormControl>
+
+              {/* SLURM per-job SBATCH flags */}
+              {isSlurmProvider && (
+                <FormControl>
+                  <FormLabel>Job-specific SBATCH flags (optional)</FormLabel>
+                  <Stack gap={1}>
+                    {jobSlurmFlags.map((value, idx) => (
+                      <Stack
+                        key={idx}
+                        direction="row"
+                        alignItems="center"
+                        gap={1}
+                      >
+                        <Input
+                          placeholder={
+                            idx === 0 ? '--time=4:00:00' : '--ntasks-per-node=4'
+                          }
+                          sx={{ fontFamily: 'monospace', fontSize: 'sm' }}
+                          value={value}
+                          onChange={(e) => {
+                            const next = [...jobSlurmFlags];
+                            next[idx] = e.target.value;
+                            setJobSlurmFlags(next);
+                          }}
+                          disabled={isSubmitting}
+                        />
+                        {jobSlurmFlags.length > 1 && (
+                          <Button
+                            size="sm"
+                            variant="outlined"
+                            color="neutral"
+                            onClick={() => {
+                              const next = jobSlurmFlags.filter(
+                                (_, i) => i !== idx,
+                              );
+                              setJobSlurmFlags(next.length > 0 ? next : ['']);
+                            }}
+                            disabled={isSubmitting}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </Stack>
+                    ))}
+                    <Button
+                      size="sm"
+                      variant="outlined"
+                      onClick={() => setJobSlurmFlags((prev) => [...prev, ''])}
+                      disabled={isSubmitting}
+                    >
+                      Add flag for this job
+                    </Button>
+                  </Stack>
+                  <FormHelperText>
+                    These flags apply only to this queued run and are added as
+                    #SBATCH directives in the SLURM script. They start from your
+                    defaults in User Settings → Provider Settings, but edits
+                    here affect this run only. Examples: --time=4:00:00,
+                    --ntasks-per-node=4.
+                  </FormHelperText>
+                </FormControl>
+              )}
 
               {/* Incompatibility Warning */}
               {selectedProvider &&

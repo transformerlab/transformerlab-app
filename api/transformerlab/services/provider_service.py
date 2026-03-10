@@ -140,6 +140,18 @@ async def list_team_providers(session: AsyncSession, team_id: str) -> list[TeamC
     return list(result.scalars().all())
 
 
+async def list_enabled_team_providers(session: AsyncSession, team_id: str) -> list[TeamComputeProvider]:
+    """List only enabled (non-disabled) providers for a team."""
+    stmt = (
+        select(TeamComputeProvider)
+        .where(TeamComputeProvider.team_id == team_id)
+        .where(~TeamComputeProvider.disabled)
+        .order_by(TeamComputeProvider.created_at.desc())
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
 def detect_local_supported_accelerators() -> List[str]:
     """
     Detect accelerators available on the current machine for the local provider.
@@ -191,6 +203,7 @@ def db_record_to_provider_config(
     record: TeamComputeProvider,
     user_slurm_user: Optional[str] = None,
     user_ssh_key_path: Optional[str] = None,
+    user_sbatch_flags: Optional[str] = None,
 ) -> ComputeProviderConfig:
     """
     Convert a database TeamComputeProvider record to a ComputeProviderConfig object.
@@ -210,6 +223,12 @@ def db_record_to_provider_config(
 
     # Use user's key path when provided (user uploaded private key in Provider Settings); else provider config
     ssh_key_path = user_ssh_key_path if user_ssh_key_path else config_dict.get("ssh_key_path")
+
+    # Build extra_config, merging in any user-specific settings that should flow through
+    base_extra_config = config_dict.get("extra_config", {}) or {}
+    extra_config: dict = dict(base_extra_config)
+    if user_sbatch_flags:
+        extra_config["user_sbatch_flags"] = user_sbatch_flags
 
     # Build ComputeProviderConfig from database record
     provider_config = ComputeProviderConfig(
@@ -233,7 +252,7 @@ def db_record_to_provider_config(
         default_template_id=config_dict.get("default_template_id"),
         default_network_volume_id=config_dict.get("default_network_volume_id"),
         supported_accelerators=config_dict.get("supported_accelerators"),
-        extra_config=config_dict.get("extra_config", {}),
+        extra_config=extra_config,
     )
     # Local provider has no extra required config; workspace_dir is set at launch from get_workspace_dir()
 
@@ -267,13 +286,17 @@ async def get_provider_instance(
 
     user_slurm_user = None
     user_ssh_key_path = None
+    user_sbatch_flags = None
 
     if record.type == "slurm":
         if user_id and team_id:
             import transformerlab.db.db as db
 
-            config_key = f"provider:{record.id}:slurm_user"
-            user_slurm_user = await db.config_get(key=config_key, user_id=user_id, team_id=team_id)
+            slurm_user_key = f"provider:{record.id}:slurm_user"
+            user_slurm_user = await db.config_get(key=slurm_user_key, user_id=user_id, team_id=team_id)
+
+            custom_flags_key = f"provider:{record.id}:slurm_custom_sbatch_flags"
+            user_sbatch_flags = await db.config_get(key=custom_flags_key, user_id=user_id, team_id=team_id)
 
             # Use user's uploaded SSH private key (SSH mode) when available
             if record.config and record.config.get("mode") == "ssh":
@@ -288,7 +311,12 @@ async def get_provider_instance(
                 except Exception:
                     pass
 
-    config = db_record_to_provider_config(record, user_slurm_user=user_slurm_user, user_ssh_key_path=user_ssh_key_path)
+    config = db_record_to_provider_config(
+        record,
+        user_slurm_user=user_slurm_user,
+        user_ssh_key_path=user_ssh_key_path,
+        user_sbatch_flags=user_sbatch_flags,
+    )
     return create_compute_provider(config)
 
 
@@ -391,13 +419,19 @@ async def initialize_team_local_provider(
 
 
 async def update_team_provider(
-    session: AsyncSession, provider: TeamComputeProvider, name: Optional[str] = None, config: Optional[dict] = None
+    session: AsyncSession,
+    provider: TeamComputeProvider,
+    name: Optional[str] = None,
+    config: Optional[dict] = None,
+    disabled: Optional[bool] = None,
 ) -> TeamComputeProvider:
     """Update an existing team provider record."""
     if name is not None:
         provider.name = name
     if config is not None:
         provider.config = config
+    if disabled is not None:
+        provider.disabled = disabled
     await session.commit()
     await session.refresh(provider)
     return provider

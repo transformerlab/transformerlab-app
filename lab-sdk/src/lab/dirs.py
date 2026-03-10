@@ -40,10 +40,15 @@ def set_organization_id(organization_id: str | None) -> None:
         # If TFL_REMOTE_STORAGE_ENABLED is true, use <cloud_protocol>://workspace_<team_id> instead of the value itself
         tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
         if tfl_remote_storage_enabled:
-            # Determine protocol based on TFL_STORAGE_PROVIDER (aws | gcp)
-            protocol = "gs://" if STORAGE_PROVIDER == "gcp" else "s3://"
+            # Determine protocol based on TFL_STORAGE_PROVIDER (aws | gcp | azure)
+            if STORAGE_PROVIDER == "gcp":
+                protocol = "gs://"
+            elif STORAGE_PROVIDER == "azure":
+                protocol = "abfs://"
+            else:
+                protocol = "s3://"
 
-            # Use cloud://workspace_<team_id> format
+            # Use <protocol>workspace-<team_id> format
             _current_tfl_storage_uri.set(f"{protocol}workspace-{organization_id}")
         elif STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI"):
             # Localfs: root_uri() should be org-scoped so set context to TFL_STORAGE_URI/orgs/<org_id>
@@ -54,17 +59,9 @@ def set_organization_id(organization_id: str | None) -> None:
         _current_tfl_storage_uri.set(None)
 
 
-def get_orgs_base_dir() -> str:
-    """Return the base directory containing org subdirectories.
-
-    In localfs mode this is ``TFL_STORAGE_URI/orgs``; otherwise ``HOME_DIR/orgs``.
-    Functions that iterate over all orgs (e.g. to scan jobs) must use this
-    instead of hard-coding ``HOME_DIR/orgs`` so that the correct storage
-    location is consulted.
-    """
-    if STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI"):
-        return storage.join(os.getenv("TFL_STORAGE_URI", ""), "orgs")
-    return storage.join(HOME_DIR, "orgs")
+def get_organization_id() -> str | None:
+    """Return the current organization id from SDK context (or None)."""
+    return _current_org_id.get()
 
 
 async def get_workspace_dir() -> str:

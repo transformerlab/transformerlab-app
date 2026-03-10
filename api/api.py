@@ -5,10 +5,10 @@ The Entrypoint File for Transformer Lab's API Server.
 import os
 import argparse
 import asyncio
+import re
 
 import json
 import signal
-import subprocess
 from contextlib import asynccontextmanager
 import sys
 from werkzeug.utils import secure_filename
@@ -22,9 +22,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 
+import logging
+
 from dotenv import load_dotenv
+from lab.job_status import JobStatus
 
 load_dotenv()
+
+# Allow the log level for all transformerlab.* loggers to be controlled via
+# an env var.  Set TLAB_LOG_LEVEL=DEBUG to enable debug output across the
+# entire application (e.g. sweep-status cycle timings).  Defaults to WARNING
+# so debug/info messages are silent unless explicitly requested.
+logging.getLogger("transformerlab").setLevel(
+    getattr(logging, os.getenv("TLAB_LOG_LEVEL", "WARNING").upper(), logging.WARNING)
+)
 
 
 # Optional Datadog APM (does nothing unless enabled + installed)
@@ -59,7 +70,6 @@ from transformerlab.services.experiment_service import experiment_get  # noqa: E
 from transformerlab.services.job_service import job_create, job_get, job_update_status  # noqa: E402
 from transformerlab.services.experiment_init import (  # noqa: E402
     seed_default_experiments,
-    cancel_in_progress_jobs,
     seed_default_admin_user,
 )
 import transformerlab.db.session as db  # noqa: E402
@@ -90,11 +100,11 @@ from transformerlab.shared import galleries  # noqa: E402
 from lab.dirs import get_workspace_dir  # noqa: E402
 from lab import dirs as lab_dirs  # noqa: E402
 from transformerlab.shared import dirs  # noqa: E402
-from transformerlab.shared.request_context import set_current_org_id  # noqa: E402
 from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
 from lab import storage  # noqa: E402
 from transformerlab.shared.remote_workspace import validate_cloud_credentials  # noqa: E402
 from transformerlab.services.sweep_status_service import start_sweep_status_worker, stop_sweep_status_worker  # noqa: E402
+from transformerlab.services.cache_service import setup as setup_cache  # noqa: E402
 
 
 # The following environment variable can be used by other scripts
@@ -116,21 +126,22 @@ async def lifespan(app: FastAPI):
 
     await shared_dirs.initialize_dirs()
 
+    # Configure the response cache (backend set via CACHE_URL in cache_service.py)
+    setup_cache()
+    print("✅ CACHE ENABLED")
+
     # Set the temporary image directory for transformerlab (computed async)
     temp_image_dir = storage.join(await get_workspace_dir(), "temp", "images")
     os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
     # Validate cloud credentials early - fail fast if missing
     validate_cloud_credentials()
     await galleries.update_gallery_cache()
-    spawn_fastchat_controller_subprocess()
     await db.init()  # This now runs Alembic migrations internally
     print("✅ SEED DATA")
     # Initialize experiments
     await seed_default_experiments()
     # Seed default admin user
     await seed_default_admin_user()
-    # Cancel any running jobs
-    await cancel_in_progress_jobs()
 
     # Create buckets/folders for all existing teams if cloud or localfs storage is enabled
     tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
@@ -295,14 +306,12 @@ async def set_org_context(request: Request, call_next):
                     # If determination fails, leave as None (will be handled by dependency)
                     pass
 
-        set_current_org_id(org_id)
         if lab_set_org_id is not None:
             lab_set_org_id(org_id)
         response = await call_next(request)
         return response
     finally:
         # Clear at end of request
-        set_current_org_id(None)
         if lab_set_org_id is not None:
             lab_set_org_id(None)
 
@@ -332,32 +341,7 @@ app.include_router(api_keys.router)
 app.include_router(quota.router)
 app.include_router(ssh_keys.router, dependencies=[Depends(get_user_and_team)])
 
-controller_process = None
 worker_process = None
-
-
-def spawn_fastchat_controller_subprocess():
-    global controller_process
-    controller_log_path = storage.join(dirs.FASTCHAT_LOGS_DIR, "controller.log")
-    # Note: subprocess requires a local file handle, so we use open() directly
-    # but construct the path using storage.join for workspace consistency
-    logfile = open(controller_log_path, "w")
-    port = "21001"
-
-    controller_process = subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "fastchat.serve.controller",
-            "--port",
-            port,
-            "--log-file",
-            controller_log_path,
-        ],
-        stdout=logfile,
-        stderr=logfile,
-    )
-    print(f"Started fastchat controller on port {port}")
 
 
 async def install_all_plugins():
@@ -372,18 +356,6 @@ async def install_all_plugins():
 # @app.get("/")
 # async def home():
 #     return {"msg": "Welcome to Transformer Lab!"}
-
-
-@app.get("/server/controller_start", tags=["serverinfo"])
-async def server_controler_start():
-    spawn_fastchat_controller_subprocess()
-    return {"message": "OK"}
-
-
-@app.get("/server/controller_stop", tags=["serverinfo"])
-async def server_controller_stop():
-    controller_process.terminate()
-    return {"message": "OK"}
 
 
 def set_worker_process_id(process):
@@ -481,9 +453,9 @@ async def server_worker_start(
         await global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
     # Pass organization_id as environment variable to subprocess
-    from transformerlab.shared.request_context import get_current_org_id
+    from lab.dirs import get_organization_id
 
-    org_id = get_current_org_id()
+    org_id = get_organization_id()
     subprocess_env = {}
     if org_id:
         subprocess_env["_TFL_ORG_ID"] = org_id
@@ -518,7 +490,7 @@ async def server_worker_start(
             error_msg = job["job_data"].get("error_msg")
         if not error_msg:
             error_msg = f"Exit code {exitcode}"
-            await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
+            await job_update_status(job_id, JobStatus.FAILED, experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "error", "message": error_msg}
     from lab.dirs import get_global_log_path
 
@@ -603,14 +575,27 @@ async def healthz():
     }
 
 
+# Middleware to set cache-control headers for static frontend assets.
+# index.html is never cached so users always get the latest version,
+# while content-hashed JS/CSS files are cached for 1 year.
+@app.middleware("http")
+async def static_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    # Hashed assets (e.g. main.a1b2c3d4.js, style.e5f6g7h8.css) — cache immutably
+    if re.search(r"\.[0-9a-f]{8}\.(js|css)$", path):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    # HTML files — never cache
+    elif path == "/" or path.endswith(".html"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+
 # Add an endpoint that serves the static files in the ~/.transformerlab/webapp directory:
 app.mount("/", StaticFiles(directory=dirs.STATIC_FILES_DIR, html=True), name="application")
 
 
 def cleanup_at_exit():
-    if controller_process is not None:
-        print("🔴 Quitting spawned controller.")
-        controller_process.kill()
     if worker_process is not None:
         print("🔴 Quitting spawned workers.")
         try:

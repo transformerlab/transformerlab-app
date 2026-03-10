@@ -204,11 +204,11 @@
     },
     "saveDatasetToRegistry": {
       "method": "POST",
-      "path": "experiment/{experimentId}/jobs/{jobId}/datasets/{datasetName}/save_to_registry"
+      "path": "experiment/{experimentId}/jobs/{jobId}/datasets/{datasetName}/save_to_registry?target_name={targetName}&mode={mode}"
     },
     "saveModelToRegistry": {
       "method": "POST",
-      "path": "experiment/{experimentId}/jobs/{jobId}/models/{modelName}/save_to_registry"
+      "path": "experiment/{experimentId}/jobs/{jobId}/models/{modelName}/save_to_registry?target_name={targetName}&mode={mode}"
     },
     "getJobsOfType": {
       "method": "GET",
@@ -323,6 +323,10 @@
     "list": {
       "method": "GET",
       "path": "compute_provider/"
+    },
+    "listAll": {
+      "method": "GET",
+      "path": "compute_provider/?include_disabled=true"
     },
     "create": {
       "method": "POST",

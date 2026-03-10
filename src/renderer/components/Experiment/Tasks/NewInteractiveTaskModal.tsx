@@ -7,7 +7,6 @@ import Button from '@mui/joy/Button';
 import FormControl from '@mui/joy/FormControl';
 import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
-import Checkbox from '@mui/joy/Checkbox';
 import {
   ModalClose,
   ModalDialog,
@@ -28,7 +27,7 @@ import {
   Box,
   Chip,
 } from '@mui/joy';
-import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightIcon, XIcon } from 'lucide-react';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
@@ -80,6 +79,8 @@ type ImportedTask = {
 type NewInteractiveTaskModalProps = {
   open: boolean;
   onClose: () => void;
+  submitError?: string | null;
+  onClearSubmitError?: () => void;
   onSubmit: (
     data: {
       title: string;
@@ -87,6 +88,7 @@ type NewInteractiveTaskModalProps = {
       memory?: string;
       accelerators?: string;
       interactive_type: 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama';
+      template_id: string;
       provider_id?: string;
       env_parameters?: Record<string, string>;
       local?: boolean;
@@ -105,6 +107,8 @@ type NewInteractiveTaskModalProps = {
 export default function NewInteractiveTaskModal({
   open,
   onClose,
+  submitError = null,
+  onClearSubmitError,
   onSubmit,
   isSubmitting = false,
   providers,
@@ -136,6 +140,40 @@ export default function NewInteractiveTaskModal({
     string | number | null
   >(null);
   const { addNotification } = useNotification();
+
+  const loadingMessages = React.useMemo(
+    () => [
+      'Contacting compute provider…',
+      'Reserving resources…',
+      'Preparing environment…',
+      'Submitting job configuration…',
+      'Waiting for job ID…',
+    ],
+    [],
+  );
+  const [loadingMessageIndex, setLoadingMessageIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!open || !isSubmitting || loadingMessages.length === 0) {
+      return;
+    }
+
+    setLoadingMessageIndex(0);
+
+    const interval = window.setInterval(() => {
+      setLoadingMessageIndex((prev) => {
+        const lastIndex = loadingMessages.length - 1;
+        if (prev >= lastIndex) {
+          return lastIndex;
+        }
+        return prev + 1;
+      });
+    }, 1500);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [open, isSubmitting, loadingMessages]);
 
   // Helper to check if a provider supports requested accelerators
   const isProviderCompatible = React.useCallback(
@@ -246,11 +284,14 @@ export default function NewInteractiveTaskModal({
       return;
     }
     if (!selectedProviderId) {
-      // Don't auto-select first one, let user pick in the first step
+      // Auto-select the first provider by default for a smoother experience
+      setSelectedProviderId(providers[0].id);
       return;
     }
     if (!providers.find((p) => p.id === selectedProviderId)) {
-      setSelectedProviderId('');
+      // If the previously selected provider is no longer available,
+      // fall back to the first available provider.
+      setSelectedProviderId(providers[0].id);
     }
   }, [open, providers, selectedProviderId]);
 
@@ -274,9 +315,51 @@ export default function NewInteractiveTaskModal({
       if (field.field_type === 'integer' && field.env_var === 'TP_SIZE') {
         initialValues[field.env_var] = '1';
       }
+      if (
+        field.env_var === 'NGROK_AUTH_TOKEN' &&
+        !isLocal &&
+        selectedProvider?.type !== 'local'
+      ) {
+        initialValues[field.env_var] = '{{secret._NGROK_AUTH_TOKEN}}';
+      }
     });
     setConfigFieldValues(initialValues);
   };
+
+  // Keep NGROK_AUTH_TOKEN aligned with local/remote behavior:
+  // - For remote (non-local) sessions, default to {{secret._NGROK_AUTH_TOKEN}} if empty.
+  // - For local/direct sessions, drop NGROK_AUTH_TOKEN so secret is not required.
+  React.useEffect(() => {
+    if (!selectedTemplate) return;
+
+    const hasNgrokField = selectedTemplate.env_parameters?.some(
+      (field) => field.env_var === 'NGROK_AUTH_TOKEN',
+    );
+    if (!hasNgrokField) return;
+
+    if (isLocal || selectedProvider?.type === 'local') {
+      // Remove NGROK_AUTH_TOKEN entirely for local/direct sessions
+      setConfigFieldValues((prev) => {
+        if (!Object.prototype.hasOwnProperty.call(prev, 'NGROK_AUTH_TOKEN')) {
+          return prev;
+        }
+        const { NGROK_AUTH_TOKEN: _omit, ...rest } = prev;
+        return rest;
+      });
+    } else if (selectedProvider?.type !== 'local') {
+      // Ensure remote sessions have a default secret placeholder if none is set
+      setConfigFieldValues((prev) => {
+        const current = prev['NGROK_AUTH_TOKEN'];
+        if (current && current.trim().length > 0) {
+          return prev;
+        }
+        return {
+          ...prev,
+          NGROK_AUTH_TOKEN: '{{secret._NGROK_AUTH_TOKEN}}',
+        };
+      });
+    }
+  }, [isLocal, selectedProvider, selectedTemplate]);
 
   const handleBack = () => {
     if (step === 'config') {
@@ -432,6 +515,29 @@ export default function NewInteractiveTaskModal({
           <DialogContent
             sx={{ maxHeight: '60vh', overflow: 'auto', padding: 1 }}
           >
+            {submitError && (
+              <Alert
+                variant="soft"
+                color="danger"
+                sx={{ mb: 1 }}
+                endDecorator={
+                  onClearSubmitError ? (
+                    <IconButton
+                      variant="plain"
+                      color="danger"
+                      onClick={onClearSubmitError}
+                      aria-label="Dismiss error"
+                    >
+                      <XIcon size={16} />
+                    </IconButton>
+                  ) : null
+                }
+              >
+                <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap' }}>
+                  {submitError}
+                </Typography>
+              </Alert>
+            )}
             {step === 'provider' && (
               <Stack spacing={3} sx={{ py: 2 }}>
                 <Typography level="body-md">
@@ -549,58 +655,45 @@ export default function NewInteractiveTaskModal({
                   </Alert>
                 )}
 
-                {selectedProvider?.type !== 'local' && (
-                  <>
-                    <Checkbox
-                      label="Enable direct web access (no tunnel)"
-                      checked={isLocal}
-                      onChange={(e) => setIsLocal(e.target.checked)}
-                    />
-                    <FormHelperText sx={{ mt: -2 }}>
-                      When enabled, the session will be accessible directly via
-                      a local address (e.g. http://localhost:8888). Recommended
-                      for local providers only.
-                    </FormHelperText>
-                  </>
-                )}
-
                 {selectedTemplate?.env_parameters &&
                   selectedTemplate.env_parameters.length > 0 && (
                     <>
-                      {selectedTemplate.env_parameters.map((field) => (
-                        <FormControl
-                          key={field.env_var}
-                          required={
-                            field.required &&
-                            !(isLocal && field.env_var === 'NGROK_AUTH_TOKEN')
-                          }
-                          disabled={
-                            isLocal && field.env_var === 'NGROK_AUTH_TOKEN'
-                          }
-                        >
-                          <FormLabel>{field.field_name}</FormLabel>
-                          <Input
-                            type={
-                              field.password
-                                ? 'password'
-                                : field.field_type === 'integer'
-                                  ? 'number'
-                                  : 'text'
+                      {selectedTemplate.env_parameters
+                        .filter((field) => field.env_var !== 'NGROK_AUTH_TOKEN')
+                        .map((field) => (
+                          <FormControl
+                            key={field.env_var}
+                            required={
+                              field.required &&
+                              !(isLocal && field.env_var === 'NGROK_AUTH_TOKEN')
                             }
-                            value={configFieldValues[field.env_var] || ''}
-                            onChange={(e) =>
-                              handleConfigFieldChange(
-                                field.env_var,
-                                e.target.value,
-                              )
+                            disabled={
+                              isLocal && field.env_var === 'NGROK_AUTH_TOKEN'
                             }
-                            placeholder={field.placeholder}
-                          />
-                          {field.help_text && (
-                            <FormHelperText>{field.help_text}</FormHelperText>
-                          )}
-                        </FormControl>
-                      ))}
+                          >
+                            <FormLabel>{field.field_name}</FormLabel>
+                            <Input
+                              type={
+                                field.password
+                                  ? 'password'
+                                  : field.field_type === 'integer'
+                                    ? 'number'
+                                    : 'text'
+                              }
+                              value={configFieldValues[field.env_var] || ''}
+                              onChange={(e) =>
+                                handleConfigFieldChange(
+                                  field.env_var,
+                                  e.target.value,
+                                )
+                              }
+                              placeholder={field.placeholder}
+                            />
+                            {field.help_text && (
+                              <FormHelperText>{field.help_text}</FormHelperText>
+                            )}
+                          </FormControl>
+                        ))}
                     </>
                   )}
 
@@ -1003,18 +1096,12 @@ export default function NewInteractiveTaskModal({
                 </Button>
               )}
               {step === 'config' && (
-                <Stack direction="row" spacing={2}>
-                  <Button
-                    variant="outlined"
-                    loading={isSubmitting}
-                    disabled={isSubmitting || !canSubmit}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleSubmit(e, false);
-                    }}
-                  >
-                    Save
-                  </Button>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {isSubmitting && (
+                    <Typography level="body-sm">
+                      {loadingMessages[loadingMessageIndex]}
+                    </Typography>
+                  )}
                   <Button
                     variant="solid"
                     color="primary"

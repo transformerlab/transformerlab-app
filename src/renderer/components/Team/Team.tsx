@@ -21,6 +21,8 @@ import {
   TabList,
   Tab,
   TabPanel,
+  Switch,
+  Tooltip,
 } from '@mui/joy';
 import {
   NetworkIcon,
@@ -30,10 +32,12 @@ import {
   ActivityIcon,
   BarChart3Icon,
   GithubIcon,
+  Trash2Icon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
+import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import RenameTeamModal from './RenameTeamModal';
 import InviteUserModal from './InviteUserModal';
 import ProviderDetailsModal from './ProviderDetailsModal';
@@ -53,6 +57,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 export default function UserLoginTest(): JSX.Element {
   const navigate = useNavigate();
   const authContext = useAuth();
+  const { addNotification } = useNotification();
   const [loading, setLoading] = useState<boolean>(false);
   const [newTeamName, setNewTeamName] = useState<string>('');
   const [newTeamLogo, setNewTeamLogo] = useState<File | null>(null);
@@ -103,12 +108,12 @@ export default function UserLoginTest(): JSX.Element {
     },
   );
 
-  // Get compute_provider list (unchanged)
+  // Get compute_provider list (include disabled for admin view)
   const {
     data: providers,
     mutate: providersMutate,
     isLoading: providersLoading,
-  } = useAPI('compute_provider', ['list']);
+  } = useAPI('compute_provider', ['listAll']);
 
   // Simplify errors: show all errors under the "Members" title
   const [roleError, setRoleError] = useState<string | undefined>(undefined);
@@ -116,6 +121,135 @@ export default function UserLoginTest(): JSX.Element {
   const iAmOwner = members?.members?.some((m: any) => {
     return m.user_id === authContext.user?.id && m.role === 'owner';
   });
+
+  const currentTeam = authContext.team;
+  const usernameForPersonal =
+    authContext.user?.first_name ||
+    authContext.user?.email?.split('@')[0] ||
+    '';
+  const isPersonalTeam =
+    currentTeam && usernameForPersonal
+      ? currentTeam.name === `${usernameForPersonal}'s Team`
+      : false;
+
+  async function handleLeaveTeam() {
+    if (!currentTeam?.id) return;
+
+    // eslint-disable-next-line no-alert
+    const confirmed = window.confirm(
+      'Are you sure you want to leave this team? You will no longer see this team or its resources.',
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await authContext.fetchWithAuth(
+        `teams/${currentTeam.id}/members/me`,
+        {
+          method: 'DELETE',
+        },
+      );
+
+      if (!res.ok) {
+        let bodyText: string;
+        try {
+          const json = await res.json();
+          bodyText = json && json.detail ? json.detail : JSON.stringify(json);
+        } catch {
+          bodyText = await res.text();
+        }
+        addNotification({
+          type: 'danger',
+          message: bodyText || 'Failed to leave team',
+        });
+        return;
+      }
+
+      // Refresh team list and switch to another available team, if any.
+      await teamsMutate();
+
+      const availableTeams =
+        teams?.teams?.filter((t: any) => t.id !== currentTeam.id) ?? [];
+      if (availableTeams.length > 0) {
+        const nextTeam = availableTeams[0];
+        authContext.setTeam({
+          id: nextTeam.id,
+          name: nextTeam.name,
+        });
+        addNotification({
+          type: 'success',
+          message: `You left ${currentTeam.name} and switched to ${nextTeam.name}`,
+        });
+      } else {
+        addNotification({
+          type: 'success',
+          message: `You left ${currentTeam.name}`,
+        });
+      }
+    } catch (e: any) {
+      addNotification({
+        type: 'danger',
+        message: e?.message ?? 'Failed to leave team',
+      });
+    }
+  }
+
+  async function handleDeleteTeam() {
+    if (!currentTeam?.id || !iAmOwner) return;
+
+    // eslint-disable-next-line no-alert
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this team for all members? All members will lose access to this team and its resources. This action cannot be undone.',
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await authContext.fetchWithAuth(`teams/${currentTeam.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        let bodyText: string;
+        try {
+          const json = await res.json();
+          bodyText = json && json.detail ? json.detail : JSON.stringify(json);
+        } catch {
+          bodyText = await res.text();
+        }
+        addNotification({
+          type: 'danger',
+          message: bodyText || 'Failed to delete team',
+        });
+        return;
+      }
+
+      // Refresh team list and switch to another available team, if any.
+      await teamsMutate();
+
+      const availableTeams =
+        teams?.teams?.filter((t: any) => t.id !== currentTeam.id) ?? [];
+      if (availableTeams.length > 0) {
+        const nextTeam = availableTeams[0];
+        authContext.setTeam({
+          id: nextTeam.id,
+          name: nextTeam.name,
+        });
+        addNotification({
+          type: 'success',
+          message: `Deleted ${currentTeam.name}. Switched to ${nextTeam.name}.`,
+        });
+      } else {
+        addNotification({
+          type: 'success',
+          message: `Deleted ${currentTeam.name}.`,
+        });
+      }
+    } catch (e: any) {
+      addNotification({
+        type: 'danger',
+        message: e?.message ?? 'Failed to delete team',
+      });
+    }
+  }
 
   // Re-fetch providers whenever the selected team changes
   useEffect(() => {
@@ -411,6 +545,36 @@ export default function UserLoginTest(): JSX.Element {
     }
   }
 
+  async function handleToggleProviderDisabled(
+    id: string,
+    currentlyDisabled: boolean,
+  ) {
+    try {
+      const res = await authContext.fetchWithAuth(
+        chatAPI.getAPIFullPath('compute_provider', ['update'], {
+          providerId: id,
+        }),
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ disabled: !currentlyDisabled }),
+        },
+      );
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({
+          detail: 'Failed to update provider',
+        }));
+        alert(
+          `Failed to toggle provider: ${errorData.detail || 'Unknown error'}`,
+        );
+        return;
+      }
+      if (providersMutate) providersMutate();
+    } catch (e: any) {
+      alert(`Error toggling provider: ${e?.message ?? String(e)}`);
+    }
+  }
+
   async function handleCheckProvider(id: string) {
     setCheckingProviderId(id);
     setProviderCheckStatus((prev) => ({ ...prev, [id]: null }));
@@ -688,6 +852,23 @@ export default function UserLoginTest(): JSX.Element {
               </Button>
               <Button
                 variant="outlined"
+                color="danger"
+                startDecorator={<Trash2Icon size={16} />}
+                onClick={handleDeleteTeam}
+                disabled={!iAmOwner || isPersonalTeam}
+              >
+                Delete Team
+              </Button>
+              <Button
+                variant="soft"
+                color="neutral"
+                onClick={handleLeaveTeam}
+                disabled={isPersonalTeam || !currentTeam?.id}
+              >
+                Leave Team
+              </Button>
+              <Button
+                variant="outlined"
                 startDecorator={<BarChart3Icon />}
                 onClick={() => navigate('/team/usage-report')}
                 disabled={!iAmOwner}
@@ -924,6 +1105,7 @@ export default function UserLoginTest(): JSX.Element {
               <tr>
                 <th style={{ width: 'auto' }}>Name</th>
                 <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Type</th>
+                <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Enabled</th>
                 <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Status</th>
                 <th
                   style={{
@@ -943,7 +1125,12 @@ export default function UserLoginTest(): JSX.Element {
                   const isChecking = checkingProviderId === provider.id;
 
                   return (
-                    <tr key={provider.id}>
+                    <tr
+                      key={provider.id}
+                      style={{
+                        opacity: provider.disabled ? 0.5 : 1,
+                      }}
+                    >
                       <td>
                         <Stack direction="row" alignItems="center" gap={1}>
                           <NetworkIcon size={16} />
@@ -956,6 +1143,31 @@ export default function UserLoginTest(): JSX.Element {
                         <Typography level="body-sm">
                           {provider?.type}
                         </Typography>
+                      </td>
+                      <td>
+                        <Tooltip
+                          title={
+                            !iAmOwner
+                              ? 'Only owners can toggle providers'
+                              : provider.disabled
+                                ? 'Enable this provider'
+                                : 'Disable this provider'
+                          }
+                        >
+                          <span>
+                            <Switch
+                              size="sm"
+                              checked={!provider.disabled}
+                              disabled={!iAmOwner}
+                              onChange={() =>
+                                handleToggleProviderDisabled(
+                                  provider.id,
+                                  provider.disabled,
+                                )
+                              }
+                            />
+                          </span>
+                        </Tooltip>
                       </td>
                       <td>
                         <Stack direction="row" alignItems="center" gap={0.5}>

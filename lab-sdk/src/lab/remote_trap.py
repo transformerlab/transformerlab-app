@@ -7,6 +7,7 @@ import sys
 from typing import List
 
 from lab import Job, storage
+from lab.job_status import JobStatus
 
 
 async def _set_live_status_async(job_id: str, status: str) -> None:
@@ -19,7 +20,31 @@ async def _set_live_status_async(job_id: str, status: str) -> None:
 
         # If the remote command crashed, also mark the job as FAILED.
         if status == "crashed":
-            await job.update_status("FAILED")
+            await job.update_status(JobStatus.FAILED)
+    except Exception:
+        # This helper should never cause the wrapped command to fail.
+        return
+
+
+async def _set_status_async(job_id: str, status: str) -> None:
+    """Async helper to set the high-level job status."""
+    try:
+        job = await Job.get(job_id)
+        if job is None:
+            return
+
+        # Avoid overriding INTERACTIVE jobs with RUNNING. Interactive jobs are
+        # already considered active, and their status transitions are managed
+        # by the interactive flow instead of tfl-remote-trap.
+        if status == JobStatus.RUNNING:
+            try:
+                current_status = await job.get_status()
+            except Exception:
+                current_status = None
+            if current_status == JobStatus.INTERACTIVE:
+                return
+
+        await job.update_status(status)
     except Exception:
         # This helper should never cause the wrapped command to fail.
         return
@@ -43,6 +68,26 @@ def _set_live_status(status: str) -> None:
                 loop.create_task(_set_live_status_async(job_id, status))
             else:
                 loop.run_until_complete(_set_live_status_async(job_id, status))
+        except Exception:
+            return
+
+
+def _set_status(status: str) -> None:
+    """Set high-level job status for the current remote job, if _TFL_JOB_ID is available."""
+    job_id = os.environ.get("_TFL_JOB_ID")
+    if not job_id:
+        return
+
+    try:
+        asyncio.run(_set_status_async(job_id, status))
+    except RuntimeError:
+        # Fallback in case an event loop already exists.
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(_set_status_async(job_id, status))
+            else:
+                loop.run_until_complete(_set_status_async(job_id, status))
         except Exception:
             return
 
@@ -124,43 +169,35 @@ def main(argv: List[str] | None = None) -> int:
 
     # Mark job as started.
     _set_live_status("started")
+    _set_status(JobStatus.RUNNING)
 
     # Run the original command in the shell so it behaves exactly as submitted.
-    # Capture stdout/stderr so we can save a copy to provider_logs.txt while still
-    # echoing output to the current process streams.
-    completed = subprocess.run(
+    # Stream output line-by-line to avoid buffering large logs in memory (training
+    # jobs can produce GBs of output). stdout and stderr are merged into a single
+    # stream (stderr redirected to stdout) so we can tee to both the console and
+    # the provider_logs.txt file.
+    log_lines: List[str] = []
+    proc = subprocess.Popen(
         command_str,
         shell=True,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         text=True,
     )
 
-    # Echo captured output back to the current stdout/stderr so provider-native logs
-    # (e.g., SkyPilot, SLURM, RunPod) still see the same content.
-    if completed.stdout:
+    assert proc.stdout is not None
+    for line in proc.stdout:
         try:
-            sys.stdout.write(completed.stdout)
+            sys.stdout.write(line)
             sys.stdout.flush()
         except Exception:
             pass
-    if completed.stderr:
-        try:
-            sys.stderr.write(completed.stderr)
-            sys.stderr.flush()
-        except Exception:
-            pass
+        log_lines.append(line)
 
-    # Combine stdout + stderr into a single text blob and store it alongside the job.
-    combined_logs_parts: List[str] = []
-    if completed.stdout:
-        combined_logs_parts.append(completed.stdout)
-    if completed.stderr:
-        combined_logs_parts.append(completed.stderr)
-    combined_logs = "\n".join(part.rstrip("\n") for part in combined_logs_parts)
+    exit_code = proc.wait()
 
+    combined_logs = "".join(log_lines)
     _write_provider_logs(combined_logs)
-
-    exit_code = completed.returncode
 
     # Update live_status based on outcome (best-effort).
     if exit_code == 0:

@@ -27,6 +27,7 @@ from transformerlab.models import filesystemmodel
 import transformerlab.services.job_service as job_service
 from transformerlab.services.job_service import job_update_status
 from lab.dirs import get_workspace_dir
+from lab.job_status import JobStatus
 from lab.model import Model as ModelService
 from lab import storage
 
@@ -592,7 +593,7 @@ async def download_huggingface_model(
             error_msg = None
             if job and job.get("job_data"):
                 error_msg = job["job_data"].get("error_msg")
-            await job_update_status(job_id, "UNAUTHORIZED", experiment_id=experiment_id, error_msg=error_msg)
+            await job_update_status(job_id, JobStatus.UNAUTHORIZED, experiment_id=experiment_id, error_msg=error_msg)
             return {"status": "unauthorized", "message": error_msg}
 
         elif exitcode != 0:
@@ -652,7 +653,7 @@ on the model's Huggingface page."
         # Log the detailed error message
         print(error_msg)
         if job_id:
-            await job_update_status(job_id, "UNAUTHORIZED", experiment_id=experiment_id, error_msg=error_msg)
+            await job_update_status(job_id, JobStatus.UNAUTHORIZED, experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "unauthorized", "message": error_msg}
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"

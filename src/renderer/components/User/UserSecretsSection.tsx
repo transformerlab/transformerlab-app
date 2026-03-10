@@ -351,8 +351,8 @@ export default function UserSecretsSection() {
             <br />
             <br />
             <strong>Note:</strong> Special secrets (_GITHUB_PAT_TOKEN,
-            _HF_TOKEN, _WANDB_API_KEY) cannot be set here. Use the Special
-            Secrets section above.
+            _HF_TOKEN, _WANDB_API_KEY, _NGROK_AUTH_TOKEN) cannot be set here.
+            Use the Special Secrets section above.
           </Typography>
         </Alert>
 
