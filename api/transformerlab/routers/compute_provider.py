@@ -1707,6 +1707,12 @@ async def launch_template_on_provider(
     env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
     env_vars["_TFL_USER_ID"] = user_id
 
+    # Enable Trackio auto-init for this job if requested. When set, the lab SDK
+    # running inside the remote script can automatically initialize Trackio
+    # and capture metrics for visualization in the Tasks UI.
+    if request.enable_trackio:
+        env_vars["TLAB_TRACKIO_AUTO_INIT"] = "true"
+
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
     try:
