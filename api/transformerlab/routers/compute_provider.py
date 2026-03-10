@@ -1713,6 +1713,11 @@ async def launch_template_on_provider(
     if request.enable_trackio:
         env_vars["TLAB_TRACKIO_AUTO_INIT"] = "true"
 
+    if request.enable_profiling:
+        env_vars["_TFL_PROFILING"] = "1"
+        if request.enable_profiling_torch:
+            env_vars["_TFL_PROFILING_TORCH"] = "1"
+
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
     try:

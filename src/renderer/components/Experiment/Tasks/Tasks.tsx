@@ -871,6 +871,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         provider_id: _pid,
         provider_name: _pname,
         enable_trackio,
+        enable_profiling,
+        enable_profiling_torch,
         ...paramConfig
       } = config ?? {};
 
@@ -919,6 +921,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           cfg.minutes_requested || task.minutes_requested || undefined,
         enable_trackio:
           typeof enable_trackio === 'boolean' ? enable_trackio : undefined,
+        enable_profiling:
+          typeof enable_profiling === 'boolean' ? enable_profiling : undefined,
+        enable_profiling_torch:
+          typeof enable_profiling_torch === 'boolean'
+            ? enable_profiling_torch
+            : undefined,
       };
 
       const response = await fetchWithAuth(

@@ -5,13 +5,14 @@ import EmbeddableStreamingOutput from './EmbeddableStreamingOutput';
 const TAB_LABELS: Record<string, string> = {
   output: 'Lab SDK Output',
   provider: 'Machine Logs',
+  profiling: 'Profiling',
 };
 
 interface ViewOutputModalStreamingProps {
   jobId: number;
   setJobId: (jobId: number) => void;
   /** Which tabs to show, in order. e.g. ['output', 'provider'] or ['provider'] for interactive tasks. */
-  tabs?: ('output' | 'provider')[];
+  tabs?: ('output' | 'provider' | 'profiling')[];
   /** Current job status string (e.g. 'RUNNING', 'COMPLETE'). */
   jobStatus?: string;
 }
@@ -19,7 +20,7 @@ interface ViewOutputModalStreamingProps {
 function ViewOutputModalStreaming({
   jobId,
   setJobId,
-  tabs = ['output', 'provider'],
+  tabs = ['output', 'provider', 'profiling'],
   jobStatus = '',
 }: ViewOutputModalStreamingProps) {
   if (jobId === -1) {
@@ -61,7 +62,7 @@ function ViewOutputModalStreaming({
 }
 
 ViewOutputModalStreaming.defaultProps = {
-  tabs: ['output', 'provider'],
+  tabs: ['output', 'provider', 'profiling'],
   jobStatus: '',
 };
 

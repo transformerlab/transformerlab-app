@@ -26,6 +26,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { jobChipColor } from 'renderer/lib/utils';
 import PollingOutputTerminal from './PollingOutputTerminal';
+import ProfilingReport from './ProfilingReport';
 
 interface ProviderLogsTerminalProps {
   logsText: string;
@@ -198,30 +199,33 @@ function RefreshIndicator({
   );
 }
 
-const TAB_OPTIONS: { value: 'output' | 'provider'; label: string }[] = [
+type TabValue = 'output' | 'provider' | 'profiling';
+
+const TAB_OPTIONS: { value: TabValue; label: string }[] = [
   { value: 'output', label: 'Lab SDK Output' },
   { value: 'provider', label: 'Machine Logs' },
+  { value: 'profiling', label: 'Profiling' },
 ];
 
 export interface EmbeddableStreamingOutputProps {
   jobId: number;
   /** Which tabs to show, in order. e.g. ['output', 'provider'] or ['provider'] for interactive tasks. */
-  tabs?: ('output' | 'provider')[];
+  tabs?: TabValue[];
   /** Current job status string (e.g. 'RUNNING', 'COMPLETE'). Passed from the parent to avoid extra polling. */
   jobStatus?: string;
 }
 
 export default function EmbeddableStreamingOutput({
   jobId,
-  tabs: tabsProp = ['output', 'provider'],
+  tabs: tabsProp = ['output', 'provider', 'profiling'],
   jobStatus = '',
 }: EmbeddableStreamingOutputProps) {
   const { experimentInfo } = useExperimentInfo();
-  const [activeTab, setActiveTab] = useState<'output' | 'provider'>('output');
+  const [activeTab, setActiveTab] = useState<TabValue>('output');
   const [viewLiveProviderLogs, setViewLiveProviderLogs] =
     useState<boolean>(false);
 
-  const tabs = tabsProp.length > 0 ? tabsProp : ['output', 'provider'];
+  const tabs = tabsProp.length > 0 ? tabsProp : ['output', 'provider', 'profiling'];
   const showTabList = tabs.length > 1;
   const tabsKey = tabs.join(',');
 
@@ -229,7 +233,7 @@ export default function EmbeddableStreamingOutput({
     setActiveTab((current) =>
       tabs.includes(current)
         ? current
-        : ((tabs[0] ?? 'output') as 'output' | 'provider'),
+        : ((tabs[0] ?? 'output') as TabValue),
     );
     setViewLiveProviderLogs(false);
     // tabsKey is a stable serialization of tabs to avoid array reference churn
@@ -332,9 +336,11 @@ export default function EmbeddableStreamingOutput({
           onChange={(_event, value) => {
             if (
               typeof value === 'string' &&
-              (value === 'output' || value === 'provider')
+              (value === 'output' ||
+                value === 'provider' ||
+                value === 'profiling')
             ) {
-              setActiveTab(value);
+              setActiveTab(value as TabValue);
             }
           }}
         >
@@ -391,13 +397,19 @@ export default function EmbeddableStreamingOutput({
             </>
           )}
         </Box>
-        <RefreshIndicator
-          seconds={activeTab === 'output' ? outputCountdown : providerCountdown}
-          isRefreshing={
-            activeTab === 'output' ? outputIsValidating : providerIsValidating
-          }
-          onRefresh={handleManualRefresh}
-        />
+        {activeTab !== 'profiling' && (
+          <RefreshIndicator
+            seconds={
+              activeTab === 'output' ? outputCountdown : providerCountdown
+            }
+            isRefreshing={
+              activeTab === 'output'
+                ? outputIsValidating
+                : providerIsValidating
+            }
+            onRefresh={handleManualRefresh}
+          />
+        )}
       </Box>
       <Box
         sx={{
@@ -432,6 +444,19 @@ export default function EmbeddableStreamingOutput({
               onValidatingChange={handleOutputValidatingChange}
               onMutateReady={handleOutputMutateReady}
             />
+          </Box>
+        ) : activeTab === 'profiling' ? (
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              width: '100%',
+              overflowY: 'auto',
+              borderRadius: '8px',
+              border: '1px solid var(--joy-palette-divider)',
+            }}
+          >
+            <ProfilingReport jobId={jobId} />
           </Box>
         ) : (
           <Box
@@ -512,6 +537,6 @@ export default function EmbeddableStreamingOutput({
 }
 
 EmbeddableStreamingOutput.defaultProps = {
-  tabs: ['output', 'provider'],
+  tabs: ['output', 'provider', 'profiling'],
   jobStatus: '',
 };

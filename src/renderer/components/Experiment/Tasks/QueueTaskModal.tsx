@@ -106,6 +106,8 @@ export default function QueueTaskModal({
   const [lowerIsBetter, setLowerIsBetter] = React.useState(true);
   const [jobSlurmFlags, setJobSlurmFlags] = React.useState<string[]>(['']);
   const [useTrackio, setUseTrackio] = React.useState(false);
+  const [useProfiling, setUseProfiling] = React.useState(false);
+  const [useProfilingTorch, setUseProfilingTorch] = React.useState(false);
   const loadingMessages = React.useMemo(
     () => [
       'Contacting compute provider…',
@@ -610,6 +612,15 @@ export default function QueueTaskModal({
     // in the job environment so Lab can automatically integrate with Trackio.
     if (useTrackio) {
       config.enable_trackio = true;
+    }
+
+    // Profiling: when enabled, backend will set _TFL_PROFILING=1 so tfl-remote-trap
+    // samples CPU/GPU/memory during the job and writes profiling_report.json.
+    if (useProfiling) {
+      config.enable_profiling = true;
+      if (useProfilingTorch) {
+        config.enable_profiling_torch = true;
+      }
     }
 
     onSubmit(config);
@@ -1309,6 +1320,49 @@ export default function QueueTaskModal({
                 When enabled, the scripts that use the lab SDK can automatically
                 log metrics to Trackio and expose a Trackio dashboard in the UI.
               </FormHelperText>
+            </Stack>
+
+            <Divider />
+
+            {/* Profiling Section */}
+            <Stack spacing={2}>
+              <Typography level="title-sm">Profiling</Typography>
+              <FormControl
+                orientation="horizontal"
+                sx={{ alignItems: 'center' }}
+              >
+                <Checkbox
+                  checked={useProfiling}
+                  onChange={(e) => {
+                    setUseProfiling(e.target.checked);
+                    if (!e.target.checked) setUseProfilingTorch(false);
+                  }}
+                  disabled={isSubmitting}
+                />
+                <FormLabel sx={{ ml: 1 }}>
+                  Enable CPU &amp; GPU profiling for this run
+                </FormLabel>
+              </FormControl>
+              <FormHelperText>
+                Samples CPU%, memory, and GPU utilization every few seconds
+                during the job. Results are available in the Profiling tab after
+                the job completes.
+              </FormHelperText>
+              {useProfiling && (
+                <FormControl
+                  orientation="horizontal"
+                  sx={{ alignItems: 'center', ml: 3 }}
+                >
+                  <Checkbox
+                    checked={useProfilingTorch}
+                    onChange={(e) => setUseProfilingTorch(e.target.checked)}
+                    disabled={isSubmitting}
+                  />
+                  <FormLabel sx={{ ml: 1 }}>
+                    Also capture PyTorch op-level trace (Chrome trace format)
+                  </FormLabel>
+                </FormControl>
+              )}
             </Stack>
 
             <Divider />

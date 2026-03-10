@@ -4,10 +4,12 @@ import asyncio
 import os
 import subprocess
 import sys
+import time
 from typing import List
 
 from lab import Job, storage
 from lab.job_status import JobStatus
+from lab.profiling import finalize_profiling, inject_torch_profiler, maybe_start_profiling
 
 
 async def _set_live_status_async(job_id: str, status: str) -> None:
@@ -171,19 +173,42 @@ def main(argv: List[str] | None = None) -> int:
     _set_live_status("started")
     _set_status(JobStatus.RUNNING)
 
+    # Resolve job directory for profiling output (same path used by _write_provider_logs).
+    job_id = os.environ.get("_TFL_JOB_ID")
+    job_dir: str = ""
+    if job_id:
+        try:
+            from lab.dirs import get_job_dir
+
+            async def _get_job_dir() -> str:
+                return await get_job_dir(job_id)
+
+            job_dir = asyncio.run(_get_job_dir())
+        except Exception:
+            job_dir = ""
+
+    # Optionally inject torch.profiler via sitecustomize.py before spawning the process.
+    proc_env = os.environ.copy()
+    torch_tmp_dir = inject_torch_profiler(job_dir, proc_env) if job_dir else ""
+
     # Run the original command in the shell so it behaves exactly as submitted.
     # Stream output line-by-line to avoid buffering large logs in memory (training
     # jobs can produce GBs of output). stdout and stderr are merged into a single
     # stream (stderr redirected to stdout) so we can tee to both the console and
     # the provider_logs.txt file.
     log_lines: List[str] = []
+    start_time = time.monotonic()
     proc = subprocess.Popen(
         command_str,
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        env=proc_env if torch_tmp_dir else None,
     )
+
+    # Start profiling sidecar thread (no-op if _TFL_PROFILING is not set).
+    profiling_thread = maybe_start_profiling(proc.pid, job_dir) if job_dir else None
 
     assert proc.stdout is not None
     for line in proc.stdout:
@@ -195,9 +220,22 @@ def main(argv: List[str] | None = None) -> int:
         log_lines.append(line)
 
     exit_code = proc.wait()
+    wall_time = time.monotonic() - start_time
 
     combined_logs = "".join(log_lines)
     _write_provider_logs(combined_logs)
+
+    # Finalise profiling: stop sampler thread and write profiling_report.json.
+    finalize_profiling(profiling_thread, job_dir, wall_time)
+
+    # Clean up torch sitecustomize temp dir (best-effort).
+    if torch_tmp_dir:
+        try:
+            import shutil
+
+            shutil.rmtree(torch_tmp_dir, ignore_errors=True)
+        except Exception:
+            pass
 
     # Update live_status based on outcome (best-effort).
     if exit_code == 0:
