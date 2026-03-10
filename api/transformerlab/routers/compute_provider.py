@@ -1013,7 +1013,7 @@ def _find_missing_secrets_for_template_launch(
     referenced: set[str] = set()
 
     # Core task fields that may contain secrets
-    referenced.update(extract_secret_names_from_data(request.command))
+    referenced.update(extract_secret_names_from_data(request.run))
     if request.setup:
         referenced.update(extract_secret_names_from_data(request.setup))
     if request.env_vars:
@@ -1734,8 +1734,8 @@ async def launch_template_on_provider(
         if workspace_dir and not storage.is_remote_path(workspace_dir):
             env_vars["TFL_WORKSPACE_DIR"] = workspace_dir
 
-    # Resolve command (and optional setup override) for interactive sessions from gallery
-    base_command = request.command
+    # Resolve run command (and optional setup override) for interactive sessions from gallery
+    base_command = request.run
     setup_override_from_gallery = None
     interactive_setup_added = False
     if request.subtype == "interactive" and (request.interactive_gallery_id or request.interactive_type):
