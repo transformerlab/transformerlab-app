@@ -13,7 +13,7 @@ from typing import Optional
 
 import yaml
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile, Depends
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.utils import secure_filename
 
@@ -245,3 +245,26 @@ async def update_task_yaml(experimentId: str, task_id: str, request: Request):
     if not success:
         raise HTTPException(status_code=404, detail="Task not found")
     return {"message": "OK"}
+
+
+@router.post("/validate", summary="Validate task.yaml content without saving")
+async def validate_task_yaml(request: Request):
+    """
+    Validate task.yaml content using the same schema as the save path,
+    but without touching any task or experiment state.
+
+    Accepts raw YAML in the request body.
+    """
+    body = (await request.body()).decode("utf-8")
+    try:
+        # Reuse the canonical parser/validator; we ignore the returned task_data.
+        _parse_yaml_to_task_data(body)
+    except HTTPException as e:
+        # Preserve status code and detail so clients get a clear error message.
+        raise e
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error validating task.yaml: {str(e)}")
+
+    return JSONResponse({"valid": True})
