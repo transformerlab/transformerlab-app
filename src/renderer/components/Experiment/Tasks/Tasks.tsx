@@ -34,6 +34,7 @@ import FileBrowserModal from './FileBrowserModal';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
+import TrackioModal from '../Train/TrackioModal';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -64,6 +65,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     open: boolean;
     datasetId: string | null;
   }>({ open: false, datasetId: null });
+  const [trackioJobIdForModal, setTrackioJobIdForModal] = useState<
+    number | null
+  >(null);
   const [compareEvalJobIds, setCompareEvalJobIds] = useState<number[]>([]);
   const [isCompareSelectMode, setIsCompareSelectMode] = useState(false);
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
@@ -893,6 +897,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       const {
         provider_id: _pid,
         provider_name: _pname,
+        enable_trackio,
         ...paramConfig
       } = config ?? {};
 
@@ -939,6 +944,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               : undefined,
         minutes_requested:
           cfg.minutes_requested || task.minutes_requested || undefined,
+        enable_trackio:
+          typeof enable_trackio === 'boolean' ? enable_trackio : undefined,
       };
 
       const response = await fetchWithAuth(
@@ -1244,6 +1251,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           onViewInteractive={(jobId) =>
             setInteractiveJobForModal(parseInt(jobId))
           }
+          onViewTrackio={(jobId) =>
+            setTrackioJobIdForModal(parseInt(jobId, 10))
+          }
           loading={jobsIsLoading}
           selectMode={isCompareSelectMode}
           selectedJobIds={compareEvalJobIds.map((id) => String(id))}
@@ -1319,6 +1329,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewFileBrowserFromJob !== -1}
         onClose={() => setViewFileBrowserFromJob(-1)}
         jobId={viewFileBrowserFromJob}
+      />
+      <TrackioModal
+        jobId={trackioJobIdForModal}
+        onClose={() => setTrackioJobIdForModal(null)}
       />
       <DeleteTaskConfirmModal
         open={taskToDelete !== null}
