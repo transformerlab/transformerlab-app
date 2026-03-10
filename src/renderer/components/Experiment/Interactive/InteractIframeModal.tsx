@@ -1,6 +1,8 @@
 import React from 'react';
 import {
   CircularProgress,
+  DialogContent,
+  IconButton,
   Modal,
   ModalClose,
   ModalDialog,
@@ -14,6 +16,7 @@ import {
   Box,
   Divider,
 } from '@mui/joy';
+import { RefreshCwIcon } from 'lucide-react';
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
@@ -30,6 +33,7 @@ export default function InteractIframeModal({
   open,
   onClose,
 }: InteractModalProps) {
+  const iframeRef = React.useRef<HTMLIFrameElement>(null);
   const { experimentInfo } = useExperimentInfo();
 
   const url = React.useMemo(() => {
@@ -57,71 +61,102 @@ export default function InteractIframeModal({
       url: values[k],
     }));
 
+  const handleRefresh = () => {
+    const iframe = iframeRef.current;
+    if (iframe) {
+      // eslint-disable-next-line no-self-assign
+      iframe.src = iframe.src;
+    }
+  };
+
   return (
     <Modal open={open} onClose={onClose}>
       <ModalDialog
         sx={{
-          maxWidth: '95vw',
-          width: '95vw',
-          height: '85vh',
+          width: '98vw',
+          height: '96vh',
+          maxWidth: '98vw',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
         }}
       >
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ pr: 4 }}
+        >
+          <Typography level="title-lg">Interact (Job {jobId})</Typography>
+          {isReady && urls.length > 0 && (
+            <IconButton
+              variant="outlined"
+              color="neutral"
+              size="sm"
+              onClick={handleRefresh}
+            >
+              <RefreshCwIcon size={16} />
+            </IconButton>
+          )}
+        </Stack>
         <ModalClose />
-        <Typography level="title-lg" sx={{ mb: 1 }}>
-          Interact (Job {jobId})
-        </Typography>
         <Divider />
-        {!isReady ? (
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="center"
-            sx={{ mt: 2 }}
-          >
-            <Chip color="warning" variant="soft">
-              Waiting for service to start
-            </Chip>
-            {isLoading && <CircularProgress size="sm" />}
-          </Stack>
-        ) : urls.length === 0 ? (
-          <Typography level="body-sm" sx={{ mt: 2 }}>
-            No service URLs available for this job.
-          </Typography>
-        ) : (
-          <Tabs
-            defaultValue={0}
-            sx={{ flex: 1, minHeight: 0, mt: 1, overflow: 'hidden' }}
-          >
-            <TabList>
-              {urls.map(({ label }, i) => (
-                <Tab key={label} value={i} sx={{ textTransform: 'capitalize' }}>
-                  {label}
-                </Tab>
+        <DialogContent
+          sx={{ flex: 1, minHeight: 0, overflow: 'hidden', p: 0 }}
+        >
+          {!isReady ? (
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              sx={{ mt: 2, px: 2 }}
+            >
+              <Chip color="warning" variant="soft">
+                Waiting for service to start
+              </Chip>
+              {isLoading && <CircularProgress size="sm" />}
+            </Stack>
+          ) : urls.length === 0 ? (
+            <Typography level="body-sm" sx={{ mt: 2, px: 2 }}>
+              No service URLs available for this job.
+            </Typography>
+          ) : (
+            <Tabs
+              defaultValue={0}
+              sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
+            >
+              <TabList>
+                {urls.map(({ label }, i) => (
+                  <Tab
+                    key={label}
+                    value={i}
+                    sx={{ textTransform: 'capitalize' }}
+                  >
+                    {label}
+                  </Tab>
+                ))}
+              </TabList>
+              {urls.map(({ label, url: src }, i) => (
+                <TabPanel
+                  key={label}
+                  value={i}
+                  sx={{ flex: 1, p: 0, overflow: 'hidden' }}
+                >
+                  <Box
+                    component="iframe"
+                    ref={iframeRef}
+                    src={src}
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      border: 'none',
+                    }}
+                  />
+                </TabPanel>
               ))}
-            </TabList>
-            {urls.map(({ label, url: src }, i) => (
-              <TabPanel
-                key={label}
-                value={i}
-                sx={{ flex: 1, p: 0, overflow: 'hidden' }}
-              >
-                <Box
-                  component="iframe"
-                  src={src}
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    border: 'none',
-                    borderRadius: 'sm',
-                  }}
-                />
-              </TabPanel>
-            ))}
-          </Tabs>
-        )}
+            </Tabs>
+          )}
+        </DialogContent>
       </ModalDialog>
     </Modal>
   );
