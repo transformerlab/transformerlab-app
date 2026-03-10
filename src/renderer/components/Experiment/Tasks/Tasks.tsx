@@ -706,7 +706,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       let defaultSetup: string;
       let defaultCommand: string;
       let templateId: string | undefined;
-      let template: any;
 
       try {
         const galleryResponse = await chatAPI.authenticatedFetch(
@@ -718,7 +717,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
         if (galleryResponse.ok) {
           const galleryData = await galleryResponse.json();
-          template = galleryData.data?.find(
+          const template = galleryData.data?.find(
             (t: any) => t.interactive_type === interactiveType,
           );
 
@@ -738,70 +737,52 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         throw error;
       }
 
-      // For gallery entries with local_task_dir, use the gallery import API
-      // which reads setup/command from the directory's task.yaml and copies files.
-      let response: Response;
+      // Create template with flat structure
+      // Use env_parameters from the gallery-defined structure (including NGROK)
+      const envVars: Record<string, string> = data.env_parameters || {};
 
-      if (template.local_task_dir) {
-        response = await chatAPI.authenticatedFetch(
-          chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id),
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              gallery_id: templateId,
-              is_interactive: true,
-            }),
-          },
-        );
-      } else {
-        // Create template with flat structure
-        // Use env_parameters from the gallery-defined structure (including NGROK)
-        const envVars: Record<string, string> = data.env_parameters || {};
-
-        const needsNgrok =
-          interactiveType === 'jupyter' ||
-          interactiveType === 'vllm' ||
-          interactiveType === 'ollama' ||
-          interactiveType === 'ssh';
-        if (
-          needsNgrok &&
-          providerMeta.type !== 'local' &&
-          !envVars.NGROK_AUTH_TOKEN
-        ) {
-          envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
-        }
-
-        const templatePayload: any = {
-          name: data.title,
-          type: 'REMOTE',
-          plugin: 'remote_orchestrator',
-          experiment_id: experimentInfo.id,
-          cluster_name: data.title,
-          command: defaultCommand,
-          cpus: data.cpus || undefined,
-          memory: data.memory || undefined,
-          accelerators: data.accelerators || undefined,
-          setup: defaultSetup,
-          subtype: 'interactive',
-          interactive_type: interactiveType,
-          interactive_gallery_id: templateId,
-          provider_id: providerMeta.id,
-          provider_name: providerMeta.name,
-          env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
-        };
-
-        response = await chatAPI.authenticatedFetch(
-          chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(templatePayload),
-          },
-        );
+      const needsNgrok =
+        interactiveType === 'jupyter' ||
+        interactiveType === 'vllm' ||
+        interactiveType === 'ollama' ||
+        interactiveType === 'ssh';
+      if (
+        needsNgrok &&
+        providerMeta.type !== 'local' &&
+        !envVars.NGROK_AUTH_TOKEN
+      ) {
+        envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
       }
+
+      const templatePayload: any = {
+        name: data.title,
+        type: 'REMOTE',
+        plugin: 'remote_orchestrator',
+        experiment_id: experimentInfo.id,
+        cluster_name: data.title,
+        command: defaultCommand,
+        cpus: data.cpus || undefined,
+        memory: data.memory || undefined,
+        accelerators: data.accelerators || undefined,
+        setup: defaultSetup,
+        subtype: 'interactive',
+        interactive_type: interactiveType,
+        interactive_gallery_id: templateId,
+        provider_id: providerMeta.id,
+        provider_name: providerMeta.name,
+        env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
+      };
+
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(templatePayload),
+        },
+      );
 
       if (response.ok) {
         setInteractiveModalOpen(false);
