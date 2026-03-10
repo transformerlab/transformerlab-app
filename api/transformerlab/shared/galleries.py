@@ -280,11 +280,11 @@ async def get_gallery_file(filename: str):
     local_galleries_flag = os.environ.get("TLAB_USE_LOCAL_GALLERIES", "").strip()
     if local_galleries_flag in ("1", "true", "yes"):
         local_path = os.path.join(dirs.GALLERIES_LOCAL_FALLBACK_DIR, filename)
-        print(f"[galleries] TLAB_USE_LOCAL_GALLERIES={local_galleries_flag}, local_path={local_path}, exists={os.path.isfile(local_path)}")
+        # print(f"[galleries] TLAB_USE_LOCAL_GALLERIES={local_galleries_flag}, local_path={local_path}, exists={os.path.isfile(local_path)}")
         if os.path.isfile(local_path):
             with open(local_path, "r") as f:
                 gallery = json.load(f)
-            print(f"[galleries] Loaded {filename} from local: {len(gallery)} entries")
+            # print(f"[galleries] Loaded {filename} from local: {len(gallery)} entries")
             return gallery
 
     gallery_path = await gallery_cache_file_path(filename)
