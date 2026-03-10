@@ -20,7 +20,7 @@
 - **API start**: `cd api && ./run.sh` or `npm run api:start`
 - **API test**: `cd api && pytest`
 - **API single test**: `cd api && pytest test/<file>::<test>`
-- **Python lint**: `ruff check`. **Always run `ruff check` and `ruff format` before committing.**
+- **Python lint**: `cd api && ruff check` and `cd api && ruff format api.py` (or whichever files changed). **Always run both `ruff check` and `ruff format` on changed Python files before committing.**
 - **DB migrations**: `cd api && alembic upgrade head`
 - **Dev (no Docker)**: `python scripts/dev.py` — runs both frontend and API side by side with hot reload. Requires the API conda env and Node v22. Checks ports 8338 (API) and 1212 (frontend) on startup and reports conflicts.
   - `dev.py` calls `api/run.sh` which automatically activates the conda env at `~/.transformerlab/envs/transformerlab`, so you do **not** need to activate conda yourself.
