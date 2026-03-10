@@ -25,7 +25,9 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
     metrics storage.
     """
     # Sanitize identifiers before they are used in any filesystem paths or keys.
-    safe_job_id = secure_filename(job_id) or job_id
+    safe_job_id = secure_filename(job_id)
+    if not safe_job_id:
+        raise HTTPException(status_code=400, detail="Invalid job_id for Trackio")
     safe_org_id = secure_filename(org_id) if org_id else ""
     safe_experiment_id = secure_filename(experiment_id) if experiment_id else ""
 
