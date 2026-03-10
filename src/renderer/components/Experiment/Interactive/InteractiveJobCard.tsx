@@ -11,6 +11,10 @@ import {
   Divider,
 } from '@mui/joy';
 import { Trash2Icon } from 'lucide-react';
+import useSWR from 'swr';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import JobProgress from '../Tasks/JobProgress';
 import InteractiveModal from '../Tasks/InteractiveModal';
 import InteractIframeModal from './InteractIframeModal';
@@ -117,15 +121,32 @@ export default function InteractiveJobCard({
       : null) ||
     (isPlaceholder ? null : 'vscode');
 
+  const { experimentInfo } = useExperimentInfo();
   const typeConfig = interactiveType ? getTypeConfig(interactiveType) : null;
   const TypeIcon = typeConfig?.icon;
   const isInteractive =
     job.status === 'INTERACTIVE' || job.status === 'RUNNING';
+  const isLaunching = job.status === 'LAUNCHING' || job.status === 'WAITING';
+  const showActions = isInteractive || isLaunching;
   const title =
     jobData.cluster_name ||
     jobData.template_name ||
     (isPlaceholder ? '' : `Job ${job.id}`);
   const jobIdNum = parseInt(job.id, 10);
+
+  const tunnelInfoUrl = React.useMemo(() => {
+    if (!showActions || !experimentInfo?.id) return null;
+    return chatAPI.Endpoints.Experiment.GetTunnelInfo(
+      experimentInfo.id,
+      String(jobIdNum),
+    );
+  }, [showActions, experimentInfo?.id, jobIdNum]);
+
+  const { data: tunnelData } = useSWR(tunnelInfoUrl, fetcher, {
+    refreshInterval: 3000,
+  });
+
+  const tunnelReady = Boolean(tunnelData?.is_ready);
 
   return (
     <Card
@@ -192,7 +213,7 @@ export default function InteractiveJobCard({
           <JobProgress job={job} />
         </Box>
 
-        {isInteractive && (
+        {showActions && (
           <>
             <Divider />
             <Stack direction="row" spacing={1} justifyContent="flex-end">
@@ -206,11 +227,12 @@ export default function InteractiveJobCard({
               </Button>
               <Button
                 variant="soft"
-                color="primary"
+                color={tunnelReady ? 'success' : 'neutral'}
                 size="sm"
+                disabled={!tunnelReady}
                 onClick={() => setInteractOpen(true)}
               >
-                Interact
+                {tunnelReady ? 'Interact' : 'Launching…'}
               </Button>
             </Stack>
           </>
