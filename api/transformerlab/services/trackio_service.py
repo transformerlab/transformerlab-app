@@ -129,10 +129,10 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
             )
         if os.path.isdir(normalized_source_path):
             # shutil.copytree with dirs_exist_ok to merge into an existing cache_dir
-            shutil.copytree(normalized_source_path, cache_dir, dirs_exist_ok=True)
+            shutil.copytree(normalized_source_path, cache_dir_safe, dirs_exist_ok=True)
         else:
-            os.makedirs(cache_dir, exist_ok=True)
-            dest_file = os.path.join(cache_dir, os.path.basename(normalized_source_path))
+            os.makedirs(cache_dir_safe, exist_ok=True)
+            dest_file = os.path.join(cache_dir_safe, os.path.basename(normalized_source_path))
             shutil.copy2(normalized_source_path, dest_file)
 
     def _launch_trackio_subprocess() -> Dict[str, Any]:
