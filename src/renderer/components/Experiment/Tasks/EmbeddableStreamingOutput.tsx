@@ -225,15 +225,14 @@ export default function EmbeddableStreamingOutput({
   const [viewLiveProviderLogs, setViewLiveProviderLogs] =
     useState<boolean>(false);
 
-  const tabs = tabsProp.length > 0 ? tabsProp : ['output', 'provider', 'profiling'];
+  const tabs =
+    tabsProp.length > 0 ? tabsProp : ['output', 'provider', 'profiling'];
   const showTabList = tabs.length > 1;
   const tabsKey = tabs.join(',');
 
   useEffect(() => {
     setActiveTab((current) =>
-      tabs.includes(current)
-        ? current
-        : ((tabs[0] ?? 'output') as TabValue),
+      tabs.includes(current) ? current : ((tabs[0] ?? 'output') as TabValue),
     );
     setViewLiveProviderLogs(false);
     // tabsKey is a stable serialization of tabs to avoid array reference churn
@@ -403,9 +402,7 @@ export default function EmbeddableStreamingOutput({
               activeTab === 'output' ? outputCountdown : providerCountdown
             }
             isRefreshing={
-              activeTab === 'output'
-                ? outputIsValidating
-                : providerIsValidating
+              activeTab === 'output' ? outputIsValidating : providerIsValidating
             }
             onRefresh={handleManualRefresh}
           />

@@ -135,8 +135,7 @@ export default function ProfilingReport({ jobId }: ProfilingReportProps) {
                 {formatSec(report.wall_time_sec)}
               </Typography>
               <Typography level="body-xs" textColor="neutral.500">
-                {report.sample_count ?? 0} samples /{' '}
-                {report.interval_sec ?? 5}s
+                {report.sample_count ?? 0} samples / {report.interval_sec ?? 5}s
               </Typography>
             </CardContent>
           </Card>
