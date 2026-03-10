@@ -18,7 +18,7 @@ class ComputeProviderConfig(BaseModel):
     server_url: Optional[str] = None
     api_token: Optional[str] = None
     default_env_vars: Dict[str, str] = Field(default_factory=dict)
-    default_entrypoint_command: Optional[str] = None
+    default_entrypoint_run: Optional[str] = None
 
     # SLURM-specific config
     mode: Optional[str] = None  # "rest" or "ssh"
@@ -138,7 +138,7 @@ def create_compute_provider(config: ComputeProviderConfig):
             server_url=config.server_url,
             api_token=config.api_token,
             default_env_vars=config.default_env_vars,
-            default_entrypoint_command=config.default_entrypoint_command,
+            default_entrypoint_run=config.default_entrypoint_run,
             extra_config=config.extra_config,
         )
     elif config.type == "slurm":

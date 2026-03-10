@@ -275,7 +275,7 @@ def build_launch_payload(task: dict, provider_name: str, param_values: dict | No
         "experiment_id": task.get("experiment_id"),
         "task_id": task.get("id"),
         "task_name": task.get("name"),
-        "command": task.get("command"),
+        "run": task.get("run"),
         "setup": task.get("setup"),
         "accelerators": task.get("accelerators"),
         "env_vars": task.get("env_vars", {}),

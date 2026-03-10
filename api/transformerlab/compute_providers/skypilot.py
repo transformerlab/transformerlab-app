@@ -98,7 +98,7 @@ class SkyPilotProvider(ComputeProvider):
         server_url: str,
         api_token: Optional[str] = None,
         default_env_vars: Optional[Dict[str, str]] = None,
-        default_entrypoint_command: Optional[str] = None,
+        default_entrypoint_run: Optional[str] = None,
         extra_config: Optional[Dict[str, Any]] = None,
     ):
         """
@@ -108,13 +108,13 @@ class SkyPilotProvider(ComputeProvider):
             server_url: Base URL of the SkyPilot server
             api_token: Optional API token for authentication
             default_env_vars: Default environment variables to include in requests
-            default_entrypoint_command: Default entrypoint command
+            default_entrypoint_run: Default run command for clusters/jobs
             extra_config: Additional provider-specific configuration
         """
         self.server_url = server_url.rstrip("/")
         self.api_token = api_token
         self.default_env_vars = default_env_vars or {}
-        self.default_entrypoint_command = default_entrypoint_command
+        self.default_entrypoint_run = default_entrypoint_run
         self.extra_config = extra_config or {}
 
         # Store server_common reference if available
@@ -299,8 +299,8 @@ class SkyPilotProvider(ComputeProvider):
             task = sky.Task()
 
         # Set run command
-        if config.command:
-            task.run = config.command
+        if config.run:
+            task.run = config.run
 
         # Set setup commands
         if config.setup:
@@ -419,8 +419,8 @@ class SkyPilotProvider(ComputeProvider):
                 body_json["env_vars"].update(self.default_env_vars)
             if config.env_vars:
                 body_json["env_vars"].update(config.env_vars)
-        if self.default_entrypoint_command:
-            body_json.setdefault("entrypoint_command", self.default_entrypoint_command)
+        if self.default_entrypoint_run:
+            body_json.setdefault("entrypoint_command", self.default_entrypoint_run)
         body_json.setdefault("using_remote_api_server", False)
         body_json.setdefault("override_skypilot_config", {})
 
@@ -465,8 +465,8 @@ class SkyPilotProvider(ComputeProvider):
         # Add default env_vars and entrypoint_command to match API format
         if self.default_env_vars:
             body_json.setdefault("env_vars", {}).update(self.default_env_vars)
-        if self.default_entrypoint_command:
-            body_json.setdefault("entrypoint_command", self.default_entrypoint_command)
+        if self.default_entrypoint_run:
+            body_json.setdefault("entrypoint_command", self.default_entrypoint_run)
         body_json.setdefault("using_remote_api_server", False)
         body_json.setdefault("override_skypilot_config", {})
 
@@ -546,8 +546,8 @@ class SkyPilotProvider(ComputeProvider):
         # Add default env_vars and entrypoint_command to match API format
         if self.default_env_vars:
             body_json.setdefault("env_vars", {}).update(self.default_env_vars)
-        if self.default_entrypoint_command:
-            body_json.setdefault("entrypoint_command", self.default_entrypoint_command)
+        if self.default_entrypoint_run:
+            body_json.setdefault("entrypoint_command", self.default_entrypoint_run)
         body_json.setdefault("using_remote_api_server", False)
         body_json.setdefault("override_skypilot_config", {})
         # Use SkyPilot's make_authenticated_request (matches SDK exactly)
@@ -745,8 +745,8 @@ class SkyPilotProvider(ComputeProvider):
         # Add default env_vars and entrypoint_command to match API format
         if self.default_env_vars:
             body_json.setdefault("env_vars", {}).update(self.default_env_vars)
-        if self.default_entrypoint_command:
-            body_json.setdefault("entrypoint_command", self.default_entrypoint_command)
+        if self.default_entrypoint_run:
+            body_json.setdefault("entrypoint_command", self.default_entrypoint_run)
         body_json.setdefault("using_remote_api_server", False)
         body_json.setdefault("override_skypilot_config", {})
 
@@ -967,7 +967,7 @@ class SkyPilotProvider(ComputeProvider):
         """Submit a job to an existing cluster."""
         # Build sky.Task object from JobConfig
         task = sky.Task()
-        task.run = job_config.command
+        task.run = job_config.run
 
         # Set num_nodes if specified
         if job_config.num_nodes and job_config.num_nodes > 1:
@@ -1035,8 +1035,8 @@ class SkyPilotProvider(ComputeProvider):
         # Add default env_vars and entrypoint_command to match API format
         if self.default_env_vars:
             body_json.setdefault("env_vars", {}).update(self.default_env_vars)
-        if self.default_entrypoint_command:
-            body_json.setdefault("entrypoint_command", self.default_entrypoint_command)
+        if self.default_entrypoint_run:
+            body_json.setdefault("entrypoint_command", self.default_entrypoint_run)
         body_json.setdefault("using_remote_api_server", False)
         body_json.setdefault("override_skypilot_config", {})
 
@@ -1090,8 +1090,8 @@ class SkyPilotProvider(ComputeProvider):
         # Add default env_vars and entrypoint_command to match API format
         if self.default_env_vars:
             body_json.setdefault("env_vars", {}).update(self.default_env_vars)
-        if self.default_entrypoint_command:
-            body_json.setdefault("entrypoint_command", self.default_entrypoint_command)
+        if self.default_entrypoint_run:
+            body_json.setdefault("entrypoint_command", self.default_entrypoint_run)
         body_json.setdefault("using_remote_api_server", False)
         body_json.setdefault("override_skypilot_config", {})
 
@@ -1183,8 +1183,8 @@ class SkyPilotProvider(ComputeProvider):
         # Add default env_vars and entrypoint_command to match API format
         if self.default_env_vars:
             body_json.setdefault("env_vars", {}).update(self.default_env_vars)
-        if self.default_entrypoint_command:
-            body_json.setdefault("entrypoint_command", self.default_entrypoint_command)
+        if self.default_entrypoint_run:
+            body_json.setdefault("entrypoint_command", self.default_entrypoint_run)
         body_json.setdefault("using_remote_api_server", False)
         body_json.setdefault("override_skypilot_config", {})
 
@@ -1228,8 +1228,8 @@ class SkyPilotProvider(ComputeProvider):
         # Add default env_vars and entrypoint_command to match API format
         if self.default_env_vars:
             body_json.setdefault("env_vars", {}).update(self.default_env_vars)
-        if self.default_entrypoint_command:
-            body_json.setdefault("entrypoint_command", self.default_entrypoint_command)
+        if self.default_entrypoint_run:
+            body_json.setdefault("entrypoint_command", self.default_entrypoint_run)
         body_json.setdefault("using_remote_api_server", False)
         body_json.setdefault("override_skypilot_config", {})
 

@@ -69,7 +69,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     const isTemplate =
       !task.config ||
       (typeof config === 'object' && Object.keys(config).length === 0) ||
-      (!config.command && !config.cluster_name);
+      (!config.run && !config.cluster_name);
 
     // Use template fields directly if it's a template, otherwise use config
     const cpus = isTemplate ? (task as any).cpus : config.cpus;
@@ -109,15 +109,15 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     const isTemplate =
       !task.config ||
       (typeof config === 'object' && Object.keys(config).length === 0) ||
-      (!config.command && !config.cluster_name);
+      (!config.run && !config.cluster_name);
 
     // Use template field directly if it's a template, otherwise use config
-    const command = isTemplate
-      ? (task as any).command || 'No command specified'
-      : config.command || 'No command specified';
+    const run = isTemplate
+      ? (task as any).run || 'No run command specified'
+      : config.run || 'No run command specified';
 
     // Truncate long commands
-    return command.length > 50 ? `${command.substring(0, 50)}...` : command;
+    return run.length > 50 ? `${run.substring(0, 50)}...` : run;
   };
 
   const getProviderInfo = (task: TaskRow) => {
@@ -135,7 +135,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     const isTemplate =
       !task.config ||
       (typeof config === 'object' && Object.keys(config).length === 0) ||
-      (!config.command && !config.cluster_name);
+      (!config.run && !config.cluster_name);
 
     // Use template field directly if it's a template, otherwise use config
     const providerName = isTemplate

@@ -280,9 +280,7 @@ def _parse_yaml_to_task_data(yaml_content: str) -> dict:
     # Setup and run commands
     if validated.setup is not None:
         task_data["setup"] = str(validated.setup)
-    # For now we still map to internal `command` field; other layers will be updated
-    # to consistently use `run` in the API surface.
-    task_data["command"] = str(validated.run)
+    task_data["run"] = str(validated.run)
 
     # GitHub (task.yaml: github_repo_url, github_repo_dir, github_repo_branch; stored as github_directory/github_branch internally)
     if validated.github_repo_url is not None:
@@ -606,7 +604,7 @@ async def import_task_from_gallery(
             if not gallery_entry:
                 raise HTTPException(status_code=404, detail="Gallery entry not found")
 
-        # Create interactive task template (store interactive_gallery_id for launch-time command resolution)
+        # Create interactive task template (store interactive_gallery_id for launch-time run resolution)
         task_name = gallery_entry.get("name", "Interactive Task")
         interactive_type = gallery_entry.get("interactive_type", "vscode")
         interactive_gallery_id = gallery_entry.get("id")
@@ -618,9 +616,9 @@ async def import_task_from_gallery(
             "plugin": "remote_orchestrator",
             "experiment_id": experimentId,
             "cluster_name": task_name,
-            # Command is resolved at launch from gallery logic. Setup is stored so the
-            # launch route can prepend SUDO prefix for remote; no full command in task.
-            "command": "",
+            # Run command is resolved at launch from gallery logic. Setup is stored so the
+            # launch route can prepend SUDO prefix for remote; no full run string in task.
+            "run": "",
             "setup": gallery_entry.get("setup", ""),
             "interactive_type": interactive_type,
             "subtype": "interactive",
@@ -865,8 +863,8 @@ async def export_task_to_team_gallery(
     # Copy relevant fields to config for gallery compatibility
     if task.get("cluster_name"):
         config["cluster_name"] = task.get("cluster_name")
-    if task.get("command"):
-        config["command"] = task.get("command")
+    if task.get("run"):
+        config["run"] = task.get("run")
     if task.get("cpus"):
         config["cpus"] = task.get("cpus")
     if task.get("memory"):
