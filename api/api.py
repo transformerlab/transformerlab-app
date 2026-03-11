@@ -4,19 +4,16 @@ The Entrypoint File for Transformer Lab's API Server.
 
 import os
 import argparse
-import asyncio
 import re
 
 import json
-import signal
 from contextlib import asynccontextmanager
 import sys
-from werkzeug.utils import secure_filename
 
 import fastapi
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, Request, Depends
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -25,7 +22,6 @@ from fastapi.responses import JSONResponse
 import logging
 
 from dotenv import load_dotenv
-from lab.job_status import JobStatus
 
 load_dotenv()
 
@@ -58,7 +54,6 @@ def _enable_datadog_if_setup():
 
 TRACE_MIDDLEWARE = _enable_datadog_if_setup()
 
-import httpx  # noqa: E402
 from fastchat.constants import (  # noqa: E402
     ErrorCode,
 )
@@ -66,8 +61,6 @@ from fastchat.protocol.openai_api_protocol import (  # noqa: E402
     ErrorResponse,
 )
 
-from transformerlab.services.experiment_service import experiment_get  # noqa: E402
-from transformerlab.services.job_service import job_create, job_get, job_update_status  # noqa: E402
 from transformerlab.services.experiment_init import (  # noqa: E402
     seed_default_experiments,
     seed_default_admin_user,
@@ -99,7 +92,6 @@ from transformerlab.routers.experiment import jobs  # noqa: E402
 from transformerlab.shared import shared  # noqa: E402
 from transformerlab.shared import galleries  # noqa: E402
 from lab.dirs import get_workspace_dir  # noqa: E402
-from lab import dirs as lab_dirs  # noqa: E402
 from transformerlab.shared import dirs  # noqa: E402
 from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
 from lab import storage  # noqa: E402
@@ -287,7 +279,7 @@ async def set_org_context(request: Request, call_next):
     # Avoid any org / DB resolution on lightweight health checks so they
     # remain responsive even if other requests are busy or holding DB locks.
     path = request.url.path
-    if path == "/healthz" or path == "/server/worker_healthz":
+    if path == "/healthz":
         return await call_next(request)
 
     try:
@@ -343,8 +335,6 @@ app.include_router(quota.router)
 app.include_router(ssh_keys.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(trackio.router, dependencies=[Depends(get_user_and_team)])
 
-worker_process = None
-
 
 async def install_all_plugins():
     all_plugins = await plugins.list_plugins()
@@ -358,207 +348,6 @@ async def install_all_plugins():
 # @app.get("/")
 # async def home():
 #     return {"msg": "Welcome to Transformer Lab!"}
-
-
-def set_worker_process_id(process):
-    global worker_process
-    worker_process = process
-
-
-@app.get("/server/worker_start", tags=["serverinfo"])
-async def server_worker_start(
-    model_name: str,
-    adaptor: str = "",
-    model_filename: str | None = None,
-    model_architecture: str = "",
-    eight_bit: bool = False,
-    cpu_offload: bool = False,
-    inference_engine: str = "default",
-    experiment_id: str = None,
-    inference_params: str = "",
-    request: Request = None,
-):
-    # the first priority for inference params should be the inference params passed in, then the inference parameters in the experiment
-    # first we check to see if any inference params were passed in
-    if inference_params != "":
-        try:
-            inference_params = json.loads(inference_params)
-        except json.JSONDecodeError:
-            return {"status": "error", "message": "malformed inference params passed"}
-    # then we check to see if we are an experiment
-    elif experiment_id is not None:
-        try:
-            experiment = await experiment_get(experiment_id)
-            experiment_config = (
-                experiment["config"]
-                if isinstance(experiment["config"], dict)
-                else json.loads(experiment["config"] or "{}")
-            )
-            try:
-                inference_params = experiment_config["inferenceParams"]
-            except KeyError:
-                print("No inference params found in experiment config, using empty dict")
-                inference_params = {}
-            if not isinstance(inference_params, dict):
-                # if inference_params is a string, we need to parse it as JSON
-                inference_params = json.loads(inference_params)
-        except json.JSONDecodeError:
-            return {"status": "error", "message": "malformed inference params passed"}
-    # if neither are true, then we have an issue
-    else:
-        return {"status": "error", "message": "malformed inference params passed"}
-
-    engine = inference_engine
-    if "inferenceEngine" in inference_params and engine == "default":
-        engine = inference_params.get("inferenceEngine")
-
-    if engine == "default":
-        return {"status": "error", "message": "no inference engine specified"}
-
-    inference_engine = engine
-
-    model_architecture = model_architecture
-
-    plugin_name = inference_engine
-    plugin_location = await lab_dirs.plugin_dir_by_name(plugin_name)
-
-    model = model_name
-    if model_filename is not None and model_filename != "":
-        model = model_filename
-
-    if adaptor != "":
-        # Resolve per-request workspace if multitenant
-        workspace_dir = await get_workspace_dir()
-        adaptor = f"{workspace_dir}/adaptors/{secure_filename(model)}/{adaptor}"
-
-    params = [
-        dirs.PLUGIN_HARNESS,
-        "--plugin_dir",
-        plugin_location,
-        "--model-path",
-        model,
-        "--model-architecture",
-        model_architecture,
-        "--adaptor-path",
-        adaptor,
-        "--parameters",
-        json.dumps(inference_params),
-    ]
-
-    job_id = await job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
-
-    print("Loading plugin loader instead of default worker")
-
-    from lab.dirs import get_global_log_path
-
-    async with await storage.open(await get_global_log_path(), "a") as global_log:
-        await global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
-
-    # Pass organization_id as environment variable to subprocess
-    from lab.dirs import get_organization_id
-
-    org_id = get_organization_id()
-    subprocess_env = {}
-    if org_id:
-        subprocess_env["_TFL_ORG_ID"] = org_id
-
-    process = await shared.async_run_python_daemon_and_update_status(
-        python_script=params,
-        job_id=job_id,
-        begin_string="Application startup complete.",
-        set_process_id_function=set_worker_process_id,
-        env=subprocess_env,
-    )
-    exitcode = process.returncode
-    if exitcode == 99:
-        from lab.dirs import get_global_log_path
-
-        async with await storage.open(await get_global_log_path(), "a") as global_log:
-            await global_log.write(
-                "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.\n"
-            )
-        return {
-            "status": "error",
-            "message": "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.",
-        }
-    if exitcode is not None and exitcode != 0:
-        from lab.dirs import get_global_log_path
-
-        async with await storage.open(await get_global_log_path(), "a") as global_log:
-            await global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
-        job = await job_get(job_id)
-        error_msg = None
-        if job and job.get("job_data"):
-            error_msg = job["job_data"].get("error_msg")
-        if not error_msg:
-            error_msg = f"Exit code {exitcode}"
-            await job_update_status(job_id, JobStatus.FAILED, experiment_id=experiment_id, error_msg=error_msg)
-        return {"status": "error", "message": error_msg}
-    from lab.dirs import get_global_log_path
-
-    async with await storage.open(await get_global_log_path(), "a") as global_log:
-        await global_log.write(f"Model loaded successfully: {model_name}\n")
-    return {"status": "success", "job_id": job_id}
-
-
-@app.get("/server/worker_stop", tags=["serverinfo"])
-async def server_worker_stop():
-    global worker_process
-    print(f"Stopping worker process: {worker_process}")
-    if worker_process is not None:
-        try:
-            os.kill(worker_process.pid, signal.SIGTERM)
-            worker_process = None
-
-        except Exception as e:
-            print(f"Error stopping worker process: {e}")
-    # check if there is a file called worker.pid, if so kill the related process:
-    if os.path.isfile("worker.pid"):
-        with open("worker.pid", "r") as f:
-            pids = [line.strip() for line in f if line.strip()]
-            for pid in pids:
-                print(f"Killing worker process with PID: {pid}")
-                try:
-                    os.kill(int(pid), signal.SIGTERM)
-                except ProcessLookupError:
-                    print(f"Process {pid} no longer exists, skipping")
-                except Exception as e:
-                    print(f"Error killing process {pid}: {e}")
-        # delete the worker.pid file:
-        os.remove("worker.pid")
-
-    # Wait a bit for the worker to fully terminate
-    await asyncio.sleep(1)
-
-    # Refresh the controller to remove the stopped worker immediately
-    try:
-        async with httpx.AsyncClient() as client:
-            await client.post(fastchat_openai_api.app_settings.controller_address + "/refresh_all_workers")
-    except Exception as e:
-        print(f"Error refreshing controller after stopping worker: {e}")
-
-    return {"message": "OK"}
-
-
-@app.get("/server/worker_healthz", tags=["serverinfo"])
-async def server_worker_health(request: Request):
-    models = []
-    result = []
-    try:
-        models = await fastchat_openai_api.show_available_models()
-    except httpx.HTTPError as exc:
-        print(f"HTTP Exception for {exc.request.url} - {exc}")
-        raise HTTPException(status_code=503, detail="No worker")
-
-    # We create a new object with JUST the id of the models
-    # we do this so that we get a clean object that can be used
-    # by react to see if the object changed. If we returned the whole
-    # model object, you would see some changes in the object that are
-    # not relevant to the user -- triggering renders in React
-    for model_data in models.data:
-        result.append({"id": model_data.id})
-
-    return result
 
 
 @app.get("/healthz")
@@ -598,23 +387,6 @@ app.mount("/", StaticFiles(directory=dirs.STATIC_FILES_DIR, html=True), name="ap
 
 
 def cleanup_at_exit():
-    if worker_process is not None:
-        print("🔴 Quitting spawned workers.")
-        try:
-            worker_process.kill()
-        except ProcessLookupError:
-            print(f"Process {worker_process.pid} doesn't exist so nothing to kill")
-    if os.path.isfile("worker.pid"):
-        with open("worker.pid", "r") as f:
-            pids = [line.strip() for line in f if line.strip()]
-            for pid in pids:
-                try:
-                    os.kill(int(pid), signal.SIGTERM)
-                except ProcessLookupError:
-                    print(f"Process {pid} doesn't exist so nothing to kill")
-                except Exception as e:
-                    print(f"Error killing process {pid}: {e}")
-            os.remove("worker.pid")
     print("🔴 Quitting Transformer Lab API server.")
 
 
