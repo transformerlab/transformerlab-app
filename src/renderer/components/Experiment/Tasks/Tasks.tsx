@@ -29,6 +29,7 @@ import ViewSweepResultsModal from './ViewSweepResultsModal';
 import ViewJobDatasetsModal from '../Train/ViewJobDatasetsModal';
 import ViewJobModelsModal from '../Train/ViewJobModelsModal';
 import FileBrowserModal from './FileBrowserModal';
+import TaskFilesModal from './TaskFilesModal';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
@@ -70,6 +71,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [isCompareSelectMode, setIsCompareSelectMode] = useState(false);
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
   const [viewFileBrowserFromJob, setViewFileBrowserFromJob] = useState(-1);
+  const [viewTaskFilesFromTask, setViewTaskFilesFromTask] = useState<{
+    id: string | null;
+    name?: string | null;
+  }>({ id: null, name: null });
   const [yamlEditorTaskId, setYamlEditorTaskId] = useState<string | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<{
     id: string;
@@ -1141,6 +1146,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           onQueueTask={handleQueue}
           onEditTask={handleEditTask}
           onExportTask={handleExportToTeamGallery}
+          onViewFilesTask={(taskRow) =>
+            setViewTaskFilesFromTask({
+              id: taskRow.id,
+              name: (taskRow as any).name ?? (taskRow as any).title ?? null,
+            })
+          }
           loading={templatesIsLoading}
         />
       </Sheet>
@@ -1297,6 +1308,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewJobModelsFromJob !== -1}
         onClose={() => setViewJobModelsFromJob(-1)}
         jobId={viewJobModelsFromJob}
+      />
+      <TaskFilesModal
+        open={viewTaskFilesFromTask.id !== null}
+        onClose={() => setViewTaskFilesFromTask({ id: null, name: null })}
+        taskId={viewTaskFilesFromTask.id}
+        taskName={viewTaskFilesFromTask.name}
       />
       <FileBrowserModal
         open={viewFileBrowserFromJob !== -1}

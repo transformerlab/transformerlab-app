@@ -8,7 +8,6 @@ import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import { IconButton } from '@mui/joy';
 import Sidebar from './components/Nav/Sidebar';
 import MainAppPanel from './components/MainAppPanel';
-import Header from './components/Header';
 
 import customTheme from './lib/theme';
 import secretPurpleTheme from './lib/secretPurpleTheme';
@@ -39,7 +38,6 @@ type AppContentProps = {
   logsDrawerHeight: number;
   setLogsDrawerHeight: (height: number) => void;
   themeSetter: (name: string) => void;
-  setConnection: (conn: string) => void;
 };
 
 function AppContent({
@@ -49,7 +47,6 @@ function AppContent({
   logsDrawerHeight,
   setLogsDrawerHeight,
   themeSetter,
-  setConnection,
 }: AppContentProps) {
   const onOutputDrawerDrag = useCallback(
     (pos: { y: number }) => {
@@ -115,23 +112,20 @@ function AppContent({
           overflow: 'hidden',
           gridTemplateColumns: '180px 1fr',
           gridTemplateRows: !isLocalMode
-            ? '48px 5fr'
+            ? '1fr'
             : logsDrawerOpen
-              ? `48px 5fr ${logsDrawerHeight}px`
-              : '48px 5fr 18px',
+              ? `5fr ${logsDrawerHeight}px`
+              : '5fr 18px',
           gridTemplateAreas: !isLocalMode
             ? `
-          "sidebar header"
           "sidebar main"
         `
             : `
-          "sidebar header"
           "sidebar main"
           "sidebar footer"
         `,
         })}
       >
-        <Header connection={connection} setConnection={setConnection} />
         <Sidebar
           logsDrawerOpen={logsDrawerOpen}
           setLogsDrawerOpen={setLogsDrawerOpen as any}
@@ -264,7 +258,7 @@ export default function App() {
     return url;
   })();
 
-  const [connection, setConnection] = useState(initialApiUrl);
+  const [connection] = useState(initialApiUrl);
   const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
   const [logsDrawerHeight, setLogsDrawerHeight] = useState(0);
   const [theme, setTheme] = useState(customTheme);
@@ -303,7 +297,6 @@ export default function App() {
                 logsDrawerHeight={logsDrawerHeight}
                 setLogsDrawerHeight={setLogsDrawerHeight}
                 themeSetter={themeSetter}
-                setConnection={setConnection}
               />
             </ExperimentInfoProvider>
           </AnalyticsProvider>
