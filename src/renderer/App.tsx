@@ -8,7 +8,6 @@ import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import { IconButton } from '@mui/joy';
 import Sidebar from './components/Nav/Sidebar';
 import MainAppPanel from './components/MainAppPanel';
-// import Header from './components/Header';
 
 import customTheme from './lib/theme';
 import secretPurpleTheme from './lib/secretPurpleTheme';
@@ -127,7 +126,6 @@ function AppContent({
         `,
         })}
       >
-        {/* <Header connection={connection} setConnection={setConnection} /> */}
         <Sidebar
           logsDrawerOpen={logsDrawerOpen}
           setLogsDrawerOpen={setLogsDrawerOpen as any}
