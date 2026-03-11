@@ -31,8 +31,6 @@ export {
   apiHealthz,
   controllerHealthz,
   localaiHealthz,
-  activateWorker,
-  killWorker,
   GET_EXPERIMENT_UPDATE_CONFIG_URL,
   EXPERIMENT_ADD_EVALUATION,
   EXPERIMENT_EDIT_EVALUATION,
