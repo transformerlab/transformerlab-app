@@ -221,4 +221,5 @@ cli/dist/*
 playwright-report/
 test-results/
 
-.secrets
+# Secrets
+**/.secrets
