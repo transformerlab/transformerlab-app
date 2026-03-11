@@ -25,7 +25,9 @@ from transformerlab.schemas.task import (
     ImportTaskFromGalleryRequest,
     ImportTaskFromTeamGalleryRequest,
     DeleteTeamTaskFromGalleryRequest,
+    TaskYamlSpec,
 )
+from pydantic import ValidationError
 
 router = APIRouter(prefix="/task", tags=["task"])
 
@@ -233,61 +235,77 @@ def _parse_yaml_to_task_data(yaml_content: str) -> dict:
     else:
         task_yaml = yaml_data
 
-    # Convert YAML structure to task structure
+    # Validate and normalize against canonical task.yaml schema
+    try:
+        validated = TaskYamlSpec.model_validate(task_yaml)
+    except ValidationError as e:
+        # Build a concise human-readable error message
+        messages = []
+        for err in e.errors():
+            loc = ".".join(str(x) for x in err.get("loc", []))
+            msg = err.get("msg", "")
+            if loc:
+                messages.append(f"{loc}: {msg}")
+            else:
+                messages.append(msg)
+        detail_msg = "; ".join(messages) if messages else "Invalid task.yaml"
+        raise HTTPException(status_code=400, detail=detail_msg)
+
+    # Convert validated model into the internal flat task structure
     task_data = {}
 
     # Basic fields
-    if "name" in task_yaml:
-        task_data["name"] = secure_filename(str(task_yaml["name"]))
+    task_data["name"] = secure_filename(str(validated.name))
 
     # Resources
-    if "resources" in task_yaml:
-        resources = task_yaml["resources"]
-        if "compute_provider" in resources:
-            task_data["provider_name"] = resources["compute_provider"]
-        if "cpus" in resources:
-            task_data["cpus"] = str(resources["cpus"])
-        if "memory" in resources:
-            task_data["memory"] = str(resources["memory"])
-        if "disk_space" in resources:
-            task_data["disk_space"] = str(resources["disk_space"])
-        if "accelerators" in resources:
-            task_data["accelerators"] = str(resources["accelerators"])
-        if "num_nodes" in resources:
-            task_data["num_nodes"] = int(resources["num_nodes"])
+    if validated.resources is not None:
+        resources = validated.resources
+        if resources.compute_provider is not None:
+            task_data["provider_name"] = resources.compute_provider
+        if resources.cpus is not None:
+            task_data["cpus"] = str(resources.cpus)
+        if resources.memory is not None:
+            task_data["memory"] = str(resources.memory)
+        if resources.disk_space is not None:
+            task_data["disk_space"] = str(resources.disk_space)
+        if resources.accelerators is not None:
+            task_data["accelerators"] = str(resources.accelerators)
+        if resources.num_nodes is not None:
+            task_data["num_nodes"] = int(resources.num_nodes)
 
     # Environment variables
-    if "envs" in task_yaml:
-        task_data["env_vars"] = task_yaml["envs"]
+    if validated.envs is not None:
+        task_data["env_vars"] = validated.envs
 
     # Setup and run commands
-    if "setup" in task_yaml:
-        task_data["setup"] = str(task_yaml["setup"])
-    if "run" in task_yaml:
-        task_data["command"] = str(task_yaml["run"])
+    if validated.setup is not None:
+        task_data["setup"] = str(validated.setup)
+    # For now we still map to internal `command` field; other layers will be updated
+    # to consistently use `run` in the API surface.
+    task_data["command"] = str(validated.run)
 
     # GitHub (task.yaml: github_repo_url, github_repo_dir, github_repo_branch; stored as github_directory/github_branch internally)
-    if "github_repo_url" in task_yaml:
-        task_data["github_repo_url"] = str(task_yaml["github_repo_url"])
-    if "github_repo_dir" in task_yaml:
-        task_data["github_directory"] = str(task_yaml["github_repo_dir"])
-    if "github_repo_branch" in task_yaml:
-        task_data["github_branch"] = str(task_yaml["github_repo_branch"])
+    if validated.github_repo_url is not None:
+        task_data["github_repo_url"] = str(validated.github_repo_url)
+    if validated.github_repo_dir is not None:
+        task_data["github_directory"] = str(validated.github_repo_dir)
+    if validated.github_repo_branch is not None:
+        task_data["github_branch"] = str(validated.github_repo_branch)
 
     # Parameters
-    if "parameters" in task_yaml:
-        task_data["parameters"] = task_yaml["parameters"]
+    if validated.parameters is not None:
+        task_data["parameters"] = validated.parameters
 
     # Sweeps
-    if "sweeps" in task_yaml:
-        sweeps = task_yaml["sweeps"]
+    if validated.sweeps is not None:
+        sweeps = validated.sweeps
         task_data["run_sweeps"] = True
-        if "sweep_config" in sweeps:
-            task_data["sweep_config"] = sweeps["sweep_config"]
-        if "sweep_metric" in sweeps:
-            task_data["sweep_metric"] = str(sweeps["sweep_metric"])
-        if "lower_is_better" in sweeps:
-            task_data["lower_is_better"] = bool(sweeps["lower_is_better"])
+        if sweeps.sweep_config is not None:
+            task_data["sweep_config"] = sweeps.sweep_config
+        if sweeps.sweep_metric is not None:
+            task_data["sweep_metric"] = str(sweeps.sweep_metric)
+        if sweeps.lower_is_better is not None:
+            task_data["lower_is_better"] = bool(sweeps.lower_is_better)
 
     # Files are handled separately via file upload endpoint
 
