@@ -3,8 +3,6 @@ import Sheet from '@mui/joy/Sheet';
 import { Box } from '@mui/joy';
 import { useConnectionHealth } from 'renderer/lib/transformerlab-api-sdk';
 
-import ModelCurrentlyPlayingBar from './ModelCurrentlyPlayingBar';
-
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import ConnectionLostModal from './Shared/ConnectionLostModal';
 
@@ -62,9 +60,7 @@ export default function Header({ connection, setConnection }) {
             alignItems: 'center',
             display: 'flex',
           }}
-        >
-          <ModelCurrentlyPlayingBar experimentInfo={experimentInfo} />
-        </div>
+        ></div>
       )}
 
       <div

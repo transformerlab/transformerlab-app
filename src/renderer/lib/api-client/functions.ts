@@ -149,34 +149,6 @@ export async function localaiHealthz() {
   }
 }
 
-export async function activateWorker(
-  modelName: string,
-  modelFilename: string | null = null,
-  modelArchitecture: string = '',
-  adaptorName: string = '',
-  engine: string | null = 'default',
-  parameters: object = {},
-  experimentId: string = '',
-) {
-  console.warn(
-    'activateWorker is deprecated: legacy worker_start endpoint has been removed.',
-  );
-  return {
-    status: 'error',
-    message:
-      'Starting legacy workers via legacy worker_start is no longer supported.',
-  };
-}
-
-export async function killWorker() {
-  console.warn(
-    'killWorker is deprecated: legacy worker_stop endpoint has been removed.',
-  );
-  return {
-    status: 'ok',
-  };
-}
-
 export function GET_EXPERIMENT_UPDATE_CONFIG_URL(
   id: string,
   key: string,
