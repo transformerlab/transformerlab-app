@@ -273,7 +273,7 @@ class LocalProvider(ComputeProvider):
 
         venv_bin = venv_path / "bin"
         env = os.environ.copy()
-        print(f"[DEBUG LocalProvider] config.env_vars = {config.env_vars}")
+        # print(f"[DEBUG LocalProvider] config.env_vars = {config.env_vars}")
         env.update(config.env_vars or {})
         env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
         env["VIRTUAL_ENV"] = str(venv_path)
