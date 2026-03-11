@@ -443,14 +443,18 @@ async def list_files_in_github_directory(
     github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=None)
 
     headers = {
-      "Accept": "application/vnd.github.v3+json",
-      "User-Agent": "TransformerLab",
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "TransformerLab",
     }
     if github_pat:
         headers["Authorization"] = f"token {github_pat}"
 
     async def _list_dir(path: str, client: httpx.AsyncClient, results: List[str]) -> None:
-        api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}" if path else f"https://api.github.com/repos/{owner}/{repo}/contents"
+        api_url = (
+            f"https://api.github.com/repos/{owner}/{repo}/contents/{path}"
+            if path
+            else f"https://api.github.com/repos/{owner}/{repo}/contents"
+        )
         if ref:
             sep = "&" if "?" in api_url else "?"
             api_url = f"{api_url}{sep}ref={ref}"
