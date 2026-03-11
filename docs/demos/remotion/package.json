@@ -1,0 +1,27 @@
+{
+  "name": "remotion",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "preview": "remotion preview src/index.ts",
+    "render": "remotion render src/index.ts MnistDemo out/mnist-demo.mp4",
+    "build": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "browserslist": ["defaults"],
+  "dependencies": {
+    "@remotion/cli": "^4.0.434",
+    "@remotion/player": "^4.0.434",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "remotion": "^4.0.434"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}
