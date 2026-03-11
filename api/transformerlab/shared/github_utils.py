@@ -499,3 +499,97 @@ async def list_files_in_github_directory(
         await _list_dir(base_path, client, results)
 
     return results
+
+
+async def fetch_github_file_bytes(
+    repo_url: str,
+    file_path: str,
+    ref: Optional[str] = None,
+) -> bytes:
+    """
+    Fetch an arbitrary file's raw bytes from a GitHub repository using the configured PAT if present.
+
+    This is similar to the logic used in _fetch_task_json_impl but returns raw bytes instead
+    of attempting to parse JSON.
+    """
+    repo_url_clean = repo_url.replace(".git", "").strip()
+    if not repo_url_clean.startswith("https://github.com/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid GitHub repository URL. Must start with https://github.com/",
+        )
+
+    parts = repo_url_clean.replace("https://github.com/", "").split("/")
+    if len(parts) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid GitHub repository URL format",
+        )
+
+    owner = parts[0]
+    repo = parts[1]
+
+    # Normalize path (remove leading/trailing slashes)
+    normalized_path = file_path.strip("/")
+
+    workspace_dir = await get_workspace_dir()
+    github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=None)
+
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{normalized_path}"
+    if ref:
+        api_url = f"{api_url}?ref={ref}"
+
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "TransformerLab",
+    }
+    if github_pat:
+        headers["Authorization"] = f"token {github_pat}"
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(api_url, headers=headers)
+
+        if response.status_code == 404:
+            raise HTTPException(
+                status_code=404,
+                detail=f"File not found at {normalized_path} in repository {owner}/{repo}",
+            )
+
+        if response.status_code == 403:
+            if github_pat:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Access denied. Please check your GitHub PAT permissions.",
+                )
+            raise HTTPException(
+                status_code=403,
+                detail="GitHub repository is private. Please configure a GitHub PAT in team settings.",
+            )
+
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Failed to fetch file from GitHub: {response.text}",
+            )
+
+        file_data = response.json()
+        content_b64 = file_data.get("content")
+        if not content_b64:
+            raise HTTPException(
+                status_code=500,
+                detail="GitHub API response missing content field",
+            )
+
+        try:
+            return base64.b64decode(content_b64)
+        except Exception as e:  # pragma: no cover - defensive
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to decode GitHub file content: {str(e)}",
+            ) from e
+    except httpx.TimeoutException as e:
+        raise HTTPException(
+            status_code=504,
+            detail="Request to GitHub API timed out",
+        ) from e

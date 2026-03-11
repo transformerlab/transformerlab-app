@@ -92,6 +92,14 @@ Endpoints.Task = {
     `${API_URL()}experiment/${experimentId}/task2/validate`,
   ListFiles: (experimentId: string, taskId: string) =>
     `${API_URL()}experiment/${experimentId}/task/${taskId}/files`,
+  GetFile: (experimentId: string, taskId: string, filePath: string) =>
+    `${API_URL()}experiment/${experimentId}/task/${taskId}/file/${encodeURIComponent(
+      filePath,
+    )}`,
+  GetGithubFile: (experimentId: string, taskId: string, filePath: string) =>
+    `${API_URL()}experiment/${experimentId}/task/${taskId}/github_file/${encodeURIComponent(
+      filePath,
+    )}`,
 };
 
 Endpoints.ComputeProvider = {
