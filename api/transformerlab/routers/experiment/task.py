@@ -16,6 +16,7 @@ from transformerlab.shared import galleries
 from transformerlab.shared.github_utils import (
     fetch_task_json_from_github,
     fetch_task_yaml_from_github,
+    list_files_in_github_directory,
 )
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
@@ -26,6 +27,7 @@ from transformerlab.schemas.task import (
     ImportTaskFromTeamGalleryRequest,
     DeleteTeamTaskFromGalleryRequest,
     TaskYamlSpec,
+    TaskFilesResponse,
 )
 from pydantic import ValidationError
 
@@ -109,6 +111,87 @@ async def task_get_by_type(type: str):
 async def task_get_by_type_in_experiment(experimentId: str, type: str):
     tasks = await task_service.task_get_by_type_in_experiment(type, experimentId)
     return tasks
+
+
+@router.get(
+    "/{task_id}/files",
+    response_model=TaskFilesResponse,
+    summary="List files associated with a task template (GitHub + local mounts)",
+)
+async def task_list_files(task_id: str) -> TaskFilesResponse:
+    """
+    Return a lightweight list of files associated with a task template.
+
+    - If github_repo_url is set, this will attempt a best-effort listing of files
+      from the configured repository / directory / branch. For now this may be
+      limited to known metadata or left empty if repository crawling is not
+      readily available.
+    - If file_mounts is set, it will be returned as-is as a list of local paths.
+    """
+    task = await task_service.task_get_by_id(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    github_files: list[str] = []
+    local_files: list[str] = []
+
+    # For tasks, fields are stored directly (flat structure).
+    github_repo_url = task.get("github_repo_url")
+    github_directory = task.get("github_directory")
+    github_branch = task.get("github_branch")
+
+    if github_repo_url:
+        try:
+            github_files = await list_files_in_github_directory(
+                github_repo_url,
+                directory=github_directory,
+                ref=github_branch,
+            )
+        except HTTPException:
+            # Surface GitHub errors directly to the client
+            raise
+        except Exception as e:
+            # Unexpected errors should not break the whole endpoint; log and continue.
+            print(f"Error listing GitHub files for task {task_id}: {e}")
+
+    file_mounts = task.get("file_mounts")
+    if isinstance(file_mounts, list):
+        # If stored as list of mappings or plain strings, normalize to string paths.
+        for entry in file_mounts:
+            if isinstance(entry, str):
+                local_files.append(entry)
+            elif isinstance(entry, dict):
+                src = entry.get("source") or entry.get("src") or entry.get("path")
+                tgt = entry.get("target") or entry.get("dst")
+                if src and tgt:
+                    local_files.append(f"{src} -> {tgt}")
+                elif src:
+                    local_files.append(str(src))
+                elif tgt:
+                    local_files.append(str(tgt))
+    elif isinstance(file_mounts, bool) and file_mounts:
+        # For upload-from-directory tasks, files are materialized in the
+        # per-task workspace directory: workspace/task/{task_id}. List all
+        # entries in that directory so the UI can show what will be mounted.
+        try:
+            workspace_dir = await get_workspace_dir()
+            if workspace_dir:
+                task_dir = storage.join(workspace_dir, "task", str(task_id))
+                if await storage.exists(task_dir):
+                    entries = await storage.ls(task_dir)
+                    for entry in entries:
+                        # storage.ls returns full paths; strip the task_dir prefix
+                        name = entry.replace(task_dir, "").lstrip("/").lstrip("\\")
+                        if name:
+                            local_files.append(name)
+        except Exception as e:  # pragma: no cover - defensive logging
+            print(f"Error listing local files for task {task_id} from task dir: {e}")
+
+    # Return None instead of empty list when there is no data for a source.
+    return TaskFilesResponse(
+        github_files=github_files or None,
+        local_files=local_files or None,
+    )
 
 
 @router.get(
