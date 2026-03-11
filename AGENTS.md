@@ -72,6 +72,9 @@
   - **Full cycle**: `npm run docker-test:playwright` (starts container, runs tests, tears down).
   - **Docker container**: `npm run docker-test:up` starts the app; `npm run docker-test:down` stops it. Wait for the healthcheck before running tests.
   - **Auth**: Log in via UI with `admin@example.com` / `admin123`. Import the shared `login()` and `selectFirstExperiment()` helpers from `test/playwright/helpers.ts`.
+  - **Debugging**: When debugging Playwright test failures (e.g. wrong elements being clicked, selectors not matching), use browser tools to navigate to the app, inspect the live DOM structure, and verify selectors before updating tests. Two browser tools are available:
+    - **Vercel agent-browser** (default): More efficient and should be used by default for inspecting pages, taking snapshots, and verifying selectors.
+    - **Chrome DevTools MCP**: Gives direct access to the browser (DevTools protocol). Use when you need lower-level control such as evaluating scripts, inspecting network requests, or performance tracing.
   - **Selectors**: Prefer `getByRole`, `getByText({ exact: true })`, and `getByPlaceholder`. Use `.first()` when prior test runs may leave duplicate elements (e.g. multiple tasks or jobs).
   - **xterm.js content**: Terminal output rendered by xterm is not in the DOM. Verify it by polling the corresponding API endpoint (e.g. `/experiment/{id}/jobs/{jobId}/provider_logs`) via `page.request.get()` and `expect.poll()`.
   - **Idempotency**: Tests must pass on repeated runs against the same container. Don't assume a clean DB; handle existing data gracefully with `.first()` or by checking for pre-existing state.
