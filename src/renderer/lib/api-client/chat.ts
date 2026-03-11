@@ -1,4 +1,9 @@
-import { API_URL, INFERENCE_SERVER_URL, FULL_PATH, getAPIFullPath } from './urls';
+import {
+  API_URL,
+  INFERENCE_SERVER_URL,
+  FULL_PATH,
+  getAPIFullPath,
+} from './urls';
 import * as chatAPI from './endpoints';
 import { authenticatedFetch } from './functions';
 
