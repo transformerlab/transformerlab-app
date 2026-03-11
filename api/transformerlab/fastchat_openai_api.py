@@ -39,8 +39,6 @@ from fastchat.protocol.openai_api_protocol import (
     EmbeddingsRequest,
     EmbeddingsResponse,
     ErrorResponse,
-    ModelCard,
-    ModelList,
     UsageInfo,
 )
 from pydantic import BaseModel as PydanticBaseModel
