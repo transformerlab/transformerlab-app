@@ -3,10 +3,7 @@ import asyncio
 import datetime
 import dateutil.relativedelta
 from typing import Annotated
-import transformerlab.db.db as db
-from fastapi import APIRouter, Body, Depends, Header
-from transformerlab.models.users import current_active_user
-from transformerlab.shared.models.models import User
+from fastapi import APIRouter, Body
 from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi, list_repo_tree
 from huggingface_hub import ModelCard, ModelCardData
