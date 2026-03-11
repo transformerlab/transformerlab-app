@@ -33,7 +33,8 @@ export default function InteractIframeModal({
   open,
   onClose,
 }: InteractModalProps) {
-  const iframeRef = React.useRef<HTMLIFrameElement>(null);
+  const iframeRefs = React.useRef<Map<number, HTMLIFrameElement>>(new Map());
+  const [activeTab, setActiveTab] = React.useState(0);
   const { experimentInfo } = useExperimentInfo();
 
   const url = React.useMemo(() => {
@@ -62,7 +63,7 @@ export default function InteractIframeModal({
     }));
 
   const handleRefresh = () => {
-    const iframe = iframeRef.current;
+    const iframe = iframeRefs.current.get(activeTab);
     if (iframe) {
       // eslint-disable-next-line no-self-assign
       iframe.src = iframe.src;
@@ -123,6 +124,7 @@ export default function InteractIframeModal({
           ) : (
             <Tabs
               defaultValue={0}
+              onChange={(_, val) => setActiveTab(val as number)}
               sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
             >
               <TabList>
@@ -144,7 +146,10 @@ export default function InteractIframeModal({
                 >
                   <Box
                     component="iframe"
-                    ref={iframeRef}
+                    ref={(el: HTMLIFrameElement | null) => {
+                      if (el) iframeRefs.current.set(i, el);
+                      else iframeRefs.current.delete(i);
+                    }}
                     src={src}
                     sx={{
                       width: '100%',
