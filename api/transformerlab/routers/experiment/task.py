@@ -1,4 +1,15 @@
-from fastapi import APIRouter, Body, Query, HTTPException, Depends, Request, UploadFile, File
+from fastapi import (
+    APIRouter,
+    Body,
+    Query,
+    HTTPException,
+    Depends,
+    Request,
+    UploadFile,
+    File,
+    Response,
+)
+from fastapi.responses import StreamingResponse
 from typing import Optional
 from werkzeug.utils import secure_filename
 import json
@@ -191,6 +202,109 @@ async def task_list_files(task_id: str) -> TaskFilesResponse:
     return TaskFilesResponse(
         github_files=github_files or None,
         local_files=local_files or None,
+    )
+
+
+@router.get(
+    "/{task_id}/file/{file_path:path}",
+    summary="Serve a file from a task's local workspace directory for preview",
+)
+async def task_get_file(task_id: str, file_path: str):
+    """
+    Serve a file from the per-task workspace directory (used for upload-from-directory tasks).
+
+    This mirrors the behavior of the jobs get_job_file endpoint but is scoped to
+    workspace/task/{task_id}. It is primarily intended for lightweight previews in
+    the UI and supports both text and binary content.
+    """
+    workspace_dir = await get_workspace_dir()
+    if not workspace_dir:
+        raise HTTPException(status_code=500, detail="Workspace directory is not configured")
+
+    # Files for upload-from-directory tasks are materialized under workspace/task/{task_id}
+    task_dir = storage.join(workspace_dir, "task", str(task_id))
+    target = storage.join(task_dir, file_path)
+
+    if not await storage.exists(target) or not await storage.isfile(target):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Determine media type (mirrors jobs.get_job_file)
+    _, ext = os.path.splitext(file_path.lower())
+    media_type_map = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".json": "application/json",
+        ".txt": "text/plain",
+        ".log": "text/plain",
+        ".csv": "text/csv",
+        ".py": "text/plain",
+        ".yaml": "text/plain",
+        ".yml": "text/plain",
+        ".md": "text/plain",
+        ".sh": "text/plain",
+        ".cfg": "text/plain",
+        ".ini": "text/plain",
+        ".toml": "text/plain",
+        ".pdf": "application/pdf",
+        ".zip": "application/zip",
+    }
+    media_type = media_type_map.get(ext, "application/octet-stream")
+
+    # For text-like files, return content directly as text so the frontend can render it
+    text_types = {
+        ".txt",
+        ".log",
+        ".csv",
+        ".py",
+        ".yaml",
+        ".yml",
+        ".md",
+        ".sh",
+        ".cfg",
+        ".ini",
+        ".toml",
+        ".json",
+        ".xml",
+        ".html",
+        ".css",
+        ".js",
+        ".ts",
+        ".tsx",
+        ".jsx",
+        ".sql",
+        ".r",
+        ".ipynb",
+    }
+    if ext in text_types:
+        try:
+            async with await storage.open(target, "r", encoding="utf-8") as f:
+                content = await f.read()
+            return Response(content, media_type=media_type)
+        except Exception:
+            # Fall through to binary streaming below on failure
+            pass
+
+    # For binary files, stream the content so it can be used as an <img> src, etc.
+    async def generate():
+        async with await storage.open(target, "rb") as f:
+            while True:
+                chunk = await f.read(8192)
+                if not chunk:
+                    break
+                yield chunk
+
+    filename = os.path.basename(file_path)
+    return StreamingResponse(
+        generate(),
+        media_type=media_type,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
     )
 
 
