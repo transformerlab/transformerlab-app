@@ -219,3 +219,6 @@ cli/dist/*
 # Playwright
 playwright-report/
 test-results/
+
+# Secrets
+**/.secrets
