@@ -36,7 +36,6 @@ from transformerlab.shared.models.models import ProviderType, TeamRole
 from transformerlab.compute_providers.models import (
     ClusterConfig,
     ClusterStatus,
-    ClusterState,
     ResourceInfo,
     JobConfig,
     JobInfo,
@@ -45,6 +44,7 @@ from transformerlab.compute_providers.models import (
 from transformerlab.services import job_service
 from transformerlab.services import quota_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
+from transformerlab.services.cache_service import cache
 from lab import storage
 from lab.storage import STORAGE_PROVIDER
 from lab.dirs import get_workspace_dir, get_local_provider_job_dir, get_job_dir, set_organization_id, get_task_dir
@@ -1109,6 +1109,9 @@ async def _create_sweep_parent_job(
         if value is not None:
             await job_service.job_update_job_data_insert_key_value(parent_job_id, key, value, request.experiment_id)
 
+    # Ensure experiment job lists reflect the new parent sweep job.
+    await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
+
     return parent_job_id
 
 
@@ -1425,6 +1428,8 @@ async def _launch_sweep_jobs(
             )
 
             print(f"Completed launching {len(child_job_ids)} child jobs for sweep {parent_job_id}")
+            # Invalidate cached job lists now that all child jobs have been created.
+            await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
     finally:
         # Clear org context after background task completes
         if lab_set_org_id is not None:
@@ -1549,6 +1554,9 @@ async def launch_template_on_provider(
         status=initial_status,
         experiment_id=request.experiment_id,
     )
+
+    # Ensure experiment job lists include the newly created REMOTE job.
+    await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
 
     await job_service.job_update_launch_progress(
         job_id,
@@ -1707,6 +1715,12 @@ async def launch_template_on_provider(
     env_vars["_TFL_JOB_ID"] = str(job_id)
     env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
     env_vars["_TFL_USER_ID"] = user_id
+
+    # Enable Trackio auto-init for this job if requested. When set, the lab SDK
+    # running inside the remote script can automatically initialize Trackio
+    # and capture metrics for visualization in the Tasks UI.
+    if request.enable_trackio:
+        env_vars["TLAB_TRACKIO_AUTO_INIT"] = "true"
 
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
@@ -2002,348 +2016,27 @@ async def launch_template_on_provider(
 async def check_provider_job_status(
     job_id: str,
     user_and_team=Depends(get_user_and_team),
-    session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Check a single REMOTE job launched via providers and update status if cluster finishes.
-    Uses provider_id and cluster_name from job_data to check the provider.
-    """
-    team_id = user_and_team["team_id"]
+    Return the current status of a REMOTE job (read-only).
 
-    # Get the job
+    Provider polling and status transitions are handled by the
+    remote_job_status_service background worker, which runs every
+    REMOTE_JOB_STATUS_INTERVAL_SECONDS seconds. This endpoint is
+    intentionally side-effect-free so that frequent frontend polling
+    never blocks on provider latency or downtime.
+    """
     job = await job_service.job_get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    job_data_for_status = job.get("job_data", {}) or {}
-    launch_progress = job_data_for_status.get("launch_progress")
-
-    # Only process REMOTE jobs
-    if job.get("type") != "REMOTE":
-        return {
-            "status": "success",
-            "job_id": job_id,
-            "current_status": job.get("status"),
-            "message": "Job is not a REMOTE job",
-            "launch_progress": launch_progress,
-        }
-
-    # If job is already in a terminal state, ensure quota is recorded
-    job_status = job.get("status", "")
-    if job_status in (JobStatus.COMPLETE, JobStatus.STOPPED, JobStatus.FAILED, JobStatus.DELETED):
-        # Ensure quota is recorded for this completed job
-        # Pass team_id from user_and_team context
-        await quota_service.ensure_quota_recorded_for_completed_job(session, job_id, team_id=team_id)
-        return {
-            "status": "success",
-            "job_id": job_id,
-            "current_status": job_status,
-            "message": f"Job is already in {job_status} state",
-            "launch_progress": launch_progress,
-        }
-
-    # Only check provider status for jobs that are still launching, running, or stopping
-    if job_status not in (JobStatus.LAUNCHING, JobStatus.RUNNING, JobStatus.STOPPING):
-        return {
-            "status": "success",
-            "job_id": job_id,
-            "current_status": job_status,
-            "message": f"Job is in {job_status} state, not checking provider status",
-            "launch_progress": launch_progress,
-        }
-
-    job_data = job_data_for_status
-
-    # If the remote wrapper has already detected a crash, mark the job as FAILED immediately.
-    live_status = job_data.get("live_status")
-    if live_status == "crashed":
-        try:
-            end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-            await job_service.job_update_job_data_insert_key_value(
-                job_id, "end_time", end_time_str, job.get("experiment_id")
-            )
-            await job_service.job_update_status(
-                job_id,
-                JobStatus.FAILED,
-                experiment_id=job.get("experiment_id"),
-                session=session,
-            )
-            await session.commit()
-            return {
-                "status": "success",
-                "job_id": job_id,
-                "updated": True,
-                "new_status": JobStatus.FAILED,
-                "message": "Remote command crashed (live_status=crashed)",
-                "launch_progress": launch_progress,
-            }
-        except Exception as exc:
-            print(f"Failed to update job status from live_status crash: {exc}")
-            return {
-                "status": "error",
-                "job_id": job_id,
-                "message": "Failed to update job status after crash",
-                "launch_progress": launch_progress,
-            }
-
-    # If the remote wrapper has already detected completion, mark the job as COMPLETE immediately.
-    if live_status == "finished":
-        try:
-            end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-            await job_service.job_update_job_data_insert_key_value(
-                job_id, "end_time", end_time_str, job.get("experiment_id")
-            )
-            await job_service.job_update_status(
-                job_id,
-                JobStatus.COMPLETE,
-                experiment_id=job.get("experiment_id"),
-                session=session,
-            )
-            await session.commit()
-            return {
-                "status": "success",
-                "job_id": job_id,
-                "updated": True,
-                "new_status": JobStatus.COMPLETE,
-                "message": "Remote command finished (live_status=finished)",
-                "launch_progress": launch_progress,
-            }
-        except Exception as exc:
-            print(f"Failed to update job status from live_status finished: {exc}")
-            return {
-                "status": "error",
-                "job_id": job_id,
-                "message": "Failed to update job status after completion",
-                "launch_progress": launch_progress,
-            }
-
-    provider_id = job_data.get("provider_id")
-    cluster_name = job_data.get("cluster_name")
-    experiment_id = job.get("experiment_id")
-
-    if not provider_id or not cluster_name:
-        return {
-            "status": "error",
-            "job_id": job_id,
-            "message": "Job missing provider_id or cluster_name in job_data",
-            "launch_progress": launch_progress,
-        }
-
-    # Get the provider
-    provider = await get_team_provider(session, team_id, provider_id)
-    if not provider:
-        return {
-            "status": "error",
-            "job_id": job_id,
-            "message": "Provider not found or not accessible",
-            "launch_progress": launch_progress,
-        }
-
-    try:
-        user_id_str = str(user_and_team["user"].id)
-        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
-    except Exception as exc:
-        print(f"Failed to instantiate provider: {exc}")
-        return {
-            "status": "error",
-            "job_id": job_id,
-            "message": "Failed to instantiate provider",
-            "launch_progress": launch_progress,
-        }
-
-    # Local provider needs workspace_dir from job_data for status/logs
-    if provider.type == ProviderType.LOCAL.value and job_data.get("workspace_dir"):
-        if hasattr(provider_instance, "extra_config"):
-            provider_instance.extra_config["workspace_dir"] = job_data["workspace_dir"]
-
-    # Local provider: single process per "cluster"; check process status
-    if provider.type == ProviderType.LOCAL.value:
-        try:
-            cluster_status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
-            terminal_states_local = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
-            if cluster_status.state in terminal_states_local:
-                try:
-                    # Map cluster terminal state to the appropriate job status
-                    if job_status == JobStatus.STOPPING:
-                        final_status = JobStatus.STOPPED
-                    elif cluster_status.state == ClusterState.FAILED:
-                        final_status = JobStatus.FAILED
-                    else:
-                        final_status = JobStatus.COMPLETE
-                    end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-                    await job_service.job_update_job_data_insert_key_value(
-                        job_id, "end_time", end_time_str, experiment_id
-                    )
-                    await job_service.job_update_status(
-                        job_id, final_status, experiment_id=experiment_id, session=session
-                    )
-                    await session.commit()
-                    return {
-                        "status": "success",
-                        "job_id": job_id,
-                        "updated": True,
-                        "new_status": final_status,
-                        "message": f"Local job finished (status: {cluster_status.state.value})",
-                        "launch_progress": launch_progress,
-                    }
-                except Exception as exc:
-                    print(f"Failed to update job status: {exc}")
-                    return {
-                        "status": "error",
-                        "job_id": job_id,
-                        "message": "Failed to update job status",
-                        "launch_progress": launch_progress,
-                    }
-            return {
-                "status": "success",
-                "job_id": job_id,
-                "updated": False,
-                "current_status": JobStatus.LAUNCHING,
-                "message": f"Local job still running (status: {cluster_status.state.value})",
-                "launch_progress": launch_progress,
-            }
-        except Exception as exc:
-            print(f"Failed to check local job status: {exc}")
-            return {
-                "status": "error",
-                "job_id": job_id,
-                "message": "Failed to check local job status",
-                "launch_progress": launch_progress,
-            }
-
-    # Runpod doesn't have a job queue - check pod status instead
-    if provider.type == ProviderType.RUNPOD.value:
-        try:
-            cluster_status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
-            # For Runpod, the pod itself is the "job"
-            # Check if pod is in a terminal state
-            terminal_pod_states = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
-            pod_finished = cluster_status.state in terminal_pod_states
-
-            if pod_finished:
-                # Pod has finished, mark job as complete
-                try:
-                    end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-                    job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
-                    await job_service.job_update_status(
-                        job_id, JobStatus.COMPLETE, experiment_id=experiment_id, session=session
-                    )
-                    await session.commit()
-
-                    return {
-                        "status": "success",
-                        "job_id": job_id,
-                        "updated": True,
-                        "new_status": JobStatus.COMPLETE,
-                        "message": f"Pod finished (status: {cluster_status.state.value})",
-                        "launch_progress": launch_progress,
-                    }
-                except Exception as exc:
-                    print(f"Failed to update job status: {exc}")
-                    return {
-                        "status": "error",
-                        "job_id": job_id,
-                        "message": "Failed to update job status",
-                        "launch_progress": launch_progress,
-                    }
-            else:
-                # Pod is still running
-                return {
-                    "status": "success",
-                    "job_id": job_id,
-                    "updated": False,
-                    "current_status": JobStatus.LAUNCHING,
-                    "message": f"Pod is still running (status: {cluster_status.state.value})",
-                    "launch_progress": launch_progress,
-                }
-        except Exception as exc:
-            print(f"Failed to check Runpod pod status: {exc}")
-            return {
-                "status": "error",
-                "job_id": job_id,
-                "message": "Failed to check pod status",
-                "launch_progress": launch_progress,
-            }
-
-    # For other providers (SkyPilot, SLURM), check jobs on the cluster
-    try:
-        provider_jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
-    except NotImplementedError:
-        # Provider doesn't support list_jobs
-        return {
-            "status": "success",
-            "job_id": job_id,
-            "updated": False,
-            "current_status": job_status,
-            "message": "Provider does not support job status checking",
-            "launch_progress": launch_progress,
-        }
-    except Exception as exc:
-        print(f"Failed to list jobs for cluster {cluster_name}: {exc}")
-        return {
-            "status": "error",
-            "job_id": job_id,
-            "message": f"Failed to list jobs for cluster {cluster_name}: {exc}",
-            "launch_progress": launch_progress,
-        }
-
-    terminal_states = {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
-    # Treat an empty list of provider jobs as "finished" – once the provider
-    # reports no jobs, there's nothing left running for this cluster.
-    jobs_finished = not provider_jobs or all(
-        getattr(provider_job, "state", JobState.UNKNOWN) in terminal_states for provider_job in provider_jobs
-    )
-
-    if jobs_finished:
-        try:
-            # Derive the appropriate final job status based on the current job
-            # status and the provider-reported job states.
-            provider_states = [getattr(job, "state", JobState.UNKNOWN) for job in provider_jobs]
-
-            # If the user requested a stop or the provider reports cancelled jobs,
-            # prefer STOPPED as the final status.
-            if job_status == JobStatus.STOPPING or any(state == JobState.CANCELLED for state in provider_states):
-                final_status = JobStatus.STOPPED
-            # If any provider job failed, propagate FAILED.
-            elif any(state == JobState.FAILED for state in provider_states):
-                final_status = JobStatus.FAILED
-            # Otherwise, consider the job COMPLETE.
-            else:
-                final_status = JobStatus.COMPLETE
-
-            # Set end_time when marking job as finished
-            end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-            await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
-            # Pass session to job_update_status so quota tracking uses the same session
-            await job_service.job_update_status(job_id, final_status, experiment_id=experiment_id, session=session)
-            # Commit the session to ensure quota tracking is persisted
-            await session.commit()
-
-            return {
-                "status": "success",
-                "job_id": job_id,
-                "updated": True,
-                "new_status": final_status,
-                "message": "All provider jobs completed",
-                "launch_progress": launch_progress,
-            }
-        except Exception as exc:
-            print(f"Failed to update job status: {exc}")
-            return {
-                "status": "error",
-                "job_id": job_id,
-                "message": "Failed to update job status",
-                "launch_progress": launch_progress,
-            }
-    else:
-        return {
-            "status": "success",
-            "job_id": job_id,
-            "updated": False,
-            "current_status": job_status,
-            "message": "Jobs still running on provider",
-            "launch_progress": launch_progress,
-        }
+    job_data = job.get("job_data") or {}
+    return {
+        "status": "success",
+        "job_id": job_id,
+        "current_status": job.get("status"),
+        "launch_progress": job_data.get("launch_progress"),
+    }
 
 
 @router.get("/jobs/ensure-quota-recorded")
@@ -2640,6 +2333,9 @@ async def resume_from_checkpoint(
     new_job_id = await job_service.job_create(
         type="REMOTE", status=initial_status, experiment_id=experimentId, job_data={}
     )
+
+    # Ensure experiment job lists include the resumed REMOTE job.
+    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
 
     # Set parent_job_id and resumed_from_checkpoint in job_data
     await job_service.job_update_job_data_insert_key_value(new_job_id, "parent_job_id", job_id, experimentId)
