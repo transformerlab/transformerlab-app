@@ -135,12 +135,12 @@ export default function InteractiveJobCard({
   const jobIdNum = parseInt(job.id, 10);
 
   const tunnelInfoUrl = React.useMemo(() => {
-    if (!showActions || !experimentInfo?.id) return null;
+    if (!isInteractive || !experimentInfo?.id) return null;
     return chatAPI.Endpoints.Experiment.GetTunnelInfo(
       experimentInfo.id,
       String(jobIdNum),
     );
-  }, [showActions, experimentInfo?.id, jobIdNum]);
+  }, [isInteractive, experimentInfo?.id, jobIdNum]);
 
   const { data: tunnelData } = useSWR(tunnelInfoUrl, fetcher, {
     refreshInterval: 3000,
