@@ -310,6 +310,7 @@ export default function Interactive() {
       let defaultSetup: string;
       let defaultCommand: string;
       let templateId: string | undefined;
+      let galleryTemplate: any = null;
 
       try {
         const galleryResponse = await chatAPI.authenticatedFetch(
@@ -337,6 +338,7 @@ export default function Interactive() {
           defaultSetup = template.setup || '';
           defaultCommand = template.command || '';
           templateId = template.id;
+          galleryTemplate = template;
         } else {
           throw new Error('Failed to fetch interactive gallery');
         }
@@ -378,6 +380,8 @@ export default function Interactive() {
         provider_id: providerMeta.id,
         provider_name: providerMeta.name,
         env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
+        github_repo_url: galleryTemplate?.github_repo_url || undefined,
+        github_directory: galleryTemplate?.github_repo_dir || undefined,
       };
 
       const response = await chatAPI.authenticatedFetch(
@@ -490,7 +494,7 @@ export default function Interactive() {
         };
       }
 
-      if (!cfg.command) {
+      if (!cfg.command && !cfg.github_repo_url && !task.github_repo_url) {
         return { ok: false, error: 'Task is missing a command to run.' };
       }
 
@@ -622,7 +626,7 @@ export default function Interactive() {
       return;
     }
 
-    if (!cfg.command) {
+    if (!cfg.command && !cfg.github_repo_url && !task.github_repo_url) {
       addNotification({
         type: 'warning',
         message: 'Task is missing a command to run.',

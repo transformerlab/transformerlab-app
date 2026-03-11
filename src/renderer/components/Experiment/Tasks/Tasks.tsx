@@ -817,7 +817,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       return;
     }
 
-    if (!cfg.command && !task.command) {
+    if (
+      !cfg.command &&
+      !task.command &&
+      !cfg.github_repo_url &&
+      !task.github_repo_url
+    ) {
       addNotification({
         type: 'warning',
         message: 'Task is missing a command to run.',
