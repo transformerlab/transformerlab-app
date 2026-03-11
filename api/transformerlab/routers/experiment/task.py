@@ -28,6 +28,7 @@ from transformerlab.shared.github_utils import (
     fetch_task_json_from_github,
     fetch_task_yaml_from_github,
     list_files_in_github_directory,
+    fetch_github_file_bytes,
 )
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
@@ -299,6 +300,107 @@ async def task_get_file(task_id: str, file_path: str):
                 if not chunk:
                     break
                 yield chunk
+
+    filename = os.path.basename(file_path)
+    return StreamingResponse(
+        generate(),
+        media_type=media_type,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/{task_id}/github_file/{file_path:path}",
+    summary="Serve a file from the task's associated GitHub repository for preview",
+)
+async def task_get_github_file(task_id: str, file_path: str):
+    """
+    Serve a file from the GitHub repository configured on the task (github_repo_url).
+
+    This endpoint uses the same GitHub PAT resolution logic as other GitHub helpers
+    and is intended for lightweight previews in the UI.
+    """
+    task = await task_service.task_get_by_id(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    github_repo_url = task.get("github_repo_url")
+    github_branch = task.get("github_branch")
+    if not github_repo_url:
+        raise HTTPException(status_code=400, detail="Task has no github_repo_url configured")
+
+    # list_files_in_github_directory returns repo-relative paths; the UI uses those
+    # paths directly as file_path for preview, so we can pass them through as-is.
+    content_bytes = await fetch_github_file_bytes(
+        github_repo_url,
+        file_path=file_path,
+        ref=github_branch,
+    )
+
+    _, ext = os.path.splitext(file_path.lower())
+    media_type_map = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".json": "application/json",
+        ".txt": "text/plain",
+        ".log": "text/plain",
+        ".csv": "text/csv",
+        ".py": "text/plain",
+        ".yaml": "text/plain",
+        ".yml": "text/plain",
+        ".md": "text/plain",
+        ".sh": "text/plain",
+        ".cfg": "text/plain",
+        ".ini": "text/plain",
+        ".toml": "text/plain",
+        ".pdf": "application/pdf",
+        ".zip": "application/zip",
+    }
+    media_type = media_type_map.get(ext, "application/octet-stream")
+
+    text_types = {
+        ".txt",
+        ".log",
+        ".csv",
+        ".py",
+        ".yaml",
+        ".yml",
+        ".md",
+        ".sh",
+        ".cfg",
+        ".ini",
+        ".toml",
+        ".json",
+        ".xml",
+        ".html",
+        ".css",
+        ".js",
+        ".ts",
+        ".tsx",
+        ".jsx",
+        ".sql",
+        ".r",
+        ".ipynb",
+    }
+    if ext in text_types:
+        try:
+            text_content = content_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            # Fall back to binary streaming if we cannot decode as UTF-8
+            pass
+        else:
+            return Response(text_content, media_type=media_type)
+
+    async def generate():
+        # Stream bytes as-is for binary or undecodable content
+        yield content_bytes
 
     filename = os.path.basename(file_path)
     return StreamingResponse(

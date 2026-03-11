@@ -29,8 +29,6 @@ interface FileEntry {
   source?: FileSource;
 }
 
-type FileBrowserMode = 'job' | 'task';
-
 type JobModeProps = {
   mode: 'job';
   jobId: number;
@@ -234,8 +232,8 @@ export default function FileBrowserModal({
       return;
     }
 
-    // Task mode: treat all entries as files and preview only local ones; GitHub entries
-    // are listed for awareness but are not fetched from GitHub here.
+    // Task mode: treat all entries as files. Local entries are fetched from the task
+    // workspace directory; GitHub entries are fetched via the GitHub-backed endpoint.
     const filePath = file.name;
     setSelectedFile(filePath);
     setFileLoading(true);
@@ -266,34 +264,22 @@ export default function FileBrowserModal({
       'r',
       'ipynb',
     ];
-    const imageExtensions = [
-      'png',
-      'jpg',
-      'jpeg',
-      'gif',
-      'bmp',
-      'webp',
-      'svg',
-    ];
-
-    // GitHub entries are not fetched; show a friendly message instead.
-    if (file.source === 'github') {
-      setFileMediaType('text');
-      setFileContent(
-        'GitHub-hosted files are not previewable here yet. Open the repository to view this file.',
-      );
-      setFileLoading(false);
-      return;
-    }
+    const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'];
 
     try {
       const url =
         experimentInfo?.id && taskId
-          ? Endpoints.Task.GetFile(
-              String(experimentInfo.id),
-              String(taskId),
-              filePath,
-            )
+          ? file.source === 'github'
+            ? Endpoints.Task.GetGithubFile(
+                String(experimentInfo.id),
+                String(taskId),
+                filePath,
+              )
+            : Endpoints.Task.GetFile(
+                String(experimentInfo.id),
+                String(taskId),
+                filePath,
+              )
           : null;
 
       if (!url) {
@@ -338,27 +324,43 @@ export default function FileBrowserModal({
 
         {mode === 'job' && (
           <Breadcrumbs sx={{ px: 0, py: 0.5 }}>
-            <Link
-              component="button"
-              color={currentPath ? 'primary' : 'neutral'}
+            <button
+              type="button"
               onClick={() => handleNavigate('')}
-              underline="hover"
+              style={{
+                border: 'none',
+                background: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                color: 'inherit',
+                font: 'inherit',
+                textDecoration: 'underline',
+              }}
             >
               root
-            </Link>
+            </button>
             {pathParts.map((part: string, index: number) => {
               const partPath = pathParts.slice(0, index + 1).join('/');
               const isLast = index === pathParts.length - 1;
               return (
-                <Link
+                <button
                   key={partPath}
-                  component="button"
-                  color={isLast ? 'neutral' : 'primary'}
+                  type="button"
                   onClick={() => handleNavigate(partPath)}
-                  underline="hover"
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    color: isLast
+                      ? 'inherit'
+                      : 'var(--joy-palette-primary-500)',
+                    font: 'inherit',
+                    textDecoration: 'underline',
+                  }}
                 >
                   {part}
-                </Link>
+                </button>
               );
             })}
           </Breadcrumbs>
@@ -459,13 +461,14 @@ export default function FileBrowserModal({
                           </Box>
                         </Typography>
                       </ListItemContent>
-                      {mode === 'job' && file.is_dir ? (
+                      {mode === 'job' && file.is_dir && (
                         <ChevronRightIcon size={14} />
-                      ) : mode === 'job' ? (
+                      )}
+                      {mode === 'job' && !file.is_dir && (
                         <Typography level="body-xs" color="neutral">
                           {formatBytes(file.size)}
                         </Typography>
-                      ) : null}
+                      )}
                     </ListItemButton>
                   );
                 })}
