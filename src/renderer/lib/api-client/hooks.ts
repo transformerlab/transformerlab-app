@@ -80,7 +80,7 @@ export function useModelStatus() {
 
   // Only set URL if in local mode, otherwise SWR won't make the request
   const url: string | null =
-    api_url && isLocalMode ? api_url + 'server/worker_healthz' : null;
+    api_url && isLocalMode ? api_url + 'v1/models' : null;
 
   // Poll every 2 seconds
   const options = { refreshInterval: 2000 };

@@ -158,42 +158,18 @@ export async function activateWorker(
   parameters: object = {},
   experimentId: string = '',
 ) {
-  let response;
-
-  let model = modelName;
-  // if (adaptorName !== '') {
-  //   model = `workspace/adaptors/${modelName}/${adaptorName}`;
-  // }
-
-  if (modelFilename !== null) {
-    model = `${model}&model_filename=${modelFilename}`;
-  }
-
-  const paramsJSON = JSON.stringify(parameters);
-
-  try {
-    // Pass just the path with query params - fetchWithAuth will handle prepending the base URL
-    const queryString = `server/worker_start?model_name=${model}&adaptor=${adaptorName}&model_architecture=${modelArchitecture}&engine=${engine}&experiment_id=${experimentId}&parameters=${paramsJSON}`;
-    response = await authenticatedFetch(queryString);
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.log('error with starting worker api call ', error);
-    return undefined;
-  }
+  console.warn('activateWorker is deprecated: legacy worker_start endpoint has been removed.');
+  return {
+    status: 'error',
+    message: 'Starting legacy workers via legacy worker_start is no longer supported.',
+  };
 }
 
 export async function killWorker() {
-  let response;
-  try {
-    // Pass just the path - fetchWithAuth will handle prepending the base URL
-    response = await authenticatedFetch('server/worker_stop');
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.log('error with killing worker api call ', error);
-    return undefined;
-  }
+  console.warn('killWorker is deprecated: legacy worker_stop endpoint has been removed.');
+  return {
+    status: 'ok',
+  };
 }
 
 export function GET_EXPERIMENT_UPDATE_CONFIG_URL(
