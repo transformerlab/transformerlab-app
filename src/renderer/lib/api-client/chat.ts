@@ -1,7 +1,31 @@
-import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './urls';
-import { getMcpServerFile } from 'renderer/components/Experiment/Interact/interactUtils';
+import {
+  API_URL,
+  INFERENCE_SERVER_URL,
+  FULL_PATH,
+  getAPIFullPath,
+} from './urls';
 import * as chatAPI from './endpoints';
 import { authenticatedFetch } from './functions';
+
+async function getMcpServerFile() {
+  const configResp = await authenticatedFetch(
+    getAPIFullPath('config', ['get'], { key: 'MCP_SERVER' }),
+  );
+  const configData = await configResp.json();
+  if (configData) {
+    try {
+      const parsed = JSON.parse(configData);
+      return {
+        mcp_server_file: parsed.serverName || '',
+        mcp_args: parsed.args || '',
+        mcp_env: parsed.env || '',
+      };
+    } catch {
+      return { mcp_server_file: '', mcp_args: '', mcp_env: '' };
+    }
+  }
+  return { mcp_server_file: '', mcp_args: '', mcp_env: '' };
+}
 
 export async function sendAndReceive(
   currentModel: String,
