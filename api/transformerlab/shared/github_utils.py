@@ -3,7 +3,7 @@
 import base64
 import json
 import uuid
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 from fastapi import HTTPException
 
 
@@ -408,3 +408,90 @@ async def fetch_task_yaml_from_github(repo_url: str, directory: Optional[str] = 
             status_code=500,
             detail=f"Failed to decode file content: {str(e)}",
         )
+
+
+async def list_files_in_github_directory(
+    repo_url: str,
+    directory: Optional[str] = None,
+    ref: Optional[str] = None,
+) -> List[str]:
+    """
+    List files in a GitHub repository directory using the configured PAT if present.
+
+    Returns a flat list of file paths (relative to the repo root) limited to regular
+    files (sub-directories are traversed recursively).
+    """
+    repo_url_clean = repo_url.replace(".git", "").strip()
+    if not repo_url_clean.startswith("https://github.com/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid GitHub repository URL. Must start with https://github.com/",
+        )
+
+    parts = repo_url_clean.replace("https://github.com/", "").split("/")
+    if len(parts) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid GitHub repository URL format",
+        )
+
+    owner, repo = parts[0], parts[1]
+
+    base_path = (directory or "").strip("/")
+
+    workspace_dir = await get_workspace_dir()
+    github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=None)
+
+    headers = {
+      "Accept": "application/vnd.github.v3+json",
+      "User-Agent": "TransformerLab",
+    }
+    if github_pat:
+        headers["Authorization"] = f"token {github_pat}"
+
+    async def _list_dir(path: str, client: httpx.AsyncClient, results: List[str]) -> None:
+        api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}" if path else f"https://api.github.com/repos/{owner}/{repo}/contents"
+        if ref:
+            sep = "&" if "?" in api_url else "?"
+            api_url = f"{api_url}{sep}ref={ref}"
+
+        resp = await client.get(api_url, headers=headers)
+        if resp.status_code == 404:
+            # Treat missing directory as empty listing
+            return
+        if resp.status_code == 403:
+            if github_pat:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Access denied when listing GitHub files. Please check your GitHub PAT permissions.",
+                )
+            raise HTTPException(
+                status_code=403,
+                detail="GitHub repository is private. Please configure a GitHub PAT in team settings.",
+            )
+        if resp.status_code != 200:
+            raise HTTPException(
+                status_code=resp.status_code,
+                detail=f"Failed to list files from GitHub: {resp.text}",
+            )
+
+        items = resp.json()
+        if not isinstance(items, list):
+            return
+
+        for item in items:
+            item_type = item.get("type")
+            item_path = item.get("path")
+            if not item_path:
+                continue
+            if item_type == "file":
+                results.append(item_path)
+            elif item_type == "dir":
+                # Recursively walk sub-directories
+                await _list_dir(item_path, client, results)
+
+    results: List[str] = []
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        await _list_dir(base_path, client, results)
+
+    return results

@@ -33,6 +33,7 @@ type TaskTemplateListProps = {
   onQueueTask: (task: TaskRow) => void;
   onEditTask: (task: TaskRow) => void;
   onExportTask?: (taskId: string) => void;
+  onViewFilesTask?: (task: TaskRow) => void;
   loading: boolean;
   interactTasks?: boolean;
 };
@@ -50,6 +51,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   onQueueTask,
   onEditTask,
   onExportTask,
+  onViewFilesTask,
   loading,
   interactTasks = false,
 }) => {
@@ -244,7 +246,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
                 >
                   <Trash2Icon style={{ cursor: 'pointer' }} />
                 </IconButton>
-                {onExportTask && (
+                {(onExportTask || onViewFilesTask) && (
                   <Dropdown>
                     <MenuButton
                       slots={{ root: IconButton }}
@@ -256,9 +258,16 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
                       <MoreVerticalIcon size={16} />
                     </MenuButton>
                     <Menu>
-                      <MenuItem onClick={() => onExportTask?.(row.id)}>
-                        Export to Team Gallery
-                      </MenuItem>
+                      {onViewFilesTask && (
+                        <MenuItem onClick={() => onViewFilesTask?.(row)}>
+                          View Files
+                        </MenuItem>
+                      )}
+                      {onExportTask && (
+                        <MenuItem onClick={() => onExportTask?.(row.id)}>
+                          Export to Team Gallery
+                        </MenuItem>
+                      )}
                     </Menu>
                   </Dropdown>
                 )}
