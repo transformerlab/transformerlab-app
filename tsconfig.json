@@ -13,6 +13,7 @@
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "allowJs": true,
+    "skipLibCheck": true,
     "outDir": ".erb/dll"
   },
   "exclude": ["test", "resources/build", "resources/app/dist",
