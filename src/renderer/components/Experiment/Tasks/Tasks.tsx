@@ -752,6 +752,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               gallery_id: templateId,
               experiment_id: experimentInfo.id,
               is_interactive: true,
+              env_vars: data.env_parameters || undefined,
             }),
           },
         );
