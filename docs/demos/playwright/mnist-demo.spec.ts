@@ -1,6 +1,75 @@
 import { test, expect, type Page, type Locator } from '@playwright/test';
+import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+
+interface NarrationStep {
+  text: string;
+  durationMs: number;
+}
+
+const USE_APPLE_SPEECH = process.env.APPLE_SPEECH === '1';
+
+const NARRATION_BUFFER_MS = 3000;
+
+/** Parse the voiceover script markdown into a map of step name → narration. */
+function loadNarration(): Map<string, NarrationStep> {
+  const scriptPath = path.join(__dirname, 'mnist-demo-script.md');
+  const content = fs.readFileSync(scriptPath, 'utf-8');
+  const steps = new Map<string, NarrationStep>();
+  let currentStep: string | null = null;
+  let currentDuration = 0;
+  let currentLines: string[] = [];
+
+  for (const line of content.split('\n')) {
+    const heading = line.match(/^## (Step \d+)\s.*\[(\d+)s\]/);
+    if (heading) {
+      if (currentStep) {
+        steps.set(currentStep, {
+          text: currentLines.join('\n').trim(),
+          durationMs: currentDuration * 1000 + NARRATION_BUFFER_MS,
+        });
+      }
+      currentStep = heading[1];
+      currentDuration = parseInt(heading[2], 10);
+      currentLines = [];
+    } else if (currentStep) {
+      currentLines.push(line);
+    }
+  }
+  if (currentStep) {
+    steps.set(currentStep, {
+      text: currentLines.join('\n').trim(),
+      durationMs: currentDuration * 1000 + NARRATION_BUFFER_MS,
+    });
+  }
+  return steps;
+}
+
+/** Print a narration step to the terminal and pause for the speaking duration.
+ *  When APPLE_SPEECH=1, uses macOS `say` for text-to-speech (blocks until done). */
+async function narrate(
+  page: Page,
+  narration: Map<string, NarrationStep>,
+  step: string,
+): Promise<void> {
+  const entry = narration.get(step);
+  if (!entry) return;
+  const divider = '─'.repeat(60);
+  console.log(`\n${divider}`);
+  console.log(`🎬  ${step}  (${Math.round(entry.durationMs / 1000)}s)`);
+  console.log(divider);
+  console.log(entry.text);
+  console.log(divider + '\n');
+
+  if (USE_APPLE_SPEECH) {
+    // `say` blocks until speech finishes, so no timed pause needed
+    const escaped = entry.text.replace(/'/g, "'\\''");
+    execSync(`say -v Samantha '${escaped}'`);
+  } else {
+    await page.waitForTimeout(entry.durationMs);
+  }
+}
 
 /** Smoothly scroll an element into view so the demo doesn't jump. */
 async function smoothScrollTo(page: Page, locator: Locator): Promise<void> {
@@ -69,21 +138,24 @@ test.describe('MNIST Train Task Demo', () => {
 
   test('full MNIST demo walkthrough', async ({ page }) => {
     const adminPassword = loadSecret('ADMIN_PASSWORD_ON_BETA');
+    const script = loadNarration();
 
-    // ── Step 0: Navigate to the app and log in ──────────────────────────
+    // ── Log in before narration starts (avoid blank screen) ────────────
     await page.goto(BASE_URL);
 
     const sidebar = page.locator('.Sidebar');
     if (!(await sidebar.isVisible())) {
-      // Fill login form with credentials from .secrets
       await page.getByPlaceholder('Email Address').fill('admin@example.com');
       await page.getByPlaceholder('Password').fill(adminPassword);
       await page.getByRole('button', { name: 'Sign In' }).click();
       await expect(sidebar).toBeVisible({ timeout: 30_000 });
-      await page.waitForTimeout(TRANSITION_PAUSE);
     }
 
+    // ── Step 0: Welcome ─────────────────────────────────────────────────
+    await narrate(page, script, 'Step 0');
+
     // ── Step 1: Wait for an experiment to be loaded ─────────────────────
+    await narrate(page, script, 'Step 1');
     // After login, the app auto-selects the last-used experiment (e.g. "alpha").
     // Wait until the experiment button no longer says "Select" — meaning an
     // experiment is loaded and sidebar items like Tasks are enabled.
@@ -97,6 +169,7 @@ test.describe('MNIST Train Task Demo', () => {
     await page.waitForTimeout(3000);
 
     // ── Step 2: Navigate to Tasks and click "New" ───────────────────────
+    await narrate(page, script, 'Step 2');
     await page.getByRole('button', { name: 'Tasks', exact: true }).click();
     await expect(page.getByRole('button', { name: 'New' })).toBeVisible({
       timeout: 30_000,
@@ -123,6 +196,7 @@ test.describe('MNIST Train Task Demo', () => {
     await page.waitForTimeout(TRANSITION_PAUSE);
 
     // ── Step 3: Go to Tasks Gallery → find & import MNIST Train Task ────
+    await narrate(page, script, 'Step 3');
     await page.getByRole('button', { name: 'Tasks Gallery' }).click();
     await page.waitForTimeout(3000); // Let gallery load
 
@@ -158,6 +232,7 @@ test.describe('MNIST Train Task Demo', () => {
     await page.waitForTimeout(TRANSITION_PAUSE);
 
     // ── Step 4: Click "Queue" for the MNIST Train Task ──────────────────
+    await narrate(page, script, 'Step 4');
     // Find the Queue button in the same row as "MNIST Train Task"
     // The task name and Queue button are siblings in the task row
     await page.getByRole('button', { name: 'Queue' }).first().click();
@@ -167,6 +242,7 @@ test.describe('MNIST Train Task Demo', () => {
     await page.waitForTimeout(TRANSITION_PAUSE);
 
     // ── Step 5: Switch provider to "SkypilotNew", then dismiss ─────────
+    await narrate(page, script, 'Step 5');
     // The provider selector is a combobox with label "Compute Provider"
     const providerCombobox = queueDialog.getByRole('combobox', {
       name: 'Compute Provider',
@@ -186,6 +262,7 @@ test.describe('MNIST Train Task Demo', () => {
     await page.waitForTimeout(TRANSITION_PAUSE);
 
     // ── Step 6: Find Run #43, click Output ──────────────────────────────
+    await narrate(page, script, 'Step 6');
     await page.waitForTimeout(5000); // Let runs list populate
 
     // Scroll down to find run #43 — look for the static text "43"
@@ -212,6 +289,7 @@ test.describe('MNIST Train Task Demo', () => {
     await page.waitForTimeout(TRANSITION_PAUSE);
 
     // ── Step 7: Click Checkpoints ───────────────────────────────────────
+    await narrate(page, script, 'Step 7');
     // Re-scroll to run #43 area and click Checkpoints
     const run43TextAgain = page.getByText('trl-train-task-job-43');
     await smoothScrollTo(page, run43TextAgain);
@@ -231,6 +309,7 @@ test.describe('MNIST Train Task Demo', () => {
     await page.waitForTimeout(TRANSITION_PAUSE);
 
     // ── Step 8: Click W&B Tracking ──────────────────────────────────────
+    await narrate(page, script, 'Step 8');
     const run43TextWandb = page.getByText('trl-train-task-job-43');
     await smoothScrollTo(page, run43TextWandb);
 
@@ -250,6 +329,6 @@ test.describe('MNIST Train Task Demo', () => {
     await page.bringToFront();
     await page.waitForTimeout(TRANSITION_PAUSE);
 
-    console.log('Demo walkthrough complete!');
+    await narrate(page, script, 'Step 9');
   });
 });
