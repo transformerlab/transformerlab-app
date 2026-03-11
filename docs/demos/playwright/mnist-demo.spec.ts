@@ -9,6 +9,7 @@ interface NarrationStep {
 }
 
 const USE_APPLE_SPEECH = process.env.APPLE_SPEECH === '1';
+const FAST_MODE = process.env.FAST === '1' || process.env.FAST_MODE === '1';
 
 const NARRATION_BUFFER_MS = 3000;
 
@@ -62,7 +63,9 @@ async function narrate(
   console.log(entry.text);
   console.log(divider + '\n');
 
-  if (USE_APPLE_SPEECH) {
+  if (FAST_MODE) {
+    // Skip pauses for quick test runs
+  } else if (USE_APPLE_SPEECH) {
     // `say` blocks until speech finishes, so no timed pause needed
     const escaped = entry.text.replace(/'/g, "'\\''");
     execSync(`say -v Samantha '${escaped}'`);
@@ -76,29 +79,36 @@ async function smoothScrollTo(page: Page, locator: Locator): Promise<void> {
   const handle = await locator.elementHandle();
   if (handle) {
     // Scroll in small increments for a slower, cinematic scroll
-    await handle.evaluate((el) => {
-      const target = el.getBoundingClientRect().top + window.scrollY - window.innerHeight / 2;
+    const fast = FAST_MODE;
+    await handle.evaluate((el, isFast) => {
+      const target =
+        el.getBoundingClientRect().top +
+        window.scrollY -
+        window.innerHeight / 2;
       const start = window.scrollY;
       const distance = target - start;
-      const duration = Math.min(Math.abs(distance) * 3, 3000); // up to 3s
+      const duration = isFast ? 200 : Math.min(Math.abs(distance) * 3, 3000);
       let startTime: number | null = null;
       function step(timestamp: number) {
         if (!startTime) startTime = timestamp;
         const progress = Math.min((timestamp - startTime) / duration, 1);
-        const ease = progress < 0.5
-          ? 2 * progress * progress
-          : -1 + (4 - 2 * progress) * progress;
+        const ease =
+          progress < 0.5
+            ? 2 * progress * progress
+            : -1 + (4 - 2 * progress) * progress;
         window.scrollTo(0, start + distance * ease);
         if (progress < 1) requestAnimationFrame(step);
       }
       requestAnimationFrame(step);
-    });
-    // Wait for the slow scroll animation to finish
-    await page.waitForTimeout(3500);
+    }, fast);
+    // Wait for the scroll animation to finish
+    await page.waitForTimeout(FAST_MODE ? 300 : 3500);
   }
 }
 
-const TRANSITION_PAUSE = 4000;
+const TRANSITION_PAUSE = FAST_MODE ? 500 : 4000;
+const CONTENT_LOAD_PAUSE = FAST_MODE ? 500 : 5000;
+const SHORT_PAUSE = FAST_MODE ? 300 : 3000;
 
 /**
  * Demo script: MNIST Train Task on beta.lab.cloud
@@ -166,7 +176,7 @@ test.describe('MNIST Train Task Demo', () => {
       timeout: 30_000,
     });
     // Give the app a moment to finish loading after experiment selection
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(SHORT_PAUSE);
 
     // ── Step 2: Navigate to Tasks and click "New" ───────────────────────
     await narrate(page, script, 'Step 2');
@@ -198,12 +208,12 @@ test.describe('MNIST Train Task Demo', () => {
     // ── Step 3: Go to Tasks Gallery → find & import MNIST Train Task ────
     await narrate(page, script, 'Step 3');
     await page.getByRole('button', { name: 'Tasks Gallery' }).click();
-    await page.waitForTimeout(3000); // Let gallery load
+    await page.waitForTimeout(SHORT_PAUSE); // Let gallery load
 
     // Wait for gallery cards to load (cards use paragraphs, not headings)
-    await expect(
-      page.locator('.OrderTableContainer'),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('.OrderTableContainer')).toBeVisible({
+      timeout: 30_000,
+    });
     await page.waitForTimeout(TRANSITION_PAUSE);
 
     // Find the "MNIST Train Task" card title (rendered as a <p> not a heading)
@@ -223,12 +233,12 @@ test.describe('MNIST Train Task Demo', () => {
     await page.waitForTimeout(TRANSITION_PAUSE);
 
     // After import the app navigates back to the Tasks tab
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(CONTENT_LOAD_PAUSE);
 
     // Verify the MNIST task appears in the tasks list
-    await expect(
-      page.getByText('MNIST Train Task').first(),
-    ).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText('MNIST Train Task').first()).toBeVisible({
+      timeout: 60_000,
+    });
     await page.waitForTimeout(TRANSITION_PAUSE);
 
     // ── Step 4: Click "Queue" for the MNIST Train Task ──────────────────
@@ -263,7 +273,7 @@ test.describe('MNIST Train Task Demo', () => {
 
     // ── Step 6: Find Run #43, click Output ──────────────────────────────
     await narrate(page, script, 'Step 6');
-    await page.waitForTimeout(5000); // Let runs list populate
+    await page.waitForTimeout(CONTENT_LOAD_PAUSE); // Let runs list populate
 
     // Scroll down to find run #43 — look for the static text "43"
     // followed by "trl-train-task-job-43"
@@ -280,7 +290,7 @@ test.describe('MNIST Train Task Demo', () => {
     // Wait for the Output dialog to appear and content to load
     const outputDialog = page.getByRole('dialog');
     await expect(outputDialog).toBeVisible({ timeout: 30_000 });
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(CONTENT_LOAD_PAUSE);
     await page.waitForTimeout(TRANSITION_PAUSE);
 
     // Dismiss the output dialog — first button is the ModalClose
@@ -300,7 +310,7 @@ test.describe('MNIST Train Task Demo', () => {
     // Wait for checkpoints dialog to load
     const checkpointsDialog = page.getByRole('dialog');
     await expect(checkpointsDialog).toBeVisible({ timeout: 30_000 });
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(CONTENT_LOAD_PAUSE);
     await page.waitForTimeout(TRANSITION_PAUSE);
 
     // Dismiss checkpoints

@@ -1,4 +1,6 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig } from '@playwright/test';
+
+const recordVideo = process.env.RECORD_VIDEO === '1';
 
 export default defineConfig({
   testDir: '.',
@@ -8,11 +10,22 @@ export default defineConfig({
   reporter: 'list',
   use: {
     trace: 'on-first-retry',
+    viewport: { width: 1920, height: 1080 },
+    ...(recordVideo && {
+      video: {
+        mode: 'on' as const,
+        size: { width: 1920, height: 1080 },
+      },
+    }),
   },
+  outputDir: './test-results',
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        channel: 'chrome',
+        deviceScaleFactor: 2,
+      },
     },
   ],
 });
