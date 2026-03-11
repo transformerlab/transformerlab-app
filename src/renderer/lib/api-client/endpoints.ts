@@ -90,6 +90,8 @@ Endpoints.Task = {
     `${API_URL()}experiment/${experimentId}/task2/${taskId}/yaml`,
   ValidateYaml: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/task2/validate`,
+  ListFiles: (experimentId: string, taskId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/${taskId}/files`,
 };
 
 Endpoints.ComputeProvider = {
