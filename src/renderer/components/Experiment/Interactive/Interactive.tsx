@@ -668,9 +668,15 @@ export default function Interactive() {
         provider_name: providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
         github_repo_dir:
-          cfg.github_repo_dir || cfg.github_directory || task.github_repo_dir || task.github_directory,
+          cfg.github_repo_dir ||
+          cfg.github_directory ||
+          task.github_repo_dir ||
+          task.github_directory,
         github_repo_branch:
-          cfg.github_repo_branch || cfg.github_branch || task.github_repo_branch || task.github_branch,
+          cfg.github_repo_branch ||
+          cfg.github_branch ||
+          task.github_repo_branch ||
+          task.github_branch,
         run_sweeps: cfg.run_sweeps || task.run_sweeps || undefined,
         sweep_config: cfg.sweep_config || task.sweep_config || undefined,
         sweep_metric:
