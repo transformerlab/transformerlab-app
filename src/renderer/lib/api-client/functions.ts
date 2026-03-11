@@ -158,15 +158,20 @@ export async function activateWorker(
   parameters: object = {},
   experimentId: string = '',
 ) {
-  console.warn('activateWorker is deprecated: legacy worker_start endpoint has been removed.');
+  console.warn(
+    'activateWorker is deprecated: legacy worker_start endpoint has been removed.',
+  );
   return {
     status: 'error',
-    message: 'Starting legacy workers via legacy worker_start is no longer supported.',
+    message:
+      'Starting legacy workers via legacy worker_start is no longer supported.',
   };
 }
 
 export async function killWorker() {
-  console.warn('killWorker is deprecated: legacy worker_stop endpoint has been removed.');
+  console.warn(
+    'killWorker is deprecated: legacy worker_stop endpoint has been removed.',
+  );
   return {
     status: 'ok',
   };
