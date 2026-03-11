@@ -512,35 +512,6 @@ async def get_conv(model_name: str):
         return conv_template
 
 
-@router.get("/v1/models", dependencies=[Depends(check_api_key)], tags=["chat"])
-async def show_available_models():
-    controller_address = app_settings.controller_address
-    models = []  # Initialize models to avoid NameError if the async with block fails
-    async with httpx.AsyncClient() as client:
-        # First, try to get models without refresh
-        ret = await client.post(controller_address + "/list_models")
-        models = ret.json().get("models", [])
-        if models:
-            models.sort()
-            # TODO: return real model permission details
-            model_cards = []
-            for m in models:
-                model_cards.append(ModelCard(id=m, root=m, permission=[]))
-            return ModelList(data=model_cards)
-
-        # If no models, refresh and try again
-        await client.post(controller_address + "/refresh_all_workers")
-        ret = await client.post(controller_address + "/list_models")
-        models = ret.json().get("models", [])
-
-    models.sort()
-    # TODO: return real model permission details
-    model_cards = []
-    for m in models:
-        model_cards.append(ModelCard(id=m, root=m, permission=[]))
-    return ModelList(data=model_cards)
-
-
 @router.post("/v1/audio/speech", tags=["audio"])
 async def create_audio_tts(request: AudioGenerationRequest):
     error_check_ret = await check_model(request)
