@@ -30,9 +30,11 @@ import { AuthProvider, useAuth } from './lib/authContext';
 import LoginPage from './components/Login/LoginPage';
 import { AnalyticsProvider } from './components/Shared/analytics/AnalyticsContext';
 import FullPageLoader from './components/Shared/FullPageLoader';
+import ConnectionLostModal from './components/Shared/ConnectionLostModal';
 
 type AppContentProps = {
   connection: string;
+  setConnection: (conn: string) => void;
   logsDrawerOpen: boolean;
   setLogsDrawerOpen: (open: boolean) => void;
   logsDrawerHeight: number;
@@ -42,6 +44,7 @@ type AppContentProps = {
 
 function AppContent({
   connection,
+  setConnection,
   logsDrawerOpen,
   setLogsDrawerOpen,
   logsDrawerHeight,
@@ -60,8 +63,12 @@ function AppContent({
   );
 
   const authContext = useAuth();
+  const { isError: connectionHealthError, isLoading: connectionHealthLoading } =
+    chatAPI.useConnectionHealth(connection);
 
   const isLocalMode = window?.platform?.multiuser !== true;
+  const showConnectionLostModal =
+    connection !== '' && !connectionHealthLoading && !!connectionHealthError;
 
   // While auth is initializing or the initial user info is loading, show a full-page loader.
   // We only block on the *first* user load (no user/error yet) so that revalidation
@@ -151,6 +158,12 @@ function AppContent({
           <AnnouncementBanner />
           <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
         </Box>
+        {showConnectionLostModal && (
+          <ConnectionLostModal
+            connection={connection}
+            setConnection={setConnection}
+          />
+        )}
         {isLocalMode && (
           <Box
             sx={{
@@ -258,7 +271,7 @@ export default function App() {
     return url;
   })();
 
-  const [connection] = useState(initialApiUrl);
+  const [connection, setConnection] = useState(initialApiUrl);
   const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
   const [logsDrawerHeight, setLogsDrawerHeight] = useState(0);
   const [theme, setTheme] = useState(customTheme);
@@ -292,6 +305,7 @@ export default function App() {
             <ExperimentInfoProvider connection={connection}>
               <AppContent
                 connection={connection}
+                setConnection={setConnection}
                 logsDrawerOpen={logsDrawerOpen}
                 setLogsDrawerOpen={setLogsDrawerOpen}
                 logsDrawerHeight={logsDrawerHeight}
