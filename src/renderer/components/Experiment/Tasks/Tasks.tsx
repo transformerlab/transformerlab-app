@@ -29,7 +29,6 @@ import ViewSweepResultsModal from './ViewSweepResultsModal';
 import ViewJobDatasetsModal from '../Train/ViewJobDatasetsModal';
 import ViewJobModelsModal from '../Train/ViewJobModelsModal';
 import FileBrowserModal from './FileBrowserModal';
-import TaskFilesModal from './TaskFilesModal';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
@@ -1309,16 +1308,18 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         onClose={() => setViewJobModelsFromJob(-1)}
         jobId={viewJobModelsFromJob}
       />
-      <TaskFilesModal
-        open={viewTaskFilesFromTask.id !== null}
-        onClose={() => setViewTaskFilesFromTask({ id: null, name: null })}
-        taskId={viewTaskFilesFromTask.id}
-        taskName={viewTaskFilesFromTask.name}
-      />
       <FileBrowserModal
+        mode="job"
         open={viewFileBrowserFromJob !== -1}
         onClose={() => setViewFileBrowserFromJob(-1)}
         jobId={viewFileBrowserFromJob}
+      />
+      <FileBrowserModal
+        mode="task"
+        open={viewTaskFilesFromTask.id !== null}
+        onClose={() => setViewTaskFilesFromTask({ id: null, name: null })}
+        taskId={viewTaskFilesFromTask.id ?? ''}
+        taskName={viewTaskFilesFromTask.name}
       />
       <TrackioModal
         jobId={trackioJobIdForModal}
