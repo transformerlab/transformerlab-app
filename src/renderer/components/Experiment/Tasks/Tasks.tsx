@@ -3,8 +3,6 @@ import Sheet from '@mui/joy/Sheet';
 
 import { Button, LinearProgress, Skeleton, Stack, Typography } from '@mui/joy';
 
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import { PlusIcon, TerminalIcon } from 'lucide-react';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 
@@ -34,11 +32,12 @@ import FileBrowserModal from './FileBrowserModal';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
+import TrackioModal from '../Train/TrackioModal';
 
 const duration = require('dayjs/plugin/duration');
+const dayjs = require('dayjs');
 
 dayjs.extend(duration);
-dayjs.extend(relativeTime);
 
 export default function Tasks({ subtype }: { subtype?: string }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -64,6 +63,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     open: boolean;
     datasetId: string | null;
   }>({ open: false, datasetId: null });
+  const [trackioJobIdForModal, setTrackioJobIdForModal] = useState<
+    number | null
+  >(null);
   const [compareEvalJobIds, setCompareEvalJobIds] = useState<number[]>([]);
   const [isCompareSelectMode, setIsCompareSelectMode] = useState(false);
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
@@ -296,45 +298,24 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         return template.experiment_id === experimentInfo?.id;
       }) || [];
 
-  // Check each LAUNCHING and recently completed REMOTE job individually via provider endpoints
+  // Poll LAUNCHING/WAITING REMOTE jobs for live launch_progress and status transitions.
+  // Provider polling and status mutations are handled server-side by the
+  // remote_job_status_service background worker. This effect only reads current
+  // state, so each poll is a fast filesystem read with no provider latency risk.
   useEffect(() => {
     if (!jobs || !Array.isArray(jobs)) return;
 
-    const now = dayjs();
-    const RECENT_COMPLETION_WINDOW_MINUTES = 5; // Only check jobs completed within last 5 minutes
-
-    const jobsToCheck = jobs.filter((job: any) => {
-      // Must be REMOTE type with provider_id
-      if (job.type !== 'REMOTE' || !job.job_data?.provider_id) {
-        return false;
-      }
-
-      // Always check LAUNCHING, RUNNING, WAITING, and STOPPING jobs
-      if (
-        job.status === 'LAUNCHING' ||
-        job.status === 'RUNNING' ||
-        job.status === 'WAITING' ||
-        job.status === 'STOPPING'
-      ) {
-        return true;
-      }
-
-      // Only check COMPLETE jobs that finished recently (to ensure quota is recorded)
-      if (job.status === 'COMPLETE' && job.job_data?.end_time) {
-        const endTime = dayjs(job.job_data.end_time);
-        const minutesSinceCompletion = now.diff(endTime, 'minute', true);
-        return (
-          minutesSinceCompletion >= 0 &&
-          minutesSinceCompletion <= RECENT_COMPLETION_WINDOW_MINUTES
-        );
-      }
-
-      return false;
-    });
+    // Only poll jobs that are actively in-flight (LAUNCHING or WAITING).
+    // Quota recording and terminal-state transitions are handled by the background worker.
+    const jobsToCheck = jobs.filter(
+      (job: any) =>
+        job.type === 'REMOTE' &&
+        job.job_data?.provider_id &&
+        (job.status === 'LAUNCHING' || job.status === 'WAITING'),
+    );
 
     if (jobsToCheck.length === 0) return;
 
-    // Check each job individually
     const checkJobs = async () => {
       for (const job of jobsToCheck) {
         try {
@@ -344,8 +325,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           );
           if (response.ok) {
             const result = await response.json();
-            // If job was updated to COMPLETE, refresh jobs list
-            if (result.updated && result.new_status === 'COMPLETE') {
+            // If the background worker has transitioned the job to a terminal state,
+            // refresh the jobs list so the UI reflects the new status.
+            if (
+              result.current_status === 'COMPLETE' ||
+              result.current_status === 'FAILED' ||
+              result.current_status === 'STOPPED'
+            ) {
               setTimeout(() => jobsMutate(), 0);
             }
             if (result.launch_progress) {
@@ -362,18 +348,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
     };
 
-    // Check immediately and then every 2s when there are active jobs (LAUNCHING/RUNNING/WAITING),
-    // else every 10s (mainly for recent COMPLETE jobs to ensure quota is recorded).
-    const hasActiveRemoteJobs = jobsToCheck.some(
-      (j: any) =>
-        j.status === 'LAUNCHING' ||
-        j.status === 'RUNNING' ||
-        j.status === 'WAITING' ||
-        j.status === 'STOPPING',
-    );
-    const intervalMs = hasActiveRemoteJobs ? 2000 : 10000;
+    // Poll every 3s while jobs are in-flight.
     checkJobs();
-    const interval = setInterval(checkJobs, intervalMs);
+    const interval = setInterval(checkJobs, 3000);
 
     return () => clearInterval(interval);
   }, [jobs, fetchWithAuth, jobsMutate]);
@@ -893,6 +870,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       const {
         provider_id: _pid,
         provider_name: _pname,
+        enable_trackio,
         ...paramConfig
       } = config ?? {};
 
@@ -939,6 +917,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               : undefined,
         minutes_requested:
           cfg.minutes_requested || task.minutes_requested || undefined,
+        enable_trackio:
+          typeof enable_trackio === 'boolean' ? enable_trackio : undefined,
       };
 
       const response = await fetchWithAuth(
@@ -1244,6 +1224,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           onViewInteractive={(jobId) =>
             setInteractiveJobForModal(parseInt(jobId))
           }
+          onViewTrackio={(jobId) =>
+            setTrackioJobIdForModal(parseInt(jobId, 10))
+          }
           loading={jobsIsLoading}
           selectMode={isCompareSelectMode}
           selectedJobIds={compareEvalJobIds.map((id) => String(id))}
@@ -1319,6 +1302,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewFileBrowserFromJob !== -1}
         onClose={() => setViewFileBrowserFromJob(-1)}
         jobId={viewFileBrowserFromJob}
+      />
+      <TrackioModal
+        jobId={trackioJobIdForModal}
+        onClose={() => setTrackioJobIdForModal(null)}
       />
       <DeleteTaskConfirmModal
         open={taskToDelete !== null}

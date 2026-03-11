@@ -88,6 +88,7 @@ from transformerlab.routers import (  # noqa: E402
     api_keys,
     quota,
     ssh_keys,
+    trackio,
 )
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
 
@@ -169,10 +170,18 @@ async def lifespan(app: FastAPI):
 
     # Start background sweep status updater after all startup steps succeed.
     await start_sweep_status_worker()
+    # Start background remote job status poller (replaces inline provider polling in check-status).
+    from transformerlab.services.remote_job_status_service import (
+        start_remote_job_status_worker,
+        stop_remote_job_status_worker,
+    )
+
+    await start_remote_job_status_worker()
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
     # Do the following at API Shutdown:
     await stop_sweep_status_worker()
+    await stop_remote_job_status_worker()
     await db.close()
     # Run the clean up function
     cleanup_at_exit()
@@ -332,6 +341,7 @@ app.include_router(auth.router)
 app.include_router(api_keys.router)
 app.include_router(quota.router)
 app.include_router(ssh_keys.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(trackio.router, dependencies=[Depends(get_user_and_team)])
 
 worker_process = None
 
