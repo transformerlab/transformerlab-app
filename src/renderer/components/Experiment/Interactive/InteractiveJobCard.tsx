@@ -100,7 +100,11 @@ const INTERACTIVE_TYPE_CONFIG: Record<
   ssh: { label: 'SSH', color: 'danger', icon: SshIcon },
 };
 
-const DEFAULT_TYPE_CONFIG = INTERACTIVE_TYPE_CONFIG.vscode;
+const DEFAULT_TYPE_CONFIG = {
+  label: 'Interactive',
+  color: 'neutral' as const,
+  icon: null,
+};
 
 function getTypeConfig(interactiveType: string) {
   return INTERACTIVE_TYPE_CONFIG[interactiveType] || DEFAULT_TYPE_CONFIG;
