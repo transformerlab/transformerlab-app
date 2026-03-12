@@ -139,9 +139,7 @@ async def delete_version(asset_type: str, group_name: str, version: int):
     "/versions/{asset_type}/{group_name}/{version}",
     summary="Update metadata or tag on a specific version.",
 )
-async def update_version(
-    asset_type: str, group_name: str, version: int, body: UpdateVersionRequest
-):
+async def update_version(asset_type: str, group_name: str, version: int, body: UpdateVersionRequest):
     # Build kwargs only for fields the caller actually sent (present in the JSON body).
     # This lets the service layer distinguish "not provided" from "set to null".
     raw = body.model_dump(exclude_unset=True)
@@ -161,9 +159,7 @@ async def update_version(
             kwargs[field] = raw[field]
 
     try:
-        result = await asset_version_service.update_version(
-            asset_type, group_name, version, **kwargs
-        )
+        result = await asset_version_service.update_version(asset_type, group_name, version, **kwargs)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if result is None:
