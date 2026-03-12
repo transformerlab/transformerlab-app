@@ -3,8 +3,6 @@ import Sheet from '@mui/joy/Sheet';
 
 import { Button, LinearProgress, Skeleton, Stack, Typography } from '@mui/joy';
 
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import { PlusIcon, TerminalIcon } from 'lucide-react';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 
@@ -22,23 +20,24 @@ import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import DeleteTaskConfirmModal from './DeleteTaskConfirmModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
-import ViewArtifactsModal from '../Train/ViewArtifactsModal';
-import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
+import ViewArtifactsModal from './ViewArtifactsModal';
+import ViewCheckpointsModal from './ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
 import CompareEvalResultsModal from './CompareEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
-import ViewJobDatasetsModal from '../Train/ViewJobDatasetsModal';
-import ViewJobModelsModal from '../Train/ViewJobModelsModal';
+import ViewJobDatasetsModal from './ViewJobDatasetsModal';
+import ViewJobModelsModal from './ViewJobModelsModal';
 import FileBrowserModal from './FileBrowserModal';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
+import TrackioModal from './TrackioModal';
 
 const duration = require('dayjs/plugin/duration');
+const dayjs = require('dayjs');
 
 dayjs.extend(duration);
-dayjs.extend(relativeTime);
 
 export default function Tasks({ subtype }: { subtype?: string }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -64,10 +63,17 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     open: boolean;
     datasetId: string | null;
   }>({ open: false, datasetId: null });
+  const [trackioJobIdForModal, setTrackioJobIdForModal] = useState<
+    number | null
+  >(null);
   const [compareEvalJobIds, setCompareEvalJobIds] = useState<number[]>([]);
   const [isCompareSelectMode, setIsCompareSelectMode] = useState(false);
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
   const [viewFileBrowserFromJob, setViewFileBrowserFromJob] = useState(-1);
+  const [viewTaskFilesFromTask, setViewTaskFilesFromTask] = useState<{
+    id: string | null;
+    name?: string | null;
+  }>({ id: null, name: null });
   const [yamlEditorTaskId, setYamlEditorTaskId] = useState<string | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<{
     id: string;
@@ -296,45 +302,24 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         return template.experiment_id === experimentInfo?.id;
       }) || [];
 
-  // Check each LAUNCHING and recently completed REMOTE job individually via provider endpoints
+  // Poll LAUNCHING/WAITING REMOTE jobs for live launch_progress and status transitions.
+  // Provider polling and status mutations are handled server-side by the
+  // remote_job_status_service background worker. This effect only reads current
+  // state, so each poll is a fast filesystem read with no provider latency risk.
   useEffect(() => {
     if (!jobs || !Array.isArray(jobs)) return;
 
-    const now = dayjs();
-    const RECENT_COMPLETION_WINDOW_MINUTES = 5; // Only check jobs completed within last 5 minutes
-
-    const jobsToCheck = jobs.filter((job: any) => {
-      // Must be REMOTE type with provider_id
-      if (job.type !== 'REMOTE' || !job.job_data?.provider_id) {
-        return false;
-      }
-
-      // Always check LAUNCHING, RUNNING, WAITING, and STOPPING jobs
-      if (
-        job.status === 'LAUNCHING' ||
-        job.status === 'RUNNING' ||
-        job.status === 'WAITING' ||
-        job.status === 'STOPPING'
-      ) {
-        return true;
-      }
-
-      // Only check COMPLETE jobs that finished recently (to ensure quota is recorded)
-      if (job.status === 'COMPLETE' && job.job_data?.end_time) {
-        const endTime = dayjs(job.job_data.end_time);
-        const minutesSinceCompletion = now.diff(endTime, 'minute', true);
-        return (
-          minutesSinceCompletion >= 0 &&
-          minutesSinceCompletion <= RECENT_COMPLETION_WINDOW_MINUTES
-        );
-      }
-
-      return false;
-    });
+    // Only poll jobs that are actively in-flight (LAUNCHING or WAITING).
+    // Quota recording and terminal-state transitions are handled by the background worker.
+    const jobsToCheck = jobs.filter(
+      (job: any) =>
+        job.type === 'REMOTE' &&
+        job.job_data?.provider_id &&
+        (job.status === 'LAUNCHING' || job.status === 'WAITING'),
+    );
 
     if (jobsToCheck.length === 0) return;
 
-    // Check each job individually
     const checkJobs = async () => {
       for (const job of jobsToCheck) {
         try {
@@ -344,8 +329,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           );
           if (response.ok) {
             const result = await response.json();
-            // If job was updated to COMPLETE, refresh jobs list
-            if (result.updated && result.new_status === 'COMPLETE') {
+            // If the background worker has transitioned the job to a terminal state,
+            // refresh the jobs list so the UI reflects the new status.
+            if (
+              result.current_status === 'COMPLETE' ||
+              result.current_status === 'FAILED' ||
+              result.current_status === 'STOPPED'
+            ) {
               setTimeout(() => jobsMutate(), 0);
             }
             if (result.launch_progress) {
@@ -362,18 +352,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
     };
 
-    // Check immediately and then every 2s when there are active jobs (LAUNCHING/RUNNING/WAITING),
-    // else every 10s (mainly for recent COMPLETE jobs to ensure quota is recorded).
-    const hasActiveRemoteJobs = jobsToCheck.some(
-      (j: any) =>
-        j.status === 'LAUNCHING' ||
-        j.status === 'RUNNING' ||
-        j.status === 'WAITING' ||
-        j.status === 'STOPPING',
-    );
-    const intervalMs = hasActiveRemoteJobs ? 2000 : 10000;
+    // Poll every 3s while jobs are in-flight.
     checkJobs();
-    const interval = setInterval(checkJobs, intervalMs);
+    const interval = setInterval(checkJobs, 3000);
 
     return () => clearInterval(interval);
   }, [jobs, fetchWithAuth, jobsMutate]);
@@ -613,7 +594,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         plugin: 'remote_orchestrator',
         experiment_id: experimentInfo.id,
         cluster_name: data.cluster_name,
-        command: data.command,
+        run: data.run,
         cpus: data.cpus || undefined,
         memory: data.memory || undefined,
         disk_space: data.disk_space || undefined,
@@ -624,8 +605,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         parameters: data.parameters || undefined,
         file_mounts: data.file_mounts || undefined,
         github_repo_url: data.github_repo_url || undefined,
-        github_directory: data.github_directory || undefined,
-        github_branch: data.github_branch || undefined,
+        github_repo_dir:
+          data.github_repo_dir || data.github_directory || undefined,
+        github_repo_branch:
+          data.github_repo_branch || data.github_branch || undefined,
         run_sweeps: data.run_sweeps || undefined,
         sweep_config: data.sweep_config || undefined,
         sweep_metric:
@@ -702,9 +685,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     try {
       const interactiveType = data.interactive_type || 'vscode';
 
-      // Fetch interactive gallery to get setup and command templates
+      // Fetch interactive gallery to get setup and run templates
       let defaultSetup: string;
-      let defaultCommand: string;
+      let defaultRun: string;
       let templateId: string | undefined;
       let template: any;
 
@@ -729,7 +712,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           }
 
           defaultSetup = template.setup || '';
-          defaultCommand = template.command || '';
+          defaultRun = template.run || template.command || '';
           templateId = template.id;
         } else {
           throw new Error('Failed to fetch interactive gallery');
@@ -780,7 +763,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           plugin: 'remote_orchestrator',
           experiment_id: experimentInfo.id,
           cluster_name: data.title,
-          command: defaultCommand,
+          run: defaultRun,
           cpus: data.cpus || undefined,
           memory: data.memory || undefined,
           accelerators: data.accelerators || undefined,
@@ -857,10 +840,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       return;
     }
 
-    if (!cfg.command && !task.command) {
+    if (
+      !cfg.run &&
+      !task.run &&
+      !cfg.github_repo_url &&
+      !task.github_repo_url
+    ) {
       addNotification({
         type: 'warning',
-        message: 'Task is missing a command to run.',
+        message: 'Task is missing a run command.',
       });
       return;
     }
@@ -914,6 +902,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       const {
         provider_id: _pid,
         provider_name: _pname,
+        enable_trackio,
+        cpus,
+        memory,
+        disk_space,
+        accelerators,
+        num_nodes,
+        minutes_requested,
         ...paramConfig
       } = config ?? {};
 
@@ -924,7 +919,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         task_id: task.id,
         task_name: task.name,
         cluster_name: cfg.cluster_name || task.cluster_name,
-        command: cfg.command || task.command,
+        run: cfg.run || task.run,
         subtype: cfg.subtype || task.subtype,
         interactive_type: cfg.interactive_type || task.interactive_type,
         interactive_gallery_id:
@@ -932,11 +927,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           (task as any)?.interactive_gallery_id ??
           config?.interactive_gallery_id ??
           undefined,
-        cpus: cfg.cpus || task.cpus,
-        memory: cfg.memory || task.memory,
-        disk_space: cfg.disk_space || task.disk_space,
-        accelerators: cfg.accelerators || task.accelerators,
-        num_nodes: cfg.num_nodes || task.num_nodes,
+        cpus: cpus ?? cfg.cpus ?? task.cpus,
+        memory: memory ?? cfg.memory ?? task.memory,
+        disk_space: disk_space ?? cfg.disk_space ?? task.disk_space,
+        accelerators: accelerators ?? cfg.accelerators ?? task.accelerators,
+        num_nodes: num_nodes ?? cfg.num_nodes ?? task.num_nodes,
         setup: cfg.setup || task.setup,
         env_vars: cfg.env_vars || task.env_vars || {},
         parameters: cfg.parameters || task.parameters || undefined, // Keep original parameter definitions
@@ -944,8 +939,16 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         file_mounts: cfg.file_mounts || task.file_mounts,
         provider_name: config?.provider_name ?? providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
-        github_directory: cfg.github_directory || task.github_directory,
-        github_branch: cfg.github_branch || task.github_branch,
+        github_repo_dir:
+          cfg.github_repo_dir ||
+          cfg.github_directory ||
+          task.github_repo_dir ||
+          task.github_directory,
+        github_repo_branch:
+          cfg.github_repo_branch ||
+          cfg.github_branch ||
+          task.github_repo_branch ||
+          task.github_branch,
         run_sweeps: cfg.run_sweeps || task.run_sweeps || undefined,
         sweep_config: cfg.sweep_config || task.sweep_config || undefined,
         sweep_metric:
@@ -959,7 +962,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               ? task.lower_is_better
               : undefined,
         minutes_requested:
-          cfg.minutes_requested || task.minutes_requested || undefined,
+          minutes_requested ??
+          cfg.minutes_requested ??
+          task.minutes_requested ??
+          undefined,
+        enable_trackio:
+          typeof enable_trackio === 'boolean' ? enable_trackio : undefined,
       };
 
       const response = await fetchWithAuth(
@@ -1182,6 +1190,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           onQueueTask={handleQueue}
           onEditTask={handleEditTask}
           onExportTask={handleExportToTeamGallery}
+          onViewFilesTask={(taskRow) =>
+            setViewTaskFilesFromTask({
+              id: taskRow.id,
+              name: (taskRow as any).name ?? (taskRow as any).title ?? null,
+            })
+          }
           loading={templatesIsLoading}
         />
       </Sheet>
@@ -1265,6 +1279,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           onViewInteractive={(jobId) =>
             setInteractiveJobForModal(parseInt(jobId))
           }
+          onViewTrackio={(jobId) =>
+            setTrackioJobIdForModal(parseInt(jobId, 10))
+          }
           loading={jobsIsLoading}
           selectMode={isCompareSelectMode}
           selectedJobIds={compareEvalJobIds.map((id) => String(id))}
@@ -1337,9 +1354,21 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         jobId={viewJobModelsFromJob}
       />
       <FileBrowserModal
+        mode="job"
         open={viewFileBrowserFromJob !== -1}
         onClose={() => setViewFileBrowserFromJob(-1)}
         jobId={viewFileBrowserFromJob}
+      />
+      <FileBrowserModal
+        mode="task"
+        open={viewTaskFilesFromTask.id !== null}
+        onClose={() => setViewTaskFilesFromTask({ id: null, name: null })}
+        taskId={viewTaskFilesFromTask.id ?? ''}
+        taskName={viewTaskFilesFromTask.name}
+      />
+      <TrackioModal
+        jobId={trackioJobIdForModal}
+        onClose={() => setTrackioJobIdForModal(null)}
       />
       <DeleteTaskConfirmModal
         open={taskToDelete !== null}

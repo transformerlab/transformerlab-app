@@ -40,7 +40,7 @@ const DEFAULT_CONFIGS = {
     "SKYPILOT_USER_ID": "<Your SkyPilot user ID>",
     "SKYPILOT_USER": "<Your SkyPilot user name>"
   },
-  "default_entrypoint_command": ""
+  "default_entrypoint_run": ""
 }`,
   slurm: `{
   "mode": "ssh",

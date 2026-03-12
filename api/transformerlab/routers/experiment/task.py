@@ -1,4 +1,15 @@
-from fastapi import APIRouter, Body, Query, HTTPException, Depends, Request, UploadFile, File
+from fastapi import (
+    APIRouter,
+    Body,
+    Query,
+    HTTPException,
+    Depends,
+    Request,
+    UploadFile,
+    File,
+    Response,
+)
+from fastapi.responses import StreamingResponse
 from typing import Optional
 from werkzeug.utils import secure_filename
 import json
@@ -16,6 +27,8 @@ from transformerlab.shared import galleries
 from transformerlab.shared.github_utils import (
     fetch_task_json_from_github,
     fetch_task_yaml_from_github,
+    list_files_in_github_directory,
+    fetch_github_file_bytes,
 )
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
@@ -25,7 +38,10 @@ from transformerlab.schemas.task import (
     ImportTaskFromGalleryRequest,
     ImportTaskFromTeamGalleryRequest,
     DeleteTeamTaskFromGalleryRequest,
+    TaskYamlSpec,
+    TaskFilesResponse,
 )
+from pydantic import ValidationError
 
 router = APIRouter(prefix="/task", tags=["task"])
 
@@ -107,6 +123,292 @@ async def task_get_by_type(type: str):
 async def task_get_by_type_in_experiment(experimentId: str, type: str):
     tasks = await task_service.task_get_by_type_in_experiment(type, experimentId)
     return tasks
+
+
+@router.get(
+    "/{task_id}/files",
+    response_model=TaskFilesResponse,
+    summary="List files associated with a task template (GitHub + local mounts)",
+)
+async def task_list_files(task_id: str) -> TaskFilesResponse:
+    """
+    Return a lightweight list of files associated with a task template.
+
+    - If github_repo_url is set, this will attempt a best-effort listing of files
+      from the configured repository / directory / branch. For now this may be
+      limited to known metadata or left empty if repository crawling is not
+      readily available.
+    - If file_mounts is set, it will be returned as-is as a list of local paths.
+    """
+    task = await task_service.task_get_by_id(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    github_files: list[str] = []
+    local_files: list[str] = []
+
+    # For tasks, fields are stored directly (flat structure). Prefer canonical github_repo_* keys,
+    # but fall back to legacy github_directory/github_branch for older tasks.
+    github_repo_url = task.get("github_repo_url")
+    github_repo_dir = task.get("github_repo_dir") or task.get("github_directory")
+    github_repo_branch = task.get("github_repo_branch") or task.get("github_branch")
+
+    if github_repo_url:
+        try:
+            github_files = await list_files_in_github_directory(
+                github_repo_url,
+                directory=github_repo_dir,
+                ref=github_repo_branch,
+            )
+        except HTTPException:
+            # Surface GitHub errors directly to the client
+            raise
+        except Exception as e:
+            # Unexpected errors should not break the whole endpoint; log and continue.
+            print(f"Error listing GitHub files for task {task_id}: {e}")
+
+    file_mounts = task.get("file_mounts")
+    if isinstance(file_mounts, list):
+        # If stored as list of mappings or plain strings, normalize to string paths.
+        for entry in file_mounts:
+            if isinstance(entry, str):
+                local_files.append(entry)
+            elif isinstance(entry, dict):
+                src = entry.get("source") or entry.get("src") or entry.get("path")
+                tgt = entry.get("target") or entry.get("dst")
+                if src and tgt:
+                    local_files.append(f"{src} -> {tgt}")
+                elif src:
+                    local_files.append(str(src))
+                elif tgt:
+                    local_files.append(str(tgt))
+    elif isinstance(file_mounts, bool) and file_mounts:
+        # For upload-from-directory tasks, files are materialized in the
+        # per-task workspace directory: workspace/task/{task_id}. List all
+        # entries in that directory so the UI can show what will be mounted.
+        try:
+            workspace_dir = await get_workspace_dir()
+            if workspace_dir:
+                task_dir = storage.join(workspace_dir, "task", str(task_id))
+                if await storage.exists(task_dir):
+                    entries = await storage.ls(task_dir)
+                    for entry in entries:
+                        # storage.ls returns full paths; strip the task_dir prefix
+                        name = entry.replace(task_dir, "").lstrip("/").lstrip("\\")
+                        if name:
+                            local_files.append(name)
+        except Exception as e:  # pragma: no cover - defensive logging
+            print(f"Error listing local files for task {task_id} from task dir: {e}")
+
+    # Return None instead of empty list when there is no data for a source.
+    return TaskFilesResponse(
+        github_files=github_files or None,
+        local_files=local_files or None,
+    )
+
+
+@router.get(
+    "/{task_id}/file/{file_path:path}",
+    summary="Serve a file from a task's local workspace directory for preview",
+)
+async def task_get_file(task_id: str, file_path: str):
+    """
+    Serve a file from the per-task workspace directory (used for upload-from-directory tasks).
+
+    This mirrors the behavior of the jobs get_job_file endpoint but is scoped to
+    workspace/task/{task_id}. It is primarily intended for lightweight previews in
+    the UI and supports both text and binary content.
+    """
+    workspace_dir = await get_workspace_dir()
+    if not workspace_dir:
+        raise HTTPException(status_code=500, detail="Workspace directory is not configured")
+
+    # Files for upload-from-directory tasks are materialized under workspace/task/{task_id}
+    task_dir = storage.join(workspace_dir, "task", str(task_id))
+    target = storage.join(task_dir, file_path)
+
+    if not await storage.exists(target) or not await storage.isfile(target):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Determine media type (mirrors jobs.get_job_file)
+    _, ext = os.path.splitext(file_path.lower())
+    media_type_map = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".json": "application/json",
+        ".txt": "text/plain",
+        ".log": "text/plain",
+        ".csv": "text/csv",
+        ".py": "text/plain",
+        ".yaml": "text/plain",
+        ".yml": "text/plain",
+        ".md": "text/plain",
+        ".sh": "text/plain",
+        ".cfg": "text/plain",
+        ".ini": "text/plain",
+        ".toml": "text/plain",
+        ".pdf": "application/pdf",
+        ".zip": "application/zip",
+    }
+    media_type = media_type_map.get(ext, "application/octet-stream")
+
+    # For text-like files, return content directly as text so the frontend can render it
+    text_types = {
+        ".txt",
+        ".log",
+        ".csv",
+        ".py",
+        ".yaml",
+        ".yml",
+        ".md",
+        ".sh",
+        ".cfg",
+        ".ini",
+        ".toml",
+        ".json",
+        ".xml",
+        ".html",
+        ".css",
+        ".js",
+        ".ts",
+        ".tsx",
+        ".jsx",
+        ".sql",
+        ".r",
+        ".ipynb",
+    }
+    if ext in text_types:
+        try:
+            async with await storage.open(target, "r", encoding="utf-8") as f:
+                content = await f.read()
+            return Response(content, media_type=media_type)
+        except Exception:
+            # Fall through to binary streaming below on failure
+            pass
+
+    # For binary files, stream the content so it can be used as an <img> src, etc.
+    async def generate():
+        async with await storage.open(target, "rb") as f:
+            while True:
+                chunk = await f.read(8192)
+                if not chunk:
+                    break
+                yield chunk
+
+    filename = os.path.basename(file_path)
+    return StreamingResponse(
+        generate(),
+        media_type=media_type,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/{task_id}/github_file/{file_path:path}",
+    summary="Serve a file from the task's associated GitHub repository for preview",
+)
+async def task_get_github_file(task_id: str, file_path: str):
+    """
+    Serve a file from the GitHub repository configured on the task (github_repo_url).
+
+    This endpoint uses the same GitHub PAT resolution logic as other GitHub helpers
+    and is intended for lightweight previews in the UI.
+    """
+    task = await task_service.task_get_by_id(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    github_repo_url = task.get("github_repo_url")
+    github_branch = task.get("github_branch")
+    if not github_repo_url:
+        raise HTTPException(status_code=400, detail="Task has no github_repo_url configured")
+
+    # list_files_in_github_directory returns repo-relative paths; the UI uses those
+    # paths directly as file_path for preview, so we can pass them through as-is.
+    content_bytes = await fetch_github_file_bytes(
+        github_repo_url,
+        file_path=file_path,
+        ref=github_branch,
+    )
+
+    _, ext = os.path.splitext(file_path.lower())
+    media_type_map = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".json": "application/json",
+        ".txt": "text/plain",
+        ".log": "text/plain",
+        ".csv": "text/csv",
+        ".py": "text/plain",
+        ".yaml": "text/plain",
+        ".yml": "text/plain",
+        ".md": "text/plain",
+        ".sh": "text/plain",
+        ".cfg": "text/plain",
+        ".ini": "text/plain",
+        ".toml": "text/plain",
+        ".pdf": "application/pdf",
+        ".zip": "application/zip",
+    }
+    media_type = media_type_map.get(ext, "application/octet-stream")
+
+    text_types = {
+        ".txt",
+        ".log",
+        ".csv",
+        ".py",
+        ".yaml",
+        ".yml",
+        ".md",
+        ".sh",
+        ".cfg",
+        ".ini",
+        ".toml",
+        ".json",
+        ".xml",
+        ".html",
+        ".css",
+        ".js",
+        ".ts",
+        ".tsx",
+        ".jsx",
+        ".sql",
+        ".r",
+        ".ipynb",
+    }
+    if ext in text_types:
+        try:
+            text_content = content_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            # Fall back to binary streaming if we cannot decode as UTF-8
+            pass
+        else:
+            return Response(text_content, media_type=media_type)
+
+    async def generate():
+        # Stream bytes as-is for binary or undecodable content
+        yield content_bytes
+
+    filename = os.path.basename(file_path)
+    return StreamingResponse(
+        generate(),
+        media_type=media_type,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 @router.get(
@@ -233,61 +535,86 @@ def _parse_yaml_to_task_data(yaml_content: str) -> dict:
     else:
         task_yaml = yaml_data
 
-    # Convert YAML structure to task structure
+    # Backward compatibility: accept legacy "command" field as alias for "run".
+    # If run is missing/empty and command is present, promote command to run and
+    # remove command before validation so TaskYamlSpec(extra="forbid") still applies.
+    if isinstance(task_yaml, dict):
+        has_run = bool(task_yaml.get("run"))
+        legacy_command = task_yaml.get("command")
+        if not has_run and legacy_command:
+            task_yaml["run"] = legacy_command
+            task_yaml.pop("command", None)
+
+    # Validate and normalize against canonical task.yaml schema
+    try:
+        validated = TaskYamlSpec.model_validate(task_yaml)
+    except ValidationError as e:
+        # Build a concise human-readable error message
+        messages = []
+        for err in e.errors():
+            loc = ".".join(str(x) for x in err.get("loc", []))
+            msg = err.get("msg", "")
+            if loc:
+                messages.append(f"{loc}: {msg}")
+            else:
+                messages.append(msg)
+        detail_msg = "; ".join(messages) if messages else "Invalid task.yaml"
+        raise HTTPException(status_code=400, detail=detail_msg)
+
+    # Convert validated model into the internal flat task structure
     task_data = {}
 
     # Basic fields
-    if "name" in task_yaml:
-        task_data["name"] = secure_filename(str(task_yaml["name"]))
+    task_data["name"] = secure_filename(str(validated.name))
 
     # Resources
-    if "resources" in task_yaml:
-        resources = task_yaml["resources"]
-        if "compute_provider" in resources:
-            task_data["provider_name"] = resources["compute_provider"]
-        if "cpus" in resources:
-            task_data["cpus"] = str(resources["cpus"])
-        if "memory" in resources:
-            task_data["memory"] = str(resources["memory"])
-        if "disk_space" in resources:
-            task_data["disk_space"] = str(resources["disk_space"])
-        if "accelerators" in resources:
-            task_data["accelerators"] = str(resources["accelerators"])
-        if "num_nodes" in resources:
-            task_data["num_nodes"] = int(resources["num_nodes"])
+    if validated.resources is not None:
+        resources = validated.resources
+        if resources.compute_provider is not None:
+            task_data["provider_name"] = resources.compute_provider
+        if resources.cpus is not None:
+            task_data["cpus"] = str(resources.cpus)
+        if resources.memory is not None:
+            task_data["memory"] = str(resources.memory)
+        if resources.disk_space is not None:
+            task_data["disk_space"] = str(resources.disk_space)
+        if resources.accelerators is not None:
+            task_data["accelerators"] = str(resources.accelerators)
+        if resources.num_nodes is not None:
+            task_data["num_nodes"] = int(resources.num_nodes)
 
     # Environment variables
-    if "envs" in task_yaml:
-        task_data["env_vars"] = task_yaml["envs"]
+    if validated.envs is not None:
+        task_data["env_vars"] = validated.envs
 
     # Setup and run commands
-    if "setup" in task_yaml:
-        task_data["setup"] = str(task_yaml["setup"])
-    if "run" in task_yaml:
-        task_data["command"] = str(task_yaml["run"])
+    if validated.setup is not None:
+        task_data["setup"] = str(validated.setup)
+    task_data["run"] = str(validated.run)
 
-    # GitHub (task.yaml: github_repo_url, github_repo_dir, github_repo_branch; stored as github_directory/github_branch internally)
-    if "github_repo_url" in task_yaml:
-        task_data["github_repo_url"] = str(task_yaml["github_repo_url"])
-    if "github_repo_dir" in task_yaml:
-        task_data["github_directory"] = str(task_yaml["github_repo_dir"])
-    if "github_repo_branch" in task_yaml:
-        task_data["github_branch"] = str(task_yaml["github_repo_branch"])
+    # GitHub (task.yaml: github_repo_url, github_repo_dir, github_repo_branch).
+    # Canonical internal keys match the YAML (`github_repo_url`, `github_repo_dir`, `github_repo_branch`).
+    if validated.github_repo_url is not None:
+        task_data["github_repo_url"] = str(validated.github_repo_url)
+    if validated.github_repo_dir is not None:
+        task_data["github_repo_dir"] = str(validated.github_repo_dir)
+    if validated.github_repo_branch is not None:
+        task_data["github_repo_branch"] = str(validated.github_repo_branch)
 
     # Parameters
-    if "parameters" in task_yaml:
-        task_data["parameters"] = task_yaml["parameters"]
+    if validated.parameters is not None:
+        task_data["parameters"] = validated.parameters
 
     # Sweeps
-    if "sweeps" in task_yaml:
-        sweeps = task_yaml["sweeps"]
+    if validated.sweeps is not None:
+        sweeps = validated.sweeps
         task_data["run_sweeps"] = True
-        if "sweep_config" in sweeps:
-            task_data["sweep_config"] = sweeps["sweep_config"]
-        if "sweep_metric" in sweeps:
-            task_data["sweep_metric"] = str(sweeps["sweep_metric"])
-        if "lower_is_better" in sweeps:
-            task_data["lower_is_better"] = bool(sweeps["lower_is_better"])
+        if sweeps.sweep_config is not None:
+            task_data["sweep_config"] = sweeps.sweep_config
+        if sweeps.sweep_metric is not None:
+            task_data["sweep_metric"] = str(sweeps.sweep_metric)
+        if sweeps.lower_is_better is not None:
+            task_data["lower_is_better"] = bool(sweeps.lower_is_better)
 
     # Files are handled separately via file upload endpoint
 
@@ -588,7 +915,7 @@ async def import_task_from_gallery(
             if not gallery_entry:
                 raise HTTPException(status_code=404, detail="Gallery entry not found")
 
-        # Create interactive task template (store interactive_gallery_id for launch-time command resolution)
+        # Create interactive task template (store interactive_gallery_id for launch-time run resolution)
         task_name = gallery_entry.get("name", "Interactive Task")
         interactive_type = gallery_entry.get("interactive_type") or "custom"
         interactive_gallery_id = gallery_entry.get("id")
@@ -624,7 +951,7 @@ async def import_task_from_gallery(
             "plugin": "remote_orchestrator",
             "experiment_id": experimentId,
             "cluster_name": task_name,
-            "command": source_yaml_data.get("command", ""),
+            "run": source_yaml_data.get("run", source_yaml_data.get("command", "")),
             "setup": source_yaml_data.get("setup", "") or gallery_entry.get("setup", ""),
             "interactive_type": interactive_type,
             "subtype": "interactive",
@@ -646,16 +973,12 @@ async def import_task_from_gallery(
                 task_data[key] = source_yaml_data[key]
 
         # Merge user-provided env_vars from the request (e.g. MODEL_NAME)
-        print(f"[DEBUG import_task] request.env_vars = {request.env_vars}")
-        print(f"[DEBUG import_task] task_data env_vars before merge = {task_data.get('env_vars')}")
         if request.env_vars:
             existing = task_data.get("env_vars", {})
             if not isinstance(existing, dict):
                 existing = {}
             existing.update(request.env_vars)
             task_data["env_vars"] = existing
-        print(f"[DEBUG import_task] task_data env_vars after merge = {task_data.get('env_vars')}")
-        print(f"[DEBUG import_task] full task_data = {task_data}")
 
         await _resolve_provider(task_data, user_and_team, session)
 
@@ -750,13 +1073,13 @@ async def import_task_from_gallery(
     if "plugin" not in task_data:
         task_data["plugin"] = "remote_orchestrator"
 
-    # Ensure GitHub repo info is set (may be in task.yaml as git_repo)
+    # Ensure GitHub repo info is set (may be in task.yaml as git_repo). Prefer canonical github_repo_* keys.
     if not task_data.get("github_repo_url"):
         task_data["github_repo_url"] = github_repo_url
-    if github_repo_dir and not task_data.get("github_directory"):
-        task_data["github_directory"] = github_repo_dir
-    if github_branch and not task_data.get("github_branch"):
-        task_data["github_branch"] = github_branch
+    if github_repo_dir and not task_data.get("github_repo_dir"):
+        task_data["github_repo_dir"] = github_repo_dir
+    if github_branch and not task_data.get("github_repo_branch"):
+        task_data["github_repo_branch"] = github_branch
 
     # Resolve provider
     await _resolve_provider(task_data, user_and_team, session)
@@ -915,8 +1238,8 @@ async def export_task_to_team_gallery(
     # Copy relevant fields to config for gallery compatibility
     if task.get("cluster_name"):
         config["cluster_name"] = task.get("cluster_name")
-    if task.get("command"):
-        config["command"] = task.get("command")
+    if task.get("run"):
+        config["run"] = task.get("run")
     if task.get("cpus"):
         config["cpus"] = task.get("cpus")
     if task.get("memory"):

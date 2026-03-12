@@ -105,6 +105,7 @@ async def stop_job(job_id: str, experimentId: str):
     # The way a job is stopped is simply by adding "stop: true" to the job_data
     # This will be checked by the plugin as it runs
     await job_service.job_stop(job_id, experiment_id=experimentId)
+    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
     return {"message": "OK"}
 
 
@@ -1110,7 +1111,7 @@ async def get_artifacts(job_id: str, request: Request):
         from lab.dirs import get_job_artifacts_dir
 
         artifacts_dir = await get_job_artifacts_dir(job_id)
-        artifacts = await get_artifacts_from_directory(artifacts_dir, storage)
+        artifacts = await get_artifacts_from_directory(artifacts_dir)
     except Exception as e:
         print(f"Error getting artifacts for job {job_id}: {e}")
         artifacts = []

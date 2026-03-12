@@ -155,8 +155,8 @@ function BottomMenuItems({ navigate, themeSetter }: BottomMenuItemsProps) {
             </IconButton>
           </Tooltip>
         </a>
-        <Tooltip title="Settings">
-          <IconButton variant="plain" onClick={() => navigate('/settings')}>
+        <Tooltip title="User Settings">
+          <IconButton variant="plain" onClick={() => navigate('/user')}>
             <SettingsIcon strokeWidth={1} />
           </IconButton>
         </Tooltip>

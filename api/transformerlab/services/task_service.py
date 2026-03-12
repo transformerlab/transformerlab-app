@@ -14,6 +14,30 @@ from lab.task_template import TaskTemplate as TaskTemplateService
 _PROTECTED_METADATA_KEYS = frozenset({"id", "experiment_id", "type", "plugin", "created_at"})
 
 
+def _normalize_legacy_command(task: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """
+    Backward compatibility helper: some legacy tasks may still store their
+    entrypoint under the key "command" instead of "run". To avoid breaking
+    those when launching or exporting, expose "run" on read if it is missing
+    or empty but "command" is present. New code should only write "run".
+    """
+    if not task:
+        return task
+
+    # If run is already set and truthy, do nothing.
+    if task.get("run"):
+        return task
+
+    legacy_command = task.get("command")
+    if not legacy_command:
+        return task
+
+    # Return a shallow copy with run populated so callers always see run.
+    normalized = dict(task)
+    normalized["run"] = legacy_command
+    return normalized
+
+
 class TaskService:
     """Service for managing tasks using filesystem storage"""
 
@@ -22,29 +46,35 @@ class TaskService:
 
     async def task_get_all(self) -> List[Dict[str, Any]]:
         """Get all tasks from filesystem"""
-        return await self.task_service.list_all()
+        tasks = await self.task_service.list_all()
+        return [_normalize_legacy_command(t) or t for t in tasks]
 
     async def task_get_by_id(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific task by ID"""
-        return await self.task_service.get_by_id(task_id)
+        task = await self.task_service.get_by_id(task_id)
+        return _normalize_legacy_command(task)
 
     async def task_get_by_type(self, task_type: str) -> List[Dict[str, Any]]:
         """Get all tasks of a specific type"""
-        return await self.task_service.list_by_type(task_type)
+        tasks = await self.task_service.list_by_type(task_type)
+        return [_normalize_legacy_command(t) or t for t in tasks]
 
     async def task_get_by_experiment(self, experiment_id: str) -> List[Dict[str, Any]]:
         """Get all tasks for a specific experiment"""
-        return await self.task_service.list_by_experiment(experiment_id)
+        tasks = await self.task_service.list_by_experiment(experiment_id)
+        return [_normalize_legacy_command(t) or t for t in tasks]
 
     async def task_get_by_type_in_experiment(self, task_type: str, experiment_id: str) -> List[Dict[str, Any]]:
         """Get all tasks of a specific type in a specific experiment"""
-        return await self.task_service.list_by_type_in_experiment(task_type, experiment_id)
+        tasks = await self.task_service.list_by_type_in_experiment(task_type, experiment_id)
+        return [_normalize_legacy_command(t) or t for t in tasks]
 
     async def task_get_by_subtype_in_experiment(
         self, experiment_id: str, subtype: str, task_type: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Get all tasks for a specific experiment filtered by subtype and optionally by type"""
-        return await self.task_service.list_by_subtype_in_experiment(experiment_id, subtype, task_type)
+        tasks = await self.task_service.list_by_subtype_in_experiment(experiment_id, subtype, task_type)
+        return [_normalize_legacy_command(t) or t for t in tasks]
 
     async def add_task(self, task_data: Dict[str, Any]) -> str:
         """Create a new task - all fields stored directly in JSON"""
