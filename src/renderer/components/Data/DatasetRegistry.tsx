@@ -338,12 +338,12 @@ function CardVersionsTable({
     >
       <thead>
         <tr>
-          <th style={{ width: 60 }}>Version</th>
-          <th>Dataset ID</th>
-          <th style={{ width: 130 }}>Tag</th>
+          <th style={{ width: 70 }}>Version</th>
+          <th style={{ width: 120 }}>Dataset ID</th>
+          <th style={{ width: 110 }}>Tag</th>
           <th style={{ width: 150 }}>Created</th>
-          <th style={{ width: 90 }}>Job</th>
-          <th style={{ width: 60 }}>Actions</th>
+          <th style={{ width: 80 }}>Job</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
