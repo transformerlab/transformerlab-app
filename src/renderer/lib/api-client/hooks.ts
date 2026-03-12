@@ -7,9 +7,8 @@ import {
   fetchWithAuth,
   useSWRWithAuth as useSWR,
 } from 'renderer/lib/authContext';
-import { API_URL, getAPIFullPath } from './urls';
+import { API_URL } from './urls';
 import { Endpoints } from './endpoints';
-import { authenticatedFetch } from './functions';
 
 const CONNECTION_HEALTH_TIMEOUT_MS = 10000;
 
@@ -176,52 +175,4 @@ export function useConnectionHealth(connection: string | null) {
   const isError = errorPersistedLongEnough && !!error;
 
   return { isError, isLoading };
-}
-
-const fetchAndGetErrorStatus = async (url: string) => {
-  console.log('🛎️fetching', url);
-
-  const res = await authenticatedFetch(url);
-
-  // console.log('🛎️fetched', res);
-
-  // If the status code is not in the range 200-299,
-  // we still try to parse and throw it.
-  if (!res.ok) {
-    const error: any = new Error('An error occurred while fetching the data.');
-    // Attach extra info to the error object.
-    // error.info = await res.json(); //uncommenting this line breaks the error handling -- not sure why
-    error.status = res.status;
-    throw error;
-  }
-
-  return res.json();
-};
-
-/**
- * Check your localhost to see if the server is active
- */
-export function useCheckLocalConnection() {
-  const isLocalMode =
-    typeof window !== 'undefined' && window?.platform?.multiuser !== true;
-  const url = isLocalMode ? 'http://localhost:8338/' + 'server/info' : null;
-
-  // Poll every 2 seconds
-  const options = {
-    refreshInterval: 500,
-    refreshWhenOffline: true,
-    refreshWhenHidden: true,
-    shouldRetryOnError: true,
-    errorRetryInterval: 500,
-    errorRetryCount: 1000,
-  };
-
-  // eslint-disable-next-line prefer-const
-  let { data, isError, mutate } = useSWR(url, fetchAndGetErrorStatus, options);
-
-  return {
-    server: data,
-    error: isError,
-    mutate: mutate,
-  };
 }

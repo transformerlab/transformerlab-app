@@ -318,19 +318,6 @@ Endpoints.Charts = {
     `${API_URL()}evals/compare_evals?job_list=${jobIds}`,
 };
 
-export function GET_TRAINING_TEMPLATE_URL() {
-  return `${API_URL()}train/templates`;
-}
-
-export function CREATE_TRAINING_JOB_URL(
-  template_id: string,
-  experiment_id: string,
-) {
-  return `${API_URL()}train/job/create?template_id=${
-    template_id
-  }&description=description&experiment_id=${experiment_id}`;
-}
-
 Endpoints.Experiment = {
   GetAll: () => `${API_URL()}experiment/`,
   UpdateConfig: (id: string, key: string, value: string) =>
