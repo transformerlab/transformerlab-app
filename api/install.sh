@@ -13,6 +13,8 @@ MAMBA_BIN=${MINIFORGE_ROOT}/bin/mamba
 ENV_DIR=${TLAB_DIR}/envs/${ENV_NAME}
 RUN_DIR=$(pwd)
 
+PINNED_SINGLEUSER_VERSION="v0.30.3"
+
 ##############################
 # Helper Functions
 ##############################
@@ -160,7 +162,7 @@ fi
 ##############################
 
 download_transformer_lab() {
-  title "Step 1: Download the latest release of Transformer Lab"
+  title "Step 1: Download Transformer Lab release"
   echo "🌘 Step 1: START"
 
   # First check that curl is installed:
@@ -170,12 +172,17 @@ download_transformer_lab() {
     ohai "✅ curl is installed."
   fi
 
-  # Figure out the path to the lastest release of Transformer Lab
-  LATEST_RELEASE_VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/transformerlab/transformerlab-app/releases/latest)
-  LATEST_RELEASE_VERSION=$(basename "$LATEST_RELEASE_VERSION")
+  # Decide which release to install: pinned single-user vs latest
+  if [ "${TLAB_INSTALL_CHANNEL}" = "latest" ]; then
+    echo "Resolving latest Transformer Lab release from GitHub..."
+    LATEST_RELEASE_URL=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/transformerlab/transformerlab-app/releases/latest)
+    LATEST_RELEASE_VERSION=$(basename "$LATEST_RELEASE_URL")
+  else
+    LATEST_RELEASE_VERSION="${PINNED_SINGLEUSER_VERSION}"
+  fi
   LATEST_RELEASE_VERSION_WITHOUT_V=$(echo "$LATEST_RELEASE_VERSION" | sed 's/v//g')
 
-  echo "Latest Release of Transformer Lab on Github: $LATEST_RELEASE_VERSION"
+  echo "Selected Transformer Lab release: $LATEST_RELEASE_VERSION"
   TLAB_URL="https://github.com/transformerlab/transformerlab-app/archive/refs/tags/${LATEST_RELEASE_VERSION}.tar.gz"
   echo "Download Location: $TLAB_URL"
 
@@ -240,9 +247,13 @@ download_transformer_lab() {
   fi
 
 
-  # Download the web app static files from the latest release
+  # Download the web app static files for the same channel
   # The web app is built and published as transformerlab_web.tar.gz in the same repo
-  TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/transformerlab_web.tar.gz"
+  if [ "${TLAB_INSTALL_CHANNEL}" = "latest" ]; then
+    TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/transformerlab_web.tar.gz"
+  else
+    TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/download/${LATEST_RELEASE_VERSION}/transformerlab_web.tar.gz"
+  fi
   echo "Web app download location: $TLAB_APP_URL"
 
   # Delete and recreate the target static files directory
@@ -500,8 +511,14 @@ install_dependencies() {
 ##############################
 
 multiuser_setup() {
-  title "Step 5: Install Compute Providers"
+  title "Step 5: Install Compute Providers (multiuser, latest release)"
   echo "🌘 Step 5: START"
+
+  # Ensure we are on the latest Transformer Lab release and environment
+  TLAB_INSTALL_CHANNEL=latest download_transformer_lab
+  install_conda
+  create_conda_environment
+  install_dependencies
 
   unset_conda_for_sure
   eval "$(${CONDA_BIN} shell.bash hook)"

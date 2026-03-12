@@ -416,7 +416,7 @@ class RunpodProvider(ComputeProvider):
         # Expose SSH so we can later read run_logs.txt for provider logs
         pod_data["ports"] = ["22/tcp"]
 
-        # Build dockerStartCmd - Runpod expects a single command string or array
+        # Build dockerStartCmd - Runpod expects a single run command string or array
         # that will be executed by the container's entrypoint.
         # We tee stdout/stderr to RUNPOD_RUN_LOGS_PATH so provider logs can be read via SSH.
         docker_cmds = []
@@ -425,9 +425,9 @@ class RunpodProvider(ComputeProvider):
             # Setup commands should run first
             docker_cmds.append(config.setup)
 
-        if config.command:
-            # Main command to execute
-            docker_cmds.append(config.command)
+        if config.run:
+            # Main run command to execute
+            docker_cmds.append(config.run)
 
         # Join commands with && so they run sequentially
         # Tee to a fixed path so get_job_logs can read it via SSH (no RunPod logs API)
@@ -442,8 +442,8 @@ class RunpodProvider(ComputeProvider):
             # For setup-only, still keep container running
             wrapped_cmd = f"({config.setup}); runpodctl remove pod $RUNPOD_POD_ID"
             pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
-        elif config.command:
-            wrapped_cmd = f"mkdir -p /workspace && (({config.command}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}); runpodctl remove pod $RUNPOD_POD_ID"
+        elif config.run:
+            wrapped_cmd = f"mkdir -p /workspace && (({config.run}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}); runpodctl remove pod $RUNPOD_POD_ID"
             pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
 
         if self.default_region or config.region:

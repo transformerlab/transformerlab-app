@@ -79,11 +79,11 @@ export function ExperimentInfoProvider({ connection, children }) {
 
     if (typeof mutateAllExperiments === 'function') {
       // force immediate revalidation
-      void mutateAllExperiments();
+      mutateAllExperiments();
     }
 
     if (typeof experimentInfoMutate === 'function') {
-      void experimentInfoMutate();
+      experimentInfoMutate();
     }
   }, [
     authContext?.isAuthenticated,

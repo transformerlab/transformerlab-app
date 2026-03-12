@@ -144,10 +144,6 @@
       "method": "GET",
       "path": "model/model_groups_list"
     },
-    "loginToHuggingFace": {
-      "method": "GET",
-      "path": "model/login_to_huggingface"
-    },
     "deletePeft": {
       "method": "GET",
       "path": "model/delete_peft?model_id={modelId}&peft={peft}"

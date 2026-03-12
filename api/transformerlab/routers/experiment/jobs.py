@@ -107,6 +107,7 @@ async def stop_job(job_id: str, experimentId: str):
     # The way a job is stopped is simply by adding "stop: true" to the job_data
     # This will be checked by the plugin as it runs
     await job_service.job_stop(job_id, experiment_id=experimentId)
+    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
     return {"message": "OK"}
 
 

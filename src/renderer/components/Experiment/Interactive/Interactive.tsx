@@ -306,10 +306,11 @@ export default function Interactive() {
     try {
       const interactiveType = data.interactive_type || 'vscode';
 
-      // Fetch interactive gallery to get setup and command templates
+      // Fetch interactive gallery to get setup and run templates
       let defaultSetup: string;
-      let defaultCommand: string;
+      let defaultRun: string;
       let templateId: string | undefined;
+      let galleryTemplate: any = null;
 
       try {
         const galleryResponse = await chatAPI.authenticatedFetch(
@@ -335,8 +336,9 @@ export default function Interactive() {
           }
 
           defaultSetup = template.setup || '';
-          defaultCommand = template.command || '';
+          defaultRun = template.run || template.command || '';
           templateId = template.id;
+          galleryTemplate = template;
         } else {
           throw new Error('Failed to fetch interactive gallery');
         }
@@ -367,7 +369,7 @@ export default function Interactive() {
         plugin: 'remote_orchestrator',
         experiment_id: experimentInfo.id,
         cluster_name: data.title,
-        command: defaultCommand,
+        run: defaultRun,
         cpus: data.cpus || undefined,
         memory: data.memory || undefined,
         accelerators: data.accelerators || undefined,
@@ -378,6 +380,8 @@ export default function Interactive() {
         provider_id: providerMeta.id,
         provider_name: providerMeta.name,
         env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
+        github_repo_url: galleryTemplate?.github_repo_url || undefined,
+        github_directory: galleryTemplate?.github_repo_dir || undefined,
       };
 
       const response = await chatAPI.authenticatedFetch(
@@ -490,7 +494,7 @@ export default function Interactive() {
         };
       }
 
-      if (!cfg.command) {
+      if (!cfg.run && !cfg.github_repo_url && !task.github_repo_url) {
         return { ok: false, error: 'Task is missing a command to run.' };
       }
 
@@ -499,7 +503,7 @@ export default function Interactive() {
         task_id: task.id,
         task_name: task.name,
         cluster_name: cfg.cluster_name || task.cluster_name,
-        command: cfg.command || task.command,
+        run: cfg.run || task.run,
         subtype: cfg.subtype || task.subtype,
         interactive_type: cfg.interactive_type || task.interactive_type,
         interactive_gallery_id:
@@ -517,8 +521,16 @@ export default function Interactive() {
         file_mounts: cfg.file_mounts || task.file_mounts,
         provider_name: providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
-        github_directory: cfg.github_directory || task.github_directory,
-        github_branch: cfg.github_branch || task.github_branch,
+        github_repo_dir:
+          cfg.github_repo_dir ||
+          cfg.github_directory ||
+          task.github_repo_dir ||
+          task.github_directory,
+        github_repo_branch:
+          cfg.github_repo_branch ||
+          cfg.github_branch ||
+          task.github_repo_branch ||
+          task.github_branch,
         run_sweeps: cfg.run_sweeps || task.run_sweeps || undefined,
         sweep_config: cfg.sweep_config || task.sweep_config || undefined,
         sweep_metric:
@@ -622,10 +634,10 @@ export default function Interactive() {
       return;
     }
 
-    if (!cfg.command) {
+    if (!cfg.run && !cfg.github_repo_url && !task.github_repo_url) {
       addNotification({
         type: 'warning',
-        message: 'Task is missing a command to run.',
+        message: 'Task is missing a run command.',
       });
       return;
     }
@@ -641,7 +653,7 @@ export default function Interactive() {
         task_id: task.id,
         task_name: task.name,
         cluster_name: cfg.cluster_name || task.cluster_name,
-        command: cfg.command || task.command,
+        run: cfg.run || task.run,
         subtype: cfg.subtype || task.subtype,
         interactive_type: cfg.interactive_type || task.interactive_type,
         interactive_gallery_id:
@@ -659,8 +671,16 @@ export default function Interactive() {
         file_mounts: cfg.file_mounts || task.file_mounts,
         provider_name: providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
-        github_directory: cfg.github_directory || task.github_directory,
-        github_branch: cfg.github_branch || task.github_branch,
+        github_repo_dir:
+          cfg.github_repo_dir ||
+          cfg.github_directory ||
+          task.github_repo_dir ||
+          task.github_directory,
+        github_repo_branch:
+          cfg.github_repo_branch ||
+          cfg.github_branch ||
+          task.github_repo_branch ||
+          task.github_branch,
         run_sweeps: cfg.run_sweeps || task.run_sweeps || undefined,
         sweep_config: cfg.sweep_config || task.sweep_config || undefined,
         sweep_metric:

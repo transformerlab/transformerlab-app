@@ -210,7 +210,7 @@ class SLURMProvider(ComputeProvider):
         Launch a cluster by submitting a job (similar to submit_job).
 
         For SLURM, "launching" means submitting the job since clusters are pre-configured.
-        This creates a SLURM script with setup, env vars, and command, then submits it.
+        This creates a SLURM script with setup, env vars, and run command, then submits it.
         """
         # If in SSH mode, resolve any file mounts by uploading local paths to remote.
         # Mapping semantics: {remote_path: local_path}
@@ -284,9 +284,9 @@ class SLURMProvider(ComputeProvider):
         for key, value in config.env_vars.items():
             script_content += f"export {key}={value}\n"
 
-        # Add the main command
-        if config.command:
-            script_content += f"\n# Main command\n{config.command}\n"
+        # Add the main run command
+        if config.run:
+            script_content += f"\n# Main run command\n{config.run}\n"
 
         if self.mode == "ssh":
             # Write script to remote and submit
@@ -776,7 +776,7 @@ class SLURMProvider(ComputeProvider):
         for key, value in job_config.env_vars.items():
             script_content += f"export {key}={value}\n"
 
-        script_content += f"\n{job_config.command}\n"
+        script_content += f"\n{job_config.run}\n"
 
         if self.mode == "ssh":
             # Write script to remote and submit
