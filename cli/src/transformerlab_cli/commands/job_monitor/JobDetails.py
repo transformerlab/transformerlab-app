@@ -54,6 +54,9 @@ class JobDetails(Vertical):
         with VerticalScroll(id="job-artifacts-container"):
             yield Static("[bold]Artifacts:[/bold]\nNo artifacts available.", id="job-artifacts")
 
+        # 3b. Connection info for interactive jobs
+        yield Static("", id="job-connection-info")
+
         # 4. Buttons (Bottom)
         with Horizontal(id="job-buttons"):
             yield Button("View Job Details", id="btn-view-json", variant="primary")
@@ -113,22 +116,29 @@ class JobDetails(Vertical):
         artifacts_container.add_class("visible")
 
         # Show connection info for interactive jobs
+        connection_view = self.query_one("#job-connection-info", Static)
+        connection_view.update("")
         job_data = job.get("job_data", {})
         if job_data.get("subtype") == "interactive" and job.get("status") == "INTERACTIVE":
             self._fetch_connection_info(str(job.get("id", "")))
 
     @work(thread=True)
     def _fetch_connection_info(self, job_id: str) -> None:
-        """Fetch tunnel info for an interactive job."""
+        """Fetch tunnel info for an interactive job, retrying until ready."""
+        import time
+
         experiment_id = get_current_experiment() or "alpha"
-        try:
-            response = api.get(f"/experiment/{experiment_id}/jobs/{job_id}/tunnel_info", timeout=10.0)
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("is_ready"):
-                    self.app.call_from_thread(self._display_connection_info, data)
-        except Exception:
-            pass
+        for _ in range(20):  # retry up to ~60s
+            try:
+                response = api.get(f"/experiment/{experiment_id}/jobs/{job_id}/tunnel_info", timeout=10.0)
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("is_ready"):
+                        self.app.call_from_thread(self._display_connection_info, data)
+                        return
+            except Exception:
+                pass
+            time.sleep(3)
 
     def _display_connection_info(self, tunnel_info: dict) -> None:
         """Display connection info in the artifacts section."""
@@ -152,9 +162,8 @@ class JobDetails(Vertical):
 
         if len(lines) > 1:
             info_text = "\n".join(lines)
-            artifacts_view = self.query_one("#job-artifacts", Static)
-            current = str(artifacts_view.renderable)
-            artifacts_view.update(f"{current}\n\n{info_text}")
+            connection_view = self.query_one("#job-connection-info", Static)
+            connection_view.update(info_text)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-view-json":

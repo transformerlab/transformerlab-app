@@ -143,12 +143,16 @@ def _collect_env_params(gallery_entry: dict, provider: dict) -> dict[str, str]:
         if not required:
             prompt_text += " (optional)"
 
-        value = typer.prompt(
-            prompt_text,
-            default=default if default else "",
-            show_default=bool(default),
-            hide_input=is_password,
-        )
+        while True:
+            value = typer.prompt(
+                prompt_text,
+                default=default if default else "",
+                show_default=bool(default),
+                hide_input=is_password,
+            )
+            if value or not required:
+                break
+            console.print(f"[red]  {field_name} is required.[/red]")
 
         if value:
             env_vars[env_var] = value
@@ -172,6 +176,11 @@ def _collect_resources(gallery_entry: dict) -> dict:
         num_nodes = int(num_nodes_str)
     except ValueError:
         num_nodes = 1
+    minutes_str = ask("Max minutes", gallery_entry.get("minutes_requested", "60"))
+    try:
+        minutes_requested = int(minutes_str)
+    except ValueError:
+        minutes_requested = 60
 
     return {
         "cpus": cpus,
@@ -179,6 +188,7 @@ def _collect_resources(gallery_entry: dict) -> dict:
         "disk_space": disk_space,
         "accelerators": accelerators,
         "num_nodes": num_nodes,
+        "minutes_requested": minutes_requested,
     }
 
 
@@ -238,6 +248,7 @@ def _build_interactive_launch_payload(
         "disk_space": resources.get("disk_space"),
         "accelerators": resources.get("accelerators"),
         "num_nodes": resources.get("num_nodes"),
+        "minutes_requested": resources.get("minutes_requested"),
     }
 
 

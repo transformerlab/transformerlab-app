@@ -193,8 +193,8 @@ class InteractiveTaskConfigModal(ModalScreen):
 
     def _dismiss_all(self) -> None:
         """Dismiss this modal and the parent InteractiveTaskModal."""
-        self.dismiss()
-        self.app.pop_screen()
+        self.app.pop_screen()  # dismiss InteractiveTaskConfigModal
+        self.app.pop_screen()  # dismiss InteractiveTaskModal
 
 
 class InteractiveTaskModal(ModalScreen):
@@ -290,10 +290,10 @@ class InteractiveTaskModal(ModalScreen):
             provider_select.value = "_none"
             return
 
+        self.selected_provider = providers[0]
         options = [(p.get("name", p.get("id")), p.get("id")) for p in providers]
         provider_select.set_options(options)
         provider_select.value = providers[0].get("id")
-        self.selected_provider = providers[0]
         self._filter_gallery()
 
     @on(Select.Changed, "#interactive-provider-select")
