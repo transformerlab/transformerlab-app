@@ -90,6 +90,16 @@ Endpoints.Task = {
     `${API_URL()}experiment/${experimentId}/task2/${taskId}/yaml`,
   ValidateYaml: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/task2/validate`,
+  ListFiles: (experimentId: string, taskId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/${taskId}/files`,
+  GetFile: (experimentId: string, taskId: string, filePath: string) =>
+    `${API_URL()}experiment/${experimentId}/task/${taskId}/file/${encodeURIComponent(
+      filePath,
+    )}`,
+  GetGithubFile: (experimentId: string, taskId: string, filePath: string) =>
+    `${API_URL()}experiment/${experimentId}/task/${taskId}/github_file/${encodeURIComponent(
+      filePath,
+    )}`,
 };
 
 Endpoints.ComputeProvider = {
@@ -211,14 +221,10 @@ Endpoints.Models = {
 
   ImportFromLocalPath: (modelPath: string) =>
     `${API_URL()}model/import_from_local_path?model_path=${modelPath}`,
-  HuggingFaceLogin: () => `${API_URL()}model/login_to_huggingface`,
-  HuggingFaceLogout: () => `${API_URL()}model/logout_from_huggingface`,
   Delete: (modelId: string, deleteCache: boolean = false) =>
     `${API_URL()}model/delete?model_id=${modelId}&delete_from_cache=${
       deleteCache
     }`,
-  wandbLogin: () => `${API_URL()}model/login_to_wandb`,
-  testWandbLogin: () => `${API_URL()}model/test_wandb_login`,
 };
 
 Endpoints.Plugins = {

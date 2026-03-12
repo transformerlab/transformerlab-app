@@ -283,7 +283,8 @@ def build_launch_payload(task: dict, provider_name: str, param_values: dict | No
         "config": param_values if param_values else None,
         "provider_name": provider_name,
         "github_repo_url": task.get("github_repo_url"),
-        "github_directory": task.get("github_directory"),
+        "github_repo_dir": task.get("github_repo_dir") or task.get("github_directory"),
+        "github_repo_branch": task.get("github_repo_branch") or task.get("github_branch"),
     }
 
 

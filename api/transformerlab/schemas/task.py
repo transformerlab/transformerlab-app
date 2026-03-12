@@ -1,6 +1,6 @@
 """Pydantic schemas for task management."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from pydantic import BaseModel, ConfigDict
 
@@ -82,3 +82,11 @@ class TaskYamlSpec(BaseModel):
     github_repo_branch: Optional[str] = None
     parameters: Optional[Dict[str, Any]] = None
     sweeps: Optional[TaskYamlSweeps] = None
+    minutes_requested: Optional[int] = None
+
+
+class TaskFilesResponse(BaseModel):
+    """List of files associated with a task template."""
+
+    github_files: Optional[List[str]] = None
+    local_files: Optional[List[str]] = None

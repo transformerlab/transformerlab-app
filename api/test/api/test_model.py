@@ -245,22 +245,3 @@ def test_chat_template_invalid_model(client):
         assert data["status"] == "error"
         assert "Invalid model name" in data["message"]
         assert data["data"] is None
-
-
-def test_logout_from_huggingface_success(client):
-    """Test successful logout from Hugging Face"""
-    with (
-        patch("huggingface_hub.logout") as mock_logout,
-        patch("os.path.exists", return_value=True),
-        patch("os.remove") as mock_remove,
-    ):
-        response = client.get("/model/logout_from_huggingface")
-        assert response.status_code == 200
-
-        data = response.json()
-        assert data["message"] == "OK"
-
-        # Verify logout was called
-        mock_logout.assert_called_once()
-        # Verify token file removal was attempted
-        mock_remove.assert_called_once()
