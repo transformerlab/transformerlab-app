@@ -535,6 +535,16 @@ def _parse_yaml_to_task_data(yaml_content: str) -> dict:
     else:
         task_yaml = yaml_data
 
+    # Backward compatibility: accept legacy "command" field as alias for "run".
+    # If run is missing/empty and command is present, promote command to run and
+    # remove command before validation so TaskYamlSpec(extra="forbid") still applies.
+    if isinstance(task_yaml, dict):
+        has_run = bool(task_yaml.get("run"))
+        legacy_command = task_yaml.get("command")
+        if not has_run and legacy_command:
+            task_yaml["run"] = legacy_command
+            task_yaml.pop("command", None)
+
     # Validate and normalize against canonical task.yaml schema
     try:
         validated = TaskYamlSpec.model_validate(task_yaml)
