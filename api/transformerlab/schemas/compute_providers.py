@@ -134,7 +134,11 @@ class ProviderTemplateLaunchRequest(BaseModel):
         description="Configuration values to override for this specific run. These will be merged with parameters defaults.",
     )
     provider_name: Optional[str] = None
+    # Canonical GitHub fields (preferred)
     github_repo_url: Optional[str] = None
+    github_repo_dir: Optional[str] = None
+    github_repo_branch: Optional[str] = None
+    # Legacy fields kept for backward compatibility; new code should prefer github_repo_*.
     github_directory: Optional[str] = None
     github_branch: Optional[str] = None
     # Sweep configuration

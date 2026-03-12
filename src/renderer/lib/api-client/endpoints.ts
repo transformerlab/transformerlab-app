@@ -221,14 +221,10 @@ Endpoints.Models = {
 
   ImportFromLocalPath: (modelPath: string) =>
     `${API_URL()}model/import_from_local_path?model_path=${modelPath}`,
-  HuggingFaceLogin: () => `${API_URL()}model/login_to_huggingface`,
-  HuggingFaceLogout: () => `${API_URL()}model/logout_from_huggingface`,
   Delete: (modelId: string, deleteCache: boolean = false) =>
     `${API_URL()}model/delete?model_id=${modelId}&delete_from_cache=${
       deleteCache
     }`,
-  wandbLogin: () => `${API_URL()}model/login_to_wandb`,
-  testWandbLogin: () => `${API_URL()}model/test_wandb_login`,
 };
 
 Endpoints.Plugins = {
@@ -321,19 +317,6 @@ Endpoints.Charts = {
   CompareEvals: (jobIds: string) =>
     `${API_URL()}evals/compare_evals?job_list=${jobIds}`,
 };
-
-export function GET_TRAINING_TEMPLATE_URL() {
-  return `${API_URL()}train/templates`;
-}
-
-export function CREATE_TRAINING_JOB_URL(
-  template_id: string,
-  experiment_id: string,
-) {
-  return `${API_URL()}train/job/create?template_id=${
-    template_id
-  }&description=description&experiment_id=${experiment_id}`;
-}
 
 Endpoints.Experiment = {
   GetAll: () => `${API_URL()}experiment/`,
