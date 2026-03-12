@@ -106,6 +106,12 @@ export default function QueueTaskModal({
   const [lowerIsBetter, setLowerIsBetter] = React.useState(true);
   const [jobSlurmFlags, setJobSlurmFlags] = React.useState<string[]>(['']);
   const [useTrackio, setUseTrackio] = React.useState(false);
+  const [cpusInput, setCpusInput] = React.useState('');
+  const [memoryInput, setMemoryInput] = React.useState('');
+  const [diskSpaceInput, setDiskSpaceInput] = React.useState('');
+  const [acceleratorsInput, setAcceleratorsInput] = React.useState('');
+  const [numNodesInput, setNumNodesInput] = React.useState('');
+  const [minutesRequestedInput, setMinutesRequestedInput] = React.useState('');
   const loadingMessages = React.useMemo(
     () => [
       'Contacting compute provider…',
@@ -234,15 +240,54 @@ export default function QueueTaskModal({
     return { accelerators, cpus, memory };
   }, [task]);
 
+  const effectiveResources = React.useMemo(() => {
+    if (!taskResources) {
+      const acceleratorsEff =
+        acceleratorsInput?.trim() !== '' ? acceleratorsInput.trim() : null;
+      const cpusEff =
+        cpusInput?.trim() !== '' ? cpusInput.trim() : null;
+      const memoryEff =
+        memoryInput?.trim() !== '' ? memoryInput.trim() : null;
+      if (!acceleratorsEff && !cpusEff && !memoryEff) {
+        return null;
+      }
+      return {
+        accelerators: acceleratorsEff,
+        cpus: cpusEff,
+        memory: memoryEff,
+      };
+    }
+
+    const base = taskResources;
+    const cpusEff =
+      cpusInput.trim() !== '' ? cpusInput.trim() : (base.cpus as any);
+    const memoryEff =
+      memoryInput.trim() !== '' ? memoryInput.trim() : (base.memory as any);
+    const acceleratorsEff =
+      acceleratorsInput.trim() !== ''
+        ? acceleratorsInput.trim()
+        : (base.accelerators as any);
+
+    if (!acceleratorsEff && !cpusEff && !memoryEff) {
+      return null;
+    }
+
+    return {
+      accelerators: acceleratorsEff,
+      cpus: cpusEff,
+      memory: memoryEff,
+    };
+  }, [taskResources, cpusInput, memoryInput, acceleratorsInput]);
+
   // Helper to check if a provider supports requested accelerators
   const isProviderCompatible = React.useCallback(
     (provider: any) => {
-      if (!taskResources || !taskResources.accelerators) return true;
+      if (!effectiveResources || !effectiveResources.accelerators) return true;
 
       const supported = provider.config?.supported_accelerators || [];
       if (supported.length === 0) return true; // Default to compatible if not specified
 
-      const reqAcc = String(taskResources.accelerators).toLowerCase();
+      const reqAcc = String(effectiveResources.accelerators).toLowerCase();
 
       // Check for Apple Silicon
       if (
@@ -291,7 +336,7 @@ export default function QueueTaskModal({
 
       return false;
     },
-    [taskResources, localProviderConfig],
+    [effectiveResources, localProviderConfig],
   );
 
   React.useEffect(() => {
@@ -306,7 +351,8 @@ export default function QueueTaskModal({
 
   // Validate local provider resources against task requirements
   const resourceValidation = React.useMemo(() => {
-    if (!isLocalProvider || !localProviderConfig || !taskResources) return null;
+    if (!isLocalProvider || !localProviderConfig || !effectiveResources)
+      return null;
 
     const issues: Array<{
       type: 'error' | 'warning';
@@ -316,8 +362,8 @@ export default function QueueTaskModal({
     }> = [];
 
     // Check accelerators / GPU requirement
-    if (taskResources.accelerators) {
-      const accStr = String(taskResources.accelerators);
+    if (effectiveResources.accelerators) {
+      const accStr = String(effectiveResources.accelerators);
       // Parse accelerator spec like "RTX3090:1", "A100:2", "V100:4", or just "1" (count only)
       const match = accStr.match(/^(.+):(\d+)$/);
       const gpuList: any[] = localProviderConfig.gpu || [];
@@ -406,7 +452,7 @@ export default function QueueTaskModal({
       hasWarnings,
       isCompatible: issues.length === 0,
     };
-  }, [isLocalProvider, localProviderConfig, taskResources]);
+  }, [isLocalProvider, localProviderConfig, effectiveResources]);
 
   // Helper function to parse parameter value and schema
   const parseParameter = (key: string, value: any): ProcessedParameter => {
@@ -493,6 +539,42 @@ export default function QueueTaskModal({
           : task.lower_is_better !== undefined
             ? task.lower_is_better
             : true,
+      );
+      const initCpus = cfg.cpus ?? task.cpus ?? '';
+      const initMemory = cfg.memory ?? task.memory ?? '';
+      const initDiskSpace = cfg.disk_space ?? task.disk_space ?? '';
+      const initAccelerators = cfg.accelerators ?? task.accelerators ?? '';
+      const initNumNodes = cfg.num_nodes ?? task.num_nodes ?? '';
+      const initMinutesRequested =
+        cfg.minutes_requested ?? task.minutes_requested ?? '';
+
+      setCpusInput(
+        initCpus !== null && initCpus !== undefined ? String(initCpus) : '',
+      );
+      setMemoryInput(
+        initMemory !== null && initMemory !== undefined
+          ? String(initMemory)
+          : '',
+      );
+      setDiskSpaceInput(
+        initDiskSpace !== null && initDiskSpace !== undefined
+          ? String(initDiskSpace)
+          : '',
+      );
+      setAcceleratorsInput(
+        initAccelerators !== null && initAccelerators !== undefined
+          ? String(initAccelerators)
+          : '',
+      );
+      setNumNodesInput(
+        initNumNodes !== null && initNumNodes !== undefined
+          ? String(initNumNodes)
+          : '',
+      );
+      setMinutesRequestedInput(
+        initMinutesRequested !== null && initMinutesRequested !== undefined
+          ? String(initMinutesRequested)
+          : '',
       );
     }
   }, [open, task, providers]);
@@ -584,6 +666,31 @@ export default function QueueTaskModal({
     const provider = providers.find((p) => p.id === selectedProviderId);
     if (provider) {
       config.provider_name = provider.name;
+    }
+
+    if (cpusInput.trim()) {
+      config.cpus = cpusInput.trim();
+    }
+    if (memoryInput.trim()) {
+      config.memory = memoryInput.trim();
+    }
+    if (diskSpaceInput.trim()) {
+      config.disk_space = diskSpaceInput.trim();
+    }
+    if (acceleratorsInput.trim()) {
+      config.accelerators = acceleratorsInput.trim();
+    }
+    if (numNodesInput.trim()) {
+      const parsedNumNodes = Number(numNodesInput.trim());
+      config.num_nodes = Number.isNaN(parsedNumNodes)
+        ? numNodesInput.trim()
+        : parsedNumNodes;
+    }
+    if (minutesRequestedInput.trim()) {
+      const parsedMinutes = Number(minutesRequestedInput.trim());
+      if (!Number.isNaN(parsedMinutes) && parsedMinutes > 0) {
+        config.minutes_requested = parsedMinutes;
+      }
     }
 
     // For SLURM providers, add optional per-job SBATCH flags override
@@ -1151,9 +1258,81 @@ export default function QueueTaskModal({
                 </FormControl>
               )}
 
+              {/* Resource Requirements Section */}
+              <Divider />
+              <Stack spacing={2}>
+                <Typography level="title-sm">Resource Requirements</Typography>
+                <Stack direction="row" spacing={2}>
+                  <FormControl sx={{ flex: 1 }}>
+                    <FormLabel>CPUs</FormLabel>
+                    <Input
+                      placeholder="e.g. 4"
+                      value={cpusInput}
+                      onChange={(e) => setCpusInput(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+                  <FormControl sx={{ flex: 1 }}>
+                    <FormLabel>Memory</FormLabel>
+                    <Input
+                      placeholder="e.g. 16GB"
+                      value={memoryInput}
+                      onChange={(e) => setMemoryInput(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+                </Stack>
+                <Stack direction="row" spacing={2}>
+                  <FormControl sx={{ flex: 1 }}>
+                    <FormLabel>Disk space</FormLabel>
+                    <Input
+                      placeholder="e.g. 100GB"
+                      value={diskSpaceInput}
+                      onChange={(e) => setDiskSpaceInput(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+                  <FormControl sx={{ flex: 1 }}>
+                    <FormLabel>Accelerators</FormLabel>
+                    <Input
+                      placeholder="e.g. A100:1, RTX3090:2, 1"
+                      value={acceleratorsInput}
+                      onChange={(e) => setAcceleratorsInput(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+                </Stack>
+                <Stack direction="row" spacing={2}>
+                  <FormControl sx={{ flex: 1 }}>
+                    <FormLabel>Num nodes</FormLabel>
+                    <Input
+                      placeholder="e.g. 1"
+                      value={numNodesInput}
+                      onChange={(e) => setNumNodesInput(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+                  <FormControl sx={{ flex: 1 }}>
+                    <FormLabel>Minutes requested</FormLabel>
+                    <Input
+                      type="number"
+                      placeholder="e.g. 60"
+                      value={minutesRequestedInput}
+                      onChange={(e) => setMinutesRequestedInput(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+                </Stack>
+                <FormHelperText>
+                  These values override the template&apos;s resource requirements
+                  for this run only. Leave a field empty to use the template
+                  default.
+                </FormHelperText>
+              </Stack>
+
               {/* Incompatibility Warning */}
               {selectedProvider &&
-                taskResources?.accelerators &&
+                effectiveResources?.accelerators &&
                 !isProviderCompatible(selectedProvider) && (
                   <Alert
                     variant="soft"
@@ -1163,7 +1342,7 @@ export default function QueueTaskModal({
                   >
                     <Typography level="body-sm">
                       This provider may not support the requested accelerators (
-                      <strong>{taskResources.accelerators}</strong>).
+                      <strong>{effectiveResources.accelerators}</strong>).
                     </Typography>
                   </Alert>
                 )}
@@ -1225,7 +1404,7 @@ export default function QueueTaskModal({
 
               {isLocalProvider &&
                 resourceValidation?.isCompatible &&
-                taskResources && (
+                effectiveResources && (
                   <Alert
                     variant="soft"
                     color="success"
