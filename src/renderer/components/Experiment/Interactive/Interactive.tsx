@@ -177,12 +177,13 @@ export default function Interactive() {
   const jobsWithPlaceholders = useMemo(() => {
     const baseJobs = Array.isArray(jobs) ? jobs : [];
 
-    // Show active interactive jobs (INTERACTIVE, RUNNING, LAUNCHING)
+    // Show active interactive jobs (INTERACTIVE, RUNNING, LAUNCHING, STOPPING)
     const filteredJobs = baseJobs.filter((job: any) => {
       return (
         job.status === 'INTERACTIVE' ||
         job.status === 'RUNNING' ||
-        job.status === 'LAUNCHING'
+        job.status === 'LAUNCHING' ||
+        job.status === 'STOPPING'
       );
     });
 
