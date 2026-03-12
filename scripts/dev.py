@@ -23,21 +23,44 @@ def check_port(port: int) -> bool:
         return s.connect_ex(("127.0.0.1", port)) == 0
 
 
+def kill_ports(ports: list[int]) -> None:
+    """Kill processes using the given ports."""
+    port_args = " ".join(f":{p}" for p in ports)
+    subprocess.run(f"lsof -ti {port_args} | xargs kill", shell=True)
+
+
 def check_ports() -> None:
-    """Check if required ports are free and abort if not."""
-    busy: list[str] = []
+    """Check if required ports are free, offer to kill blockers, and abort if not."""
+    busy_ports: list[int] = []
+    busy_msgs: list[str] = []
     if check_port(API_PORT):
-        busy.append(f"  • Port {API_PORT} (API) is already in use")
+        busy_ports.append(API_PORT)
+        busy_msgs.append(f"  • Port {API_PORT} (API) is already in use")
     if check_port(FRONTEND_PORT):
-        busy.append(f"  • Port {FRONTEND_PORT} (Frontend) is already in use")
-    if busy:
-        print("❌ Cannot start — the following ports are occupied:", file=sys.stderr)
-        for msg in busy:
-            print(msg, file=sys.stderr)
+        busy_ports.append(FRONTEND_PORT)
+        busy_msgs.append(f"  • Port {FRONTEND_PORT} (Frontend) is already in use")
+    if not busy_ports:
+        return
+
+    print("❌ Cannot start — the following ports are occupied:", file=sys.stderr)
+    for msg in busy_msgs:
+        print(msg, file=sys.stderr)
+
+    port_args = " ".join(f":{p}" for p in busy_ports)
+    kill_cmd = f"lsof -ti {port_args} | xargs kill"
+
+    try:
+        answer = input("\nKill those processes? [Y/n] ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        answer = "n"
+        print()
+
+    if answer in ("", "y", "yes"):
+        kill_ports(busy_ports)
+        print("Done — processes killed.")
+    else:
         print(
-            "\nKill the processes using those ports and try again.\n"
-            f"  lsof -ti :{API_PORT} | xargs kill\n"
-            f"  lsof -ti :{FRONTEND_PORT} | xargs kill",
+            f"\nRun this to kill them manually:\n  {kill_cmd}",
             file=sys.stderr,
         )
         sys.exit(1)
