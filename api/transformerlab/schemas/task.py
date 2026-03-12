@@ -13,6 +13,7 @@ class ImportTaskFromGalleryRequest(BaseModel):
     gallery_id: str  # Index or identifier in the gallery array
     experiment_id: str
     is_interactive: Optional[bool] = False  # Whether importing from interactive gallery
+    env_vars: Optional[dict] = None  # User-provided environment variable values
 
 
 class ImportTaskFromTeamGalleryRequest(BaseModel):
