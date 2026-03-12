@@ -6,7 +6,7 @@ from textual.containers import Vertical, VerticalScroll, Horizontal
 from textual.screen import ModalScreen
 from textual import work
 from transformerlab_cli.util import api
-from transformerlab_cli.util.config import check_configs
+from transformerlab_cli.util.config import check_configs, get_current_experiment
 
 
 def log_to_file(message: str) -> None:
@@ -111,6 +111,50 @@ class JobDetails(Vertical):
         # Make artifacts container visible
         artifacts_container = self.query_one("#job-artifacts-container", VerticalScroll)
         artifacts_container.add_class("visible")
+
+        # Show connection info for interactive jobs
+        job_data = job.get("job_data", {})
+        if job_data.get("subtype") == "interactive" and job.get("status") == "INTERACTIVE":
+            self._fetch_connection_info(str(job.get("id", "")))
+
+    @work(thread=True)
+    def _fetch_connection_info(self, job_id: str) -> None:
+        """Fetch tunnel info for an interactive job."""
+        experiment_id = get_current_experiment() or "alpha"
+        try:
+            response = api.get(f"/experiment/{experiment_id}/jobs/{job_id}/tunnel_info", timeout=10.0)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("is_ready"):
+                    self.app.call_from_thread(self._display_connection_info, data)
+        except Exception:
+            pass
+
+    def _display_connection_info(self, tunnel_info: dict) -> None:
+        """Display connection info in the artifacts section."""
+        instructions = tunnel_info.get("instructions", [])
+        values = {k: str(v) for k, v in tunnel_info.items() if v is not None and isinstance(v, (str, int, float))}
+
+        lines = ["[bold]Connection Info:[/bold]\n"]
+        for block in instructions:
+            kind = block.get("kind")
+            title = block.get("title", "")
+            value_key = block.get("value_key")
+            value = values.get(value_key, "") if value_key else ""
+
+            if kind in ("url", "code", "command") and value:
+                lines.append(f"[$primary]{title}:[/$primary] {value}")
+            elif kind == "kv":
+                for item in block.get("items", []):
+                    val = values.get(item.get("value_key", ""), "")
+                    if val:
+                        lines.append(f"  {item.get('label', '')}: {val}")
+
+        if len(lines) > 1:
+            info_text = "\n".join(lines)
+            artifacts_view = self.query_one("#job-artifacts", Static)
+            current = str(artifacts_view.renderable)
+            artifacts_view.update(f"{current}\n\n{info_text}")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-view-json":
