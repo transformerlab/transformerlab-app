@@ -244,10 +244,8 @@ export default function QueueTaskModal({
     if (!taskResources) {
       const acceleratorsEff =
         acceleratorsInput?.trim() !== '' ? acceleratorsInput.trim() : null;
-      const cpusEff =
-        cpusInput?.trim() !== '' ? cpusInput.trim() : null;
-      const memoryEff =
-        memoryInput?.trim() !== '' ? memoryInput.trim() : null;
+      const cpusEff = cpusInput?.trim() !== '' ? cpusInput.trim() : null;
+      const memoryEff = memoryInput?.trim() !== '' ? memoryInput.trim() : null;
       if (!acceleratorsEff && !cpusEff && !memoryEff) {
         return null;
       }
@@ -1324,9 +1322,9 @@ export default function QueueTaskModal({
                   </FormControl>
                 </Stack>
                 <FormHelperText>
-                  These values override the template&apos;s resource requirements
-                  for this run only. Leave a field empty to use the template
-                  default.
+                  These values override the template&apos;s resource
+                  requirements for this run only. Leave a field empty to use the
+                  template default.
                 </FormHelperText>
               </Stack>
 
