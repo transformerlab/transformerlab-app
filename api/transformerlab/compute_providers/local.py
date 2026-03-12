@@ -492,10 +492,13 @@ class LocalProvider(ComputeProvider):
             print(f"[LocalProvider.get_job_logs] No log files in {job_dir}")
             return "No log files found"
         lines = []
-        if stdout_exists:
-            lines.append(log_file.read_text())
+        # Put stderr first (setup messages like git hints) so that stdout
+        # (which grows with runtime output) is at the end and new content
+        # appears at the bottom of the log view.
         if stderr_exists:
             lines.append(err_file.read_text())
+        if stdout_exists:
+            lines.append(log_file.read_text())
         out = "\n".join(lines)
         total_lines = out.count("\n")
         if tail_lines is not None:
