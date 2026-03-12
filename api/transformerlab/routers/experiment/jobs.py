@@ -1412,6 +1412,8 @@ async def save_dataset_to_registry(
     mode: str = Query(
         "new", description="'new' to create a new entry, 'existing' to merge into an existing registry dataset"
     ),
+    tag: str = Query("latest", description="Tag to assign to the new version"),
+    description: Optional[str] = Query(None, description="Human-readable description for the version"),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -1457,10 +1459,7 @@ async def save_dataset_to_registry(
             except Exception as copy_err:
                 print(f"Storage.copy_dir failed: {copy_err}")
 
-            return {
-                "status": "success",
-                "message": f"Dataset merged into existing registry entry '{target_name_secure}'",
-            }
+            final_name = target_name_secure
         else:
             # Save as a new dataset
             final_name = secure_filename(target_name) if target_name else dataset_name_secure
@@ -1479,13 +1478,15 @@ async def save_dataset_to_registry(
                 print(f"Storage.copy_dir failed: {copy_err}")
 
         # Create a version entry for the dataset
-        group_name = dataset_name_secure
+        group_name = secure_filename(target_name) if target_name else dataset_name_secure
+        version_description = description if description else f"Created from job {job_id}"
         version_entry = await asset_version_service.create_version(
             asset_type="dataset",
             group_name=group_name,
             asset_id=final_name,
             job_id=job_id,
-            description=f"Created from job {job_id}",
+            description=version_description,
+            tag=tag,
         )
 
         return {
@@ -1512,6 +1513,8 @@ async def save_model_to_registry(
     mode: str = Query(
         "new", description="'new' to create a new entry, 'existing' to merge into an existing registry model"
     ),
+    tag: str = Query("latest", description="Tag to assign to the new version"),
+    description: Optional[str] = Query(None, description="Human-readable description for the version"),
 ):
     """Copy a model from job's models directory to the global models registry.
 
@@ -1551,7 +1554,7 @@ async def save_model_to_registry(
             except Exception as copy_err:
                 print(f"storage.copy_dir failed: {copy_err}")
 
-            return {"status": "success", "message": f"Model merged into existing registry entry '{target_name_secure}'"}
+            final_name = target_name_secure
         else:
             # Save as a new model
             final_name = secure_filename(target_name) if target_name else model_name_secure
@@ -1570,13 +1573,15 @@ async def save_model_to_registry(
                 print(f"storage.copy_dir failed: {copy_err}")
 
         # Create a version entry for the model
-        group_name = model_name_secure
+        group_name = secure_filename(target_name) if target_name else model_name_secure
+        version_description = description if description else f"Created from job {job_id}"
         version_entry = await asset_version_service.create_version(
             asset_type="model",
             group_name=group_name,
             asset_id=final_name,
             job_id=job_id,
-            description=f"Created from job {job_id}",
+            description=version_description,
+            tag=tag,
         )
 
         return {
