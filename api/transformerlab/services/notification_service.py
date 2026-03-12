@@ -254,10 +254,18 @@ async def process_pending_notifications_once() -> Dict[str, int]:
     for org_id in org_ids:
         _set_org_context(org_id)
         try:
+            # Track jobs we've already evaluated in this cycle for the current org/experiment.
+            # This ensures we don't call _process_notification multiple times for the same job
+            # when iterating over multiple terminal statuses. In production, jobs_get_all is
+            # typically disjoint per-status, but tests may return the same job for each status.
+            processed_job_ids_for_org: Dict[str, set[str]] = {}
+
             stats["orgs"] += 1
             experiment_ids = await _list_experiment_ids_for_current_org()
 
             for experiment_id in experiment_ids:
+                processed_job_ids = processed_job_ids_for_org.setdefault(experiment_id, set())
+
                 for status in TERMINAL_STATUSES:
                     try:
                         job_summaries = await job_service.jobs_get_all(experiment_id, status=status)
@@ -273,6 +281,12 @@ async def process_pending_notifications_once() -> Dict[str, int]:
                         if not job_id:
                             continue
 
+                        # Skip jobs we've already handled for this experiment in this cycle,
+                        # regardless of status. This makes the worker idempotent across the
+                        # TERMINAL_STATUSES loop and matches test expectations.
+                        if job_id in processed_job_ids:
+                            continue
+
                         # IMPORTANT: jobs_get_all reads from a cached jobs.json that
                         # does NOT reflect freshly-written job_data fields.
                         # Always re-read uncached so we see the current notification_sent.
@@ -282,11 +296,13 @@ async def process_pending_notifications_once() -> Dict[str, int]:
 
                         job_data = job.get("job_data") or {}
                         if job_data.get("notification_sent"):
+                            processed_job_ids.add(job_id)
                             continue  # already notified
 
                         stats["jobs_seen"] += 1
                         try:
                             await _process_notification(job, experiment_id, org_id)
+                            processed_job_ids.add(job_id)
                             stats["jobs_notified"] += 1
                         except Exception as exc:  # noqa: BLE001
                             print(f"Notification worker: error processing job {job_id}: {exc}")
