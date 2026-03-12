@@ -2700,8 +2700,9 @@ async def list_clusters_detailed(
 
 def _get_provider_setup_status_path(workspace_dir: str, team_id: str, provider_id: str) -> Path:
     """Return path to the transient local-provider-setup status file for this team/provider."""
-    safe_team = str(team_id).replace("/", "_")
-    safe_provider = str(provider_id).replace("/", "_")
+    # Sanitize user-derived identifiers before using them in a file name
+    safe_team = secure_filename(str(team_id).replace("/", "_")) or "team"
+    safe_provider = secure_filename(str(provider_id).replace("/", "_")) or "provider"
     return Path(workspace_dir) / f".local_provider_setup_status_{safe_team}_{safe_provider}.json"
 
 
