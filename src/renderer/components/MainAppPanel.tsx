@@ -353,7 +353,11 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/zoo/generated" element={<ModelZoo tab="generated" />} />
         <Route path="/zoo/store" element={<ModelZoo tab="store" />} />
         <Route path="/zoo/groups" element={<ModelZoo tab="groups" />} />
+        <Route path="/zoo/registry" element={<ModelZoo tab="registry" />} />
         <Route path="/data" element={<Data />} />
+        <Route path="/data/generated" element={<Data tab="generated" />} />
+        <Route path="/data/store" element={<Data tab="store" />} />
+        <Route path="/data/registry" element={<Data tab="registry" />} />
         <Route path="/tasks-gallery" element={<TasksGallery />} />
         <Route path="/compute" element={<Compute />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
