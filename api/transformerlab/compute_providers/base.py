@@ -1,7 +1,7 @@
 """Abstract base class for provider implementations."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 from .models import (
     ClusterConfig,
     JobConfig,
@@ -160,3 +160,21 @@ class ComputeProvider(ABC):
             True if the provider is active and accessible, False otherwise
         """
         raise NotImplementedError
+
+    def setup(
+        self,
+        progress_callback: Optional[Callable[[str, int, str], None]] = None,
+    ) -> None:
+        """
+        Optional provider-level setup hook.
+
+        Providers can override this to perform any expensive one-time or
+        infrequent initialization (for example creating base environments or
+        warming caches). The default implementation is a no-op.
+
+        Args:
+            progress_callback: Optional callback accepting (phase, percent, message)
+                for reporting coarse-grained progress to callers.
+        """
+        # Default implementation intentionally does nothing.
+        return None

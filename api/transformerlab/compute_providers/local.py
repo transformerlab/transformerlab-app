@@ -8,7 +8,7 @@ import signal
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Callable
 
 from lab.dirs import HOME_DIR
 
@@ -191,6 +191,39 @@ class LocalProvider(ComputeProvider):
 
     def __init__(self, extra_config: Optional[Dict[str, Any]] = None):
         self.extra_config = extra_config or {}
+
+    def setup(
+        self,
+        progress_callback: Optional["Callable[[str, int, str], None]"] = None,
+    ) -> None:
+        """
+        Perform provider-level setup for local runs.
+
+        This currently ensures the shared base uv virtual environment under
+        HOME_DIR is created and up to date, along with its frozen
+        requirements. This can be slow on first run, so callers may choose
+        to invoke it ahead of time and surface progress in the UI.
+
+        Args:
+            progress_callback: Optional callback accepting (phase, percent, message)
+                for reporting coarse-grained progress information. When provided,
+                it is invoked before and after the heavy setup work.
+        """
+        if progress_callback is not None:
+            progress_callback(
+                "provider_setup_start",
+                0,
+                "Preparing local provider base environment (this may take a few minutes)...",
+            )
+
+        ensure_base_venv_and_requirements(progress_callback=progress_callback)
+
+        if progress_callback is not None:
+            progress_callback(
+                "provider_setup_complete",
+                100,
+                "Local provider base environment is ready.",
+            )
 
     def _get_source_code_and_pyproject(self) -> Path:
         """Return path to pyproject.toml in the transformerlab API source tree."""
@@ -535,7 +568,9 @@ class LocalProvider(ComputeProvider):
         return config_path.exists()
 
 
-def ensure_base_venv_and_requirements() -> Path:
+def ensure_base_venv_and_requirements(
+    progress_callback: Optional[Callable[[str, int, str], None]] = None,
+) -> Path:
     """
     Ensure the shared base venv under HOME_DIR and its frozen requirements exist and are up to date.
 
@@ -544,6 +579,13 @@ def ensure_base_venv_and_requirements() -> Path:
 
     Returns the path to the base requirements file.
     """
+    if progress_callback is not None:
+        progress_callback(
+            "provider_setup_resolve_project",
+            10,
+            "Resolving Transformer Lab project metadata...",
+        )
+
     pyproject_path = LocalProvider()._get_source_code_and_pyproject()
     home_dir_path = Path(HOME_DIR)
     home_dir_path.mkdir(parents=True, exist_ok=True)
@@ -554,6 +596,13 @@ def ensure_base_venv_and_requirements() -> Path:
     source_code_dir = str(pyproject_path.parent)
 
     base_venv_path.mkdir(parents=True, exist_ok=True)
+
+    if progress_callback is not None:
+        progress_callback(
+            "provider_setup_create_venv",
+            25,
+            "Creating local provider base Python environment...",
+        )
 
     # uv venv --python (match plugin install default)
     subprocess.run(
@@ -570,6 +619,13 @@ def ensure_base_venv_and_requirements() -> Path:
     # Use uv pip with an explicit --python target so installs go into the base venv.
     python_bin = base_venv_path / "bin" / "python"
     env = os.environ.copy()
+
+    if progress_callback is not None:
+        progress_callback(
+            "provider_setup_install_deps",
+            60,
+            "Installing Transformer Lab and dependencies into the local provider base environment...",
+        )
 
     install_cmd = ["uv", "pip", "install"]
     if additional_flags:
@@ -606,6 +662,13 @@ def ensure_base_venv_and_requirements() -> Path:
     if result.returncode != 0:
         raise RuntimeError(f"uv pip freeze failed for base venv: {result.stderr or 'unknown error'}")
 
+    if progress_callback is not None:
+        progress_callback(
+            "provider_setup_freeze_requirements",
+            80,
+            "Freezing local provider base environment requirements...",
+        )
+
     # Always ensure the local provider config snapshot is generated via the base venv.
     # This uses the same logic as /server/info but runs inside the shared base venv and
     # writes the result to HOME_DIR/local_provider_config.json.
@@ -622,6 +685,13 @@ def ensure_base_venv_and_requirements() -> Path:
     venv_bin = base_venv_path / "bin"
     env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
 
+    if progress_callback is not None:
+        progress_callback(
+            "provider_setup_collect_metrics",
+            90,
+            "Collecting local machine metrics for the provider...",
+        )
+
     result = subprocess.run(
         [str(python_bin), str(script_path)],
         cwd=source_code_dir,
@@ -634,6 +704,13 @@ def ensure_base_venv_and_requirements() -> Path:
         raise RuntimeError(
             "Failed to generate local provider config "
             f"(exit {result.returncode}): {result.stderr or result.stdout or 'unknown error'}"
+        )
+
+    if progress_callback is not None:
+        progress_callback(
+            "provider_setup_done",
+            100,
+            "Local provider base environment and metrics are ready.",
         )
 
     return base_requirements
