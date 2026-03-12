@@ -129,6 +129,10 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/${providerId}/task/${taskId}/file-upload`, // Deprecated: use UploadTemplateFile
   Check: (providerId: string) =>
     `${API_URL()}compute_provider/${providerId}/check`,
+  Setup: (providerId: string) =>
+    `${API_URL()}compute_provider/${providerId}/setup`,
+  SetupStatus: (providerId: string) =>
+    `${API_URL()}compute_provider/${providerId}/setup/status`,
   EnsureQuotaRecorded: (experimentId?: string, jobId?: string) => {
     if (jobId) {
       return `${API_URL()}compute_provider/jobs/ensure-quota-recorded?job_id=${jobId}`;
