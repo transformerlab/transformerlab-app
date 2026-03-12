@@ -291,6 +291,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         : chatAPI.Endpoints.Task.List(experimentInfo.id)
       : null,
     fetcher,
+    {
+      // Tasks (templates) change relatively infrequently; use a modest polling interval
+      // and rely on backend cache + explicit invalidation for freshness.
+      refreshInterval: 10000, // 10s
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      refreshWhenHidden: false,
+      refreshWhenOffline: false,
+    },
   );
 
   // Filter templates for this experiment only (if no subtype filter was applied)
