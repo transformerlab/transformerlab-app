@@ -11,8 +11,13 @@ import {
   Divider,
 } from '@mui/joy';
 import { Trash2Icon } from 'lucide-react';
+import useSWR from 'swr';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import JobProgress from '../Tasks/JobProgress';
 import InteractiveModal from '../Tasks/InteractiveModal';
+import InteractIframeModal from './InteractIframeModal';
 import EmbeddableStreamingOutput from '../Tasks/EmbeddableStreamingOutput';
 
 interface InteractiveJobCardProps {
@@ -106,6 +111,7 @@ export default function InteractiveJobCard({
   onDeleteJob,
 }: InteractiveJobCardProps) {
   const [connectOpen, setConnectOpen] = useState(false);
+  const [interactOpen, setInteractOpen] = useState(false);
   const jobData = job.job_data || {};
   const isPlaceholder = !!job.placeholder;
   const interactiveType =
@@ -115,17 +121,38 @@ export default function InteractiveJobCard({
       : null) ||
     (isPlaceholder ? null : 'vscode');
 
+  const { experimentInfo } = useExperimentInfo();
   const typeConfig = interactiveType ? getTypeConfig(interactiveType) : null;
   const TypeIcon = typeConfig?.icon;
   const isInteractive =
+<<<<<<< add/interact-modal-component
+    job.status === 'INTERACTIVE' || job.status === 'RUNNING';
+  const isLaunching = job.status === 'LAUNCHING' || job.status === 'WAITING';
+  const showActions = isInteractive || isLaunching;
+=======
     job.status === 'INTERACTIVE' ||
     job.status === 'RUNNING' ||
     job.status === 'STOPPING';
+>>>>>>> main
   const title =
     jobData.cluster_name ||
     jobData.template_name ||
     (isPlaceholder ? '' : `Job ${job.id}`);
   const jobIdNum = parseInt(job.id, 10);
+
+  const tunnelInfoUrl = React.useMemo(() => {
+    if (!isInteractive || !experimentInfo?.id) return null;
+    return chatAPI.Endpoints.Experiment.GetTunnelInfo(
+      experimentInfo.id,
+      String(jobIdNum),
+    );
+  }, [isInteractive, experimentInfo?.id, jobIdNum]);
+
+  const { data: tunnelData } = useSWR(tunnelInfoUrl, fetcher, {
+    refreshInterval: 3000,
+  });
+
+  const tunnelReady = Boolean(tunnelData?.is_ready);
 
   return (
     <Card
@@ -192,17 +219,26 @@ export default function InteractiveJobCard({
           <JobProgress job={job} />
         </Box>
 
-        {isInteractive && (
+        {showActions && (
           <>
             <Divider />
             <Stack direction="row" spacing={1} justifyContent="flex-end">
               <Button
                 variant="soft"
-                color="primary"
+                color="neutral"
                 size="sm"
                 onClick={() => setConnectOpen(true)}
               >
-                Connect
+                Logs
+              </Button>
+              <Button
+                variant="soft"
+                color={tunnelReady ? 'success' : 'neutral'}
+                size="sm"
+                disabled={!tunnelReady}
+                onClick={() => setInteractOpen(true)}
+              >
+                {tunnelReady ? 'Interact' : 'Launching…'}
               </Button>
             </Stack>
           </>
@@ -218,6 +254,11 @@ export default function InteractiveJobCard({
             jobStatus={job?.status || ''}
           />
         }
+      />
+      <InteractIframeModal
+        jobId={jobIdNum}
+        open={interactOpen}
+        onClose={() => setInteractOpen(false)}
       />
     </Card>
   );

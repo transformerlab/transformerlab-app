@@ -86,32 +86,17 @@ def test_find_entry_by_id():
     assert found["id"] == "vllm"
 
 
-def test_find_entry_by_interactive_type():
-    """find_interactive_gallery_entry falls back to interactive_type when id not found."""
-    gallery = [
-        {"id": "jupyter", "interactive_type": "jupyter"},
-        {"id": "vllm", "interactive_type": "vllm"},
-    ]
-    found = find_interactive_gallery_entry(gallery, interactive_type="vllm")
-    assert found is not None
-    assert found["interactive_type"] == "vllm"
-
-
-def test_find_entry_id_takes_precedence():
-    """When both id and interactive_type are given, id is used first."""
-    gallery = [
-        {"id": "ollama", "interactive_type": "ollama"},
-        {"id": "ollama-macos", "interactive_type": "ollama"},
-    ]
-    found = find_interactive_gallery_entry(gallery, interactive_gallery_id="ollama-macos", interactive_type="ollama")
-    assert found is not None
-    assert found["id"] == "ollama-macos"
-
-
 def test_find_entry_empty_list_returns_none():
     """Empty gallery returns None."""
     assert find_interactive_gallery_entry([], interactive_gallery_id="jupyter") is None
-    assert find_interactive_gallery_entry([], interactive_type="jupyter") is None
+
+
+def test_find_entry_no_id_returns_none():
+    """No interactive_gallery_id returns None."""
+    gallery = [
+        {"id": "jupyter", "interactive_type": "jupyter"},
+    ]
+    assert find_interactive_gallery_entry(gallery) is None
 
 
 def test_find_entry_not_found_returns_none():
