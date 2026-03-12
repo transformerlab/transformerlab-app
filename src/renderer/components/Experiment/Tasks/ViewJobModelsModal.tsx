@@ -270,4 +270,3 @@ export default function ViewJobModelsModal({
     </>
   );
 }
-

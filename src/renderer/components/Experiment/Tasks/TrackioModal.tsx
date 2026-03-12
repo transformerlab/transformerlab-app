@@ -181,4 +181,3 @@ export default function TrackioModal({ jobId, onClose }: TrackioModalProps) {
     </Modal>
   );
 }
-
