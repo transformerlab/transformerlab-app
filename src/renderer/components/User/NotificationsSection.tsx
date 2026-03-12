@@ -166,4 +166,3 @@ export default function NotificationsSection() {
     </Box>
   );
 }
-
