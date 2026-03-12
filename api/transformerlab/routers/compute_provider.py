@@ -1869,6 +1869,7 @@ async def launch_template_on_provider(
         "provider_name": provider_display_name,
         "user_info": user_info or None,
         "team_id": team_id,  # Store team_id for quota tracking
+        "created_by_user_id": str(user.id) if user else None,
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
     if provider.type == ProviderType.LOCAL.value and provider_config_dict.get("workspace_dir"):
