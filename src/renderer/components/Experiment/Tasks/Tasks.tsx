@@ -882,6 +882,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         provider_id: _pid,
         provider_name: _pname,
         enable_trackio,
+        cpus,
+        memory,
+        disk_space,
+        accelerators,
+        num_nodes,
+        minutes_requested,
         ...paramConfig
       } = config ?? {};
 
@@ -900,11 +906,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           (task as any)?.interactive_gallery_id ??
           config?.interactive_gallery_id ??
           undefined,
-        cpus: cfg.cpus || task.cpus,
-        memory: cfg.memory || task.memory,
-        disk_space: cfg.disk_space || task.disk_space,
-        accelerators: cfg.accelerators || task.accelerators,
-        num_nodes: cfg.num_nodes || task.num_nodes,
+        cpus: cpus ?? cfg.cpus ?? task.cpus,
+        memory: memory ?? cfg.memory ?? task.memory,
+        disk_space: disk_space ?? cfg.disk_space ?? task.disk_space,
+        accelerators: accelerators ?? cfg.accelerators ?? task.accelerators,
+        num_nodes: num_nodes ?? cfg.num_nodes ?? task.num_nodes,
         setup: cfg.setup || task.setup,
         env_vars: cfg.env_vars || task.env_vars || {},
         parameters: cfg.parameters || task.parameters || undefined, // Keep original parameter definitions
@@ -935,7 +941,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               ? task.lower_is_better
               : undefined,
         minutes_requested:
-          cfg.minutes_requested || task.minutes_requested || undefined,
+          minutes_requested ??
+          cfg.minutes_requested ??
+          task.minutes_requested ??
+          undefined,
         enable_trackio:
           typeof enable_trackio === 'boolean' ? enable_trackio : undefined,
       };
