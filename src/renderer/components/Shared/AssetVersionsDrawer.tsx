@@ -228,7 +228,9 @@ function VersionDetailPanel({
     setTag(entry.tag);
     setEvals(entry.evals ?? {});
     setMetadataJson(
-      entry.extra_metadata ? JSON.stringify(entry.extra_metadata, null, 2) : '{}',
+      entry.extra_metadata
+        ? JSON.stringify(entry.extra_metadata, null, 2)
+        : '{}',
     );
     setMetadataError(null);
     setSaved(false);
@@ -362,11 +364,7 @@ function VersionDetailPanel({
             v{entry.version}
           </Typography>
           {tag && (
-            <Chip
-              size="sm"
-              color={TAG_COLORS[tag] || 'neutral'}
-              variant="soft"
-            >
+            <Chip size="sm" color={TAG_COLORS[tag] || 'neutral'} variant="soft">
               {tag}
             </Chip>
           )}
@@ -376,7 +374,9 @@ function VersionDetailPanel({
           variant="solid"
           color={saved ? 'success' : 'primary'}
           loading={saving}
-          startDecorator={saved ? <CheckIcon size={14} /> : <SaveIcon size={14} />}
+          startDecorator={
+            saved ? <CheckIcon size={14} /> : <SaveIcon size={14} />
+          }
           onClick={handleSave}
         >
           {saved ? 'Saved' : 'Save'}
@@ -388,12 +388,21 @@ function VersionDetailPanel({
         <Stack spacing={2.5}>
           {/* ── Read-only info ── */}
           <Box>
-            <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 1 }}>
+            <Typography
+              level="body-xs"
+              textTransform="uppercase"
+              fontWeight="lg"
+              sx={{ mb: 1 }}
+            >
               Version Info
             </Typography>
             <Stack spacing={1}>
               <Stack direction="row" gap={1} alignItems="center">
-                <Typography level="body-sm" fontWeight="lg" sx={{ minWidth: 90 }}>
+                <Typography
+                  level="body-sm"
+                  fontWeight="lg"
+                  sx={{ minWidth: 90 }}
+                >
                   {typeLabel} ID:
                 </Typography>
                 <Typography level="body-sm" fontFamily="monospace">
@@ -401,7 +410,11 @@ function VersionDetailPanel({
                 </Typography>
               </Stack>
               <Stack direction="row" gap={1} alignItems="center">
-                <Typography level="body-sm" fontWeight="lg" sx={{ minWidth: 90 }}>
+                <Typography
+                  level="body-sm"
+                  fontWeight="lg"
+                  sx={{ minWidth: 90 }}
+                >
                   Created:
                 </Typography>
                 <Stack direction="row" alignItems="center" gap={0.5}>
@@ -412,7 +425,11 @@ function VersionDetailPanel({
                 </Stack>
               </Stack>
               <Stack direction="row" gap={1} alignItems="center">
-                <Typography level="body-sm" fontWeight="lg" sx={{ minWidth: 90 }}>
+                <Typography
+                  level="body-sm"
+                  fontWeight="lg"
+                  sx={{ minWidth: 90 }}
+                >
                   Source Job:
                 </Typography>
                 {entry.job_id ? (
@@ -724,9 +741,10 @@ export default function AssetVersionsDrawer({
   const typeLabel = assetType === 'model' ? 'Model' : 'Dataset';
 
   // Find the selected entry
-  const selectedEntry = selectedVersion !== null
-    ? versionList.find((v) => v.version === selectedVersion) ?? null
-    : null;
+  const selectedEntry =
+    selectedVersion !== null
+      ? (versionList.find((v) => v.version === selectedVersion) ?? null)
+      : null;
 
   return (
     <Drawer

@@ -63,7 +63,10 @@ interface SaveToRegistryDialogProps {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const TAG_COLORS: Record<string, 'success' | 'primary' | 'warning' | 'neutral'> = {
+const TAG_COLORS: Record<
+  string,
+  'success' | 'primary' | 'warning' | 'neutral'
+> = {
   latest: 'primary',
   production: 'success',
   draft: 'warning',
@@ -98,9 +101,10 @@ export default function SaveToRegistryDialog({
   const groupNames = groups.map((g) => g.group_name);
 
   // Find selected group info for "next version" display
-  const selectedGroup = mode === 'existing' && existingTarget
-    ? groups.find((g) => g.group_name === existingTarget)
-    : null;
+  const selectedGroup =
+    mode === 'existing' && existingTarget
+      ? groups.find((g) => g.group_name === existingTarget)
+      : null;
   const nextVersion = selectedGroup ? selectedGroup.latest_version + 1 : 1;
 
   // Reset state when opening
@@ -128,7 +132,8 @@ export default function SaveToRegistryDialog({
       groupName,
       mode,
       tag,
-      description: description.trim() || `Created from job ${jobId ?? 'unknown'}`,
+      description:
+        description.trim() || `Created from job ${jobId ?? 'unknown'}`,
     });
   };
 
@@ -202,7 +207,12 @@ export default function SaveToRegistryDialog({
         <Divider sx={{ my: 2 }} />
 
         {/* ── Version metadata ── */}
-        <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 1 }}>
+        <Typography
+          level="body-xs"
+          textTransform="uppercase"
+          fontWeight="lg"
+          sx={{ mb: 1 }}
+        >
           Version Details
         </Typography>
 
@@ -218,7 +228,9 @@ export default function SaveToRegistryDialog({
             <Select
               size="sm"
               value={tag}
-              onChange={(_e, val) => { if (val) setTag(val); }}
+              onChange={(_e, val) => {
+                if (val) setTag(val);
+              }}
               renderValue={(selected) => (
                 <Chip
                   size="sm"
@@ -231,7 +243,11 @@ export default function SaveToRegistryDialog({
             >
               {TAG_OPTIONS.map((t) => (
                 <Option key={t} value={t}>
-                  <Chip size="sm" variant="soft" color={TAG_COLORS[t] || 'neutral'}>
+                  <Chip
+                    size="sm"
+                    variant="soft"
+                    color={TAG_COLORS[t] || 'neutral'}
+                  >
                     {t}
                   </Chip>
                 </Option>
@@ -277,9 +293,7 @@ export default function SaveToRegistryDialog({
             loading={saving}
             disabled={!canSave}
           >
-            {mode === 'new'
-              ? 'Publish as v1'
-              : `Publish as v${nextVersion}`}
+            {mode === 'new' ? 'Publish as v1' : `Publish as v${nextVersion}`}
           </Button>
         </Stack>
       </ModalDialog>

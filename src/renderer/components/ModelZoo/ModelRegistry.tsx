@@ -86,7 +86,10 @@ interface GroupSummary {
 
 // ─── Tag colours (shared with AssetVersionsDrawer) ───────────────────────────
 
-const TAG_COLORS: Record<string, 'success' | 'primary' | 'warning' | 'neutral'> = {
+const TAG_COLORS: Record<
+  string,
+  'success' | 'primary' | 'warning' | 'neutral'
+> = {
   latest: 'primary',
   production: 'success',
   draft: 'warning',
@@ -144,17 +147,37 @@ function RegistrySkeleton() {
           '& > *': { minWidth: { xs: '120px', md: '160px' } },
         }}
       >
-        <Skeleton variant="rectangular" sx={{ flex: 1, height: 32, borderRadius: 'sm' }} />
-        <Skeleton variant="rectangular" sx={{ width: 160, height: 32, borderRadius: 'sm' }} />
-        <Skeleton variant="rectangular" sx={{ width: 160, height: 32, borderRadius: 'sm' }} />
+        <Skeleton
+          variant="rectangular"
+          sx={{ flex: 1, height: 32, borderRadius: 'sm' }}
+        />
+        <Skeleton
+          variant="rectangular"
+          sx={{ width: 160, height: 32, borderRadius: 'sm' }}
+        />
+        <Skeleton
+          variant="rectangular"
+          sx={{ width: 160, height: 32, borderRadius: 'sm' }}
+        />
       </Box>
       <Sheet
         variant="outlined"
-        sx={{ width: '100%', borderRadius: 'md', minHeight: 0, display: 'flex', overflow: 'auto', p: 2 }}
+        sx={{
+          width: '100%',
+          borderRadius: 'md',
+          minHeight: 0,
+          display: 'flex',
+          overflow: 'auto',
+          p: 2,
+        }}
       >
         <Box sx={{ width: '100%' }}>
           {[...Array(6)].map((_, idx) => (
-            <Skeleton key={idx} variant="rectangular" sx={{ height: 48, borderRadius: 'sm', mb: 1 }} />
+            <Skeleton
+              key={idx}
+              variant="rectangular"
+              sx={{ height: 48, borderRadius: 'sm', mb: 1 }}
+            />
           ))}
         </Box>
       </Sheet>
@@ -192,7 +215,11 @@ function VersionInfoDrawer({
       }}
     >
       <Sheet sx={{ p: 2.5, pb: 1.5 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
           <DialogTitle>
             <Typography level="title-lg">
               Version Details: <b>v{entry.version}</b>
@@ -207,7 +234,12 @@ function VersionInfoDrawer({
           {/* Title */}
           {entry.title && (
             <Box>
-              <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+              <Typography
+                level="body-xs"
+                textTransform="uppercase"
+                fontWeight="lg"
+                sx={{ mb: 0.5 }}
+              >
                 Title
               </Typography>
               <Typography level="body-md">{entry.title}</Typography>
@@ -217,7 +249,12 @@ function VersionInfoDrawer({
           {/* Description */}
           {entry.description && (
             <Box>
-              <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+              <Typography
+                level="body-xs"
+                textTransform="uppercase"
+                fontWeight="lg"
+                sx={{ mb: 0.5 }}
+              >
                 Description
               </Typography>
               <Typography level="body-sm">{entry.description}</Typography>
@@ -227,7 +264,12 @@ function VersionInfoDrawer({
           {/* Long description (markdown) */}
           {entry.long_description && (
             <Box>
-              <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+              <Typography
+                level="body-xs"
+                textTransform="uppercase"
+                fontWeight="lg"
+                sx={{ mb: 0.5 }}
+              >
                 Details
               </Typography>
               <Box sx={{ '& p': { margin: 0 }, '& img': { maxWidth: '100%' } }}>
@@ -239,7 +281,12 @@ function VersionInfoDrawer({
           {/* Cover image */}
           {entry.cover_image && (
             <Box>
-              <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+              <Typography
+                level="body-xs"
+                textTransform="uppercase"
+                fontWeight="lg"
+                sx={{ mb: 0.5 }}
+              >
                 Cover Image
               </Typography>
               <img
@@ -252,7 +299,12 @@ function VersionInfoDrawer({
 
           {/* Model ID */}
           <Box>
-            <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+            <Typography
+              level="body-xs"
+              textTransform="uppercase"
+              fontWeight="lg"
+              sx={{ mb: 0.5 }}
+            >
               Model ID
             </Typography>
             <Typography level="body-sm" fontFamily="monospace">
@@ -262,29 +314,52 @@ function VersionInfoDrawer({
 
           {/* Tag */}
           <Box>
-            <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+            <Typography
+              level="body-xs"
+              textTransform="uppercase"
+              fontWeight="lg"
+              sx={{ mb: 0.5 }}
+            >
               Tag
             </Typography>
             {entry.tag ? (
-              <Chip size="sm" color={TAG_COLORS[entry.tag] || 'neutral'} variant="soft">
+              <Chip
+                size="sm"
+                color={TAG_COLORS[entry.tag] || 'neutral'}
+                variant="soft"
+              >
                 {entry.tag}
               </Chip>
             ) : (
-              <Typography level="body-sm" color="neutral">—</Typography>
+              <Typography level="body-sm" color="neutral">
+                —
+              </Typography>
             )}
           </Box>
 
           {/* Created */}
           <Box>
-            <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+            <Typography
+              level="body-xs"
+              textTransform="uppercase"
+              fontWeight="lg"
+              sx={{ mb: 0.5 }}
+            >
               Created
             </Typography>
-            <Typography level="body-sm">{formatDate(entry.created_at)}</Typography>
+            <Typography level="body-sm">
+              {formatDate(entry.created_at)}
+            </Typography>
           </Box>
 
           {/* Source Job */}
           <Box>
-            <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+            <Typography
+              level="body-xs"
+              textTransform="uppercase"
+              fontWeight="lg"
+              sx={{ mb: 0.5 }}
+            >
               Source Job
             </Typography>
             {entry.job_id ? (
@@ -293,14 +368,21 @@ function VersionInfoDrawer({
                 &nbsp;Job {entry.job_id}
               </Chip>
             ) : (
-              <Typography level="body-sm" color="neutral">—</Typography>
+              <Typography level="body-sm" color="neutral">
+                —
+              </Typography>
             )}
           </Box>
 
           {/* Evals */}
           {entry.evals && Object.keys(entry.evals).length > 0 && (
             <Box>
-              <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+              <Typography
+                level="body-xs"
+                textTransform="uppercase"
+                fontWeight="lg"
+                sx={{ mb: 0.5 }}
+              >
                 Evaluations
               </Typography>
               <Table size="sm" sx={{ '& td, & th': { py: 0.5 } }}>
@@ -314,7 +396,9 @@ function VersionInfoDrawer({
                   {Object.entries(entry.evals).map(([key, val]) => (
                     <tr key={key}>
                       <td>
-                        <Typography level="body-sm" fontFamily="monospace">{key}</Typography>
+                        <Typography level="body-sm" fontFamily="monospace">
+                          {key}
+                        </Typography>
                       </td>
                       <td>
                         <Typography level="body-sm">{String(val)}</Typography>
@@ -382,7 +466,12 @@ function VersionRow({
       </td>
       {/* Model ID */}
       <td>
-        <Typography level="body-sm" fontFamily="monospace" noWrap sx={{ maxWidth: 180 }}>
+        <Typography
+          level="body-sm"
+          fontFamily="monospace"
+          noWrap
+          sx={{ maxWidth: 180 }}
+        >
           {v.asset_id}
         </Typography>
       </td>
@@ -448,7 +537,9 @@ function VersionRow({
       </td>
       {/* Created */}
       <td>
-        <Typography level="body-xs">{formatRelativeDate(v.created_at)}</Typography>
+        <Typography level="body-xs">
+          {formatRelativeDate(v.created_at)}
+        </Typography>
       </td>
       {/* Info + Delete (inline, no Actions header) */}
       <td style={{ textAlign: 'right' }}>
@@ -547,7 +638,11 @@ function GroupVersionsTable({
     setUpdatingVersion(version);
     try {
       await fetchWithAuth(
-        chatAPI.Endpoints.AssetVersions.DeleteVersion(assetType, groupName, version),
+        chatAPI.Endpoints.AssetVersions.DeleteVersion(
+          assetType,
+          groupName,
+          version,
+        ),
         { method: 'DELETE' },
       );
       mutate();
@@ -652,7 +747,11 @@ function GroupVersionsTable({
 
   if (versionList.length === 0) {
     return (
-      <Typography level="body-sm" color="neutral" sx={{ py: 2, textAlign: 'center' }}>
+      <Typography
+        level="body-sm"
+        color="neutral"
+        sx={{ py: 2, textAlign: 'center' }}
+      >
         No versions in this group.
       </Typography>
     );
@@ -714,7 +813,9 @@ export default function ModelRegistry() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState<Record<string, string>>({});
-  const [infoDrawerEntry, setInfoDrawerEntry] = useState<VersionEntry | null>(null);
+  const [infoDrawerEntry, setInfoDrawerEntry] = useState<VersionEntry | null>(
+    null,
+  );
   const { experimentInfo, experimentInfoMutate } = useExperimentInfo();
 
   const currentFoundation: string = experimentInfo?.config?.foundation || '';
@@ -724,10 +825,7 @@ export default function ModelRegistry() {
     isLoading,
     isError,
     mutate: mutateGroups,
-  } = useSWR(
-    chatAPI.Endpoints.AssetVersions.ListGroups('model'),
-    fetcher,
-  );
+  } = useSWR(chatAPI.Endpoints.AssetVersions.ListGroups('model'), fetcher);
 
   const handleDeleteGroup = async (groupName: string) => {
     if (
@@ -764,7 +862,9 @@ export default function ModelRegistry() {
   if (isError) {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography color="danger">Failed to load model registry groups.</Typography>
+        <Typography color="danger">
+          Failed to load model registry groups.
+        </Typography>
       </Box>
     );
   }
@@ -935,7 +1035,8 @@ export default function ModelRegistry() {
                           {group.group_name}
                         </Typography>
                         <Chip size="sm" variant="soft" color="neutral">
-                          {group.version_count} version{group.version_count !== 1 ? 's' : ''}
+                          {group.version_count} version
+                          {group.version_count !== 1 ? 's' : ''}
                         </Chip>
                         {group.latest_tag && (
                           <Chip

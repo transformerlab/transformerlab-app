@@ -19,7 +19,7 @@ export default function ModelZoo({ tab = 'store' }) {
   // In multiuser mode (!isLocalMode): only 'registry' (new groups view) is available.
   const filteredTab = !isLocalMode
     ? 'registry'
-    : (tab === 'registry')
+    : tab === 'registry'
       ? 'local'
       : tab;
 
