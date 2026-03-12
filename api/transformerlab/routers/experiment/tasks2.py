@@ -28,6 +28,7 @@ from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.services.task_service import task_service
 from transformerlab.shared.github_utils import fetch_task_yaml_from_github
+from transformerlab.services.cache_service import cache
 
 router = APIRouter(prefix="/task2", tags=["task2"])
 
@@ -63,6 +64,10 @@ async def create_blank_task(
     default_yaml = 'name: my-task\nresources:\n  cpus: 2\n  memory: 4\nrun: "echo hello"'
     async with await storage.open(yaml_path, "w", encoding="utf-8") as f:
         await f.write(default_yaml)
+
+    # Invalidate cached task lists for this experiment (best-effort).
+    await cache.invalidate("tasks", f"tasks:list:{experimentId}")
+
     return {"id": task_id}
 
 
@@ -203,6 +208,10 @@ async def from_directory(
         await f.write(task_yaml_content)
     if task_root_for_zip is not None:
         await task_service.update_task(task_id, {"file_mounts": True})
+
+    # Invalidate cached task lists for this experiment (best-effort).
+    await cache.invalidate("tasks", f"tasks:list:{experimentId}")
+
     return {"id": task_id}
 
 
@@ -244,6 +253,10 @@ async def update_task_yaml(experimentId: str, task_id: str, request: Request):
     success = await task_service.update_task_from_yaml(task_id, task_data)
     if not success:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # Invalidate cached task lists for this experiment (best-effort).
+    await cache.invalidate("tasks", f"tasks:list:{experimentId}")
+
     return {"message": "OK"}
 
 
