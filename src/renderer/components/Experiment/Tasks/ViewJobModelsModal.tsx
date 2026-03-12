@@ -22,7 +22,7 @@ import {
   fetchWithAuth,
   useSWRWithAuth as useSWR,
 } from 'renderer/lib/authContext';
-import SaveToRegistryDialog from './SaveToRegistryDialog';
+import SaveToRegistryDialog, { SaveVersionInfo } from './SaveToRegistryDialog';
 
 interface ViewJobModelsModalProps {
   open: boolean;
@@ -68,8 +68,7 @@ export default function ViewJobModelsModal({
 
   const handleSaveToRegistry = async (
     modelName: string,
-    targetName: string,
-    mode: 'new' | 'existing',
+    info: SaveVersionInfo,
   ) => {
     setSavingModel(modelName);
     setSaveError(null);
@@ -80,8 +79,10 @@ export default function ViewJobModelsModal({
         experimentId: experimentInfo?.id,
         jobId: jobId.toString(),
         modelName,
-        targetName: targetName,
-        mode: mode,
+        targetName: info.groupName,
+        mode: info.mode,
+        tag: info.tag,
+        description: info.description,
       });
 
       const response = await fetchWithAuth(url, {
@@ -261,9 +262,10 @@ export default function ViewJobModelsModal({
         type="model"
         existingNames={existingModelNames}
         saving={savingModel !== null}
-        onSave={(targetName, mode) => {
+        jobId={jobId}
+        onSave={(info) => {
           if (saveDialogModel) {
-            handleSaveToRegistry(saveDialogModel, targetName, mode);
+            handleSaveToRegistry(saveDialogModel, info);
           }
         }}
       />
