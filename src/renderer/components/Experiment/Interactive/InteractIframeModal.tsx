@@ -54,8 +54,7 @@ export default function InteractIframeModal({
 
   const urls = Object.keys(values)
     .filter(
-      (k) =>
-        k.endsWith('_url') && typeof values[k] === 'string' && values[k],
+      (k) => k.endsWith('_url') && typeof values[k] === 'string' && values[k],
     )
     .map((k) => ({
       label: k.replace(/_url$/, '').replace(/_/g, ' '),
@@ -102,9 +101,7 @@ export default function InteractIframeModal({
         </Stack>
         <ModalClose />
         <Divider />
-        <DialogContent
-          sx={{ flex: 1, minHeight: 0, overflow: 'hidden', p: 0 }}
-        >
+        <DialogContent sx={{ flex: 1, minHeight: 0, overflow: 'hidden', p: 0 }}>
           {!isReady ? (
             <Stack
               direction="row"

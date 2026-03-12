@@ -367,7 +367,6 @@ export default function Interactive() {
             }),
           },
         );
-
       } else {
         // Create template with flat structure
         // Use env_parameters from the gallery-defined structure

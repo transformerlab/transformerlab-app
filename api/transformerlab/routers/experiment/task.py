@@ -967,8 +967,18 @@ async def import_task_from_gallery(
                 task_data["github_branch"] = github_branch
 
         # Merge additional fields from source task.yaml (parameters, env_vars, resources, etc.)
-        for key in ("parameters", "env_vars", "github_repo_url", "github_directory", "github_branch",
-                     "cpus", "memory", "disk_space", "accelerators", "num_nodes"):
+        for key in (
+            "parameters",
+            "env_vars",
+            "github_repo_url",
+            "github_directory",
+            "github_branch",
+            "cpus",
+            "memory",
+            "disk_space",
+            "accelerators",
+            "num_nodes",
+        ):
             if key in source_yaml_data:
                 task_data[key] = source_yaml_data[key]
 
