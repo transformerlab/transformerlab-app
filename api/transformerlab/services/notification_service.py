@@ -123,7 +123,6 @@ def build_notification_request_body(webhook_url: str, payload: Dict[str, Any]) -
     - Slack and Teams work well with a top-level `text` field.
     - Zapier can consume arbitrary JSON; we include both a human summary and the raw payload.
     """
-    url = webhook_url.lower()
     parsed = urlparse(webhook_url)
     host = (parsed.hostname or "").lower()
     path = parsed.path or ""
