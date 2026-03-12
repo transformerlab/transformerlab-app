@@ -25,8 +25,8 @@ def check_port(port: int) -> bool:
 
 def kill_ports(ports: list[int]) -> None:
     """Kill processes using the given ports."""
-    port_args = " ".join(f":{p}" for p in ports)
-    subprocess.run(f"lsof -ti {port_args} | xargs kill", shell=True)
+    port_args = " ".join(f"-ti :{p}" for p in ports)
+    subprocess.run(f"lsof {port_args} | xargs kill", shell=True)
 
 
 def check_ports() -> None:
@@ -46,8 +46,8 @@ def check_ports() -> None:
     for msg in busy_msgs:
         print(msg, file=sys.stderr)
 
-    port_args = " ".join(f":{p}" for p in busy_ports)
-    kill_cmd = f"lsof -ti {port_args} | xargs kill"
+    port_args = " ".join(f"-ti :{p}" for p in busy_ports)
+    kill_cmd = f"lsof {port_args} | xargs kill"
 
     try:
         answer = input("\nKill those processes? [Y/n] ").strip().lower()
