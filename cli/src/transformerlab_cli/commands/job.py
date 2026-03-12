@@ -279,6 +279,33 @@ def command_job_info(
     info_job(job_id, current_experiment)
 
 
+@app.command("stop")
+def command_job_stop(
+    job_id: str = typer.Argument(..., help="Job ID to stop"),
+):
+    """Stop a running job."""
+    check_configs()
+    current_experiment = get_config("current_experiment")
+    if not current_experiment or not str(current_experiment).strip():
+        console.print("[yellow]current_experiment is not set in config.[/yellow]")
+        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
+        raise typer.Exit(1)
+
+    with console.status(f"[bold green]Stopping job {job_id}...[/bold green]", spinner="dots"):
+        response = api.get(f"/experiment/{current_experiment}/jobs/{job_id}/stop")
+
+    if response.status_code == 200:
+        console.print(f"[green]✓[/green] Job [bold]{job_id}[/bold] stopped.")
+    else:
+        console.print(f"[red]Error:[/red] Failed to stop job. Status code: {response.status_code}")
+        try:
+            detail = response.json().get("detail", response.text)
+            console.print(f"[red]Detail:[/red] {detail}")
+        except Exception:
+            console.print(f"[red]Response:[/red] {response.text}")
+        raise typer.Exit(1)
+
+
 @app.command("monitor")
 def command_job_monitor():
     """Launch interactive job monitor TUI."""
