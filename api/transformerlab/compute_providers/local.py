@@ -306,10 +306,14 @@ class LocalProvider(ComputeProvider):
 
         venv_bin = venv_path / "bin"
         env = os.environ.copy()
+        # print(f"[DEBUG LocalProvider] config.env_vars = {config.env_vars}")
         env.update(config.env_vars or {})
         env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
+        env["VIRTUAL_ENV"] = str(venv_path)
         env["HOME"] = str(workspace_home)
         env["UV_CACHE_DIR"] = os.path.join(HOME_DIR, "uv_cache")
+        print(f"[DEBUG LocalProvider] MODEL_NAME in env = {env.get('MODEL_NAME', '<NOT SET>')}")
+        print(f"[DEBUG LocalProvider] config.command = {config.command!r}")
 
         # Open log files early so setup output is visible to get_job_logs / tunnel_info
         # while packages are still being installed.
