@@ -310,6 +310,7 @@ export default function Interactive() {
       let defaultSetup: string;
       let defaultRun: string;
       let templateId: string | undefined;
+      let galleryTemplate: any = null;
 
       try {
         const galleryResponse = await chatAPI.authenticatedFetch(
@@ -337,6 +338,7 @@ export default function Interactive() {
           defaultSetup = template.setup || '';
           defaultRun = template.run || template.command || '';
           templateId = template.id;
+          galleryTemplate = template;
         } else {
           throw new Error('Failed to fetch interactive gallery');
         }
@@ -378,6 +380,8 @@ export default function Interactive() {
         provider_id: providerMeta.id,
         provider_name: providerMeta.name,
         env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
+        github_repo_url: galleryTemplate?.github_repo_url || undefined,
+        github_directory: galleryTemplate?.github_repo_dir || undefined,
       };
 
       const response = await chatAPI.authenticatedFetch(
@@ -489,8 +493,9 @@ export default function Interactive() {
             'Selected provider is unavailable. Please create or update providers in team settings.',
         };
       }
-      if (!cfg.run) {
-        return { ok: false, error: 'Task is missing a run command.' };
+
+      if (!cfg.run && !cfg.github_repo_url && !task.github_repo_url) {
+        return { ok: false, error: 'Task is missing a command to run.' };
       }
 
       const payload = {
@@ -628,7 +633,8 @@ export default function Interactive() {
       });
       return;
     }
-    if (!cfg.run) {
+
+    if (!cfg.run && !cfg.github_repo_url && !task.github_repo_url) {
       addNotification({
         type: 'warning',
         message: 'Task is missing a run command.',
