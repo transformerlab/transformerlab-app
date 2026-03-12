@@ -2,19 +2,30 @@
  * DatasetRegistry.tsx
  *
  * Displays asset-version groups for datasets (from the asset_versions API).
- * Each group renders as an expandable card. Expanded cards show a versions table.
+ * Each group renders as an expandable accordion row showing its versions.
  * This is the "Dataset Registry" tab inside Data.
+ *
+ * The UI mirrors the Local Models table: search bar, filters (disabled),
+ * refresh button, and a clean table of versions per group.
  */
 
 import { useState } from 'react';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionGroup,
+  AccordionSummary,
   Box,
-  Card,
-  CardContent,
   Chip,
   CircularProgress,
   Divider,
+  Drawer,
+  DialogTitle,
+  FormControl,
+  FormLabel,
   IconButton,
+  Input,
+  ModalClose,
   Option,
   Select,
   Sheet,
@@ -25,15 +36,16 @@ import {
   Typography,
 } from '@mui/joy';
 import {
-  CalendarIcon,
   BriefcaseIcon,
   ChevronDownIcon,
-  ChevronUpIcon,
   DatabaseIcon,
-  LayersIcon,
+  InfoIcon,
+  RotateCcwIcon,
+  SearchIcon,
   Trash2Icon,
   XIcon,
 } from 'lucide-react';
+import Markdown from 'react-markdown';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { fetchWithAuth } from 'renderer/lib/authContext';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
@@ -110,25 +122,210 @@ function formatRelativeDate(isoString: string | null): string {
   }
 }
 
-// ─── Skeleton loader ─────────────────────────────────────────────────────────
+// ─── Skeleton loader (matches LocalModelsTable pattern) ──────────────────────
 
 function RegistrySkeleton() {
   return (
-    <Box sx={{ p: 2, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-      {[...Array(4)].map((_, i) => (
-        <Skeleton
-          key={i}
-          variant="rectangular"
-          width={320}
-          height={120}
-          sx={{ borderRadius: 12 }}
-        />
-      ))}
-    </Box>
+    <>
+      <Box
+        className="SearchAndFilters-tabletUp"
+        sx={{
+          borderRadius: 'sm',
+          mt: 1,
+          pb: 2,
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 1.5,
+          '& > *': { minWidth: { xs: '120px', md: '160px' } },
+        }}
+      >
+        <Skeleton variant="rectangular" sx={{ flex: 1, height: 32, borderRadius: 'sm' }} />
+        <Skeleton variant="rectangular" sx={{ width: 160, height: 32, borderRadius: 'sm' }} />
+      </Box>
+      <Sheet
+        variant="outlined"
+        sx={{ width: '100%', borderRadius: 'md', minHeight: 0, display: 'flex', overflow: 'auto', p: 2 }}
+      >
+        <Box sx={{ width: '100%' }}>
+          {[...Array(6)].map((_, idx) => (
+            <Skeleton key={idx} variant="rectangular" sx={{ height: 48, borderRadius: 'sm', mb: 1 }} />
+          ))}
+        </Box>
+      </Sheet>
+    </>
   );
 }
 
-// ─── Version row inside the expanded card ────────────────────────────────────
+// ─── Version Info Drawer ─────────────────────────────────────────────────────
+
+function VersionInfoDrawer({
+  open,
+  onClose,
+  entry,
+}: {
+  open: boolean;
+  onClose: () => void;
+  entry: VersionEntry | null;
+}) {
+  if (!entry) return null;
+
+  return (
+    <Drawer
+      anchor="right"
+      open={open}
+      onClose={onClose}
+      size="lg"
+      slotProps={{
+        content: {
+          sx: {
+            width: { xs: '100vw', sm: 540 },
+            display: 'flex',
+            flexDirection: 'column',
+          },
+        },
+      }}
+    >
+      <Sheet sx={{ p: 2.5, pb: 1.5 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <DialogTitle>
+            <Typography level="title-lg">
+              Version Details: <b>v{entry.version}</b>
+            </Typography>
+          </DialogTitle>
+          <ModalClose />
+        </Stack>
+      </Sheet>
+      <Divider />
+      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+        <Stack spacing={2}>
+          {/* Title */}
+          {entry.title && (
+            <Box>
+              <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+                Title
+              </Typography>
+              <Typography level="body-md">{entry.title}</Typography>
+            </Box>
+          )}
+
+          {/* Description */}
+          {entry.description && (
+            <Box>
+              <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+                Description
+              </Typography>
+              <Typography level="body-sm">{entry.description}</Typography>
+            </Box>
+          )}
+
+          {/* Long description (markdown) */}
+          {entry.long_description && (
+            <Box>
+              <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+                Details
+              </Typography>
+              <Box sx={{ '& p': { margin: 0 }, '& img': { maxWidth: '100%' } }}>
+                <Markdown>{entry.long_description}</Markdown>
+              </Box>
+            </Box>
+          )}
+
+          {/* Cover image */}
+          {entry.cover_image && (
+            <Box>
+              <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+                Cover Image
+              </Typography>
+              <img
+                src={entry.cover_image}
+                alt="Cover"
+                style={{ maxWidth: '100%', borderRadius: 8 }}
+              />
+            </Box>
+          )}
+
+          {/* Dataset ID */}
+          <Box>
+            <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+              Dataset ID
+            </Typography>
+            <Typography level="body-sm" fontFamily="monospace">
+              {entry.asset_id}
+            </Typography>
+          </Box>
+
+          {/* Tag */}
+          <Box>
+            <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+              Tag
+            </Typography>
+            {entry.tag ? (
+              <Chip size="sm" color={TAG_COLORS[entry.tag] || 'neutral'} variant="soft">
+                {entry.tag}
+              </Chip>
+            ) : (
+              <Typography level="body-sm" color="neutral">—</Typography>
+            )}
+          </Box>
+
+          {/* Created */}
+          <Box>
+            <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+              Created
+            </Typography>
+            <Typography level="body-sm">{formatDate(entry.created_at)}</Typography>
+          </Box>
+
+          {/* Source Job */}
+          <Box>
+            <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+              Source Job
+            </Typography>
+            {entry.job_id ? (
+              <Chip size="sm" variant="outlined" color="neutral">
+                <BriefcaseIcon size={12} />
+                &nbsp;Job {entry.job_id}
+              </Chip>
+            ) : (
+              <Typography level="body-sm" color="neutral">—</Typography>
+            )}
+          </Box>
+
+          {/* Evals */}
+          {entry.evals && Object.keys(entry.evals).length > 0 && (
+            <Box>
+              <Typography level="body-xs" textTransform="uppercase" fontWeight="lg" sx={{ mb: 0.5 }}>
+                Evaluations
+              </Typography>
+              <Table size="sm" sx={{ '& td, & th': { py: 0.5 } }}>
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(entry.evals).map(([key, val]) => (
+                    <tr key={key}>
+                      <td>
+                        <Typography level="body-sm" fontFamily="monospace">{key}</Typography>
+                      </td>
+                      <td>
+                        <Typography level="body-sm">{String(val)}</Typography>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </Box>
+          )}
+        </Stack>
+      </Box>
+    </Drawer>
+  );
+}
+
+// ─── Version row (inline in the accordion) ───────────────────────────────────
 
 function VersionRow({
   v,
@@ -136,27 +333,38 @@ function VersionRow({
   onSetTag,
   onClearTag,
   onDelete,
+  onInfo,
 }: {
   v: VersionEntry;
   updatingVersion: number | null;
   onSetTag: (version: number, tag: string) => void;
   onClearTag: (version: number) => void;
   onDelete: (version: number) => void;
+  onInfo: (version: VersionEntry) => void;
 }) {
   return (
     <tr key={v.id}>
+      {/* Name / title */}
+      <td>
+        <Tooltip title={v.description || v.asset_id}>
+          <Typography level="body-sm" noWrap sx={{ maxWidth: 220 }}>
+            {v.title || v.asset_id}
+          </Typography>
+        </Tooltip>
+      </td>
+      {/* Dataset ID */}
+      <td>
+        <Typography level="body-sm" fontFamily="monospace" noWrap sx={{ maxWidth: 200 }}>
+          {v.asset_id}
+        </Typography>
+      </td>
+      {/* Version */}
       <td>
         <Typography level="title-sm" fontFamily="monospace">
           v{v.version}
         </Typography>
       </td>
-      <td>
-        <Tooltip title={v.description || v.asset_id}>
-          <Typography level="body-sm" noWrap sx={{ maxWidth: 180 }}>
-            {v.asset_id}
-          </Typography>
-        </Tooltip>
-      </td>
+      {/* Tag */}
       <td>
         {updatingVersion === v.version ? (
           <CircularProgress size="sm" />
@@ -195,12 +403,7 @@ function VersionRow({
           </Select>
         )}
       </td>
-      <td>
-        <Stack direction="row" alignItems="center" gap={0.5}>
-          <CalendarIcon size={12} />
-          <Typography level="body-xs">{formatDate(v.created_at)}</Typography>
-        </Stack>
-      </td>
+      {/* Job */}
       <td>
         {v.job_id ? (
           <Tooltip title={`Job ${v.job_id}`}>
@@ -215,29 +418,39 @@ function VersionRow({
           </Typography>
         )}
       </td>
+      {/* Created */}
       <td>
-        <IconButton
-          size="sm"
-          variant="plain"
-          color="danger"
+        <Typography level="body-xs">{formatRelativeDate(v.created_at)}</Typography>
+      </td>
+      {/* Info + Delete (inline, no Actions header) */}
+      <td style={{ textAlign: 'right' }}>
+        <InfoIcon
+          size={18}
+          style={{ cursor: 'pointer', verticalAlign: 'middle' }}
+          onClick={() => onInfo(v)}
+        />
+        &nbsp;
+        <Trash2Icon
+          size={18}
+          color="var(--joy-palette-danger-600)"
+          style={{ cursor: 'pointer', verticalAlign: 'middle' }}
           onClick={() => onDelete(v.version)}
-          disabled={updatingVersion === v.version}
-        >
-          <Trash2Icon size={16} />
-        </IconButton>
+        />
       </td>
     </tr>
   );
 }
 
-// ─── Expanded card versions table ────────────────────────────────────────────
+// ─── Expanded group versions table ───────────────────────────────────────────
 
-function CardVersionsTable({
+function GroupVersionsTable({
   groupName,
   mutateGroups,
+  onOpenInfo,
 }: {
   groupName: string;
   mutateGroups: () => void;
+  onOpenInfo: (v: VersionEntry) => void;
 }) {
   const [updatingVersion, setUpdatingVersion] = useState<number | null>(null);
   const assetType = 'dataset';
@@ -331,19 +544,27 @@ function CardVersionsTable({
   return (
     <Table
       size="sm"
+      stickyHeader
+      hoverRow
       sx={{
+        '--TableCell-headBackground': (theme: any) =>
+          theme.vars.palette.background.level1,
+        '--Table-headerUnderlineThickness': '1px',
+        '--TableRow-hoverBackground': (theme: any) =>
+          theme.vars.palette.background.level1,
         '& thead th': { textAlign: 'left' },
         '& tbody td': { verticalAlign: 'middle' },
       }}
     >
       <thead>
         <tr>
-          <th style={{ width: 70 }}>Version</th>
-          <th style={{ width: 120 }}>Dataset ID</th>
-          <th style={{ width: 110 }}>Tag</th>
-          <th style={{ width: 150 }}>Created</th>
-          <th style={{ width: 80 }}>Job</th>
-          <th>Actions</th>
+          <th style={{ width: 200, padding: 12 }}>Name</th>
+          <th style={{ width: 200, padding: 12 }}>Dataset ID</th>
+          <th style={{ width: 70, padding: 12 }}>Version</th>
+          <th style={{ width: 120, padding: 12 }}>Tag</th>
+          <th style={{ width: 80, padding: 12 }}>Job</th>
+          <th style={{ width: 90, padding: 12 }}>Created</th>
+          <th style={{ width: 60, padding: 12 }}> </th>
         </tr>
       </thead>
       <tbody>
@@ -355,6 +576,7 @@ function CardVersionsTable({
             onSetTag={handleSetTag}
             onClearTag={handleClearTag}
             onDelete={handleDeleteVersion}
+            onInfo={onOpenInfo}
           />
         ))}
       </tbody>
@@ -362,102 +584,12 @@ function CardVersionsTable({
   );
 }
 
-// ─── Single group card ───────────────────────────────────────────────────────
-
-function GroupCard({
-  group,
-  isExpanded,
-  onToggle,
-  onDelete,
-  mutateGroups,
-}: {
-  group: GroupSummary;
-  isExpanded: boolean;
-  onToggle: () => void;
-  onDelete: () => void;
-  mutateGroups: () => void;
-}) {
-  return (
-    <Card
-      variant="outlined"
-      sx={{
-        width: '100%',
-        transition: 'box-shadow 0.2s',
-        '&:hover': { boxShadow: 'sm' },
-      }}
-    >
-      <CardContent>
-        {/* Header row */}
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            cursor: 'pointer',
-          }}
-          onClick={onToggle}
-        >
-          {/* Left: icon + name + badges */}
-          <Stack direction="row" alignItems="center" gap={1.5}>
-            <DatabaseIcon size={18} />
-            <Typography level="title-md" fontWeight="lg">
-              {group.group_name}
-            </Typography>
-            <Chip size="sm" variant="soft" color="neutral">
-              {group.version_count} version{group.version_count !== 1 ? 's' : ''}
-            </Chip>
-            {group.latest_tag && (
-              <Chip
-                size="sm"
-                variant="soft"
-                color={TAG_COLORS[group.latest_tag] || 'neutral'}
-              >
-                {group.latest_tag}
-              </Chip>
-            )}
-          </Stack>
-
-          {/* Right: last updated + actions + chevron */}
-          <Stack direction="row" alignItems="center" gap={1}>
-            <Typography level="body-xs" color="neutral">
-              {formatRelativeDate(group.latest_created_at)}
-            </Typography>
-            <Tooltip title="Delete group">
-              <IconButton
-                size="sm"
-                variant="plain"
-                color="danger"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-              >
-                <Trash2Icon size={16} />
-              </IconButton>
-            </Tooltip>
-            {isExpanded ? <ChevronUpIcon size={18} /> : <ChevronDownIcon size={18} />}
-          </Stack>
-        </Box>
-
-        {/* Expanded content: versions table */}
-        {isExpanded && (
-          <>
-            <Divider sx={{ my: 1.5 }} />
-            <CardVersionsTable
-              groupName={group.group_name}
-              mutateGroups={mutateGroups}
-            />
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export default function DatasetRegistry() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [searchText, setSearchText] = useState('');
+  const [infoDrawerEntry, setInfoDrawerEntry] = useState<VersionEntry | null>(null);
 
   const {
     data: groups,
@@ -511,6 +643,15 @@ export default function DatasetRegistry() {
 
   const groupList: GroupSummary[] = Array.isArray(groups) ? groups : [];
 
+  // Filter groups by search text
+  const filteredGroups = groupList.filter((g) => {
+    const search = searchText.toLowerCase();
+    if (search && !g.group_name.toLowerCase().includes(search)) {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <Sheet
       sx={{
@@ -521,52 +662,156 @@ export default function DatasetRegistry() {
         minHeight: 0,
       }}
     >
-      {/* Header */}
+      {/* ── Top bar: matches LocalModelsTable ── */}
       <Box
+        className="SearchAndFilters-tabletUp"
         sx={{
+          borderRadius: 'sm',
+          pb: 2,
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          px: 2,
-          py: 1.5,
+          flexWrap: 'wrap',
+          gap: 1.5,
+          '& > *': {
+            minWidth: {
+              xs: '120px',
+              md: '160px',
+            },
+          },
         }}
       >
-        <Stack direction="row" alignItems="center" gap={1}>
-          <LayersIcon size={20} />
-          <Typography level="title-lg">Dataset Registry</Typography>
-          <Chip size="sm" variant="soft" color="neutral">
-            {groupList.length} group{groupList.length !== 1 ? 's' : ''}
-          </Chip>
-        </Stack>
+        <FormControl sx={{ flex: 1 }} size="sm">
+          <FormLabel>&nbsp;</FormLabel>
+          <Input
+            placeholder="Search"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            startDecorator={<SearchIcon />}
+          />
+        </FormControl>
+
+        <FormControl size="sm">
+          <FormLabel>&nbsp;</FormLabel>
+          <IconButton
+            variant="outlined"
+            color="neutral"
+            size="sm"
+            onClick={() => mutateGroups()}
+            aria-label="Refresh datasets"
+          >
+            <RotateCcwIcon size="18px" />
+            &nbsp; Refresh Datasets
+          </IconButton>
+        </FormControl>
       </Box>
 
-      {/* Content */}
-      <Box sx={{ flex: 1, overflow: 'auto', px: 2, pb: 2 }}>
-        {groupList.length === 0 ? (
+      {/* ── Content ── */}
+      <Box sx={{ flex: 1, overflow: 'auto' }}>
+        {filteredGroups.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <DatabaseIcon size={48} color="gray" style={{ marginBottom: 16 }} />
             <Typography level="body-lg" color="neutral">
-              No dataset groups yet.
+              {searchText
+                ? 'No dataset groups match your search.'
+                : 'No dataset groups yet.'}
             </Typography>
-            <Typography level="body-sm" color="neutral" sx={{ mt: 1 }}>
-              Publish a dataset from the Jobs page to create your first group.
-            </Typography>
+            {!searchText && (
+              <Typography level="body-sm" color="neutral" sx={{ mt: 1 }}>
+                Publish a dataset from the Jobs page to create your first group.
+              </Typography>
+            )}
           </Box>
         ) : (
-          <Stack spacing={1.5}>
-            {groupList.map((group) => (
-              <GroupCard
-                key={group.group_name}
-                group={group}
-                isExpanded={expandedGroups.has(group.group_name)}
-                onToggle={() => toggleGroup(group.group_name)}
-                onDelete={() => handleDeleteGroup(group.group_name)}
-                mutateGroups={mutateGroups}
-              />
-            ))}
-          </Stack>
+          <AccordionGroup
+            sx={{
+              borderRadius: 'md',
+              [`& .MuiAccordion-root`]: {
+                marginTop: '0.5rem',
+                transition: '0.2s ease',
+                '& button:not([aria-expanded="true"])': {
+                  transition: '0.2s ease',
+                  paddingBottom: '0.625rem',
+                },
+                '& button:hover': {
+                  background: 'transparent',
+                },
+              },
+            }}
+          >
+            {filteredGroups.map((group) => {
+              const isExpanded = expandedGroups.has(group.group_name);
+              return (
+                <Accordion
+                  key={group.group_name}
+                  expanded={isExpanded}
+                  onChange={() => toggleGroup(group.group_name)}
+                  sx={{
+                    borderRadius: 'md',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <AccordionSummary
+                    indicator={<ChevronDownIcon size={18} />}
+                    sx={{ px: 2, py: 1.5 }}
+                  >
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                        pr: 1,
+                      }}
+                    >
+                      {/* Left side: Name + badges */}
+                      <Stack direction="row" alignItems="center" gap={1.5}>
+                        <DatabaseIcon size={18} />
+                        <Typography level="title-md" fontWeight="lg">
+                          {group.group_name}
+                        </Typography>
+                        <Chip size="sm" variant="soft" color="neutral">
+                          {group.version_count} version{group.version_count !== 1 ? 's' : ''}
+                        </Chip>
+                        {group.latest_tag && (
+                          <Chip
+                            size="sm"
+                            variant="soft"
+                            color={TAG_COLORS[group.latest_tag] || 'neutral'}
+                          >
+                            {group.latest_tag}
+                          </Chip>
+                        )}
+                      </Stack>
+
+                      {/* Right side: last updated */}
+                      <Typography level="body-xs" color="neutral">
+                        {formatRelativeDate(group.latest_created_at)}
+                      </Typography>
+                    </Box>
+                  </AccordionSummary>
+
+                  <AccordionDetails sx={{ px: 2, pb: 2 }}>
+                    {isExpanded && (
+                      <GroupVersionsTable
+                        groupName={group.group_name}
+                        mutateGroups={mutateGroups}
+                        onOpenInfo={(v) => setInfoDrawerEntry(v)}
+                      />
+                    )}
+                  </AccordionDetails>
+                </Accordion>
+              );
+            })}
+          </AccordionGroup>
         )}
       </Box>
+
+      {/* ── Version Info Drawer ── */}
+      <VersionInfoDrawer
+        open={infoDrawerEntry !== null}
+        onClose={() => setInfoDrawerEntry(null)}
+        entry={infoDrawerEntry}
+      />
     </Sheet>
   );
 }
