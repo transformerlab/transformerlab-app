@@ -32,6 +32,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
 import SweepConfigSection from './SweepConfigSection';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 
 type QueueTaskModalProps = {
   open: boolean;
@@ -104,6 +105,7 @@ export default function QueueTaskModal({
   const [sweepMetric, setSweepMetric] = React.useState('eval/loss');
   const [lowerIsBetter, setLowerIsBetter] = React.useState(true);
   const [jobSlurmFlags, setJobSlurmFlags] = React.useState<string[]>(['']);
+  const [useTrackio, setUseTrackio] = React.useState(false);
   const loadingMessages = React.useMemo(
     () => [
       'Contacting compute provider…',
@@ -205,11 +207,7 @@ export default function QueueTaskModal({
   const taskResources = React.useMemo(() => {
     if (!task) return null;
     const cfg =
-      task.config !== undefined
-        ? typeof task.config === 'string'
-          ? JSON.parse(task.config)
-          : task.config
-        : task;
+      task.config !== undefined ? SafeJSONParse(task.config, task) : task;
 
     let accelerators = cfg.accelerators || task.accelerators || null;
     const cpus = cfg.cpus || task.cpus || null;
@@ -449,11 +447,7 @@ export default function QueueTaskModal({
     if (open && task) {
       // Extract parameters from task
       const cfg =
-        task.config !== undefined
-          ? typeof task.config === 'string'
-            ? JSON.parse(task.config)
-            : task.config
-          : task;
+        task.config !== undefined ? SafeJSONParse(task.config, task) : task;
 
       const taskParameters = cfg.parameters || task.parameters || {};
 
@@ -482,7 +476,7 @@ export default function QueueTaskModal({
       if (cfg.sweep_config || task.sweep_config) {
         const sweepCfg =
           typeof cfg.sweep_config === 'string'
-            ? JSON.parse(cfg.sweep_config)
+            ? SafeJSONParse(cfg.sweep_config, cfg.sweep_config)
             : cfg.sweep_config || task.sweep_config;
         setSweepConfig(sweepCfg || {});
       } else {
@@ -610,6 +604,12 @@ export default function QueueTaskModal({
       }
       config.sweep_metric = sweepMetric;
       config.lower_is_better = lowerIsBetter;
+    }
+
+    // Trackio auto-init flag: when enabled, backend will set TLAB_TRACKIO_AUTO_INIT
+    // in the job environment so Lab can automatically integrate with Trackio.
+    if (useTrackio) {
+      config.enable_trackio = true;
     }
 
     onSubmit(config);
@@ -1285,6 +1285,30 @@ export default function QueueTaskModal({
                 Parameters can be accessed in your task script using{' '}
                 <code>lab.get_config()</code>
               </Typography>
+            </Stack>
+
+            <Divider />
+
+            {/* Tracking Section */}
+            <Stack spacing={2}>
+              <Typography level="title-sm">Tracking</Typography>
+              <FormControl
+                orientation="horizontal"
+                sx={{ alignItems: 'center' }}
+              >
+                <Checkbox
+                  checked={useTrackio}
+                  onChange={(e) => setUseTrackio(e.target.checked)}
+                  disabled={isSubmitting}
+                />
+                <FormLabel sx={{ ml: 1 }}>
+                  Enable Trackio metrics tracking for this run
+                </FormLabel>
+              </FormControl>
+              <FormHelperText>
+                When enabled, the scripts that use the lab SDK can automatically
+                log metrics to Trackio and expose a Trackio dashboard in the UI.
+              </FormHelperText>
             </Stack>
 
             <Divider />

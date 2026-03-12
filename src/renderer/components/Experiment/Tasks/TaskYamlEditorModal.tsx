@@ -4,7 +4,7 @@ import DialogTitle from '@mui/joy/DialogTitle';
 import DialogContent from '@mui/joy/DialogContent';
 import DialogActions from '@mui/joy/DialogActions';
 import Button from '@mui/joy/Button';
-import { ModalClose, ModalDialog, Divider } from '@mui/joy';
+import { ModalClose, ModalDialog, Divider, Stack } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -30,6 +30,9 @@ export default function TaskYamlEditorModal({
   const [error, setError] = React.useState<string | null>(null);
   const [isMissing, setIsMissing] = React.useState(false);
   const [creatingBlank, setCreatingBlank] = React.useState(false);
+  const [validationMessage, setValidationMessage] = React.useState<
+    string | null
+  >(null);
 
   const loadYaml = React.useCallback(async () => {
     if (!experimentId || !taskId) return;
@@ -70,6 +73,7 @@ export default function TaskYamlEditorModal({
   const handleCreateBlank = async () => {
     setCreatingBlank(true);
     setError(null);
+    setValidationMessage(null);
     const defaultYaml =
       'name: my-task\nresources:\n  cpus: 2\n  memory: 4\nrun: "echo hello"';
 
@@ -100,6 +104,7 @@ export default function TaskYamlEditorModal({
   const handleSave = async () => {
     setSaving(true);
     setError(null);
+    setValidationMessage(null);
     try {
       const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Task.UpdateYaml(experimentId, taskId),
@@ -110,7 +115,24 @@ export default function TaskYamlEditorModal({
         },
       );
       if (!response.ok) {
-        setError(`Failed to save: ${response.status}`);
+        let message = `Failed to save: ${response.status}`;
+        try {
+          const contentType = response.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const data = await response.json();
+            if (typeof data?.detail === 'string') {
+              message = data.detail;
+            }
+          } else {
+            const text = await response.text();
+            if (text) {
+              message = text;
+            }
+          }
+        } catch {
+          // Fallback to default message
+        }
+        setError(message);
         return;
       }
       onSaved?.();
@@ -119,6 +141,49 @@ export default function TaskYamlEditorModal({
       setError(e instanceof Error ? e.message : 'Failed to save');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleValidate = async () => {
+    setError(null);
+    setValidationMessage(null);
+    try {
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Task.ValidateYaml(experimentId),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: content,
+        },
+      );
+      if (!response.ok) {
+        let message = `Validation failed: ${response.status}`;
+        try {
+          const contentType = response.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const data = await response.json();
+            if (typeof data?.detail === 'string') {
+              message = data.detail;
+            }
+          } else {
+            const text = await response.text();
+            if (text) {
+              message = text;
+            }
+          }
+        } catch {
+          // ignore parse errors
+        }
+        setError(message);
+        return;
+      }
+      setValidationMessage('YAML is valid.');
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? `Validation failed: ${e.message}`
+          : 'Validation failed',
+      );
     }
   };
 
@@ -202,18 +267,52 @@ export default function TaskYamlEditorModal({
             />
           )}
         </DialogContent>
-        <DialogActions>
-          <Button color="neutral" variant="plain" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            color="success"
-            onClick={handleSave}
-            loading={saving}
-            disabled={loading || isMissing}
+        <DialogActions
+          sx={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1,
+          }}
+        >
+          <div
+            style={{
+              minHeight: '1.25rem',
+              flex: 1,
+              fontSize: '0.875rem',
+              color: error
+                ? 'var(--joy-palette-danger-600)'
+                : 'var(--joy-palette-success-600)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={error || undefined}
           >
-            Save
-          </Button>
+            {error || validationMessage}
+          </div>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Button color="neutral" variant="plain" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              color="primary"
+              variant="outlined"
+              onClick={handleValidate}
+              disabled={loading || isMissing || saving}
+            >
+              Validate
+            </Button>
+            <Button
+              color="success"
+              onClick={handleSave}
+              loading={saving}
+              disabled={loading || isMissing}
+            >
+              Save
+            </Button>
+          </Stack>
         </DialogActions>
       </ModalDialog>
     </Modal>

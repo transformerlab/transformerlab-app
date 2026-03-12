@@ -16,6 +16,7 @@ from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.services.provider_service import (
     get_team_provider,
     list_team_providers,
+    list_enabled_team_providers,
     create_team_provider,
     update_team_provider,
     delete_team_provider,
@@ -31,11 +32,10 @@ from transformerlab.schemas.compute_providers import (
     ProviderTemplateFileUploadResponse,
     ResumeFromCheckpointRequest,
 )
-from transformerlab.shared.models.models import ProviderType
+from transformerlab.shared.models.models import ProviderType, TeamRole
 from transformerlab.compute_providers.models import (
     ClusterConfig,
     ClusterStatus,
-    ClusterState,
     ResourceInfo,
     JobConfig,
     JobInfo,
@@ -44,9 +44,11 @@ from transformerlab.compute_providers.models import (
 from transformerlab.services import job_service
 from transformerlab.services import quota_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
+from transformerlab.services.cache_service import cache
 from lab import storage
 from lab.storage import STORAGE_PROVIDER
 from lab.dirs import get_workspace_dir, get_local_provider_job_dir, get_job_dir, set_organization_id, get_task_dir
+from lab.job_status import JobStatus
 from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
     generate_github_clone_setup,
@@ -63,6 +65,7 @@ from transformerlab.shared.interactive_gallery_utils import (
     resolve_interactive_command,
     find_interactive_gallery_entry,
 )
+from transformerlab.schemas.secrets import SPECIAL_SECRET_TYPES
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -169,15 +172,22 @@ async def upload_task_file_for_provider(
 
 @router.get("/", response_model=List[ProviderRead])
 async def list_providers(
+    include_disabled: bool = Query(False, description="Include disabled providers (admin view)"),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
     List all providers for the current team.
     Requires X-Team-Id header and team membership.
+    By default, disabled providers are excluded. Pass include_disabled=true to see all.
     """
     team_id = user_and_team["team_id"]
-    providers = await list_team_providers(session, team_id)
+    if include_disabled:
+        if user_and_team.get("role") != TeamRole.OWNER.value:
+            raise HTTPException(status_code=403, detail="Only team owners can view disabled providers")
+        providers = await list_team_providers(session, team_id)
+    else:
+        providers = await list_enabled_team_providers(session, team_id)
 
     # Convert to response format with masked sensitive fields
     result = []
@@ -193,6 +203,7 @@ async def list_providers(
                 created_by_user_id=provider.created_by_user_id,
                 created_at=provider.created_at,
                 updated_at=provider.updated_at,
+                disabled=provider.disabled,
             )
         )
 
@@ -257,6 +268,7 @@ async def create_provider(
         created_by_user_id=provider.created_by_user_id,
         created_at=provider.created_at,
         updated_at=provider.updated_at,
+        disabled=provider.disabled,
     )
 
 
@@ -710,6 +722,7 @@ async def get_provider(
         created_by_user_id=provider.created_by_user_id,
         created_at=provider.created_at,
         updated_at=provider.updated_at,
+        disabled=provider.disabled,
     )
 
 
@@ -750,8 +763,13 @@ async def update_provider(
         # Merge dictionaries, with new_config taking precedence
         update_config = {**existing_config, **new_config}
 
+    # Resolve disabled flag: only update if explicitly set (not the default False)
+    update_disabled = provider_data.disabled if provider_data.disabled is not None else None
+
     # Update provider
-    provider = await update_team_provider(session=session, provider=provider, name=update_name, config=update_config)
+    provider = await update_team_provider(
+        session=session, provider=provider, name=update_name, config=update_config, disabled=update_disabled
+    )
 
     # Return with masked sensitive fields
     masked_config = mask_sensitive_config(provider.config or {}, provider.type)
@@ -764,6 +782,7 @@ async def update_provider(
         created_by_user_id=provider.created_by_user_id,
         created_at=provider.created_at,
         updated_at=provider.updated_at,
+        disabled=provider.disabled,
     )
 
 
@@ -994,7 +1013,7 @@ def _find_missing_secrets_for_template_launch(
     referenced: set[str] = set()
 
     # Core task fields that may contain secrets
-    referenced.update(extract_secret_names_from_data(request.command))
+    referenced.update(extract_secret_names_from_data(request.run))
     if request.setup:
         referenced.update(extract_secret_names_from_data(request.setup))
     if request.env_vars:
@@ -1062,7 +1081,7 @@ async def _create_sweep_parent_job(
 
     parent_job_id = await job_service.job_create(
         type="SWEEP",
-        status="RUNNING",
+        status=JobStatus.RUNNING,
         experiment_id=request.experiment_id,
     )
 
@@ -1090,6 +1109,9 @@ async def _create_sweep_parent_job(
         if value is not None:
             await job_service.job_update_job_data_insert_key_value(parent_job_id, key, value, request.experiment_id)
 
+    # Ensure experiment job lists reflect the new parent sweep job.
+    await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
+
     return parent_job_id
 
 
@@ -1110,12 +1132,10 @@ async def _launch_sweep_jobs(
     """
     from itertools import product
     from transformerlab.db.session import async_session
-    from transformerlab.shared.request_context import set_current_org_id
     from lab.dirs import set_organization_id as lab_set_org_id
 
     # Set org context explicitly since background tasks don't inherit request context
     team_id = user_and_team["team_id"]
-    set_current_org_id(team_id)
     if lab_set_org_id is not None:
         lab_set_org_id(team_id)
 
@@ -1172,7 +1192,7 @@ async def _launch_sweep_jobs(
                 # Create child job
                 child_job_id = await job_service.job_create(
                     type="REMOTE",
-                    status="QUEUED",
+                    status=JobStatus.QUEUED,
                     experiment_id=request.experiment_id,
                 )
 
@@ -1273,11 +1293,13 @@ async def _launch_sweep_jobs(
                 if request.github_repo_url:
                     workspace_dir = await get_workspace_dir()
                     github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
+                    directory = request.github_repo_dir or request.github_directory
+                    branch = request.github_repo_branch or request.github_branch
                     github_setup = generate_github_clone_setup(
                         repo_url=request.github_repo_url,
-                        directory=request.github_directory,
+                        directory=directory,
                         github_pat=github_pat,
-                        branch=request.github_branch,
+                        branch=branch,
                     )
                     setup_commands.append(github_setup)
 
@@ -1290,9 +1312,9 @@ async def _launch_sweep_jobs(
 
                 final_setup = ";".join(setup_commands) if setup_commands else None
 
-                # Replace secrets in command
-                command_with_secrets = (
-                    replace_secret_placeholders(request.command, team_secrets) if team_secrets else request.command
+                # Replace secrets in run command
+                run_with_secrets = (
+                    replace_secret_placeholders(request.run, team_secrets) if team_secrets else request.run
                 )
 
                 # Replace secrets in parameters if present
@@ -1309,7 +1331,7 @@ async def _launch_sweep_jobs(
                     "task_name": f"{request.task_name or 'Task'} (Sweep {i + 1}/{total_configs})"
                     if request.task_name
                     else None,
-                    "command": command_with_secrets,
+                    "run": run_with_secrets,
                     "cluster_name": formatted_cluster_name,
                     "subtype": request.subtype,
                     "cpus": request.cpus,
@@ -1350,7 +1372,7 @@ async def _launch_sweep_jobs(
                     cluster_name=formatted_cluster_name,
                     provider_name=provider_display_name,
                     provider_id=provider.id,
-                    command=command_with_secrets,
+                    run=run_with_secrets,
                     setup=final_setup,
                     env_vars=env_vars,
                     cpus=request.cpus,
@@ -1385,7 +1407,7 @@ async def _launch_sweep_jobs(
                             )
 
                     # Update child job status to LAUNCHING
-                    await job_service.job_update_status(child_job_id, "LAUNCHING", request.experiment_id)
+                    await job_service.job_update_status(child_job_id, JobStatus.LAUNCHING, request.experiment_id)
                     child_job_ids.append(str(child_job_id))
                     print(f"Launched sweep child job {i + 1}/{total_configs}: {child_job_id}")
 
@@ -1393,7 +1415,7 @@ async def _launch_sweep_jobs(
                     print(f"Failed to launch cluster for sweep child {i + 1}: {exc}")
                     await job_service.job_update_status(
                         child_job_id,
-                        "FAILED",
+                        JobStatus.FAILED,
                         request.experiment_id,
                         error_msg=str(exc),
                     )
@@ -1408,9 +1430,10 @@ async def _launch_sweep_jobs(
             )
 
             print(f"Completed launching {len(child_job_ids)} child jobs for sweep {parent_job_id}")
+            # Invalidate cached job lists now that all child jobs have been created.
+            await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
     finally:
         # Clear org context after background task completes
-        set_current_org_id(None)
         if lab_set_org_id is not None:
             lab_set_org_id(None)
 
@@ -1437,15 +1460,24 @@ async def launch_template_on_provider(
     # Load team + user secrets once and validate that any referenced secrets exist
     team_secrets = await load_team_secrets(user_id=user_id)
     missing_secrets = _find_missing_secrets_for_template_launch(request, team_secrets)
+
     if missing_secrets:
-        missing_list = ", ".join(sorted(missing_secrets))
+        display_names = [SPECIAL_SECRET_TYPES.get(name, name) for name in sorted(missing_secrets)]
+        missing_list = ", ".join(display_names)
         raise HTTPException(
             status_code=400,
             detail=(
-                "Missing secrets referenced in task configuration: "
+                "Missing secrets: "
                 f"{missing_list}. Please define these secrets at the team or user level before launching."
             ),
         )
+
+    # Check if the provider is disabled before any launch path
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if provider.disabled:
+        raise HTTPException(status_code=403, detail="Provider is disabled and cannot be used to launch tasks")
 
     # Check if sweeps are enabled
     if request.run_sweeps and request.sweep_config:
@@ -1500,9 +1532,7 @@ async def launch_template_on_provider(
         }
 
     # Normal single job launch (existing logic)
-    provider = await get_team_provider(session, team_id, provider_id)
-    if not provider:
-        raise HTTPException(status_code=404, detail="Provider not found")
+    # (provider already fetched and validated above)
 
     # Quota checking and hold creation (only for REMOTE jobs)
     if request.minutes_requested is not None and request.minutes_requested > 0:
@@ -1517,15 +1547,18 @@ async def launch_template_on_provider(
 
     # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING,
     # except for LOCAL providers where we introduce a WAITING status while queued.
-    initial_status = "INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING"
+    initial_status = JobStatus.INTERACTIVE if request.subtype == "interactive" else JobStatus.LAUNCHING
     if provider.type == ProviderType.LOCAL.value:
-        initial_status = "WAITING"
+        initial_status = JobStatus.WAITING
 
     job_id = await job_service.job_create(
         type="REMOTE",
         status=initial_status,
         experiment_id=request.experiment_id,
     )
+
+    # Ensure experiment job lists include the newly created REMOTE job.
+    await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
 
     await job_service.job_update_launch_progress(
         job_id,
@@ -1627,11 +1660,13 @@ async def launch_template_on_provider(
     if request.github_repo_url:
         workspace_dir = await get_workspace_dir()
         github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
+        directory = request.github_repo_dir or request.github_directory
+        branch = request.github_repo_branch or request.github_branch
         github_setup = generate_github_clone_setup(
             repo_url=request.github_repo_url,
-            directory=request.github_directory,
+            directory=directory,
             github_pat=github_pat,
-            branch=request.github_branch,
+            branch=branch,
         )
         setup_commands.append(github_setup)
 
@@ -1685,6 +1720,12 @@ async def launch_template_on_provider(
     env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
     env_vars["_TFL_USER_ID"] = user_id
 
+    # Enable Trackio auto-init for this job if requested. When set, the lab SDK
+    # running inside the remote script can automatically initialize Trackio
+    # and capture metrics for visualization in the Tasks UI.
+    if request.enable_trackio:
+        env_vars["TLAB_TRACKIO_AUTO_INIT"] = "true"
+
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
     try:
@@ -1711,8 +1752,8 @@ async def launch_template_on_provider(
         if workspace_dir and not storage.is_remote_path(workspace_dir):
             env_vars["TFL_WORKSPACE_DIR"] = workspace_dir
 
-    # Resolve command (and optional setup override) for interactive sessions from gallery
-    base_command = request.command
+    # Resolve run command (and optional setup override) for interactive sessions from gallery
+    base_command = request.run
     setup_override_from_gallery = None
     interactive_setup_added = False
     if request.subtype == "interactive" and (request.interactive_gallery_id or request.interactive_type):
@@ -1809,7 +1850,7 @@ async def launch_template_on_provider(
 
     job_data = {
         "task_name": request.task_name,
-        "command": command_with_secrets,
+        "run": command_with_secrets,
         "cluster_name": formatted_cluster_name,
         "subtype": request.subtype,
         "interactive_type": request.interactive_type,
@@ -1854,13 +1895,13 @@ async def launch_template_on_provider(
     #   - sets job_data.live_status="started" when execution begins
     #   - sets job_data.live_status="finished" on success
     #   - sets job_data.live_status="crashed" on failure
-    wrapped_command = f"tfl-remote-trap -- {command_with_secrets}"
+    wrapped_run = f"tfl-remote-trap -- {command_with_secrets}"
 
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
         provider_id=provider.id,
-        command=wrapped_command,
+        run=wrapped_run,
         setup=final_setup,
         env_vars=env_vars,
         cpus=request.cpus,
@@ -1901,11 +1942,11 @@ async def launch_template_on_provider(
             cluster_name=formatted_cluster_name,
             cluster_config=cluster_config,
             quota_hold_id=str(quota_hold.id) if quota_hold else None,
-            initial_status="INTERACTIVE" if request.subtype == "interactive" else "LAUNCHING",
+            initial_status=JobStatus.INTERACTIVE if request.subtype == "interactive" else JobStatus.LAUNCHING,
         )
 
         return {
-            "status": "WAITING",
+            "status": JobStatus.WAITING,
             "job_id": job_id,
             "cluster_name": formatted_cluster_name,
             "request_id": None,
@@ -1931,7 +1972,7 @@ async def launch_template_on_provider(
             await session.commit()
         await job_service.job_update_status(
             job_id,
-            "FAILED",
+            JobStatus.FAILED,
             request.experiment_id,
             error_msg=str(exc),
         )
@@ -1979,324 +2020,27 @@ async def launch_template_on_provider(
 async def check_provider_job_status(
     job_id: str,
     user_and_team=Depends(get_user_and_team),
-    session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Check a single REMOTE job launched via providers and update status if cluster finishes.
-    Uses provider_id and cluster_name from job_data to check the provider.
-    """
-    team_id = user_and_team["team_id"]
+    Return the current status of a REMOTE job (read-only).
 
-    # Get the job
+    Provider polling and status transitions are handled by the
+    remote_job_status_service background worker, which runs every
+    REMOTE_JOB_STATUS_INTERVAL_SECONDS seconds. This endpoint is
+    intentionally side-effect-free so that frequent frontend polling
+    never blocks on provider latency or downtime.
+    """
     job = await job_service.job_get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    job_data_for_status = job.get("job_data", {}) or {}
-    launch_progress = job_data_for_status.get("launch_progress")
-
-    # Only process REMOTE jobs
-    if job.get("type") != "REMOTE":
-        return {
-            "status": "success",
-            "job_id": job_id,
-            "current_status": job.get("status"),
-            "message": "Job is not a REMOTE job",
-            "launch_progress": launch_progress,
-        }
-
-    # If job is already in a terminal state, ensure quota is recorded
-    job_status = job.get("status", "")
-    if job_status in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
-        # Ensure quota is recorded for this completed job
-        # Pass team_id from user_and_team context
-        await quota_service.ensure_quota_recorded_for_completed_job(session, job_id, team_id=team_id)
-        return {
-            "status": "success",
-            "job_id": job_id,
-            "current_status": job_status,
-            "message": f"Job is already in {job_status} state",
-            "launch_progress": launch_progress,
-        }
-
-    # Only check provider status for jobs that are still launching or running
-    if job_status not in ("LAUNCHING", "RUNNING"):
-        return {
-            "status": "success",
-            "job_id": job_id,
-            "current_status": job_status,
-            "message": f"Job is in {job_status} state, not checking provider status",
-            "launch_progress": launch_progress,
-        }
-
-    job_data = job_data_for_status
-
-    # If the remote wrapper has already detected a crash, mark the job as FAILED immediately.
-    live_status = job_data.get("live_status")
-    if live_status == "crashed":
-        try:
-            end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-            await job_service.job_update_job_data_insert_key_value(
-                job_id, "end_time", end_time_str, job.get("experiment_id")
-            )
-            await job_service.job_update_status(
-                job_id,
-                "FAILED",
-                experiment_id=job.get("experiment_id"),
-                session=session,
-            )
-            await session.commit()
-            return {
-                "status": "success",
-                "job_id": job_id,
-                "updated": True,
-                "new_status": "FAILED",
-                "message": "Remote command crashed (live_status=crashed)",
-                "launch_progress": launch_progress,
-            }
-        except Exception as exc:
-            print(f"Failed to update job status from live_status crash: {exc}")
-            return {
-                "status": "error",
-                "job_id": job_id,
-                "message": "Failed to update job status after crash",
-                "launch_progress": launch_progress,
-            }
-
-    # If the remote wrapper has already detected completion, mark the job as COMPLETE immediately.
-    if live_status == "finished":
-        try:
-            end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-            await job_service.job_update_job_data_insert_key_value(
-                job_id, "end_time", end_time_str, job.get("experiment_id")
-            )
-            await job_service.job_update_status(
-                job_id,
-                "COMPLETE",
-                experiment_id=job.get("experiment_id"),
-                session=session,
-            )
-            await session.commit()
-            return {
-                "status": "success",
-                "job_id": job_id,
-                "updated": True,
-                "new_status": "COMPLETE",
-                "message": "Remote command finished (live_status=finished)",
-                "launch_progress": launch_progress,
-            }
-        except Exception as exc:
-            print(f"Failed to update job status from live_status finished: {exc}")
-            return {
-                "status": "error",
-                "job_id": job_id,
-                "message": "Failed to update job status after completion",
-                "launch_progress": launch_progress,
-            }
-
-    provider_id = job_data.get("provider_id")
-    cluster_name = job_data.get("cluster_name")
-    experiment_id = job.get("experiment_id")
-
-    if not provider_id or not cluster_name:
-        return {
-            "status": "error",
-            "job_id": job_id,
-            "message": "Job missing provider_id or cluster_name in job_data",
-            "launch_progress": launch_progress,
-        }
-
-    # Get the provider
-    provider = await get_team_provider(session, team_id, provider_id)
-    if not provider:
-        return {
-            "status": "error",
-            "job_id": job_id,
-            "message": "Provider not found or not accessible",
-            "launch_progress": launch_progress,
-        }
-
-    try:
-        user_id_str = str(user_and_team["user"].id)
-        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
-    except Exception as exc:
-        print(f"Failed to instantiate provider: {exc}")
-        return {
-            "status": "error",
-            "job_id": job_id,
-            "message": "Failed to instantiate provider",
-            "launch_progress": launch_progress,
-        }
-
-    # Local provider needs workspace_dir from job_data for status/logs
-    if provider.type == ProviderType.LOCAL.value and job_data.get("workspace_dir"):
-        if hasattr(provider_instance, "extra_config"):
-            provider_instance.extra_config["workspace_dir"] = job_data["workspace_dir"]
-
-    # Local provider: single process per "cluster"; check process status
-    if provider.type == ProviderType.LOCAL.value:
-        try:
-            cluster_status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
-            terminal_states_local = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
-            if cluster_status.state in terminal_states_local:
-                try:
-                    end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-                    await job_service.job_update_job_data_insert_key_value(
-                        job_id, "end_time", end_time_str, experiment_id
-                    )
-                    await job_service.job_update_status(
-                        job_id, "COMPLETE", experiment_id=experiment_id, session=session
-                    )
-                    await session.commit()
-                    return {
-                        "status": "success",
-                        "job_id": job_id,
-                        "updated": True,
-                        "new_status": "COMPLETE",
-                        "message": f"Local job finished (status: {cluster_status.state.value})",
-                        "launch_progress": launch_progress,
-                    }
-                except Exception as exc:
-                    print(f"Failed to update job status: {exc}")
-                    return {
-                        "status": "error",
-                        "job_id": job_id,
-                        "message": "Failed to update job status",
-                        "launch_progress": launch_progress,
-                    }
-            return {
-                "status": "success",
-                "job_id": job_id,
-                "updated": False,
-                "current_status": "LAUNCHING",
-                "message": f"Local job still running (status: {cluster_status.state.value})",
-                "launch_progress": launch_progress,
-            }
-        except Exception as exc:
-            print(f"Failed to check local job status: {exc}")
-            return {
-                "status": "error",
-                "job_id": job_id,
-                "message": "Failed to check local job status",
-                "launch_progress": launch_progress,
-            }
-
-    # Runpod doesn't have a job queue - check pod status instead
-    if provider.type == ProviderType.RUNPOD.value:
-        try:
-            cluster_status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
-            # For Runpod, the pod itself is the "job"
-            # Check if pod is in a terminal state
-            terminal_pod_states = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
-            pod_finished = cluster_status.state in terminal_pod_states
-
-            if pod_finished:
-                # Pod has finished, mark job as complete
-                try:
-                    end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-                    job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
-                    await job_service.job_update_status(
-                        job_id, "COMPLETE", experiment_id=experiment_id, session=session
-                    )
-                    await session.commit()
-
-                    return {
-                        "status": "success",
-                        "job_id": job_id,
-                        "updated": True,
-                        "new_status": "COMPLETE",
-                        "message": f"Pod finished (status: {cluster_status.state.value})",
-                        "launch_progress": launch_progress,
-                    }
-                except Exception as exc:
-                    print(f"Failed to update job status: {exc}")
-                    return {
-                        "status": "error",
-                        "job_id": job_id,
-                        "message": "Failed to update job status",
-                        "launch_progress": launch_progress,
-                    }
-            else:
-                # Pod is still running
-                return {
-                    "status": "success",
-                    "job_id": job_id,
-                    "updated": False,
-                    "current_status": "LAUNCHING",
-                    "message": f"Pod is still running (status: {cluster_status.state.value})",
-                    "launch_progress": launch_progress,
-                }
-        except Exception as exc:
-            print(f"Failed to check Runpod pod status: {exc}")
-            return {
-                "status": "error",
-                "job_id": job_id,
-                "message": "Failed to check pod status",
-                "launch_progress": launch_progress,
-            }
-
-    # For other providers (SkyPilot, SLURM), check jobs on the cluster
-    try:
-        provider_jobs = await asyncio.to_thread(provider_instance.list_jobs, cluster_name)
-    except NotImplementedError:
-        # Provider doesn't support list_jobs
-        return {
-            "status": "success",
-            "job_id": job_id,
-            "updated": False,
-            "current_status": job_status,
-            "message": "Provider does not support job status checking",
-            "launch_progress": launch_progress,
-        }
-    except Exception as exc:
-        print(f"Failed to list jobs for cluster {cluster_name}: {exc}")
-        return {
-            "status": "error",
-            "job_id": job_id,
-            "message": f"Failed to list jobs for cluster {cluster_name}: {exc}",
-            "launch_progress": launch_progress,
-        }
-
-    terminal_states = {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
-    jobs_finished = bool(provider_jobs) and all(
-        getattr(provider_job, "state", JobState.UNKNOWN) in terminal_states for provider_job in provider_jobs
-    )
-
-    if jobs_finished:
-        try:
-            # Set end_time when marking job as complete
-            end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-            await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
-            # Pass session to job_update_status so quota tracking uses the same session
-            await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id, session=session)
-            # Commit the session to ensure quota tracking is persisted
-            await session.commit()
-
-            return {
-                "status": "success",
-                "job_id": job_id,
-                "updated": True,
-                "new_status": "COMPLETE",
-                "message": "All provider jobs completed",
-                "launch_progress": launch_progress,
-            }
-        except Exception as exc:
-            print(f"Failed to update job status: {exc}")
-            return {
-                "status": "error",
-                "job_id": job_id,
-                "message": "Failed to update job status",
-                "launch_progress": launch_progress,
-            }
-    else:
-        return {
-            "status": "success",
-            "job_id": job_id,
-            "updated": False,
-            "current_status": "LAUNCHING",
-            "message": "Jobs still running on provider",
-            "launch_progress": launch_progress,
-        }
+    job_data = job.get("job_data") or {}
+    return {
+        "status": "success",
+        "job_id": job_id,
+        "current_status": job.get("status"),
+        "launch_progress": job_data.get("launch_progress"),
+    }
 
 
 @router.get("/jobs/ensure-quota-recorded")
@@ -2343,7 +2087,7 @@ async def ensure_quota_recorded_for_completed_jobs(
 
     for job in jobs:
         job_status = job.get("status", "")
-        if job_status in ("COMPLETE", "STOPPED", "FAILED", "DELETED"):
+        if job_status in (JobStatus.COMPLETE, JobStatus.STOPPED, JobStatus.FAILED, JobStatus.DELETED):
             jobs_processed += 1
             job_id_str = str(job.get("id", ""))
             if job_id_str:
@@ -2498,7 +2242,7 @@ async def get_sweep_results(
         results.append(result_entry)
 
         # Track best configuration
-        if metric_value is not None and child_status == "COMPLETE":
+        if metric_value is not None and child_status == JobStatus.COMPLETE:
             is_better = (lower_is_better and metric_value < best_metric_value) or (
                 not lower_is_better and metric_value > best_metric_value
             )
@@ -2569,11 +2313,11 @@ async def resume_from_checkpoint(
 
     # Validate required fields for REMOTE job relaunch
     provider_id = job_data.get("provider_id")
-    command = job_data.get("command")
-    if not provider_id or not command:
+    run = job_data.get("run")
+    if not provider_id or not run:
         raise HTTPException(
             status_code=400,
-            detail="Original job is missing required fields (provider_id or command) for resume",
+            detail="Original job is missing required fields (provider_id or run) for resume",
         )
 
     # Verify checkpoint exists using workspace-aware path resolution
@@ -2589,10 +2333,13 @@ async def resume_from_checkpoint(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     # Create new REMOTE job
-    initial_status = "INTERACTIVE" if job_data.get("subtype") == "interactive" else "LAUNCHING"
+    initial_status = JobStatus.INTERACTIVE if job_data.get("subtype") == "interactive" else JobStatus.LAUNCHING
     new_job_id = await job_service.job_create(
         type="REMOTE", status=initial_status, experiment_id=experimentId, job_data={}
     )
+
+    # Ensure experiment job lists include the resumed REMOTE job.
+    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
 
     # Set parent_job_id and resumed_from_checkpoint in job_data
     await job_service.job_update_job_data_insert_key_value(new_job_id, "parent_job_id", job_id, experimentId)
@@ -2602,7 +2349,7 @@ async def resume_from_checkpoint(
 
     # Copy all original job launch configuration
     config_fields = [
-        "command",
+        "run",
         "task_name",
         "subtype",
         "interactive_type",
@@ -2618,8 +2365,13 @@ async def resume_from_checkpoint(
         "provider_id",
         "provider_type",
         "provider_name",
+        # Canonical GitHub fields
         "github_repo_url",
+        "github_repo_dir",
+        "github_repo_branch",
+        # Legacy GitHub fields retained for backward compatibility
         "github_directory",
+        "github_branch",
         "user_info",
         "team_id",
     ]
@@ -2634,7 +2386,7 @@ async def resume_from_checkpoint(
     try:
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
     except Exception as exc:
-        await job_service.job_update_status(new_job_id, "FAILED", experimentId, error_msg=str(exc))
+        await job_service.job_update_status(new_job_id, JobStatus.FAILED, experimentId, error_msg=str(exc))
         raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
 
     # Build cluster name
@@ -2714,7 +2466,7 @@ async def resume_from_checkpoint(
     # Update job_data with launch configuration
     launch_job_data = {
         "task_name": job_data.get("task_name"),
-        "command": command,
+        "run": run,
         "cluster_name": formatted_cluster_name,
         "subtype": job_data.get("subtype"),
         "interactive_type": job_data.get("interactive_type"),
@@ -2751,7 +2503,7 @@ async def resume_from_checkpoint(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
         provider_id=provider.id,
-        command=command,
+        run=run,
         setup=final_setup,
         env_vars=env_vars,
         cpus=job_data.get("cpus"),
@@ -2773,7 +2525,7 @@ async def resume_from_checkpoint(
         }
     except Exception as exc:
         print(f"Failed to launch cluster: {exc}")
-        await job_service.job_update_status(new_job_id, "FAILED", experimentId, error_msg=str(exc))
+        await job_service.job_update_status(new_job_id, JobStatus.FAILED, experimentId, error_msg=str(exc))
         raise HTTPException(status_code=500, detail=f"Failed to relaunch job: {exc}") from exc
 
 

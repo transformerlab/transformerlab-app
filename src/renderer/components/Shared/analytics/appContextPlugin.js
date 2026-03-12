@@ -18,7 +18,6 @@ const getAppContext = () => ({
  * @returns The modified event context.
  */
 const enrichContext = (ctx) => {
-  console.log('[Analytics] enrichContext called', ctx);
   // Merge our app context with any context that might already exist.
   // The '?? {}' ensures we don't crash if ctx.event.context is null or undefined.
   ctx.event.context = {

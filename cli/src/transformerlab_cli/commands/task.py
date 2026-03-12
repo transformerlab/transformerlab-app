@@ -88,6 +88,21 @@ def add_task_from_directory(task_directory_path: str, experiment_id: str, dry_ru
         console.print(f"[red]Error:[/red] Invalid YAML in task.yaml: {e}")
         raise typer.Exit(1)
 
+    # Validate against server-side task.yaml schema (run, resources, etc.)
+    with console.status("[bold green]Validating task.yaml...[/bold green]", spinner="dots"):
+        response = api.post_text(
+            f"/experiment/{experiment_id}/task2/validate",
+            text=task_yaml_content,
+        )
+    if response.status_code != 200:
+        try:
+            detail = response.json().get("detail", response.text)
+        except Exception:
+            detail = response.text
+        console.print("[red]Error:[/red] task.yaml failed validation.")
+        console.print(f"[red]Detail:[/red] {detail}")
+        raise typer.Exit(1)
+
     console.print("\n[bold cyan]Task Configuration (task.yaml):[/bold cyan]")
     syntax = Syntax(task_yaml_content, "yaml", theme="monokai", line_numbers=True)
     console.print(Panel(syntax, border_style="cyan"))
@@ -260,7 +275,7 @@ def build_launch_payload(task: dict, provider_name: str, param_values: dict | No
         "experiment_id": task.get("experiment_id"),
         "task_id": task.get("id"),
         "task_name": task.get("name"),
-        "command": task.get("command"),
+        "run": task.get("run"),
         "setup": task.get("setup"),
         "accelerators": task.get("accelerators"),
         "env_vars": task.get("env_vars", {}),
@@ -268,7 +283,8 @@ def build_launch_payload(task: dict, provider_name: str, param_values: dict | No
         "config": param_values if param_values else None,
         "provider_name": provider_name,
         "github_repo_url": task.get("github_repo_url"),
-        "github_directory": task.get("github_directory"),
+        "github_repo_dir": task.get("github_repo_dir") or task.get("github_directory"),
+        "github_repo_branch": task.get("github_repo_branch") or task.get("github_branch"),
     }
 
 

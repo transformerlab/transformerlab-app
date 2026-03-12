@@ -218,8 +218,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   }
 
   const method = (options.method ?? 'GET').toUpperCase();
-  const isHealthCheck =
-    fullUrl.endsWith('/healthz') || fullUrl.endsWith('/server/worker_healthz');
+  const isHealthCheck = fullUrl.endsWith('/healthz');
 
   // Important: avoid forcing CORS preflight on GET/HEAD (especially health checks)
   // by not attaching non-simple headers unless needed.

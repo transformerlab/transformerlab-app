@@ -12,9 +12,11 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 import TaskTemplateList from '../Tasks/TaskTemplateList';
 import NewInteractiveTaskModal from '../Tasks/NewInteractiveTaskModal';
 import EditInteractiveTaskModal from '../Tasks/EditInteractiveTaskModal';
+import DeleteTaskConfirmModal from '../Tasks/DeleteTaskConfirmModal';
 import InteractiveJobCard from './InteractiveJobCard';
 
 const duration = require('dayjs/plugin/duration');
@@ -24,9 +26,16 @@ dayjs.extend(relativeTime);
 
 export default function Interactive() {
   const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
+  const [interactiveModalError, setInteractiveModalError] = useState<
+    string | null
+  >(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskBeingEdited, setTaskBeingEdited] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<{
+    id: string;
+    name?: string;
+  } | null>(null);
 
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
@@ -64,15 +73,11 @@ export default function Interactive() {
   );
 
   const getPendingJobIds = useCallback((): string[] => {
-    try {
-      const raw = window.localStorage.getItem(pendingJobsStorageKey);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      const result = Array.isArray(parsed) ? parsed : [];
-      return result;
-    } catch {
-      return [];
-    }
+    const raw = window.localStorage.getItem(pendingJobsStorageKey);
+    if (!raw) return [];
+    const parsed = SafeJSONParse(raw, []);
+    const result = Array.isArray(parsed) ? parsed : [];
+    return result;
   }, [pendingJobsStorageKey]);
 
   const setPendingJobIds = useCallback(
@@ -172,9 +177,13 @@ export default function Interactive() {
   const jobsWithPlaceholders = useMemo(() => {
     const baseJobs = Array.isArray(jobs) ? jobs : [];
 
-    // Only show INTERACTIVE status jobs (not STOPPED)
+    // Show active interactive jobs (INTERACTIVE, RUNNING, LAUNCHING)
     const filteredJobs = baseJobs.filter((job: any) => {
-      return job.status === 'INTERACTIVE';
+      return (
+        job.status === 'INTERACTIVE' ||
+        job.status === 'RUNNING' ||
+        job.status === 'LAUNCHING'
+      );
     });
 
     const pending = getPendingJobIds();
@@ -197,42 +206,42 @@ export default function Interactive() {
     return [...placeholders, ...filteredJobs];
   }, [jobs, getPendingJobIds, pendingIdsTrigger]);
 
-  const handleDeleteTask = async (taskId: string) => {
-    if (!experimentInfo?.id) return;
+  const handleDeleteTask = (taskId: string, taskName?: string) => {
+    setTaskToDelete({ id: taskId, name: taskName });
+  };
 
-    // eslint-disable-next-line no-alert
-    if (!confirm('Are you sure you want to delete this template?')) {
-      return;
-    }
-
-    try {
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo?.id || '', taskId),
-        {
-          method: 'GET',
-        },
-      );
-
-      if (response.ok) {
-        addNotification({
-          type: 'success',
-          message: 'Template deleted successfully!',
-        });
-        await templatesMutate();
-      } else {
+  const handleConfirmDeleteTask = useCallback(
+    async (taskId: string): Promise<boolean> => {
+      if (!experimentInfo?.id) return false;
+      try {
+        const response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo.id, taskId),
+          { method: 'GET' },
+        );
+        if (response.ok) {
+          addNotification({
+            type: 'success',
+            message: 'Template deleted successfully!',
+          });
+          await templatesMutate();
+          return true;
+        }
         addNotification({
           type: 'danger',
           message: 'Failed to delete template. Please try again.',
         });
+        return false;
+      } catch (error) {
+        console.error('Error deleting template:', error);
+        addNotification({
+          type: 'danger',
+          message: 'Failed to delete template. Please try again.',
+        });
+        return false;
       }
-    } catch (error) {
-      console.error('Error deleting template:', error);
-      addNotification({
-        type: 'danger',
-        message: 'Failed to delete template. Please try again.',
-      });
-    }
-  };
+    },
+    [experimentInfo?.id, addNotification, templatesMutate],
+  );
 
   const handleDeleteJob = async (jobId: string) => {
     if (!experimentInfo?.id) return;
@@ -293,13 +302,15 @@ export default function Interactive() {
       providers.find((p) => p.id === data.provider_id) || providers[0];
 
     setIsSubmitting(true);
+    setInteractiveModalError(null);
     try {
       const interactiveType = data.interactive_type || 'vscode';
 
-      // Fetch interactive gallery to get setup and command templates
+      // Fetch interactive gallery to get setup and run templates
       let defaultSetup: string;
-      let defaultCommand: string;
+      let defaultRun: string;
       let templateId: string | undefined;
+      let galleryTemplate: any = null;
 
       try {
         const galleryResponse = await chatAPI.authenticatedFetch(
@@ -325,8 +336,9 @@ export default function Interactive() {
           }
 
           defaultSetup = template.setup || '';
-          defaultCommand = template.command || '';
+          defaultRun = template.run || template.command || '';
           templateId = template.id;
+          galleryTemplate = template;
         } else {
           throw new Error('Failed to fetch interactive gallery');
         }
@@ -357,7 +369,7 @@ export default function Interactive() {
         plugin: 'remote_orchestrator',
         experiment_id: experimentInfo.id,
         cluster_name: data.title,
-        command: defaultCommand,
+        run: defaultRun,
         cpus: data.cpus || undefined,
         memory: data.memory || undefined,
         accelerators: data.accelerators || undefined,
@@ -368,6 +380,8 @@ export default function Interactive() {
         provider_id: providerMeta.id,
         provider_name: providerMeta.name,
         env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
+        github_repo_url: galleryTemplate?.github_repo_url || undefined,
+        github_directory: galleryTemplate?.github_repo_dir || undefined,
       };
 
       const response = await chatAPI.authenticatedFetch(
@@ -399,14 +413,28 @@ export default function Interactive() {
                     ? 'SSH'
                     : 'VS Code';
 
-        if (shouldLaunch && taskId) {
+        if (shouldLaunch) {
+          if (!taskId) {
+            setInteractiveModalError(
+              'Template was created, but no task ID was returned. Please refresh and try launching from the task list.',
+            );
+            return;
+          }
+
           // Construct task object from payload for launching
           const newTask = {
             id: taskId,
             ...templatePayload,
           };
-          // Launch the task immediately
-          await handleQueue(newTask);
+
+          // Launch the task immediately. If launch fails (e.g. missing secrets),
+          // keep the modal open and show the error inline.
+          const launch = await launchInteractiveTask(newTask);
+          if (!launch.ok) {
+            setInteractiveModalError(launch.error);
+            return;
+          }
+
           addNotification({
             type: 'success',
             message: `Interactive ${interactiveTypeLabel} session launched!`,
@@ -421,31 +449,166 @@ export default function Interactive() {
         setInteractiveModalOpen(false);
       } else {
         const txt = await response.text();
-        addNotification({
-          type: 'danger',
-          message: `Failed to create interactive template: ${txt}`,
-        });
+        setInteractiveModalError(
+          `Failed to create interactive template: ${txt}`,
+        );
       }
     } catch (error) {
       console.error('Error creating interactive template:', error);
-      addNotification({
-        type: 'danger',
-        message: 'Failed to create interactive template. Please try again.',
-      });
+      setInteractiveModalError(
+        'Failed to create interactive template. Please try again.',
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const launchInteractiveTask = useCallback(
+    async (task: any): Promise<{ ok: true } | { ok: false; error: string }> => {
+      if (!experimentInfo?.id) {
+        return { ok: false, error: 'No experiment selected.' };
+      }
+
+      const cfg =
+        task.config !== undefined ? SafeJSONParse(task.config, task) : task;
+
+      const providerId =
+        cfg.provider_id ||
+        task.provider_id ||
+        (providers.length ? providers[0]?.id : null);
+      if (!providerId) {
+        return {
+          ok: false,
+          error:
+            'No providers available. Add a provider in the team settings first.',
+        };
+      }
+
+      const providerMeta = providers.find(
+        (provider) => provider.id === providerId,
+      );
+
+      if (!providerMeta) {
+        return {
+          ok: false,
+          error:
+            'Selected provider is unavailable. Please create or update providers in team settings.',
+        };
+      }
+
+      if (!cfg.run && !cfg.github_repo_url && !task.github_repo_url) {
+        return { ok: false, error: 'Task is missing a command to run.' };
+      }
+
+      const payload = {
+        experiment_id: experimentInfo.id,
+        task_id: task.id,
+        task_name: task.name,
+        cluster_name: cfg.cluster_name || task.cluster_name,
+        run: cfg.run || task.run,
+        subtype: cfg.subtype || task.subtype,
+        interactive_type: cfg.interactive_type || task.interactive_type,
+        interactive_gallery_id:
+          cfg.interactive_gallery_id ??
+          task?.interactive_gallery_id ??
+          undefined,
+        cpus: cfg.cpus || task.cpus,
+        memory: cfg.memory || task.memory,
+        disk_space: cfg.disk_space || task.disk_space,
+        accelerators: cfg.accelerators || task.accelerators,
+        num_nodes: cfg.num_nodes || task.num_nodes,
+        setup: cfg.setup || task.setup,
+        env_vars: cfg.env_vars || task.env_vars || {},
+        parameters: cfg.parameters || task.parameters || undefined,
+        file_mounts: cfg.file_mounts || task.file_mounts,
+        provider_name: providerMeta.name,
+        github_repo_url: cfg.github_repo_url || task.github_repo_url,
+        github_repo_dir:
+          cfg.github_repo_dir ||
+          cfg.github_directory ||
+          task.github_repo_dir ||
+          task.github_directory,
+        github_repo_branch:
+          cfg.github_repo_branch ||
+          cfg.github_branch ||
+          task.github_repo_branch ||
+          task.github_branch,
+        run_sweeps: cfg.run_sweeps || task.run_sweeps || undefined,
+        sweep_config: cfg.sweep_config || task.sweep_config || undefined,
+        sweep_metric:
+          cfg.sweep_metric ||
+          task.sweep_metric ||
+          (cfg.run_sweeps || task.run_sweeps ? 'eval/loss' : undefined),
+        lower_is_better:
+          cfg.lower_is_better !== undefined
+            ? cfg.lower_is_better
+            : task.lower_is_better !== undefined
+              ? task.lower_is_better
+              : undefined,
+        minutes_requested:
+          cfg.minutes_requested || task.minutes_requested || undefined,
+      };
+
+      try {
+        const response = await fetchWithAuth(
+          chatAPI.Endpoints.ComputeProvider.LaunchTemplate(providerId),
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          },
+        );
+
+        let launchResult: any = {};
+        try {
+          launchResult = await response.json();
+        } catch {
+          launchResult = {};
+        }
+
+        if (
+          response.ok &&
+          (launchResult?.status === 'success' ||
+            (launchResult?.status === 'WAITING' && launchResult?.job_id))
+        ) {
+          const newId = String(launchResult.job_id);
+          const pending = getPendingJobIds();
+          if (!pending.includes(newId)) {
+            setPendingJobIds([newId, ...pending]);
+          }
+          setTimeout(() => jobsMutate(), 0);
+          await Promise.all([jobsMutate(), templatesMutate()]);
+          return { ok: true };
+        }
+
+        const message =
+          launchResult?.detail ||
+          launchResult?.message ||
+          'Failed to queue provider-backed task.';
+        return { ok: false, error: String(message) };
+      } catch (e: any) {
+        console.error(e);
+        return { ok: false, error: 'Failed to queue provider-backed task.' };
+      }
+    },
+    [
+      experimentInfo?.id,
+      fetchWithAuth,
+      getPendingJobIds,
+      jobsMutate,
+      providers,
+      setPendingJobIds,
+      templatesMutate,
+    ],
+  );
+
   const handleQueue = async (task: any) => {
     if (!experimentInfo?.id) return;
 
     const cfg =
-      task.config !== undefined
-        ? typeof task.config === 'string'
-          ? JSON.parse(task.config)
-          : task.config
-        : task;
+      task.config !== undefined ? SafeJSONParse(task.config, task) : task;
 
     const providerId =
       cfg.provider_id ||
@@ -473,10 +636,10 @@ export default function Interactive() {
       return;
     }
 
-    if (!cfg.command) {
+    if (!cfg.run && !cfg.github_repo_url && !task.github_repo_url) {
       addNotification({
         type: 'warning',
-        message: 'Task is missing a command to run.',
+        message: 'Task is missing a run command.',
       });
       return;
     }
@@ -492,13 +655,12 @@ export default function Interactive() {
         task_id: task.id,
         task_name: task.name,
         cluster_name: cfg.cluster_name || task.cluster_name,
-        command: cfg.command || task.command,
+        run: cfg.run || task.run,
         subtype: cfg.subtype || task.subtype,
         interactive_type: cfg.interactive_type || task.interactive_type,
         interactive_gallery_id:
           cfg.interactive_gallery_id ??
           task?.interactive_gallery_id ??
-          config?.interactive_gallery_id ??
           undefined,
         cpus: cfg.cpus || task.cpus,
         memory: cfg.memory || task.memory,
@@ -511,8 +673,16 @@ export default function Interactive() {
         file_mounts: cfg.file_mounts || task.file_mounts,
         provider_name: providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
-        github_directory: cfg.github_directory || task.github_directory,
-        github_branch: cfg.github_branch || task.github_branch,
+        github_repo_dir:
+          cfg.github_repo_dir ||
+          cfg.github_directory ||
+          task.github_repo_dir ||
+          task.github_directory,
+        github_repo_branch:
+          cfg.github_repo_branch ||
+          cfg.github_branch ||
+          task.github_repo_branch ||
+          task.github_branch,
         run_sweeps: cfg.run_sweeps || task.run_sweeps || undefined,
         sweep_config: cfg.sweep_config || task.sweep_config || undefined,
         sweep_metric:
@@ -547,7 +717,11 @@ export default function Interactive() {
         launchResult = {};
       }
 
-      if (response.ok && launchResult?.status === 'success') {
+      if (
+        response.ok &&
+        (launchResult?.status === 'success' ||
+          (launchResult?.status === 'WAITING' && launchResult?.job_id))
+      ) {
         const newId = String(launchResult.job_id);
         const pending = getPendingJobIds();
         if (!pending.includes(newId)) {
@@ -597,7 +771,12 @@ export default function Interactive() {
     >
       <NewInteractiveTaskModal
         open={interactiveModalOpen}
-        onClose={() => setInteractiveModalOpen(false)}
+        onClose={() => {
+          setInteractiveModalOpen(false);
+          setInteractiveModalError(null);
+        }}
+        submitError={interactiveModalError}
+        onClearSubmitError={() => setInteractiveModalError(null)}
         onSubmit={(data, shouldLaunch) =>
           handleSubmitInteractive(data, shouldLaunch)
         }
@@ -779,6 +958,13 @@ export default function Interactive() {
           interactTasks
         />
       </Sheet>
+      <DeleteTaskConfirmModal
+        open={taskToDelete !== null}
+        onClose={() => setTaskToDelete(null)}
+        taskId={taskToDelete?.id ?? null}
+        taskName={taskToDelete?.name ?? null}
+        onConfirm={handleConfirmDeleteTask}
+      />
     </Sheet>
   );
 }

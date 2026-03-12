@@ -27,7 +27,7 @@ import {
   Box,
   Chip,
 } from '@mui/joy';
-import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightIcon, XIcon } from 'lucide-react';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
@@ -79,6 +79,8 @@ type ImportedTask = {
 type NewInteractiveTaskModalProps = {
   open: boolean;
   onClose: () => void;
+  submitError?: string | null;
+  onClearSubmitError?: () => void;
   onSubmit: (
     data: {
       title: string;
@@ -105,6 +107,8 @@ type NewInteractiveTaskModalProps = {
 export default function NewInteractiveTaskModal({
   open,
   onClose,
+  submitError = null,
+  onClearSubmitError,
   onSubmit,
   isSubmitting = false,
   providers,
@@ -136,6 +140,40 @@ export default function NewInteractiveTaskModal({
     string | number | null
   >(null);
   const { addNotification } = useNotification();
+
+  const loadingMessages = React.useMemo(
+    () => [
+      'Contacting compute provider…',
+      'Reserving resources…',
+      'Preparing environment…',
+      'Submitting job configuration…',
+      'Waiting for job ID…',
+    ],
+    [],
+  );
+  const [loadingMessageIndex, setLoadingMessageIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!open || !isSubmitting || loadingMessages.length === 0) {
+      return;
+    }
+
+    setLoadingMessageIndex(0);
+
+    const interval = window.setInterval(() => {
+      setLoadingMessageIndex((prev) => {
+        const lastIndex = loadingMessages.length - 1;
+        if (prev >= lastIndex) {
+          return lastIndex;
+        }
+        return prev + 1;
+      });
+    }, 1500);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [open, isSubmitting, loadingMessages]);
 
   // Helper to check if a provider supports requested accelerators
   const isProviderCompatible = React.useCallback(
@@ -478,6 +516,29 @@ export default function NewInteractiveTaskModal({
           <DialogContent
             sx={{ maxHeight: '60vh', overflow: 'auto', padding: 1 }}
           >
+            {submitError && (
+              <Alert
+                variant="soft"
+                color="danger"
+                sx={{ mb: 1 }}
+                endDecorator={
+                  onClearSubmitError ? (
+                    <IconButton
+                      variant="plain"
+                      color="danger"
+                      onClick={onClearSubmitError}
+                      aria-label="Dismiss error"
+                    >
+                      <XIcon size={16} />
+                    </IconButton>
+                  ) : null
+                }
+              >
+                <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap' }}>
+                  {submitError}
+                </Typography>
+              </Alert>
+            )}
             {step === 'provider' && (
               <Stack spacing={3} sx={{ py: 2 }}>
                 <Typography level="body-md">
@@ -1036,18 +1097,12 @@ export default function NewInteractiveTaskModal({
                 </Button>
               )}
               {step === 'config' && (
-                <Stack direction="row" spacing={2}>
-                  <Button
-                    variant="outlined"
-                    loading={isSubmitting}
-                    disabled={isSubmitting || !canSubmit}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleSubmit(e, false);
-                    }}
-                  >
-                    Save
-                  </Button>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {isSubmitting && (
+                    <Typography level="body-sm">
+                      {loadingMessages[loadingMessageIndex]}
+                    </Typography>
+                  )}
                   <Button
                     variant="solid"
                     color="primary"

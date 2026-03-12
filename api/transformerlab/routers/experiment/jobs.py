@@ -35,12 +35,18 @@ from lab.dirs import (
     get_job_models_dir,
     get_models_dir,
 )
+from transformerlab.services.cache_service import cache, cached
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
+@cached(key="jobs:list:{experimentId}:{type}:{status}:{subtype}", ttl="30s", tags=["jobs", "jobs:list:{experimentId}"])
 async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subtype: str = ""):
+    """
+    Return the list of jobs for an experiment, optionally filtered by type/status/subtype.
+    Results are cached per provider/remote/org using the shared OrgScopedCache.
+    """
     jobs = await job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
 
     # Optional filter by job_data.subtype
@@ -63,6 +69,8 @@ async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subt
 @router.get("/delete/{job_id}")
 async def job_delete(job_id: str, experimentId: str):
     await job_service.job_delete(job_id, experiment_id=experimentId)
+    # Invalidate cached job lists for this experiment (best-effort).
+    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
     return {"message": "OK"}
 
 
@@ -74,6 +82,8 @@ async def job_create(
     data: str = "{}",
 ):
     jobid = await job_service.job_create(type=type, status=status, job_data=data, experiment_id=experimentId)
+    # Invalidate cached job lists so new job appears.
+    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
     return jobid
 
 
@@ -95,18 +105,21 @@ async def stop_job(job_id: str, experimentId: str):
     # The way a job is stopped is simply by adding "stop: true" to the job_data
     # This will be checked by the plugin as it runs
     await job_service.job_stop(job_id, experiment_id=experimentId)
+    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
     return {"message": "OK"}
 
 
 @router.get("/delete_all")
 async def job_delete_all(experimentId: str):
     await job_service.job_delete_all(experiment_id=experimentId)
+    # Invalidate cached job lists for this experiment.
+    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
     return {"message": "OK"}
 
 
 @router.get("/{job_id}")
 async def get_training_job(job_id: str):
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get_cached(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     return job
@@ -119,7 +132,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
     Uses the same logic as stream_job_output but returns content directly.
     """
     try:
-        job = await job_service.job_get(job_id)
+        job = await job_service.job_get_cached(job_id)
         if job is None:
             return "Job not found"
 
@@ -211,7 +224,7 @@ async def get_provider_job_logs(
       2. Otherwise, fall back to provider-native log retrieval (existing behavior).
     """
 
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get_cached(job_id)
     if not job or str(job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -229,10 +242,14 @@ async def get_provider_job_logs(
             status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
         )
 
-    # 1) If live=False (default), first try to read provider logs from the job directory
-    #    via the SDK's job_dir helper. This file is written by tfl-remote-trap inside
-    #    the remote environment.
-    if not live:
+    # 1) If live=False (default) and the provider is NOT local, try provider_logs.txt
+    #    from the SDK job directory.  This file is written by tfl-remote-trap at the
+    #    END of a remote command, so for local providers it may be empty or stale
+    #    while stdout.log (the real log) is available via get_job_logs().
+    is_local_provider = (
+        job_data.get("provider_type") == "local" or (job_data.get("provider_name") or "").lower() == "local"
+    )
+    if not live and not is_local_provider:
         try:
             from lab.dirs import get_job_dir
 
@@ -1087,7 +1104,7 @@ async def get_artifacts(job_id: str, request: Request):
         from lab.dirs import get_job_artifacts_dir
 
         artifacts_dir = await get_job_artifacts_dir(job_id)
-        artifacts = await get_artifacts_from_directory(artifacts_dir, storage)
+        artifacts = await get_artifacts_from_directory(artifacts_dir)
     except Exception as e:
         print(f"Error getting artifacts for job {job_id}: {e}")
         artifacts = []
@@ -1354,7 +1371,7 @@ async def get_job_datasets(job_id: str, request: Request):
         from lab.dirs import get_job_datasets_dir
 
         datasets_dir = await get_job_datasets_dir(job_id)
-        datasets = await job_service.get_datasets_from_directory(datasets_dir, storage)
+        datasets = await job_service.get_datasets_from_directory(datasets_dir)
     except Exception as e:
         print(f"Error getting datasets for job {job_id}: {e}")
         datasets = []
@@ -1375,7 +1392,7 @@ async def get_job_models(job_id: str, request: Request):
         from lab.dirs import get_job_models_dir
 
         models_dir = await get_job_models_dir(job_id)
-        models = await job_service.get_models_from_directory(models_dir, storage)
+        models = await job_service.get_models_from_directory(models_dir)
     except Exception as e:
         print(f"Error getting models for job {job_id}: {e}")
         models = []
@@ -1389,13 +1406,24 @@ async def get_job_models(job_id: str, request: Request):
 async def save_dataset_to_registry(
     job_id: str,
     dataset_name: str,
+    target_name: Optional[str] = Query(None, description="Custom name for the dataset in the registry"),
+    mode: str = Query(
+        "new", description="'new' to create a new entry, 'existing' to merge into an existing registry dataset"
+    ),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Copy a dataset from job's datasets directory to the global datasets registry"""
+    """Copy a dataset from job's datasets directory to the global datasets registry.
+
+    Supports two modes:
+    - mode='new': Save as a new dataset. Uses target_name if provided, otherwise uses the original dataset_name.
+      If a dataset with that name already exists, a timestamped suffix is added.
+    - mode='existing': Merge into an existing dataset in the registry. target_name must be provided and must
+      refer to an existing dataset. Files from the job dataset are copied into the existing dataset directory.
+    """
 
     try:
-        # Secure the dataset name
+        # Secure the source dataset name
         dataset_name_secure = secure_filename(dataset_name)
 
         # Get source path (job's datasets directory)
@@ -1405,25 +1433,46 @@ async def save_dataset_to_registry(
         if not await storage.exists(source_path):
             raise HTTPException(status_code=404, detail=f"Dataset '{dataset_name}' not found in job directory")
 
-        # Get destination path (global datasets registry)
+        # Get the registry directory
         datasets_registry_dir = await get_datasets_dir()
-        dest_path = storage.join(datasets_registry_dir, dataset_name_secure)
 
-        # Check if dataset already exists in registry and generate a unique name if needed
-        if await storage.exists(dest_path):
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            dataset_name_secure = f"{dataset_name_secure}_{timestamp}"
-            dest_path = storage.join(datasets_registry_dir, dataset_name_secure)
+        if mode == "existing":
+            # Merge into an existing dataset
+            if not target_name:
+                raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
+            target_name_secure = secure_filename(target_name)
+            dest_path = storage.join(datasets_registry_dir, target_name_secure)
+            if not await storage.exists(dest_path):
+                raise HTTPException(status_code=404, detail=f"Dataset '{target_name}' not found in registry")
 
-        # Copy the dataset to the registry
-        # Try local copy first (if both are local paths)
-        try:
-            await storage.copy_dir(source_path, dest_path)
-        except Exception as copy_err:
-            # If shutil fails, fallback to storage.copy_dir
-            print(f"Storage.copy_dir failed: {copy_err}")
+            # Copy files from source into the existing dataset directory (merge)
+            try:
+                await storage.copy_dir(source_path, dest_path)
+            except Exception as copy_err:
+                print(f"Storage.copy_dir failed: {copy_err}")
 
-        return {"status": "success", "message": f"Dataset saved to registry as '{dataset_name_secure}'"}
+            return {
+                "status": "success",
+                "message": f"Dataset merged into existing registry entry '{target_name_secure}'",
+            }
+        else:
+            # Save as a new dataset
+            final_name = secure_filename(target_name) if target_name else dataset_name_secure
+            dest_path = storage.join(datasets_registry_dir, final_name)
+
+            # Check if dataset already exists in registry and generate a unique name if needed
+            if await storage.exists(dest_path):
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                final_name = f"{final_name}_{timestamp}"
+                dest_path = storage.join(datasets_registry_dir, final_name)
+
+            # Copy the dataset to the registry
+            try:
+                await storage.copy_dir(source_path, dest_path)
+            except Exception as copy_err:
+                print(f"Storage.copy_dir failed: {copy_err}")
+
+            return {"status": "success", "message": f"Dataset saved to registry as '{final_name}'"}
 
     except HTTPException:
         raise
@@ -1436,11 +1485,25 @@ async def save_dataset_to_registry(
 
 
 @router.post("/{job_id}/models/{model_name}/save_to_registry")
-async def save_model_to_registry(job_id: str, model_name: str):
-    """Copy a model from job's models directory to the global models registry"""
+async def save_model_to_registry(
+    job_id: str,
+    model_name: str,
+    target_name: Optional[str] = Query(None, description="Custom name for the model in the registry"),
+    mode: str = Query(
+        "new", description="'new' to create a new entry, 'existing' to merge into an existing registry model"
+    ),
+):
+    """Copy a model from job's models directory to the global models registry.
+
+    Supports two modes:
+    - mode='new': Save as a new model. Uses target_name if provided, otherwise uses the original model_name.
+      If a model with that name already exists, a timestamped suffix is added.
+    - mode='existing': Merge into an existing model in the registry. target_name must be provided and must
+      refer to an existing model. Files from the job model are copied into the existing model directory.
+    """
 
     try:
-        # Secure the model name
+        # Secure the source model name
         model_name_secure = secure_filename(model_name)
 
         # Get source path (job's models directory)
@@ -1450,24 +1513,43 @@ async def save_model_to_registry(job_id: str, model_name: str):
         if not await storage.exists(source_path):
             raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found in job directory")
 
-        # Get destination path (global models registry)
+        # Get the registry directory
         models_registry_dir = await get_models_dir()
-        dest_path = storage.join(models_registry_dir, model_name_secure)
 
-        # Check if model already exists in registry
-        if await storage.exists(dest_path):
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            model_name_secure = f"{model_name_secure}_{timestamp}"
-            dest_path = storage.join(models_registry_dir, model_name_secure)
+        if mode == "existing":
+            # Merge into an existing model
+            if not target_name:
+                raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
+            target_name_secure = secure_filename(target_name)
+            dest_path = storage.join(models_registry_dir, target_name_secure)
+            if not await storage.exists(dest_path):
+                raise HTTPException(status_code=404, detail=f"Model '{target_name}' not found in registry")
 
-        # Copy the model directory to the registry
-        try:
-            await storage.copy_dir(source_path, dest_path)
-        except Exception as copy_err:
-            print(f"storage.copy_dir failed: {copy_err}")
-            await storage.copy_dir(source_path, dest_path)
+            # Copy files from source into the existing model directory (merge)
+            try:
+                await storage.copy_dir(source_path, dest_path)
+            except Exception as copy_err:
+                print(f"storage.copy_dir failed: {copy_err}")
 
-        return {"status": "success", "message": f"Model saved to registry as '{model_name_secure}'"}
+            return {"status": "success", "message": f"Model merged into existing registry entry '{target_name_secure}'"}
+        else:
+            # Save as a new model
+            final_name = secure_filename(target_name) if target_name else model_name_secure
+            dest_path = storage.join(models_registry_dir, final_name)
+
+            # Check if model already exists in registry and generate a unique name if needed
+            if await storage.exists(dest_path):
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                final_name = f"{final_name}_{timestamp}"
+                dest_path = storage.join(models_registry_dir, final_name)
+
+            # Copy the model directory to the registry
+            try:
+                await storage.copy_dir(source_path, dest_path)
+            except Exception as copy_err:
+                print(f"storage.copy_dir failed: {copy_err}")
+
+            return {"status": "success", "message": f"Model saved to registry as '{final_name}'"}
 
     except HTTPException:
         raise

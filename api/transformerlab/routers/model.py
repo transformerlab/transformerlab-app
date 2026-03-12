@@ -3,10 +3,7 @@ import asyncio
 import datetime
 import dateutil.relativedelta
 from typing import Annotated
-import transformerlab.db.db as db
-from fastapi import APIRouter, Body, Depends, Header
-from transformerlab.models.users import current_active_user
-from transformerlab.shared.models.models import User
+from fastapi import APIRouter, Body
 from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi, list_repo_tree
 from huggingface_hub import ModelCard, ModelCardData
@@ -27,6 +24,7 @@ from transformerlab.models import filesystemmodel
 import transformerlab.services.job_service as job_service
 from transformerlab.services.job_service import job_update_status
 from lab.dirs import get_workspace_dir
+from lab.job_status import JobStatus
 from lab.model import Model as ModelService
 from lab import storage
 
@@ -316,179 +314,6 @@ async def model_details_from_filesystem(model_id: str):
     return {}
 
 
-@router.get(path="/model/login_to_huggingface")
-async def login_to_huggingface(
-    x_team_id: str | None = Header(None, alias="X-Team-Id"),
-    user: User = Depends(current_active_user),
-):
-    """
-    No-op endpoint for backward compatibility.
-    Token is now passed via HF_TOKEN env var in subprocesses, so no login needed.
-    """
-    # Check if token exists for validation (checks user -> team -> global)
-    user_id = str(user.id) if user else None
-    token = await db.config_get("HuggingfaceUserAccessToken", user_id=user_id, team_id=x_team_id)
-    if token is None:
-        return {"message": "HuggingfaceUserAccessToken not set"}
-    return {"message": "OK - Token configured (using env vars, no login needed)"}
-
-
-@router.get(path="/model/logout_from_huggingface")
-async def logout_from_huggingface():
-    # Logout from Hugging Face using the huggingface_hub logout function.
-
-    from huggingface_hub import logout
-    import os
-
-    try:
-        logout()
-        print("Successfully logged out from Hugging Face")
-
-        # Also clear the token file manually as a backup
-        # The token is stored at ~/.huggingface/token according to the comment
-        token_file = os.path.expanduser("~/.huggingface/token")
-        if os.path.exists(token_file):
-            os.remove(token_file)
-
-        return {"message": "OK"}
-
-    except Exception:
-        return {"message": "Logout failed"}
-
-
-@router.get(path="/model/login_to_wandb")
-async def login_to_wandb(
-    x_team_id: str | None = Header(None, alias="X-Team-Id"),
-    user: User = Depends(current_active_user),
-):
-    """
-    No-op endpoint for backward compatibility.
-    Token is now passed via WANDB_API_KEY env var in subprocesses, so no login needed.
-    """
-    # Check if token exists for validation (checks user -> team -> global)
-    user_id = str(user.id) if user else None
-    token = await db.config_get("WANDB_API_KEY", user_id=user_id, team_id=x_team_id)
-    if token is None:
-        return {"message": "WANDB_API not set"}
-    return {"message": "OK - Token configured (using env vars, no login needed)"}
-
-
-@router.get(path="/model/test_wandb_login")
-async def test_wandb_login(
-    x_team_id: str | None = Header(None, alias="X-Team-Id"),
-    user: User = Depends(current_active_user),
-):
-    """
-    Check WANDB login status by checking database config (same as login_to_wandb).
-    Kept for backward compatibility but now checks database instead of netrc.
-    """
-    # Check if token exists for validation (checks user -> team -> global)
-    user_id = str(user.id) if user else None
-    token = await db.config_get("WANDB_API_KEY", user_id=user_id, team_id=x_team_id)
-    if token is None:
-        return {"message": "WANDB_API not set"}
-    return {"message": "OK - Token configured (using env vars, no login needed)"}
-
-
-@router.get(path="/model/set_openai_api_key")
-async def set_openai_api_key(
-    x_team_id: str | None = Header(None, alias="X-Team-Id"),
-    user: User = Depends(current_active_user),
-):
-    """
-    Deprecated: No-op endpoint for backward compatibility.
-    API keys are now passed via env vars to subprocesses automatically.
-    Token is set in plugin subprocesses via plugin_harness.py.
-    """
-    # Check if token exists for validation (checks user -> team -> global)
-    user_id = str(user.id) if user else None
-    token = await db.config_get("OPENAI_API_KEY", user_id=user_id, team_id=x_team_id)
-    if token is None:
-        return {"message": "OPENAI_API_KEY not configured in database"}
-    return {"message": "OK - Token configured (using env vars in subprocesses, no manual set needed)"}
-
-
-@router.get(path="/model/set_anthropic_api_key")
-async def set_anthropic_api_key(
-    x_team_id: str | None = Header(None, alias="X-Team-Id"),
-    user: User = Depends(current_active_user),
-):
-    """
-    Deprecated: No-op endpoint for backward compatibility.
-    API keys are now passed via env vars to subprocesses automatically.
-    Token is set in plugin subprocesses via plugin_harness.py.
-    """
-    # Check if token exists for validation (checks user -> team -> global)
-    user_id = str(user.id) if user else None
-    token = await db.config_get("ANTHROPIC_API_KEY", user_id=user_id, team_id=x_team_id)
-    if token is None:
-        return {"message": "ANTHROPIC_API_KEY not configured in database"}
-    return {"message": "OK - Token configured (using env vars in subprocesses, no manual set needed)"}
-
-
-@router.get(path="/model/set_custom_api_key")
-async def set_custom_api_key(
-    x_team_id: str | None = Header(None, alias="X-Team-Id"),
-    user: User = Depends(current_active_user),
-):
-    """
-    Deprecated: No-op endpoint for backward compatibility.
-    API keys are now passed via env vars to subprocesses automatically.
-    Token is set in plugin subprocesses via plugin_harness.py.
-    """
-    # Check if token exists for validation (checks user -> team -> global)
-    user_id = str(user.id) if user else None
-    token = await db.config_get("CUSTOM_MODEL_API_KEY", user_id=user_id, team_id=x_team_id)
-    if token is None:
-        return {"message": "CUSTOM_MODEL_API_KEY not configured in database"}
-    return {"message": "OK - Token configured (using env vars in subprocesses, no manual set needed)"}
-
-
-@router.get(path="/model/check_openai_api_key")
-async def check_openai_api_key(
-    x_team_id: str | None = Header(None, alias="X-Team-Id"),
-    user: User = Depends(current_active_user),
-):
-    """
-    Check if OPENAI_API_KEY is configured in database (checks user -> team -> global).
-    """
-    user_id = str(user.id) if user else None
-    token = await db.config_get("OPENAI_API_KEY", user_id=user_id, team_id=x_team_id)
-    if token is None:
-        return {"message": "OPENAI_API_KEY not set"}
-    return {"message": "OK"}
-
-
-@router.get(path="/model/check_anthropic_api_key")
-async def check_anthropic_api_key(
-    x_team_id: str | None = Header(None, alias="X-Team-Id"),
-    user: User = Depends(current_active_user),
-):
-    """
-    Check if ANTHROPIC_API_KEY is configured in database (checks user -> team -> global).
-    """
-    user_id = str(user.id) if user else None
-    token = await db.config_get("ANTHROPIC_API_KEY", user_id=user_id, team_id=x_team_id)
-    if token is None:
-        return {"message": "ANTHROPIC_API_KEY not set"}
-    return {"message": "OK"}
-
-
-@router.get(path="/model/check_custom_api_key")
-async def check_custom_api_key(
-    x_team_id: str | None = Header(None, alias="X-Team-Id"),
-    user: User = Depends(current_active_user),
-):
-    """
-    Check if CUSTOM_MODEL_API_KEY is configured in database (checks user -> team -> global).
-    """
-    user_id = str(user.id) if user else None
-    token = await db.config_get("CUSTOM_MODEL_API_KEY", user_id=user_id, team_id=x_team_id)
-    if token is None:
-        return {"message": "CUSTOM_MODEL_API_KEY not set"}
-    return {"message": "OK"}
-
-
 @router.get(path="/model/download_size")
 def get_model_download_size(model_id: str, allow_patterns: list = []):
     try:
@@ -592,7 +417,7 @@ async def download_huggingface_model(
             error_msg = None
             if job and job.get("job_data"):
                 error_msg = job["job_data"].get("error_msg")
-            await job_update_status(job_id, "UNAUTHORIZED", experiment_id=experiment_id, error_msg=error_msg)
+            await job_update_status(job_id, JobStatus.UNAUTHORIZED, experiment_id=experiment_id, error_msg=error_msg)
             return {"status": "unauthorized", "message": error_msg}
 
         elif exitcode != 0:
@@ -652,7 +477,7 @@ on the model's Huggingface page."
         # Log the detailed error message
         print(error_msg)
         if job_id:
-            await job_update_status(job_id, "UNAUTHORIZED", experiment_id=experiment_id, error_msg=error_msg)
+            await job_update_status(job_id, JobStatus.UNAUTHORIZED, experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "unauthorized", "message": error_msg}
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"

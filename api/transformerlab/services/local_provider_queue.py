@@ -8,8 +8,8 @@ from transformerlab.compute_providers.models import ClusterConfig
 from transformerlab.services import job_service, quota_service
 from transformerlab.services.provider_service import get_provider_by_id, get_provider_instance
 from transformerlab.db.session import async_session
-from transformerlab.shared.request_context import set_current_org_id
 from lab import dirs as lab_dirs
+from lab.job_status import JobStatus
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,6 @@ async def _local_launch_worker() -> None:
 async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
     """Process a single local launch work item."""
     async with async_session() as session:
-        set_current_org_id(item.team_id)
         lab_dirs.set_organization_id(item.team_id)
         try:
             # Initial progress update
@@ -95,7 +94,7 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
                 print(f"[local_provider_queue] Provider {item.provider_id} not found, job {item.job_id} FAILED")
                 await job_service.job_update_status(
                     item.job_id,
-                    "FAILED",
+                    JobStatus.FAILED,
                     experiment_id=item.experiment_id,
                     error_msg="Provider not found for local launch",
                     session=session,
@@ -143,7 +142,7 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
 
                 await job_service.job_update_status(
                     item.job_id,
-                    "FAILED",
+                    JobStatus.FAILED,
                     experiment_id=item.experiment_id,
                     error_msg=str(exc),
                     session=session,
@@ -169,12 +168,11 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
 
             await job_service.job_update_status(
                 item.job_id,
-                "FAILED",
+                JobStatus.FAILED,
                 experiment_id=item.experiment_id,
                 error_msg=str(exc),
                 session=session,
             )
             await session.commit()
         finally:
-            set_current_org_id(None)
             lab_dirs.set_organization_id(None)

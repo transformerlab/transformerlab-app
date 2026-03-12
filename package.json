@@ -25,13 +25,14 @@
       "url": "https://github.com/dadmobile"
     }
   ],
-  "version": "0.30.1",
+  "version": "0.31.1",
   "scripts": {
     "build": "dotenv -e .env -- cross-env NODE_ENV=production tsx node_modules/webpack/bin/webpack.js --config ./.erb/configs/webpack.config.cloud.prod.ts",
     "build:multiuser": "cross-env NODE_ENV=production tsx node_modules/webpack/bin/webpack.js --config ./.erb/configs/webpack.config.cloud.prod.ts",
+    "check-ports": "! lsof -i :1212 -i :8338",
     "lint": "cross-env NODE_ENV=development eslint . --ext .js,.jsx,.ts,.tsx",
     "start": "dotenv -e .env -- cross-env NODE_ENV=development tsx node_modules/webpack-dev-server/bin/webpack-dev-server.js --config ./.erb/configs/webpack.config.cloud.dev.ts",
-    "start:cloud": "dotenv -e .env -- cross-env NODE_ENV=development tsx node_modules/webpack-dev-server/bin/webpack-dev-server.js --config ./.erb/configs/webpack.config.cloud.dev.ts",
+    "dev": "npm run check-ports && concurrently -k -n FRONTEND,API -c cyan,magenta \"npm run start\" \"npm run api:start\"",
     "test": "jest",
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",

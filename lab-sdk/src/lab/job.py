@@ -5,6 +5,7 @@ from . import dirs
 from .labresource import BaseLabResource
 from .dirs import get_workspace_dir
 from . import storage
+from .job_status import JobStatus
 import logging
 
 logger = logging.getLogger(__name__)
@@ -63,7 +64,7 @@ class Job(BaseLabResource):
             "id": self.id,
             "experiment_id": "",
             "job_data": default_job_data,
-            "status": "NOT_STARTED",
+            "status": JobStatus.NOT_STARTED,
             "type": "REMOTE",
             "progress": 0,
         }
@@ -246,7 +247,7 @@ class Job(BaseLabResource):
                 try:
                     job = await cls.get(entry)
                     job_data = await job.get_json_data(uncached=True)
-                    if job_data.get("status") == "RUNNING":
+                    if job_data.get("status") == JobStatus.RUNNING:
                         count += 1
                 except Exception:
                     pass
@@ -270,7 +271,7 @@ class Job(BaseLabResource):
                 try:
                     job = await cls.get(entry)
                     job_data = await job.get_json_data(uncached=True)
-                    if job_data.get("status") == "QUEUED":
+                    if job_data.get("status") == JobStatus.QUEUED:
                         # Without ctime in object stores, sort lexicographically by job id
                         queued_jobs.append((int(entry) if entry.isdigit() else 0, job_data))
                 except Exception:
@@ -341,7 +342,7 @@ class Job(BaseLabResource):
         """
         Mark this job as deleted.
         """
-        await self.update_status("DELETED")
+        await self.update_status(JobStatus.DELETED)
 
         # Trigger cache rebuild since deleted jobs are removed from cache
         # This is non-blocking - just adds to pending queue

@@ -29,10 +29,11 @@ type TaskRow = {
 
 type TaskTemplateListProps = {
   tasksList: TaskRow[];
-  onDeleteTask: (taskId: string) => void;
+  onDeleteTask?: (taskId: string, taskName?: string) => void;
   onQueueTask: (task: TaskRow) => void;
   onEditTask: (task: TaskRow) => void;
   onExportTask?: (taskId: string) => void;
+  onViewFilesTask?: (task: TaskRow) => void;
   loading: boolean;
   interactTasks?: boolean;
 };
@@ -50,6 +51,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   onQueueTask,
   onEditTask,
   onExportTask,
+  onViewFilesTask,
   loading,
   interactTasks = false,
 }) => {
@@ -69,7 +71,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     const isTemplate =
       !task.config ||
       (typeof config === 'object' && Object.keys(config).length === 0) ||
-      (!config.command && !config.cluster_name);
+      (!config.run && !config.cluster_name);
 
     // Use template fields directly if it's a template, otherwise use config
     const cpus = isTemplate ? (task as any).cpus : config.cpus;
@@ -109,15 +111,15 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     const isTemplate =
       !task.config ||
       (typeof config === 'object' && Object.keys(config).length === 0) ||
-      (!config.command && !config.cluster_name);
+      (!config.run && !config.cluster_name);
 
     // Use template field directly if it's a template, otherwise use config
-    const command = isTemplate
-      ? (task as any).command || 'No command specified'
-      : config.command || 'No command specified';
+    const run = isTemplate
+      ? (task as any).run || 'No run command specified'
+      : config.run || 'No run command specified';
 
     // Truncate long commands
-    return command.length > 50 ? `${command.substring(0, 50)}...` : command;
+    return run.length > 50 ? `${run.substring(0, 50)}...` : run;
   };
 
   const getProviderInfo = (task: TaskRow) => {
@@ -135,7 +137,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     const isTemplate =
       !task.config ||
       (typeof config === 'object' && Object.keys(config).length === 0) ||
-      (!config.command && !config.cluster_name);
+      (!config.run && !config.cluster_name);
 
     // Use template field directly if it's a template, otherwise use config
     const providerName = isTemplate
@@ -239,12 +241,12 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
                 <IconButton
                   variant="plain"
                   color="danger"
-                  onClick={() => onDeleteTask?.(row.id)}
+                  onClick={() => onDeleteTask?.(row.id, getTitle(row))}
                   title="Delete task"
                 >
                   <Trash2Icon style={{ cursor: 'pointer' }} />
                 </IconButton>
-                {onExportTask && (
+                {(onExportTask || onViewFilesTask) && (
                   <Dropdown>
                     <MenuButton
                       slots={{ root: IconButton }}
@@ -256,9 +258,16 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
                       <MoreVerticalIcon size={16} />
                     </MenuButton>
                     <Menu>
-                      <MenuItem onClick={() => onExportTask?.(row.id)}>
-                        Export to Team Gallery
-                      </MenuItem>
+                      {onViewFilesTask && (
+                        <MenuItem onClick={() => onViewFilesTask?.(row)}>
+                          View Files
+                        </MenuItem>
+                      )}
+                      {onExportTask && (
+                        <MenuItem onClick={() => onExportTask?.(row.id)}>
+                          Export to Team Gallery
+                        </MenuItem>
+                      )}
                     </Menu>
                   </Dropdown>
                 )}

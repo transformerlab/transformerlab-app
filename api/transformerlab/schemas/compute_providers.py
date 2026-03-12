@@ -13,7 +13,7 @@ class ProviderConfigBase(BaseModel):
     server_url: Optional[str] = None
     api_token: Optional[str] = None
     default_env_vars: Dict[str, str] = Field(default_factory=dict)
-    default_entrypoint_command: Optional[str] = None
+    default_entrypoint_run: Optional[str] = None
 
     # SLURM-specific config
     mode: Optional[str] = None  # "rest" or "ssh"
@@ -51,6 +51,7 @@ class ProviderUpdate(BaseModel):
 
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     config: Optional[ProviderConfigBase] = None
+    disabled: Optional[bool] = None
 
 
 class ProviderRead(BaseModel):
@@ -64,6 +65,7 @@ class ProviderRead(BaseModel):
     created_by_user_id: str
     created_at: datetime
     updated_at: datetime
+    disabled: bool
 
     class Config:
         from_attributes = True
@@ -104,7 +106,7 @@ class ProviderTemplateLaunchRequest(BaseModel):
     )
     task_name: Optional[str] = Field(None, description="Friendly task name")
     cluster_name: Optional[str] = Field(None, description="Base cluster name, suffix is appended automatically")
-    command: str = Field(..., description="Command to execute on the cluster")
+    run: str = Field(..., description="Run command to execute on the cluster")
     subtype: Optional[str] = Field(None, description="Optional subtype for filtering")
     interactive_type: Optional[str] = Field(None, description="Interactive task type (e.g. vscode)")
     interactive_gallery_id: Optional[str] = Field(
@@ -132,7 +134,11 @@ class ProviderTemplateLaunchRequest(BaseModel):
         description="Configuration values to override for this specific run. These will be merged with parameters defaults.",
     )
     provider_name: Optional[str] = None
+    # Canonical GitHub fields (preferred)
     github_repo_url: Optional[str] = None
+    github_repo_dir: Optional[str] = None
+    github_repo_branch: Optional[str] = None
+    # Legacy fields kept for backward compatibility; new code should prefer github_repo_*.
     github_directory: Optional[str] = None
     github_branch: Optional[str] = None
     # Sweep configuration
@@ -159,6 +165,10 @@ class ProviderTemplateLaunchRequest(BaseModel):
     minutes_requested: Optional[int] = Field(
         default=None,
         description="Number of minutes requested for this task. Required for quota tracking.",
+    )
+    enable_trackio: Optional[bool] = Field(
+        default=False,
+        description="When True, set TLAB_TRACKIO_AUTO_INIT=true in the job environment so lab SDK can auto-integrate with Trackio.",
     )
 
 

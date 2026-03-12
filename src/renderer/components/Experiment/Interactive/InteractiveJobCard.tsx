@@ -120,18 +120,22 @@ export default function InteractiveJobCard({
 }: InteractiveJobCardProps) {
   const [connectOpen, setConnectOpen] = useState(false);
   const jobData = job.job_data || {};
+  const isPlaceholder = !!job.placeholder;
   const interactiveType =
     jobData.interactive_type ||
     (typeof jobData === 'string'
       ? JSON.parse(jobData || '{}')?.interactive_type
       : null) ||
-    'vscode';
+    (isPlaceholder ? null : 'vscode');
 
-  const typeConfig = getTypeConfig(interactiveType);
-  const TypeIcon = typeConfig.icon;
-  const isInteractive = job.status === 'INTERACTIVE';
+  const typeConfig = interactiveType ? getTypeConfig(interactiveType) : null;
+  const TypeIcon = typeConfig?.icon;
+  const isInteractive =
+    job.status === 'INTERACTIVE' || job.status === 'RUNNING';
   const title =
-    jobData.cluster_name || jobData.template_name || `Job ${job.id}`;
+    jobData.cluster_name ||
+    jobData.template_name ||
+    (isPlaceholder ? '' : `Job ${job.id}`);
   const jobIdNum = parseInt(job.id, 10);
 
   return (
@@ -155,25 +159,33 @@ export default function InteractiveJobCard({
               width: 36,
               height: 36,
               borderRadius: 'sm',
-              bgcolor: `var(--joy-palette-${typeConfig.color}-softBg)`,
-              color: `var(--joy-palette-${typeConfig.color}-softColor)`,
+              bgcolor: typeConfig
+                ? `var(--joy-palette-${typeConfig.color}-softBg)`
+                : 'var(--joy-palette-neutral-softBg)',
+              color: typeConfig
+                ? `var(--joy-palette-${typeConfig.color}-softColor)`
+                : 'var(--joy-palette-neutral-softColor)',
               flexShrink: 0,
               mt: 0.25,
             }}
           >
-            <TypeIcon size={20} />
+            {TypeIcon && <TypeIcon size={20} />}
           </Box>
           <Stack sx={{ flex: 1, minWidth: 0 }} spacing={0.25}>
             <Typography
               level="title-sm"
               noWrap
               title={title}
-              sx={{ fontWeight: 600 }}
+              sx={{ fontWeight: 600, minHeight: '1.2em' }}
             >
               {title}
             </Typography>
-            <Chip variant="soft" color={typeConfig.color} size="sm">
-              {typeConfig.label}
+            <Chip
+              variant="soft"
+              color={typeConfig?.color ?? 'neutral'}
+              size="sm"
+            >
+              {typeConfig?.label ?? '\u00A0'}
             </Chip>
           </Stack>
           <IconButton
@@ -211,7 +223,11 @@ export default function InteractiveJobCard({
         jobId={connectOpen ? jobIdNum : -1}
         setJobId={() => setConnectOpen(false)}
         embeddedOutput={
-          <EmbeddableStreamingOutput jobId={jobIdNum} tabs={['provider']} />
+          <EmbeddableStreamingOutput
+            jobId={jobIdNum}
+            tabs={['provider']}
+            jobStatus={job?.status || ''}
+          />
         }
       />
     </Card>
