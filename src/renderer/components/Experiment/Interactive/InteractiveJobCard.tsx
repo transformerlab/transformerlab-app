@@ -125,15 +125,11 @@ export default function InteractiveJobCard({
   const typeConfig = interactiveType ? getTypeConfig(interactiveType) : null;
   const TypeIcon = typeConfig?.icon;
   const isInteractive =
-<<<<<<< add/interact-modal-component
-    job.status === 'INTERACTIVE' || job.status === 'RUNNING';
-  const isLaunching = job.status === 'LAUNCHING' || job.status === 'WAITING';
-  const showActions = isInteractive || isLaunching;
-=======
     job.status === 'INTERACTIVE' ||
     job.status === 'RUNNING' ||
     job.status === 'STOPPING';
->>>>>>> main
+  const isLaunching = job.status === 'LAUNCHING' || job.status === 'WAITING';
+  const showActions = isInteractive || isLaunching;
   const title =
     jobData.cluster_name ||
     jobData.template_name ||
