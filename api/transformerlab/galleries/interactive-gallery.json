@@ -344,6 +344,5 @@
         "template": "1. Download your organization's SSH key from Team Settings\n2. Save the key file (e.g., ~/org_ssh_key_{{team_id}})\n3. Set permissions: chmod 600 ~/org_ssh_key_{{team_id}}\n4. Copy the SSH command above\n5. Open your terminal\n6. Paste and run the command"
       }
     ]
-  },
   }
 ]
