@@ -501,3 +501,13 @@ def command_task_queue(
         console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
         raise typer.Exit(1)
     queue_task(task_id, experiment_id=current_experiment, interactive=not no_interactive)
+
+
+@app.command("interactive")
+def command_task_interactive(
+    timeout: int = typer.Option(300, "--timeout", "-t", help="Timeout in seconds waiting for service readiness"),
+):
+    """Launch an interactive task (Jupyter, vLLM, Ollama, etc.)."""
+    from transformerlab_cli.commands.interactive import interactive
+
+    interactive(timeout=timeout)
