@@ -1293,11 +1293,13 @@ async def _launch_sweep_jobs(
                 if request.github_repo_url:
                     workspace_dir = await get_workspace_dir()
                     github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
+                    directory = request.github_repo_dir or request.github_directory
+                    branch = request.github_repo_branch or request.github_branch
                     github_setup = generate_github_clone_setup(
                         repo_url=request.github_repo_url,
-                        directory=request.github_directory,
+                        directory=directory,
                         github_pat=github_pat,
-                        branch=request.github_branch,
+                        branch=branch,
                     )
                     setup_commands.append(github_setup)
 
@@ -1658,11 +1660,13 @@ async def launch_template_on_provider(
     if request.github_repo_url:
         workspace_dir = await get_workspace_dir()
         github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
+        directory = request.github_repo_dir or request.github_directory
+        branch = request.github_repo_branch or request.github_branch
         github_setup = generate_github_clone_setup(
             repo_url=request.github_repo_url,
-            directory=request.github_directory,
+            directory=directory,
             github_pat=github_pat,
-            branch=request.github_branch,
+            branch=branch,
         )
         setup_commands.append(github_setup)
 
@@ -2361,8 +2365,13 @@ async def resume_from_checkpoint(
         "provider_id",
         "provider_type",
         "provider_name",
+        # Canonical GitHub fields
         "github_repo_url",
+        "github_repo_dir",
+        "github_repo_branch",
+        # Legacy GitHub fields retained for backward compatibility
         "github_directory",
+        "github_branch",
         "user_info",
         "team_id",
     ]

@@ -147,17 +147,18 @@ async def task_list_files(task_id: str) -> TaskFilesResponse:
     github_files: list[str] = []
     local_files: list[str] = []
 
-    # For tasks, fields are stored directly (flat structure).
+    # For tasks, fields are stored directly (flat structure). Prefer canonical github_repo_* keys,
+    # but fall back to legacy github_directory/github_branch for older tasks.
     github_repo_url = task.get("github_repo_url")
-    github_directory = task.get("github_directory")
-    github_branch = task.get("github_branch")
+    github_repo_dir = task.get("github_repo_dir") or task.get("github_directory")
+    github_repo_branch = task.get("github_repo_branch") or task.get("github_branch")
 
     if github_repo_url:
         try:
             github_files = await list_files_in_github_directory(
                 github_repo_url,
-                directory=github_directory,
-                ref=github_branch,
+                directory=github_repo_dir,
+                ref=github_repo_branch,
             )
         except HTTPException:
             # Surface GitHub errors directly to the client
@@ -583,13 +584,14 @@ def _parse_yaml_to_task_data(yaml_content: str) -> dict:
     # to consistently use `run` in the API surface.
     task_data["command"] = str(validated.run)
 
-    # GitHub (task.yaml: github_repo_url, github_repo_dir, github_repo_branch; stored as github_directory/github_branch internally)
+    # GitHub (task.yaml: github_repo_url, github_repo_dir, github_repo_branch).
+    # Canonical internal keys match the YAML (`github_repo_url`, `github_repo_dir`, `github_repo_branch`).
     if validated.github_repo_url is not None:
         task_data["github_repo_url"] = str(validated.github_repo_url)
     if validated.github_repo_dir is not None:
-        task_data["github_directory"] = str(validated.github_repo_dir)
+        task_data["github_repo_dir"] = str(validated.github_repo_dir)
     if validated.github_repo_branch is not None:
-        task_data["github_branch"] = str(validated.github_repo_branch)
+        task_data["github_repo_branch"] = str(validated.github_repo_branch)
 
     # Parameters
     if validated.parameters is not None:
@@ -999,13 +1001,13 @@ async def import_task_from_gallery(
     if "plugin" not in task_data:
         task_data["plugin"] = "remote_orchestrator"
 
-    # Ensure GitHub repo info is set (may be in task.yaml as git_repo)
+    # Ensure GitHub repo info is set (may be in task.yaml as git_repo). Prefer canonical github_repo_* keys.
     if not task_data.get("github_repo_url"):
         task_data["github_repo_url"] = github_repo_url
-    if github_repo_dir and not task_data.get("github_directory"):
-        task_data["github_directory"] = github_repo_dir
-    if github_branch and not task_data.get("github_branch"):
-        task_data["github_branch"] = github_branch
+    if github_repo_dir and not task_data.get("github_repo_dir"):
+        task_data["github_repo_dir"] = github_repo_dir
+    if github_branch and not task_data.get("github_repo_branch"):
+        task_data["github_repo_branch"] = github_branch
 
     # Resolve provider
     await _resolve_provider(task_data, user_and_team, session)
