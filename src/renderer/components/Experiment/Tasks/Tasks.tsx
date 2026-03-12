@@ -294,7 +294,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     {
       // Tasks (templates) change relatively infrequently; use a modest polling interval
       // and rely on backend cache + explicit invalidation for freshness.
-      refreshInterval: 30000, // 30s
+      refreshInterval: 10000, // 10s
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
       refreshWhenHidden: false,

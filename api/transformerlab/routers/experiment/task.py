@@ -43,6 +43,7 @@ from transformerlab.schemas.task import (
     TaskFilesResponse,
 )
 from pydantic import ValidationError
+from transformerlab.services.cache_service import cache, cached
 
 router = APIRouter(prefix="/task", tags=["task"])
 
@@ -973,7 +974,14 @@ async def import_task_from_gallery(
         # Create the task
         task_id = await task_service.add_task(task_data)
 
-        return {"status": "success", "message": f"Interactive task '{task_name}' imported successfully", "id": task_id}
+        # Invalidate cached task lists for this experiment (best-effort).
+        await cache.invalidate("tasks", f"tasks:list:{experimentId}")
+
+        return {
+            "status": "success",
+            "message": f"Interactive task '{task_name}' imported successfully",
+            "id": task_id,
+        }
 
     # Regular task import (existing logic)
     gallery = await galleries.get_tasks_gallery()
@@ -1070,7 +1078,14 @@ async def import_task_from_gallery(
     async with await storage.open(yaml_path, "w", encoding="utf-8") as f:
         await f.write(task_yaml_content)
 
-    return {"status": "success", "message": f"Task '{task_data['name']}' imported successfully", "id": task_id}
+    # Invalidate cached task lists for this experiment (best-effort).
+    await cache.invalidate("tasks", f"tasks:list:{experimentId}")
+
+    return {
+        "status": "success",
+        "message": f"Task '{task_data['name']}' imported successfully",
+        "id": task_id,
+    }
 
 
 @router.get("/gallery/team", summary="List team-specific tasks from the team gallery")
@@ -1184,7 +1199,14 @@ async def import_task_from_team_gallery(
     async with await storage.open(yaml_path, "w", encoding="utf-8") as f:
         await f.write(task_yaml_content)
 
-    return {"status": "success", "message": f"Task '{task_data['name']}' imported successfully", "id": task_id}
+    # Invalidate cached task lists for this experiment (best-effort).
+    await cache.invalidate("tasks", f"tasks:list:{experimentId}")
+
+    return {
+        "status": "success",
+        "message": f"Task '{task_data['name']}' imported successfully",
+        "id": task_id,
+    }
 
 
 @router.post("/gallery/team/export", summary="Export an existing task to the team gallery")
