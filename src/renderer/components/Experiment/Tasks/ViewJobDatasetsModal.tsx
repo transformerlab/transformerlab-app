@@ -20,7 +20,7 @@ import { formatBytes } from 'renderer/lib/utils';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetchWithAuth } from 'renderer/lib/authContext';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
-import SaveToRegistryDialog from './SaveToRegistryDialog';
+import SaveToRegistryDialog, { SaveVersionInfo } from './SaveToRegistryDialog';
 
 interface ViewJobDatasetsModalProps {
   open: boolean;
@@ -68,8 +68,7 @@ export default function ViewJobDatasetsModal({
 
   const handleSaveToRegistry = async (
     datasetName: string,
-    targetName: string,
-    mode: 'new' | 'existing',
+    info: SaveVersionInfo,
   ) => {
     setSavingDataset(datasetName);
     setSaveError(null);
@@ -80,8 +79,10 @@ export default function ViewJobDatasetsModal({
         experimentId: experimentInfo?.id,
         jobId: jobId.toString(),
         datasetName,
-        targetName: targetName,
-        mode: mode,
+        targetName: info.groupName,
+        mode: info.mode,
+        tag: info.tag,
+        description: info.description,
       });
 
       const response = await fetchWithAuth(url, {
@@ -261,9 +262,10 @@ export default function ViewJobDatasetsModal({
         type="dataset"
         existingNames={existingDatasetNames}
         saving={savingDataset !== null}
-        onSave={(targetName, mode) => {
+        jobId={jobId}
+        onSave={(info) => {
           if (saveDialogDataset) {
-            handleSaveToRegistry(saveDialogDataset, targetName, mode);
+            handleSaveToRegistry(saveDialogDataset, info);
           }
         }}
       />
