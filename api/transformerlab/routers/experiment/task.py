@@ -936,6 +936,12 @@ async def import_task_from_gallery(
             "interactive_gallery_id": interactive_gallery_id,
         }
 
+        # Persist github_repo_url / github_repo_dir so they are available at launch time
+        if gallery_entry.get("github_repo_url"):
+            task_data["github_repo_url"] = gallery_entry["github_repo_url"]
+        if gallery_entry.get("github_repo_dir"):
+            task_data["github_directory"] = gallery_entry["github_repo_dir"]
+
         await _resolve_provider(task_data, user_and_team, session)
 
         # Create the task

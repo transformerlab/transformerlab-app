@@ -80,12 +80,14 @@
   - **Idempotency**: Tests must pass on repeated runs against the same container. Don't assume a clean DB; handle existing data gracefully with `.first()` or by checking for pre-existing state.
   - **Timeouts**: Set `test.setTimeout(120_000)` for tests that queue jobs (local provider launch + execution can take time). Use generous `toBeVisible({ timeout: 60000 })` for status transitions like LAUNCHING → COMPLETE.
 
-### Visual UI Verification (Chrome DevTools MCP)
+### Visual UI Verification
 
-The Chrome DevTools MCP is enabled. When requested, verify the result with the following steps:
+When verifying UI changes in the browser, **always prefer the Vercel agent-browser** (the default browser tool). It is more efficient for navigating pages, taking snapshots, clicking elements, and filling forms. Only fall back to the **Chrome DevTools MCP** when you specifically need lower-level capabilities such as evaluating JavaScript, inspecting network requests, analyzing console messages, or running performance traces.
 
-1. Run `npm run docker-test:up` to ensure the app is running.
-2. Use the browser tool to navigate to the page you just changed. Remember that the app usually serves on port 8338
+When requested, verify the result with the following steps:
+
+1. Run `npm run docker-test:up` to ensure the app is running (or use `python scripts/dev.py` for local dev).
+2. Use the browser tool to navigate to the page you just changed. Remember that the app usually serves on port 8338 (API) and port 1212 (frontend dev server).
 3. If the app requires login, use the default credentials: **email:** `admin@example.com` / **password:** `admin123`.
 4. Explore related pages (e.g., if you changed the Header, also check the Dashboard and Login pages).
 5. Take screenshots and verify that no layouts are broken.
