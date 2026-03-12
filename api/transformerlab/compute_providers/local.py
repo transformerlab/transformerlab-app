@@ -310,10 +310,10 @@ class LocalProvider(ComputeProvider):
                 print(f"[LocalProvider] Setup failed with code {setup_result.returncode}")
                 raise RuntimeError(f"Setup failed (exit {setup_result.returncode}). Last lines:\n{tail}")
 
-        # Start main command in background (detached subprocess)
-        print(f"[LocalProvider] Launching command in {job_dir}: {config.command!r}")
+        # Start main run command in background (detached subprocess)
+        print(f"[LocalProvider] Launching run in {job_dir}: {config.run!r}")
         proc = subprocess.Popen(
-            ["/bin/bash", "-c", config.command or "true"],
+            ["/bin/bash", "-c", config.run or "true"],
             cwd=str(job_dir),
             env=env,
             stdout=stdout_log,

@@ -594,7 +594,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         plugin: 'remote_orchestrator',
         experiment_id: experimentInfo.id,
         cluster_name: data.cluster_name,
-        command: data.command,
+        run: data.run,
         cpus: data.cpus || undefined,
         memory: data.memory || undefined,
         disk_space: data.disk_space || undefined,
@@ -685,9 +685,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     try {
       const interactiveType = data.interactive_type || 'vscode';
 
-      // Fetch interactive gallery to get setup and command templates
+      // Fetch interactive gallery to get setup and run templates
       let defaultSetup: string;
-      let defaultCommand: string;
+      let defaultRun: string;
       let templateId: string | undefined;
 
       try {
@@ -711,7 +711,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           }
 
           defaultSetup = template.setup || '';
-          defaultCommand = template.command || '';
+          defaultRun = template.run || template.command || '';
           templateId = template.id;
         } else {
           throw new Error('Failed to fetch interactive gallery');
@@ -743,7 +743,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         plugin: 'remote_orchestrator',
         experiment_id: experimentInfo.id,
         cluster_name: data.title,
-        command: defaultCommand,
+        run: defaultRun,
         cpus: data.cpus || undefined,
         memory: data.memory || undefined,
         accelerators: data.accelerators || undefined,
@@ -820,14 +820,14 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     }
 
     if (
-      !cfg.command &&
-      !task.command &&
+      !cfg.run &&
+      !task.run &&
       !cfg.github_repo_url &&
       !task.github_repo_url
     ) {
       addNotification({
         type: 'warning',
-        message: 'Task is missing a command to run.',
+        message: 'Task is missing a run command.',
       });
       return;
     }
@@ -892,7 +892,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         task_id: task.id,
         task_name: task.name,
         cluster_name: cfg.cluster_name || task.cluster_name,
-        command: cfg.command || task.command,
+        run: cfg.run || task.run,
         subtype: cfg.subtype || task.subtype,
         interactive_type: cfg.interactive_type || task.interactive_type,
         interactive_gallery_id:
