@@ -288,7 +288,7 @@ async def set_org_context(request: Request, call_next):
 
         # If no X-Team-Id, try to determine from API key
         if not org_id:
-            from transformerlab.shared.api_key_auth import determine_team_id_from_request
+            from transformerlab.services.api_key_auth import determine_team_id_from_request
             from transformerlab.db.session import async_session
 
             # Create a session for the middleware check
