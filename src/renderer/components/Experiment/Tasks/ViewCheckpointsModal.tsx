@@ -196,3 +196,4 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
     </Modal>
   );
 }
+

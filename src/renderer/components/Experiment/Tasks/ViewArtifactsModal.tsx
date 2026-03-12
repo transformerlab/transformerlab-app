@@ -610,3 +610,4 @@ export default function ViewArtifactsModal({
     </Modal>
   );
 }
+
