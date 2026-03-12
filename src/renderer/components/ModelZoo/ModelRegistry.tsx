@@ -6,7 +6,7 @@
  * This is the "Model Registry" tab inside ModelZoo.
  */
 
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import {
   Accordion,
   AccordionDetails,
@@ -470,12 +470,12 @@ function GroupVersionsTable({
     >
       <thead>
         <tr>
-          <th style={{ width: 60 }}>Version</th>
-          <th>Model ID</th>
-          <th style={{ width: 130 }}>Tag</th>
+          <th style={{ width: 70 }}>Version</th>
+          <th style={{ width: 120 }}>Model ID</th>
+          <th style={{ width: 110 }}>Tag</th>
           <th style={{ width: 150 }}>Created</th>
-          <th style={{ width: 90 }}>Job</th>
-          <th style={{ width: 140 }}>Actions</th>
+          <th style={{ width: 80 }}>Job</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -548,110 +548,6 @@ export default function ModelRegistry() {
       return next;
     });
   };
-
-  /**
-   * Resolve the best version for a group (using the resolve endpoint) and
-   * set it as the experiment foundation.
-   *
-   * Resolution priority (server-side):
-   *   exact version → specified tag → "latest" tag → highest version number
-   */
-  const [resolvingGroup, setResolvingGroup] = useState<string | null>(null);
-
-  const handleResolveAndSelect = useCallback(
-    async (groupName: string) => {
-      if (!experimentInfo?.id) return;
-      setResolvingGroup(groupName);
-      try {
-        // 1. Resolve the best version via the resolve endpoint
-        const resolveResp = await fetchWithAuth(
-          chatAPI.Endpoints.AssetVersions.Resolve('model', groupName),
-        );
-        if (!resolveResp.ok) {
-          console.error('Resolve failed:', resolveResp.statusText);
-          return;
-        }
-        const resolved = await resolveResp.json();
-        if (!resolved || !resolved.asset_id) {
-          console.error('No version resolved for group:', groupName);
-          return;
-        }
-
-        // 2. Fetch model details for the resolved asset_id
-        const detailResp = await fetchWithAuth(
-          chatAPI.Endpoints.Models.ModelDetailsFromFilesystem(resolved.asset_id),
-        );
-        const modelDetails = detailResp.ok ? await detailResp.json() : {};
-        const architecture = modelDetails?.architecture || '';
-        const modelFilename = modelDetails?.model_filename || '';
-
-        // Get local model info for local_path
-        let foundationFilename = '';
-        const localListResp = await fetchWithAuth(
-          chatAPI.Endpoints.Models.LocalList(),
-        );
-        const localModels = localListResp.ok ? await localListResp.json() : [];
-        const localModel = Array.isArray(localModels)
-          ? localModels.find((m: any) => m.model_id === resolved.asset_id)
-          : null;
-
-        if (localModel?.stored_in_filesystem) {
-          foundationFilename = localModel.local_path || '';
-        } else if (modelFilename) {
-          foundationFilename = modelFilename;
-        }
-
-        // 3. Auto-detect inference engine
-        const additionalConfigs: Record<string, string> = {};
-        if (architecture) {
-          try {
-            const enginesResp = await fetchWithAuth(
-              chatAPI.Endpoints.Experiment.ListScriptsOfType(
-                experimentInfo.id,
-                'loader',
-                `model_architectures:${architecture}`,
-              ),
-            );
-            if (enginesResp.ok) {
-              const engines = await enginesResp.json();
-              if (engines?.length > 0) {
-                additionalConfigs.inferenceParams = JSON.stringify({
-                  inferenceEngine: engines[0].uniqueId,
-                  inferenceEngineFriendlyName: engines[0].name || '',
-                });
-              }
-            }
-          } catch {
-            // User can set engine manually
-          }
-        }
-
-        // 4. Update experiment configs
-        await fetchWithAuth(
-          chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo.id),
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              foundation: resolved.asset_id,
-              foundation_model_architecture: architecture,
-              foundation_filename: foundationFilename,
-              adaptor: '',
-              generationParams:
-                '{"temperature": 0.7,"maxTokens": 1024, "topP": 1.0, "frequencyPenalty": 0.0}',
-              ...additionalConfigs,
-            }),
-          },
-        );
-        experimentInfoMutate();
-      } catch (err) {
-        console.error('Failed to resolve and select model:', err);
-      } finally {
-        setResolvingGroup(null);
-      }
-    },
-    [experimentInfo, experimentInfoMutate],
-  );
 
   if (isLoading) return <RegistrySkeleton />;
   if (isError) {
@@ -768,35 +664,8 @@ export default function ModelRegistry() {
                         )}
                       </Stack>
 
-                      {/* Right side: Use latest + last updated + delete */}
+                      {/* Right side: last updated + delete */}
                       <Stack direction="row" alignItems="center" gap={1.5}>
-                        {resolvingGroup === group.group_name ? (
-                          <Button
-                            size="sm"
-                            variant="soft"
-                            color="neutral"
-                            disabled
-                            startDecorator={<CircularProgress size="sm" thickness={2} />}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Selecting…
-                          </Button>
-                        ) : (
-                          <Tooltip title="Resolve the best version (latest/production) and set as experiment foundation">
-                            <Button
-                              size="sm"
-                              variant="soft"
-                              color="success"
-                              startDecorator={<PlayIcon size={14} />}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleResolveAndSelect(group.group_name);
-                              }}
-                            >
-                              Use
-                            </Button>
-                          </Tooltip>
-                        )}
                         <Typography level="body-xs" color="neutral">
                           {formatRelativeDate(group.latest_created_at)}
                         </Typography>
