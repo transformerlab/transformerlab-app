@@ -1013,7 +1013,7 @@ def _find_missing_secrets_for_template_launch(
     referenced: set[str] = set()
 
     # Core task fields that may contain secrets
-    referenced.update(extract_secret_names_from_data(request.command))
+    referenced.update(extract_secret_names_from_data(request.run))
     if request.setup:
         referenced.update(extract_secret_names_from_data(request.setup))
     if request.env_vars:
@@ -1312,9 +1312,9 @@ async def _launch_sweep_jobs(
 
                 final_setup = ";".join(setup_commands) if setup_commands else None
 
-                # Replace secrets in command
-                command_with_secrets = (
-                    replace_secret_placeholders(request.command, team_secrets) if team_secrets else request.command
+                # Replace secrets in run command
+                run_with_secrets = (
+                    replace_secret_placeholders(request.run, team_secrets) if team_secrets else request.run
                 )
 
                 # Replace secrets in parameters if present
@@ -1331,7 +1331,7 @@ async def _launch_sweep_jobs(
                     "task_name": f"{request.task_name or 'Task'} (Sweep {i + 1}/{total_configs})"
                     if request.task_name
                     else None,
-                    "command": command_with_secrets,
+                    "run": run_with_secrets,
                     "cluster_name": formatted_cluster_name,
                     "subtype": request.subtype,
                     "cpus": request.cpus,
@@ -1372,7 +1372,7 @@ async def _launch_sweep_jobs(
                     cluster_name=formatted_cluster_name,
                     provider_name=provider_display_name,
                     provider_id=provider.id,
-                    command=command_with_secrets,
+                    run=run_with_secrets,
                     setup=final_setup,
                     env_vars=env_vars,
                     cpus=request.cpus,
@@ -1752,8 +1752,8 @@ async def launch_template_on_provider(
         if workspace_dir and not storage.is_remote_path(workspace_dir):
             env_vars["TFL_WORKSPACE_DIR"] = workspace_dir
 
-    # Resolve command (and optional setup override) for interactive sessions from gallery
-    base_command = request.command
+    # Resolve run command (and optional setup override) for interactive sessions from gallery
+    base_command = request.run
     setup_override_from_gallery = None
     interactive_setup_added = False
     if request.subtype == "interactive" and (request.interactive_gallery_id or request.interactive_type):
@@ -1850,7 +1850,7 @@ async def launch_template_on_provider(
 
     job_data = {
         "task_name": request.task_name,
-        "command": command_with_secrets,
+        "run": command_with_secrets,
         "cluster_name": formatted_cluster_name,
         "subtype": request.subtype,
         "interactive_type": request.interactive_type,
@@ -1895,13 +1895,13 @@ async def launch_template_on_provider(
     #   - sets job_data.live_status="started" when execution begins
     #   - sets job_data.live_status="finished" on success
     #   - sets job_data.live_status="crashed" on failure
-    wrapped_command = f"tfl-remote-trap -- {command_with_secrets}"
+    wrapped_run = f"tfl-remote-trap -- {command_with_secrets}"
 
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
         provider_id=provider.id,
-        command=wrapped_command,
+        run=wrapped_run,
         setup=final_setup,
         env_vars=env_vars,
         cpus=request.cpus,
@@ -2313,11 +2313,11 @@ async def resume_from_checkpoint(
 
     # Validate required fields for REMOTE job relaunch
     provider_id = job_data.get("provider_id")
-    command = job_data.get("command")
-    if not provider_id or not command:
+    run = job_data.get("run")
+    if not provider_id or not run:
         raise HTTPException(
             status_code=400,
-            detail="Original job is missing required fields (provider_id or command) for resume",
+            detail="Original job is missing required fields (provider_id or run) for resume",
         )
 
     # Verify checkpoint exists using workspace-aware path resolution
@@ -2349,7 +2349,7 @@ async def resume_from_checkpoint(
 
     # Copy all original job launch configuration
     config_fields = [
-        "command",
+        "run",
         "task_name",
         "subtype",
         "interactive_type",
@@ -2466,7 +2466,7 @@ async def resume_from_checkpoint(
     # Update job_data with launch configuration
     launch_job_data = {
         "task_name": job_data.get("task_name"),
-        "command": command,
+        "run": run,
         "cluster_name": formatted_cluster_name,
         "subtype": job_data.get("subtype"),
         "interactive_type": job_data.get("interactive_type"),
@@ -2503,7 +2503,7 @@ async def resume_from_checkpoint(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
         provider_id=provider.id,
-        command=command,
+        run=run,
         setup=final_setup,
         env_vars=env_vars,
         cpus=job_data.get("cpus"),

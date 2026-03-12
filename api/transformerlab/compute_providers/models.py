@@ -49,7 +49,7 @@ class ClusterConfig(BaseModel):
 
     # Cluster settings
     idle_minutes_to_autostop: Optional[int] = None
-    command: Optional[str] = None  # Initial command to run
+    run: Optional[str] = None  # Initial run command
     setup: Optional[str] = None  # Setup script
     env_vars: Dict[str, str] = Field(default_factory=dict)  # Environment variables
 
@@ -65,7 +65,7 @@ class ClusterConfig(BaseModel):
 class JobConfig(BaseModel):
     """Configuration for submitting a job."""
 
-    command: str  # Command to execute
+    run: str  # Run command to execute
     job_name: Optional[str] = None
     env_vars: Dict[str, str] = Field(default_factory=dict)
     num_nodes: Optional[int] = None
@@ -98,7 +98,7 @@ class JobInfo(BaseModel):
     job_name: Optional[str] = None
     state: JobState
     cluster_name: str
-    command: Optional[str] = None
+    run: Optional[str] = None
     submitted_at: Optional[str] = None
     started_at: Optional[str] = None
     finished_at: Optional[str] = None

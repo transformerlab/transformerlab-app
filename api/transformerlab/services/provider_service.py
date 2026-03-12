@@ -237,7 +237,7 @@ def db_record_to_provider_config(
         server_url=config_dict.get("server_url"),
         api_token=config_dict.get("api_token"),
         default_env_vars=config_dict.get("default_env_vars", {}),
-        default_entrypoint_command=config_dict.get("default_entrypoint_command"),
+        default_entrypoint_run=config_dict.get("default_entrypoint_run"),
         mode=config_dict.get("mode"),
         rest_url=config_dict.get("rest_url"),
         ssh_host=config_dict.get("ssh_host"),
