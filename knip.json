@@ -27,6 +27,7 @@
     "src/renderer/preload.d.ts"
   ],
   "ignoreDependencies": [
+    "@nivo/core",
     "@playwright/test",
     "playwright",
     "electron",
