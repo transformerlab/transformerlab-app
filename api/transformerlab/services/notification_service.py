@@ -22,6 +22,8 @@ import httpx
 from lab import Experiment
 from lab.dirs import set_organization_id as lab_set_org_id
 from lab.job_status import JobStatus
+from urllib.parse import urlparse
+
 
 import transformerlab.db.db as db
 from transformerlab.services import job_service, team_service
@@ -122,6 +124,9 @@ def build_notification_request_body(webhook_url: str, payload: Dict[str, Any]) -
     - Zapier can consume arbitrary JSON; we include both a human summary and the raw payload.
     """
     url = webhook_url.lower()
+    parsed = urlparse(webhook_url)
+    host = (parsed.hostname or "").lower()
+    path = parsed.path or ""
 
     summary = (
         f"Job {payload.get('job_id')} {payload.get('status')} "
@@ -129,7 +134,7 @@ def build_notification_request_body(webhook_url: str, payload: Dict[str, Any]) -
     )
 
     # Discord webhooks
-    if "discord.com/api/webhooks" in url:
+    if host == "discord.com" and path.startswith("/api/webhooks"):
         return {
             "content": summary,
             "embeds": [
@@ -156,7 +161,7 @@ def build_notification_request_body(webhook_url: str, payload: Dict[str, Any]) -
         }
 
     # Slack incoming webhooks
-    if "hooks.slack.com" in url:
+    if host == "hooks.slack.com":
         text_lines = [
             summary,
             f"Started: {payload.get('started_at')}",
@@ -170,13 +175,13 @@ def build_notification_request_body(webhook_url: str, payload: Dict[str, Any]) -
         }
 
     # Microsoft Teams incoming webhooks (and similar connectors)
-    if "office.com/webhook" in url or "outlook.office.com/webhook" in url or "office365" in url:
+    if host in {"outlook.office.com", "outlook.office365.com", "office.com"} and "/webhook" in path:
         return {
             "text": summary,
         }
 
     # Zapier: include both summary and raw payload so users can map fields easily.
-    if "hooks.zapier.com" in url:
+    if host == "hooks.zapier.com":
         body: Dict[str, Any] = {"summary": summary}
         body.update(payload)
         return body

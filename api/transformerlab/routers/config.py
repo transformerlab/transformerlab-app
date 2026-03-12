@@ -89,5 +89,6 @@ async def test_notification_webhook(
             "ok": False,
             "error": f"HTTP {exc.response.status_code}: {exc.response.text[:200]}",
         }
-    except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "error": str(exc)}
+    except Exception as exc:
+        print(f"Error sending notification webhook: {exc}")
+        return {"ok": False, "error": "An error occurred while sending the notification webhook."}
