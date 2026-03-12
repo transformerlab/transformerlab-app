@@ -43,7 +43,6 @@ from transformerlab.schemas.task import (
     TaskFilesResponse,
 )
 from pydantic import ValidationError
-from transformerlab.services.cache_service import cache, cached
 
 router = APIRouter(prefix="/task", tags=["task"])
 
@@ -441,9 +440,7 @@ async def update_task(task_id: str, new_task: dict = Body()):
     existing_task = await task_service.task_get_by_id(task_id)
     success = await task_service.update_task(task_id, new_task)
     if success:
-        experiment_id = (
-            existing_task.get("experiment_id") if isinstance(existing_task, dict) else None
-        )
+        experiment_id = existing_task.get("experiment_id") if isinstance(existing_task, dict) else None
         if experiment_id:
             # Best-effort invalidation of cached task lists for this experiment.
             await cache.invalidate("tasks", f"tasks:list:{experiment_id}")
@@ -458,9 +455,7 @@ async def delete_task(task_id: str):
     existing_task = await task_service.task_get_by_id(task_id)
     success = await task_service.delete_task(task_id)
     if success:
-        experiment_id = (
-            existing_task.get("experiment_id") if isinstance(existing_task, dict) else None
-        )
+        experiment_id = existing_task.get("experiment_id") if isinstance(existing_task, dict) else None
         if experiment_id:
             # Best-effort invalidation of cached task lists for this experiment.
             await cache.invalidate("tasks", f"tasks:list:{experiment_id}")
