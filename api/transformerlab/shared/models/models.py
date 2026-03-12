@@ -308,6 +308,11 @@ class AssetVersion(Base):
     )  # 'latest', 'production', 'draft', or NULL
     job_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # The job that produced this version
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    title: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # User-editable display title
+    long_description: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # Markdown long description
+    cover_image: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # Base64 or file path
+    evals: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Eval results (auto or manual)
+    extra_metadata: Mapped[Optional[dict]] = mapped_column("metadata", JSON, nullable=True)  # Arbitrary metadata for future use
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     __table_args__ = (
