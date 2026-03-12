@@ -421,17 +421,69 @@ def get_ssh_tunnel_info(logs: str) -> dict:
     }
 
 
-def get_tunnel_info(logs: str, interactive_type: str) -> dict:
+def get_custom_tunnel_info(logs: str, url_patterns: list[dict] | None) -> dict:
+    """
+    Generic log parser driven by caller-supplied regex patterns.
+
+    Each entry in *url_patterns* is a dict with:
+      - value_key (str): key name returned in the result dict
+      - regex (str): Python regex applied to the full log text
+      - group (int, optional): capture-group index to extract (default 0)
+
+    Returns a dict with each value_key mapped to the extracted string (or None),
+    plus ``is_ready`` / ``status`` for the standard tunnel-info contract.
+    """
+    values: dict = {}
+    found_any = False
+
+    for pattern_def in url_patterns or []:
+        value_key = pattern_def.get("value_key")
+        regex = pattern_def.get("regex")
+        group = pattern_def.get("group", 0)
+
+        if not value_key or not regex:
+            continue
+
+        try:
+            match = re.search(regex, logs, re.MULTILINE)
+        except re.error as e:
+            print(f"Invalid custom url_pattern regex for {value_key}: {e}")
+            values[value_key] = None
+            continue
+
+        value = None
+        if match:
+            try:
+                value = match.group(group)
+            except IndexError:
+                print(f"Invalid group {group} for custom url_pattern {value_key}")
+
+        values[value_key] = value
+        if value is not None:
+            found_any = True
+
+    return {
+        **values,
+        "is_ready": found_any,
+        "status": "ready" if found_any else "loading",
+    }
+
+
+def get_tunnel_info(logs: str, interactive_type: str | None, url_patterns: list[dict] | None = None) -> dict:
     """
     Get tunnel information based on the interactive type.
 
     Args:
         logs: Job logs as string
-        interactive_type: Type of interactive task ('vscode', 'jupyter', 'vllm', 'ollama', 'ssh')
+        interactive_type: Type of interactive task ('vscode', 'jupyter', 'vllm', 'ollama', 'ssh', or None/'custom' for pattern-based)
+        url_patterns: Optional list of pattern dicts for custom parsing
 
     Returns:
         Dictionary with tunnel information specific to the interactive type
     """
+    if not interactive_type or interactive_type == "custom":
+        return get_custom_tunnel_info(logs, url_patterns)
+
     if interactive_type == "vscode":
         return get_vscode_tunnel_info(logs)
     elif interactive_type == "jupyter":

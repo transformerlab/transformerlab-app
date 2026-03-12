@@ -1607,6 +1607,8 @@ async def launch_template_on_provider(
 
     # Prepare environment variables - start with a copy of requested env_vars
     env_vars = request.env_vars.copy() if request.env_vars else {}
+    print(f"[DEBUG launch_template] request.env_vars = {request.env_vars}")
+    print(f"[DEBUG launch_template] env_vars after copy = {env_vars}")
 
     # Replace {{secret.<name>}} patterns in env_vars
     if env_vars and team_secrets:
@@ -1756,12 +1758,11 @@ async def launch_template_on_provider(
     base_command = request.run
     setup_override_from_gallery = None
     interactive_setup_added = False
-    if request.subtype == "interactive" and (request.interactive_gallery_id or request.interactive_type):
+    if request.subtype == "interactive" and request.interactive_gallery_id:
         gallery_list = await galleries.get_interactive_gallery()
         gallery_entry = find_interactive_gallery_entry(
             gallery_list,
             interactive_gallery_id=request.interactive_gallery_id,
-            interactive_type=request.interactive_type,
         )
         if gallery_entry:
             environment = "local" if (provider.type == ProviderType.LOCAL.value or request.local) else "remote"
@@ -1854,6 +1855,7 @@ async def launch_template_on_provider(
         "cluster_name": formatted_cluster_name,
         "subtype": request.subtype,
         "interactive_type": request.interactive_type,
+        "interactive_gallery_id": request.interactive_gallery_id,
         "local": request.local,
         "cpus": request.cpus,
         "memory": request.memory,
