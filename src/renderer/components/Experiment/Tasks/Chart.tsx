@@ -254,9 +254,7 @@ const Chart = ({ metrics, compareChart = false }: ChartProps) => {
         {chartType === 'bar' && (
           <ResponsiveBar
             data={getChartData() as Record<string, string | number>[]}
-            keys={
-              swapAxes ? normalizedData.metricTypes : normalizedData.seriesKeys
-            }
+            keys={swapAxes ? normalizedData.metricTypes : normalizedData.seriesKeys}
             indexBy="metric"
             margin={{ top: 50, right: 130, bottom: 50, left: 60 }}
             padding={0.3}
@@ -288,9 +286,7 @@ const Chart = ({ metrics, compareChart = false }: ChartProps) => {
         {chartType === 'radar' && (
           <ResponsiveRadar
             data={getChartData() as DataPoint[]}
-            keys={
-              swapAxes ? normalizedData.metricTypes : normalizedData.seriesKeys
-            }
+            keys={swapAxes ? normalizedData.metricTypes : normalizedData.seriesKeys}
             indexBy="metric"
             margin={{ top: 70, right: 170, bottom: 40, left: 80 }}
             borderColor={{ from: 'color' }}
@@ -340,3 +336,4 @@ const Chart = ({ metrics, compareChart = false }: ChartProps) => {
 };
 
 export default Chart;
+
