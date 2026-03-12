@@ -24,11 +24,26 @@ class CreateVersionRequest(BaseModel):
     asset_id: str
     job_id: Optional[str] = None
     description: Optional[str] = None
+    title: Optional[str] = None
+    long_description: Optional[str] = None
+    cover_image: Optional[str] = None
+    evals: Optional[dict] = None
+    extra_metadata: Optional[dict] = None
     tag: Optional[str] = "latest"
 
 
 class SetTagRequest(BaseModel):
     tag: str  # 'latest', 'production', 'draft'
+
+
+class UpdateVersionRequest(BaseModel):
+    description: Optional[str] = None
+    title: Optional[str] = None
+    long_description: Optional[str] = None
+    cover_image: Optional[str] = None
+    evals: Optional[dict] = None
+    extra_metadata: Optional[dict] = None
+    tag: Optional[str] = None
 
 
 # ─── Group endpoints ─────────────────────────────────────────────────────────
@@ -66,6 +81,11 @@ async def create_version(body: CreateVersionRequest):
             asset_id=body.asset_id,
             job_id=body.job_id,
             description=body.description,
+            title=body.title,
+            long_description=body.long_description,
+            cover_image=body.cover_image,
+            evals=body.evals,
+            extra_metadata=body.extra_metadata,
             tag=body.tag,
         )
     except ValueError as e:
@@ -110,6 +130,45 @@ async def delete_version(asset_type: str, group_name: str, version: int):
     if not deleted:
         raise HTTPException(status_code=404, detail="Version not found")
     return {"status": "success"}
+
+
+# ─── Version update ──────────────────────────────────────────────────────────
+
+
+@router.patch(
+    "/versions/{asset_type}/{group_name}/{version}",
+    summary="Update metadata or tag on a specific version.",
+)
+async def update_version(
+    asset_type: str, group_name: str, version: int, body: UpdateVersionRequest
+):
+    # Build kwargs only for fields the caller actually sent (present in the JSON body).
+    # This lets the service layer distinguish "not provided" from "set to null".
+    raw = body.model_dump(exclude_unset=True)
+
+    # Map body fields to service kwargs using the sentinel pattern
+    kwargs = {}
+    for field in (
+        "description",
+        "title",
+        "long_description",
+        "cover_image",
+        "evals",
+        "extra_metadata",
+        "tag",
+    ):
+        if field in raw:
+            kwargs[field] = raw[field]
+
+    try:
+        result = await asset_version_service.update_version(
+            asset_type, group_name, version, **kwargs
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if result is None:
+        raise HTTPException(status_code=404, detail="Version not found")
+    return result
 
 
 # ─── Tag management ──────────────────────────────────────────────────────────
