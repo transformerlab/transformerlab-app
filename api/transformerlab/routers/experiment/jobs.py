@@ -412,10 +412,23 @@ async def get_tunnel_info_for_job(
     elif isinstance(cached_legacy, dict) and cached_legacy.get("is_ready"):
         tunnel_info = cached_legacy
 
-    # Get interactive_type from job_data, default to 'vscode' for backward compatibility
-    interactive_type = job_data.get("interactive_type", "vscode")
+    interactive_type = job_data.get("interactive_type")
+
+    # Look up the gallery entry to resolve url_patterns and interactive_type fallbacks
+    interactive_gallery_id = job_data.get("interactive_gallery_id")
+    gallery_list = await galleries.get_interactive_gallery()
+    gallery_entry = find_interactive_gallery_entry(
+        gallery_list,
+        interactive_gallery_id=interactive_gallery_id,
+    )
+
+    url_patterns = gallery_entry.get("url_patterns") if gallery_entry else None
     if not interactive_type:
-        raise HTTPException(status_code=400, detail="Job does not contain interactive_type in job_data")
+        interactive_type = gallery_entry.get("interactive_type") if gallery_entry else None
+    if not interactive_type and url_patterns:
+        interactive_type = "custom"
+    if not interactive_type:
+        interactive_type = "vscode"
 
     provider_id = job_data.get("provider_id")
     cluster_name = job_data.get("cluster_name")
@@ -501,7 +514,7 @@ async def get_tunnel_info_for_job(
             except TypeError:
                 logs_text = str(raw_logs)
 
-        tunnel_info = get_tunnel_info(logs_text, interactive_type)
+        tunnel_info = get_tunnel_info(logs_text, interactive_type, url_patterns=url_patterns)
 
         # If parsing the logs found a ready service, cache the tunnel info in job_data
         # so it survives log rotation / truncation and can be reused without log fetches.
@@ -515,12 +528,6 @@ async def get_tunnel_info_for_job(
         else:
             print(f"[tunnel_info] Job {job_id}: no URLs found in logs and no cache available")
 
-    # Look up the gallery entry to include port definitions in the response
-    interactive_gallery_id = job_data.get("interactive_gallery_id")
-    gallery_list = await galleries.get_interactive_gallery()
-    gallery_entry = find_interactive_gallery_entry(
-        gallery_list, interactive_gallery_id=interactive_gallery_id, interactive_type=interactive_type
-    )
     ports = gallery_entry.get("ports", []) if gallery_entry else []
     modal_title = gallery_entry.get("modal_title", "") if gallery_entry else ""
     modal_subtitle = gallery_entry.get("modal_subtitle", "") if gallery_entry else ""

@@ -20,19 +20,19 @@ import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import DeleteTaskConfirmModal from './DeleteTaskConfirmModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
-import ViewArtifactsModal from '../Train/ViewArtifactsModal';
-import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
+import ViewArtifactsModal from './ViewArtifactsModal';
+import ViewCheckpointsModal from './ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
 import CompareEvalResultsModal from './CompareEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
-import ViewJobDatasetsModal from '../Train/ViewJobDatasetsModal';
-import ViewJobModelsModal from '../Train/ViewJobModelsModal';
+import ViewJobDatasetsModal from './ViewJobDatasetsModal';
+import ViewJobModelsModal from './ViewJobModelsModal';
 import FileBrowserModal from './FileBrowserModal';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
-import TrackioModal from '../Train/TrackioModal';
+import TrackioModal from './TrackioModal';
 
 const duration = require('dayjs/plugin/duration');
 const dayjs = require('dayjs');
@@ -689,6 +689,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       let defaultSetup: string;
       let defaultRun: string;
       let templateId: string | undefined;
+      let template: any;
 
       try {
         const galleryResponse = await chatAPI.authenticatedFetch(
@@ -700,7 +701,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
         if (galleryResponse.ok) {
           const galleryData = await galleryResponse.json();
-          const template = galleryData.data?.find(
+          template = galleryData.data?.find(
             (t: any) => t.interactive_type === interactiveType,
           );
 
@@ -720,52 +721,72 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         throw error;
       }
 
-      // Create template with flat structure
-      // Use env_parameters from the gallery-defined structure (including NGROK)
-      const envVars: Record<string, string> = data.env_parameters || {};
+      let response: Response;
 
-      const needsNgrok =
-        interactiveType === 'jupyter' ||
-        interactiveType === 'vllm' ||
-        interactiveType === 'ollama' ||
-        interactiveType === 'ssh';
-      if (
-        needsNgrok &&
-        providerMeta.type !== 'local' &&
-        !envVars.NGROK_AUTH_TOKEN
-      ) {
-        envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
-      }
-
-      const templatePayload: any = {
-        name: data.title,
-        type: 'REMOTE',
-        plugin: 'remote_orchestrator',
-        experiment_id: experimentInfo.id,
-        cluster_name: data.title,
-        run: defaultRun,
-        cpus: data.cpus || undefined,
-        memory: data.memory || undefined,
-        accelerators: data.accelerators || undefined,
-        setup: defaultSetup,
-        subtype: 'interactive',
-        interactive_type: interactiveType,
-        interactive_gallery_id: templateId,
-        provider_id: providerMeta.id,
-        provider_name: providerMeta.name,
-        env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
-      };
-
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+      if (template.local_task_dir) {
+        // Use the gallery import API which reads task.yaml and copies files,
+        // just like the "Upload from Local Directory" flow.
+        response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              gallery_id: templateId,
+              experiment_id: experimentInfo.id,
+              is_interactive: true,
+              env_vars: data.env_parameters || undefined,
+            }),
           },
-          body: JSON.stringify(templatePayload),
-        },
-      );
+        );
+      } else {
+        // Create template with flat structure
+        // Use env_parameters from the gallery-defined structure (including NGROK)
+        const envVars: Record<string, string> = data.env_parameters || {};
+
+        const needsNgrok =
+          interactiveType === 'jupyter' ||
+          interactiveType === 'vllm' ||
+          interactiveType === 'ollama' ||
+          interactiveType === 'ssh';
+        if (
+          needsNgrok &&
+          providerMeta.type !== 'local' &&
+          !envVars.NGROK_AUTH_TOKEN
+        ) {
+          envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
+        }
+
+        const templatePayload: any = {
+          name: data.title,
+          type: 'REMOTE',
+          plugin: 'remote_orchestrator',
+          experiment_id: experimentInfo.id,
+          cluster_name: data.title,
+          run: defaultRun,
+          cpus: data.cpus || undefined,
+          memory: data.memory || undefined,
+          accelerators: data.accelerators || undefined,
+          setup: defaultSetup,
+          subtype: 'interactive',
+          interactive_type: interactiveType,
+          interactive_gallery_id: templateId,
+          provider_id: providerMeta.id,
+          provider_name: providerMeta.name,
+          env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
+        };
+
+        response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(templatePayload),
+          },
+        );
+      }
 
       if (response.ok) {
         setInteractiveModalOpen(false);
@@ -882,6 +903,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         provider_id: _pid,
         provider_name: _pname,
         enable_trackio,
+        cpus,
+        memory,
+        disk_space,
+        accelerators,
+        num_nodes,
+        minutes_requested,
         ...paramConfig
       } = config ?? {};
 
@@ -900,11 +927,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           (task as any)?.interactive_gallery_id ??
           config?.interactive_gallery_id ??
           undefined,
-        cpus: cfg.cpus || task.cpus,
-        memory: cfg.memory || task.memory,
-        disk_space: cfg.disk_space || task.disk_space,
-        accelerators: cfg.accelerators || task.accelerators,
-        num_nodes: cfg.num_nodes || task.num_nodes,
+        cpus: cpus ?? cfg.cpus ?? task.cpus,
+        memory: memory ?? cfg.memory ?? task.memory,
+        disk_space: disk_space ?? cfg.disk_space ?? task.disk_space,
+        accelerators: accelerators ?? cfg.accelerators ?? task.accelerators,
+        num_nodes: num_nodes ?? cfg.num_nodes ?? task.num_nodes,
         setup: cfg.setup || task.setup,
         env_vars: cfg.env_vars || task.env_vars || {},
         parameters: cfg.parameters || task.parameters || undefined, // Keep original parameter definitions
@@ -935,7 +962,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               ? task.lower_is_better
               : undefined,
         minutes_requested:
-          cfg.minutes_requested || task.minutes_requested || undefined,
+          minutes_requested ??
+          cfg.minutes_requested ??
+          task.minutes_requested ??
+          undefined,
         enable_trackio:
           typeof enable_trackio === 'boolean' ? enable_trackio : undefined,
       };
