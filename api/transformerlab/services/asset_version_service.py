@@ -35,6 +35,11 @@ async def create_version(
     asset_id: str,
     job_id: Optional[str] = None,
     description: Optional[str] = None,
+    title: Optional[str] = None,
+    long_description: Optional[str] = None,
+    cover_image: Optional[str] = None,
+    evals: Optional[dict] = None,
+    extra_metadata: Optional[dict] = None,
     tag: Optional[str] = "latest",
 ) -> dict:
     """Create a new version in a group and auto-assign the next version number.
@@ -80,6 +85,11 @@ async def create_version(
             tag=tag,
             job_id=job_id,
             description=description,
+            title=title,
+            long_description=long_description,
+            cover_image=cover_image,
+            evals=evals,
+            extra_metadata=extra_metadata,
         )
         session.add(new_version)
         await session.commit()
@@ -166,6 +176,78 @@ async def get_version(asset_type: str, group_name: str, version: int) -> Optiona
         )
         row = result.scalar_one_or_none()
         return _row_to_dict(row) if row else None
+
+
+async def update_version(
+    asset_type: str,
+    group_name: str,
+    version: int,
+    *,
+    description: Optional[str] = ...,
+    title: Optional[str] = ...,
+    long_description: Optional[str] = ...,
+    cover_image: Optional[str] = ...,
+    evals: Optional[dict] = ...,
+    extra_metadata: Optional[dict] = ...,
+    tag: Optional[str] = ...,
+) -> Optional[dict]:
+    """Update mutable fields on a specific version.
+
+    Uses sentinel default (...) so callers can distinguish between "not provided"
+    and "explicitly set to None".  Only fields that are explicitly passed will be
+    updated.
+
+    If ``tag`` is changed to a non-None value, the tag is first cleared from any
+    other version in the same group (one-tag-per-group invariant).
+    """
+    _validate_asset_type(asset_type)
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(AssetVersion).where(
+                AssetVersion.asset_type == asset_type,
+                AssetVersion.group_name == group_name,
+                AssetVersion.version == version,
+            )
+        )
+        row = result.scalar_one_or_none()
+        if not row:
+            return None
+
+        # Build a dict of fields to update (only those explicitly provided)
+        updatable = {
+            "description": description,
+            "title": title,
+            "long_description": long_description,
+            "cover_image": cover_image,
+            "evals": evals,
+            "extra_metadata": extra_metadata,
+            "tag": tag,
+        }
+
+        for field, value in updatable.items():
+            if value is ...:
+                continue  # not provided by caller
+
+            if field == "tag" and value is not None:
+                _validate_tag(value)
+                # Clear this tag from any other version in the group
+                await session.execute(
+                    update(AssetVersion)
+                    .where(
+                        AssetVersion.asset_type == asset_type,
+                        AssetVersion.group_name == group_name,
+                        AssetVersion.tag == value,
+                        AssetVersion.id != row.id,
+                    )
+                    .values(tag=None)
+                )
+
+            setattr(row, field, value)
+
+        await session.commit()
+        await session.refresh(row)
+        return _row_to_dict(row)
 
 
 async def resolve_by_tag(asset_type: str, group_name: str, tag: str = "latest") -> Optional[dict]:
@@ -384,5 +466,10 @@ def _row_to_dict(row: AssetVersion) -> dict:
         "tag": row.tag,
         "job_id": row.job_id,
         "description": row.description,
+        "title": row.title,
+        "long_description": row.long_description,
+        "cover_image": row.cover_image,
+        "evals": row.evals,
+        "extra_metadata": row.extra_metadata,
         "created_at": row.created_at.isoformat() if row.created_at else None,
     }
