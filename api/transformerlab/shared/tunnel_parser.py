@@ -495,6 +495,10 @@ def get_tunnel_info(logs: str, interactive_type: str | None, url_patterns: list[
     elif interactive_type == "ssh":
         return get_ssh_tunnel_info(logs)
     else:
+        # Unknown interactive_type: fall back to custom pattern-based parsing
+        # if url_patterns are available (e.g. ollama_gradio).
+        if url_patterns:
+            return get_custom_tunnel_info(logs, url_patterns)
         return {
             "error": f"Unknown interactive type: {interactive_type}",
             "is_ready": False,

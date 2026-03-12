@@ -305,8 +305,6 @@ export default function Interactive() {
     setIsSubmitting(true);
     setInteractiveModalError(null);
     try {
-      const interactiveType = data.interactive_type || 'vscode';
-
       // Fetch interactive gallery to get setup and run templates
       let defaultSetup: string;
       let defaultRun: string;
@@ -328,12 +326,15 @@ export default function Interactive() {
             if (data.template_id) {
               return t.id === data.template_id;
             }
-            return t.interactive_type === interactiveType;
+            return (
+              data.interactive_type &&
+              t.interactive_type === data.interactive_type
+            );
           });
 
           if (!template) {
             throw new Error(
-              `Template not found for interactive type: ${interactiveType}`,
+              `Template not found for: ${data.template_id || data.interactive_type || 'unknown'}`,
             );
           }
 
@@ -372,11 +373,10 @@ export default function Interactive() {
         // Use env_parameters from the gallery-defined structure
         const envVars: Record<string, string> = data.env_parameters || {};
 
-        const needsNgrok =
-          interactiveType === 'jupyter' ||
-          interactiveType === 'vllm' ||
-          interactiveType === 'ollama' ||
-          interactiveType === 'ssh';
+        // Check if the template defines NGROK_AUTH_TOKEN in its env_parameters
+        const needsNgrok = template?.env_parameters?.some(
+          (p: any) => p.env_var === 'NGROK_AUTH_TOKEN',
+        );
         if (
           needsNgrok &&
           providerMeta.type !== 'local' &&
@@ -397,7 +397,7 @@ export default function Interactive() {
           accelerators: data.accelerators || undefined,
           setup: defaultSetup,
           subtype: 'interactive',
-          interactive_type: interactiveType,
+          interactive_type: template?.interactive_type || undefined,
           interactive_gallery_id: templateId,
           provider_id: providerMeta.id,
           provider_name: providerMeta.name,
@@ -424,15 +424,7 @@ export default function Interactive() {
         await templatesMutate();
 
         const interactiveTypeLabel =
-          (data.interactive_type || 'vscode') === 'jupyter'
-            ? 'Jupyter'
-            : (data.interactive_type || 'vscode') === 'vllm'
-              ? 'vLLM'
-              : (data.interactive_type || 'vscode') === 'ollama'
-                ? 'Ollama'
-                : (data.interactive_type || 'vscode') === 'ssh'
-                  ? 'SSH'
-                  : 'VS Code';
+          template?.name || data.interactive_type || 'interactive';
 
         if (shouldLaunch) {
           if (!taskId) {
