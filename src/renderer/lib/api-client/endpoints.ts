@@ -558,6 +558,8 @@ Endpoints.AssetVersions = {
     `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${version}`,
   DeleteVersion: (assetType: string, groupName: string, version: number) =>
     `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${version}`,
+  UpdateVersion: (assetType: string, groupName: string, version: number) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${version}`,
   SetTag: (assetType: string, groupName: string, version: number) =>
     `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${version}/tag`,
   ClearTag: (assetType: string, groupName: string, version: number) =>
