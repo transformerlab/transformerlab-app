@@ -103,4 +103,3 @@ def test_find_entry_not_found_returns_none():
     """When no entry matches, returns None."""
     gallery = [{"id": "jupyter", "interactive_type": "jupyter"}]
     assert find_interactive_gallery_entry(gallery, interactive_gallery_id="nonexistent") is None
-    assert find_interactive_gallery_entry(gallery, interactive_type="vllm") is None

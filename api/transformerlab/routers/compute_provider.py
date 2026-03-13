@@ -257,6 +257,44 @@ async def create_provider(
         created_by_user_id=str(user.id),
     )
 
+    # For LOCAL providers, kick off background setup immediately so users see progress
+    # (via /compute_provider/{id}/setup/status) without blocking provider creation.
+    if provider.type == ProviderType.LOCAL.value:
+        try:
+            user_id_str = str(user.id)
+            provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
+
+            set_organization_id(team_id)
+            try:
+                workspace_dir = await get_workspace_dir()
+            finally:
+                set_organization_id(None)
+
+            status_path = _get_provider_setup_status_path(workspace_dir, team_id, str(provider.id))
+            try:
+                status_path.write_text(
+                    json.dumps(
+                        {
+                            "phase": "provider_setup_start",
+                            "percent": 0,
+                            "message": "Starting local provider setup...",
+                            "done": False,
+                            "error": None,
+                            "timestamp": time.time(),
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to seed provider setup status for newly created local provider %s", provider.id
+                )
+
+            asyncio.create_task(_run_local_provider_setup_background(provider_instance, status_path))
+        except Exception:
+            # Non-fatal: provider was created successfully; setup can still be started manually.
+            logger.exception("Failed to auto-start setup for newly created local provider %s", provider.id)
+
     # Return with masked sensitive fields
     masked_config = mask_sensitive_config(provider.config or {}, provider.type)
     return ProviderRead(
@@ -1871,6 +1909,7 @@ async def launch_template_on_provider(
         "provider_name": provider_display_name,
         "user_info": user_info or None,
         "team_id": team_id,  # Store team_id for quota tracking
+        "created_by_user_id": str(user.id) if user else None,
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
     if provider.type == ProviderType.LOCAL.value and provider_config_dict.get("workspace_dir"):
@@ -2658,6 +2697,174 @@ async def list_clusters_detailed(
     except Exception as e:
         print(f"Failed to list clusters: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to list clusters")
+
+
+def _get_provider_setup_status_path(workspace_dir: str, team_id: str, provider_id: str) -> Path:
+    """Return path to the transient local-provider-setup status file for this team/provider."""
+    # Sanitize user-derived identifiers before using them in a file name
+    safe_team = secure_filename(str(team_id).replace("/", "_")) or "team"
+    safe_provider = secure_filename(str(provider_id).replace("/", "_")) or "provider"
+    return Path(workspace_dir) / f".local_provider_setup_status_{safe_team}_{safe_provider}.json"
+
+
+async def _run_local_provider_setup_background(
+    provider_instance: Any,
+    status_path: Path,
+) -> None:
+    """
+    Run LocalProvider.setup in the background and write progress snapshots to a status file.
+
+    The status file is deleted when setup completes (success or failure).
+    """
+
+    def write_status(phase: str, percent: int, message: str, done: bool = False, error: Optional[str] = None) -> None:
+        payload: Dict[str, Any] = {
+            "phase": phase,
+            "percent": percent,
+            "message": message,
+            "done": done,
+            "error": error,
+            "timestamp": time.time(),
+        }
+        try:
+            status_path.write_text(json.dumps(payload), encoding="utf-8")
+        except Exception:
+            # Best-effort only – avoid crashing on I/O errors.
+            logger.exception("Failed to write provider setup status to %s", status_path)
+
+    def progress_callback(phase: str, percent: int, message: str) -> None:
+        write_status(phase, percent, message, done=False, error=None)
+
+    try:
+        loop = asyncio.get_running_loop()
+        # Run the blocking setup() in a thread executor.
+        await loop.run_in_executor(None, lambda: provider_instance.setup(progress_callback=progress_callback))
+        write_status("provider_setup_done", 100, "Local provider setup completed successfully.", done=True, error=None)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to run provider setup in background")
+        write_status("provider_setup_failed", 100, f"Local provider setup failed: {exc}", done=True, error=str(exc))
+    finally:
+        # Delete the status file after completion so subsequent status checks see an idle state.
+        try:
+            if status_path.exists():
+                status_path.unlink()
+        except Exception:
+            logger.exception("Failed to delete provider setup status file %s", status_path)
+
+
+@router.post("/{provider_id}/setup")
+async def setup_provider(
+    provider_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+) -> Dict[str, Any]:
+    """
+    Start provider-level setup for a compute provider in the background.
+
+    Currently this is only meaningful for LOCAL providers, where we create
+    and populate the shared base uv virtual environment and generate a
+    local machine metrics snapshot. For remote providers this endpoint is a
+    fast no-op and simply returns {"status": "skipped"}.
+    """
+    team_id = user_and_team["team_id"]
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    # For non-local providers, there is no provider-level setup today.
+    if provider.type != ProviderType.LOCAL.value:
+        return {
+            "status": "skipped",
+            "provider_type": provider.type,
+            "message": "Provider setup is only required for local providers.",
+        }
+
+    # Resolve provider instance for this user/team.
+    user_id_str = str(user_and_team["user"].id)
+    provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
+
+    # Determine workspace directory for this organization/team and compute status path.
+    set_organization_id(team_id)
+    try:
+        workspace_dir = await get_workspace_dir()
+    finally:
+        set_organization_id(None)
+
+    status_path = _get_provider_setup_status_path(workspace_dir, team_id, provider_id)
+    try:
+        status_path.parent.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        # Parent should already exist, but log and continue if it doesn't.
+        logger.exception("Failed to ensure parent directory for provider setup status %s", status_path)
+
+    # Seed initial status so the status endpoint can report that setup has started.
+    try:
+        status_path.write_text(
+            json.dumps(
+                {
+                    "phase": "provider_setup_start",
+                    "percent": 0,
+                    "message": "Starting local provider setup...",
+                    "done": False,
+                    "error": None,
+                    "timestamp": time.time(),
+                }
+            ),
+            encoding="utf-8",
+        )
+    except Exception:
+        logger.exception("Failed to write initial provider setup status to %s", status_path)
+
+    # Kick off background setup and return immediately.
+    asyncio.create_task(_run_local_provider_setup_background(provider_instance, status_path))
+
+    return {
+        "status": "started",
+        "provider_id": provider_id,
+        "provider_type": provider.type,
+        "message": "Local provider setup started.",
+    }
+
+
+@router.get("/{provider_id}/setup/status")
+async def get_setup_status(
+    provider_id: str,
+    user_and_team=Depends(get_user_and_team),
+) -> Dict[str, Any]:
+    """
+    Get the latest status of a provider-level setup run.
+
+    Returns an "idle" state when no setup is currently running (status file
+    does not exist).
+    """
+    team_id = user_and_team["team_id"]
+
+    set_organization_id(team_id)
+    try:
+        workspace_dir = await get_workspace_dir()
+    finally:
+        set_organization_id(None)
+
+    status_path = _get_provider_setup_status_path(workspace_dir, team_id, provider_id)
+    if not status_path.exists():
+        return {
+            "status": "idle",
+            "provider_id": provider_id,
+            "done": True,
+            "message": "No active provider setup.",
+        }
+
+    try:
+        raw = status_path.read_text(encoding="utf-8")
+        data = json.loads(raw)
+    except Exception:
+        logger.exception("Failed to read provider setup status from %s", status_path)
+        raise HTTPException(status_code=500, detail="Failed to read provider setup status")
+
+    data.setdefault("status", "running" if not data.get("done") else "completed")
+    data.setdefault("provider_id", provider_id)
+    return data
 
 
 # ============================================================================

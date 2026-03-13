@@ -88,12 +88,14 @@
 
 ### Visual UI Verification
 
-When verifying UI changes in the browser, **always prefer the Vercel agent-browser** (the default browser tool). It is more efficient for navigating pages, taking snapshots, clicking elements, and filling forms. Only fall back to the **Chrome DevTools MCP** when you specifically need lower-level capabilities such as evaluating JavaScript, inspecting network requests, analyzing console messages, or running performance traces.
+**IMPORTANT: For visual UI verification, always use the Vercel agent-browser MCP tools** (the `mcp__plugin_playwright_playwright__browser_*` tools such as `browser_navigate`, `browser_snapshot`, `browser_take_screenshot`, `browser_click`, etc.). Do **NOT** run `npx playwright test` or write Playwright test scripts unless the user explicitly asks you to. Playwright tests are only for the automated E2E test suite in `test/playwright/`.
+
+The Vercel agent-browser is more efficient for navigating pages, taking snapshots, clicking elements, and filling forms. Only fall back to the **Chrome DevTools MCP** when you specifically need lower-level capabilities such as evaluating JavaScript, inspecting network requests, analyzing console messages, or running performance traces.
 
 When requested, verify the result with the following steps:
 
 1. Run `npm run docker-test:up` to ensure the app is running (or use `python scripts/dev.py` for local dev).
-2. Use the browser tool to navigate to the page you just changed. Remember that the app usually serves on port 8338 (API) and port 1212 (frontend dev server).
+2. Use the Vercel agent-browser MCP tools to navigate to the page you just changed. Remember that the app usually serves on port 8338 (API) and port 1212 (frontend dev server).
 3. If the app requires login, use the default credentials: **email:** `admin@example.com` / **password:** `admin123`.
 4. Explore related pages (e.g., if you changed the Header, also check the Dashboard and Login pages).
 5. Take screenshots and verify that no layouts are broken.

@@ -157,6 +157,14 @@ export default function LoginForm() {
           );
           return;
         }
+        // Distinguish network/connection errors from actual login failures.
+        // Server-side errors have .info set; network errors (server unreachable) do not.
+        if (!(result as any).info) {
+          setError(
+            'Unable to connect to the server. Please check that the server is running and try again.',
+          );
+          return;
+        }
         setError(
           result.info?.message ??
             'Login failed. Please check your credentials.',
@@ -167,7 +175,9 @@ export default function LoginForm() {
         }
       }
     } catch (err) {
-      setError('Login failed. Please check your credentials.');
+      setError(
+        'Unable to connect to the server. Please check that the server is running and try again.',
+      );
     } finally {
       setLoadingState(null);
     }

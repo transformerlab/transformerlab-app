@@ -22,6 +22,7 @@ from lab.dirs import get_workspace_dir
 from lab import storage
 
 from transformerlab.services.task_service import task_service
+from transformerlab.services.cache_service import cache, cached
 from transformerlab.services.provider_service import list_team_providers
 from transformerlab.shared import galleries
 from transformerlab.shared.github_utils import (
@@ -415,6 +416,11 @@ async def task_get_github_file(task_id: str, file_path: str):
     "/list_by_subtype_in_experiment",
     summary="Returns all tasks for an experiment filtered by subtype and optionally by type",
 )
+@cached(
+    key="tasks:list:{experimentId}:{subtype}:{type}",
+    ttl="30s",
+    tags=["tasks", "tasks:list:{experimentId}"],
+)
 async def task_get_by_subtype_in_experiment(
     experimentId: str,
     subtype: str,
@@ -429,8 +435,15 @@ async def update_task(task_id: str, new_task: dict = Body()):
     # Perform secure_filename before updating the task
     if "name" in new_task:
         new_task["name"] = secure_filename(new_task["name"])
+
+    # Fetch existing task to determine experiment for cache invalidation.
+    existing_task = await task_service.task_get_by_id(task_id)
     success = await task_service.update_task(task_id, new_task)
     if success:
+        experiment_id = existing_task.get("experiment_id") if isinstance(existing_task, dict) else None
+        if experiment_id:
+            # Best-effort invalidation of cached task lists for this experiment.
+            await cache.invalidate("tasks", f"tasks:list:{experiment_id}")
         return {"message": "OK"}
     else:
         return {"message": "NOT FOUND"}
@@ -438,8 +451,14 @@ async def update_task(task_id: str, new_task: dict = Body()):
 
 @router.get("/{task_id}/delete", summary="Deletes a task")
 async def delete_task(task_id: str):
+    # Fetch existing task to determine experiment for cache invalidation.
+    existing_task = await task_service.task_get_by_id(task_id)
     success = await task_service.delete_task(task_id)
     if success:
+        experiment_id = existing_task.get("experiment_id") if isinstance(existing_task, dict) else None
+        if experiment_id:
+            # Best-effort invalidation of cached task lists for this experiment.
+            await cache.invalidate("tasks", f"tasks:list:{experiment_id}")
         return {"message": "OK"}
     else:
         return {"message": "NOT FOUND"}
@@ -793,6 +812,9 @@ async def add_task(
                         # Log error but don't fail task creation
                         print(f"Warning: Failed to process zip file: {e}")
 
+                # Invalidate cached task lists for this experiment (best-effort).
+                await cache.invalidate("tasks", f"tasks:list:{experimentId}")
+
                 return {"message": "OK", "id": task_id}
             except json.JSONDecodeError:
                 # If JSON parsing fails, try YAML as fallback
@@ -995,6 +1017,9 @@ async def import_task_from_gallery(
         # Create the task
         task_id = await task_service.add_task(task_data)
 
+        # Invalidate cached task lists for this experiment (best-effort).
+        await cache.invalidate("tasks", f"tasks:list:{experimentId}")
+
         # Store task.yaml in the task directory for GitHub-sourced interactive tasks
         if github_repo_url and source_yaml_data:
             task_template = TaskTemplate(secure_filename(str(task_id)))
@@ -1112,7 +1137,14 @@ async def import_task_from_gallery(
     async with await storage.open(yaml_path, "w", encoding="utf-8") as f:
         await f.write(task_yaml_content)
 
-    return {"status": "success", "message": f"Task '{task_data['name']}' imported successfully", "id": task_id}
+    # Invalidate cached task lists for this experiment (best-effort).
+    await cache.invalidate("tasks", f"tasks:list:{experimentId}")
+
+    return {
+        "status": "success",
+        "message": f"Task '{task_data['name']}' imported successfully",
+        "id": task_id,
+    }
 
 
 @router.get("/gallery/team", summary="List team-specific tasks from the team gallery")
@@ -1226,7 +1258,14 @@ async def import_task_from_team_gallery(
     async with await storage.open(yaml_path, "w", encoding="utf-8") as f:
         await f.write(task_yaml_content)
 
-    return {"status": "success", "message": f"Task '{task_data['name']}' imported successfully", "id": task_id}
+    # Invalidate cached task lists for this experiment (best-effort).
+    await cache.invalidate("tasks", f"tasks:list:{experimentId}")
+
+    return {
+        "status": "success",
+        "message": f"Task '{task_data['name']}' imported successfully",
+        "id": task_id,
+    }
 
 
 @router.post("/gallery/team/export", summary="Export an existing task to the team gallery")
