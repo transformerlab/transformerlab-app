@@ -189,8 +189,8 @@ def _collect_resources(gallery_entry: dict) -> dict:
     }
 
 
-def _import_task(experiment_id: str, gallery_entry: dict, env_vars: dict) -> str:
-    """Import an interactive task from the gallery. Returns the task ID."""
+def _import_task(experiment_id: str, gallery_entry: dict, env_vars: dict) -> dict:
+    """Import an interactive task from the gallery. Returns the imported task dict."""
     payload = {
         "gallery_id": gallery_entry.get("id"),
         "experiment_id": experiment_id,
@@ -213,12 +213,20 @@ def _import_task(experiment_id: str, gallery_entry: dict, env_vars: dict) -> str
         console.print("[red]Error:[/red] No task ID returned from import.")
         raise typer.Exit(1)
 
-    return str(task_id)
+    # Fetch the imported task to get its resolved fields (run, setup, etc.)
+    tasks_resp = api.get(f"/experiment/{experiment_id}/task/list_by_type_in_experiment?type=REMOTE")
+    if tasks_resp.status_code == 200:
+        for task in tasks_resp.json():
+            if str(task.get("id")) == str(task_id):
+                return task
+
+    # Fallback: return minimal dict with just the ID
+    return {"id": str(task_id)}
 
 
 def _build_interactive_launch_payload(
     experiment_id: str,
-    task_id: str,
+    imported_task: dict,
     provider: dict,
     gallery_entry: dict,
     env_vars: dict,
@@ -227,19 +235,28 @@ def _build_interactive_launch_payload(
     """Build the launch payload for an interactive task."""
     is_local = provider.get("type") == "local"
 
+    # The imported task has resolved run/setup from task.yaml (fetched during import).
+    # Task fields are stored flat (not nested under "config").
+    # Fall back to the gallery entry's inline command/setup fields.
+    run = imported_task.get("run", "") or gallery_entry.get("command", "")
+    setup = imported_task.get("setup", "") or gallery_entry.get("setup", "")
+
     return {
         "experiment_id": experiment_id,
-        "task_id": task_id,
+        "task_id": str(imported_task.get("id")),
         "task_name": gallery_entry.get("name", "Interactive Task"),
-        "cluster_name": gallery_entry.get("name", "Interactive Task"),
-        "run": gallery_entry.get("command", ""),
-        "setup": gallery_entry.get("setup", ""),
+        "cluster_name": imported_task.get("cluster_name", gallery_entry.get("name", "Interactive Task")),
+        "run": run,
+        "setup": setup,
         "subtype": "interactive",
         "interactive_type": gallery_entry.get("interactive_type", "custom"),
         "interactive_gallery_id": gallery_entry.get("id"),
         "local": is_local,
         "env_vars": env_vars,
         "provider_name": provider.get("name"),
+        "github_repo_url": imported_task.get("github_repo_url"),
+        "github_repo_dir": imported_task.get("github_directory"),
+        "github_repo_branch": imported_task.get("github_branch"),
         "cpus": resources.get("cpus"),
         "memory": resources.get("memory"),
         "disk_space": resources.get("disk_space"),
@@ -387,10 +404,10 @@ def interactive(timeout: int = DEFAULT_TIMEOUT) -> None:
 
     # 5. Import task from gallery
     with console.status("[bold green]Importing task...[/bold green]", spinner="dots"):
-        task_id = _import_task(experiment_id, template, env_vars)
+        imported_task = _import_task(experiment_id, template, env_vars)
 
     # 6. Launch
-    payload = _build_interactive_launch_payload(experiment_id, task_id, provider, template, env_vars, resources)
+    payload = _build_interactive_launch_payload(experiment_id, imported_task, provider, template, env_vars, resources)
 
     with console.status("[bold green]Launching...[/bold green]", spinner="dots"):
         job_id = _launch(provider, payload)

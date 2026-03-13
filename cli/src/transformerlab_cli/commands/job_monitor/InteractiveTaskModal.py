@@ -166,21 +166,37 @@ class InteractiveTaskConfigModal(ModalScreen):
                 raise RuntimeError(f"Import failed: {resp.text}")
             task_id = resp.json().get("id")
 
+            # Fetch the imported task to get resolved run/setup from task.yaml
+            # Task fields are stored flat (not nested under "config").
+            imported_task: dict = {}
+            tasks_resp = api.get(f"/experiment/{experiment_id}/task/list_by_type_in_experiment?type=REMOTE")
+            if tasks_resp.status_code == 200:
+                for t in tasks_resp.json():
+                    if str(t.get("id")) == str(task_id):
+                        imported_task = t
+                        break
+
+            run = imported_task.get("run", "") or gallery_entry.get("command", "")
+            setup = imported_task.get("setup", "") or gallery_entry.get("setup", "")
+
             # Build launch payload
             is_local = provider.get("type") == "local"
             launch_payload = {
                 "experiment_id": experiment_id,
                 "task_id": str(task_id),
                 "task_name": gallery_entry.get("name", "Interactive Task"),
-                "cluster_name": gallery_entry.get("name", "Interactive Task"),
-                "run": gallery_entry.get("command", ""),
-                "setup": gallery_entry.get("setup", ""),
+                "cluster_name": imported_task.get("cluster_name", gallery_entry.get("name", "Interactive Task")),
+                "run": run,
+                "setup": setup,
                 "subtype": "interactive",
                 "interactive_type": gallery_entry.get("interactive_type", "custom"),
                 "interactive_gallery_id": gallery_entry.get("id"),
                 "local": is_local,
                 "env_vars": env_vars,
                 "provider_name": provider.get("name"),
+                "github_repo_url": imported_task.get("github_repo_url"),
+                "github_repo_dir": imported_task.get("github_directory"),
+                "github_repo_branch": imported_task.get("github_branch"),
             }
 
             data = launch_task_on_provider(provider.get("id"), launch_payload)
