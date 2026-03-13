@@ -1833,13 +1833,21 @@ async def launch_template_on_provider(
             if setup_override_from_gallery and team_secrets:
                 setup_override_from_gallery = replace_secret_placeholders(setup_override_from_gallery, team_secrets)
 
-    # If run command is still empty, fall back to the stored task's run field.
-    # This handles GitHub-sourced interactive tasks where the command is in task.yaml
-    # and was stored in the task at import time.
+    # If run command is still empty, fall back to the stored task's fields.
+    # This handles GitHub-sourced interactive tasks where the command/setup
+    # are in task.yaml and were stored in the task at import time.
     if not base_command.strip() and request.task_id:
         fallback_task = await task_service.task_get_by_id(request.task_id)
         if fallback_task:
             base_command = fallback_task.get("run", "") or fallback_task.get("command", "")
+            # Also pick up setup from the task if not already added
+            if not interactive_setup_added:
+                fallback_setup = (fallback_task.get("setup", "") or "").strip()
+                if fallback_setup:
+                    from transformerlab.shared.interactive_gallery_utils import INTERACTIVE_SUDO_PREFIX
+
+                    setup_commands.append(INTERACTIVE_SUDO_PREFIX + " " + fallback_setup)
+                    interactive_setup_added = True
 
     # Add user-provided setup if any (replace secrets in setup).
     # For interactive tasks we already added gallery/task setup above (local and remote).
