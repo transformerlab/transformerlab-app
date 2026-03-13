@@ -30,10 +30,10 @@ from typing import Optional
 import json
 import re
 
-from transformerlab.shared.api_key_auth import (
+from transformerlab.services.api_key_auth import (
     extract_api_key_from_request,
-    validate_api_key_and_get_user,
     get_user_personal_team_id,
+    validate_api_key_and_get_user,
 )
 from transformerlab.utils.api_key_utils import mask_key
 from lab.dirs import get_workspace_dir
