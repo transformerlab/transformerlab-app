@@ -70,7 +70,8 @@ def _render_job(job) -> None:
 
     # Render status as a chip
     status = job.get("status", "N/A")
-    status_chip = Text(status, style="bold green" if status == "COMPLETE" else "bold yellow")
+    status_style = "bold green" if status == "COMPLETE" else "bold red" if status == "FAILED" else "bold yellow"
+    status_chip = Text(status, style=status_style)
 
     # Render job details
     details = {
@@ -97,6 +98,7 @@ def _render_job(job) -> None:
         "Artifacts": _render_artifacts(job_data.get("artifacts", [])),
         "Completion Status": job_data.get("completion_status", "N/A"),
         "Completion Details": job_data.get("completion_details", "N/A"),
+        "Error": job_data.get("error_msg", ""),
         "Config": job_data.get("_config", {}),
         "Score": job_data.get("score", {}),
     }

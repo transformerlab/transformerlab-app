@@ -105,20 +105,22 @@ class InteractiveTaskConfigModal(ModalScreen):
         widget_id = f"iparam-{env_var}"
         self.param_widgets[env_var] = widget_id
 
-        # Smart default for NGROK on remote
-        default = ""
+        # Smart default: use placeholder value, override for NGROK on remote
+        default = param.get("placeholder", "")
         if not self.is_local and env_var == "NGROK_AUTH_TOKEN":
             default = "{{secret._NGROK_AUTH_TOKEN}}"
 
+        help_text = param.get("help_text", "")
         with Vertical(classes="form-row"):
             yield Label(f"{field_name}:", classes="form-label")
             yield Input(
                 value=default,
                 password=is_password,
-                placeholder=param.get("placeholder", ""),
                 id=widget_id,
                 classes="form-input",
             )
+            if help_text:
+                yield Label(f"[dim]{help_text}[/dim]", classes="form-label")
 
     def _collect_env_vars(self) -> dict[str, str]:
         env_vars: dict[str, str] = {}

@@ -127,15 +127,18 @@ def _collect_env_params(gallery_entry: dict, provider: dict) -> dict[str, str]:
         if is_local and env_var == "NGROK_AUTH_TOKEN":
             continue
 
-        # Smart default: use secret placeholder for remote providers
-        default = ""
+        # Smart default: use secret placeholder for remote providers, otherwise use placeholder
+        default = param.get("placeholder", "")
         if not is_local and env_var == "NGROK_AUTH_TOKEN":
             default = "{{secret._NGROK_AUTH_TOKEN}}"
 
-        # Show prompt
+        # Show prompt with hint
         prompt_text = f"  {field_name}"
         if not required:
             prompt_text += " (optional)"
+        help_text = param.get("help_text", "")
+        if help_text:
+            console.print(f"    [dim]{help_text}[/dim]")
 
         while True:
             value = typer.prompt(
@@ -268,10 +271,14 @@ def _launch(provider: dict, payload: dict) -> int:
     return int(job_id)
 
 
+FAILED_STATUSES = {"FAILED", "STOPPED", "CANCELLED", "COMPLETE"}
+
+
 def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
-    """Poll tunnel_info until service is ready or timeout."""
+    """Poll tunnel_info until service is ready, job fails, or timeout."""
     start = time.time()
-    url = f"/experiment/{experiment_id}/jobs/{job_id}/tunnel_info"
+    tunnel_url = f"/experiment/{experiment_id}/jobs/{job_id}/tunnel_info"
+    jobs_url = f"/experiment/{experiment_id}/jobs/list?type=REMOTE"
 
     with console.status("[bold green]Waiting for service...[/bold green]", spinner="dots") as status:
         while True:
@@ -284,7 +291,25 @@ def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
             status.update(f"[bold green]Waiting for service... ({elapsed}s)[/bold green]")
 
             try:
-                response = api.get(url, timeout=10.0)
+                # Check if the job has failed
+                jobs_resp = api.get(jobs_url, timeout=10.0)
+                if jobs_resp.status_code == 200:
+                    job = next((j for j in jobs_resp.json() if j.get("id") == job_id), None)
+                    if job and job.get("status") in FAILED_STATUSES:
+                        job_status = job.get("status")
+                        error_msg = job.get("job_data", {}).get("error_msg", "")
+                        console.print(f"\n[red]Job {job_id} {job_status}.[/red]")
+                        if error_msg:
+                            console.print(f"[red]Error: {error_msg}[/red]")
+                        console.print(f"Check logs with: [bold]lab job info {job_id}[/bold]")
+                        raise typer.Exit(1)
+            except typer.Exit:
+                raise
+            except Exception:
+                pass
+
+            try:
+                response = api.get(tunnel_url, timeout=10.0)
                 if response.status_code == 200:
                     data = response.json()
                     if data.get("is_ready"):

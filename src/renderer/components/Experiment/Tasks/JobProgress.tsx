@@ -483,6 +483,11 @@ export default function JobProgress({
                 /* If we don't have a status, assume it failed */
                 <Typography level="body-sm" color="neutral" />
               ))}
+            {job?.status === 'FAILED' && job?.job_data?.error_msg && (
+              <Typography level="body-sm" color="danger">
+                Error: {job.job_data.error_msg}
+              </Typography>
+            )}
           </>
         </Stack>
       )}
