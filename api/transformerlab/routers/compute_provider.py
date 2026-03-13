@@ -1645,8 +1645,6 @@ async def launch_template_on_provider(
 
     # Prepare environment variables - start with a copy of requested env_vars
     env_vars = request.env_vars.copy() if request.env_vars else {}
-    print(f"[DEBUG launch_template] request.env_vars = {request.env_vars}")
-    print(f"[DEBUG launch_template] env_vars after copy = {env_vars}")
 
     # Replace {{secret.<name>}} patterns in env_vars
     if env_vars and team_secrets:
