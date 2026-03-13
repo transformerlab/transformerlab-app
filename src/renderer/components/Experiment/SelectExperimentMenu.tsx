@@ -33,7 +33,6 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import RecipesModal from './Recipes';
 import { getAPIFullPath, fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
@@ -124,7 +123,7 @@ export default function SelectExperimentMenu({ models }) {
   const { team } = useAuth();
 
   // This gets all the available experiments
-  const { data, error, isLoading, mutate } = useSWR(
+  const { data, isLoading, mutate } = useSWR(
     chatAPI.API_URL() === null ? null : chatAPI.Endpoints.Experiment.GetAll(),
     fetcher,
   );
@@ -140,8 +139,6 @@ export default function SelectExperimentMenu({ models }) {
   );
 
   const hasProviders = providers.length > 0;
-  const isLocalMode = window?.platform?.multiuser !== true;
-  const shouldShowSimpleDialog = !isLocalMode;
 
   const DEV_MODE = experimentInfo?.name === 'dev';
 
@@ -149,12 +146,14 @@ export default function SelectExperimentMenu({ models }) {
     mutate();
   }, [experimentInfo]);
 
-  const createHandleClose = (experimentName: string) => () => {
-    setExperimentId(experimentName);
+  const createHandleClose = (experimentId: string | number) => () => {
+    setExperimentId(String(experimentId));
     // If currently on an experiment page, update the URL to reflect the new experiment
     const match = location.pathname.match(/^\/experiment\/[^/]+\/(.+)$/);
     if (match) {
-      navigate(`/experiment/${encodeURIComponent(experimentName)}/${match[1]}`);
+      navigate(
+        `/experiment/${encodeURIComponent(String(experimentId))}/${match[1]}`,
+      );
     }
   };
 
@@ -208,8 +207,8 @@ export default function SelectExperimentMenu({ models }) {
         return;
       }
 
-      setExperimentId(newId);
-      createHandleClose(newId);
+      setExperimentId(String(newId));
+      createHandleClose(newId)();
 
       // Navigate to Notes page if experiment was created from a recipe AND recipe is not blank
       if (fromRecipeId !== null && fromRecipeId !== -1) {
@@ -428,62 +427,53 @@ export default function SelectExperimentMenu({ models }) {
           </Menu>
         </Dropdown>
       </FormControl>
-      {shouldShowSimpleDialog ? (
-        <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
-          <ModalDialog>
-            <ModalClose />
-            <Typography level="title-lg">New Experiment</Typography>
-            <Divider sx={{ my: 1 }} />
-            <Sheet sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <form
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px',
-                }}
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  // Allow creation if data is an empty array (no experiments yet)
-                  if (isLoading || data === null || data === undefined) {
-                    alert(
-                      'Please wait for experiments to load before creating a new one.',
-                    );
-                    return;
-                  }
-                  const formData = new FormData(e.currentTarget);
-                  const name = formData.get('experiment-name') as string;
-                  if (!name || name.trim() === '') {
-                    alert('Experiment name is required.');
-                    return;
-                  }
-                  // Check if experiment name already exists (fallback, as API also checks)
-                  if (data?.some((exp: any) => exp.name === name)) {
-                    alert('Experiment name already exists.');
-                    return;
-                  }
-                  await createNewExperiment(name);
-                  setModalOpen(false);
-                }}
-              >
-                <Input
-                  placeholder="Experiment Name"
-                  name="experiment-name"
-                  required
-                  autoFocus
-                />
-                <Button type="submit">Create</Button>
-              </form>
-            </Sheet>
-          </ModalDialog>
-        </Modal>
-      ) : (
-        <RecipesModal
-          modalOpen={modalOpen}
-          setModalOpen={setModalOpen}
-          createNewExperiment={createNewExperiment}
-          showRecentExperiments={false}
-        />
-      )}
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
+        <ModalDialog>
+          <ModalClose />
+          <Typography level="title-lg">New Experiment</Typography>
+          <Divider sx={{ my: 1 }} />
+          <Sheet sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <form
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+              onSubmit={async (e) => {
+                e.preventDefault();
+                // Allow creation if data is an empty array (no experiments yet)
+                if (isLoading || data === null || data === undefined) {
+                  alert(
+                    'Please wait for experiments to load before creating a new one.',
+                  );
+                  return;
+                }
+                const formData = new FormData(e.currentTarget);
+                const name = formData.get('experiment-name') as string;
+                if (!name || name.trim() === '') {
+                  alert('Experiment name is required.');
+                  return;
+                }
+                // Check if experiment name already exists (fallback, as API also checks)
+                if (data?.some((exp: any) => exp.name === name)) {
+                  alert('Experiment name already exists.');
+                  return;
+                }
+                await createNewExperiment(name);
+                setModalOpen(false);
+              }}
+            >
+              <Input
+                placeholder="Experiment Name"
+                name="experiment-name"
+                required
+                autoFocus
+              />
+              <Button type="submit">Create</Button>
+            </form>
+          </Sheet>
+        </ModalDialog>
+      </Modal>
     </div>
   );
 }

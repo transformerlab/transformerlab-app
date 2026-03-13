@@ -67,8 +67,8 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
       console.error('PollingOutputTerminal: Error writing to terminal:', error);
     }
 
-    if (terminalRef.current) {
-      terminalRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (termRef.current) {
+      termRef.current.scrollToBottom();
     }
 
     timeoutRef.current = setTimeout(() => {
@@ -132,7 +132,7 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
       // Use requestAnimationFrame to ensure this happens after any pending renders
       requestAnimationFrame(() => {
         if (termRef.current) {
-          termRef.current.write('\x1b[2J\x1b[H');
+          termRef.current.reset();
         }
       });
     }
@@ -155,7 +155,7 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
     if (terminalRef.current) {
       termRef.current.open(terminalRef.current);
       // Clear terminal immediately after opening to ensure clean state
-      termRef.current.write('\x1b[2J\x1b[H');
+      termRef.current.reset();
     }
 
     fitAddon.current.fit();
@@ -197,7 +197,8 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
     if (!outputData && !error && !hasReceivedData && initialMessage) {
       // Clear terminal first to ensure clean state, then write loading message
       // Use a single write to avoid flicker
-      termRef.current.write('\x1b[2J\x1b[H' + initialMessage + '\r\n');
+      termRef.current.reset();
+      termRef.current.write(initialMessage + '\r\n');
       return;
     }
 
@@ -207,13 +208,12 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
       if (typeof outputData === 'string') {
         if (outputData !== lastContent) {
           if (!hasReceivedData && termRef.current) {
-            // Use ANSI escape sequences to completely clear the screen and move cursor to top
-            termRef.current.write('\x1b[2J\x1b[H');
+            termRef.current.reset();
             setHasReceivedData(true);
           }
           // If content changed, clear and show new content
           if (lastContent && termRef.current) {
-            termRef.current.write('\x1b[2J\x1b[H');
+            termRef.current.reset();
           }
           addLinesOneByOne([outputData]);
           setLastContent(outputData);
@@ -234,9 +234,9 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
           if (termRef.current) {
             const noOutputMessage =
               'No output found, make sure your script ran correctly and made use of the transformerlab package for the output to be visible.';
-            // Use ANSI escape sequences to completely clear the screen and move cursor to top
             // This must happen synchronously to prevent the loading message from showing
-            termRef.current.write('\x1b[2J\x1b[H' + noOutputMessage + '\r\n');
+            termRef.current.reset();
+            termRef.current.write(noOutputMessage + '\r\n');
             setHasReceivedData(true);
             setLastContent(noOutputMessage);
           }
@@ -251,8 +251,7 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
           if (lastContent === noOutputMessage && !isEmptyOutput) {
             // Transitioning from "No output found" to actual output - clear and show new content
             if (termRef.current) {
-              // Use ANSI escape sequences to completely clear the screen and move cursor to top
-              termRef.current.write('\x1b[2J\x1b[H');
+              termRef.current.reset();
             }
             addLinesOneByOne(outputData);
             setLastContent(currentLines);
@@ -272,8 +271,7 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
           } else {
             // First time - clear the loading message and add all content
             if (termRef.current) {
-              // Use ANSI escape sequences to completely clear the screen and move cursor to top
-              termRef.current.write('\x1b[2J\x1b[H');
+              termRef.current.reset();
               setHasReceivedData(true);
               // Only add lines if there's actual content (not empty or error message)
               if (!isEmptyOutput) {
@@ -300,8 +298,7 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
     // Handle errors
     if (error) {
       if (termRef.current && !hasReceivedData) {
-        // Use ANSI escape sequences to completely clear the screen and move cursor to top
-        termRef.current.write('\x1b[2J\x1b[H');
+        termRef.current.reset();
         setHasReceivedData(true);
       }
       const errorMessage = `Error fetching output: ${error.message}`;

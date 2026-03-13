@@ -304,6 +304,49 @@ async def test_check_job_via_provider_local_terminal(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_check_job_via_provider_runpod_pod_not_found_stopping(monkeypatch):
+    """RUNPOD provider, pod missing, job STOPPING → job marked STOPPED."""
+    from transformerlab.compute_providers.models import ClusterStatus, ClusterState
+
+    # Simulate a job that the user has requested to stop.
+    job = _make_job(status="STOPPING")
+    record = _make_provider_record("runpod")
+
+    # Runpod get_cluster_status returns UNKNOWN with "Pod not found" when the pod
+    # has already been deleted via stop_cluster.
+    cluster_status = MagicMock(spec=ClusterStatus)
+    cluster_status.state = ClusterState.UNKNOWN
+    cluster_status.status_message = "Pod not found"
+
+    instance = MagicMock()
+    instance.get_cluster_status = MagicMock(return_value=cluster_status)
+
+    calls = []
+
+    async def fake_update_kv(job_id, key, value, exp_id):
+        calls.append(("kv", key))
+
+    async def fake_update_status(job_id, status, experiment_id=None):
+        calls.append(("status", status))
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        fake_update_kv,
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        fake_update_status,
+    )
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+
+    assert result is True
+    assert ("status", "STOPPED") in calls
+
+
+@pytest.mark.asyncio
 async def test_check_job_via_provider_local_still_running(monkeypatch):
     """LOCAL provider cluster still UP → returns False."""
     from transformerlab.compute_providers.models import ClusterStatus, ClusterState
