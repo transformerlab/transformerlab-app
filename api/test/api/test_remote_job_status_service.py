@@ -304,6 +304,46 @@ async def test_check_job_via_provider_local_terminal(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_check_job_via_provider_local_interactive_died(monkeypatch):
+    """LOCAL provider INTERACTIVE job with cluster DOWN (e.g. setup failure) → job marked FAILED."""
+    from transformerlab.compute_providers.models import ClusterStatus, ClusterState
+
+    job = _make_job(workspace_dir="/tmp/ws", status="INTERACTIVE")
+    record = _make_provider_record("local")
+
+    cluster_status = MagicMock(spec=ClusterStatus)
+    cluster_status.state = ClusterState.DOWN
+
+    instance = MagicMock()
+    instance.get_cluster_status = MagicMock(return_value=cluster_status)
+    instance.extra_config = {}
+
+    calls = []
+
+    async def fake_update_kv(job_id, key, value, exp_id):
+        calls.append(("kv", key))
+
+    async def fake_update_status(job_id, status, experiment_id=None):
+        calls.append(("status", status))
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        fake_update_kv,
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        fake_update_status,
+    )
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+
+    assert result is True
+    assert ("status", "FAILED") in calls
+
+
+@pytest.mark.asyncio
 async def test_check_job_via_provider_runpod_pod_not_found_stopping(monkeypatch):
     """RUNPOD provider, pod missing, job STOPPING → job marked STOPPED."""
     from transformerlab.compute_providers.models import ClusterStatus, ClusterState
@@ -419,7 +459,7 @@ async def test_check_job_via_provider_local_still_running(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_refresh_once_skips_non_launching_jobs(monkeypatch):
-    """Only LAUNCHING jobs should be checked; COMPLETE/WAITING jobs are skipped."""
+    """LAUNCHING, RUNNING, STOPPING, and INTERACTIVE jobs are checked; COMPLETE/WAITING are skipped."""
     monkeypatch.setattr(
         remote_job_status_service,
         "_list_all_org_ids",
