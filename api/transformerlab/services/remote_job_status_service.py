@@ -149,21 +149,39 @@ async def _check_job_via_provider(
                 provider_instance.extra_config["workspace_dir"] = job_data["workspace_dir"]
 
         cluster_status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
+        cluster_state = cluster_status.state
+
+        # For RUNPOD, stop_cluster() deletes the pod. Subsequent status checks return
+        # UNKNOWN/"Pod not found", which should be treated as a terminal STOPPED state
+        # when the user has requested a stop, otherwise jobs would be stuck in STOPPING.
+        if (
+            provider_type == ProviderType.RUNPOD.value
+            and cluster_state == ClusterState.UNKNOWN
+            and getattr(cluster_status, "status_message", "") == "Pod not found"
+            and job_status == JobStatus.STOPPING.value
+        ):
+            cluster_state = ClusterState.STOPPED
+
         terminal_cluster_states = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
-        if cluster_status.state in terminal_cluster_states:
+        if cluster_state in terminal_cluster_states:
             end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
             await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
             # Map cluster terminal state to the appropriate job status, mirroring the old check-status logic.
             if provider_type == ProviderType.LOCAL.value:
                 if job_status == JobStatus.STOPPING.value:
                     final_status = JobStatus.STOPPED.value
-                elif cluster_status.state == ClusterState.FAILED:
+                elif cluster_state == ClusterState.FAILED:
                     final_status = JobStatus.FAILED.value
                 else:
                     final_status = JobStatus.COMPLETE.value
             else:
-                # RUNPOD previously always mapped terminal pod states to COMPLETE.
-                final_status = JobStatus.COMPLETE.value
+                # RUNPOD: treat explicit user stop as STOPPED, otherwise mirror failure/success.
+                if job_status == JobStatus.STOPPING.value:
+                    final_status = JobStatus.STOPPED.value
+                elif cluster_state == ClusterState.FAILED:
+                    final_status = JobStatus.FAILED.value
+                else:
+                    final_status = JobStatus.COMPLETE.value
 
             await job_service.job_update_status(job_id, final_status, experiment_id=experiment_id)
             return True
