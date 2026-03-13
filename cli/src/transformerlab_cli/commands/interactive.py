@@ -284,46 +284,71 @@ def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
     start = time.time()
     tunnel_url = f"/experiment/{experiment_id}/jobs/{job_id}/tunnel_info"
     jobs_url = f"/experiment/{experiment_id}/jobs/list?type=REMOTE"
+    logs_url = f"/experiment/{experiment_id}/jobs/{job_id}/provider_logs?live=true"
+    seen_log_lines = 0
+    spinner = console.status("[bold green]Waiting for service...[/bold green]", spinner="dots")
+    spinner.start()
 
-    with console.status("[bold green]Waiting for service...[/bold green]", spinner="dots") as status:
-        while True:
-            elapsed = int(time.time() - start)
-            if elapsed >= timeout:
-                console.print(f"\n[yellow]Timed out after {timeout}s waiting for service.[/yellow]")
-                console.print(f"Check status with: [bold]lab job info {job_id}[/bold]")
-                raise typer.Exit(1)
+    while True:
+        elapsed = int(time.time() - start)
+        if elapsed >= timeout:
+            spinner.stop()
+            console.print(f"\n[yellow]Timed out after {timeout}s waiting for service.[/yellow]")
+            console.print(f"Check status with: [bold]lab job info {job_id}[/bold]")
+            raise typer.Exit(1)
 
-            status.update(f"[bold green]Waiting for service... ({elapsed}s)[/bold green]")
+        if seen_log_lines == 0:
+            spinner.update(f"[bold green]Waiting for service... ({elapsed}s)[/bold green]")
 
-            try:
-                # Check job status — only keep polling if in an active state
-                jobs_resp = api.get(jobs_url, timeout=10.0)
-                if jobs_resp.status_code == 200:
-                    job = next((j for j in jobs_resp.json() if j.get("id") == job_id), None)
-                    if job:
-                        job_status = job.get("status")
-                        if job_status not in ACTIVE_STATUSES:
-                            error_msg = job.get("job_data", {}).get("error_msg", "")
-                            console.print(f"\n[red]Job {job_id} {job_status}.[/red]")
-                            if error_msg:
-                                console.print(f"[red]Error: {error_msg}[/red]")
-                            console.print(f"Check logs with: [bold]lab job info {job_id}[/bold]")
-                            raise typer.Exit(1)
-            except typer.Exit:
-                raise
-            except Exception:
-                pass
+        try:
+            # Check job status — only keep polling if in an active state
+            jobs_resp = api.get(jobs_url, timeout=10.0)
+            if jobs_resp.status_code == 200:
+                job = next((j for j in jobs_resp.json() if j.get("id") == job_id), None)
+                if job:
+                    job_status = job.get("status")
+                    if job_status not in ACTIVE_STATUSES:
+                        spinner.stop()
+                        error_msg = job.get("job_data", {}).get("error_msg", "")
+                        console.print(f"\n[red]Job {job_id} {job_status}.[/red]")
+                        if error_msg:
+                            console.print(f"[red]Error: {error_msg}[/red]")
+                        console.print(f"Check logs with: [bold]lab job info {job_id}[/bold]")
+                        raise typer.Exit(1)
+        except typer.Exit:
+            raise
+        except Exception:
+            pass
 
-            try:
-                response = api.get(tunnel_url, timeout=10.0)
-                if response.status_code == 200:
-                    data = response.json()
-                    if data.get("is_ready"):
-                        return data
-            except Exception:
-                pass  # Server unreachable, keep polling
+        # Stream new log lines to give the user feedback
+        try:
+            logs_resp = api.get(logs_url, timeout=10.0)
+            if logs_resp.status_code == 200:
+                logs_data = logs_resp.json()
+                logs_text = logs_data.get("logs", "") if isinstance(logs_data, dict) else ""
+                if logs_text and "No log files found" not in logs_text:
+                    lines = logs_text.splitlines()
+                    if len(lines) > seen_log_lines:
+                        if seen_log_lines == 0:
+                            spinner.stop()
+                        for line in lines[seen_log_lines:]:
+                            console.print(f"[dim]{line}[/dim]")
+                        seen_log_lines = len(lines)
+        except Exception:
+            pass
 
-            time.sleep(POLL_INTERVAL)
+        try:
+            response = api.get(tunnel_url, timeout=10.0)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("is_ready"):
+                    if seen_log_lines == 0:
+                        spinner.stop()
+                    return data
+        except Exception:
+            pass  # Server unreachable, keep polling
+
+        time.sleep(POLL_INTERVAL)
 
 
 def _print_connection_info(tunnel_info: dict, job_id: int) -> None:
@@ -401,7 +426,7 @@ def interactive(timeout: int = DEFAULT_TIMEOUT) -> None:
     with console.status("[bold green]Launching...[/bold green]", spinner="dots"):
         job_id = _launch(provider, payload)
 
-    console.print(f"Job [bold]{job_id}[/bold] created. Waiting for service to be ready...")
+    console.print(f"Job [bold]{job_id}[/bold] created.")
 
     # 7. Poll until ready
     tunnel_info = _poll_until_ready(experiment_id, job_id, timeout)
