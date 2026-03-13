@@ -118,11 +118,13 @@ def _render_job(job) -> None:
     console.print(panel)
 
 
-def list_jobs(experiment_id: str):
+def list_jobs(experiment_id: str, running_only: bool = False):
     """List all jobs for a specific experiment."""
     jobs = []
     with console.status("[bold green]Fetching jobs[/bold green]", spinner="dots"):
         jobs = _fetch_all_jobs(experiment_id)
+    if running_only:
+        jobs = [j for j in jobs if j.get("status") in ("RUNNING", "LAUNCHING", "INTERACTIVE")]
     table = _render_jobs(jobs)
     print(table)
 
@@ -256,10 +258,17 @@ def command_job_download(
 
 
 @app.command("list")
-def command_job_list():
+def command_job_list(
+    running: bool = typer.Option(False, "--running", help="Show only currently running jobs"),
+):
     """List all jobs."""
-    current_experiment = require_current_experiment()
-    list_jobs(current_experiment)  # Delegate to job_commands.list_jobs
+    check_configs()
+    current_experiment = get_config("current_experiment")
+    if not current_experiment or not str(current_experiment).strip():
+        console.print("[yellow]current_experiment is not set in config.[/yellow]")
+        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
+        raise typer.Exit(1)
+    list_jobs(current_experiment, running_only=running)
 
 
 @app.command("info")
