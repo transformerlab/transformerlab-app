@@ -44,6 +44,7 @@ from transformerlab.compute_providers.models import (
 from transformerlab.services import job_service
 from transformerlab.services import quota_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
+from transformerlab.services.cache_service import cache
 from lab import storage
 from lab.storage import STORAGE_PROVIDER
 from lab.dirs import get_workspace_dir, get_local_provider_job_dir, get_job_dir, set_organization_id, get_task_dir
@@ -255,6 +256,44 @@ async def create_provider(
         config=config_dict,
         created_by_user_id=str(user.id),
     )
+
+    # For LOCAL providers, kick off background setup immediately so users see progress
+    # (via /compute_provider/{id}/setup/status) without blocking provider creation.
+    if provider.type == ProviderType.LOCAL.value:
+        try:
+            user_id_str = str(user.id)
+            provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
+
+            set_organization_id(team_id)
+            try:
+                workspace_dir = await get_workspace_dir()
+            finally:
+                set_organization_id(None)
+
+            status_path = _get_provider_setup_status_path(workspace_dir, team_id, str(provider.id))
+            try:
+                status_path.write_text(
+                    json.dumps(
+                        {
+                            "phase": "provider_setup_start",
+                            "percent": 0,
+                            "message": "Starting local provider setup...",
+                            "done": False,
+                            "error": None,
+                            "timestamp": time.time(),
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to seed provider setup status for newly created local provider %s", provider.id
+                )
+
+            asyncio.create_task(_run_local_provider_setup_background(provider_instance, status_path))
+        except Exception:
+            # Non-fatal: provider was created successfully; setup can still be started manually.
+            logger.exception("Failed to auto-start setup for newly created local provider %s", provider.id)
 
     # Return with masked sensitive fields
     masked_config = mask_sensitive_config(provider.config or {}, provider.type)
@@ -1012,7 +1051,7 @@ def _find_missing_secrets_for_template_launch(
     referenced: set[str] = set()
 
     # Core task fields that may contain secrets
-    referenced.update(extract_secret_names_from_data(request.command))
+    referenced.update(extract_secret_names_from_data(request.run))
     if request.setup:
         referenced.update(extract_secret_names_from_data(request.setup))
     if request.env_vars:
@@ -1107,6 +1146,9 @@ async def _create_sweep_parent_job(
     for key, value in parent_job_data.items():
         if value is not None:
             await job_service.job_update_job_data_insert_key_value(parent_job_id, key, value, request.experiment_id)
+
+    # Ensure experiment job lists reflect the new parent sweep job.
+    await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
 
     return parent_job_id
 
@@ -1289,11 +1331,13 @@ async def _launch_sweep_jobs(
                 if request.github_repo_url:
                     workspace_dir = await get_workspace_dir()
                     github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
+                    directory = request.github_repo_dir or request.github_directory
+                    branch = request.github_repo_branch or request.github_branch
                     github_setup = generate_github_clone_setup(
                         repo_url=request.github_repo_url,
-                        directory=request.github_directory,
+                        directory=directory,
                         github_pat=github_pat,
-                        branch=request.github_branch,
+                        branch=branch,
                     )
                     setup_commands.append(github_setup)
 
@@ -1306,9 +1350,9 @@ async def _launch_sweep_jobs(
 
                 final_setup = ";".join(setup_commands) if setup_commands else None
 
-                # Replace secrets in command
-                command_with_secrets = (
-                    replace_secret_placeholders(request.command, team_secrets) if team_secrets else request.command
+                # Replace secrets in run command
+                run_with_secrets = (
+                    replace_secret_placeholders(request.run, team_secrets) if team_secrets else request.run
                 )
 
                 # Replace secrets in parameters if present
@@ -1325,7 +1369,7 @@ async def _launch_sweep_jobs(
                     "task_name": f"{request.task_name or 'Task'} (Sweep {i + 1}/{total_configs})"
                     if request.task_name
                     else None,
-                    "command": command_with_secrets,
+                    "run": run_with_secrets,
                     "cluster_name": formatted_cluster_name,
                     "subtype": request.subtype,
                     "cpus": request.cpus,
@@ -1366,7 +1410,7 @@ async def _launch_sweep_jobs(
                     cluster_name=formatted_cluster_name,
                     provider_name=provider_display_name,
                     provider_id=provider.id,
-                    command=command_with_secrets,
+                    run=run_with_secrets,
                     setup=final_setup,
                     env_vars=env_vars,
                     cpus=request.cpus,
@@ -1424,6 +1468,8 @@ async def _launch_sweep_jobs(
             )
 
             print(f"Completed launching {len(child_job_ids)} child jobs for sweep {parent_job_id}")
+            # Invalidate cached job lists now that all child jobs have been created.
+            await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
     finally:
         # Clear org context after background task completes
         if lab_set_org_id is not None:
@@ -1549,6 +1595,9 @@ async def launch_template_on_provider(
         experiment_id=request.experiment_id,
     )
 
+    # Ensure experiment job lists include the newly created REMOTE job.
+    await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
+
     await job_service.job_update_launch_progress(
         job_id,
         request.experiment_id,
@@ -1596,6 +1645,8 @@ async def launch_template_on_provider(
 
     # Prepare environment variables - start with a copy of requested env_vars
     env_vars = request.env_vars.copy() if request.env_vars else {}
+    print(f"[DEBUG launch_template] request.env_vars = {request.env_vars}")
+    print(f"[DEBUG launch_template] env_vars after copy = {env_vars}")
 
     # Replace {{secret.<name>}} patterns in env_vars
     if env_vars and team_secrets:
@@ -1649,11 +1700,13 @@ async def launch_template_on_provider(
     if request.github_repo_url:
         workspace_dir = await get_workspace_dir()
         github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
+        directory = request.github_repo_dir or request.github_directory
+        branch = request.github_repo_branch or request.github_branch
         github_setup = generate_github_clone_setup(
             repo_url=request.github_repo_url,
-            directory=request.github_directory,
+            directory=directory,
             github_pat=github_pat,
-            branch=request.github_branch,
+            branch=branch,
         )
         setup_commands.append(github_setup)
 
@@ -1744,16 +1797,15 @@ async def launch_template_on_provider(
         if workspace_dir and not storage.is_remote_path(workspace_dir):
             env_vars["TFL_WORKSPACE_DIR"] = workspace_dir
 
-    # Resolve command (and optional setup override) for interactive sessions from gallery
-    base_command = request.command
+    # Resolve run command (and optional setup override) for interactive sessions from gallery
+    base_command = request.run
     setup_override_from_gallery = None
     interactive_setup_added = False
-    if request.subtype == "interactive" and (request.interactive_gallery_id or request.interactive_type):
+    if request.subtype == "interactive" and request.interactive_gallery_id:
         gallery_list = await galleries.get_interactive_gallery()
         gallery_entry = find_interactive_gallery_entry(
             gallery_list,
             interactive_gallery_id=request.interactive_gallery_id,
-            interactive_type=request.interactive_type,
         )
         if gallery_entry:
             environment = "local" if (provider.type == ProviderType.LOCAL.value or request.local) else "remote"
@@ -1842,10 +1894,11 @@ async def launch_template_on_provider(
 
     job_data = {
         "task_name": request.task_name,
-        "command": command_with_secrets,
+        "run": command_with_secrets,
         "cluster_name": formatted_cluster_name,
         "subtype": request.subtype,
         "interactive_type": request.interactive_type,
+        "interactive_gallery_id": request.interactive_gallery_id,
         "local": request.local,
         "cpus": request.cpus,
         "memory": request.memory,
@@ -1861,6 +1914,7 @@ async def launch_template_on_provider(
         "provider_name": provider_display_name,
         "user_info": user_info or None,
         "team_id": team_id,  # Store team_id for quota tracking
+        "created_by_user_id": str(user.id) if user else None,
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
     if provider.type == ProviderType.LOCAL.value and provider_config_dict.get("workspace_dir"):
@@ -1887,13 +1941,13 @@ async def launch_template_on_provider(
     #   - sets job_data.live_status="started" when execution begins
     #   - sets job_data.live_status="finished" on success
     #   - sets job_data.live_status="crashed" on failure
-    wrapped_command = f"tfl-remote-trap -- {command_with_secrets}"
+    wrapped_run = f"tfl-remote-trap -- {command_with_secrets}"
 
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
         provider_id=provider.id,
-        command=wrapped_command,
+        run=wrapped_run,
         setup=final_setup,
         env_vars=env_vars,
         cpus=request.cpus,
@@ -2305,11 +2359,11 @@ async def resume_from_checkpoint(
 
     # Validate required fields for REMOTE job relaunch
     provider_id = job_data.get("provider_id")
-    command = job_data.get("command")
-    if not provider_id or not command:
+    run = job_data.get("run")
+    if not provider_id or not run:
         raise HTTPException(
             status_code=400,
-            detail="Original job is missing required fields (provider_id or command) for resume",
+            detail="Original job is missing required fields (provider_id or run) for resume",
         )
 
     # Verify checkpoint exists using workspace-aware path resolution
@@ -2330,6 +2384,9 @@ async def resume_from_checkpoint(
         type="REMOTE", status=initial_status, experiment_id=experimentId, job_data={}
     )
 
+    # Ensure experiment job lists include the resumed REMOTE job.
+    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
+
     # Set parent_job_id and resumed_from_checkpoint in job_data
     await job_service.job_update_job_data_insert_key_value(new_job_id, "parent_job_id", job_id, experimentId)
     await job_service.job_update_job_data_insert_key_value(
@@ -2338,7 +2395,7 @@ async def resume_from_checkpoint(
 
     # Copy all original job launch configuration
     config_fields = [
-        "command",
+        "run",
         "task_name",
         "subtype",
         "interactive_type",
@@ -2354,8 +2411,13 @@ async def resume_from_checkpoint(
         "provider_id",
         "provider_type",
         "provider_name",
+        # Canonical GitHub fields
         "github_repo_url",
+        "github_repo_dir",
+        "github_repo_branch",
+        # Legacy GitHub fields retained for backward compatibility
         "github_directory",
+        "github_branch",
         "user_info",
         "team_id",
     ]
@@ -2450,7 +2512,7 @@ async def resume_from_checkpoint(
     # Update job_data with launch configuration
     launch_job_data = {
         "task_name": job_data.get("task_name"),
-        "command": command,
+        "run": run,
         "cluster_name": formatted_cluster_name,
         "subtype": job_data.get("subtype"),
         "interactive_type": job_data.get("interactive_type"),
@@ -2487,7 +2549,7 @@ async def resume_from_checkpoint(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
         provider_id=provider.id,
-        command=command,
+        run=run,
         setup=final_setup,
         env_vars=env_vars,
         cpus=job_data.get("cpus"),
@@ -2640,6 +2702,174 @@ async def list_clusters_detailed(
     except Exception as e:
         print(f"Failed to list clusters: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to list clusters")
+
+
+def _get_provider_setup_status_path(workspace_dir: str, team_id: str, provider_id: str) -> Path:
+    """Return path to the transient local-provider-setup status file for this team/provider."""
+    # Sanitize user-derived identifiers before using them in a file name
+    safe_team = secure_filename(str(team_id).replace("/", "_")) or "team"
+    safe_provider = secure_filename(str(provider_id).replace("/", "_")) or "provider"
+    return Path(workspace_dir) / f".local_provider_setup_status_{safe_team}_{safe_provider}.json"
+
+
+async def _run_local_provider_setup_background(
+    provider_instance: Any,
+    status_path: Path,
+) -> None:
+    """
+    Run LocalProvider.setup in the background and write progress snapshots to a status file.
+
+    The status file is deleted when setup completes (success or failure).
+    """
+
+    def write_status(phase: str, percent: int, message: str, done: bool = False, error: Optional[str] = None) -> None:
+        payload: Dict[str, Any] = {
+            "phase": phase,
+            "percent": percent,
+            "message": message,
+            "done": done,
+            "error": error,
+            "timestamp": time.time(),
+        }
+        try:
+            status_path.write_text(json.dumps(payload), encoding="utf-8")
+        except Exception:
+            # Best-effort only – avoid crashing on I/O errors.
+            logger.exception("Failed to write provider setup status to %s", status_path)
+
+    def progress_callback(phase: str, percent: int, message: str) -> None:
+        write_status(phase, percent, message, done=False, error=None)
+
+    try:
+        loop = asyncio.get_running_loop()
+        # Run the blocking setup() in a thread executor.
+        await loop.run_in_executor(None, lambda: provider_instance.setup(progress_callback=progress_callback))
+        write_status("provider_setup_done", 100, "Local provider setup completed successfully.", done=True, error=None)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to run provider setup in background")
+        write_status("provider_setup_failed", 100, f"Local provider setup failed: {exc}", done=True, error=str(exc))
+    finally:
+        # Delete the status file after completion so subsequent status checks see an idle state.
+        try:
+            if status_path.exists():
+                status_path.unlink()
+        except Exception:
+            logger.exception("Failed to delete provider setup status file %s", status_path)
+
+
+@router.post("/{provider_id}/setup")
+async def setup_provider(
+    provider_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+) -> Dict[str, Any]:
+    """
+    Start provider-level setup for a compute provider in the background.
+
+    Currently this is only meaningful for LOCAL providers, where we create
+    and populate the shared base uv virtual environment and generate a
+    local machine metrics snapshot. For remote providers this endpoint is a
+    fast no-op and simply returns {"status": "skipped"}.
+    """
+    team_id = user_and_team["team_id"]
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    # For non-local providers, there is no provider-level setup today.
+    if provider.type != ProviderType.LOCAL.value:
+        return {
+            "status": "skipped",
+            "provider_type": provider.type,
+            "message": "Provider setup is only required for local providers.",
+        }
+
+    # Resolve provider instance for this user/team.
+    user_id_str = str(user_and_team["user"].id)
+    provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
+
+    # Determine workspace directory for this organization/team and compute status path.
+    set_organization_id(team_id)
+    try:
+        workspace_dir = await get_workspace_dir()
+    finally:
+        set_organization_id(None)
+
+    status_path = _get_provider_setup_status_path(workspace_dir, team_id, provider_id)
+    try:
+        status_path.parent.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        # Parent should already exist, but log and continue if it doesn't.
+        logger.exception("Failed to ensure parent directory for provider setup status %s", status_path)
+
+    # Seed initial status so the status endpoint can report that setup has started.
+    try:
+        status_path.write_text(
+            json.dumps(
+                {
+                    "phase": "provider_setup_start",
+                    "percent": 0,
+                    "message": "Starting local provider setup...",
+                    "done": False,
+                    "error": None,
+                    "timestamp": time.time(),
+                }
+            ),
+            encoding="utf-8",
+        )
+    except Exception:
+        logger.exception("Failed to write initial provider setup status to %s", status_path)
+
+    # Kick off background setup and return immediately.
+    asyncio.create_task(_run_local_provider_setup_background(provider_instance, status_path))
+
+    return {
+        "status": "started",
+        "provider_id": provider_id,
+        "provider_type": provider.type,
+        "message": "Local provider setup started.",
+    }
+
+
+@router.get("/{provider_id}/setup/status")
+async def get_setup_status(
+    provider_id: str,
+    user_and_team=Depends(get_user_and_team),
+) -> Dict[str, Any]:
+    """
+    Get the latest status of a provider-level setup run.
+
+    Returns an "idle" state when no setup is currently running (status file
+    does not exist).
+    """
+    team_id = user_and_team["team_id"]
+
+    set_organization_id(team_id)
+    try:
+        workspace_dir = await get_workspace_dir()
+    finally:
+        set_organization_id(None)
+
+    status_path = _get_provider_setup_status_path(workspace_dir, team_id, provider_id)
+    if not status_path.exists():
+        return {
+            "status": "idle",
+            "provider_id": provider_id,
+            "done": True,
+            "message": "No active provider setup.",
+        }
+
+    try:
+        raw = status_path.read_text(encoding="utf-8")
+        data = json.loads(raw)
+    except Exception:
+        logger.exception("Failed to read provider setup status from %s", status_path)
+        raise HTTPException(status_code=500, detail="Failed to read provider setup status")
+
+    data.setdefault("status", "running" if not data.get("done") else "completed")
+    data.setdefault("provider_id", provider_id)
+    return data
 
 
 # ============================================================================

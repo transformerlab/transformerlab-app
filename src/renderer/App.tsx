@@ -8,7 +8,6 @@ import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import { IconButton } from '@mui/joy';
 import Sidebar from './components/Nav/Sidebar';
 import MainAppPanel from './components/MainAppPanel';
-import Header from './components/Header';
 
 import customTheme from './lib/theme';
 import secretPurpleTheme from './lib/secretPurpleTheme';
@@ -17,10 +16,8 @@ import './styles.css';
 
 import OutputTerminal from './components/OutputTerminal';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
-import AnnouncementsModal from './components/Shared/AnnouncementsModal';
 import AnnouncementBanner from './components/Shared/AnnouncementBanner';
 import InsecurePasswordBanner from './components/Shared/InsecurePasswordBanner';
-import AnnouncementBanner from './components/Shared/AnnouncementBanner';
 import { NotificationProvider } from './components/Shared/NotificationSystem';
 import {
   ExperimentInfoProvider,
@@ -31,25 +28,26 @@ import { AuthProvider, useAuth } from './lib/authContext';
 import LoginPage from './components/Login/LoginPage';
 import { AnalyticsProvider } from './components/Shared/analytics/AnalyticsContext';
 import FullPageLoader from './components/Shared/FullPageLoader';
+import ConnectionLostModal from './components/Shared/ConnectionLostModal';
 
 type AppContentProps = {
   connection: string;
+  setConnection: (conn: string) => void;
   logsDrawerOpen: boolean;
   setLogsDrawerOpen: (open: boolean) => void;
   logsDrawerHeight: number;
   setLogsDrawerHeight: (height: number) => void;
   themeSetter: (name: string) => void;
-  setConnection: (conn: string) => void;
 };
 
 function AppContent({
   connection,
+  setConnection,
   logsDrawerOpen,
   setLogsDrawerOpen,
   logsDrawerHeight,
   setLogsDrawerHeight,
   themeSetter,
-  setConnection,
 }: AppContentProps) {
   const onOutputDrawerDrag = useCallback(
     (pos: { y: number }) => {
@@ -63,8 +61,12 @@ function AppContent({
   );
 
   const authContext = useAuth();
+  const { isError: connectionHealthError, isLoading: connectionHealthLoading } =
+    chatAPI.useConnectionHealth(connection);
 
   const isLocalMode = window?.platform?.multiuser !== true;
+  const showConnectionLostModal =
+    connection !== '' && !connectionHealthLoading && !!connectionHealthError;
 
   // While auth is initializing or the initial user info is loading, show a full-page loader.
   // We only block on the *first* user load (no user/error yet) so that revalidation
@@ -115,23 +117,20 @@ function AppContent({
           overflow: 'hidden',
           gridTemplateColumns: '180px 1fr',
           gridTemplateRows: !isLocalMode
-            ? '48px 5fr'
+            ? '1fr'
             : logsDrawerOpen
-              ? `48px 5fr ${logsDrawerHeight}px`
-              : '48px 5fr 18px',
+              ? `5fr ${logsDrawerHeight}px`
+              : '5fr 18px',
           gridTemplateAreas: !isLocalMode
             ? `
-          "sidebar header"
           "sidebar main"
         `
             : `
-          "sidebar header"
           "sidebar main"
           "sidebar footer"
         `,
         })}
       >
-        <Header connection={connection} setConnection={setConnection} />
         <Sidebar
           logsDrawerOpen={logsDrawerOpen}
           setLogsDrawerOpen={setLogsDrawerOpen as any}
@@ -157,6 +156,12 @@ function AppContent({
           <AnnouncementBanner />
           <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
         </Box>
+        {showConnectionLostModal && (
+          <ConnectionLostModal
+            connection={connection}
+            setConnection={setConnection}
+          />
+        )}
         {isLocalMode && (
           <Box
             sx={{
@@ -298,12 +303,12 @@ export default function App() {
             <ExperimentInfoProvider connection={connection}>
               <AppContent
                 connection={connection}
+                setConnection={setConnection}
                 logsDrawerOpen={logsDrawerOpen}
                 setLogsDrawerOpen={setLogsDrawerOpen}
                 logsDrawerHeight={logsDrawerHeight}
                 setLogsDrawerHeight={setLogsDrawerHeight}
                 themeSetter={themeSetter}
-                setConnection={setConnection}
               />
             </ExperimentInfoProvider>
           </AnalyticsProvider>

@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from transformerlab.compute_providers.base import ComputeProvider
 from transformerlab.compute_providers.config import ComputeProviderConfig, create_compute_provider
-from transformerlab.compute_providers.local import _check_amd_gpu, _check_nvidia_gpu, ensure_base_venv_and_requirements
+from transformerlab.compute_providers.local import _check_amd_gpu, _check_nvidia_gpu
 from transformerlab.shared.models.models import AcceleratorType, ProviderType, Team, TeamComputeProvider, User, UserTeam
 
 
@@ -237,7 +237,7 @@ def db_record_to_provider_config(
         server_url=config_dict.get("server_url"),
         api_token=config_dict.get("api_token"),
         default_env_vars=config_dict.get("default_env_vars", {}),
-        default_entrypoint_command=config_dict.get("default_entrypoint_command"),
+        default_entrypoint_run=config_dict.get("default_entrypoint_run"),
         mode=config_dict.get("mode"),
         rest_url=config_dict.get("rest_url"),
         ssh_host=config_dict.get("ssh_host"),
@@ -362,10 +362,10 @@ async def create_team_provider(
     await session.commit()
     await session.refresh(provider)
 
-    # When a local provider is created for any team, ensure the shared base venv
-    # under HOME_DIR is initialized (no-op if it already exists).
-    if provider.type == ProviderType.LOCAL.value:
-        await asyncio.to_thread(ensure_base_venv_and_requirements)
+    # NOTE: Local provider setup can be slow (uv venv + dependency install).
+    # We intentionally do not run it synchronously during provider creation.
+    # The API layer exposes a dedicated setup endpoint that runs in the background
+    # and reports progress to the UI.
 
     return provider
 

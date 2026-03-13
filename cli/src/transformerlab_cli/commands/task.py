@@ -88,6 +88,21 @@ def add_task_from_directory(task_directory_path: str, experiment_id: str, dry_ru
         console.print(f"[red]Error:[/red] Invalid YAML in task.yaml: {e}")
         raise typer.Exit(1)
 
+    # Validate against server-side task.yaml schema (run, resources, etc.)
+    with console.status("[bold green]Validating task.yaml...[/bold green]", spinner="dots"):
+        response = api.post_text(
+            f"/experiment/{experiment_id}/task2/validate",
+            text=task_yaml_content,
+        )
+    if response.status_code != 200:
+        try:
+            detail = response.json().get("detail", response.text)
+        except Exception:
+            detail = response.text
+        console.print("[red]Error:[/red] task.yaml failed validation.")
+        console.print(f"[red]Detail:[/red] {detail}")
+        raise typer.Exit(1)
+
     console.print("\n[bold cyan]Task Configuration (task.yaml):[/bold cyan]")
     syntax = Syntax(task_yaml_content, "yaml", theme="monokai", line_numbers=True)
     console.print(Panel(syntax, border_style="cyan"))
@@ -254,22 +269,106 @@ def fetch_providers() -> list[dict]:
     return []
 
 
-def build_launch_payload(task: dict, provider_name: str, param_values: dict | None = None) -> dict:
+def build_launch_payload(
+    task: dict,
+    provider_name: str,
+    param_values: dict | None = None,
+    resource_overrides: dict | None = None,
+) -> dict:
     """Build the payload for launching a task on a provider."""
+    cfg = task.get("config") or {}
+    overrides = resource_overrides or {}
+
+    def pick(field: str):
+        if field in overrides and overrides[field] not in (None, ""):
+            return overrides[field]
+        if field in task and task[field] not in (None, ""):
+            return task[field]
+        if isinstance(cfg, dict) and field in cfg and cfg[field] not in (None, ""):
+            return cfg[field]
+        return None
+
     return {
         "experiment_id": task.get("experiment_id"),
         "task_id": task.get("id"),
         "task_name": task.get("name"),
-        "command": task.get("command"),
+        "run": task.get("run"),
         "setup": task.get("setup"),
-        "accelerators": task.get("accelerators"),
+        "cpus": pick("cpus"),
+        "memory": pick("memory"),
+        "disk_space": pick("disk_space"),
+        "accelerators": pick("accelerators"),
+        "num_nodes": pick("num_nodes"),
+        "minutes_requested": pick("minutes_requested"),
         "env_vars": task.get("env_vars", {}),
         "parameters": task.get("parameters", {}),
         "config": param_values if param_values else None,
         "provider_name": provider_name,
         "github_repo_url": task.get("github_repo_url"),
-        "github_directory": task.get("github_directory"),
+        "github_repo_dir": task.get("github_repo_dir") or task.get("github_directory"),
+        "github_repo_branch": task.get("github_repo_branch") or task.get("github_branch"),
     }
+
+
+def _print_resources(task: dict) -> dict:
+    """Print current resource requirements and return them."""
+    cfg = task.get("config") or {}
+
+    def get(field: str):
+        if field in task and task[field] not in (None, ""):
+            return task[field]
+        if isinstance(cfg, dict) and field in cfg and cfg[field] not in (None, ""):
+            return cfg[field]
+        return None
+
+    current = {
+        "cpus": get("cpus"),
+        "memory": get("memory"),
+        "disk_space": get("disk_space"),
+        "accelerators": get("accelerators"),
+        "num_nodes": get("num_nodes"),
+        "minutes_requested": get("minutes_requested"),
+    }
+
+    console.print("\n[bold cyan]Resource requirements:[/bold cyan]")
+    console.print(f"  CPUs: {current['cpus'] or '[not set]'}")
+    console.print(f"  Memory: {current['memory'] or '[not set]'}")
+    console.print(f"  Disk space: {current['disk_space'] or '[not set]'}")
+    console.print(f"  Accelerators: {current['accelerators'] or '[not set]'}")
+    console.print(f"  Num nodes: {current['num_nodes'] or '[not set]'}")
+    console.print(f"  Minutes requested: {current['minutes_requested'] or '[not set]'}")
+
+    return current
+
+
+def _prompt_resource_overrides(current: dict) -> dict:
+    """Prompt the user to override resource requirements."""
+    overrides: dict = {}
+
+    def ask(label: str, key: str, parse_int: bool = False):
+        default = current.get(key)
+        default_str = str(default) if default not in (None, "") else ""
+        result = typer.prompt(label, default=default_str, show_default=bool(default_str))
+        result = result.strip()
+        if not result:
+            return
+        if parse_int:
+            try:
+                overrides[key] = int(result)
+            except ValueError:
+                # Skip invalid int; keep default behavior
+                return
+        else:
+            overrides[key] = result
+
+    ask("CPUs", "cpus")
+    ask("Memory", "memory")
+    ask("Disk space", "disk_space")
+    ask("Accelerators", "accelerators")
+    ask("Num nodes", "num_nodes")
+    ask("Minutes requested", "minutes_requested", parse_int=True)
+
+    return overrides
 
 
 def launch_task_on_provider(provider_id: str, payload: dict) -> dict:
@@ -348,6 +447,12 @@ def queue_task(task_id: str, experiment_id: str, interactive: bool = True) -> No
     task = response.json()
     console.print(f"\n[bold]Task:[/bold] {task.get('name', 'Unknown')}")
 
+    resource_overrides: dict | None = None
+    if interactive:
+        current_resources = _print_resources(task)
+        if not typer.confirm("\nUse these resource requirements?", default=True):
+            resource_overrides = _prompt_resource_overrides(current_resources)
+
     with console.status("[bold green]Fetching providers...[/bold green]", spinner="dots"):
         providers = fetch_providers()
 
@@ -370,7 +475,7 @@ def queue_task(task_id: str, experiment_id: str, interactive: bool = True) -> No
     else:
         param_values = {k: (v.get("default", "") if isinstance(v, dict) else v) for k, v in parameters.items()}
 
-    payload = build_launch_payload(task, provider.get("name"), param_values)
+    payload = build_launch_payload(task, provider.get("name"), param_values, resource_overrides)
     provider_id = provider.get("id")
 
     with console.status("[bold green]Queuing task...[/bold green]", spinner="dots"):

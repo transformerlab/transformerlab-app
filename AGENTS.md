@@ -14,13 +14,13 @@
 
 - **Frontend dev**: `npm start` (Node v22, not v23+)
 - **Frontend test**: `npm test` (Jest); single test: `npm test -- --testPathPattern="<pattern>"`
-- **Frontend lint**: `npm run format`
+- **Frontend lint**: `npm run format`. **Always run `npm run format` on changed frontend files before committing.**
 - **Python env (run once per shell)**: `source ~/.transformerlab/miniforge3/bin/activate && conda activate ~/.transformerlab/envs/transformerlab`
 - **API install**: `cd api && ./install.sh` or `npm run api:install`
 - **API start**: `cd api && ./run.sh` or `npm run api:start`
 - **API test**: `cd api && pytest`
 - **API single test**: `cd api && pytest test/<file>::<test>`
-- **Python lint**: `ruff check`. **Always run `ruff check` and `ruff format` before committing.**
+- **Python lint**: `cd api && ruff check` and `cd api && ruff format api.py` (or whichever files changed). **Always run both `ruff check` and `ruff format` on changed Python files before committing.**
 - **DB migrations**: `cd api && alembic upgrade head`
 - **Dev (no Docker)**: `python scripts/dev.py` — runs both frontend and API side by side with hot reload. Requires the API conda env and Node v22. Checks ports 8338 (API) and 1212 (frontend) on startup and reports conflicts.
   - `dev.py` calls `api/run.sh` which automatically activates the conda env at `~/.transformerlab/envs/transformerlab`, so you do **not** need to activate conda yourself.
@@ -72,17 +72,24 @@
   - **Full cycle**: `npm run docker-test:playwright` (starts container, runs tests, tears down).
   - **Docker container**: `npm run docker-test:up` starts the app; `npm run docker-test:down` stops it. Wait for the healthcheck before running tests.
   - **Auth**: Log in via UI with `admin@example.com` / `admin123`. Import the shared `login()` and `selectFirstExperiment()` helpers from `test/playwright/helpers.ts`.
+  - **Debugging**: When debugging Playwright test failures (e.g. wrong elements being clicked, selectors not matching), use browser tools to navigate to the app, inspect the live DOM structure, and verify selectors before updating tests. Two browser tools are available:
+    - **Vercel agent-browser** (default): More efficient and should be used by default for inspecting pages, taking snapshots, and verifying selectors.
+    - **Chrome DevTools MCP**: Gives direct access to the browser (DevTools protocol). Use when you need lower-level control such as evaluating scripts, inspecting network requests, or performance tracing.
   - **Selectors**: Prefer `getByRole`, `getByText({ exact: true })`, and `getByPlaceholder`. Use `.first()` when prior test runs may leave duplicate elements (e.g. multiple tasks or jobs).
   - **xterm.js content**: Terminal output rendered by xterm is not in the DOM. Verify it by polling the corresponding API endpoint (e.g. `/experiment/{id}/jobs/{jobId}/provider_logs`) via `page.request.get()` and `expect.poll()`.
   - **Idempotency**: Tests must pass on repeated runs against the same container. Don't assume a clean DB; handle existing data gracefully with `.first()` or by checking for pre-existing state.
   - **Timeouts**: Set `test.setTimeout(120_000)` for tests that queue jobs (local provider launch + execution can take time). Use generous `toBeVisible({ timeout: 60000 })` for status transitions like LAUNCHING → COMPLETE.
 
-### Visual UI Verification (Chrome DevTools MCP)
+### Visual UI Verification
 
-The Chrome DevTools MCP is enabled. When requested, verify the result with the following steps:
+**IMPORTANT: For visual UI verification, always use the Vercel agent-browser MCP tools** (the `mcp__plugin_playwright_playwright__browser_*` tools such as `browser_navigate`, `browser_snapshot`, `browser_take_screenshot`, `browser_click`, etc.). Do **NOT** run `npx playwright test` or write Playwright test scripts unless the user explicitly asks you to. Playwright tests are only for the automated E2E test suite in `test/playwright/`.
 
-1. Run `npm run docker-test:up` to ensure the app is running.
-2. Use the browser tool to navigate to the page you just changed. Remember that the app usually serves on port 8338
+The Vercel agent-browser is more efficient for navigating pages, taking snapshots, clicking elements, and filling forms. Only fall back to the **Chrome DevTools MCP** when you specifically need lower-level capabilities such as evaluating JavaScript, inspecting network requests, analyzing console messages, or running performance traces.
+
+When requested, verify the result with the following steps:
+
+1. Run `npm run docker-test:up` to ensure the app is running (or use `python scripts/dev.py` for local dev).
+2. Use the Vercel agent-browser MCP tools to navigate to the page you just changed. Remember that the app usually serves on port 8338 (API) and port 1212 (frontend dev server).
 3. If the app requires login, use the default credentials: **email:** `admin@example.com` / **password:** `admin123`.
 4. Explore related pages (e.g., if you changed the Header, also check the Dashboard and Login pages).
 5. Take screenshots and verify that no layouts are broken.

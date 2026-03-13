@@ -74,10 +74,10 @@ export default function EditInteractiveTaskModal({
   const [memory, setMemory] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [interactiveType, setInteractiveType] = React.useState<
-    'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama'
-  >('vscode');
+    string | undefined
+  >(undefined);
   const [setup, setSetup] = React.useState('');
-  const [command, setCommand] = React.useState('');
+  const [run, setRun] = React.useState('');
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
   const [isSaving, setIsSaving] = React.useState(false);
   const [configFieldValues, setConfigFieldValues] = React.useState<
@@ -92,7 +92,7 @@ export default function EditInteractiveTaskModal({
 
   // Fetch interactive gallery to get env_parameters for the interactive type
   const { data: galleryData, isLoading: galleryIsLoading } = useSWR(
-    experimentInfo?.id && open && interactiveType
+    experimentInfo?.id && open
       ? chatAPI.Endpoints.Task.InteractiveGallery(experimentInfo.id)
       : null,
     fetcher,
@@ -105,19 +105,23 @@ export default function EditInteractiveTaskModal({
     return [];
   }, [galleryData]);
 
-  // Update templateConfigFields when gallery loads or interactiveType changes
+  // Resolve gallery entry by interactive_gallery_id first, then interactive_type
+  const galleryId = (task as any)?.interactive_gallery_id;
+
+  // Update templateConfigFields when gallery loads
   React.useEffect(() => {
-    if (gallery.length > 0 && interactiveType) {
-      const template = gallery.find(
-        (t) => t.interactive_type === interactiveType,
-      );
+    if (gallery.length > 0) {
+      const template =
+        (galleryId && gallery.find((t) => (t as any).id === galleryId)) ||
+        (interactiveType &&
+          gallery.find((t) => t.interactive_type === interactiveType));
       if (template?.env_parameters) {
         setTemplateConfigFields(template.env_parameters);
       } else {
         setTemplateConfigFields([]);
       }
     }
-  }, [gallery, interactiveType]);
+  }, [gallery, galleryId, interactiveType]);
 
   React.useEffect(() => {
     if (!task) return;
@@ -129,7 +133,7 @@ export default function EditInteractiveTaskModal({
     const isTemplate =
       !task.config ||
       (typeof cfg === 'object' && Object.keys(cfg).length === 0) ||
-      (!cfg.command && !cfg.setup && (task as any).command);
+      (!cfg.run && !cfg.setup && (task as any).run);
 
     // Use template fields directly if it's a template, otherwise use config
     const taskAny = task as any;
@@ -156,9 +160,8 @@ export default function EditInteractiveTaskModal({
     setAccelerators(
       isTemplate ? taskAny.accelerators || '' : cfg.accelerators || '',
     );
-    const loadedInteractiveType = (taskAny.interactive_type ||
-      cfg.interactive_type ||
-      'vscode') as 'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama';
+    const loadedInteractiveType =
+      taskAny.interactive_type || cfg.interactive_type || undefined;
     setInteractiveType(loadedInteractiveType);
 
     // Load environment variables
@@ -190,7 +193,7 @@ export default function EditInteractiveTaskModal({
           ? String(cfg.setup)
           : '',
     );
-    setCommand(isTemplate ? taskAny.command || '' : cfg.command || '');
+    setRun(isTemplate ? taskAny.run || '' : cfg.run || '');
 
     // Prefer provider_id if present, otherwise try to infer from provider_name
     const providerId = isTemplate
@@ -214,7 +217,7 @@ export default function EditInteractiveTaskModal({
       const isTemplate =
         !task.config ||
         (typeof cfg === 'object' && Object.keys(cfg).length === 0) ||
-        (!cfg.command && !cfg.setup && (task as any).command);
+        (!cfg.run && !cfg.setup && (task as any).run);
       const envVars = isTemplate ? taskAny.env_vars : cfg.env_vars;
       let parsedEnvVars: Record<string, string> = {};
 
@@ -289,10 +292,10 @@ export default function EditInteractiveTaskModal({
     commandEditorRef.current = editor;
     setTheme(editor, monaco);
 
-    // Initialize editor with current command state
+    // Initialize editor with current run state
     try {
-      if (command) {
-        editor.setValue(command);
+      if (run) {
+        editor.setValue(run);
       }
     } catch (e) {
       // ignore if setValue not available
@@ -300,7 +303,7 @@ export default function EditInteractiveTaskModal({
 
     // Also ensure we update after a brief delay in case state updates after mount
     setTimeout(() => {
-      if (command && editor.getValue() !== command) {
+      if (run && editor.getValue() !== run) {
         try {
           editor.setValue(command);
         } catch (e) {
@@ -332,14 +335,14 @@ export default function EditInteractiveTaskModal({
 
     try {
       if (typeof commandEditorRef.current.setValue === 'function') {
-        const commandValue = command || '';
-        commandEditorRef.current.setValue(commandValue);
+        const runValue = run || '';
+        commandEditorRef.current.setValue(runValue);
       }
     } catch (e) {
       // Editor might not be ready yet
-      console.warn('Failed to sync command editor value:', e);
+      console.warn('Failed to sync run editor value:', e);
     }
-  }, [task, command, open]);
+  }, [task, run, open]);
 
   const handleConfigFieldChange = (envVar: string, value: string) => {
     setConfigFieldValues((prev) => ({
@@ -358,8 +361,8 @@ export default function EditInteractiveTaskModal({
     try {
       const setupValue =
         setupEditorRef?.current?.getValue?.() ?? (setup || undefined);
-      const commandValue =
-        commandEditorRef?.current?.getValue?.() ?? (command || undefined);
+      const runValue =
+        commandEditorRef?.current?.getValue?.() ?? (run || undefined);
 
       const body: any = {
         name: title.trim(),
@@ -369,7 +372,7 @@ export default function EditInteractiveTaskModal({
         // interactive_type is fixed for an existing interactive template
         interactive_type: interactiveType,
         setup: setupValue,
-        command: commandValue,
+        run: runValue,
         provider_id: selectedProviderId,
       };
 
@@ -419,7 +422,7 @@ export default function EditInteractiveTaskModal({
     return true;
   }, [title, selectedProviderId, templateConfigFields, configFieldValues]);
 
-  const getInteractiveTypeLabel = (type: string) => {
+  const getInteractiveTypeLabel = (type: string | undefined) => {
     switch (type) {
       case 'vscode':
         return 'VS Code';
@@ -431,8 +434,13 @@ export default function EditInteractiveTaskModal({
         return 'Ollama';
       case 'ssh':
         return 'SSH';
-      default:
-        return type;
+      default: {
+        // For entries without a known type, use the gallery entry name
+        const entry =
+          (galleryId && gallery.find((t) => (t as any).id === galleryId)) ||
+          undefined;
+        return entry?.name || type || 'Interactive';
+      }
     }
   };
 
@@ -612,11 +620,11 @@ export default function EditInteractiveTaskModal({
               </FormControl>
 
               <FormControl>
-                <FormLabel>Command</FormLabel>
+                <FormLabel>Run Command</FormLabel>
                 <Editor
                   defaultLanguage="shell"
                   theme="my-theme"
-                  defaultValue={command}
+                  defaultValue={run}
                   height="8rem"
                   options={getMonacoEditorOptions({
                     fontSize: 18,

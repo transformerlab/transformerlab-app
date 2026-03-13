@@ -25,7 +25,6 @@ import ModelZoo from './ModelZoo/ModelZoo';
 import Compute from './Compute/Compute';
 import Api from './Experiment/Api';
 import Settings from './Experiment/Settings';
-import TrainLoRA from './Experiment/Train/TrainLoRA';
 import Documents from './Experiment/Documents';
 import ExperimentNotes from './Experiment/ExperimentNotes';
 import UserSettings from './User/UserSettings';
@@ -343,7 +342,6 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
               />
             }
           />
-          <Route path="training" element={<TrainLoRA />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="interactive" element={<Interactive />} />
           <Route path="documents" element={<Documents />} />

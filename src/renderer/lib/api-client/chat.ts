@@ -1,56 +1,25 @@
-import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './urls';
-import { getMcpServerFile } from 'renderer/components/Experiment/Interact/interactUtils';
+import { API_URL, INFERENCE_SERVER_URL, getAPIFullPath } from './urls';
 import * as chatAPI from './endpoints';
 import { authenticatedFetch } from './functions';
 
-export async function sendAndReceive(
-  currentModel: String,
-  texts: any,
-  temperature: number,
-  maxTokens: number,
-  topP: number,
-  systemMessage: string,
-  minP?: number,
-) {
-  const shortModelName = currentModel.split('/').slice(-1)[0];
-
-  let messages = [];
-  messages.push({ role: 'system', content: systemMessage });
-  messages = messages.concat(texts);
-
-  const data = {
-    model: shortModelName,
-    messages,
-    temperature,
-    max_tokens: maxTokens,
-    top_p: topP,
-    system_message: systemMessage,
-    ...(minP !== undefined ? { min_p: minP } : {}),
-  };
-
-  let result;
-
-  try {
-    const response = await authenticatedFetch(
-      `${INFERENCE_SERVER_URL()}v1/chat/completions`,
-      {
-        method: 'POST', // or 'PUT'
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
-        body: JSON.stringify(data),
-      },
-    );
-    result = await response.json();
-  } catch (error) {
-    console.log('There was an error', error);
+async function getMcpServerFile() {
+  const configResp = await authenticatedFetch(
+    getAPIFullPath('config', ['get'], { key: 'MCP_SERVER' }),
+  );
+  const configData = await configResp.json();
+  if (configData) {
+    try {
+      const parsed = JSON.parse(configData);
+      return {
+        mcp_server_file: parsed.serverName || '',
+        mcp_args: parsed.args || '',
+        mcp_env: parsed.env || '',
+      };
+    } catch {
+      return { mcp_server_file: '', mcp_args: '', mcp_env: '' };
+    }
   }
-
-  if (result?.choices) {
-    return { id: result.id, text: result.choices[0].message.content };
-  }
-  return null;
+  return { mcp_server_file: '', mcp_args: '', mcp_env: '' };
 }
 
 // Global variable that if enabled, will stop the current streaming response
@@ -774,59 +743,6 @@ export async function sendBatchedChat(
   return results;
 }
 
-// Batched Text-to-Speech: send multiple texts to generate multiple audios
-export async function sendBatchedAudio(
-  experimentId: number,
-  currentModel: string,
-  adaptor: string,
-  texts: string[],
-  filePrefix: string,
-  sampleRate: number,
-  temperature: number,
-  speed: number,
-  topP: number,
-  voice?: string,
-  audioPath?: string,
-  batchSize: number = 64,
-): Promise<any[] | null> {
-  const data: any = {
-    experiment_id: experimentId,
-    model: currentModel,
-    adaptor: adaptor,
-    texts: texts,
-    file_prefix: filePrefix,
-    sample_rate: sampleRate,
-    temperature: temperature,
-    speed: speed,
-    top_p: topP,
-    batch_size: batchSize,
-    inference_url: `${INFERENCE_SERVER_URL()}v1/audio/speech`,
-  };
-
-  if (voice) data.voice = voice;
-  if (audioPath) data.audio_path = audioPath;
-
-  try {
-    const response = await authenticatedFetch(
-      `${API_URL()}batch/audio/speech`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
-        body: JSON.stringify(data),
-      },
-    );
-    if (!response.ok) return null;
-    const results = await response.json();
-    return results;
-  } catch (err) {
-    console.log('Error in sendBatchedAudio:', err);
-    return null;
-  }
-}
-
 export async function callTool(
   function_name: String,
   function_args: Object = {},
@@ -850,14 +766,6 @@ export async function callTool(
   return result;
 }
 
-export async function getAvailableModels() {
-  const headers: Record<string, string> = {};
-
-  const response = await authenticatedFetch(API_URL() + 'model/gallery', {});
-  const result = await response.json();
-  return result;
-}
-
 export async function getToolsForCompletions() {
   const { mcp_server_file, mcp_args, mcp_env } = await getMcpServerFile();
   let url = chatAPI.Endpoints.Tools.All();
@@ -874,33 +782,6 @@ export async function getToolsForCompletions() {
 
   const response = await fetch(url, {});
   const result = await response.json();
-  return result;
-}
-
-/**
- * Pass an array of strings, and this will
- * return an array of embeddings
- */
-export async function getEmbeddings(model: string, text: string[]) {
-  let shortModelName = model.split('/').slice(-1)[0];
-
-  let result;
-
-  const data = {
-    model: shortModelName,
-    input: text,
-  };
-
-  try {
-    const response = await authenticatedFetch(`${API_URL()}v1/embeddings`, {
-      method: 'POST', // or 'PUT'
-      body: JSON.stringify(data),
-    });
-    result = await response.json();
-  } catch (error) {
-    console.log('There was an error', error);
-  }
-
   return result;
 }
 
@@ -923,47 +804,6 @@ export async function tokenize(model: string, text: string) {
   } catch (error) {
     console.log('There was an error', error);
   }
-
-  return result;
-}
-
-export async function generateLogProbs(model: string, prompt: string) {
-  let shortModelName = model.split('/').slice(-1)[0];
-  // @TODO Doesn't work with an adaptor right now
-
-  // Hardcode these for now
-  const temperature = 0.7;
-  const maxTokens = 256;
-  const topP = 0.95;
-  const stopString = null;
-
-  const data = {
-    model: shortModelName,
-    stream: false,
-    prompt: prompt,
-    temperature,
-    max_tokens: maxTokens,
-    top_p: topP,
-    logprobs: 1,
-  };
-
-  if (stopString) {
-    data.stop = stopString;
-  }
-
-  const response = await authenticatedFetch(
-    `${INFERENCE_SERVER_URL()}v1/completions`,
-    {
-      method: 'POST', // or 'PUT'
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
-      },
-      body: JSON.stringify(data),
-    },
-  );
-
-  const result = await response.json();
 
   return result;
 }

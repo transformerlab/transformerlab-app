@@ -20,19 +20,19 @@ import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import DeleteTaskConfirmModal from './DeleteTaskConfirmModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
-import ViewArtifactsModal from '../Train/ViewArtifactsModal';
-import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
+import ViewArtifactsModal from './ViewArtifactsModal';
+import ViewCheckpointsModal from './ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
 import CompareEvalResultsModal from './CompareEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
-import ViewJobDatasetsModal from '../Train/ViewJobDatasetsModal';
-import ViewJobModelsModal from '../Train/ViewJobModelsModal';
+import ViewJobDatasetsModal from './ViewJobDatasetsModal';
+import ViewJobModelsModal from './ViewJobModelsModal';
 import FileBrowserModal from './FileBrowserModal';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
-import TrackioModal from '../Train/TrackioModal';
+import TrackioModal from './TrackioModal';
 
 const duration = require('dayjs/plugin/duration');
 const dayjs = require('dayjs');
@@ -70,6 +70,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [isCompareSelectMode, setIsCompareSelectMode] = useState(false);
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
   const [viewFileBrowserFromJob, setViewFileBrowserFromJob] = useState(-1);
+  const [viewTaskFilesFromTask, setViewTaskFilesFromTask] = useState<{
+    id: string | null;
+    name?: string | null;
+  }>({ id: null, name: null });
   const [yamlEditorTaskId, setYamlEditorTaskId] = useState<string | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<{
     id: string;
@@ -287,6 +291,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         : chatAPI.Endpoints.Task.List(experimentInfo.id)
       : null,
     fetcher,
+    {
+      // Tasks (templates) change relatively infrequently; use a modest polling interval
+      // and rely on backend cache + explicit invalidation for freshness.
+      refreshInterval: 10000, // 10s
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      refreshWhenHidden: false,
+      refreshWhenOffline: false,
+    },
   );
 
   // Filter templates for this experiment only (if no subtype filter was applied)
@@ -590,7 +603,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         plugin: 'remote_orchestrator',
         experiment_id: experimentInfo.id,
         cluster_name: data.cluster_name,
-        command: data.command,
+        run: data.run,
         cpus: data.cpus || undefined,
         memory: data.memory || undefined,
         disk_space: data.disk_space || undefined,
@@ -601,8 +614,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         parameters: data.parameters || undefined,
         file_mounts: data.file_mounts || undefined,
         github_repo_url: data.github_repo_url || undefined,
-        github_directory: data.github_directory || undefined,
-        github_branch: data.github_branch || undefined,
+        github_repo_dir:
+          data.github_repo_dir || data.github_directory || undefined,
+        github_repo_branch:
+          data.github_repo_branch || data.github_branch || undefined,
         run_sweeps: data.run_sweeps || undefined,
         sweep_config: data.sweep_config || undefined,
         sweep_metric:
@@ -677,12 +692,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
     setIsSubmitting(true);
     try {
-      const interactiveType = data.interactive_type || 'vscode';
-
-      // Fetch interactive gallery to get setup and command templates
+      // Fetch interactive gallery to get setup and run templates
       let defaultSetup: string;
-      let defaultCommand: string;
+      let defaultRun: string;
       let templateId: string | undefined;
+      let template: any;
 
       try {
         const galleryResponse = await chatAPI.authenticatedFetch(
@@ -694,18 +708,24 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
         if (galleryResponse.ok) {
           const galleryData = await galleryResponse.json();
-          const template = galleryData.data?.find(
-            (t: any) => t.interactive_type === interactiveType,
-          );
+          template = galleryData.data?.find((t: any) => {
+            if (data.template_id) {
+              return t.id === data.template_id;
+            }
+            return (
+              data.interactive_type &&
+              t.interactive_type === data.interactive_type
+            );
+          });
 
           if (!template) {
             throw new Error(
-              `Template not found for interactive type: ${interactiveType}`,
+              `Template not found for: ${data.template_id || data.interactive_type || 'unknown'}`,
             );
           }
 
           defaultSetup = template.setup || '';
-          defaultCommand = template.command || '';
+          defaultRun = template.run || template.command || '';
           templateId = template.id;
         } else {
           throw new Error('Failed to fetch interactive gallery');
@@ -714,66 +734,79 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         throw error;
       }
 
-      // Create template with flat structure
-      // Use env_parameters from the gallery-defined structure (including NGROK)
-      const envVars: Record<string, string> = data.env_parameters || {};
+      let response: Response;
 
-      const needsNgrok =
-        interactiveType === 'jupyter' ||
-        interactiveType === 'vllm' ||
-        interactiveType === 'ollama' ||
-        interactiveType === 'ssh';
-      if (
-        needsNgrok &&
-        providerMeta.type !== 'local' &&
-        !envVars.NGROK_AUTH_TOKEN
-      ) {
-        envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
-      }
-
-      const templatePayload: any = {
-        name: data.title,
-        type: 'REMOTE',
-        plugin: 'remote_orchestrator',
-        experiment_id: experimentInfo.id,
-        cluster_name: data.title,
-        command: defaultCommand,
-        cpus: data.cpus || undefined,
-        memory: data.memory || undefined,
-        accelerators: data.accelerators || undefined,
-        setup: defaultSetup,
-        subtype: 'interactive',
-        interactive_type: interactiveType,
-        interactive_gallery_id: templateId,
-        provider_id: providerMeta.id,
-        provider_name: providerMeta.name,
-        env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
-      };
-
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+      if (template.local_task_dir || template.github_repo_url) {
+        // Use the gallery import API which reads task.yaml and copies files,
+        // just like the "Upload from Local Directory" or GitHub import flow.
+        response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              gallery_id: templateId,
+              experiment_id: experimentInfo.id,
+              is_interactive: true,
+              env_vars: data.env_parameters || undefined,
+            }),
           },
-          body: JSON.stringify(templatePayload),
-        },
-      );
+        );
+      } else {
+        // Create template with flat structure
+        // Use env_parameters from the gallery-defined structure (including NGROK)
+        const envVars: Record<string, string> = data.env_parameters || {};
+
+        // Check if the template defines NGROK_AUTH_TOKEN in its env_parameters
+        const needsNgrok = template?.env_parameters?.some(
+          (p: any) => p.env_var === 'NGROK_AUTH_TOKEN',
+        );
+        if (
+          needsNgrok &&
+          providerMeta.type !== 'local' &&
+          !envVars.NGROK_AUTH_TOKEN
+        ) {
+          envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
+        }
+
+        const templatePayload: any = {
+          name: data.title,
+          type: 'REMOTE',
+          plugin: 'remote_orchestrator',
+          experiment_id: experimentInfo.id,
+          cluster_name: data.title,
+          run: defaultRun,
+          cpus: data.cpus || undefined,
+          memory: data.memory || undefined,
+          accelerators: data.accelerators || undefined,
+          setup: defaultSetup,
+          subtype: 'interactive',
+          interactive_type: template?.interactive_type || undefined,
+          interactive_gallery_id: templateId,
+          provider_id: providerMeta.id,
+          provider_name: providerMeta.name,
+          env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
+          github_repo_url: template?.github_repo_url || undefined,
+          github_directory: template?.github_repo_dir || undefined,
+        };
+
+        response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(templatePayload),
+          },
+        );
+      }
 
       if (response.ok) {
         setInteractiveModalOpen(false);
         await templatesMutate();
         const interactiveTypeLabel =
-          (data.interactive_type || 'vscode') === 'jupyter'
-            ? 'Jupyter'
-            : (data.interactive_type || 'vscode') === 'vllm'
-              ? 'vLLM'
-              : (data.interactive_type || 'vscode') === 'ollama'
-                ? 'Ollama'
-                : (data.interactive_type || 'vscode') === 'ssh'
-                  ? 'SSH'
-                  : 'VS Code';
+          template?.name || data.interactive_type || 'interactive';
         addNotification({
           type: 'success',
           message: `Interactive template created. Use Queue to launch the ${interactiveTypeLabel} tunnel.`,
@@ -813,10 +846,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       return;
     }
 
-    if (!cfg.command && !task.command) {
+    if (
+      !cfg.run &&
+      !task.run &&
+      !cfg.github_repo_url &&
+      !task.github_repo_url
+    ) {
       addNotification({
         type: 'warning',
-        message: 'Task is missing a command to run.',
+        message: 'Task is missing a run command.',
       });
       return;
     }
@@ -873,6 +911,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         enable_trackio,
         enable_profiling,
         enable_profiling_torch,
+        cpus,
+        memory,
+        disk_space,
+        accelerators,
+        num_nodes,
+        minutes_requested,
         ...paramConfig
       } = config ?? {};
 
@@ -883,7 +927,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         task_id: task.id,
         task_name: task.name,
         cluster_name: cfg.cluster_name || task.cluster_name,
-        command: cfg.command || task.command,
+        run: cfg.run || task.run,
         subtype: cfg.subtype || task.subtype,
         interactive_type: cfg.interactive_type || task.interactive_type,
         interactive_gallery_id:
@@ -891,11 +935,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           (task as any)?.interactive_gallery_id ??
           config?.interactive_gallery_id ??
           undefined,
-        cpus: cfg.cpus || task.cpus,
-        memory: cfg.memory || task.memory,
-        disk_space: cfg.disk_space || task.disk_space,
-        accelerators: cfg.accelerators || task.accelerators,
-        num_nodes: cfg.num_nodes || task.num_nodes,
+        cpus: cpus ?? cfg.cpus ?? task.cpus,
+        memory: memory ?? cfg.memory ?? task.memory,
+        disk_space: disk_space ?? cfg.disk_space ?? task.disk_space,
+        accelerators: accelerators ?? cfg.accelerators ?? task.accelerators,
+        num_nodes: num_nodes ?? cfg.num_nodes ?? task.num_nodes,
         setup: cfg.setup || task.setup,
         env_vars: cfg.env_vars || task.env_vars || {},
         parameters: cfg.parameters || task.parameters || undefined, // Keep original parameter definitions
@@ -903,8 +947,16 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         file_mounts: cfg.file_mounts || task.file_mounts,
         provider_name: config?.provider_name ?? providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
-        github_directory: cfg.github_directory || task.github_directory,
-        github_branch: cfg.github_branch || task.github_branch,
+        github_repo_dir:
+          cfg.github_repo_dir ||
+          cfg.github_directory ||
+          task.github_repo_dir ||
+          task.github_directory,
+        github_repo_branch:
+          cfg.github_repo_branch ||
+          cfg.github_branch ||
+          task.github_repo_branch ||
+          task.github_branch,
         run_sweeps: cfg.run_sweeps || task.run_sweeps || undefined,
         sweep_config: cfg.sweep_config || task.sweep_config || undefined,
         sweep_metric:
@@ -918,7 +970,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               ? task.lower_is_better
               : undefined,
         minutes_requested:
-          cfg.minutes_requested || task.minutes_requested || undefined,
+          minutes_requested ??
+          cfg.minutes_requested ??
+          task.minutes_requested ??
+          undefined,
         enable_trackio:
           typeof enable_trackio === 'boolean' ? enable_trackio : undefined,
         enable_profiling:
@@ -995,7 +1050,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         ? SafeJSONParse(task.config, {})
         : (task?.config ?? {});
     const isInteractive =
-      (task as any)?.interactive_type || config?.interactive_type;
+      (task as any)?.subtype === 'interactive' ||
+      config?.subtype === 'interactive' ||
+      (task as any)?.interactive_type ||
+      config?.interactive_type;
     if (isInteractive) {
       setTaskBeingEdited(task);
       setEditModalOpen(true);
@@ -1149,6 +1207,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           onQueueTask={handleQueue}
           onEditTask={handleEditTask}
           onExportTask={handleExportToTeamGallery}
+          onViewFilesTask={(taskRow) =>
+            setViewTaskFilesFromTask({
+              id: taskRow.id,
+              name: (taskRow as any).name ?? (taskRow as any).title ?? null,
+            })
+          }
           loading={templatesIsLoading}
         />
       </Sheet>
@@ -1307,9 +1371,17 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         jobId={viewJobModelsFromJob}
       />
       <FileBrowserModal
+        mode="job"
         open={viewFileBrowserFromJob !== -1}
         onClose={() => setViewFileBrowserFromJob(-1)}
         jobId={viewFileBrowserFromJob}
+      />
+      <FileBrowserModal
+        mode="task"
+        open={viewTaskFilesFromTask.id !== null}
+        onClose={() => setViewTaskFilesFromTask({ id: null, name: null })}
+        taskId={viewTaskFilesFromTask.id ?? ''}
+        taskName={viewTaskFilesFromTask.name}
       />
       <TrackioModal
         jobId={trackioJobIdForModal}

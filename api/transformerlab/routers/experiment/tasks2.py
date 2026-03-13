@@ -13,7 +13,7 @@ from typing import Optional
 
 import yaml
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile, Depends
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.utils import secure_filename
 
@@ -28,6 +28,7 @@ from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.services.task_service import task_service
 from transformerlab.shared.github_utils import fetch_task_yaml_from_github
+from transformerlab.services.cache_service import cache
 
 router = APIRouter(prefix="/task2", tags=["task2"])
 
@@ -63,6 +64,10 @@ async def create_blank_task(
     default_yaml = 'name: my-task\nresources:\n  cpus: 2\n  memory: 4\nrun: "echo hello"'
     async with await storage.open(yaml_path, "w", encoding="utf-8") as f:
         await f.write(default_yaml)
+
+    # Invalidate cached task lists for this experiment (best-effort).
+    await cache.invalidate("tasks", f"tasks:list:{experimentId}")
+
     return {"id": task_id}
 
 
@@ -203,6 +208,10 @@ async def from_directory(
         await f.write(task_yaml_content)
     if task_root_for_zip is not None:
         await task_service.update_task(task_id, {"file_mounts": True})
+
+    # Invalidate cached task lists for this experiment (best-effort).
+    await cache.invalidate("tasks", f"tasks:list:{experimentId}")
+
     return {"id": task_id}
 
 
@@ -244,4 +253,31 @@ async def update_task_yaml(experimentId: str, task_id: str, request: Request):
     success = await task_service.update_task_from_yaml(task_id, task_data)
     if not success:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # Invalidate cached task lists for this experiment (best-effort).
+    await cache.invalidate("tasks", f"tasks:list:{experimentId}")
+
     return {"message": "OK"}
+
+
+@router.post("/validate", summary="Validate task.yaml content without saving")
+async def validate_task_yaml(request: Request):
+    """
+    Validate task.yaml content using the same schema as the save path,
+    but without touching any task or experiment state.
+
+    Accepts raw YAML in the request body.
+    """
+    body = (await request.body()).decode("utf-8")
+    try:
+        # Reuse the canonical parser/validator; we ignore the returned task_data.
+        _parse_yaml_to_task_data(body)
+    except HTTPException as e:
+        # Preserve status code and detail so clients get a clear error message.
+        raise e
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error validating task.yaml: {str(e)}")
+
+    return JSONResponse({"valid": True})
