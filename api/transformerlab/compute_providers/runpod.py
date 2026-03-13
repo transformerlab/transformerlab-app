@@ -325,6 +325,7 @@ class RunpodProvider(ComputeProvider):
             "RUNNING": ClusterState.UP,
             "STOPPED": ClusterState.STOPPED,
             "TERMINATED": ClusterState.DOWN,
+            "TERMINATING": ClusterState.STOPPED,  # Pod is shutting down; treat as STOPPED for status worker
             "CREATING": ClusterState.INIT,
             "FAILED": ClusterState.FAILED,
             "RESTARTING": ClusterState.INIT,

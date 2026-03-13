@@ -3,7 +3,8 @@ Utilities for resolving interactive gallery commands by environment (local/remot
 See galleries.py for the interactive gallery schema documentation.
 """
 
-from typing import Optional, Tuple
+import re
+from typing import Any, Optional, Tuple
 
 # Prepended to interactive remote setup in the launch route so $SUDO is defined
 # without putting that logic in the gallery JSON. Setup content stays in the gallery.
@@ -11,11 +12,75 @@ INTERACTIVE_SUDO_PREFIX = (
     'SUDO=""; if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; fi; export DEBIAN_FRONTEND=noninteractive;'
 )
 
+# Shell command to install ngrok (Debian/Bookworm). Uses $SUDO from INTERACTIVE_SUDO_PREFIX.
+NGROK_INSTALL_CMD = (
+    "command -v ngrok >/dev/null 2>&1 || (curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | $SUDO tee "
+    '/etc/apt/trusted.gpg.d/ngrok.asc >/dev/null && echo "deb https://ngrok-agent.s3.amazonaws.com bookworm main" | '
+    "$SUDO tee /etc/apt/sources.list.d/ngrok.list && $SUDO apt-get update && $SUDO apt-get install -y ngrok)"
+)
+
+
+def _sanitize_tunnel_name(label: Optional[str], port: int) -> str:
+    """Return a safe YAML key for a tunnel: from label or port_<port>."""
+    if label and isinstance(label, str) and label.strip():
+        # Lowercase, replace non-alphanumeric with underscore
+        safe = re.sub(r"[^a-z0-9]+", "_", label.strip().lower()).strip("_")
+        if safe:
+            return safe
+    return f"port_{port}"
+
+
+def build_ngrok_tunnel_command(entry_id: str, ports: list[dict[str, Any]]) -> str:
+    """
+    Build the full ngrok tunnel shell command (install + auth + YAML + start).
+    Uses ngrok v2 config with one tunnel per port; supports single or multiple ports.
+    """
+    if not ports:
+        return ""
+
+    install_and_auth = f"{NGROK_INSTALL_CMD}; ngrok config add-authtoken $NGROK_AUTH_TOKEN"
+
+    config_path = f"~/ngrok-{entry_id}.yml"
+    yaml_lines = ["version: 2", "authtoken: $NGROK_AUTH_TOKEN", "tunnels:"]
+
+    for p in ports:
+        port_val = p.get("port") if isinstance(p, dict) else None
+        if port_val is None:
+            continue
+        try:
+            port_num = int(port_val)
+        except (TypeError, ValueError):
+            continue
+        protocol = "http"
+        if isinstance(p, dict) and isinstance(p.get("protocol"), str):
+            protocol = p.get("protocol", "http").strip().lower() or "http"
+        if protocol != "tcp":
+            protocol = "http"
+        label = p.get("label") if isinstance(p, dict) else None
+        name = _sanitize_tunnel_name(label, port_num)
+        yaml_lines.append(f"  {name}:")
+        yaml_lines.append(f"    proto: {protocol}")
+        yaml_lines.append(f"    addr: {port_num}")
+
+    # Build printf args: each line single-quoted; authtoken line must expand $NGROK_AUTH_TOKEN
+    printf_parts = ["printf '%s\\n'"]
+    for i, line in enumerate(yaml_lines):
+        if line == "authtoken: $NGROK_AUTH_TOKEN":
+            printf_parts.append("'authtoken: '\"$NGROK_AUTH_TOKEN\"")
+        else:
+            escaped = line.replace("'", "'\"'\"'")
+            printf_parts.append(f"'{escaped}'")
+    printf_cmd = " ".join(printf_parts) + f" > {config_path}"
+    start_cmd = f"ngrok start --all --config {config_path} --log=stdout 2>&1 | tee /tmp/ngrok.log"
+
+    return f"{install_and_auth}; {printf_cmd} && {start_cmd}"
+
 
 def _compose_command_from_logic(
     logic: dict,
     interactive_type: str,
     environment: str,
+    template_entry: Optional[dict] = None,
 ) -> Optional[str]:
     """
     Compose a command from the logic block:
@@ -72,11 +137,14 @@ def _compose_command_from_logic(
         if echo_cmd:
             parts.append(echo_cmd)
 
-    # Only include tunnel logic for remote environments
-    if environment == "remote":
-        tunnel_clean = _clean(tunnel)
-        if tunnel_clean:
-            parts.append(tunnel_clean)
+    # Only include tunnel logic for remote environments; tunnel is only ever "ngrok"
+    if environment == "remote" and tunnel == "ngrok" and template_entry:
+        entry_id = template_entry.get("id") or "default"
+        ports = template_entry.get("ports") or []
+        if isinstance(ports, list) and ports:
+            ngrok_cmd = build_ngrok_tunnel_command(entry_id, ports)
+            if ngrok_cmd:
+                parts.append(ngrok_cmd)
 
     tail_clean = _clean(tail_logs)
     if tail_clean:
@@ -113,7 +181,7 @@ def resolve_interactive_command(
 
     logic = template_entry.get("logic")
     if isinstance(logic, dict):
-        composed = _compose_command_from_logic(logic, interactive_type, env)
+        composed = _compose_command_from_logic(logic, interactive_type, env, template_entry)
         if composed:
             return (composed, None)
 
