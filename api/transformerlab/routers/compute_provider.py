@@ -1697,6 +1697,19 @@ async def launch_template_on_provider(
     if provider.type != ProviderType.LOCAL.value:
         setup_commands.append("pip install -q transformerlab")
 
+    # If GitHub repo fields are missing, fall back to the stored task's fields.
+    # This handles GitHub-sourced interactive tasks where the CLI/TUI doesn't
+    # send these fields and relies on the backend to resolve them from the task.
+    if not request.github_repo_url and request.task_id:
+        task_data = await task_service.task_get_by_id(request.task_id)
+        if task_data:
+            request.github_repo_url = task_data.get("github_repo_url", "") or ""
+            # Task data may store the directory as either github_repo_dir or github_directory
+            request.github_repo_dir = (
+                task_data.get("github_repo_dir", "") or task_data.get("github_directory", "") or ""
+            )
+            request.github_repo_branch = task_data.get("github_branch", "") or ""
+
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
         workspace_dir = await get_workspace_dir()
@@ -1824,9 +1837,9 @@ async def launch_template_on_provider(
     # This handles GitHub-sourced interactive tasks where the command is in task.yaml
     # and was stored in the task at import time.
     if not base_command.strip() and request.task_id:
-        task_data = await task_service.task_get_by_id(request.task_id)
-        if task_data:
-            base_command = task_data.get("run", "") or task_data.get("command", "")
+        fallback_task = await task_service.task_get_by_id(request.task_id)
+        if fallback_task:
+            base_command = fallback_task.get("run", "") or fallback_task.get("command", "")
 
     # Add user-provided setup if any (replace secrets in setup).
     # For interactive tasks we already added gallery/task setup above (local and remote).
