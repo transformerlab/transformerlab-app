@@ -167,9 +167,7 @@ class Lab:
                             name=trackio_run_name_env or f"job-{job_id_env}",
                         )
                         self._trackio_managed = True
-                        logger.info(
-                            f"📊 Trackio auto-init enabled for shared project '{trackio_project_name_env}'"
-                        )
+                        logger.info(f"📊 Trackio auto-init enabled for shared project '{trackio_project_name_env}'")
                     else:
                         # Legacy: per-job project name
                         project_name = str(experiment_id or "TransformerLab")
@@ -1636,9 +1634,7 @@ class Lab:
             logger.info(f"📊 Saved Trackio metrics for job to: {trackio_dir}")
             return trackio_dir
 
-    async def _seed_trackio_shared_path_async(
-        self, experiment_id: str, project_name: str, dest_dir: str
-    ) -> None:
+    async def _seed_trackio_shared_path_async(self, experiment_id: str, project_name: str, dest_dir: str) -> None:
         """If shared project path exists, copy its contents into dest_dir (seed for new run)."""
         try:
             workspace_dir = await dirs.get_workspace_dir()
