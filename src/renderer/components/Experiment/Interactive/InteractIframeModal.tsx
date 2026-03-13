@@ -148,6 +148,7 @@ export default function InteractIframeModal({
                       else iframeRefs.current.delete(i);
                     }}
                     src={src}
+                    referrerPolicy="no-referrer"
                     sx={{
                       width: '100%',
                       height: '100%',
