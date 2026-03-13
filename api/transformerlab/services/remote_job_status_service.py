@@ -151,14 +151,17 @@ async def _check_job_via_provider(
         cluster_status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
         cluster_state = cluster_status.state
 
-        # For RUNPOD, stop_cluster() deletes the pod. Subsequent status checks return
-        # UNKNOWN/"Pod not found", which should be treated as a terminal STOPPED state
-        # when the user has requested a stop, otherwise jobs would be stuck in STOPPING.
+        # For RUNPOD, when the user requested stop (job in STOPPING), treat any non-UP
+        # state as terminal STOPPED so the job does not stay stuck in STOPPING. This
+        # covers: "Pod not found" (pod already deleted), "TERMINATING", or any other
+        # UNKNOWN returned while the pod is going away.
         if (
             provider_type == ProviderType.RUNPOD.value
-            and cluster_state == ClusterState.UNKNOWN
-            and getattr(cluster_status, "status_message", "") == "Pod not found"
             and job_status == JobStatus.STOPPING.value
+            and (
+                cluster_state == ClusterState.UNKNOWN
+                or getattr(cluster_status, "status_message", "") == "Pod not found"
+            )
         ):
             cluster_state = ClusterState.STOPPED
 
