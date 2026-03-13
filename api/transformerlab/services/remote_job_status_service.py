@@ -19,6 +19,7 @@ from lab.dirs import set_organization_id as lab_set_org_id
 from lab.job_status import JobStatus
 
 from transformerlab.services import job_service, team_service
+from transformerlab.services.cache_service import cache
 
 REMOTE_JOB_STATUS_INTERVAL_SECONDS = int(os.getenv("REMOTE_JOB_STATUS_INTERVAL_SECONDS", "15"))
 
@@ -117,6 +118,7 @@ async def _handle_live_status(job: Dict[str, Any], experiment_id: str) -> bool:
         end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
         await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
         await job_service.job_update_status(job_id, new_status, experiment_id=experiment_id)
+        await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
     except Exception as exc:
         print(f"Remote job status worker: failed updating job {job_id} from live_status={live_status}: {exc}")
     return True
@@ -151,14 +153,17 @@ async def _check_job_via_provider(
         cluster_status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
         cluster_state = cluster_status.state
 
-        # For RUNPOD, stop_cluster() deletes the pod. Subsequent status checks return
-        # UNKNOWN/"Pod not found", which should be treated as a terminal STOPPED state
-        # when the user has requested a stop, otherwise jobs would be stuck in STOPPING.
+        # For RUNPOD, when the user requested stop (job in STOPPING), treat any non-UP
+        # state as terminal STOPPED so the job does not stay stuck in STOPPING. This
+        # covers: "Pod not found" (pod already deleted), "TERMINATING", or any other
+        # UNKNOWN returned while the pod is going away.
         if (
             provider_type == ProviderType.RUNPOD.value
-            and cluster_state == ClusterState.UNKNOWN
-            and getattr(cluster_status, "status_message", "") == "Pod not found"
             and job_status == JobStatus.STOPPING.value
+            and (
+                cluster_state == ClusterState.UNKNOWN
+                or getattr(cluster_status, "status_message", "") == "Pod not found"
+            )
         ):
             cluster_state = ClusterState.STOPPED
 
@@ -184,6 +189,7 @@ async def _check_job_via_provider(
                     final_status = JobStatus.COMPLETE.value
 
             await job_service.job_update_status(job_id, final_status, experiment_id=experiment_id)
+            await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
             return True
 
     else:
@@ -216,6 +222,7 @@ async def _check_job_via_provider(
                 final_status = JobStatus.COMPLETE.value
 
             await job_service.job_update_status(job_id, final_status, experiment_id=experiment_id)
+            await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
             return True
 
     return False

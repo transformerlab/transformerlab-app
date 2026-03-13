@@ -347,6 +347,47 @@ async def test_check_job_via_provider_runpod_pod_not_found_stopping(monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_check_job_via_provider_runpod_terminating_stopping(monkeypatch):
+    """RUNPOD provider, pod in TERMINATING (UNKNOWN), job STOPPING → job marked STOPPED."""
+    from transformerlab.compute_providers.models import ClusterStatus, ClusterState
+
+    job = _make_job(status="STOPPING")
+    record = _make_provider_record("runpod")
+
+    # RunPod can return UNKNOWN with e.g. "TERMINATING" while pod is shutting down.
+    cluster_status = MagicMock(spec=ClusterStatus)
+    cluster_status.state = ClusterState.UNKNOWN
+    cluster_status.status_message = "TERMINATING"
+
+    instance = MagicMock()
+    instance.get_cluster_status = MagicMock(return_value=cluster_status)
+
+    calls = []
+
+    async def fake_update_kv(job_id, key, value, exp_id):
+        calls.append(("kv", key))
+
+    async def fake_update_status(job_id, status, experiment_id=None):
+        calls.append(("status", status))
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        fake_update_kv,
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        fake_update_status,
+    )
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+
+    assert result is True
+    assert ("status", "STOPPED") in calls
+
+
+@pytest.mark.asyncio
 async def test_check_job_via_provider_local_still_running(monkeypatch):
     """LOCAL provider cluster still UP → returns False."""
     from transformerlab.compute_providers.models import ClusterStatus, ClusterState
