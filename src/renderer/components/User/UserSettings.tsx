@@ -37,6 +37,7 @@ import { getAPIFullPath } from 'renderer/lib/api-client/urls';
 import QuotaReportSection from './QuotaReportSection';
 import UserSecretsSection from './UserSecretsSection';
 import ProviderSettingsSection from './ProviderSettingsSection';
+import NotificationsSection from './NotificationsSection';
 
 function PasswordChangeForm({ open, onClose }) {
   const [newPassword, setNewPassword] = useState('');
@@ -230,6 +231,7 @@ export default function UserSettings(): JSX.Element {
           </Tab>
           <Tab>Compute Provider Settings</Tab>
           <Tab>Quota</Tab>
+          <Tab>Notifications</Tab>
         </TabList>
 
         {/* Profile Tab */}
@@ -359,6 +361,17 @@ export default function UserSettings(): JSX.Element {
           }}
         >
           <QuotaReportSection />
+        </TabPanel>
+
+        {/* Notifications Tab */}
+        <TabPanel
+          value={6}
+          sx={{
+            p: 2,
+            overflowY: 'auto',
+          }}
+        >
+          <NotificationsSection />
         </TabPanel>
       </Tabs>
     </Sheet>
