@@ -1,15 +1,20 @@
-"""API Key authentication helpers."""
+"""API Key authentication helpers (service layer)."""
 
-from fastapi import Request, HTTPException
-from fastapi.security import HTTPBearer
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
+from fastapi import HTTPException, Request
+from fastapi.security import HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from transformerlab.shared.models.models import ApiKey, User, UserTeam
-from transformerlab.utils.api_key_utils import verify_api_key, is_key_expired, validate_api_key_format
 from transformerlab.shared.models.user_model import create_personal_team
+from transformerlab.utils.api_key_utils import (
+    is_key_expired,
+    validate_api_key_format,
+    verify_api_key,
+)
 
 security = HTTPBearer(auto_error=False)
 
@@ -61,14 +66,12 @@ async def validate_api_key_and_get_user(
 
     # Find the matching API key by verifying against each candidate hash
     api_key_obj = None
-    for idx, key_obj in enumerate(candidate_keys):
+    for key_obj in candidate_keys:
         try:
             if verify_api_key(api_key, key_obj.key_hash):
                 api_key_obj = key_obj
                 break
-
-        except Exception as e:
-            print(f"Exception during verification: {type(e).__name__}: {e}")
+        except Exception:
             # If verification fails (e.g., hash format mismatch), continue to next candidate
             continue
 

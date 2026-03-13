@@ -468,7 +468,7 @@ async def current_active_user(
     This replaces the default fastapi_users.current_user() to add API key and cookie support.
     """
     # Import here to avoid circular dependency
-    from transformerlab.shared.api_key_auth import extract_api_key_from_request, validate_api_key_and_get_user
+    from transformerlab.services.api_key_auth import extract_api_key_from_request, validate_api_key_and_get_user
     from transformerlab.utils.api_key_utils import validate_api_key_format
 
     # Check if request has an API key (starts with "tl-")
