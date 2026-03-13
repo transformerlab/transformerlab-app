@@ -167,13 +167,19 @@ async def lifespan(app: FastAPI):
         start_remote_job_status_worker,
         stop_remote_job_status_worker,
     )
+    from transformerlab.services.notification_service import (
+        start_notification_worker,
+        stop_notification_worker,
+    )
 
     await start_remote_job_status_worker()
+    await start_notification_worker()
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
     # Do the following at API Shutdown:
     await stop_sweep_status_worker()
     await stop_remote_job_status_worker()
+    await stop_notification_worker()
     await db.close()
     # Run the clean up function
     cleanup_at_exit()
