@@ -1695,6 +1695,7 @@ async def launch_template_on_provider(
     # This runs after AWS credentials are configured so we have access to any remote storage if needed.
     if provider.type != ProviderType.LOCAL.value:
         setup_commands.append("pip install -q transformerlab")
+
         # Install torch as well if torch profiler is enabled
         if request.enable_profiling_torch:
             setup_commands.append("pip install -q torch")
