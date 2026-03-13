@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.text import Text
 from urllib.parse import urlparse
 
-from transformerlab_cli.util.config import check_configs, get_config, require_current_experiment
+from transformerlab_cli.util.config import check_configs, require_current_experiment
 from transformerlab_cli.util import api
 
 app = typer.Typer()

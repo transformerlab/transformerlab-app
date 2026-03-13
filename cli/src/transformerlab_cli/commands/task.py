@@ -10,7 +10,7 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 
 import transformerlab_cli.util.api as api
-from transformerlab_cli.util.config import check_configs, get_config, require_current_experiment
+from transformerlab_cli.util.config import require_current_experiment
 from transformerlab_cli.util.ui import render_object, render_table
 
 app = typer.Typer()
