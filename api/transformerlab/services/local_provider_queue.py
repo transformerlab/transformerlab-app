@@ -81,13 +81,13 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
     async with async_session() as session:
         lab_dirs.set_organization_id(item.team_id)
         try:
-            # Initial progress update
+            # Initial progress update – make it clear we're preparing the local environment.
             await job_service.job_update_launch_progress(
                 item.job_id,
                 item.experiment_id,
                 phase="starting",
                 percent=5,
-                message="Starting launch",
+                message="Preparing local environment (this may take a few minutes)...",
             )
             provider = await get_provider_by_id(session, item.provider_id)
             if not provider:
@@ -122,7 +122,7 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
                 item.experiment_id,
                 phase="launching_cluster",
                 percent=50,
-                message="Starting local cluster",
+                message="Setting up local provider and starting cluster...",
             )
 
             loop = asyncio.get_running_loop()

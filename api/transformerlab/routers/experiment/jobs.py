@@ -425,10 +425,10 @@ async def get_tunnel_info_for_job(
     url_patterns = gallery_entry.get("url_patterns") if gallery_entry else None
     if not interactive_type:
         interactive_type = gallery_entry.get("interactive_type") if gallery_entry else None
-    if not interactive_type and url_patterns:
-        interactive_type = "custom"
     if not interactive_type:
-        interactive_type = "vscode"
+        # No explicit type: use "custom" (url_patterns-based parsing) rather than
+        # assuming a specific legacy type like "vscode".
+        interactive_type = "custom"
 
     provider_id = job_data.get("provider_id")
     cluster_name = job_data.get("cluster_name")
