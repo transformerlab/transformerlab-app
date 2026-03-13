@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from transformerlab_cli.util import api
-from transformerlab_cli.util.config import check_configs, get_config
+from transformerlab_cli.util.config import require_current_experiment
 
 console = Console()
 
@@ -16,13 +16,7 @@ POLL_INTERVAL = 3
 
 def _get_experiment_id() -> str:
     """Get current experiment ID from config, or exit with helpful message."""
-    check_configs()
-    current_experiment = get_config("current_experiment")
-    if not current_experiment or not str(current_experiment).strip():
-        console.print("[yellow]current_experiment is not set in config.[/yellow]")
-        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
-        raise typer.Exit(1)
-    return str(current_experiment)
+    return require_current_experiment()
 
 
 def _select_provider() -> dict:

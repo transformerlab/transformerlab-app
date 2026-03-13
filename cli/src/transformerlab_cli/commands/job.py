@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.text import Text
 from urllib.parse import urlparse
 
-from transformerlab_cli.util.config import check_configs, get_config
+from transformerlab_cli.util.config import check_configs, get_config, require_current_experiment
 from transformerlab_cli.util import api
 
 app = typer.Typer()
@@ -256,12 +256,7 @@ def command_job_download(
 @app.command("list")
 def command_job_list():
     """List all jobs."""
-    check_configs()
-    current_experiment = get_config("current_experiment")
-    if not current_experiment or not str(current_experiment).strip():
-        console.print("[yellow]current_experiment is not set in config.[/yellow]")
-        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
-        raise typer.Exit(1)
+    current_experiment = require_current_experiment()
     list_jobs(current_experiment)  # Delegate to job_commands.list_jobs
 
 
@@ -270,12 +265,7 @@ def command_job_info(
     job_id: str = typer.Argument(..., help="Job ID to get info for"),
 ):
     """Get job details."""
-    check_configs()
-    current_experiment = get_config("current_experiment")
-    if not current_experiment or not str(current_experiment).strip():
-        console.print("[yellow]current_experiment is not set in config.[/yellow]")
-        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
-        raise typer.Exit(1)
+    current_experiment = require_current_experiment()
     info_job(job_id, current_experiment)
 
 
@@ -284,12 +274,7 @@ def command_job_stop(
     job_id: str = typer.Argument(..., help="Job ID to stop"),
 ):
     """Stop a running job."""
-    check_configs()
-    current_experiment = get_config("current_experiment")
-    if not current_experiment or not str(current_experiment).strip():
-        console.print("[yellow]current_experiment is not set in config.[/yellow]")
-        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
-        raise typer.Exit(1)
+    current_experiment = require_current_experiment()
 
     with console.status(f"[bold green]Stopping job {job_id}...[/bold green]", spinner="dots"):
         response = api.get(f"/experiment/{current_experiment}/jobs/{job_id}/stop")
