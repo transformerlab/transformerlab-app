@@ -1931,6 +1931,13 @@ async def launch_template_on_provider(
     # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
     file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
 
+    # Validate that we have a non-empty command to run.
+    if not command_with_secrets or not command_with_secrets.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="No run command resolved for this task. The task may be missing a 'run' or 'command' field.",
+        )
+
     # Wrap the user command with tfl-remote-trap so we can track live_status in job_data.
     # This uses the tfl-remote-trap helper from the transformerlab SDK, which:
     #   - sets job_data.live_status="started" when execution begins
