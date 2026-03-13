@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.services.trackio_service import (
+    list_trackio_projects,
     start_trackio_for_job,
     stop_trackio_for_job,
 )
@@ -21,6 +22,16 @@ async def trackio_start(job_id: str, user_and_team=Depends(get_user_and_team)) -
     org_id = str(user_and_team.get("team_id") or "")
     experiment_id = user_and_team.get("experiment_id")
     return await start_trackio_for_job(job_id, org_id=org_id, experiment_id=experiment_id)
+
+
+@router.get("/trackio/projects")
+async def trackio_projects(experiment_id: str, user_and_team=Depends(get_user_and_team)) -> dict:
+    """
+    List existing TrackIO project names for an experiment (for shared-project dropdown).
+    """
+    _ = user_and_team
+    projects = await list_trackio_projects(experiment_id)
+    return {"projects": projects}
 
 
 @router.get("/trackio/stop")

@@ -974,6 +974,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           undefined,
         enable_trackio:
           typeof enable_trackio === 'boolean' ? enable_trackio : undefined,
+        trackio_project_name:
+          config?.trackio_project_name != null
+            ? config.trackio_project_name
+            : undefined,
       };
 
       const response = await fetchWithAuth(
@@ -1166,6 +1170,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           task={taskBeingQueued}
           onSubmit={handleQueueSubmit}
           isSubmitting={isSubmitting}
+          experimentId={experimentInfo?.id ?? ''}
         />
       )}
       <Stack
