@@ -421,95 +421,69 @@ def get_ssh_tunnel_info(logs: str) -> dict:
     }
 
 
-def parse_mlx_lm_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+def get_custom_tunnel_info(logs: str, url_patterns: list[dict] | None) -> dict:
     """
-    Parse MLX LM server logs to extract tunnel URLs.
+    Generic log parser driven by caller-supplied regex patterns.
 
-    Args:
-        logs: Job logs as string
+    Each entry in *url_patterns* is a dict with:
+      - value_key (str): key name returned in the result dict
+      - regex (str): Python regex applied to the full log text
+      - group (int, optional): capture-group index to extract (default 0)
 
-    Returns:
-        Tuple of (tunnel_url, mlx_lm_url, openwebui_url) - all can be None if not found
+    Returns a dict with each value_key mapped to the extracted string (or None),
+    plus ``is_ready`` / ``status`` for the standard tunnel-info contract.
     """
-    tunnel_url: Optional[str] = None
-    mlx_lm_url: Optional[str] = None
-    openwebui_url: Optional[str] = None
+    values: dict = {}
+    found_any = False
 
-    try:
-        lines = logs.split("\n")
+    for pattern_def in url_patterns or []:
+        value_key = pattern_def.get("value_key")
+        regex = pattern_def.get("regex")
+        group = pattern_def.get("group", 0)
 
-        found_tunnel_urls: list[str] = []
+        if not value_key or not regex:
+            continue
 
-        for line in lines:
-            # Look for any HTTPS tunnel URL from supported providers
-            match = re.search(
-                r"(https://[a-zA-Z0-9-]+\.(?:trycloudflare\.com|ngrok-free\.app|ngrok-free\.dev|ngrok\.io))",
-                line,
-            )
-            if match:
-                url = match.group(1)
-                if url not in found_tunnel_urls:
-                    found_tunnel_urls.append(url)
+        try:
+            match = re.search(regex, logs, re.MULTILINE)
+        except re.error as e:
+            print(f"Invalid custom url_pattern regex for {value_key}: {e}")
+            values[value_key] = None
+            continue
 
-            # Check for local MLX LM API URL pattern: "Local MLX LM API: http://localhost:8001"
-            match = re.search(r"Local MLX LM API:\s*(http://localhost:\d+)", line)
-            if match and not mlx_lm_url:
-                mlx_lm_url = match.group(1)
+        value = None
+        if match:
+            try:
+                value = match.group(group)
+            except IndexError:
+                print(f"Invalid group {group} for custom url_pattern {value_key}")
 
-            # Check for local Open WebUI URL pattern: "Local Open WebUI: http://localhost:8080"
-            match = re.search(r"Local Open WebUI:\s*(http://localhost:\d+)", line)
-            if match and not openwebui_url:
-                openwebui_url = match.group(1)
-
-        # Assign HTTPS tunnel URL as the primary tunnel_url
-        if found_tunnel_urls:
-            tunnel_url = found_tunnel_urls[0]
-            # If we don't have mlx_lm_url from local pattern, use the tunnel URL
-            if not mlx_lm_url:
-                mlx_lm_url = tunnel_url
-
-        return tunnel_url, mlx_lm_url, openwebui_url
-
-    except Exception as e:
-        print(f"Error parsing MLX LM tunnel logs: {e}")
-        return None, None, None
-
-
-def get_mlx_lm_tunnel_info(logs: str) -> dict:
-    """
-    Get complete MLX LM tunnel information from logs.
-
-    Args:
-        logs: Job logs as string
-
-    Returns:
-        Dictionary with tunnel information including full MLX LM and Open WebUI URLs
-    """
-    tunnel_url, mlx_lm_url, openwebui_url = parse_mlx_lm_tunnel_logs(logs)
-
-    # Tunnel is ready if we have the primary tunnel URL
-    is_ready = tunnel_url is not None
+        values[value_key] = value
+        if value is not None:
+            found_any = True
 
     return {
-        "tunnel_url": tunnel_url,
-        "mlx_lm_url": mlx_lm_url,
-        "openwebui_url": openwebui_url,
-        "is_ready": is_ready,
-        "status": "ready" if is_ready else "loading",
+        **values,
+        "is_ready": found_any,
+        "status": "ready" if found_any else "loading",
     }
 
 
-def get_tunnel_info(logs: str, interactive_type: str) -> dict:
+def get_tunnel_info(logs: str, interactive_type: str | None, url_patterns: list[dict] | None = None) -> dict:
     """
     Get tunnel information based on the interactive type.
 
     Args:
         logs: Job logs as string
-        interactive_type: Type of interactive task ('vscode', 'jupyter', 'vllm', 'ollama', 'ssh')
+        interactive_type: Type of interactive task ('vscode', 'jupyter', 'vllm', 'ollama', 'ssh', or None/'custom' for pattern-based)
+        url_patterns: Optional list of pattern dicts for custom parsing
 
     Returns:
         Dictionary with tunnel information specific to the interactive type
     """
+    if not interactive_type or interactive_type == "custom":
+        return get_custom_tunnel_info(logs, url_patterns)
+
     if interactive_type == "vscode":
         return get_vscode_tunnel_info(logs)
     elif interactive_type == "jupyter":
@@ -520,9 +494,11 @@ def get_tunnel_info(logs: str, interactive_type: str) -> dict:
         return get_ollama_tunnel_info(logs)
     elif interactive_type == "ssh":
         return get_ssh_tunnel_info(logs)
-    elif interactive_type == "mlx_lm":
-        return get_mlx_lm_tunnel_info(logs)
     else:
+        # Unknown interactive_type: fall back to custom pattern-based parsing
+        # if url_patterns are available (e.g. ollama_gradio).
+        if url_patterns:
+            return get_custom_tunnel_info(logs, url_patterns)
         return {
             "error": f"Unknown interactive type: {interactive_type}",
             "is_ready": False,

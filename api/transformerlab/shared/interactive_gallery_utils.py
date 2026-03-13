@@ -127,28 +127,20 @@ def resolve_interactive_command(
 def find_interactive_gallery_entry(
     gallery_list: list,
     interactive_gallery_id: Optional[str] = None,
-    interactive_type: Optional[str] = None,
 ) -> Optional[dict]:
     """
-    Find one interactive gallery entry by id or by interactive_type.
-    Used at launch time to re-resolve the template for command resolution.
+    Find one interactive gallery entry by its unique id.
 
     Args:
         gallery_list: Result of get_interactive_gallery().
-        interactive_gallery_id: Preferred: entry id (e.g. "jupyter", "ollama-macos").
-        interactive_type: Fallback: first entry with this interactive_type.
+        interactive_gallery_id: Entry id (e.g. "jupyter", "ollama_gradio").
 
     Returns:
         The gallery entry dict or None if not found.
     """
-    if not gallery_list:
+    if not gallery_list or not interactive_gallery_id:
         return None
-    if interactive_gallery_id:
-        for entry in gallery_list:
-            if entry.get("id") == interactive_gallery_id:
-                return entry
-    if interactive_type:
-        for entry in gallery_list:
-            if entry.get("interactive_type") == interactive_type:
-                return entry
+    for entry in gallery_list:
+        if entry.get("id") == interactive_gallery_id:
+            return entry
     return None

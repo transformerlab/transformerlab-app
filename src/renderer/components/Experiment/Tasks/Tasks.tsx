@@ -20,19 +20,19 @@ import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import DeleteTaskConfirmModal from './DeleteTaskConfirmModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
-import ViewArtifactsModal from '../Train/ViewArtifactsModal';
-import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
+import ViewArtifactsModal from './ViewArtifactsModal';
+import ViewCheckpointsModal from './ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
 import CompareEvalResultsModal from './CompareEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
-import ViewJobDatasetsModal from '../Train/ViewJobDatasetsModal';
-import ViewJobModelsModal from '../Train/ViewJobModelsModal';
+import ViewJobDatasetsModal from './ViewJobDatasetsModal';
+import ViewJobModelsModal from './ViewJobModelsModal';
 import FileBrowserModal from './FileBrowserModal';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
-import TrackioModal from '../Train/TrackioModal';
+import TrackioModal from './TrackioModal';
 
 const duration = require('dayjs/plugin/duration');
 const dayjs = require('dayjs');
@@ -291,6 +291,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         : chatAPI.Endpoints.Task.List(experimentInfo.id)
       : null,
     fetcher,
+    {
+      // Tasks (templates) change relatively infrequently; use a modest polling interval
+      // and rely on backend cache + explicit invalidation for freshness.
+      refreshInterval: 10000, // 10s
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      refreshWhenHidden: false,
+      refreshWhenOffline: false,
+    },
   );
 
   // Filter templates for this experiment only (if no subtype filter was applied)
@@ -683,12 +692,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
     setIsSubmitting(true);
     try {
-      const interactiveType = data.interactive_type || 'vscode';
-
       // Fetch interactive gallery to get setup and run templates
       let defaultSetup: string;
       let defaultRun: string;
       let templateId: string | undefined;
+      let template: any;
 
       try {
         const galleryResponse = await chatAPI.authenticatedFetch(
@@ -700,13 +708,19 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
         if (galleryResponse.ok) {
           const galleryData = await galleryResponse.json();
-          const template = galleryData.data?.find(
-            (t: any) => t.interactive_type === interactiveType,
-          );
+          template = galleryData.data?.find((t: any) => {
+            if (data.template_id) {
+              return t.id === data.template_id;
+            }
+            return (
+              data.interactive_type &&
+              t.interactive_type === data.interactive_type
+            );
+          });
 
           if (!template) {
             throw new Error(
-              `Template not found for interactive type: ${interactiveType}`,
+              `Template not found for: ${data.template_id || data.interactive_type || 'unknown'}`,
             );
           }
 
@@ -720,68 +734,79 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         throw error;
       }
 
-      // Create template with flat structure
-      // Use env_parameters from the gallery-defined structure (including NGROK)
-      const envVars: Record<string, string> = data.env_parameters || {};
+      let response: Response;
 
-      const needsNgrok =
-        interactiveType === 'jupyter' ||
-        interactiveType === 'vllm' ||
-        interactiveType === 'ollama' ||
-        interactiveType === 'ssh';
-      if (
-        needsNgrok &&
-        providerMeta.type !== 'local' &&
-        !envVars.NGROK_AUTH_TOKEN
-      ) {
-        envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
-      }
-
-      const templatePayload: any = {
-        name: data.title,
-        type: 'REMOTE',
-        plugin: 'remote_orchestrator',
-        experiment_id: experimentInfo.id,
-        cluster_name: data.title,
-        run: defaultRun,
-        cpus: data.cpus || undefined,
-        memory: data.memory || undefined,
-        accelerators: data.accelerators || undefined,
-        setup: defaultSetup,
-        subtype: 'interactive',
-        interactive_type: interactiveType,
-        interactive_gallery_id: templateId,
-        provider_id: providerMeta.id,
-        provider_name: providerMeta.name,
-        env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
-      };
-
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+      if (template.local_task_dir || template.github_repo_url) {
+        // Use the gallery import API which reads task.yaml and copies files,
+        // just like the "Upload from Local Directory" or GitHub import flow.
+        response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              gallery_id: templateId,
+              experiment_id: experimentInfo.id,
+              is_interactive: true,
+              env_vars: data.env_parameters || undefined,
+            }),
           },
-          body: JSON.stringify(templatePayload),
-        },
-      );
+        );
+      } else {
+        // Create template with flat structure
+        // Use env_parameters from the gallery-defined structure (including NGROK)
+        const envVars: Record<string, string> = data.env_parameters || {};
+
+        // Check if the template defines NGROK_AUTH_TOKEN in its env_parameters
+        const needsNgrok = template?.env_parameters?.some(
+          (p: any) => p.env_var === 'NGROK_AUTH_TOKEN',
+        );
+        if (
+          needsNgrok &&
+          providerMeta.type !== 'local' &&
+          !envVars.NGROK_AUTH_TOKEN
+        ) {
+          envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
+        }
+
+        const templatePayload: any = {
+          name: data.title,
+          type: 'REMOTE',
+          plugin: 'remote_orchestrator',
+          experiment_id: experimentInfo.id,
+          cluster_name: data.title,
+          run: defaultRun,
+          cpus: data.cpus || undefined,
+          memory: data.memory || undefined,
+          accelerators: data.accelerators || undefined,
+          setup: defaultSetup,
+          subtype: 'interactive',
+          interactive_type: template?.interactive_type || undefined,
+          interactive_gallery_id: templateId,
+          provider_id: providerMeta.id,
+          provider_name: providerMeta.name,
+          env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
+          github_repo_url: template?.github_repo_url || undefined,
+          github_directory: template?.github_repo_dir || undefined,
+        };
+
+        response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(templatePayload),
+          },
+        );
+      }
 
       if (response.ok) {
         setInteractiveModalOpen(false);
         await templatesMutate();
         const interactiveTypeLabel =
-          (data.interactive_type || 'vscode') === 'jupyter'
-            ? 'Jupyter'
-            : (data.interactive_type || 'vscode') === 'vllm'
-              ? 'vLLM'
-              : (data.interactive_type || 'vscode') === 'ollama'
-                ? 'Ollama'
-                : (data.interactive_type || 'vscode') === 'mlx_lm'
-                  ? 'MLX LM'
-                  : (data.interactive_type || 'vscode') === 'ssh'
-                    ? 'SSH'
-                    : 'VS Code';
+          template?.name || data.interactive_type || 'interactive';
         addNotification({
           type: 'success',
           message: `Interactive template created. Use Queue to launch the ${interactiveTypeLabel} tunnel.`,
@@ -884,6 +909,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         provider_id: _pid,
         provider_name: _pname,
         enable_trackio,
+        cpus,
+        memory,
+        disk_space,
+        accelerators,
+        num_nodes,
+        minutes_requested,
         ...paramConfig
       } = config ?? {};
 
@@ -902,11 +933,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           (task as any)?.interactive_gallery_id ??
           config?.interactive_gallery_id ??
           undefined,
-        cpus: cfg.cpus || task.cpus,
-        memory: cfg.memory || task.memory,
-        disk_space: cfg.disk_space || task.disk_space,
-        accelerators: cfg.accelerators || task.accelerators,
-        num_nodes: cfg.num_nodes || task.num_nodes,
+        cpus: cpus ?? cfg.cpus ?? task.cpus,
+        memory: memory ?? cfg.memory ?? task.memory,
+        disk_space: disk_space ?? cfg.disk_space ?? task.disk_space,
+        accelerators: accelerators ?? cfg.accelerators ?? task.accelerators,
+        num_nodes: num_nodes ?? cfg.num_nodes ?? task.num_nodes,
         setup: cfg.setup || task.setup,
         env_vars: cfg.env_vars || task.env_vars || {},
         parameters: cfg.parameters || task.parameters || undefined, // Keep original parameter definitions
@@ -937,7 +968,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               ? task.lower_is_better
               : undefined,
         minutes_requested:
-          cfg.minutes_requested || task.minutes_requested || undefined,
+          minutes_requested ??
+          cfg.minutes_requested ??
+          task.minutes_requested ??
+          undefined,
         enable_trackio:
           typeof enable_trackio === 'boolean' ? enable_trackio : undefined,
       };
@@ -1008,7 +1042,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         ? SafeJSONParse(task.config, {})
         : (task?.config ?? {});
     const isInteractive =
-      (task as any)?.interactive_type || config?.interactive_type;
+      (task as any)?.subtype === 'interactive' ||
+      config?.subtype === 'interactive' ||
+      (task as any)?.interactive_type ||
+      config?.interactive_type;
     if (isInteractive) {
       setTaskBeingEdited(task);
       setEditModalOpen(true);

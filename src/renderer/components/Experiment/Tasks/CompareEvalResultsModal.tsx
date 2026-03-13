@@ -19,7 +19,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
-import Chart, { type ChartMetric } from '../Eval/Chart';
+import Chart, { type ChartMetric } from './Chart';
 
 function formatColumnNames(name: string): string {
   return name
