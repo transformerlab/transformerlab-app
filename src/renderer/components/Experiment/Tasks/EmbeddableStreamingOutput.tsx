@@ -26,7 +26,6 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { jobChipColor } from 'renderer/lib/utils';
 import PollingOutputTerminal from './PollingOutputTerminal';
-import ProfilingReport from './ProfilingReport';
 
 interface ProviderLogsTerminalProps {
   logsText: string;
@@ -199,12 +198,11 @@ function RefreshIndicator({
   );
 }
 
-type TabValue = 'output' | 'provider' | 'profiling';
+type TabValue = 'output' | 'provider';
 
 const TAB_OPTIONS: { value: TabValue; label: string }[] = [
   { value: 'output', label: 'Lab SDK Output' },
   { value: 'provider', label: 'Machine Logs' },
-  { value: 'profiling', label: 'Profiling' },
 ];
 
 export interface EmbeddableStreamingOutputProps {
@@ -217,7 +215,7 @@ export interface EmbeddableStreamingOutputProps {
 
 export default function EmbeddableStreamingOutput({
   jobId,
-  tabs: tabsProp = ['output', 'provider', 'profiling'],
+  tabs: tabsProp = ['output', 'provider'],
   jobStatus = '',
 }: EmbeddableStreamingOutputProps) {
   const { experimentInfo } = useExperimentInfo();
@@ -225,8 +223,7 @@ export default function EmbeddableStreamingOutput({
   const [viewLiveProviderLogs, setViewLiveProviderLogs] =
     useState<boolean>(false);
 
-  const tabs =
-    tabsProp.length > 0 ? tabsProp : ['output', 'provider', 'profiling'];
+  const tabs = tabsProp.length > 0 ? tabsProp : ['output', 'provider'];
   const showTabList = tabs.length > 1;
   const tabsKey = tabs.join(',');
 
@@ -335,9 +332,7 @@ export default function EmbeddableStreamingOutput({
           onChange={(_event, value) => {
             if (
               typeof value === 'string' &&
-              (value === 'output' ||
-                value === 'provider' ||
-                value === 'profiling')
+              (value === 'output' || value === 'provider')
             ) {
               setActiveTab(value as TabValue);
             }
@@ -396,17 +391,13 @@ export default function EmbeddableStreamingOutput({
             </>
           )}
         </Box>
-        {activeTab !== 'profiling' && (
-          <RefreshIndicator
-            seconds={
-              activeTab === 'output' ? outputCountdown : providerCountdown
-            }
-            isRefreshing={
-              activeTab === 'output' ? outputIsValidating : providerIsValidating
-            }
-            onRefresh={handleManualRefresh}
-          />
-        )}
+        <RefreshIndicator
+          seconds={activeTab === 'output' ? outputCountdown : providerCountdown}
+          isRefreshing={
+            activeTab === 'output' ? outputIsValidating : providerIsValidating
+          }
+          onRefresh={handleManualRefresh}
+        />
       </Box>
       <Box
         sx={{
@@ -441,19 +432,6 @@ export default function EmbeddableStreamingOutput({
               onValidatingChange={handleOutputValidatingChange}
               onMutateReady={handleOutputMutateReady}
             />
-          </Box>
-        ) : activeTab === 'profiling' ? (
-          <Box
-            sx={{
-              flex: 1,
-              minHeight: 0,
-              width: '100%',
-              overflowY: 'auto',
-              borderRadius: '8px',
-              border: '1px solid var(--joy-palette-divider)',
-            }}
-          >
-            <ProfilingReport jobId={jobId} />
           </Box>
         ) : (
           <Box
@@ -534,6 +512,6 @@ export default function EmbeddableStreamingOutput({
 }
 
 EmbeddableStreamingOutput.defaultProps = {
-  tabs: ['output', 'provider', 'profiling'],
+  tabs: ['output', 'provider'],
   jobStatus: '',
 };

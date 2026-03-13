@@ -45,6 +45,7 @@ interface JobsListProps {
   onViewInteractive?: (jobId: string) => void;
   onViewJobDatasets?: (jobId: string) => void;
   onViewJobModels?: (jobId: string) => void;
+  onViewProfiling?: (jobId: string) => void;
   onViewFileBrowser?: (jobId: string) => void;
   loading: boolean;
   onViewTrackio?: (jobId: string) => void;
@@ -69,6 +70,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewInteractive,
   onViewJobDatasets,
   onViewJobModels,
+  onViewProfiling,
   onViewFileBrowser,
   loading,
   onViewTrackio,
@@ -348,7 +350,8 @@ const JobsList: React.FC<JobsListProps> = ({
                   {(job?.job_data?.artifacts ||
                     job?.job_data?.artifacts_dir ||
                     job?.job_data?.generated_datasets ||
-                    job?.job_data?.models) && (
+                    job?.job_data?.models ||
+                    job?.job_data?.has_profiling) && (
                     <Dropdown>
                       <MenuButton
                         size="sm"
@@ -372,6 +375,11 @@ const JobsList: React.FC<JobsListProps> = ({
                           job?.job_data?.artifacts_dir) && (
                           <MenuItem onClick={() => onViewArtifacts?.(job?.id)}>
                             View Artifacts
+                          </MenuItem>
+                        )}
+                        {job?.job_data?.has_profiling && (
+                          <MenuItem onClick={() => onViewProfiling?.(job?.id)}>
+                            View Profiling
                           </MenuItem>
                         )}
                         {job?.job_data?.generated_datasets && (

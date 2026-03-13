@@ -20,6 +20,7 @@ Activation:
     Set _TFL_PROFILING_INTERVAL=<seconds> to change sampling interval (default 5).
     Set _TFL_PROFILING_TORCH=1 to also inject torch.profiler tracing.
 """
+
 from __future__ import annotations
 
 import json
@@ -327,6 +328,7 @@ async def copy_profiling_to_job(profiling_temp_dir: str, job_id: str) -> None:
     Copy profiling output from a temp directory into the job's profiling folder.
 
     Uses the storage abstraction so the destination may be local or remote (e.g. S3).
+    Sets has_profiling=True in job_data so the UI can show a "View Profiling" option.
     Safe to call if profiling_temp_dir is missing or empty; no-op on failure.
     """
     if not profiling_temp_dir or not os.path.isdir(profiling_temp_dir):
@@ -337,6 +339,14 @@ async def copy_profiling_to_job(profiling_temp_dir: str, job_id: str) -> None:
 
         dest_dir = await get_job_profiling_dir(job_id)
         await storage.copy_dir(profiling_temp_dir, dest_dir)
+        try:
+            from lab.job import Job
+
+            job = await Job.get(job_id)
+            if job is not None:
+                await job.update_job_data_field("has_profiling", True)
+        except Exception:
+            pass
     except Exception:
         pass
 
@@ -403,9 +413,7 @@ def inject_torch_profiler(profiling_output_dir: str, env: dict) -> str:
 
         env["_TFL_TORCH_PROFILE_DIR"] = torch_profile_dir
         existing_pythonpath = env.get("PYTHONPATH", "")
-        env["PYTHONPATH"] = (
-            f"{tmp_dir}{os.pathsep}{existing_pythonpath}" if existing_pythonpath else tmp_dir
-        )
+        env["PYTHONPATH"] = f"{tmp_dir}{os.pathsep}{existing_pythonpath}" if existing_pythonpath else tmp_dir
         return tmp_dir
     except Exception:
         return ""
