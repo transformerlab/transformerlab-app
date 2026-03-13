@@ -1,18 +1,19 @@
 """
 Job profiling: background sampler for CPU, memory, and GPU resource usage.
 
+Profiling writes to a temp directory during the run. The contents are copied into
+the job's "profiling" folder (alongside "artifacts") when:
+  - lab.finish() or lab.error() is called (if _TFL_PROFILING_TEMP_DIR is set), or
+  - the remote trap exits after the child process (trap copies then).
+
 Usage in tfl-remote-trap (or any process wrapper):
 
-    import subprocess
-    from lab.profiling import maybe_start_profiling, finalize_profiling
-
-    proc = subprocess.Popen(...)
-    profiling_thread = maybe_start_profiling(proc.pid, job_dir)
-
-    exit_code = proc.wait()
-    wall_time = time.monotonic() - start_time
-
-    finalize_profiling(profiling_thread, job_dir, wall_time)
+    output_dir = tempfile.mkdtemp(prefix="tfl_profiling_")
+    os.environ["_TFL_PROFILING_TEMP_DIR"] = output_dir  # so lab.finish/error can copy
+    profiling_thread = maybe_start_profiling(proc.pid, output_dir)
+    ...
+    finalize_profiling(profiling_thread, output_dir, wall_time)
+    await copy_profiling_to_job(output_dir, job_id)  # or call from lab.finish/error
 
 Activation:
     Set _TFL_PROFILING=1 in the job environment.
@@ -169,10 +170,10 @@ def _sample_gpus() -> List[Dict[str, Any]]:
 class _ProfilingThread(threading.Thread):
     """Background thread that periodically samples resource stats and writes to JSONL."""
 
-    def __init__(self, pid: int, job_dir: str, interval_sec: float = _DEFAULT_INTERVAL_SEC) -> None:
+    def __init__(self, pid: int, output_dir: str, interval_sec: float = _DEFAULT_INTERVAL_SEC) -> None:
         super().__init__(daemon=True, name="tfl-profiler")
         self.pid = pid
-        self.job_dir = job_dir
+        self.output_dir = output_dir
         self.interval_sec = interval_sec
         self._stop_event = threading.Event()
         self.samples: List[Dict[str, Any]] = []
@@ -181,7 +182,7 @@ class _ProfilingThread(threading.Thread):
         self._stop_event.set()
 
     def run(self) -> None:
-        samples_path = os.path.join(self.job_dir, _PROFILING_SAMPLES_FILE)
+        samples_path = os.path.join(self.output_dir, _PROFILING_SAMPLES_FILE)
         # Initialise cpu_percent (first call always returns 0.0 for psutil)
         try:
             import psutil  # type: ignore[import-not-found]
@@ -269,34 +270,38 @@ def _aggregate_samples(samples: List[Dict[str, Any]], wall_time_sec: float, inte
     return report
 
 
-def maybe_start_profiling(pid: int, job_dir: str) -> Optional[_ProfilingThread]:
+def maybe_start_profiling(pid: int, output_dir: str) -> Optional[_ProfilingThread]:
     """
     Start a profiling thread if _TFL_PROFILING=1 is set in the environment.
 
-    Returns the thread (caller must call finalize_profiling later) or None if profiling
-    is disabled or the job_dir is unavailable.
+    output_dir: temp directory to write profiling_samples.jsonl (and later
+        profiling_report.json). Caller must create it and pass the same path to
+        finalize_profiling and copy_profiling_to_job.
+
+    Returns the thread (caller must call finalize_profiling later) or None if
+    profiling is disabled or output_dir is unavailable.
     """
     if os.environ.get("_TFL_PROFILING") != "1":
         return None
-    if not job_dir or not os.path.isdir(job_dir):
+    if not output_dir or not os.path.isdir(output_dir):
         return None
     try:
         interval = float(os.environ.get("_TFL_PROFILING_INTERVAL", str(_DEFAULT_INTERVAL_SEC)))
     except ValueError:
         interval = _DEFAULT_INTERVAL_SEC
 
-    thread = _ProfilingThread(pid=pid, job_dir=job_dir, interval_sec=interval)
+    thread = _ProfilingThread(pid=pid, output_dir=output_dir, interval_sec=interval)
     thread.start()
     return thread
 
 
 def finalize_profiling(
     thread: Optional[_ProfilingThread],
-    job_dir: str,
+    output_dir: str,
     wall_time_sec: float,
 ) -> None:
     """
-    Stop the profiling thread and write profiling_report.json to job_dir.
+    Stop the profiling thread and write profiling_report.json to output_dir.
 
     Safe to call even when thread is None (profiling disabled).
     """
@@ -310,9 +315,28 @@ def finalize_profiling(
 
     try:
         report = _aggregate_samples(thread.samples, wall_time_sec, thread.interval_sec)
-        report_path = os.path.join(job_dir, _PROFILING_REPORT_FILE)
+        report_path = os.path.join(output_dir, _PROFILING_REPORT_FILE)
         with open(report_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
+    except Exception:
+        pass
+
+
+async def copy_profiling_to_job(profiling_temp_dir: str, job_id: str) -> None:
+    """
+    Copy profiling output from a temp directory into the job's profiling folder.
+
+    Uses the storage abstraction so the destination may be local or remote (e.g. S3).
+    Safe to call if profiling_temp_dir is missing or empty; no-op on failure.
+    """
+    if not profiling_temp_dir or not os.path.isdir(profiling_temp_dir):
+        return
+    try:
+        from lab.dirs import get_job_profiling_dir
+        from lab import storage
+
+        dest_dir = await get_job_profiling_dir(job_id)
+        await storage.copy_dir(profiling_temp_dir, dest_dir)
     except Exception:
         pass
 
@@ -323,7 +347,7 @@ def finalize_profiling(
 
 _SITECUSTOMIZE_TEMPLATE = """\
 # Auto-injected by tfl-profile-trap (lab-sdk profiling).
-# Activates torch.profiler.profile() and exports a Chrome trace to the job dir.
+# Activates torch.profiler.profile() and exports a Chrome trace to the profiling output dir.
 import os as _os
 import atexit as _atexit
 
@@ -356,18 +380,20 @@ if _TFL_TORCH_PROFILE_DIR:
 """
 
 
-def inject_torch_profiler(job_dir: str, env: dict) -> str:
+def inject_torch_profiler(profiling_output_dir: str, env: dict) -> str:
     """
     If _TFL_PROFILING_TORCH=1, write a sitecustomize.py to a temp dir and
     prepend it to PYTHONPATH in env so torch.profiler auto-activates in the job.
+    Trace is written under profiling_output_dir/torch_profile so it is copied
+    with the rest of profiling data.
 
-    Returns the temp dir path (caller should clean up after the job exits).
+    Returns the sitecustomize temp dir path (caller should clean up after the job exits).
     """
     if os.environ.get("_TFL_PROFILING_TORCH") != "1":
         return ""
 
     try:
-        torch_profile_dir = os.path.join(job_dir, _TORCH_PROFILE_DIR)
+        torch_profile_dir = os.path.join(profiling_output_dir, _TORCH_PROFILE_DIR)
         os.makedirs(torch_profile_dir, exist_ok=True)
 
         tmp_dir = tempfile.mkdtemp(prefix="tfl_sitecustomize_")

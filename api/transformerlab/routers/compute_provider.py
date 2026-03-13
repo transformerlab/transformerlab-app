@@ -1694,7 +1694,10 @@ async def launch_template_on_provider(
     # Ensure transformerlab SDK is available on remote machines for live_status tracking and other helpers.
     # This runs after AWS credentials are configured so we have access to any remote storage if needed.
     if provider.type != ProviderType.LOCAL.value:
-        setup_commands.append("pip install -q transformerlab")
+        # setup_commands.append("pip install -q transformerlab")
+        setup_commands.append(
+            "git clone https://github.com/transformerlab/transformerlab-app; cd transformerlab-app; git checkout add/profiler; pip install -e lab-sdk/; cd ~;"
+        )
 
     # Add GitHub clone setup if enabled
     if request.github_repo_url:

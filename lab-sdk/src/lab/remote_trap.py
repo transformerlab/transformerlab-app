@@ -4,12 +4,13 @@ import asyncio
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from typing import List
 
 from lab import Job, storage
 from lab.job_status import JobStatus
-from lab.profiling import finalize_profiling, inject_torch_profiler, maybe_start_profiling
+from lab.profiling import copy_profiling_to_job, finalize_profiling, inject_torch_profiler, maybe_start_profiling
 
 
 async def _set_live_status_async(job_id: str, status: str) -> None:
@@ -173,23 +174,20 @@ def main(argv: List[str] | None = None) -> int:
     _set_live_status("started")
     _set_status(JobStatus.RUNNING)
 
-    # Resolve job directory for profiling output (same path used by _write_provider_logs).
     job_id = os.environ.get("_TFL_JOB_ID")
-    job_dir: str = ""
-    if job_id:
+    # Profiling writes to a temp dir; we copy it into job's "profiling" folder on exit
+    # (and lab.finish/error copy from _TFL_PROFILING_TEMP_DIR when the user calls them).
+    profiling_temp_dir: str = ""
+    if job_id and os.environ.get("_TFL_PROFILING") == "1":
         try:
-            from lab.dirs import get_job_dir
+            profiling_temp_dir = tempfile.mkdtemp(prefix="tfl_profiling_")
+        except OSError:
+            profiling_temp_dir = ""
 
-            async def _get_job_dir() -> str:
-                return await get_job_dir(job_id)
-
-            job_dir = asyncio.run(_get_job_dir())
-        except Exception:
-            job_dir = ""
-
-    # Optionally inject torch.profiler via sitecustomize.py before spawning the process.
     proc_env = os.environ.copy()
-    torch_tmp_dir = inject_torch_profiler(job_dir, proc_env) if job_dir else ""
+    if profiling_temp_dir:
+        proc_env["_TFL_PROFILING_TEMP_DIR"] = profiling_temp_dir
+    torch_tmp_dir = inject_torch_profiler(profiling_temp_dir, proc_env) if profiling_temp_dir else ""
 
     # Run the original command in the shell so it behaves exactly as submitted.
     # Stream output line-by-line to avoid buffering large logs in memory (training
@@ -208,7 +206,7 @@ def main(argv: List[str] | None = None) -> int:
     )
 
     # Start profiling sidecar thread (no-op if _TFL_PROFILING is not set).
-    profiling_thread = maybe_start_profiling(proc.pid, job_dir) if job_dir else None
+    profiling_thread = maybe_start_profiling(proc.pid, profiling_temp_dir) if profiling_temp_dir else None
 
     assert proc.stdout is not None
     for line in proc.stdout:
@@ -225,8 +223,21 @@ def main(argv: List[str] | None = None) -> int:
     combined_logs = "".join(log_lines)
     _write_provider_logs(combined_logs)
 
-    # Finalise profiling: stop sampler thread and write profiling_report.json.
-    finalize_profiling(profiling_thread, job_dir, wall_time)
+    # Finalise profiling: stop sampler thread and write report to profiling temp dir.
+    finalize_profiling(profiling_thread, profiling_temp_dir, wall_time)
+
+    # Copy profiling output from temp dir into job's profiling folder (same as lab.finish/error).
+    if profiling_temp_dir and job_id:
+        try:
+            asyncio.run(copy_profiling_to_job(profiling_temp_dir, job_id))
+        except Exception:
+            pass
+        try:
+            import shutil
+
+            shutil.rmtree(profiling_temp_dir, ignore_errors=True)
+        except Exception:
+            pass
 
     # Clean up torch sitecustomize temp dir (best-effort).
     if torch_tmp_dir:

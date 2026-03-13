@@ -1708,14 +1708,15 @@ async def get_profiling_report(
     user_and_team: dict = Depends(get_user_and_team),
 ):
     """
-    Return the profiling_report.json written by tfl-remote-trap when _TFL_PROFILING=1.
+    Return the profiling_report.json from the job's profiling folder (written when
+    _TFL_PROFILING=1 and copied on lab.finish/error or when the remote trap exits).
 
-    Returns 404 if profiling was not enabled or the job has not yet completed profiling.
+    Returns 404 if profiling was not enabled or the report is not yet available.
     """
-    from lab.dirs import get_job_dir
+    from lab.dirs import get_job_profiling_dir
 
-    job_dir = await get_job_dir(job_id)
-    report_path = storage.join(job_dir, "profiling_report.json")
+    profiling_dir = await get_job_profiling_dir(job_id)
+    report_path = storage.join(profiling_dir, "profiling_report.json")
 
     if not await storage.exists(report_path):
         raise HTTPException(status_code=404, detail="Profiling report not found for this job")
