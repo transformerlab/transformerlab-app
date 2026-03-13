@@ -43,6 +43,7 @@ from transformerlab.compute_providers.models import (
 )
 from transformerlab.services import job_service
 from transformerlab.services import quota_service
+from transformerlab.services.task_service import task_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
 from transformerlab.services.cache_service import cache
 from lab import storage
@@ -1818,6 +1819,14 @@ async def launch_template_on_provider(
                 base_command = INTERACTIVE_SUDO_PREFIX + " " + resolved_cmd
             if setup_override_from_gallery and team_secrets:
                 setup_override_from_gallery = replace_secret_placeholders(setup_override_from_gallery, team_secrets)
+
+    # If run command is still empty, fall back to the stored task's run field.
+    # This handles GitHub-sourced interactive tasks where the command is in task.yaml
+    # and was stored in the task at import time.
+    if not base_command.strip() and request.task_id:
+        task_data = await task_service.task_get_by_id(request.task_id)
+        if task_data:
+            base_command = task_data.get("run", "") or task_data.get("command", "")
 
     # Add user-provided setup if any (replace secrets in setup).
     # For interactive tasks we already added gallery/task setup above (local and remote).

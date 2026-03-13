@@ -189,8 +189,8 @@ def _collect_resources(gallery_entry: dict) -> dict:
     }
 
 
-def _import_task(experiment_id: str, gallery_entry: dict, env_vars: dict) -> dict:
-    """Import an interactive task from the gallery. Returns the imported task dict."""
+def _import_task(experiment_id: str, gallery_entry: dict, env_vars: dict) -> str:
+    """Import an interactive task from the gallery. Returns the task ID."""
     payload = {
         "gallery_id": gallery_entry.get("id"),
         "experiment_id": experiment_id,
@@ -213,50 +213,38 @@ def _import_task(experiment_id: str, gallery_entry: dict, env_vars: dict) -> dic
         console.print("[red]Error:[/red] No task ID returned from import.")
         raise typer.Exit(1)
 
-    # Fetch the imported task to get its resolved fields (run, setup, etc.)
-    tasks_resp = api.get(f"/experiment/{experiment_id}/task/list_by_type_in_experiment?type=REMOTE")
-    if tasks_resp.status_code == 200:
-        for task in tasks_resp.json():
-            if str(task.get("id")) == str(task_id):
-                return task
-
-    # Fallback: return minimal dict with just the ID
-    return {"id": str(task_id)}
+    return str(task_id)
 
 
 def _build_interactive_launch_payload(
     experiment_id: str,
-    imported_task: dict,
+    task_id: str,
     provider: dict,
     gallery_entry: dict,
     env_vars: dict,
     resources: dict,
 ) -> dict:
-    """Build the launch payload for an interactive task."""
-    is_local = provider.get("type") == "local"
+    """Build the launch payload for an interactive task.
 
-    # The imported task has resolved run/setup from task.yaml (fetched during import).
-    # Task fields are stored flat (not nested under "config").
-    # Fall back to the gallery entry's inline command/setup fields.
-    run = imported_task.get("run", "") or gallery_entry.get("command", "")
-    setup = imported_task.get("setup", "") or gallery_entry.get("setup", "")
+    The backend resolves the actual run command from the task and gallery
+    at launch time, so we pass the gallery's command as a hint but rely
+    on the server-side fallback to the task's stored run field.
+    """
+    is_local = provider.get("type") == "local"
 
     return {
         "experiment_id": experiment_id,
-        "task_id": str(imported_task.get("id")),
+        "task_id": task_id,
         "task_name": gallery_entry.get("name", "Interactive Task"),
-        "cluster_name": imported_task.get("cluster_name", gallery_entry.get("name", "Interactive Task")),
-        "run": run,
-        "setup": setup,
+        "cluster_name": gallery_entry.get("name", "Interactive Task"),
+        "run": gallery_entry.get("command", ""),
+        "setup": gallery_entry.get("setup", ""),
         "subtype": "interactive",
         "interactive_type": gallery_entry.get("interactive_type", "custom"),
         "interactive_gallery_id": gallery_entry.get("id"),
         "local": is_local,
         "env_vars": env_vars,
         "provider_name": provider.get("name"),
-        "github_repo_url": imported_task.get("github_repo_url"),
-        "github_repo_dir": imported_task.get("github_directory"),
-        "github_repo_branch": imported_task.get("github_branch"),
         "cpus": resources.get("cpus"),
         "memory": resources.get("memory"),
         "disk_space": resources.get("disk_space"),
@@ -288,7 +276,7 @@ def _launch(provider: dict, payload: dict) -> int:
     return int(job_id)
 
 
-FAILED_STATUSES = {"FAILED", "STOPPED", "CANCELLED", "COMPLETE"}
+ACTIVE_STATUSES = {"LAUNCHING", "INTERACTIVE", "WAITING", "RUNNING"}
 
 
 def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
@@ -308,18 +296,19 @@ def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
             status.update(f"[bold green]Waiting for service... ({elapsed}s)[/bold green]")
 
             try:
-                # Check if the job has failed
+                # Check job status — only keep polling if in an active state
                 jobs_resp = api.get(jobs_url, timeout=10.0)
                 if jobs_resp.status_code == 200:
                     job = next((j for j in jobs_resp.json() if j.get("id") == job_id), None)
-                    if job and job.get("status") in FAILED_STATUSES:
+                    if job:
                         job_status = job.get("status")
-                        error_msg = job.get("job_data", {}).get("error_msg", "")
-                        console.print(f"\n[red]Job {job_id} {job_status}.[/red]")
-                        if error_msg:
-                            console.print(f"[red]Error: {error_msg}[/red]")
-                        console.print(f"Check logs with: [bold]lab job info {job_id}[/bold]")
-                        raise typer.Exit(1)
+                        if job_status not in ACTIVE_STATUSES:
+                            error_msg = job.get("job_data", {}).get("error_msg", "")
+                            console.print(f"\n[red]Job {job_id} {job_status}.[/red]")
+                            if error_msg:
+                                console.print(f"[red]Error: {error_msg}[/red]")
+                            console.print(f"Check logs with: [bold]lab job info {job_id}[/bold]")
+                            raise typer.Exit(1)
             except typer.Exit:
                 raise
             except Exception:
@@ -404,10 +393,10 @@ def interactive(timeout: int = DEFAULT_TIMEOUT) -> None:
 
     # 5. Import task from gallery
     with console.status("[bold green]Importing task...[/bold green]", spinner="dots"):
-        imported_task = _import_task(experiment_id, template, env_vars)
+        task_id = _import_task(experiment_id, template, env_vars)
 
     # 6. Launch
-    payload = _build_interactive_launch_payload(experiment_id, imported_task, provider, template, env_vars, resources)
+    payload = _build_interactive_launch_payload(experiment_id, task_id, provider, template, env_vars, resources)
 
     with console.status("[bold green]Launching...[/bold green]", spinner="dots"):
         job_id = _launch(provider, payload)
