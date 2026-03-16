@@ -49,7 +49,6 @@ class JobMonitorApp(App):
         ("a", "add_task", "Add Task"),
         ("t", "list_tasks", "Tasks"),
         ("i", "interactive_task", "Interactive Task"),
-        ("L", "toggle_logs", "Logs"),
         ("g", "gallery", "Gallery"),
         ("p", "toggle_refresh", "Pause/Resume"),
     ]
@@ -65,7 +64,7 @@ class JobMonitorApp(App):
                 with joblistcontainer:
                     yield ListView(id="job-list")
 
-            # Right panel
+            # Right panel: always show details on top and logs below
             from transformerlab_cli.commands.job_monitor.JobLogs import JobLogs
 
             with Vertical(id="right-panel"):
