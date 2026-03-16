@@ -2,8 +2,10 @@
 
 Follows the same pattern as sweep_status_service.py.
 
-Runs every REMOTE_JOB_STATUS_INTERVAL_SECONDS, iterates all LAUNCHING REMOTE jobs
-across all orgs, and transitions them to COMPLETE/FAILED when the provider reports done.
+Runs every REMOTE_JOB_STATUS_INTERVAL_SECONDS, iterates all REMOTE jobs that are
+LAUNCHING, RUNNING, STOPPING, or INTERACTIVE across all orgs, and transitions them
+to COMPLETE/FAILED/STOPPED when the provider reports done or the process has died
+(e.g. interactive jobs that exit due to setup failure).
 
 This decouples provider polling from the check-status HTTP endpoint, which becomes
 a cheap read-only operation unaffected by provider latency or downtime.
@@ -19,6 +21,7 @@ from lab.dirs import set_organization_id as lab_set_org_id
 from lab.job_status import JobStatus
 
 from transformerlab.services import job_service, team_service
+from transformerlab.services.cache_service import cache
 
 REMOTE_JOB_STATUS_INTERVAL_SECONDS = int(os.getenv("REMOTE_JOB_STATUS_INTERVAL_SECONDS", "15"))
 
@@ -117,6 +120,7 @@ async def _handle_live_status(job: Dict[str, Any], experiment_id: str) -> bool:
         end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
         await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
         await job_service.job_update_status(job_id, new_status, experiment_id=experiment_id)
+        await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
     except Exception as exc:
         print(f"Remote job status worker: failed updating job {job_id} from live_status={live_status}: {exc}")
     return True
@@ -151,14 +155,17 @@ async def _check_job_via_provider(
         cluster_status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
         cluster_state = cluster_status.state
 
-        # For RUNPOD, stop_cluster() deletes the pod. Subsequent status checks return
-        # UNKNOWN/"Pod not found", which should be treated as a terminal STOPPED state
-        # when the user has requested a stop, otherwise jobs would be stuck in STOPPING.
+        # For RUNPOD, when the user requested stop (job in STOPPING), treat any non-UP
+        # state as terminal STOPPED so the job does not stay stuck in STOPPING. This
+        # covers: "Pod not found" (pod already deleted), "TERMINATING", or any other
+        # UNKNOWN returned while the pod is going away.
         if (
             provider_type == ProviderType.RUNPOD.value
-            and cluster_state == ClusterState.UNKNOWN
-            and getattr(cluster_status, "status_message", "") == "Pod not found"
             and job_status == JobStatus.STOPPING.value
+            and (
+                cluster_state == ClusterState.UNKNOWN
+                or getattr(cluster_status, "status_message", "") == "Pod not found"
+            )
         ):
             cluster_state = ClusterState.STOPPED
 
@@ -172,6 +179,9 @@ async def _check_job_via_provider(
                     final_status = JobStatus.STOPPED.value
                 elif cluster_state == ClusterState.FAILED:
                     final_status = JobStatus.FAILED.value
+                elif job_status == JobStatus.INTERACTIVE.value and cluster_state == ClusterState.DOWN:
+                    # Interactive session died (e.g. setup failure); treat as failed so the job is not stuck.
+                    final_status = JobStatus.FAILED.value
                 else:
                     final_status = JobStatus.COMPLETE.value
             else:
@@ -184,6 +194,7 @@ async def _check_job_via_provider(
                     final_status = JobStatus.COMPLETE.value
 
             await job_service.job_update_status(job_id, final_status, experiment_id=experiment_id)
+            await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
             return True
 
     else:
@@ -216,6 +227,7 @@ async def _check_job_via_provider(
                 final_status = JobStatus.COMPLETE.value
 
             await job_service.job_update_status(job_id, final_status, experiment_id=experiment_id)
+            await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
             return True
 
     return False
@@ -268,11 +280,13 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
 
                 for job in all_remote_jobs:
                     job_status = job.get("status", "")
-                    # Only check provider status for jobs that are still launching, running, or stopping.
+                    # Only check provider status for jobs that are still launching, running,
+                    # stopping, or interactive (so we can detect when an interactive job has died).
                     if job_status not in (
                         JobStatus.LAUNCHING.value,
                         JobStatus.RUNNING.value,
                         JobStatus.STOPPING.value,
+                        JobStatus.INTERACTIVE.value,
                     ):
                         continue
 
