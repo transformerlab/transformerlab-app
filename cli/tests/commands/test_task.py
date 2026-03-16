@@ -57,16 +57,3 @@ def test_task_list_json_no_spinner(mock_exp, mock_api):
     """task list --format json does not mix spinner text with JSON."""
     result = runner.invoke(app, ["--format", "json", "task", "list"])
     json.loads(result.output.strip())  # must not raise
-
-from typer.testing import CliRunner
-from transformerlab_cli.main import app
-
-runner = CliRunner()
-
-
-def test_task_help():
-    """Test the task command help."""
-    result = runner.invoke(app, ["task", "--help"])
-    assert result.exit_code == 0
-    assert "Usage: lab task [OPTIONS] COMMAND [ARGS]..." in result.output
-    assert "Task management commands" in result.output

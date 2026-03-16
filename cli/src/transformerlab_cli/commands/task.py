@@ -13,7 +13,7 @@ from rich.syntax import Syntax
 import transformerlab_cli.util.api as api
 from transformerlab_cli.state import cli_state
 from transformerlab_cli.util.config import require_current_experiment
-from transformerlab_cli.util.ui import exit_with_no_results, render_object, render_table
+from transformerlab_cli.util.ui import render_object, render_table
 
 app = typer.Typer()
 
@@ -541,7 +541,9 @@ def gallery_tasks(output_format: str = "pretty", gallery_type: str = "all", expe
     return items
 
 
-def import_from_gallery(gallery_id: str, experiment_id: str, is_interactive: bool, output_format: str = "pretty") -> None:
+def import_from_gallery(
+    gallery_id: str, experiment_id: str, is_interactive: bool, output_format: str = "pretty"
+) -> None:
     """Import a task from the gallery."""
     payload = {
         "gallery_id": gallery_id,
@@ -584,7 +586,7 @@ def command_task_gallery(
         import_from_gallery(import_id, current_experiment, is_interactive, output_format)
         return
 
-    items = gallery_tasks(output_format=output_format, gallery_type=gallery_type, experiment_id=current_experiment)
+    gallery_tasks(output_format=output_format, gallery_type=gallery_type, experiment_id=current_experiment)
 
     if output_format == "json":
         return
