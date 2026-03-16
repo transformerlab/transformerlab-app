@@ -165,7 +165,8 @@ def main(argv: List[str] | None = None) -> int:
         cmd_parts = args
 
     if not cmd_parts:
-        print("Usage: python -m lab.remote_trap -- <command...>", file=sys.stderr)
+        print("Error: No command provided to run. The task may be missing a 'run' or 'command' field.", file=sys.stderr)
+        _set_live_status("crashed")
         return 1
 
     command_str = " ".join(cmd_parts)
