@@ -16,6 +16,10 @@ from transformerlab.db.db import (  # noqa: E402
 from transformerlab.services import experiment_service  # noqa: E402
 
 import transformerlab.db.session as db  # noqa: E402
+from sqlalchemy import select  # noqa: E402
+
+from transformerlab.db.session import async_session  # noqa: E402
+from transformerlab.shared.models.models import Config  # noqa: E402
 
 
 import pytest  # noqa: E402
@@ -91,3 +95,50 @@ class TestConfig:
         await config_set("test_key4", "")
         value = await config_get("test_key4")
         assert value == ""
+
+    @pytest.mark.asyncio
+    async def test_team_wide_config_does_not_create_duplicates(self):
+        team_id = "team-1"
+        key = "team_unique_key"
+
+        # First set
+        await config_set(key, "value1", user_id=None, team_id=team_id)
+        # Second set with different value should update in-place, not insert a new row
+        await config_set(key, "value2", user_id=None, team_id=team_id)
+
+        async with async_session() as session:
+            result = await session.execute(
+                select(Config).where(
+                    Config.key == key,
+                    Config.user_id.is_(None),
+                    Config.team_id == team_id,
+                )
+            )
+            rows = result.scalars().all()
+
+        assert len(rows) == 1
+        assert rows[0].value == "value2"
+
+    @pytest.mark.asyncio
+    async def test_user_specific_config_does_not_create_duplicates(self):
+        team_id = "team-1"
+        user_id = "user-1"
+        key = "user_unique_key"
+
+        # First set
+        await config_set(key, "value1", user_id=user_id, team_id=team_id)
+        # Second set with different value should update in-place, not insert a new row
+        await config_set(key, "value2", user_id=user_id, team_id=team_id)
+
+        async with async_session() as session:
+            result = await session.execute(
+                select(Config).where(
+                    Config.key == key,
+                    Config.user_id == user_id,
+                    Config.team_id == team_id,
+                )
+            )
+            rows = result.scalars().all()
+
+        assert len(rows) == 1
+        assert rows[0].value == "value2"
