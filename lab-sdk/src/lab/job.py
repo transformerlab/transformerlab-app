@@ -224,6 +224,16 @@ class Job(BaseLabResource):
         """
         await self.update_job_data_field("error_msg", str(error_msg))
 
+    async def update_status_message(self, message: str):
+        """
+        Update the general-purpose 'status_message' field in the job_data.
+
+        This can be used by plugins, harnesses, or any code that wants to
+        communicate a human-readable status detail to the frontend
+        (e.g., current phase, queue position, progress description).
+        """
+        await self.update_job_data_field("status_message", message)
+
     async def update_sweep_progress(self, value):
         """
         Update the 'sweep_progress' key in the job_data JSON object.

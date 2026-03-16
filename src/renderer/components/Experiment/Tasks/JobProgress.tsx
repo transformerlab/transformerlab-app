@@ -6,7 +6,7 @@ import {
   Typography,
   Tooltip,
 } from '@mui/joy';
-import { StopCircleIcon, Info } from 'lucide-react';
+import { StopCircleIcon, Info, Clock } from 'lucide-react';
 import Skeleton from '@mui/joy/Skeleton';
 import CircularProgress from '@mui/joy/CircularProgress';
 import dayjs from 'dayjs';
@@ -236,9 +236,46 @@ export default function JobProgress({
             </Typography>
           </Stack>
         </>
-      ) : job?.status === 'LAUNCHING' ||
-        job?.status === 'INTERACTIVE' ||
-        job?.status === 'WAITING' ? (
+      ) : job?.status === 'WAITING' ? (
+        <>
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Chip
+              sx={{
+                backgroundColor: jobChipColor(job.status),
+                color: 'var(--joy-palette-neutral-800)',
+              }}
+            >
+              QUEUED
+            </Chip>
+            <Clock size={16} color="var(--joy-palette-warning-600)" />
+            <IconButton
+              color="danger"
+              onClick={handleStopJob}
+              disabled={stopping}
+            >
+              {stopping ? (
+                <CircularProgress size="sm" thickness={2} />
+              ) : (
+                <StopCircleIcon size="20px" />
+              )}
+            </IconButton>
+            {stopping && (
+              <Typography level="body-xs" color="warning">
+                Stopping&hellip;
+              </Typography>
+            )}
+          </Stack>
+          {(launchProgress?.message || job?.job_data?.status_message) && (
+            <Typography
+              level="body-sm"
+              textColor="neutral.600"
+              sx={{ mt: 0.5 }}
+            >
+              {launchProgress?.message || job?.job_data?.status_message}
+            </Typography>
+          )}
+        </>
+      ) : job?.status === 'LAUNCHING' || job?.status === 'INTERACTIVE' ? (
         <>
           <Stack direction="row" alignItems="center" gap={1}>
             <Chip
@@ -318,6 +355,15 @@ export default function JobProgress({
                 />
               )}
             </Stack>
+          )}
+          {!launchProgress?.message && job?.job_data?.status_message && (
+            <Typography
+              level="body-sm"
+              textColor="neutral.600"
+              sx={{ mt: 0.5 }}
+            >
+              {job.job_data.status_message}
+            </Typography>
           )}
           {job?.job_data?.start_time && (
             <>

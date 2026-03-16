@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from pydantic import BaseModel
 
@@ -32,6 +32,31 @@ _worker_started = False
 _worker_started_lock = asyncio.Lock()
 _worker_lock = asyncio.Lock()
 
+# Track waiting job IDs so we can update queue positions when jobs are dequeued.
+# Each entry is (job_id, experiment_id).
+_waiting_jobs: List[Tuple[str, str]] = []
+_waiting_jobs_lock = asyncio.Lock()
+
+
+async def _update_waiting_job_positions() -> None:
+    """Update launch_progress and status_message for all waiting jobs with their queue position."""
+    async with _waiting_jobs_lock:
+        for idx, (jid, eid) in enumerate(_waiting_jobs):
+            position = idx + 1
+            total = len(_waiting_jobs)
+            if total == 1:
+                message = "Queued \u2014 waiting for the current job to finish"
+            else:
+                ahead = position - 1
+                if ahead == 0:
+                    message = "Queued \u2014 you're next"
+                elif ahead == 1:
+                    message = "Queued \u2014 1 job ahead"
+                else:
+                    message = f"Queued \u2014 {ahead} jobs ahead"
+            await job_service.job_update_launch_progress(jid, eid, phase="queued", percent=0, message=message)
+            await job_service.job_update_status_message(jid, eid, message)
+
 
 async def enqueue_local_launch(
     job_id: str,
@@ -57,6 +82,13 @@ async def enqueue_local_launch(
     await _local_launch_queue.put(item)
     print(f"[local_provider_queue] Enqueued job {job_id} (cluster={cluster_name}, status={initial_status})")
 
+    # Track this job for queue position updates.
+    async with _waiting_jobs_lock:
+        _waiting_jobs.append((str(job_id), str(experiment_id)))
+
+    # Set initial queue position feedback for all waiting jobs.
+    await _update_waiting_job_positions()
+
     global _worker_started
     async with _worker_started_lock:
         if not _worker_started:
@@ -69,6 +101,12 @@ async def _local_launch_worker() -> None:
     while True:
         item = await _local_launch_queue.get()
         print(f"[local_provider_queue] Picked up job {item.job_id} from queue (cluster={item.cluster_name})")
+
+        # Remove this job from the waiting list and refresh positions for remaining jobs.
+        async with _waiting_jobs_lock:
+            _waiting_jobs[:] = [(jid, eid) for jid, eid in _waiting_jobs if jid != item.job_id]
+        await _update_waiting_job_positions()
+
         try:
             # Delegate actual processing to helper to keep the worker loop simple.
             await _process_launch_item(item)
@@ -82,13 +120,15 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
         lab_dirs.set_organization_id(item.team_id)
         try:
             # Initial progress update – make it clear we're preparing the local environment.
+            preparing_msg = "Preparing local environment (this may take a few minutes)..."
             await job_service.job_update_launch_progress(
                 item.job_id,
                 item.experiment_id,
                 phase="starting",
                 percent=5,
-                message="Preparing local environment (this may take a few minutes)...",
+                message=preparing_msg,
             )
+            await job_service.job_update_status_message(item.job_id, item.experiment_id, preparing_msg)
             provider = await get_provider_by_id(session, item.provider_id)
             if not provider:
                 print(f"[local_provider_queue] Provider {item.provider_id} not found, job {item.job_id} FAILED")
@@ -117,13 +157,15 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
             await session.commit()
 
             # Indicate we're about to launch the local cluster
+            launching_msg = "Setting up local provider and starting cluster..."
             await job_service.job_update_launch_progress(
                 item.job_id,
                 item.experiment_id,
                 phase="launching_cluster",
                 percent=50,
-                message="Setting up local provider and starting cluster...",
+                message=launching_msg,
             )
+            await job_service.job_update_status_message(item.job_id, item.experiment_id, launching_msg)
 
             loop = asyncio.get_running_loop()
             try:
@@ -160,6 +202,8 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
                 percent=100,
                 message="Local cluster started",
             )
+            # Clear status_message once the cluster is running — let the status chip speak for itself.
+            await job_service.job_update_status_message(item.job_id, item.experiment_id, "")
         except Exception as exc:  # noqa: BLE001
             print(f"[local_provider_queue] Job {item.job_id}: unexpected error while processing launch item: {exc}")
             if item.quota_hold_id:

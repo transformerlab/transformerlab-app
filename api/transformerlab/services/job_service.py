@@ -253,6 +253,21 @@ async def job_update_launch_progress(
         print(f"Error updating launch progress for job {job_id}: {e}")
 
 
+async def job_update_status_message(
+    job_id: str,
+    experiment_id: Optional[str],
+    message: str,
+) -> None:
+    """
+    Update the general-purpose 'status_message' field in job_data.
+
+    This field can be set for any job status to provide human-readable context
+    (e.g., queue position, current phase description). It is automatically
+    cleared on status transitions so stale messages don't persist.
+    """
+    await job_update_job_data_insert_key_value(job_id, "status_message", message, experiment_id)
+
+
 async def jobs_get_sweep_children(parent_job_id, experiment_id=None):
     """
     Get all child jobs that belong to a sweep parent job.
@@ -479,6 +494,8 @@ async def job_update_status(
         await job.update_status(status)
         if error_msg:
             await job.set_error_message(error_msg)
+        # Clear status_message on status transitions so stale messages don't persist.
+        await job.update_job_data_field("status_message", "")
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
         pass
