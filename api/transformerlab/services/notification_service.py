@@ -27,6 +27,7 @@ from urllib.parse import urlparse
 
 import transformerlab.db.db as db
 from transformerlab.services import job_service, team_service
+from transformerlab.services.background_scheduler import run_periodic_worker
 
 NOTIFICATION_WORKER_INTERVAL_SECONDS = int(os.getenv("NOTIFICATION_WORKER_INTERVAL_SECONDS", "30"))
 
@@ -319,28 +320,30 @@ async def process_pending_notifications_once() -> Dict[str, int]:
 # ---------------------------------------------------------------------------
 
 
+async def _notification_worker_cycle() -> None:
+    """Single scheduled cycle for the notification worker.
+
+    Wrapped by the generic periodic worker loop to provide shared scheduling
+    and error handling while keeping logging and stats local to this module.
+    """
+    stats = await process_pending_notifications_once()
+    if stats["jobs_seen"] > 0 or stats["errors"] > 0:
+        print(
+            "Notification worker: cycle done — "
+            f"orgs={stats['orgs']} "
+            f"jobs_seen={stats['jobs_seen']} "
+            f"jobs_notified={stats['jobs_notified']} "
+            f"errors={stats['errors']}",
+        )
+
+
 async def _notification_worker_loop() -> None:
-    print("Notification worker: started")
     try:
-        while True:
-            try:
-                stats = await process_pending_notifications_once()
-                if stats["jobs_seen"] > 0 or stats["errors"] > 0:
-                    print(
-                        "Notification worker: cycle done — "
-                        f"orgs={stats['orgs']} "
-                        f"jobs_seen={stats['jobs_seen']} "
-                        f"jobs_notified={stats['jobs_notified']} "
-                        f"errors={stats['errors']}",
-                    )
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:  # noqa: BLE001
-                print(f"Notification worker: unhandled error in cycle, continuing: {exc}")
-            await asyncio.sleep(NOTIFICATION_WORKER_INTERVAL_SECONDS)
-    except asyncio.CancelledError:
-        print("Notification worker: stopping")
-        raise
+        await run_periodic_worker(
+            name="Notification worker",
+            interval_seconds=NOTIFICATION_WORKER_INTERVAL_SECONDS,
+            cycle_fn=_notification_worker_cycle,
+        )
     finally:
         # Ensure org context is always cleared when the worker stops
         _clear_org_context()

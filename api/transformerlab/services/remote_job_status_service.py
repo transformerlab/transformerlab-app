@@ -21,6 +21,7 @@ from lab.dirs import set_organization_id as lab_set_org_id
 from lab.job_status import JobStatus
 
 from transformerlab.services import job_service, team_service
+from transformerlab.services.background_scheduler import run_periodic_worker
 from transformerlab.services.cache_service import cache
 
 REMOTE_JOB_STATUS_INTERVAL_SECONDS = int(os.getenv("REMOTE_JOB_STATUS_INTERVAL_SECONDS", "15"))
@@ -368,32 +369,34 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
 # ---------------------------------------------------------------------------
 
 
-async def _remote_job_status_worker_loop() -> None:
-    print("Remote job status worker: started")
-    try:
-        while True:
-            try:
-                _cycle_start = time.monotonic()
-                cycle_stats = await refresh_launching_remote_jobs_once()
-                _cycle_elapsed = time.monotonic() - _cycle_start
+async def _remote_job_status_worker_cycle() -> None:
+    """Single scheduled cycle for the remote job status worker.
 
-                # Only log if there was actual work or errors (avoid noise during quiet periods).
-                if cycle_stats["jobs_seen"] > 0 or cycle_stats["errors"] > 0:
-                    print(
-                        f"Remote job status worker: cycle done in {_cycle_elapsed:.3f}s — "
-                        f"orgs={cycle_stats['orgs']} experiments={cycle_stats['experiments']} "
-                        f"jobs_seen={cycle_stats['jobs_seen']} "
-                        f"jobs_updated={cycle_stats['jobs_updated']} "
-                        f"errors={cycle_stats['errors']}"
-                    )
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:
-                print(f"Remote job status worker: unhandled error in cycle, continuing: {exc}")
-            await asyncio.sleep(REMOTE_JOB_STATUS_INTERVAL_SECONDS)
-    except asyncio.CancelledError:
-        print("Remote job status worker: stopping")
-        raise
+    Wrapped by the generic periodic worker loop to provide shared scheduling
+    and error handling while keeping logging and stats local to this module.
+    """
+    _cycle_start = time.monotonic()
+    cycle_stats = await refresh_launching_remote_jobs_once()
+    _cycle_elapsed = time.monotonic() - _cycle_start
+
+    # Only log if there was actual work or errors (avoid noise during quiet periods).
+    if cycle_stats["jobs_seen"] > 0 or cycle_stats["errors"] > 0:
+        print(
+            f"Remote job status worker: cycle done in {_cycle_elapsed:.3f}s — "
+            f"orgs={cycle_stats['orgs']} experiments={cycle_stats['experiments']} "
+            f"jobs_seen={cycle_stats['jobs_seen']} "
+            f"jobs_updated={cycle_stats['jobs_updated']} "
+            f"errors={cycle_stats['errors']}"
+        )
+
+
+async def _remote_job_status_worker_loop() -> None:
+    try:
+        await run_periodic_worker(
+            name="Remote job status worker",
+            interval_seconds=REMOTE_JOB_STATUS_INTERVAL_SECONDS,
+            cycle_fn=_remote_job_status_worker_cycle,
+        )
     finally:
         _clear_org_context()
 

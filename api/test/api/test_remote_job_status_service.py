@@ -6,21 +6,52 @@ Tests cover:
 - Terminal state detection for SkyPilot/SLURM providers
 - Terminal state detection for LOCAL/RUNPOD providers
 - refresh_launching_remote_jobs_once cycle statistics
+- worker loop orchestration helpers
 """
 
-import pytest
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from transformerlab.services import remote_job_status_service
 from transformerlab.services.remote_job_status_service import (
-    _handle_live_status,
+    _PROVIDER_FAILURE_THRESHOLD,
     _check_job_via_provider,
+    _handle_live_status,
     _is_provider_backed_off,
     _record_provider_failure,
     _record_provider_success,
-    _PROVIDER_FAILURE_THRESHOLD,
     refresh_launching_remote_jobs_once,
 )
+
+
+# ---------------------------------------------------------------------------
+# Worker loop tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_remote_worker_cycle_logs_and_uses_refresh(monkeypatch, capsys):
+    """_remote_job_status_worker_cycle should delegate to refresh_once and log when work is done."""
+    async def fake_refresh() -> dict:
+        return {
+            "orgs": 1,
+            "experiments": 1,
+            "jobs_seen": 2,
+            "jobs_updated": 1,
+            "errors": 0,
+        }
+
+    monkeypatch.setattr(
+        remote_job_status_service,
+        "refresh_launching_remote_jobs_once",
+        fake_refresh,
+    )
+
+    await remote_job_status_service._remote_job_status_worker_cycle()
+    out = capsys.readouterr().out
+    assert "Remote job status worker: cycle done in" in out
 
 
 # ---------------------------------------------------------------------------

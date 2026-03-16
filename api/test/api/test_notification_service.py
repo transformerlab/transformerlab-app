@@ -17,6 +17,33 @@ from transformerlab.services.notification_service import (
 
 
 # ---------------------------------------------------------------------------
+# Worker cycle tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_notification_worker_cycle_logs_when_jobs_seen(monkeypatch, capsys):
+    """_notification_worker_cycle should call process_pending_notifications_once and log when jobs are seen."""
+    async def fake_process() -> dict:
+        return {
+            "orgs": 1,
+            "jobs_seen": 1,
+            "jobs_notified": 1,
+            "errors": 0,
+        }
+
+    monkeypatch.setattr(
+        notification_service,
+        "process_pending_notifications_once",
+        fake_process,
+    )
+
+    await notification_service._notification_worker_cycle()
+    out = capsys.readouterr().out
+    assert "Notification worker: cycle done" in out
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
