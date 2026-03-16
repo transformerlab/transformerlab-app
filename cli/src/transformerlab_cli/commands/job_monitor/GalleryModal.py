@@ -116,4 +116,3 @@ class GalleryModal(ModalScreen[Optional[str]]):
                 self.app.call_from_thread(self.dismiss, None)
         except Exception:
             self.app.call_from_thread(self.dismiss, None)
-
