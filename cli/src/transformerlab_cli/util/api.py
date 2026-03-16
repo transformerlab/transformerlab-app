@@ -89,7 +89,7 @@ def post_json(path: str, json_data: dict = None, timeout: float = 60.0) -> httpx
 def check_server_status():
     """Check the status of the server."""
     try:
-        response = get("/server/info")
+        response = get("/healthz")
         response.raise_for_status()
         status = response.json()
         print(json.dumps(status, indent=2))
