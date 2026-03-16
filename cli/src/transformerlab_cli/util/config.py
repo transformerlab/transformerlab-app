@@ -184,3 +184,16 @@ def get_current_experiment() -> str | None:
     """Get the current experiment ID from config."""
     config = load_config()
     return config.get("current_experiment", "alpha")
+
+
+def require_current_experiment() -> str:
+    """Get the current experiment ID from config, or exit with a helpful message."""
+    check_configs()
+    current_experiment = get_config("current_experiment")
+    if not current_experiment or not str(current_experiment).strip():
+        console.print(
+            "[yellow]current_experiment is not set in config. Set it with:[/yellow]"
+            " [bold]lab config current_experiment <experiment_name>[/bold]"
+        )
+        raise typer.Exit(1)
+    return str(current_experiment)
