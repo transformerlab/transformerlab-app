@@ -43,6 +43,7 @@ from transformerlab.compute_providers.models import (
 )
 from transformerlab.services import job_service
 from transformerlab.services import quota_service
+from transformerlab.services.task_service import task_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
 from transformerlab.services.cache_service import cache
 from lab import storage
@@ -1694,6 +1695,19 @@ async def launch_template_on_provider(
     if provider.type != ProviderType.LOCAL.value:
         setup_commands.append("pip install -q transformerlab")
 
+    # If GitHub repo fields are missing, fall back to the stored task's fields.
+    # This handles GitHub-sourced interactive tasks where the CLI/TUI doesn't
+    # send these fields and relies on the backend to resolve them from the task.
+    if not request.github_repo_url and request.task_id:
+        task_data = await task_service.task_get_by_id(request.task_id)
+        if task_data:
+            request.github_repo_url = task_data.get("github_repo_url", "") or ""
+            # Task data may store the directory as either github_repo_dir or github_directory
+            request.github_repo_dir = (
+                task_data.get("github_repo_dir", "") or task_data.get("github_directory", "") or ""
+            )
+            request.github_repo_branch = task_data.get("github_branch", "") or ""
+
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
         workspace_dir = await get_workspace_dir()
@@ -1817,6 +1831,22 @@ async def launch_template_on_provider(
             if setup_override_from_gallery and team_secrets:
                 setup_override_from_gallery = replace_secret_placeholders(setup_override_from_gallery, team_secrets)
 
+    # If run command is still empty, fall back to the stored task's fields.
+    # This handles GitHub-sourced interactive tasks where the command/setup
+    # are in task.yaml and were stored in the task at import time.
+    if not base_command.strip() and request.task_id:
+        fallback_task = await task_service.task_get_by_id(request.task_id)
+        if fallback_task:
+            base_command = fallback_task.get("run", "") or fallback_task.get("command", "")
+            # Also pick up setup from the task if not already added
+            if not interactive_setup_added:
+                fallback_setup = (fallback_task.get("setup", "") or "").strip()
+                if fallback_setup:
+                    from transformerlab.shared.interactive_gallery_utils import INTERACTIVE_SUDO_PREFIX
+
+                    setup_commands.append(INTERACTIVE_SUDO_PREFIX + " " + fallback_setup)
+                    interactive_setup_added = True
+
     # Add user-provided setup if any (replace secrets in setup).
     # For interactive tasks we already added gallery/task setup above (local and remote).
     if request.setup and not interactive_setup_added:
@@ -1929,12 +1959,43 @@ async def launch_template_on_provider(
     # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
     file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
 
+    # Validate that we have a non-empty command to run.
+    if not command_with_secrets or not command_with_secrets.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="No run command resolved for this task. The task may be missing a 'run' or 'command' field.",
+        )
+
+    # Apply provider-level harness hooks (pre/post) around the task command.
+    # Hooks are concatenated with ';' so the post hook always runs.
+    from transformerlab.services.provider_harness_hook_service import build_hooked_command
+
+    provider_config_for_hooks = provider.config or {}
+    if isinstance(provider_config_for_hooks, str):
+        try:
+            provider_config_for_hooks = json.loads(provider_config_for_hooks)
+        except Exception:
+            provider_config_for_hooks = {}
+    extra_config_for_hooks = (
+        provider_config_for_hooks.get("extra_config", {}) if isinstance(provider_config_for_hooks, dict) else {}
+    )
+    if not isinstance(extra_config_for_hooks, dict):
+        extra_config_for_hooks = {}
+
+    pre_task_hook = extra_config_for_hooks.get("pre_task_hook")
+    post_task_hook = extra_config_for_hooks.get("post_task_hook")
+    command_with_hooks = build_hooked_command(
+        command_with_secrets,
+        pre_hook=str(pre_task_hook) if pre_task_hook is not None else None,
+        post_hook=str(post_task_hook) if post_task_hook is not None else None,
+    )
+
     # Wrap the user command with tfl-remote-trap so we can track live_status in job_data.
     # This uses the tfl-remote-trap helper from the transformerlab SDK, which:
     #   - sets job_data.live_status="started" when execution begins
     #   - sets job_data.live_status="finished" on success
     #   - sets job_data.live_status="crashed" on failure
-    wrapped_run = f"tfl-remote-trap -- {command_with_secrets}"
+    wrapped_run = f"tfl-remote-trap -- {command_with_hooks}"
 
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,

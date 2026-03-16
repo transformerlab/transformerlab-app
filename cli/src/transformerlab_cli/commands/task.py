@@ -11,7 +11,7 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 
 import transformerlab_cli.util.api as api
-from transformerlab_cli.util.config import check_configs, get_config
+from transformerlab_cli.util.config import require_current_experiment
 from transformerlab_cli.util.ui import render_object, render_table
 
 app = typer.Typer()
@@ -288,12 +288,7 @@ def run_task(task_id: str, experiment_id: str, interactive: bool = True, disconn
 @app.command("list")
 def command_task_list():
     """List all tasks."""
-    check_configs()
-    current_experiment = get_config("current_experiment")
-    if not current_experiment or not str(current_experiment).strip():
-        console.print("[yellow]current_experiment is not set in config.[/yellow]")
-        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
-        raise typer.Exit(1)
+    current_experiment = require_current_experiment()
     list_tasks(experiment_id=current_experiment)
 
 
@@ -304,12 +299,7 @@ def command_task_add(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview the task without creating it"),
 ):
     """Add a new task. Provide a directory path directly, or use --from-git to fetch from a Git repository."""
-    check_configs()
-    current_experiment = get_config("current_experiment")
-    if not current_experiment or not str(current_experiment).strip():
-        console.print("[yellow]current_experiment is not set in config.[/yellow]")
-        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
-        raise typer.Exit(1)
+    current_experiment = require_current_experiment()
 
     if from_git:
         add_task_from_github(from_git, experiment_id=current_experiment)
@@ -325,12 +315,7 @@ def command_task_delete(
     task_id: str = typer.Argument(..., help="Task ID to delete"),
 ):
     """Delete a task."""
-    check_configs()
-    current_experiment = get_config("current_experiment")
-    if not current_experiment or not str(current_experiment).strip():
-        console.print("[yellow]current_experiment is not set in config.[/yellow]")
-        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
-        raise typer.Exit(1)
+    current_experiment = require_current_experiment()
     delete_task(task_id, experiment_id=current_experiment)
 
 
@@ -339,12 +324,7 @@ def command_task_info(
     task_id: str = typer.Argument(..., help="Task ID to get info for"),
 ):
     """Get task details."""
-    check_configs()
-    current_experiment = get_config("current_experiment")
-    if not current_experiment or not str(current_experiment).strip():
-        console.print("[yellow]current_experiment is not set in config.[/yellow]")
-        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
-        raise typer.Exit(1)
+    current_experiment = require_current_experiment()
     info_task(task_id, current_experiment)
 
 
@@ -588,12 +568,7 @@ def command_task_queue(
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip interactive prompts, use defaults"),
 ):
     """Queue a task on a compute provider."""
-    check_configs()
-    current_experiment = get_config("current_experiment")
-    if not current_experiment or not str(current_experiment).strip():
-        console.print("[yellow]current_experiment is not set in config.[/yellow]")
-        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
-        raise typer.Exit(1)
+    current_experiment = require_current_experiment()
     queue_task(task_id, experiment_id=current_experiment, interactive=not no_interactive)
 
 
@@ -618,3 +593,11 @@ def command_task_run(
         interactive=not no_interactive,
         disconnect=disconnect,
     )
+@app.command("interactive")
+def command_task_interactive(
+    timeout: int = typer.Option(300, "--timeout", "-t", help="Timeout in seconds waiting for service readiness"),
+):
+    """Launch an interactive task (Jupyter, vLLM, Ollama, etc.)."""
+    from transformerlab_cli.commands.interactive import interactive
+
+    interactive(timeout=timeout)
