@@ -276,6 +276,50 @@
     ]
   },
   {
+    "id": "mlx_gradio",
+    "name": "MLX LM + Gradio",
+    "description": "MLX LM inference server with Gradio chat UI for Apple Silicon",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "inference-mlx-gradio-chat",
+    "env_parameters": [
+      {
+        "field_name": "Model Name",
+        "env_var": "MODEL_NAME",
+        "field_type": "str",
+        "required": true,
+        "placeholder": "e.g. mlx-community/Llama-3.2-3B-Instruct-4bit",
+        "help_text": "HuggingFace model identifier (must be an MLX-compatible model, e.g. from mlx-community)"
+      }
+    ],
+    "icon": "https://github.com/ml-explore.png",
+    "supported_accelerators": ["AppleSilicon"],
+    "_comment_ports": "MLX LM API on 8001, Gradio UI on 7860.",
+    "ports": [
+      { "port": 8001, "label": "MLX LM API", "protocol": "http" },
+      { "port": 7860, "label": "Gradio Chat UI", "protocol": "http" }
+    ],
+
+    "url_patterns": [
+      {
+        "value_key": "gradio_url",
+        "regex": "Running on (?:local URL:\\s*)?(https?://[^\\s]+)",
+        "group": 1
+      }
+    ],
+
+    "modal_title": "MLX LM + Gradio Interactive Session",
+    "modal_subtitle": "Access your MLX LM server and Gradio chat UI through the URL below.",
+    "instructions": [
+      {
+        "kind": "url",
+        "title": "Access Gradio Chat UI",
+        "description": "Once ready, click the link below to open the Gradio chat interface connected to your MLX LM server.",
+        "value_key": "gradio_url",
+        "placeholder": "Waiting for Gradio to start. The URL will appear here once the connection is available..."
+      }
+    ]
+  },
+  {
     "id": "ssh",
     "interactive_type": "ssh",
     "name": "SSH",

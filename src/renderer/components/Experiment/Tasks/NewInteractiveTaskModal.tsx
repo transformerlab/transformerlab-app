@@ -466,8 +466,7 @@ export default function NewInteractiveTaskModal({
           | 'jupyter'
           | 'vllm'
           | 'ssh'
-          | 'ollama'
-          | 'mlx_lm',
+          | 'ollama',
         template_id: selectedTemplate.id,
         provider_id: selectedProviderId,
         env_parameters: configFieldValues,

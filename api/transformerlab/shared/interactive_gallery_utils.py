@@ -50,8 +50,6 @@ def _compose_command_from_logic(
             return "echo 'Local vLLM API: http://localhost:8000'; echo 'Local Open WebUI: http://localhost:8080'"
         if t == "ollama":
             return "echo 'Local Ollama API: http://localhost:11434'; echo 'Local Open WebUI: http://localhost:8080'"
-        if t == "mlx_lm":
-            return "echo 'Local MLX LM API: http://localhost:8001'; echo 'Local Open WebUI: http://localhost:8080'"
         return None
 
     def _strip_ngrok_log_from_tail(cmd: str) -> str:
