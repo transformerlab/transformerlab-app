@@ -86,6 +86,48 @@ def post_json(path: str, json_data: dict = None, timeout: float = 60.0) -> httpx
     return response
 
 
+def patch(path: str, json_data: dict = None, timeout: float = 60.0) -> httpx.Response:
+    """
+    Makes a PATCH HTTP request with JSON body.
+
+    Args:
+        path (str): The API path to send the request to.
+        json_data (dict, optional): The JSON data to include in the PATCH request.
+        timeout (float): Request timeout in seconds. Default is 60.0.
+
+    Returns:
+        httpx.Response: The response object from the HTTP request.
+    """
+    with httpx.Client(timeout=timeout) as client:
+        response = client.request(
+            method="PATCH",
+            url=f"{BASE_URL()}{path}",
+            headers=_request_headers(),
+            json=json_data,
+        )
+    return response
+
+
+def delete(path: str, timeout: float = 10.0) -> httpx.Response:
+    """
+    Makes a DELETE HTTP request.
+
+    Args:
+        path (str): The API path to send the request to.
+        timeout (float): Request timeout in seconds. Default is 10.0.
+
+    Returns:
+        httpx.Response: The response object from the HTTP request.
+    """
+    with httpx.Client(timeout=timeout) as client:
+        response = client.request(
+            method="DELETE",
+            url=f"{BASE_URL()}{path}",
+            headers=_request_headers(),
+        )
+    return response
+
+
 def check_server_status():
     """Check the status of the server."""
     try:
