@@ -694,7 +694,7 @@ export default function ProviderDetailsModal({
                   onChange={(event) =>
                     setPreTaskHook(event.currentTarget.value)
                   }
-                  placeholder="Commands to run before the task command"
+                  placeholder="Commands to run before the run script in every task"
                   minRows={2}
                   maxRows={6}
                 />
@@ -704,7 +704,7 @@ export default function ProviderDetailsModal({
                   onChange={(event) =>
                     setPostTaskHook(event.currentTarget.value)
                   }
-                  placeholder="Commands to run after the task command (always runs)"
+                  placeholder="Commands to run after the run script in every task"
                   minRows={2}
                   maxRows={6}
                 />
