@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.text import Text
 from urllib.parse import urlparse
 
-from transformerlab_cli.util.config import check_configs, get_config
+from transformerlab_cli.util.config import check_configs, require_current_experiment
 from transformerlab_cli.util import api
 
 app = typer.Typer()
@@ -70,7 +70,8 @@ def _render_job(job) -> None:
 
     # Render status as a chip
     status = job.get("status", "N/A")
-    status_chip = Text(status, style="bold green" if status == "COMPLETE" else "bold yellow")
+    status_style = "bold green" if status == "COMPLETE" else "bold red" if status == "FAILED" else "bold yellow"
+    status_chip = Text(status, style=status_style)
 
     # Render job details
     details = {
@@ -97,6 +98,7 @@ def _render_job(job) -> None:
         "Artifacts": _render_artifacts(job_data.get("artifacts", [])),
         "Completion Status": job_data.get("completion_status", "N/A"),
         "Completion Details": job_data.get("completion_details", "N/A"),
+        "Error": job_data.get("error_msg", ""),
         "Config": job_data.get("_config", {}),
         "Score": job_data.get("score", {}),
     }
@@ -261,11 +263,7 @@ def command_job_list(
 ):
     """List all jobs."""
     check_configs()
-    current_experiment = get_config("current_experiment")
-    if not current_experiment or not str(current_experiment).strip():
-        console.print("[yellow]current_experiment is not set in config.[/yellow]")
-        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
-        raise typer.Exit(1)
+    current_experiment = require_current_experiment()
     list_jobs(current_experiment, running_only=running)
 
 
@@ -274,13 +272,30 @@ def command_job_info(
     job_id: str = typer.Argument(..., help="Job ID to get info for"),
 ):
     """Get job details."""
-    check_configs()
-    current_experiment = get_config("current_experiment")
-    if not current_experiment or not str(current_experiment).strip():
-        console.print("[yellow]current_experiment is not set in config.[/yellow]")
-        console.print("Set it first with: [bold]lab config current_experiment <experiment_name>[/bold]")
-        raise typer.Exit(1)
+    current_experiment = require_current_experiment()
     info_job(job_id, current_experiment)
+
+
+@app.command("stop")
+def command_job_stop(
+    job_id: str = typer.Argument(..., help="Job ID to stop"),
+):
+    """Stop a running job."""
+    current_experiment = require_current_experiment()
+
+    with console.status(f"[bold green]Stopping job {job_id}...[/bold green]", spinner="dots"):
+        response = api.get(f"/experiment/{current_experiment}/jobs/{job_id}/stop")
+
+    if response.status_code == 200:
+        console.print(f"[green]✓[/green] Job [bold]{job_id}[/bold] stopped.")
+    else:
+        console.print(f"[red]Error:[/red] Failed to stop job. Status code: {response.status_code}")
+        try:
+            detail = response.json().get("detail", response.text)
+            console.print(f"[red]Detail:[/red] {detail}")
+        except Exception:
+            console.print(f"[red]Response:[/red] {response.text}")
+        raise typer.Exit(1)
 
 
 @app.command("monitor")
