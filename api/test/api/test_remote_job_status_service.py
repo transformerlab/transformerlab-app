@@ -9,7 +9,6 @@ Tests cover:
 - worker loop orchestration helpers
 """
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -34,6 +33,7 @@ from transformerlab.services.remote_job_status_service import (
 @pytest.mark.asyncio
 async def test_remote_worker_cycle_logs_and_uses_refresh(monkeypatch, capsys):
     """_remote_job_status_worker_cycle should delegate to refresh_once and log when work is done."""
+
     async def fake_refresh() -> dict:
         return {
             "orgs": 1,

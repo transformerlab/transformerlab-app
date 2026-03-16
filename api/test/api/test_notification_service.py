@@ -24,6 +24,7 @@ from transformerlab.services.notification_service import (
 @pytest.mark.asyncio
 async def test_notification_worker_cycle_logs_when_jobs_seen(monkeypatch, capsys):
     """_notification_worker_cycle should call process_pending_notifications_once and log when jobs are seen."""
+
     async def fake_process() -> dict:
         return {
             "orgs": 1,

@@ -38,9 +38,7 @@ async def run_combined_workers_loop(
     block the others.
     """
     now = asyncio.get_event_loop().time()
-    next_runs = {
-        name: now for name, _interval, _fn in workers
-    }
+    next_runs = {name: now for name, _interval, _fn in workers}
 
     for name, _interval, _fn in workers:
         print(f"{name}: orchestrated worker registered")
@@ -66,5 +64,3 @@ async def run_combined_workers_loop(
         for name, _interval, _fn in workers:
             print(f"{name}: orchestrated worker stopping")
         raise
-
-
