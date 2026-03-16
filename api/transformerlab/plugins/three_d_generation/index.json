@@ -1,0 +1,110 @@
+{
+  "name": "3D Generation",
+  "uniqueId": "three_d_generation",
+  "description": "Generate 3D models from text prompts or images using TripoSR, Zero123++, and Hunyuan3D",
+  "plugin-format": "python",
+  "type": "diffusion",
+  "version": "0.1.0",
+  "git": "",
+  "url": "",
+  "files": ["main.py", "setup.sh"],
+  "supported_hardware_architectures": ["cuda", "amd"],
+  "_dataset": false,
+  "setup-script": "setup.sh",
+  "parameters": {
+    "generation_type": {
+      "title": "Generation Type",
+      "type": "string",
+      "default": "image-to-3d",
+      "required": true,
+      "enum": ["text-to-3d", "image-to-3d"]
+    },
+    "prompt": {
+      "title": "Text Prompt",
+      "type": "string",
+      "default": "",
+      "required": false,
+      "description": "Text description of the 3D model to generate"
+    },
+    "model": {
+      "title": "Model",
+      "type": "string",
+      "default": "Hunyuan3D-2.1",
+      "required": false,
+      "enum": ["Hunyuan3D-2.1", "TripoSR", "Zero123++", "StableZero123"]
+    },
+    "num_inference_steps": {
+      "title": "Inference Steps",
+      "type": "integer",
+      "default": 50,
+      "required": false,
+      "description": "Number of denoising steps"
+    },
+    "guidance_scale": {
+      "title": "Guidance Scale",
+      "type": "number",
+      "default": 7.5,
+      "required": false,
+      "description": "Classifier-free guidance scale"
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer",
+      "default": -1,
+      "required": false,
+      "description": "Random seed for reproducibility"
+    },
+    "input_image": {
+      "title": "Input Image (Base64)",
+      "type": "string",
+      "default": "",
+      "required": false,
+      "description": "Base64 encoded input image for image-to-3d generation"
+    },
+    "export_format": {
+      "title": "Export Format",
+      "type": "string",
+      "default": "glb",
+      "required": false,
+      "enum": ["glb", "obj", "stl", "ply"],
+      "description": "Output 3D model format"
+    },
+    "generate_texture": {
+      "title": "Generate Texture",
+      "type": "boolean",
+      "default": true,
+      "required": false,
+      "description": "Generate PBR texture for the 3D model (Hunyuan3D only)"
+    },
+    "low_vram_mode": {
+      "title": "Low VRAM Mode",
+      "type": "boolean",
+      "default": false,
+      "required": false,
+      "description": "Enable low VRAM mode (Hunyuan3D only)"
+    }
+  },
+  "parameters_ui": {
+    "generation_type": {
+      "ui:help": "Choose between text-to-3d or image-to-3d generation"
+    },
+    "prompt": {
+      "ui:help": "Describe the 3D object you want to generate"
+    },
+    "model": {
+      "ui:help": "Hunyuan3D-2.1 is recommended for best quality PBR textures"
+    },
+    "num_inference_steps": {
+      "ui:help": "More steps = higher quality but slower"
+    },
+    "input_image": {
+      "ui:help": "Upload an image to convert to 3D model"
+    },
+    "generate_texture": {
+      "ui:help": "Generate photorealistic PBR textures (Hunyuan3D-2.1 only)"
+    },
+    "low_vram_mode": {
+      "ui:help": "Reduce VRAM usage at the cost of speed"
+    }
+  }
+}

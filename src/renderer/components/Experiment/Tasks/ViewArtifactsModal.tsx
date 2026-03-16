@@ -13,11 +13,12 @@ import {
   Divider,
   Stack,
 } from '@mui/joy';
-import { Eye, Download, X } from 'lucide-react';
+import { Eye, Download, X, Box } from 'lucide-react';
 import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { formatBytes } from 'renderer/lib/utils';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetchWithAuth } from 'renderer/lib/authContext';
+import ModelViewer3D from './ModelViewer3D';
 
 interface ViewArtifactsModalProps {
   open: boolean;
@@ -101,6 +102,11 @@ export default function ViewArtifactsModal({
       'ogg',
       'm4a',
       'flac',
+      // 3D Models
+      'glb',
+      'gltf',
+      'obj',
+      'stl',
     ];
     return previewableExtensions.includes(ext);
   };
@@ -166,6 +172,18 @@ export default function ViewArtifactsModal({
           filename: artifact.filename,
         });
         setPreviewData({ type: 'audio', url: `${audioUrl}?task=view` });
+      } else if (['glb', 'gltf', 'obj', 'stl'].includes(ext)) {
+        // 3D model preview - use direct URL; cookies handle auth
+        const modelUrl = getAPIFullPath('jobs', ['getArtifact'], {
+          experimentId: experimentInfo?.id,
+          jobId: jobId.toString(),
+          filename: artifact.filename,
+        });
+        setPreviewData({
+          type: 'model3d',
+          url: `${modelUrl}?task=view`,
+          fileType: ext,
+        });
       }
     } catch (error) {
       setPreviewError('Failed to load artifact preview');
@@ -393,6 +411,21 @@ export default function ViewArtifactsModal({
             </audio>
           </Box>
         );
+      case 'model3d':
+        return (
+          <Box
+            sx={{
+              width: '100%',
+              height: 'calc(80vh - 200px)',
+              overflow: 'hidden',
+            }}
+          >
+            <ModelViewer3D
+              modelUrl={previewData.url}
+              fileType={previewData.fileType}
+            />
+          </Box>
+        );
       default:
         return null;
     }
@@ -419,17 +452,35 @@ export default function ViewArtifactsModal({
           <Typography id="artifacts-modal-title" level="h2">
             Artifacts for Job {jobId}
           </Typography>
-          {!noArtifacts && !artifactsLoading && (
+          <Stack direction="row" spacing={1}>
             <Button
-              startDecorator={!isDownloading && <Download size={16} />}
-              loading={isDownloading}
-              onClick={handleDownloadAllArtifacts}
-              variant="soft"
-              color="primary"
+              startDecorator={<Box size={16} />}
+              variant="outlined"
+              color="neutral"
+              size="sm"
+              onClick={() => {
+                setSelectedArtifact({ filename: 'test-model.glb' });
+                setPreviewData({
+                  type: 'model3d',
+                  url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb',
+                  fileType: 'glb',
+                });
+              }}
             >
-              Download All
+              Test 3D
             </Button>
-          )}
+            {!noArtifacts && !artifactsLoading && (
+              <Button
+                startDecorator={!isDownloading && <Download size={16} />}
+                loading={isDownloading}
+                onClick={handleDownloadAllArtifacts}
+                variant="soft"
+                color="primary"
+              >
+                Download All
+              </Button>
+            )}
+          </Stack>
         </Stack>
 
         {noArtifacts ? (
