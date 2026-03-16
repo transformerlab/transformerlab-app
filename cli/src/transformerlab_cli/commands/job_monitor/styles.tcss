@@ -137,3 +137,30 @@ Screen {
     height: 100%;
     border: solid $accent; /* Uses the 'accent' (cyan) color for borders */
 }
+
+#right-panel {
+    width: 75%;
+    height: 100%;
+}
+
+JobLogs {
+    display: none;
+    width: 100%;
+    height: 100%;
+    border: solid $secondary;
+    padding: 0 2;
+}
+
+#logs-title {
+    padding: 1 0;
+}
+
+#job-log-view {
+    height: 1fr;
+    border: solid $surface-lighten-2;
+}
+
+#log-buttons {
+    height: auto;
+    margin-top: 1;
+}

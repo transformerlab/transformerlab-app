@@ -168,6 +168,26 @@ lab task queue <task_id> --no-interactive
 |--------------------|------------------------------------------------|
 | `--no-interactive` | Skip interactive prompts and use defaults      |
 
+#### `task gallery`
+
+Browse the task gallery. Optionally import a task into the current experiment.
+
+```bash
+# List all gallery tasks
+lab task gallery
+
+# List interactive templates only
+lab task gallery --type interactive
+
+# Import directly (non-interactive)
+lab task gallery --import <gallery_id>
+```
+
+| Option     | Description                                              |
+|------------|----------------------------------------------------------|
+| `--type`   | Gallery type: `all` (default) or `interactive`           |
+| `--import` | Gallery ID to import as a task (skips interactive prompt)|
+
 ---
 
 ### `job`
@@ -192,7 +212,7 @@ lab job info <job_id>
 
 #### `job artifacts`
 
-List artifacts for a specific job.
+List artifacts for a specific job. Includes filename, path, and size (when available).
 
 ```bash
 lab job artifacts <job_id>
@@ -200,19 +220,29 @@ lab job artifacts <job_id>
 
 #### `job download`
 
-Download all artifacts for a job as a zip file.
+Download artifacts for a job.
 
 ```bash
-# Download to current directory
+# Download all as zip (existing behavior)
 lab job download <job_id>
 
+# Download a single file
+lab job download <job_id> --file model.bin
+
+# Download files matching a glob pattern
+lab job download <job_id> --file "*.json"
+
+# Download multiple specific files
+lab job download <job_id> --file weights.bin --file config.json
+
 # Download to a specific directory
-lab job download <job_id> --output ./downloads
+lab job download <job_id> --file "*.ckpt" --output ./checkpoints
 ```
 
-| Option          | Description                                                  |
-|-----------------|--------------------------------------------------------------|
-| `-o`, `--output`| Output directory for the zip file (default: current directory)|
+| Option          | Description                                                               |
+|-----------------|---------------------------------------------------------------------------|
+| `--file`        | Filename or glob pattern (repeatable). Omit to download all as zip.      |
+| `-o`, `--output`| Output directory (default: current directory)                             |
 
 #### `job monitor`
 
