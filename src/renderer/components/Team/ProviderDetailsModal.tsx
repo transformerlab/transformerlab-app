@@ -85,6 +85,13 @@ export default function ProviderDetailsModal({
     [],
   );
 
+  // Command hooks
+  const [preSetup, setPreSetup] = useState('');
+  const [postSetup, setPostSetup] = useState('');
+  const [preRun, setPreRun] = useState('');
+  const [postRun, setPostRun] = useState('');
+  const [showHooks, setShowHooks] = useState(false);
+
   // SLURM-specific form fields
   const [slurmMode, setSlurmMode] = useState<'ssh' | 'rest'>('ssh');
   const [slurmSshHost, setSlurmSshHost] = useState('');
@@ -180,6 +187,24 @@ export default function ProviderDetailsModal({
         delete rawConfigObj.supported_accelerators;
       }
 
+      // Extract command hooks into dedicated state
+      setPreSetup(rawConfigObj.pre_setup || '');
+      setPostSetup(rawConfigObj.post_setup || '');
+      setPreRun(rawConfigObj.pre_run || '');
+      setPostRun(rawConfigObj.post_run || '');
+      if (
+        rawConfigObj.pre_setup ||
+        rawConfigObj.post_setup ||
+        rawConfigObj.pre_run ||
+        rawConfigObj.post_run
+      ) {
+        setShowHooks(true);
+      }
+      delete rawConfigObj.pre_setup;
+      delete rawConfigObj.post_setup;
+      delete rawConfigObj.pre_run;
+      delete rawConfigObj.post_run;
+
       // Parse SLURM-specific fields if this is a SLURM provider
       if (providerData.type === 'slurm') {
         parseSlurmConfig(rawConfigObj);
@@ -198,6 +223,11 @@ export default function ProviderDetailsModal({
       setSlurmSshKeyPath('');
       setSlurmRestUrl('');
       setSlurmApiToken('');
+      setPreSetup('');
+      setPostSetup('');
+      setPreRun('');
+      setPostRun('');
+      setShowHooks(false);
     }
   }, [providerId, providerData]);
 
@@ -215,6 +245,11 @@ export default function ProviderDetailsModal({
       setSlurmSshKeyPath('');
       setSlurmRestUrl('');
       setSlurmApiToken('');
+      setPreSetup('');
+      setPostSetup('');
+      setPreRun('');
+      setPostRun('');
+      setShowHooks(false);
     }
   }, [open]);
 
@@ -377,6 +412,12 @@ export default function ProviderDetailsModal({
         }
       }
 
+      // Add command hooks to config if set
+      if (preSetup.trim()) parsedConfig.pre_setup = preSetup.trim();
+      if (postSetup.trim()) parsedConfig.post_setup = postSetup.trim();
+      if (preRun.trim()) parsedConfig.pre_run = preRun.trim();
+      if (postRun.trim()) parsedConfig.post_run = postRun.trim();
+
       const response = providerId
         ? await updateProvider(providerId, name, parsedConfig)
         : await createProvider(name, type, parsedConfig);
@@ -507,6 +548,104 @@ export default function ProviderDetailsModal({
                   Select the types of hardware this provider supports.
                 </Typography>
               </FormControl>
+
+              {/* Command Hooks (collapsible, all provider types) */}
+              {type && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography
+                    level="title-sm"
+                    sx={{ cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => setShowHooks(!showHooks)}
+                  >
+                    {showHooks ? '\u25BE' : '\u25B8'} Command Hooks (Advanced)
+                  </Typography>
+                  <Typography
+                    level="body-sm"
+                    sx={{ color: 'text.tertiary', mb: 1 }}
+                  >
+                    Optional shell commands injected before/after every
+                    job&apos;s setup and run phases.
+                  </Typography>
+                  {showHooks && (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 1,
+                        pl: 1,
+                      }}
+                    >
+                      <FormControl>
+                        <FormLabel>Pre-Setup</FormLabel>
+                        <Textarea
+                          value={preSetup}
+                          onChange={(e) => setPreSetup(e.currentTarget.value)}
+                          placeholder="e.g. module load cuda/12.0"
+                          minRows={2}
+                          maxRows={4}
+                        />
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: 'text.tertiary' }}
+                        >
+                          Runs before all other setup (cloud creds, pip install,
+                          etc.)
+                        </Typography>
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel>Post-Setup</FormLabel>
+                        <Textarea
+                          value={postSetup}
+                          onChange={(e) => setPostSetup(e.currentTarget.value)}
+                          placeholder="e.g. source /opt/env.sh"
+                          minRows={2}
+                          maxRows={4}
+                        />
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: 'text.tertiary' }}
+                        >
+                          Runs after all setup commands complete
+                        </Typography>
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel>Pre-Run</FormLabel>
+                        <Textarea
+                          value={preRun}
+                          onChange={(e) => setPreRun(e.currentTarget.value)}
+                          placeholder="e.g. nvidia-smi"
+                          minRows={2}
+                          maxRows={4}
+                        />
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: 'text.tertiary' }}
+                        >
+                          Prepended to every job&apos;s run command (joined with
+                          &amp;&amp;)
+                        </Typography>
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel>Post-Run</FormLabel>
+                        <Textarea
+                          value={postRun}
+                          onChange={(e) => setPostRun(e.currentTarget.value)}
+                          placeholder="e.g. cleanup.sh"
+                          minRows={2}
+                          maxRows={4}
+                        />
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: 'text.tertiary' }}
+                        >
+                          Appended after the job&apos;s run command (always
+                          runs, even on failure)
+                        </Typography>
+                      </FormControl>
+                    </Box>
+                  )}
+                </Box>
+              )}
 
               {/* SLURM-specific form fields */}
               {type === 'slurm' && (

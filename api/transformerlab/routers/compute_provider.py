@@ -1653,6 +1653,28 @@ async def launch_template_on_provider(
     # Build setup script - add cloud credential helpers first, then file_mounts and other setup.
     setup_commands: list[str] = []
 
+    # Extract command hooks from provider config
+    provider_config_raw = provider.config or {}
+    hook_pre_setup = (provider_config_raw.get("pre_setup") or "").strip()
+    hook_post_setup = (provider_config_raw.get("post_setup") or "").strip()
+    hook_pre_run = (provider_config_raw.get("pre_run") or "").strip()
+    hook_post_run = (provider_config_raw.get("post_run") or "").strip()
+
+    # Replace {{secret.<name>}} placeholders in hooks
+    if team_secrets:
+        if hook_pre_setup:
+            hook_pre_setup = replace_secret_placeholders(hook_pre_setup, team_secrets)
+        if hook_post_setup:
+            hook_post_setup = replace_secret_placeholders(hook_post_setup, team_secrets)
+        if hook_pre_run:
+            hook_pre_run = replace_secret_placeholders(hook_pre_run, team_secrets)
+        if hook_post_run:
+            hook_post_run = replace_secret_placeholders(hook_post_run, team_secrets)
+
+    # Inject pre_setup hook before all other setup commands
+    if hook_pre_setup:
+        setup_commands.append(hook_pre_setup)
+
     if os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true":
         if STORAGE_PROVIDER == "aws":
             # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
@@ -1823,6 +1845,10 @@ async def launch_template_on_provider(
         setup_with_secrets = replace_secret_placeholders(request.setup, team_secrets) if team_secrets else request.setup
         setup_commands.append(setup_with_secrets)
 
+    # Inject post_setup hook after all other setup commands
+    if hook_post_setup:
+        setup_commands.append(hook_post_setup)
+
     # Join setup commands, stripping trailing semicolons to avoid double semicolons
     if setup_commands:
         cleaned_commands = [cmd.rstrip(";").rstrip() for cmd in setup_commands if cmd.strip()]
@@ -1831,10 +1857,23 @@ async def launch_template_on_provider(
         final_setup = None
 
     if setup_override_from_gallery is not None:
-        final_setup = setup_override_from_gallery
+        # Still wrap gallery override with provider hooks
+        parts: list[str] = []
+        if hook_pre_setup:
+            parts.append(hook_pre_setup)
+        parts.append(setup_override_from_gallery)
+        if hook_post_setup:
+            parts.append(hook_post_setup)
+        final_setup = ";".join(parts)
 
     # Replace secrets in command
     command_with_secrets = replace_secret_placeholders(base_command, team_secrets) if team_secrets else base_command
+
+    # Inject pre_run / post_run hooks around the run command
+    if hook_pre_run:
+        command_with_secrets = f"{hook_pre_run} && {command_with_secrets}"
+    if hook_post_run:
+        command_with_secrets = f"{command_with_secrets} ; {hook_post_run}"
 
     # Replace secrets in parameters if present
     # Merge parameters (defaults) with config (user's custom values for this run)

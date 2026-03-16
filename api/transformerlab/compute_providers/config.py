@@ -39,6 +39,12 @@ class ComputeProviderConfig(BaseModel):
     # Accelerators supported by this provider
     supported_accelerators: Optional[list[str]] = Field(default=None)
 
+    # Command hooks - shell commands injected around job setup/run
+    pre_setup: Optional[str] = None  # Runs before all setup commands
+    post_setup: Optional[str] = None  # Runs after all setup commands
+    pre_run: Optional[str] = None  # Prepended to the run command
+    post_run: Optional[str] = None  # Appended to the run command
+
     # Additional provider-specific config
     extra_config: Dict[str, Any] = Field(default_factory=dict)
 
