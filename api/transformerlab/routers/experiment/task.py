@@ -100,7 +100,7 @@ def process_env_parameters_to_env_vars(config: dict) -> dict:
 @router.get("/list", summary="Returns all the tasks")
 @cached(
     key="tasks:list",
-    ttl="30s",
+    ttl="60s",
     tags=["tasks", "tasks:list"],
 )
 async def task_get_all():
@@ -423,7 +423,7 @@ async def task_get_github_file(task_id: str, file_path: str):
 )
 @cached(
     key="tasks:list:{experimentId}:{subtype}:{type}",
-    ttl="30s",
+    ttl="60s",
     tags=["tasks", "tasks:list:{experimentId}"],
 )
 async def task_get_by_subtype_in_experiment(
