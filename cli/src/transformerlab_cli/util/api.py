@@ -131,7 +131,7 @@ def delete(path: str, timeout: float = 10.0) -> httpx.Response:
 def check_server_status():
     """Check the status of the server."""
     try:
-        response = get("/server/info")
+        response = get("/healthz")
         response.raise_for_status()
         status = response.json()
         print(json.dumps(status, indent=2))
