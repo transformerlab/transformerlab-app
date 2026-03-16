@@ -1,0 +1,17 @@
+name: GGUF Model Export
+
+resources:
+  CPUs: "4"
+
+setup: |
+  pip install transformerlab-sdk gguf
+
+run: |
+  python export.py --outtype {{outtype}}
+
+parameters:
+  outtype:
+    title: Output Quantization Type
+    type: string
+    enum: [q8_0, f16, f32]
+    default: q8_0

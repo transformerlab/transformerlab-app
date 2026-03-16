@@ -251,5 +251,49 @@
       "modality": "other",
       "framework": []
     }
+  },
+  {
+    "title": "DPO / ORPO / SimPO Alignment Training",
+    "description": "Preference optimization training using DPO, ORPO, or SimPO methods via Llama Factory. Requires a dataset with 'conversations', 'chosen', and 'rejected' columns.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "dpo-alignment-train",
+    "metadata": {
+      "category": "rlhf",
+      "modality": "text",
+      "framework": ["llama-factory"]
+    }
+  },
+  {
+    "title": "Batch Text Generation",
+    "description": "Generate outputs from a dataset in batch using a local or commercial LLM. Supports configurable system prompts, temperature, and output dataset naming.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "batch-text-generation",
+    "metadata": {
+      "category": "generation",
+      "modality": "text",
+      "framework": []
+    }
+  },
+  {
+    "title": "Synthetic Dataset Generation",
+    "description": "Generate QA pairs, chain-of-thought examples, or summaries from reference documents using Meta's synthetic-data-kit. Supports curation scoring and multiple output formats.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "synthetic-dataset-generation",
+    "metadata": {
+      "category": "dataset-generation",
+      "modality": "text",
+      "framework": ["synthetic-data-kit"]
+    }
+  },
+  {
+    "title": "GGUF Model Export",
+    "description": "Export a model to GGUF format for efficient CPU inference. Supports q8_0, f16, and f32 quantization types for Llama, Mistral, Gemma, Qwen, and other architectures.",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+    "github_repo_dir": "gguf-model-export",
+    "metadata": {
+      "category": "export",
+      "modality": "text",
+      "framework": ["gguf"]
+    }
   }
 ]
