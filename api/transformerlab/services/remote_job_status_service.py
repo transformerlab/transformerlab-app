@@ -2,8 +2,10 @@
 
 Follows the same pattern as sweep_status_service.py.
 
-Runs every REMOTE_JOB_STATUS_INTERVAL_SECONDS, iterates all LAUNCHING REMOTE jobs
-across all orgs, and transitions them to COMPLETE/FAILED when the provider reports done.
+Runs every REMOTE_JOB_STATUS_INTERVAL_SECONDS, iterates all REMOTE jobs that are
+LAUNCHING, RUNNING, STOPPING, or INTERACTIVE across all orgs, and transitions them
+to COMPLETE/FAILED/STOPPED when the provider reports done or the process has died
+(e.g. interactive jobs that exit due to setup failure).
 
 This decouples provider polling from the check-status HTTP endpoint, which becomes
 a cheap read-only operation unaffected by provider latency or downtime.
@@ -177,6 +179,9 @@ async def _check_job_via_provider(
                     final_status = JobStatus.STOPPED.value
                 elif cluster_state == ClusterState.FAILED:
                     final_status = JobStatus.FAILED.value
+                elif job_status == JobStatus.INTERACTIVE.value and cluster_state == ClusterState.DOWN:
+                    # Interactive session died (e.g. setup failure); treat as failed so the job is not stuck.
+                    final_status = JobStatus.FAILED.value
                 else:
                     final_status = JobStatus.COMPLETE.value
             else:
@@ -275,11 +280,13 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
 
                 for job in all_remote_jobs:
                     job_status = job.get("status", "")
-                    # Only check provider status for jobs that are still launching, running, or stopping.
+                    # Only check provider status for jobs that are still launching, running,
+                    # stopping, or interactive (so we can detect when an interactive job has died).
                     if job_status not in (
                         JobStatus.LAUNCHING.value,
                         JobStatus.RUNNING.value,
                         JobStatus.STOPPING.value,
+                        JobStatus.INTERACTIVE.value,
                     ):
                         continue
 
