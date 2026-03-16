@@ -82,6 +82,9 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
     if storage.is_remote_path(source_path):
         # Remote path (e.g., s3://...) - stream from remote FS into local files
         src_fs, _ = storage._get_fs_for_path(source_path)  # type: ignore[attr-defined]
+        # fsspec find()/walk() often return paths without the protocol prefix; normalize
+        # to a full URI so rel_path is computed correctly (otherwise e.g. alpha.db -> a.db).
+        src_protocol = source_path.split("://", 1)[0] if "://" in source_path else None
 
         def _copy_remote_tree() -> None:
             os.makedirs(cache_dir_safe, exist_ok=True)
@@ -95,6 +98,8 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
 
             for raw_src_file in src_files:
                 src_file = raw_src_file
+                if src_protocol and not storage.is_remote_path(raw_src_file):
+                    src_file = f"{src_protocol}://{raw_src_file.lstrip('/')}"
                 rel_path = src_file[len(source_path) :].lstrip("/").lstrip("\\")
                 dest_file = os.path.join(cache_dir_safe, rel_path)
                 dest_parent = os.path.dirname(dest_file)
