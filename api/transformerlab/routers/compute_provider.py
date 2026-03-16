@@ -1966,12 +1966,36 @@ async def launch_template_on_provider(
             detail="No run command resolved for this task. The task may be missing a 'run' or 'command' field.",
         )
 
+    # Apply provider-level harness hooks (pre/post) around the task command.
+    # Hooks are concatenated with ';' so the post hook always runs.
+    from transformerlab.services.provider_harness_hook_service import build_hooked_command
+
+    provider_config_for_hooks = provider.config or {}
+    if isinstance(provider_config_for_hooks, str):
+        try:
+            provider_config_for_hooks = json.loads(provider_config_for_hooks)
+        except Exception:
+            provider_config_for_hooks = {}
+    extra_config_for_hooks = (
+        provider_config_for_hooks.get("extra_config", {}) if isinstance(provider_config_for_hooks, dict) else {}
+    )
+    if not isinstance(extra_config_for_hooks, dict):
+        extra_config_for_hooks = {}
+
+    pre_task_hook = extra_config_for_hooks.get("pre_task_hook")
+    post_task_hook = extra_config_for_hooks.get("post_task_hook")
+    command_with_hooks = build_hooked_command(
+        command_with_secrets,
+        pre_hook=str(pre_task_hook) if pre_task_hook is not None else None,
+        post_hook=str(post_task_hook) if post_task_hook is not None else None,
+    )
+
     # Wrap the user command with tfl-remote-trap so we can track live_status in job_data.
     # This uses the tfl-remote-trap helper from the transformerlab SDK, which:
     #   - sets job_data.live_status="started" when execution begins
     #   - sets job_data.live_status="finished" on success
     #   - sets job_data.live_status="crashed" on failure
-    wrapped_run = f"tfl-remote-trap -- {command_with_secrets}"
+    wrapped_run = f"tfl-remote-trap -- {command_with_hooks}"
 
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,

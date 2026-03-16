@@ -84,6 +84,8 @@ export default function ProviderDetailsModal({
   const [supportedAccelerators, setSupportedAccelerators] = useState<string[]>(
     [],
   );
+  const [preTaskHook, setPreTaskHook] = useState<string>('');
+  const [postTaskHook, setPostTaskHook] = useState<string>('');
 
   // SLURM-specific form fields
   const [slurmMode, setSlurmMode] = useState<'ssh' | 'rest'>('ssh');
@@ -174,6 +176,18 @@ export default function ProviderDetailsModal({
           ? JSON.parse(providerData.config || '{}')
           : providerData.config || {};
 
+      const extraConfig =
+        rawConfigObj && typeof rawConfigObj === 'object'
+          ? rawConfigObj.extra_config || {}
+          : {};
+      if (extraConfig && typeof extraConfig === 'object') {
+        setPreTaskHook(extraConfig.pre_task_hook || '');
+        setPostTaskHook(extraConfig.post_task_hook || '');
+      } else {
+        setPreTaskHook('');
+        setPostTaskHook('');
+      }
+
       // Extract supported_accelerators into dedicated state, but do not show it in raw JSON.
       if (rawConfigObj.supported_accelerators) {
         setSupportedAccelerators(rawConfigObj.supported_accelerators);
@@ -191,6 +205,8 @@ export default function ProviderDetailsModal({
       setType('');
       setConfig('');
       setSupportedAccelerators([]);
+      setPreTaskHook('');
+      setPostTaskHook('');
       setSlurmMode('ssh');
       setSlurmSshHost('');
       setSlurmSshUser('');
@@ -208,6 +224,8 @@ export default function ProviderDetailsModal({
       setType('');
       setConfig('');
       setSupportedAccelerators([]);
+      setPreTaskHook('');
+      setPostTaskHook('');
       setSlurmMode('ssh');
       setSlurmSshHost('');
       setSlurmSshUser('');
@@ -375,6 +393,26 @@ export default function ProviderDetailsModal({
         if (supportedAccelerators.length > 0) {
           parsedConfig.supported_accelerators = supportedAccelerators;
         }
+      }
+
+      if (
+        !parsedConfig.extra_config ||
+        typeof parsedConfig.extra_config !== 'object'
+      ) {
+        parsedConfig.extra_config = {};
+      }
+      if (preTaskHook.trim()) {
+        parsedConfig.extra_config.pre_task_hook = preTaskHook;
+      } else {
+        delete parsedConfig.extra_config.pre_task_hook;
+      }
+      if (postTaskHook.trim()) {
+        parsedConfig.extra_config.post_task_hook = postTaskHook;
+      } else {
+        delete parsedConfig.extra_config.post_task_hook;
+      }
+      if (Object.keys(parsedConfig.extra_config).length === 0) {
+        delete parsedConfig.extra_config;
       }
 
       const response = providerId
@@ -640,6 +678,37 @@ export default function ProviderDetailsModal({
                   )}
                 </>
               )}
+
+              <FormControl sx={{ mt: 2 }}>
+                <FormLabel>Harness hooks (bash)</FormLabel>
+                <Typography
+                  level="body-sm"
+                  sx={{ color: 'text.tertiary', mb: 1 }}
+                >
+                  These are concatenated around the task command as: pre ; task
+                  ; post
+                </Typography>
+                <FormLabel sx={{ mt: 1 }}>Pre hook (optional)</FormLabel>
+                <Textarea
+                  value={preTaskHook}
+                  onChange={(event) =>
+                    setPreTaskHook(event.currentTarget.value)
+                  }
+                  placeholder="Commands to run before the task command"
+                  minRows={2}
+                  maxRows={6}
+                />
+                <FormLabel sx={{ mt: 1 }}>Post hook (optional)</FormLabel>
+                <Textarea
+                  value={postTaskHook}
+                  onChange={(event) =>
+                    setPostTaskHook(event.currentTarget.value)
+                  }
+                  placeholder="Commands to run after the task command (always runs)"
+                  minRows={2}
+                  maxRows={6}
+                />
+              </FormControl>
 
               {/* Generic JSON config for non-SLURM providers or advanced editing */}
               {type !== 'slurm' && type !== 'local' && (
