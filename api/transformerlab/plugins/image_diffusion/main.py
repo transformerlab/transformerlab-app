@@ -70,8 +70,6 @@ scheduler_map = {
 # Single-file diffusion support
 SINGLE_FILE_EXTENSIONS = (".ckpt", ".safetensors")
 
-DIFFUSION_PIPELINE_MODELS = ["WanPipeline", "ZImagePipeline"]
-
 
 def _looks_like_path(value: str) -> bool:
     return "/" in value or "\\" in value
@@ -187,27 +185,7 @@ def _resolve_model_reference(model_id: str) -> tuple[str, str | None, bool]:
         is_single_file = _is_single_file_path(model_id)
         return model_id, _infer_single_file_architecture(model_id) if is_single_file else None, is_single_file
 
-
-def is_zimage_model(model: str) -> bool:
-    """
-    Check if the model is a Z-Image model.
-    """
-    if not model:
-        return False
-    try:
-        info = model_info(model)
-        config = getattr(info, "config", {})
-        diffusers_config = config.get("diffusers", {})
-        architectures = diffusers_config.get("_class_name", "")
-        if isinstance(architectures, str):
-            architectures = [architectures]
-        for arch in architectures:
-            if "ZImage" in arch:
-                return True
-    except Exception:
-        return False
-    return False
-
+DIFFUSION_PIPELINE_MODELS = ["WanPipeline", "ZImagePipeline"]
 
 # Fixed upscaling models
 UPSCALE_MODEL_STANDARD = "stabilityai/stable-diffusion-x4-upscaler"
@@ -499,21 +477,20 @@ def get_pipeline(
 
         # Detect Z-Image architecture (non-controlnet path)
         is_zimage = is_zimage_model(model)
-
         # Attempt to detect HF architecture; fall back safely on failure
-        if not architecture:
-            try:
-                info = model_info(model)
-                config = getattr(info, "config", {}) or {}
-                diffusers_config = config.get("diffusers", {}) or {}
-                arch_val = diffusers_config.get("_class_name", "")
-                if isinstance(arch_val, list):
-                    # prefer first meaningful entry
-                    architecture = arch_val[0] if arch_val else ""
-                else:
-                    architecture = arch_val or ""
-            except Exception:
-                architecture = ""
+        architecture = ""
+        try:
+            info = model_info(model)
+            config = getattr(info, "config", {}) or {}
+            diffusers_config = config.get("diffusers", {}) or {}
+            arch_val = diffusers_config.get("_class_name", "")
+            if isinstance(arch_val, list):
+                # prefer first meaningful entry
+                architecture = arch_val[0] if arch_val else ""
+            else:
+                architecture = arch_val or ""
+        except Exception:
+            architecture = ""
 
         # If model is a video/diffusion pipeline like WanPipeline or ZImagePipeline, load DiffusionPipeline
         if architecture in DIFFUSION_PIPELINE_MODELS:
