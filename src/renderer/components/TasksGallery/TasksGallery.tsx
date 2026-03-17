@@ -428,10 +428,10 @@ export default function TasksGallery() {
     title: string;
     description?: string;
     setup?: string;
-    command: string;
+    run: string;
     cpus?: string;
     memory?: string;
-    accelerators?: string;
+    supported_accelerators?: string;
     github_repo_url?: string;
     github_repo_dir?: string;
     github_repo_branch?: string;
