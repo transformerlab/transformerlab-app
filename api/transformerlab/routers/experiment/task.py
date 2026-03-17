@@ -18,6 +18,7 @@ import zipfile
 import os
 import posixpath
 import tempfile
+import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from lab.dirs import get_workspace_dir
 from lab import storage
@@ -1761,7 +1762,6 @@ async def add_task_to_team_gallery(
     await storage.makedirs(export_root, exist_ok=True)
 
     safe_title = secure_filename(request.title) or "task"
-    import uuid
 
     suffix = uuid.uuid4().hex[:8]
     dest_dir = storage.join(export_root, f"{safe_title}-{suffix}")
