@@ -141,19 +141,32 @@ class Job(BaseLabResource):
         """
         await self.update_job_data_field("tensorboard_output_dir", tensorboard_dir)
 
-    async def update_job_data_field(self, key: str, value):
+    async def update_job_data_field(self, key, value=None, multiple: bool = False):
         """
-        Updates a key-value pair in the job_data JSON object.
+        Update a key-value pair in the job_data JSON object.
+
+        If multiple=True, `key` must be a dict and all key/value pairs will be merged
+        into job_data in a single write.
         """
-        # Fetch current job_data (use uncached to avoid stale data)
+        if multiple:
+            if not isinstance(key, dict):
+                raise TypeError("When multiple=True, key must be a dict of job_data updates")
+            updates = key
+        else:
+            if not isinstance(key, str):
+                raise TypeError("key must be a str when multiple=False")
+            updates = {key: value}
+
+        # Fetch current job JSON (use uncached to avoid stale data)
         json_data = await self.get_json_data(uncached=True)
 
         # If there isn't a job_data property then make one
-        if "job_data" not in json_data:
-            json_data["job_data"] = {}
+        job_data = json_data.get("job_data")
+        if not isinstance(job_data, dict):
+            job_data = {}
 
-        # Set the key property to value and save the whole object
-        json_data["job_data"][key] = value
+        job_data.update(updates)
+        json_data["job_data"] = job_data
         await self._set_json_data(json_data)
 
     async def log_info(self, message):
