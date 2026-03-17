@@ -1270,7 +1270,9 @@ async def import_task_from_team_gallery(
                 # No index.json in the copied directory; write at least minimal metadata.
                 await task_service.update_task(task_id, {"id": task_id})
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to overwrite id in index.json for imported team task: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to overwrite id in index.json for imported team task: {e}"
+            )
 
         await cache.invalidate("tasks", f"tasks:list:{experimentId}")
         return {
@@ -1509,7 +1511,9 @@ async def export_task_to_team_gallery(
                         "github_repo_dir": task.get("github_directory"),
                         "github_repo_branch": task.get("github_branch"),
                     }
-                    yaml_obj["resources"] = {k: v for k, v in (yaml_obj.get("resources") or {}).items() if v is not None}
+                    yaml_obj["resources"] = {
+                        k: v for k, v in (yaml_obj.get("resources") or {}).items() if v is not None
+                    }
                     yaml_obj = {k: v for k, v in yaml_obj.items() if v not in (None, {}, [])}
                     async with await storage.open(exported_yaml_path, "w", encoding="utf-8") as f:
                         await f.write(yaml.safe_dump(yaml_obj, sort_keys=False))
