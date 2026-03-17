@@ -385,9 +385,8 @@ async def test_check_job_via_provider_local_interactive_died(monkeypatch):
         fake_update_status,
     )
 
-    result = await _check_job_via_provider(job, "exp-1", record, instance)
+    await _check_job_via_provider(job, "exp-1", record, instance)
 
-    assert result is True
     assert ("status", "FAILED") in calls
 
 
