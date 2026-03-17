@@ -37,6 +37,7 @@ import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { fetcher } from '../../lib/transformerlab-api-sdk';
 import { useNotification } from '../Shared/NotificationSystem';
 import TeamInteractiveGalleryModal from './TeamInteractiveGalleryModal';
+import TeamTaskYamlPreviewModal from './TeamTaskYamlPreviewModal';
 import FileBrowserModal from '../Experiment/Tasks/FileBrowserModal';
 
 // Custom filter function for tasks gallery (uses 'title' or 'name' field)
@@ -124,6 +125,7 @@ function TaskCard({
   galleryIdentifier,
   onImport,
   onViewFiles,
+  onViewTaskYaml,
   isImporting,
   disableImport,
   showCheckbox,
@@ -134,6 +136,7 @@ function TaskCard({
   galleryIdentifier: string | number;
   onImport: (identifier: string | number) => void;
   onViewFiles?: (identifier: string | number, task: any) => void;
+  onViewTaskYaml?: (identifier: string | number, task: any) => void;
   isImporting: boolean;
   disableImport: boolean;
   showCheckbox?: boolean;
@@ -275,6 +278,15 @@ function TaskCard({
           )}
         </Stack>
         <CardActions>
+          {onViewTaskYaml && (
+            <Button
+              variant="outlined"
+              color="neutral"
+              onClick={() => onViewTaskYaml(galleryIdentifier, task)}
+            >
+              View Task
+            </Button>
+          )}
           {onViewFiles && (
             <Button
               variant="outlined"
@@ -318,6 +330,11 @@ export default function TasksGallery() {
   const [teamInteractiveGalleryModalOpen, setTeamInteractiveGalleryModalOpen] =
     useState(false);
   const [teamGalleryFilesModal, setTeamGalleryFilesModal] = useState<{
+    open: boolean;
+    galleryId: string | null;
+    title?: string | null;
+  }>({ open: false, galleryId: null, title: null });
+  const [teamTaskYamlModal, setTeamTaskYamlModal] = useState<{
     open: boolean;
     galleryId: string | null;
     title?: string | null;
@@ -442,6 +459,12 @@ export default function TasksGallery() {
     const galleryId = String(task?.id || task?.title || identifier);
     const title = task?.title || task?.name || galleryId;
     setTeamGalleryFilesModal({ open: true, galleryId, title });
+  };
+
+  const handleViewTeamTaskYaml = (identifier: string | number, task: any) => {
+    const galleryId = String(task?.id || task?.title || identifier);
+    const title = task?.title || task?.name || galleryId;
+    setTeamTaskYamlModal({ open: true, galleryId, title });
   };
 
   const handleSelectTask = (taskId: string, selected: boolean) => {
@@ -572,6 +595,21 @@ export default function TasksGallery() {
           mode="team-gallery"
           galleryId={teamGalleryFilesModal.galleryId ?? ''}
           galleryTitle={teamGalleryFilesModal.title}
+        />
+      )}
+      {experimentInfo?.id && teamTaskYamlModal.open && (
+        <TeamTaskYamlPreviewModal
+          open={teamTaskYamlModal.open}
+          onClose={() =>
+            setTeamTaskYamlModal({
+              open: false,
+              galleryId: null,
+              title: null,
+            })
+          }
+          experimentId={String(experimentInfo.id)}
+          galleryId={teamTaskYamlModal.galleryId ?? ''}
+          title={teamTaskYamlModal.title}
         />
       )}
       <TeamInteractiveGalleryModal
@@ -796,6 +834,11 @@ export default function TasksGallery() {
                       onImport={handleImport}
                       onViewFiles={
                         activeTab === 'team' ? handleViewTeamFiles : undefined
+                      }
+                      onViewTaskYaml={
+                        activeTab === 'team'
+                          ? handleViewTeamTaskYaml
+                          : undefined
                       }
                       isImporting={importingIndex === galleryIdentifier}
                       disableImport={
