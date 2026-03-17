@@ -36,8 +36,8 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { fetcher } from '../../lib/transformerlab-api-sdk';
 import { useNotification } from '../Shared/NotificationSystem';
-import NewTeamTaskModal from './NewTeamTaskModal';
 import TeamInteractiveGalleryModal from './TeamInteractiveGalleryModal';
+import FileBrowserModal from '../Experiment/Tasks/FileBrowserModal';
 
 // Custom filter function for tasks gallery (uses 'title' or 'name' field)
 function filterTasksGallery(data: any[], searchText: string = '') {
@@ -123,6 +123,7 @@ function TaskCard({
   task,
   galleryIdentifier,
   onImport,
+  onViewFiles,
   isImporting,
   disableImport,
   showCheckbox,
@@ -132,6 +133,7 @@ function TaskCard({
   task: any;
   galleryIdentifier: string | number;
   onImport: (identifier: string | number) => void;
+  onViewFiles?: (identifier: string | number, task: any) => void;
   isImporting: boolean;
   disableImport: boolean;
   showCheckbox?: boolean;
@@ -273,6 +275,15 @@ function TaskCard({
           )}
         </Stack>
         <CardActions>
+          {onViewFiles && (
+            <Button
+              variant="outlined"
+              color="neutral"
+              onClick={() => onViewFiles(galleryIdentifier, task)}
+            >
+              View Files
+            </Button>
+          )}
           <Button
             variant="soft"
             color="success"
@@ -302,12 +313,15 @@ export default function TasksGallery() {
   const [importingIndex, setImportingIndex] = useState<string | number | null>(
     null,
   );
-  const [newTeamTaskModalOpen, setNewTeamTaskModalOpen] = useState(false);
-  const [isSubmittingTeamTask, setIsSubmittingTeamTask] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
   const [teamInteractiveGalleryModalOpen, setTeamInteractiveGalleryModalOpen] =
     useState(false);
+  const [teamGalleryFilesModal, setTeamGalleryFilesModal] = useState<{
+    open: boolean;
+    galleryId: string | null;
+    title?: string | null;
+  }>({ open: false, galleryId: null, title: null });
 
   // Set active tab based on URL parameter
   useEffect(() => {
@@ -424,61 +438,10 @@ export default function TasksGallery() {
     }
   };
 
-  const handleAddTeamTask = async (data: {
-    title: string;
-    description?: string;
-    setup?: string;
-    run: string;
-    cpus?: string;
-    memory?: string;
-    supported_accelerators?: string;
-    github_repo_url?: string;
-    github_repo_dir?: string;
-    github_repo_branch?: string;
-    github_branch?: string;
-  }) => {
-    setIsSubmittingTeamTask(true);
-    try {
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Task.AddToTeamGallery(experimentInfo?.id || ''),
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...data,
-            github_branch: data.github_repo_branch ?? data.github_branch,
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        addNotification({
-          type: 'danger',
-          message: `Failed to add team template: ${errorText}`,
-        });
-        return;
-      }
-
-      const result = await response.json();
-      addNotification({
-        type: 'success',
-        message: result?.message || 'Team template added successfully!',
-      });
-
-      // Refresh the team gallery
-      teamMutate();
-    } catch (err: any) {
-      console.error('Error adding team template:', err);
-      addNotification({
-        type: 'danger',
-        message: `Failed to add team template: ${err?.message || String(err)}`,
-      });
-    } finally {
-      setIsSubmittingTeamTask(false);
-    }
+  const handleViewTeamFiles = (identifier: string | number, task: any) => {
+    const galleryId = String(task?.id || task?.title || identifier);
+    const title = task?.title || task?.name || galleryId;
+    setTeamGalleryFilesModal({ open: true, galleryId, title });
   };
 
   const handleSelectTask = (taskId: string, selected: boolean) => {
@@ -596,12 +559,21 @@ export default function TasksGallery() {
         height: '100%',
       }}
     >
-      <NewTeamTaskModal
-        open={newTeamTaskModalOpen}
-        onClose={() => setNewTeamTaskModalOpen(false)}
-        onSubmit={handleAddTeamTask}
-        isSubmitting={isSubmittingTeamTask}
-      />
+      {experimentInfo?.id && teamGalleryFilesModal.open && (
+        <FileBrowserModal
+          open={teamGalleryFilesModal.open}
+          onClose={() =>
+            setTeamGalleryFilesModal({
+              open: false,
+              galleryId: null,
+              title: null,
+            })
+          }
+          mode="team-gallery"
+          galleryId={teamGalleryFilesModal.galleryId ?? ''}
+          galleryTitle={teamGalleryFilesModal.title}
+        />
+      )}
       <TeamInteractiveGalleryModal
         open={teamInteractiveGalleryModalOpen}
         onClose={() => setTeamInteractiveGalleryModalOpen(false)}
@@ -652,13 +624,6 @@ export default function TasksGallery() {
                 Delete Selected ({selectedTasks.size})
               </Button>
             )}
-            <Button
-              startDecorator={<PlusIcon size={16} />}
-              onClick={() => setNewTeamTaskModalOpen(true)}
-              size="sm"
-            >
-              Add Team Task
-            </Button>
           </Stack>
         )}
         {activeTab === 'team-interactive' && (
@@ -830,6 +795,9 @@ export default function TasksGallery() {
                       task={task}
                       galleryIdentifier={galleryIdentifier}
                       onImport={handleImport}
+                      onViewFiles={
+                        activeTab === 'team' ? handleViewTeamFiles : undefined
+                      }
                       isImporting={importingIndex === galleryIdentifier}
                       disableImport={
                         !experimentInfo?.id || importingIndex !== null

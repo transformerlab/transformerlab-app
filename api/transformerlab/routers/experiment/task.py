@@ -16,6 +16,7 @@ import json
 import yaml
 import zipfile
 import os
+import posixpath
 import tempfile
 from sqlalchemy.ext.asyncio import AsyncSession
 from lab.dirs import get_workspace_dir
@@ -1158,6 +1159,160 @@ async def team_task_gallery():
     """Get the team-specific tasks gallery stored in workspace_dir (same as tasks gallery)"""
     gallery = await galleries.get_team_tasks_gallery()
     return {"status": "success", "data": gallery}
+
+
+def _find_team_gallery_entry(gallery: list[dict], gallery_id: str) -> Optional[dict]:
+    """Find a team gallery entry by id or title, matching existing import/delete behavior."""
+    for entry in gallery:
+        if entry.get("id") == gallery_id or entry.get("title") == gallery_id:
+            return entry
+    return None
+
+
+@router.get(
+    "/gallery/team/{gallery_id}/files",
+    summary="List files in a team gallery task directory (local_task_dir)",
+)
+async def list_team_gallery_files(gallery_id: str):
+    """
+    List all files in the team gallery entry's local_task_dir.
+    Returns paths relative to that directory.
+    """
+    gallery = await galleries.get_team_tasks_gallery()
+    entry = _find_team_gallery_entry(gallery, gallery_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Task not found in team gallery")
+
+    local_task_dir = entry.get("local_task_dir")
+    if not local_task_dir:
+        # GitHub-only entry; no local directory to show.
+        return {"status": "success", "files": []}
+
+    if not await storage.exists(str(local_task_dir)) or not await storage.isdir(str(local_task_dir)):
+        raise HTTPException(status_code=404, detail="local_task_dir does not exist")
+
+    # storage.find returns file paths (not directories)
+    try:
+        full_paths = await storage.find(str(local_task_dir))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list files: {e}")
+
+    rels: list[str] = []
+    base = str(local_task_dir).rstrip("/")
+    for p in full_paths:
+        ps = str(p)
+        if not ps.startswith(base):
+            continue
+        rel = ps[len(base) :].lstrip("/")
+        if not rel or rel.startswith("."):
+            continue
+        rels.append(rel)
+
+    rels = sorted(set(rels))
+    return {"status": "success", "files": rels}
+
+
+@router.get(
+    "/gallery/team/{gallery_id}/file/{file_path:path}",
+    summary="Serve a file from a team gallery task directory for preview",
+)
+async def get_team_gallery_file(gallery_id: str, file_path: str):
+    """
+    Serve a file from the team gallery entry's local_task_dir for preview.
+    """
+    gallery = await galleries.get_team_tasks_gallery()
+    entry = _find_team_gallery_entry(gallery, gallery_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Task not found in team gallery")
+
+    local_task_dir = entry.get("local_task_dir")
+    if not local_task_dir:
+        raise HTTPException(status_code=400, detail="Task has no local_task_dir")
+
+    base = str(local_task_dir).rstrip("/")
+    # Normalize and prevent traversal
+    safe_rel = posixpath.normpath(file_path).lstrip("/")
+    if safe_rel.startswith("..") or "/.." in safe_rel:
+        raise HTTPException(status_code=400, detail="Invalid file path")
+
+    target = storage.join(base, safe_rel)
+    if not await storage.exists(target) or not await storage.isfile(target):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    _, ext = os.path.splitext(safe_rel.lower())
+    media_type_map = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".json": "application/json",
+        ".txt": "text/plain",
+        ".log": "text/plain",
+        ".csv": "text/csv",
+        ".py": "text/plain",
+        ".yaml": "text/plain",
+        ".yml": "text/plain",
+        ".md": "text/plain",
+        ".sh": "text/plain",
+        ".cfg": "text/plain",
+        ".ini": "text/plain",
+        ".toml": "text/plain",
+        ".pdf": "application/pdf",
+        ".zip": "application/zip",
+    }
+    media_type = media_type_map.get(ext, "application/octet-stream")
+
+    text_types = {
+        ".txt",
+        ".log",
+        ".csv",
+        ".py",
+        ".yaml",
+        ".yml",
+        ".md",
+        ".sh",
+        ".cfg",
+        ".ini",
+        ".toml",
+        ".json",
+        ".xml",
+        ".html",
+        ".css",
+        ".js",
+        ".ts",
+        ".tsx",
+        ".jsx",
+        ".sql",
+        ".r",
+        ".ipynb",
+    }
+    if ext in text_types:
+        try:
+            async with await storage.open(target, "r", encoding="utf-8") as f:
+                content = await f.read()
+            return Response(content, media_type=media_type)
+        except Exception:
+            pass
+
+    async def generate():
+        async with await storage.open(target, "rb") as f:
+            while True:
+                chunk = await f.read(8192)
+                if not chunk:
+                    break
+                yield chunk
+
+    filename = os.path.basename(safe_rel)
+    return StreamingResponse(
+        generate(),
+        media_type=media_type,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 @router.post("/gallery/team/import", summary="Import a task from the team tasks gallery")
