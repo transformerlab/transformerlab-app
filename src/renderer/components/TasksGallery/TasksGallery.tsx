@@ -26,7 +26,6 @@ import {
   GithubIcon,
   DownloadIcon,
   ScanTextIcon,
-  PlusIcon,
   Trash2Icon,
   GraduationCapIcon,
   ChartColumnIncreasingIcon,
@@ -36,7 +35,6 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { fetcher } from '../../lib/transformerlab-api-sdk';
 import { useNotification } from '../Shared/NotificationSystem';
-import TeamInteractiveGalleryModal from './TeamInteractiveGalleryModal';
 import TeamTaskYamlPreviewModal from './TeamTaskYamlPreviewModal';
 import FileBrowserModal from '../Experiment/Tasks/FileBrowserModal';
 
@@ -327,8 +325,6 @@ export default function TasksGallery() {
   );
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
-  const [teamInteractiveGalleryModalOpen, setTeamInteractiveGalleryModalOpen] =
-    useState(false);
   const [teamGalleryFilesModal, setTeamGalleryFilesModal] = useState<{
     open: boolean;
     galleryId: string | null;
@@ -553,6 +549,11 @@ export default function TasksGallery() {
   const globalGallery = data?.data || [];
   const teamGallery = teamData?.data || [];
   const interactiveGallery = interactiveData?.data || [];
+  const teamInteractiveGallery = teamGallery.filter(
+    (entry: any) =>
+      entry?.subtype === 'interactive' ||
+      entry?.config?.subtype === 'interactive',
+  );
 
   // Determine which gallery to display
   let gallery;
@@ -562,9 +563,8 @@ export default function TasksGallery() {
     gallery = teamGallery;
     isActiveLoading = teamLoading;
   } else if (activeTab === 'team-interactive') {
-    // Team interactive shows empty gallery, open modal with button instead
-    gallery = [];
-    isActiveLoading = false;
+    gallery = teamInteractiveGallery;
+    isActiveLoading = teamLoading;
   } else if (activeTab === 'interactive') {
     gallery = interactiveGallery;
     isActiveLoading = interactiveLoading;
@@ -612,14 +612,6 @@ export default function TasksGallery() {
           title={teamTaskYamlModal.title}
         />
       )}
-      <TeamInteractiveGalleryModal
-        open={teamInteractiveGalleryModalOpen}
-        onClose={() => setTeamInteractiveGalleryModalOpen(false)}
-        tasks={interactiveGallery}
-        isLoading={interactiveLoading}
-        onImport={handleImport}
-        importingIndex={importingIndex}
-      />
       <Box
         sx={{
           display: 'flex',
@@ -645,6 +637,7 @@ export default function TasksGallery() {
             <Tab value="global">Tasks Gallery</Tab>
             <Tab value="interactive">Interactive Gallery</Tab>
             <Tab value="team">Team Tasks</Tab>
+            <Tab value="team-interactive">Team Interactive</Tab>
           </TabList>
         </Tabs>
         {activeTab === 'team' && (
@@ -677,13 +670,6 @@ export default function TasksGallery() {
                 Delete Selected ({selectedTasks.size})
               </Button>
             )}
-            <Button
-              startDecorator={<PlusIcon size={16} />}
-              onClick={() => setTeamInteractiveGalleryModalOpen(true)}
-              size="sm"
-            >
-              Add Team Interactive Task
-            </Button>
           </Stack>
         )}
       </Box>
@@ -766,23 +752,18 @@ export default function TasksGallery() {
         )}
         {!isActiveLoading && gallery.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 8 }}>
-            {activeTab === 'team-interactive' ? (
+            <>
               <Typography level="body-lg" color="neutral">
                 No tasks available in the gallery.
               </Typography>
-            ) : (
-              <>
-                <Typography level="body-lg" color="neutral">
-                  No tasks available in the gallery.
-                </Typography>
-                {teamError && activeTab === 'team' && (
+              {teamError &&
+                (activeTab === 'team' || activeTab === 'team-interactive') && (
                   <Typography level="body-sm" color="danger" sx={{ mt: 1 }}>
                     Failed to load team tasks. Check workspace
                     team_specific_tasks.json.
                   </Typography>
                 )}
-              </>
-            )}
+            </>
           </Box>
         )}
         {!isActiveLoading && gallery.length > 0 && (
@@ -833,10 +814,12 @@ export default function TasksGallery() {
                       galleryIdentifier={galleryIdentifier}
                       onImport={handleImport}
                       onViewFiles={
-                        activeTab === 'team' ? handleViewTeamFiles : undefined
+                        activeTab === 'team' || activeTab === 'team-interactive'
+                          ? handleViewTeamFiles
+                          : undefined
                       }
                       onViewTaskYaml={
-                        activeTab === 'team'
+                        activeTab === 'team' || activeTab === 'team-interactive'
                           ? handleViewTeamTaskYaml
                           : undefined
                       }

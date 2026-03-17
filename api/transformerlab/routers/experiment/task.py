@@ -1362,6 +1362,23 @@ async def import_task_from_team_gallery(
     local_task_dir = gallery_entry.get("local_task_dir")
     inline_config = gallery_entry.get("config") if isinstance(gallery_entry.get("config"), dict) else None
 
+    # Determine whether the imported task should be an interactive task.
+    # This is primarily driven by the client (team interactive tab), but we also infer from gallery metadata.
+    gallery_subtype = gallery_entry.get("subtype") or (inline_config.get("subtype") if inline_config else None)
+    is_interactive_import = bool(
+        request.is_interactive
+        or gallery_subtype == "interactive"
+        or gallery_entry.get("interactive_type")
+        or gallery_entry.get("interactive_gallery_id")
+    )
+
+    interactive_type = gallery_entry.get("interactive_type") or (
+        inline_config.get("interactive_type") if inline_config else None
+    )
+    interactive_gallery_id = gallery_entry.get("interactive_gallery_id") or (
+        inline_config.get("interactive_gallery_id") if inline_config else None
+    )
+
     # --- 1) Filesystem-backed entry: read task.yaml and copy whole directory ---
     if local_task_dir:
         # local_task_dir is expected to be a workspace-local path (shared FS for clustered nodes)
@@ -1379,6 +1396,12 @@ async def import_task_from_team_gallery(
         task_data["experiment_id"] = experimentId
         task_data.setdefault("type", "REMOTE")
         task_data.setdefault("plugin", "remote_orchestrator")
+        if is_interactive_import:
+            task_data["subtype"] = "interactive"
+            if interactive_type:
+                task_data["interactive_type"] = interactive_type
+            if interactive_gallery_id:
+                task_data["interactive_gallery_id"] = interactive_gallery_id
 
         # Ensure GitHub metadata is carried through if present in the gallery entry
         if github_repo_url and not task_data.get("github_repo_url"):
@@ -1447,9 +1470,24 @@ async def import_task_from_team_gallery(
             "type": "REMOTE",
             "plugin": "remote_orchestrator",
         }
+        if is_interactive_import:
+            task_data["subtype"] = "interactive"
+            if interactive_type:
+                task_data["interactive_type"] = interactive_type
+            if interactive_gallery_id:
+                task_data["interactive_gallery_id"] = interactive_gallery_id
+
         for key in ("cpus", "memory", "disk_space", "accelerators", "num_nodes", "env_vars", "parameters"):
             if inline_config.get(key) is not None:
                 task_data[key] = inline_config.get(key)
+
+        # Merge user-provided env_vars from the request (best-effort)
+        if request.env_vars:
+            existing = task_data.get("env_vars", {})
+            if not isinstance(existing, dict):
+                existing = {}
+            existing.update(request.env_vars)
+            task_data["env_vars"] = existing
 
         await _resolve_provider(task_data, user_and_team, session)
         task_id = await task_service.add_task(task_data)
@@ -1524,6 +1562,12 @@ async def import_task_from_team_gallery(
         task_data["type"] = "REMOTE"
     if "plugin" not in task_data:
         task_data["plugin"] = "remote_orchestrator"
+    if is_interactive_import:
+        task_data["subtype"] = "interactive"
+        if interactive_type and not task_data.get("interactive_type"):
+            task_data["interactive_type"] = interactive_type
+        if interactive_gallery_id and not task_data.get("interactive_gallery_id"):
+            task_data["interactive_gallery_id"] = interactive_gallery_id
 
     # Ensure GitHub repo info is set (may be in task.yaml as git_repo)
     if not task_data.get("github_repo_url"):
@@ -1609,6 +1653,13 @@ async def export_task_to_team_gallery(
         config["github_directory"] = task.get("github_directory")
     if task.get("github_branch"):
         config["github_branch"] = task.get("github_branch")
+    # Preserve interactive metadata in the exported entry so the team interactive tab can round-trip.
+    if task.get("subtype"):
+        config["subtype"] = task.get("subtype")
+    if task.get("interactive_type"):
+        config["interactive_type"] = task.get("interactive_type")
+    if task.get("interactive_gallery_id"):
+        config["interactive_gallery_id"] = task.get("interactive_gallery_id")
 
     gallery_entry = {
         "id": task.get("id") or request.task_id,
@@ -1618,6 +1669,9 @@ async def export_task_to_team_gallery(
         "github_repo_url": task.get("github_repo_url"),
         "github_repo_dir": task.get("github_directory"),
         "github_branch": task.get("github_branch"),
+        "subtype": task.get("subtype"),
+        "interactive_type": task.get("interactive_type"),
+        "interactive_gallery_id": task.get("interactive_gallery_id"),
     }
 
     # Also export the *entire* on-disk task directory (task.yaml + any files) into a stable
