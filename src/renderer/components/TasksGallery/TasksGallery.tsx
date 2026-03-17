@@ -554,13 +554,20 @@ export default function TasksGallery() {
       entry?.subtype === 'interactive' ||
       entry?.config?.subtype === 'interactive',
   );
+  const teamNonInteractiveGallery = teamGallery.filter(
+    (entry: any) =>
+      !(
+        entry?.subtype === 'interactive' ||
+        entry?.config?.subtype === 'interactive'
+      ),
+  );
 
   // Determine which gallery to display
   let gallery;
   let isActiveLoading;
 
   if (activeTab === 'team') {
-    gallery = teamGallery;
+    gallery = teamNonInteractiveGallery;
     isActiveLoading = teamLoading;
   } else if (activeTab === 'team-interactive') {
     gallery = teamInteractiveGallery;
