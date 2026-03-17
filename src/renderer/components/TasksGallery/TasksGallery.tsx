@@ -607,7 +607,6 @@ export default function TasksGallery() {
             <Tab value="global">Tasks Gallery</Tab>
             <Tab value="interactive">Interactive Gallery</Tab>
             <Tab value="team">Team Tasks</Tab>
-            <Tab value="team-interactive">Team Interactive</Tab>
           </TabList>
         </Tabs>
         {activeTab === 'team' && (
