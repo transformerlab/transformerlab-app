@@ -1730,8 +1730,11 @@ async def export_task_to_team_gallery(
 
                 gallery_entry["local_task_dir"] = dest_dir
     except Exception as e:
-        # Best-effort: still export metadata entry even if filesystem copy fails
-        print(f"Warning: failed to export task directory for team gallery: {e}")
+        # If filesystem export fails, don't create or update the gallery entry.
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to export task directory for team gallery: {e}",
+        )
 
     await galleries.add_team_task_to_gallery(gallery_entry)
 
