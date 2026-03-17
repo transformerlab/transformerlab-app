@@ -141,21 +141,15 @@ class Job(BaseLabResource):
         """
         await self.update_job_data_field("tensorboard_output_dir", tensorboard_dir)
 
-    async def update_job_data_field(self, key, value=None, multiple: bool = False):
+    async def update_job_data_fields(self, updates):
         """
-        Update a key-value pair in the job_data JSON object.
+        Update one or more fields in the job_data JSON object.
 
-        If multiple=True, `key` must be a dict and all key/value pairs will be merged
-        into job_data in a single write.
+        `updates` must be a dict of key/value pairs to merge into job_data.
+        Prefer this method when updating multiple fields at once.
         """
-        if multiple:
-            if not isinstance(key, dict):
-                raise TypeError("When multiple=True, key must be a dict of job_data updates")
-            updates = key
-        else:
-            if not isinstance(key, str):
-                raise TypeError("key must be a str when multiple=False")
-            updates = {key: value}
+        if not isinstance(updates, dict):
+            raise TypeError("updates must be a dict of job_data updates")
 
         # Fetch current job JSON (use uncached to avoid stale data)
         json_data = await self.get_json_data(uncached=True)
@@ -168,6 +162,28 @@ class Job(BaseLabResource):
         job_data.update(updates)
         json_data["job_data"] = job_data
         await self._set_json_data(json_data)
+
+    async def update_job_data_field(self, key, value=None, multiple: bool = False):
+        """
+        Backwards-compatible wrapper for updating job_data.
+
+        - When multiple=False (default), `key` is the field name (str) and `value` is
+          the value to set for that single field.
+        - When multiple=True, `key` must be a dict of field/value pairs to update and
+          `value` is ignored. This is equivalent to calling update_job_data_fields(key).
+
+        New code should prefer `update_job_data_fields()` for multi-field updates.
+        """
+        if multiple:
+            if not isinstance(key, dict):
+                raise TypeError("When multiple=True, key must be a dict of job_data updates")
+            updates = key
+        else:
+            if not isinstance(key, str):
+                raise TypeError("key must be a str when multiple=False")
+            updates = {key: value}
+
+        await self.update_job_data_fields(updates)
 
     async def log_info(self, message):
         """
