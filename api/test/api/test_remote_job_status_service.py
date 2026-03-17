@@ -126,6 +126,22 @@ async def test_handle_live_status_finished(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_handle_live_status_finished_interactive_subtype_does_not_transition(monkeypatch):
+    """Interactive subtype jobs should never be auto-marked COMPLETE."""
+    job = _make_job(status="INTERACTIVE", live_status="finished")
+    job["job_data"]["subtype"] = "interactive"
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        AsyncMock(side_effect=AssertionError("should not be called")),
+    )
+
+    result = await _handle_live_status(job, "exp-1")
+    assert result is False
+
+
+@pytest.mark.asyncio
 async def test_handle_live_status_crashed(monkeypatch):
     """live_status=crashed should transition job to FAILED and return True."""
     job = _make_job(live_status="crashed")
@@ -148,9 +164,41 @@ async def test_handle_live_status_crashed(monkeypatch):
         "job_update_status",
         fake_update_status,
     )
+    monkeypatch.setattr(remote_job_status_service, "_best_effort_stop_cluster_for_job", AsyncMock(return_value=None))
 
     result = await _handle_live_status(job, "exp-1")
 
+    assert result is True
+    assert ("status", "job-1", "FAILED") in calls
+
+
+@pytest.mark.asyncio
+async def test_handle_live_status_crashed_interactive_subtype_transitions_failed(monkeypatch):
+    """Interactive subtype jobs may be marked FAILED when live_status=crashed."""
+    job = _make_job(status="INTERACTIVE", live_status="crashed")
+    job["job_data"]["subtype"] = "interactive"
+
+    calls = []
+
+    async def fake_update_kv(job_id, key, value, exp_id):
+        calls.append(("kv", job_id, key))
+
+    async def fake_update_status(job_id, status, experiment_id=None):
+        calls.append(("status", job_id, status))
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        fake_update_kv,
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        fake_update_status,
+    )
+    monkeypatch.setattr(remote_job_status_service, "_best_effort_stop_cluster_for_job", AsyncMock(return_value=None))
+
+    result = await _handle_live_status(job, "exp-1")
     assert result is True
     assert ("status", "job-1", "FAILED") in calls
 
