@@ -520,11 +520,10 @@ async def get_tunnel_info_for_job(
         # If parsing the logs found a ready service, cache the tunnel info in job_data
         # so it survives log rotation / truncation and can be reused without log fetches.
         if tunnel_info.get("is_ready"):
-            await job_service.job_update_job_data_insert_key_value(
-                job_id, "cached_tunnel_info", tunnel_info, experimentId
-            )
-            await job_service.job_update_job_data_insert_key_value(
-                job_id, "tunnel_info_urls", tunnel_info, experimentId
+            await job_service.job_update_job_data_insert_key_values(
+                job_id,
+                {"cached_tunnel_info": tunnel_info, "tunnel_info_urls": tunnel_info},
+                experimentId,
             )
         else:
             print(f"[tunnel_info] Job {job_id}: no URLs found in logs and no cache available")
