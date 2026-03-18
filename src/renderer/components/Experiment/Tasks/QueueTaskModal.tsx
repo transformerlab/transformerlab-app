@@ -117,7 +117,8 @@ export default function QueueTaskModal({
   const [acceleratorsInput, setAcceleratorsInput] = React.useState('');
   const [numNodesInput, setNumNodesInput] = React.useState('');
   const [minutesRequestedInput, setMinutesRequestedInput] = React.useState('');
-  const [showResourceOverrides, setShowResourceOverrides] = React.useState(false);
+  const [showResourceOverrides, setShowResourceOverrides] =
+    React.useState(false);
   const loadingMessages = React.useMemo(
     () => [
       'Contacting compute provider…',
@@ -1261,7 +1262,6 @@ export default function QueueTaskModal({
                   </FormHelperText>
                 </FormControl>
               )}
-
             </Stack>
 
             <Divider />
@@ -1479,7 +1479,9 @@ export default function QueueTaskModal({
                           <Typography
                             level="title-sm"
                             color={
-                              resourceValidation.hasErrors ? 'danger' : 'warning'
+                              resourceValidation.hasErrors
+                                ? 'danger'
+                                : 'warning'
                             }
                           >
                             {resourceValidation.hasErrors
