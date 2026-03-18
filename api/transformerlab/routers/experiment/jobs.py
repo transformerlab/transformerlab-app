@@ -1414,6 +1414,7 @@ async def get_job_models(job_id: str, request: Request):
 async def save_dataset_to_registry(
     job_id: str,
     dataset_name: str,
+    experimentId: str,
     target_name: Optional[str] = Query(None, description="Custom name for the dataset in the registry"),
     mode: str = Query(
         "new", description="'new' to create a new entry, 'existing' to merge into an existing registry dataset"
@@ -1426,31 +1427,25 @@ async def save_dataset_to_registry(
 ):
     """Copy a dataset from job's datasets directory to the global datasets registry.
 
-    The entire source directory is copied recursively into the global datasets
-    directory.  If the destination already exists, a timestamp suffix is appended
-    to the name to avoid overwriting.
-
-    A version entry is then written to the filesystem-based asset_groups
-    directory, storing only a reference (asset_id) to the dataset that now
-    lives in the global datasets directory.
+    The copy runs as a background task so the endpoint returns immediately.
+    The caller receives a task_job_id that can be polled via GET /{task_job_id}
+    to monitor progress.  The background task sets the job status to COMPLETE
+    on success or FAILED (with an error message) on failure.
     """
 
     try:
-        # Secure the source dataset name
+        # Validate inputs synchronously before starting the background task
         dataset_name_secure = secure_filename(dataset_name)
 
-        # Get source path (job's datasets directory)
         job_datasets_dir = await get_job_datasets_dir(job_id)
         source_path = storage.join(job_datasets_dir, dataset_name_secure)
 
         if not await storage.exists(source_path):
             raise HTTPException(status_code=404, detail=f"Dataset '{dataset_name}' not found in job directory")
 
-        # Get the registry directory
         datasets_registry_dir = await get_datasets_dir()
 
         if mode == "existing":
-            # Merge into an existing dataset
             if not target_name:
                 raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
             target_name_secure = secure_filename(target_name)
@@ -1458,15 +1453,76 @@ async def save_dataset_to_registry(
             if not await storage.exists(dest_path):
                 raise HTTPException(status_code=404, detail=f"Dataset '{target_name}' not found in registry")
 
-            # Copy all files recursively from source into the existing dataset directory
+        # Create a tracking job so the frontend can poll for completion
+        task_job_id = await job_service.job_create(
+            type="TASK",
+            status="STARTED",
+            experiment_id=experimentId,
+            job_data=json.dumps({
+                "subtype": "save_to_registry",
+                "asset_type": "dataset",
+                "source_name": dataset_name,
+                "target_name": target_name or dataset_name,
+            }),
+        )
+
+        # Fire-and-forget the heavy copy work
+        asyncio.create_task(
+            _save_dataset_to_registry_background(
+                task_job_id=str(task_job_id),
+                job_id=job_id,
+                dataset_name_secure=dataset_name_secure,
+                source_path=source_path,
+                datasets_registry_dir=datasets_registry_dir,
+                target_name=target_name,
+                mode=mode,
+                tag=tag,
+                version_label=version_label,
+                description=description,
+                experiment_id=experimentId,
+            )
+        )
+
+        return {
+            "status": "started",
+            "message": "Dataset save to registry started",
+            "task_job_id": task_job_id,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error starting dataset save to registry for job {job_id}: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to start dataset save to registry: {str(e)}")
+
+
+async def _save_dataset_to_registry_background(
+    task_job_id: str,
+    job_id: str,
+    dataset_name_secure: str,
+    source_path: str,
+    datasets_registry_dir: str,
+    target_name: Optional[str],
+    mode: str,
+    tag: str,
+    version_label: str,
+    description: Optional[str],
+    experiment_id: str,
+):
+    """Background coroutine that performs the heavy copy and creates the version entry."""
+    try:
+        if mode == "existing":
+            target_name_secure = secure_filename(target_name)
+            dest_path = storage.join(datasets_registry_dir, target_name_secure)
             await storage.copy_dir(source_path, dest_path)
             final_name = target_name_secure
         else:
-            # Save as a new dataset
             final_name = secure_filename(target_name) if target_name else dataset_name_secure
             dest_path = storage.join(datasets_registry_dir, final_name)
 
-            # If the destination already exists, add a timestamp suffix to avoid overwriting
             if await storage.exists(dest_path):
                 from datetime import datetime
 
@@ -1479,7 +1535,7 @@ async def save_dataset_to_registry(
         # Create a version entry pointing to the dataset in the global registry
         group_name = secure_filename(target_name) if target_name else dataset_name_secure
         version_description = description if description else f"Created from job {job_id}"
-        version_entry = await asset_version_service.create_version(
+        await asset_version_service.create_version(
             asset_type="dataset",
             group_name=group_name,
             asset_id=final_name,
@@ -1489,26 +1545,37 @@ async def save_dataset_to_registry(
             tag=tag,
         )
 
-        return {
-            "status": "success",
-            "message": f"Dataset saved to registry as '{final_name}'",
-            "version": version_entry,
-        }
+        # Store the result in job_data so the frontend can read it
+        try:
+            job_obj = await Job.get(task_job_id)
+            await job_obj.update_job_data_field("result_message", f"Dataset saved to registry as '{final_name}'")
+            await job_obj.update_job_data_field("final_name", final_name)
+            await job_obj.update_job_data_field("group_name", group_name)
+        except Exception:
+            pass
 
-    except HTTPException:
-        raise
+        await job_update_status(task_job_id, "COMPLETE", experiment_id=experiment_id)
+        await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
+
     except Exception as e:
         print(f"Error saving dataset to registry for job {job_id}: {str(e)}")
         import traceback
 
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to save dataset to registry: {str(e)}")
+        try:
+            job_obj = await Job.get(task_job_id)
+            await job_obj.set_error_message(str(e))
+        except Exception:
+            pass
+        await job_update_status(task_job_id, "FAILED", experiment_id=experiment_id, error_msg=str(e))
+        await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
 
 
 @router.post("/{job_id}/models/{model_name}/save_to_registry")
 async def save_model_to_registry(
     job_id: str,
     model_name: str,
+    experimentId: str,
     target_name: Optional[str] = Query(None, description="Custom name for the model in the registry"),
     mode: str = Query(
         "new", description="'new' to create a new entry, 'existing' to merge into an existing registry model"
@@ -1519,31 +1586,25 @@ async def save_model_to_registry(
 ):
     """Copy a model from job's models directory to the global models registry.
 
-    The entire source directory is copied recursively into the global models
-    directory.  If the destination already exists, the copy is skipped and the
-    existing directory is reused — no duplicates are created.
-
-    A version entry is then written to the filesystem-based asset_groups
-    directory, storing only a reference (asset_id) to the model that now
-    lives in the global models directory.
+    The copy runs as a background task so the endpoint returns immediately.
+    The caller receives a task_job_id that can be polled via GET /{task_job_id}
+    to monitor progress.  The background task sets the job status to COMPLETE
+    on success or FAILED (with an error message) on failure.
     """
 
     try:
-        # Secure the source model name
+        # Validate inputs synchronously before starting the background task
         model_name_secure = secure_filename(model_name)
 
-        # Get source path (job's models directory)
         job_models_dir = await get_job_models_dir(job_id)
         source_path = storage.join(job_models_dir, model_name_secure)
 
         if not await storage.exists(source_path):
             raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found in job directory")
 
-        # Get the registry directory
         models_registry_dir = await get_models_dir()
 
         if mode == "existing":
-            # Merge into an existing model
             if not target_name:
                 raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
             target_name_secure = secure_filename(target_name)
@@ -1551,15 +1612,76 @@ async def save_model_to_registry(
             if not await storage.exists(dest_path):
                 raise HTTPException(status_code=404, detail=f"Model '{target_name}' not found in registry")
 
-            # Copy all files recursively from source into the existing model directory
+        # Create a tracking job so the frontend can poll for completion
+        task_job_id = await job_service.job_create(
+            type="TASK",
+            status="STARTED",
+            experiment_id=experimentId,
+            job_data=json.dumps({
+                "subtype": "save_to_registry",
+                "asset_type": "model",
+                "source_name": model_name,
+                "target_name": target_name or model_name,
+            }),
+        )
+
+        # Fire-and-forget the heavy copy work
+        asyncio.create_task(
+            _save_model_to_registry_background(
+                task_job_id=str(task_job_id),
+                job_id=job_id,
+                model_name_secure=model_name_secure,
+                source_path=source_path,
+                models_registry_dir=models_registry_dir,
+                target_name=target_name,
+                mode=mode,
+                tag=tag,
+                version_label=version_label,
+                description=description,
+                experiment_id=experimentId,
+            )
+        )
+
+        return {
+            "status": "started",
+            "message": "Model save to registry started",
+            "task_job_id": task_job_id,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error starting model save to registry for job {job_id}: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to start model save to registry: {str(e)}")
+
+
+async def _save_model_to_registry_background(
+    task_job_id: str,
+    job_id: str,
+    model_name_secure: str,
+    source_path: str,
+    models_registry_dir: str,
+    target_name: Optional[str],
+    mode: str,
+    tag: str,
+    version_label: str,
+    description: Optional[str],
+    experiment_id: str,
+):
+    """Background coroutine that performs the heavy copy and creates the version entry."""
+    try:
+        if mode == "existing":
+            target_name_secure = secure_filename(target_name)
+            dest_path = storage.join(models_registry_dir, target_name_secure)
             await storage.copy_dir(source_path, dest_path)
             final_name = target_name_secure
         else:
-            # Save as a new model
             final_name = secure_filename(target_name) if target_name else model_name_secure
             dest_path = storage.join(models_registry_dir, final_name)
 
-            # If the destination already exists, add a timestamp suffix to avoid overwriting
             if await storage.exists(dest_path):
                 from datetime import datetime
 
@@ -1572,7 +1694,7 @@ async def save_model_to_registry(
         # Create a version entry pointing to the model in the global registry
         group_name = secure_filename(target_name) if target_name else model_name_secure
         version_description = description if description else f"Created from job {job_id}"
-        version_entry = await asset_version_service.create_version(
+        await asset_version_service.create_version(
             asset_type="model",
             group_name=group_name,
             asset_id=final_name,
@@ -1582,20 +1704,30 @@ async def save_model_to_registry(
             tag=tag,
         )
 
-        return {
-            "status": "success",
-            "message": f"Model saved to registry as '{final_name}'",
-            "version": version_entry,
-        }
+        # Store the result in job_data so the frontend can read it
+        try:
+            job_obj = await Job.get(task_job_id)
+            await job_obj.update_job_data_field("result_message", f"Model saved to registry as '{final_name}'")
+            await job_obj.update_job_data_field("final_name", final_name)
+            await job_obj.update_job_data_field("group_name", group_name)
+        except Exception:
+            pass
 
-    except HTTPException:
-        raise
+        await job_update_status(task_job_id, "COMPLETE", experiment_id=experiment_id)
+        await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
+
     except Exception as e:
         print(f"Error saving model to registry for job {job_id}: {str(e)}")
         import traceback
 
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to save model to registry: {str(e)}")
+        try:
+            job_obj = await Job.get(task_job_id)
+            await job_obj.set_error_message(str(e))
+        except Exception:
+            pass
+        await job_update_status(task_job_id, "FAILED", experiment_id=experiment_id, error_msg=str(e))
+        await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
 
 
 @router.get("/{job_id}/files")
