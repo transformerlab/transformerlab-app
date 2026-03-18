@@ -1405,9 +1405,7 @@ async def save_dataset_to_registry(
     dataset_name: str,
     experimentId: str,
     target_name: Optional[str] = Query(None, description="Group name for the dataset in the registry"),
-    asset_name: Optional[str] = Query(
-        None, description="Unique folder name for the dataset in the datasets directory"
-    ),
+    asset_name: Optional[str] = Query(None, description="Unique folder name for the dataset in the datasets directory"),
     mode: str = Query(
         "new", description="'new' to create a new entry, 'existing' to merge into an existing registry dataset"
     ),
@@ -1514,9 +1512,7 @@ async def save_model_to_registry(
     model_name: str,
     experimentId: str,
     target_name: Optional[str] = Query(None, description="Group name for the model in the registry"),
-    asset_name: Optional[str] = Query(
-        None, description="Unique folder name for the model in the models directory"
-    ),
+    asset_name: Optional[str] = Query(None, description="Unique folder name for the model in the models directory"),
     mode: str = Query(
         "new", description="'new' to create a new entry, 'existing' to merge into an existing registry model"
     ),
