@@ -1263,6 +1263,11 @@ async def _launch_sweep_jobs(
                 if tfl_storage_uri:
                     env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
 
+                # For RunPod providers, ensure uv is available and configured to use
+                # the system Python so sweep runs can call `uv` directly.
+                if provider.type == ProviderType.RUNPOD.value:
+                    env_vars["UV_SYSTEM_PYTHON"] = "1"
+
                 # For local provider, set TFL_WORKSPACE_DIR so the lab SDK in the subprocess finds the job dir
                 if provider.type == ProviderType.LOCAL.value and team_id:
                     set_organization_id(team_id)
@@ -1328,6 +1333,11 @@ async def _launch_sweep_jobs(
 
                 if request.file_mounts is True and request.task_id:
                     setup_commands.append(COPY_FILE_MOUNTS_SETUP)
+
+                # Ensure uv is installed on RunPod sweeps as well so the run
+                # command can rely on it being present.
+                if provider.type == ProviderType.RUNPOD.value:
+                    setup_commands.append("curl -LsSf https://astral.sh/uv/install.sh | sh")
 
                 if request.github_repo_url:
                     workspace_dir = await get_workspace_dir()
@@ -1695,6 +1705,12 @@ async def launch_template_on_provider(
     if provider.type != ProviderType.LOCAL.value:
         setup_commands.append("pip install -q transformerlab")
 
+    # For RunPod providers, ensure uv is available and configured to use the
+    # system Python. This allows user commands to invoke `uv` directly.
+    if provider.type == ProviderType.RUNPOD.value:
+        env_vars["UV_SYSTEM_PYTHON"] = "1"
+        setup_commands.append("curl -LsSf https://astral.sh/uv/install.sh | sh")
+
     # If GitHub repo fields are missing, fall back to the stored task's fields.
     # This handles GitHub-sourced interactive tasks where the CLI/TUI doesn't
     # send these fields and relies on the backend to resolve them from the task.
@@ -1966,12 +1982,36 @@ async def launch_template_on_provider(
             detail="No run command resolved for this task. The task may be missing a 'run' or 'command' field.",
         )
 
+    # Apply provider-level harness hooks (pre/post) around the task command.
+    # Hooks are concatenated with ';' so the post hook always runs.
+    from transformerlab.services.provider_harness_hook_service import build_hooked_command
+
+    provider_config_for_hooks = provider.config or {}
+    if isinstance(provider_config_for_hooks, str):
+        try:
+            provider_config_for_hooks = json.loads(provider_config_for_hooks)
+        except Exception:
+            provider_config_for_hooks = {}
+    extra_config_for_hooks = (
+        provider_config_for_hooks.get("extra_config", {}) if isinstance(provider_config_for_hooks, dict) else {}
+    )
+    if not isinstance(extra_config_for_hooks, dict):
+        extra_config_for_hooks = {}
+
+    pre_task_hook = extra_config_for_hooks.get("pre_task_hook")
+    post_task_hook = extra_config_for_hooks.get("post_task_hook")
+    command_with_hooks = build_hooked_command(
+        command_with_secrets,
+        pre_hook=str(pre_task_hook) if pre_task_hook is not None else None,
+        post_hook=str(post_task_hook) if post_task_hook is not None else None,
+    )
+
     # Wrap the user command with tfl-remote-trap so we can track live_status in job_data.
     # This uses the tfl-remote-trap helper from the transformerlab SDK, which:
     #   - sets job_data.live_status="started" when execution begins
     #   - sets job_data.live_status="finished" on success
     #   - sets job_data.live_status="crashed" on failure
-    wrapped_run = f"tfl-remote-trap -- {command_with_secrets}"
+    wrapped_run = f"tfl-remote-trap -- {command_with_hooks}"
 
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
@@ -2531,6 +2571,12 @@ async def resume_from_checkpoint(
             branch=job_data.get("github_branch"),
         )
         setup_commands.append(github_setup)
+
+    # For RunPod providers, ensure uv is available and configured to use
+    # the system Python so resumed jobs can call `uv` directly.
+    if provider.type == ProviderType.RUNPOD.value:
+        env_vars["UV_SYSTEM_PYTHON"] = "1"
+        setup_commands.append("curl -LsSf https://astral.sh/uv/install.sh | sh")
 
     # Add user-provided setup if any
     original_setup = job_data.get("setup")
