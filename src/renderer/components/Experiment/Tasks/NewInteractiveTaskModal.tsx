@@ -262,6 +262,14 @@ export default function NewInteractiveTaskModal({
     return [];
   }, [teamGalleryData]);
 
+  const teamInteractiveGallery = React.useMemo(() => {
+    return teamGallery.filter(
+      (entry: any) =>
+        entry?.subtype === 'interactive' ||
+        entry?.config?.subtype === 'interactive',
+    );
+  }, [teamGallery]);
+
   React.useEffect(() => {
     if (!open) {
       setStep('provider');
@@ -399,6 +407,7 @@ export default function NewInteractiveTaskModal({
           body: JSON.stringify({
             gallery_id: galleryIdentifier.toString(),
             experiment_id: experimentInfo.id,
+            is_interactive: true,
           }),
         },
       );
@@ -951,7 +960,7 @@ export default function NewInteractiveTaskModal({
 
                     {!teamGalleryIsLoading &&
                       teamGalleryData &&
-                      teamGallery.length === 0 && (
+                      teamInteractiveGallery.length === 0 && (
                         <Typography level="body-sm" color="neutral">
                           No team interactive tasks available.
                         </Typography>
@@ -959,9 +968,9 @@ export default function NewInteractiveTaskModal({
 
                     {!teamGalleryIsLoading &&
                       teamGalleryData &&
-                      teamGallery.length > 0 && (
+                      teamInteractiveGallery.length > 0 && (
                         <Grid container spacing={2}>
-                          {teamGallery
+                          {teamInteractiveGallery
                             .filter((task: any) => {
                               if (
                                 selectedProvider?.type === 'local' &&
