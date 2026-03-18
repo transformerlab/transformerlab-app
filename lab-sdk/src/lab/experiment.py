@@ -1,9 +1,7 @@
 import asyncio
-import threading
-import time
 from werkzeug.utils import secure_filename
 
-from .dirs import get_experiments_dir, get_jobs_dir, get_workspace_dir
+from .dirs import get_experiments_dir, get_jobs_dir
 from .labresource import BaseLabResource
 from .job import Job
 from .job_status import JobStatus
@@ -20,11 +18,6 @@ class Experiment(BaseLabResource):
     """
 
     DEFAULT_JOBS_INDEX = {"TRAIN": []}
-
-    # Class-level cache for background rebuild tracking
-    _cache_rebuild_pending = set()  # set of (experiment_id, workspace_dir) tuples
-    _cache_rebuild_lock = threading.Lock()
-    _cache_rebuild_thread = None
 
     def __init__(self, experiment_id):
         # For consistency and simplicity, let's edit experiment name to match
@@ -661,62 +654,6 @@ class Experiment(BaseLabResource):
                 await f.write(json.dumps(jobs_data, indent=4))
         except Exception:
             logger.warning("Error removing job %s from jobs.json index", job_id, exc_info=True)
-
-    @classmethod
-    def _start_background_cache_rebuild(cls):
-        """Start the background cache rebuild thread if not already running."""
-        with cls._cache_rebuild_lock:
-            if cls._cache_rebuild_thread is None or not cls._cache_rebuild_thread.is_alive():
-                cls._cache_rebuild_thread = threading.Thread(target=cls._background_cache_rebuild_worker, daemon=True)
-                cls._cache_rebuild_thread.start()
-
-    @classmethod
-    def _background_cache_rebuild_worker(cls):
-        """Background worker that rebuilds caches for pending experiments."""
-        import asyncio
-
-        logger.info("STARTING CACHE REBUILD WORKER")
-        while True:
-            try:
-                # Get pending experiments with their workspace directories
-                with cls._cache_rebuild_lock:
-                    pending_experiments = set(cls._cache_rebuild_pending)
-                    cls._cache_rebuild_pending.clear()
-
-                # Rebuild caches for pending experiments
-                for experiment_id, workspace_dir in pending_experiments:
-                    try:
-                        exp = cls(experiment_id)
-                        # Run async method in sync context using asyncio.run
-                        asyncio.run(exp.rebuild_jobs_index(workspace_dir=workspace_dir))
-                    except Exception:
-                        logger.error(
-                            "Error rebuilding cache for experiment %s in workspace %s:",
-                            experiment_id,
-                            workspace_dir,
-                            exc_info=True,
-                        )
-
-                # Sleep for a short time before checking again
-                time.sleep(1)
-            except Exception:
-                logger.error("Error in background cache rebuild worker", exc_info=True)
-                time.sleep(5)  # Wait longer on error
-
-    def _trigger_cache_rebuild(self, workspace_dir, sync=False):
-        """Trigger a cache rebuild for this experiment."""
-        import asyncio
-
-        if sync:
-            # Run synchronously (useful for tests) - run async method in sync context
-            asyncio.run(self.rebuild_jobs_index(workspace_dir=workspace_dir))
-        else:
-            # Start background thread if not running
-            self._start_background_cache_rebuild()
-
-            # Add to pending queue with jobs directory (non-blocking)
-            with self._cache_rebuild_lock:
-                self._cache_rebuild_pending.add((self.id, workspace_dir))
 
     # TODO: For experiments, delete the same way as jobs
     async def delete(self):
