@@ -200,11 +200,11 @@
     },
     "saveDatasetToRegistry": {
       "method": "POST",
-      "path": "experiment/{experimentId}/jobs/{jobId}/datasets/{datasetName}/save_to_registry?target_name={targetName}&mode={mode}&tag={tag}&version_label={versionLabel}&description={description}"
+      "path": "experiment/{experimentId}/jobs/{jobId}/datasets/{datasetName}/save_to_registry?target_name={targetName}&asset_name={assetName}&mode={mode}&tag={tag}&version_label={versionLabel}&description={description}"
     },
     "saveModelToRegistry": {
       "method": "POST",
-      "path": "experiment/{experimentId}/jobs/{jobId}/models/{modelName}/save_to_registry?target_name={targetName}&mode={mode}&tag={tag}&version_label={versionLabel}&description={description}"
+      "path": "experiment/{experimentId}/jobs/{jobId}/models/{modelName}/save_to_registry?target_name={targetName}&asset_name={assetName}&mode={mode}&tag={tag}&version_label={versionLabel}&description={description}"
     },
     "getJobsOfType": {
       "method": "GET",

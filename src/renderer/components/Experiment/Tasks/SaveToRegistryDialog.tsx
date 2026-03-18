@@ -36,6 +36,8 @@ interface GroupSummary {
 export interface SaveVersionInfo {
   /** The group name (either new or existing) */
   groupName: string;
+  /** Unique name for the asset in the registry folder */
+  assetName: string;
   /** 'new' = create a new group, 'existing' = add version to existing group */
   mode: 'new' | 'existing';
   /** Tag to assign to the new version */
@@ -61,6 +63,8 @@ interface SaveToRegistryDialogProps {
   onSave: (info: SaveVersionInfo) => void;
   /** Job ID that produced this asset (optional, for display) */
   jobId?: string | number;
+  /** External error message to display on the asset name field (e.g. name already exists) */
+  assetNameError?: string | null;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -87,9 +91,12 @@ export default function SaveToRegistryDialog({
   saving,
   onSave,
   jobId,
+  assetNameError: externalAssetNameError,
 }: SaveToRegistryDialogProps) {
   const [mode, setMode] = useState<'new' | 'existing'>('new');
   const [newName, setNewName] = useState(sourceName);
+  const [assetName, setAssetName] = useState(sourceName);
+  const [assetNameError, setAssetNameError] = useState<string | null>(null);
   const [existingTarget, setExistingTarget] = useState<string | null>(null);
   const [tag, setTag] = useState<string>('latest');
   const [versionLabel, setVersionLabel] = useState('v1');
@@ -115,6 +122,8 @@ export default function SaveToRegistryDialog({
     if (open) {
       setMode('new');
       setNewName(sourceName);
+      setAssetName(sourceName);
+      setAssetNameError(null);
       setExistingTarget(null);
       setTag('latest');
       setVersionLabel('v1');
@@ -122,18 +131,28 @@ export default function SaveToRegistryDialog({
     }
   }, [open, sourceName]);
 
+  // Sync external asset name error from parent (e.g. 409 conflict response)
+  useEffect(() => {
+    if (externalAssetNameError) {
+      setAssetNameError(externalAssetNameError);
+    }
+  }, [externalAssetNameError]);
+
   const typeLabel = type === 'dataset' ? 'Dataset' : 'Model';
 
   const canSave =
-    mode === 'new'
+    (mode === 'new'
       ? newName.trim().length > 0
-      : existingTarget !== null && existingTarget.trim().length > 0;
+      : existingTarget !== null && existingTarget.trim().length > 0) &&
+    assetName.trim().length > 0;
 
   const handleSubmit = () => {
     if (!canSave) return;
+    setAssetNameError(null);
     const groupName = mode === 'new' ? newName.trim() : existingTarget!;
     onSave({
       groupName,
+      assetName: assetName.trim(),
       mode,
       tag,
       versionLabel: versionLabel.trim() || 'v1',
@@ -225,6 +244,31 @@ export default function SaveToRegistryDialog({
         </Typography>
 
         <Stack spacing={2}>
+          {/* Asset name (unique folder name in the registry) */}
+          <FormControl error={!!assetNameError}>
+            <FormLabel>{typeLabel} Name</FormLabel>
+            <Input
+              size="sm"
+              value={assetName}
+              onChange={(e) => {
+                setAssetName(e.target.value);
+                setAssetNameError(null);
+              }}
+              placeholder={`Unique name for this ${typeLabel.toLowerCase()}`}
+              color={assetNameError ? 'danger' : undefined}
+            />
+            {assetNameError ? (
+              <Typography level="body-xs" color="danger" sx={{ mt: 0.5 }}>
+                {assetNameError}
+              </Typography>
+            ) : (
+              <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
+                The unique folder name used to store the{' '}
+                {typeLabel.toLowerCase()} in the registry.
+              </Typography>
+            )}
+          </FormControl>
+
           {/* Version label */}
           <FormControl>
             <FormLabel>Version Label</FormLabel>
