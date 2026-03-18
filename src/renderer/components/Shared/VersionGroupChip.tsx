@@ -3,7 +3,7 @@ import { GitBranchIcon } from 'lucide-react';
 
 interface VersionGroupInfo {
   group_name: string;
-  version: number;
+  version_label: string;
   tag: string | null;
 }
 
@@ -42,7 +42,7 @@ export default function VersionGroupChip({
       {Array.from(groupMap.values()).map((vg) => (
         <Tooltip
           key={vg.group_name}
-          title={`Version group "${vg.group_name}" — v${vg.version}${vg.tag ? ` (${vg.tag})` : ''}`}
+          title={`Version group "${vg.group_name}" — ${vg.version_label}${vg.tag ? ` (${vg.tag})` : ''}`}
         >
           <Chip
             size="sm"
