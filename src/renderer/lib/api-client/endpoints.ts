@@ -558,26 +558,26 @@ Endpoints.AssetVersions = {
   CreateVersion: () => `${API_URL()}asset_versions/versions`,
   ListVersions: (assetType: string, groupName: string) =>
     `${API_URL()}asset_versions/versions/${assetType}/${groupName}`,
-  GetVersion: (assetType: string, groupName: string, version: number) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${version}`,
-  DeleteVersion: (assetType: string, groupName: string, version: number) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${version}`,
-  UpdateVersion: (assetType: string, groupName: string, version: number) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${version}`,
-  SetTag: (assetType: string, groupName: string, version: number) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${version}/tag`,
-  ClearTag: (assetType: string, groupName: string, version: number) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${version}/tag`,
+  GetVersion: (assetType: string, groupName: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}`,
+  DeleteVersion: (assetType: string, groupName: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}`,
+  UpdateVersion: (assetType: string, groupName: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}`,
+  SetTag: (assetType: string, groupName: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}/tag`,
+  ClearTag: (assetType: string, groupName: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}/tag`,
   Resolve: (
     assetType: string,
     groupName: string,
     tag?: string,
-    version?: number,
+    versionLabel?: string,
   ) => {
     let url = `${API_URL()}asset_versions/resolve/${assetType}/${groupName}`;
     const params: string[] = [];
     if (tag) params.push(`tag=${tag}`);
-    if (version !== undefined) params.push(`version=${version}`);
+    if (versionLabel !== undefined) params.push(`version_label=${versionLabel}`);
     if (params.length > 0) url += `?${params.join('&')}`;
     return url;
   },
