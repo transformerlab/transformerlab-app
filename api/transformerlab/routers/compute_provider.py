@@ -1149,9 +1149,11 @@ async def _create_sweep_parent_job(
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
 
-    for key, value in parent_job_data.items():
-        if value is not None:
-            await job_service.job_update_job_data_insert_key_value(parent_job_id, key, value, request.experiment_id)
+    parent_job_updates = {key: value for key, value in parent_job_data.items() if value is not None}
+    if parent_job_updates:
+        await job_service.job_update_job_data_insert_key_values(
+            parent_job_id, parent_job_updates, request.experiment_id
+        )
 
     # Ensure experiment job lists reflect the new parent sweep job.
     await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
@@ -1406,11 +1408,11 @@ async def _launch_sweep_jobs(
                 if request.file_mounts is True and request.task_id:
                     child_job_data["task_id"] = request.task_id
 
-                for key, value in child_job_data.items():
-                    if value is not None:
-                        await job_service.job_update_job_data_insert_key_value(
-                            child_job_id, key, value, request.experiment_id
-                        )
+                child_job_updates = {key: value for key, value in child_job_data.items() if value is not None}
+                if child_job_updates:
+                    await job_service.job_update_job_data_insert_key_values(
+                        child_job_id, child_job_updates, request.experiment_id
+                    )
 
                 # Prepare cluster config
                 disk_size = None

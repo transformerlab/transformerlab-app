@@ -97,10 +97,14 @@ async def apply_parent_sweep_updates(
 
     # Compare job_data with updated values and only write if there's a change
     count_fields = ["sweep_completed", "sweep_running", "sweep_failed", "sweep_queued"]
+    changed_counts: Dict[str, int] = {}
     for field in count_fields:
         # "or 0" guards against the stored value being None rather than missing
         if counts[field] != int(job_data.get(field, 0) or 0):
-            await job_service.job_update_job_data_insert_key_value(job_id, field, counts[field], experiment_id)
+            changed_counts[field] = counts[field]
+
+    if changed_counts:
+        await job_service.job_update_job_data_insert_key_values(job_id, changed_counts, experiment_id)
 
     if counts["sweep_progress"] != int(job_data.get("sweep_progress", 0) or 0):  # same None guard
         await job_service.job_update_sweep_progress(job_id, counts["sweep_progress"], experiment_id)
