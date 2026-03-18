@@ -1424,16 +1424,9 @@ async def save_dataset_to_registry(
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Copy a dataset from job's datasets directory to the global datasets registry.
-
-    The copy runs as a background task so the endpoint returns immediately.
-    The caller receives a task_job_id that can be polled via GET /{task_job_id}
-    to monitor progress.  The background task sets the job status to COMPLETE
-    on success or FAILED (with an error message) on failure.
-    """
+    """Copy a dataset from job's datasets directory to the global datasets registry."""
 
     try:
-        # Validate inputs synchronously before starting the background task
         dataset_name_secure = secure_filename(dataset_name)
 
         job_datasets_dir = await get_job_datasets_dir(job_id)
@@ -1452,41 +1445,21 @@ async def save_dataset_to_registry(
             if not await storage.exists(dest_path):
                 raise HTTPException(status_code=404, detail=f"Dataset '{target_name}' not found in registry")
 
-        # Create a tracking job so the frontend can poll for completion
-        task_job_id = await job_service.job_create(
-            type="TASK",
-            status="STARTED",
-            experiment_id=experimentId,
-            job_data=json.dumps(
-                {
-                    "subtype": "save_to_registry",
-                    "asset_type": "dataset",
-                    "source_name": dataset_name,
-                    "target_name": target_name or dataset_name,
-                }
-            ),
+        asyncio.create_task(
+            _save_dataset_to_registry(
+                job_id=job_id,
+                dataset_name_secure=dataset_name_secure,
+                source_path=source_path,
+                datasets_registry_dir=datasets_registry_dir,
+                target_name=target_name,
+                mode=mode,
+                tag=tag,
+                version_label=version_label,
+                description=description,
+            )
         )
 
-        # Perform the copy work synchronously so the caller gets the result
-        final_name = await _save_dataset_to_registry_background(
-            task_job_id=str(task_job_id),
-            job_id=job_id,
-            dataset_name_secure=dataset_name_secure,
-            source_path=source_path,
-            datasets_registry_dir=datasets_registry_dir,
-            target_name=target_name,
-            mode=mode,
-            tag=tag,
-            version_label=version_label,
-            description=description,
-            experiment_id=experimentId,
-        )
-
-        return {
-            "status": "success",
-            "message": f"Dataset saved to registry as '{final_name}'",
-            "task_job_id": task_job_id,
-        }
+        return {"status": "started", "message": "Dataset save to registry started"}
 
     except HTTPException:
         raise
@@ -1498,8 +1471,7 @@ async def save_dataset_to_registry(
         raise HTTPException(status_code=500, detail=f"Failed to start dataset save to registry: {str(e)}")
 
 
-async def _save_dataset_to_registry_background(
-    task_job_id: str,
+async def _save_dataset_to_registry(
     job_id: str,
     dataset_name_secure: str,
     source_path: str,
@@ -1509,68 +1481,39 @@ async def _save_dataset_to_registry_background(
     tag: str,
     version_label: str,
     description: Optional[str],
-    experiment_id: str,
 ):
-    """Background coroutine that performs the heavy copy and creates the version entry."""
-    try:
-        if mode == "existing":
-            target_name_secure = secure_filename(target_name)
-            dest_path = storage.join(datasets_registry_dir, target_name_secure)
-            await storage.copy_dir(source_path, dest_path)
-            final_name = target_name_secure
-        else:
-            final_name = secure_filename(target_name) if target_name else dataset_name_secure
+    """Coroutine that performs the copy and creates the version entry."""
+    if mode == "existing":
+        target_name_secure = secure_filename(target_name)
+        dest_path = storage.join(datasets_registry_dir, target_name_secure)
+        await storage.copy_dir(source_path, dest_path)
+        final_name = target_name_secure
+    else:
+        final_name = secure_filename(target_name) if target_name else dataset_name_secure
+        dest_path = storage.join(datasets_registry_dir, final_name)
+
+        if await storage.exists(dest_path):
+            from datetime import datetime
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            final_name = f"{final_name}_{timestamp}"
             dest_path = storage.join(datasets_registry_dir, final_name)
 
-            if await storage.exists(dest_path):
-                from datetime import datetime
+        await storage.copy_dir(source_path, dest_path)
 
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                final_name = f"{final_name}_{timestamp}"
-                dest_path = storage.join(datasets_registry_dir, final_name)
+    group_name = secure_filename(target_name) if target_name else dataset_name_secure
+    version_description = description if description else f"Created from job {job_id}"
+    await asset_version_service.create_version(
+        asset_type="dataset",
+        group_name=group_name,
+        asset_id=final_name,
+        version_label=version_label,
+        job_id=job_id,
+        description=version_description,
+        tag=tag,
+    )
 
-            await storage.copy_dir(source_path, dest_path)
-
-        # Create a version entry pointing to the dataset in the global registry
-        group_name = secure_filename(target_name) if target_name else dataset_name_secure
-        version_description = description if description else f"Created from job {job_id}"
-        await asset_version_service.create_version(
-            asset_type="dataset",
-            group_name=group_name,
-            asset_id=final_name,
-            version_label=version_label,
-            job_id=job_id,
-            description=version_description,
-            tag=tag,
-        )
-
-        # Store the result in job_data so the frontend can read it
-        try:
-            job_obj = await Job.get(task_job_id)
-            await job_obj.update_job_data_field("result_message", f"Dataset saved to registry as '{final_name}'")
-            await job_obj.update_job_data_field("final_name", final_name)
-            await job_obj.update_job_data_field("group_name", group_name)
-        except Exception:
-            pass
-
-        await job_update_status(task_job_id, "COMPLETE", experiment_id=experiment_id)
-        await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
-
-        return final_name
-
-    except Exception as e:
-        print(f"Error saving dataset to registry for job {job_id}: {str(e)}")
-        import traceback
-
-        traceback.print_exc()
-        try:
-            job_obj = await Job.get(task_job_id)
-            await job_obj.set_error_message(str(e))
-        except Exception:
-            pass
-        await job_update_status(task_job_id, "FAILED", experiment_id=experiment_id, error_msg=str(e))
-        await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
-        raise
+    return final_name
 
 
 @router.post("/{job_id}/models/{model_name}/save_to_registry")
@@ -1586,16 +1529,9 @@ async def save_model_to_registry(
     version_label: str = Query("v1", description="Version label for this entry (e.g. 'v1', 'march-run')"),
     description: Optional[str] = Query(None, description="Human-readable description for the version"),
 ):
-    """Copy a model from job's models directory to the global models registry.
-
-    The copy runs as a background task so the endpoint returns immediately.
-    The caller receives a task_job_id that can be polled via GET /{task_job_id}
-    to monitor progress.  The background task sets the job status to COMPLETE
-    on success or FAILED (with an error message) on failure.
-    """
+    """Copy a model from job's models directory to the global models registry."""
 
     try:
-        # Validate inputs synchronously before starting the background task
         model_name_secure = secure_filename(model_name)
 
         job_models_dir = await get_job_models_dir(job_id)
@@ -1614,41 +1550,21 @@ async def save_model_to_registry(
             if not await storage.exists(dest_path):
                 raise HTTPException(status_code=404, detail=f"Model '{target_name}' not found in registry")
 
-        # Create a tracking job so the frontend can poll for completion
-        task_job_id = await job_service.job_create(
-            type="TASK",
-            status="STARTED",
-            experiment_id=experimentId,
-            job_data=json.dumps(
-                {
-                    "subtype": "save_to_registry",
-                    "asset_type": "model",
-                    "source_name": model_name,
-                    "target_name": target_name or model_name,
-                }
-            ),
+        asyncio.create_task(
+            _save_model_to_registry(
+                job_id=job_id,
+                model_name_secure=model_name_secure,
+                source_path=source_path,
+                models_registry_dir=models_registry_dir,
+                target_name=target_name,
+                mode=mode,
+                tag=tag,
+                version_label=version_label,
+                description=description,
+            )
         )
 
-        # Perform the copy work synchronously so the caller gets the result
-        final_name = await _save_model_to_registry_background(
-            task_job_id=str(task_job_id),
-            job_id=job_id,
-            model_name_secure=model_name_secure,
-            source_path=source_path,
-            models_registry_dir=models_registry_dir,
-            target_name=target_name,
-            mode=mode,
-            tag=tag,
-            version_label=version_label,
-            description=description,
-            experiment_id=experimentId,
-        )
-
-        return {
-            "status": "success",
-            "message": f"Model saved to registry as '{final_name}'",
-            "task_job_id": task_job_id,
-        }
+        return {"status": "started", "message": "Model save to registry started"}
 
     except HTTPException:
         raise
@@ -1660,8 +1576,7 @@ async def save_model_to_registry(
         raise HTTPException(status_code=500, detail=f"Failed to start model save to registry: {str(e)}")
 
 
-async def _save_model_to_registry_background(
-    task_job_id: str,
+async def _save_model_to_registry(
     job_id: str,
     model_name_secure: str,
     source_path: str,
@@ -1671,68 +1586,39 @@ async def _save_model_to_registry_background(
     tag: str,
     version_label: str,
     description: Optional[str],
-    experiment_id: str,
 ):
-    """Background coroutine that performs the heavy copy and creates the version entry."""
-    try:
-        if mode == "existing":
-            target_name_secure = secure_filename(target_name)
-            dest_path = storage.join(models_registry_dir, target_name_secure)
-            await storage.copy_dir(source_path, dest_path)
-            final_name = target_name_secure
-        else:
-            final_name = secure_filename(target_name) if target_name else model_name_secure
+    """Coroutine that performs the copy and creates the version entry."""
+    if mode == "existing":
+        target_name_secure = secure_filename(target_name)
+        dest_path = storage.join(models_registry_dir, target_name_secure)
+        await storage.copy_dir(source_path, dest_path)
+        final_name = target_name_secure
+    else:
+        final_name = secure_filename(target_name) if target_name else model_name_secure
+        dest_path = storage.join(models_registry_dir, final_name)
+
+        if await storage.exists(dest_path):
+            from datetime import datetime
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            final_name = f"{final_name}_{timestamp}"
             dest_path = storage.join(models_registry_dir, final_name)
 
-            if await storage.exists(dest_path):
-                from datetime import datetime
+        await storage.copy_dir(source_path, dest_path)
 
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                final_name = f"{final_name}_{timestamp}"
-                dest_path = storage.join(models_registry_dir, final_name)
+    group_name = secure_filename(target_name) if target_name else model_name_secure
+    version_description = description if description else f"Created from job {job_id}"
+    await asset_version_service.create_version(
+        asset_type="model",
+        group_name=group_name,
+        asset_id=final_name,
+        version_label=version_label,
+        job_id=job_id,
+        description=version_description,
+        tag=tag,
+    )
 
-            await storage.copy_dir(source_path, dest_path)
-
-        # Create a version entry pointing to the model in the global registry
-        group_name = secure_filename(target_name) if target_name else model_name_secure
-        version_description = description if description else f"Created from job {job_id}"
-        await asset_version_service.create_version(
-            asset_type="model",
-            group_name=group_name,
-            asset_id=final_name,
-            version_label=version_label,
-            job_id=job_id,
-            description=version_description,
-            tag=tag,
-        )
-
-        # Store the result in job_data so the frontend can read it
-        try:
-            job_obj = await Job.get(task_job_id)
-            await job_obj.update_job_data_field("result_message", f"Model saved to registry as '{final_name}'")
-            await job_obj.update_job_data_field("final_name", final_name)
-            await job_obj.update_job_data_field("group_name", group_name)
-        except Exception:
-            pass
-
-        await job_update_status(task_job_id, "COMPLETE", experiment_id=experiment_id)
-        await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
-
-        return final_name
-
-    except Exception as e:
-        print(f"Error saving model to registry for job {job_id}: {str(e)}")
-        import traceback
-
-        traceback.print_exc()
-        try:
-            job_obj = await Job.get(task_job_id)
-            await job_obj.set_error_message(str(e))
-        except Exception:
-            pass
-        await job_update_status(task_job_id, "FAILED", experiment_id=experiment_id, error_msg=str(e))
-        await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
-        raise
+    return final_name
 
 
 @router.get("/{job_id}/files")
