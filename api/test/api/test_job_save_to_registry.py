@@ -1,24 +1,6 @@
-import time
-
 import pytest
 
 import lab.dirs as lab_dirs
-
-
-def _wait_for_task_job(client, experiment_id, task_job_id, timeout=10):
-    """Poll the task job until it reaches a terminal state or times out."""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        resp = client.get(f"/experiment/{experiment_id}/jobs/{task_job_id}")
-        if resp.status_code != 200:
-            time.sleep(0.1)
-            continue
-        data = resp.json()
-        status = data.get("status")
-        if status in ("COMPLETE", "FAILED", "STOPPED", "CANCELLED", "DELETED"):
-            return data
-        time.sleep(0.2)
-    raise TimeoutError(f"Task job {task_job_id} did not complete within {timeout}s")
 
 
 @pytest.fixture()
@@ -125,13 +107,7 @@ def test_save_dataset_to_registry_copies_files(client, tmp_workspace):
 
     resp = client.post(f"/experiment/alpha/jobs/{job_id}/datasets/{dataset_name}/save_to_registry")
     assert resp.status_code == 200
-    body = resp.json()
-    assert body["status"] == "started"
-    assert "task_job_id" in body
-
-    # Wait for background task to complete
-    task = _wait_for_task_job(client, "alpha", body["task_job_id"])
-    assert task["status"] == "COMPLETE"
+    assert resp.json()["status"] == "success"
 
     # Now in the registry
     assert registry_path.exists()
@@ -154,19 +130,9 @@ def test_save_dataset_to_registry_duplicate_gets_timestamped_name(client, tmp_wo
     assert resp.status_code == 200
 
     body = resp.json()
-    assert body["status"] == "started"
-    assert "task_job_id" in body
-
-    # Wait for background task to complete
-    task = _wait_for_task_job(client, "alpha", body["task_job_id"])
-    assert task["status"] == "COMPLETE"
-
-    job_data = task.get("job_data", {})
-    if isinstance(job_data, str):
-        import json
-
-        job_data = json.loads(job_data)
-    saved_name = job_data.get("final_name", "")
+    assert body["status"] == "success"
+    # Extract name from "Dataset saved to registry as '<name>'"
+    saved_name = body["message"].split("'")[1]
     assert saved_name.startswith(dataset_name)
     assert saved_name != dataset_name
 
@@ -233,12 +199,7 @@ def test_save_model_to_registry_copies_files(client, tmp_workspace):
 
     resp = client.post(f"/experiment/alpha/jobs/{job_id}/models/{model_name}/save_to_registry")
     assert resp.status_code == 200
-    body = resp.json()
-    assert body["status"] == "started"
-    assert "task_job_id" in body
-
-    task = _wait_for_task_job(client, "alpha", body["task_job_id"])
-    assert task["status"] == "COMPLETE"
+    assert resp.json()["status"] == "success"
 
     assert registry_path.exists()
     assert (registry_path / "model.safetensors").read_text() == "weights-v1"
@@ -259,18 +220,8 @@ def test_save_model_to_registry_duplicate_gets_timestamped_name(client, tmp_work
     assert resp.status_code == 200
 
     body = resp.json()
-    assert body["status"] == "started"
-    assert "task_job_id" in body
-
-    task = _wait_for_task_job(client, "alpha", body["task_job_id"])
-    assert task["status"] == "COMPLETE"
-
-    job_data = task.get("job_data", {})
-    if isinstance(job_data, str):
-        import json
-
-        job_data = json.loads(job_data)
-    saved_name = job_data.get("final_name", "")
+    assert body["status"] == "success"
+    saved_name = body["message"].split("'")[1]
     assert saved_name.startswith(model_name)
     assert saved_name != model_name
 
@@ -318,20 +269,11 @@ def test_save_dataset_and_model_from_same_job(client, tmp_workspace):
     # Save both to registry
     ds_save = client.post(f"/experiment/alpha/jobs/{job_id}/datasets/{dataset_name}/save_to_registry")
     assert ds_save.status_code == 200
-    ds_body = ds_save.json()
-    assert ds_body["status"] == "started"
+    assert ds_save.json()["status"] == "success"
 
     model_save = client.post(f"/experiment/alpha/jobs/{job_id}/models/{model_name}/save_to_registry")
     assert model_save.status_code == 200
-    model_body = model_save.json()
-    assert model_body["status"] == "started"
-
-    # Wait for both background tasks to complete
-    ds_task = _wait_for_task_job(client, "alpha", ds_body["task_job_id"])
-    assert ds_task["status"] == "COMPLETE"
-
-    model_task = _wait_for_task_job(client, "alpha", model_body["task_job_id"])
-    assert model_task["status"] == "COMPLETE"
+    assert model_save.json()["status"] == "success"
 
     # Verify both now exist in the registry with correct content
     reg_ds = tmp_workspace["datasets_dir"] / dataset_name
@@ -363,11 +305,8 @@ def test_save_dataset_to_registry_with_custom_name(client, tmp_workspace):
         params={"target_name": custom_name, "mode": "new"},
     )
     assert resp.status_code == 200
-    body = resp.json()
-    assert body["status"] == "started"
-
-    task = _wait_for_task_job(client, "alpha", body["task_job_id"])
-    assert task["status"] == "COMPLETE"
+    assert resp.json()["status"] == "success"
+    assert custom_name in resp.json()["message"]
 
     assert registry_path.exists()
     assert (registry_path / "data.jsonl").read_text() == '{"row":1}'
@@ -391,17 +330,7 @@ def test_save_dataset_to_registry_custom_name_duplicate_gets_timestamp(client, t
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["status"] == "started"
-
-    task = _wait_for_task_job(client, "alpha", body["task_job_id"])
-    assert task["status"] == "COMPLETE"
-
-    job_data = task.get("job_data", {})
-    if isinstance(job_data, str):
-        import json
-
-        job_data = json.loads(job_data)
-    saved_name = job_data.get("final_name", "")
+    saved_name = body["message"].split("'")[1]
     assert saved_name.startswith(custom_name)
     assert saved_name != custom_name
 
@@ -433,11 +362,8 @@ def test_save_dataset_to_existing_registry_entry(client, tmp_workspace):
         params={"target_name": existing_name, "mode": "existing"},
     )
     assert resp.status_code == 200
-    body = resp.json()
-    assert body["status"] == "started"
-
-    task = _wait_for_task_job(client, "alpha", body["task_job_id"])
-    assert task["status"] == "COMPLETE"
+    assert resp.json()["status"] == "success"
+    assert "merged" in resp.json()["message"].lower() or existing_name in resp.json()["message"]
 
 
 def test_save_dataset_to_existing_requires_target_name(client, tmp_workspace):
@@ -486,11 +412,8 @@ def test_save_model_to_registry_with_custom_name(client, tmp_workspace):
         params={"target_name": custom_name, "mode": "new"},
     )
     assert resp.status_code == 200
-    body = resp.json()
-    assert body["status"] == "started"
-
-    task = _wait_for_task_job(client, "alpha", body["task_job_id"])
-    assert task["status"] == "COMPLETE"
+    assert resp.json()["status"] == "success"
+    assert custom_name in resp.json()["message"]
 
     assert registry_path.exists()
     assert (registry_path / "model.safetensors").read_text() == "weights-v1"
@@ -513,17 +436,7 @@ def test_save_model_to_registry_custom_name_duplicate_gets_timestamp(client, tmp
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["status"] == "started"
-
-    task = _wait_for_task_job(client, "alpha", body["task_job_id"])
-    assert task["status"] == "COMPLETE"
-
-    job_data = task.get("job_data", {})
-    if isinstance(job_data, str):
-        import json
-
-        job_data = json.loads(job_data)
-    saved_name = job_data.get("final_name", "")
+    saved_name = body["message"].split("'")[1]
     assert saved_name.startswith(custom_name)
     assert saved_name != custom_name
 
@@ -552,11 +465,8 @@ def test_save_model_to_existing_registry_entry(client, tmp_workspace):
         params={"target_name": existing_name, "mode": "existing"},
     )
     assert resp.status_code == 200
-    body = resp.json()
-    assert body["status"] == "started"
-
-    task = _wait_for_task_job(client, "alpha", body["task_job_id"])
-    assert task["status"] == "COMPLETE"
+    assert resp.json()["status"] == "success"
+    assert "merged" in resp.json()["message"].lower() or existing_name in resp.json()["message"]
 
 
 def test_save_model_to_existing_requires_target_name(client, tmp_workspace):
