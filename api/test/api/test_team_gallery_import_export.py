@@ -46,4 +46,3 @@ def test_team_gallery_add_import_export_round_trip(client):
     reimport_data = r.json()
     assert reimport_data["status"] == "success"
     assert reimport_data["id"]
-
