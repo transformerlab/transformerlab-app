@@ -174,6 +174,23 @@ async def job_update_job_data_insert_key_value(job_id, key, value, experiment_id
         print(f"Error updating job {job_id}: {e}")
 
 
+async def job_update_job_data_insert_key_values(job_id, updates: Dict[str, Any], experiment_id):
+    """
+    Bulk update multiple keys in job_data in one write.
+    """
+    try:
+        if not isinstance(updates, dict):
+            raise TypeError("updates must be a dict")
+
+        job = await Job.get(job_id)
+        exp_id = await job.get_experiment_id()
+        if experiment_id is not None and exp_id != experiment_id:
+            return
+        await job.update_job_data_field(updates, multiple=True)
+    except Exception as e:
+        print(f"Error updating job {job_id}: {e}")
+
+
 async def job_stop(job_id, experiment_id):
     print("Stopping job: " + str(job_id))
     await job_update_job_data_insert_key_value(job_id, "stop", True, experiment_id)
