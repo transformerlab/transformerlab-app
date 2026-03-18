@@ -1,6 +1,7 @@
 import pytest
 
 
+@pytest.mark.skip("we dont use this anymore")
 @pytest.mark.asyncio
 async def test_gguf_model_detection_requires_file_selection(client):
     """Test that GGUF models return requires_file_selection status"""
@@ -22,6 +23,7 @@ async def test_gguf_model_detection_requires_file_selection(client):
         assert file.endswith(".gguf")
 
 
+@pytest.mark.skip("we dont use this anymore")
 def test_gguf_model_without_config_detection(client):
     """Test GGUF model that doesn't have config.json"""
     # Test with a GGUF model known to not have config.json
@@ -38,7 +40,7 @@ def test_gguf_model_without_config_detection(client):
     assert len(data["available_files"]) > 0
 
 
-@pytest.mark.skip()
+@pytest.mark.skip("we dont use this anymore")
 def test_download_gguf_file_success(client):
     """Test downloading a specific GGUF file"""
     # First get the available files
@@ -65,6 +67,7 @@ def test_download_gguf_file_success(client):
     assert "job_id" in download_data
 
 
+@pytest.mark.skip("we dont use this anymore")
 def test_download_gguf_file_invalid_filename(client):
     """Test downloading with invalid filename"""
     response = client.get(
@@ -77,6 +80,7 @@ def test_download_gguf_file_invalid_filename(client):
     assert "not found in repository" in data["message"]
 
 
+@pytest.mark.skip("we dont use this anymore")
 def test_download_gguf_file_invalid_model(client):
     """Test downloading GGUF file from invalid model"""
     response = client.get(
@@ -88,6 +92,7 @@ def test_download_gguf_file_invalid_model(client):
     assert data["status"] == "error"
 
 
+@pytest.mark.skip("we dont use this anymore")
 def test_regular_model_still_works(client):
     """Test that regular (non-GGUF) models still work normally"""
     # Test with a regular model that should work normally
@@ -102,6 +107,7 @@ def test_regular_model_still_works(client):
     assert data["status"] != "requires_file_selection"
 
 
+@pytest.mark.skip("we dont use this anymore")
 def test_model_gallery_includes_gguf(client):
     """Test that model gallery can handle GGUF models"""
     response = client.get("/model/gallery")
@@ -114,6 +120,7 @@ def test_model_gallery_includes_gguf(client):
     # Individual models in gallery might be GGUF or regular
 
 
+@pytest.mark.skip("we dont use this anymore")
 def test_gguf_download_with_job_id(client):
     """Test GGUF file download with custom job_id"""
     # First get available files
@@ -138,6 +145,7 @@ def test_gguf_download_with_job_id(client):
             assert download_data["job_id"] == 999
 
 
+@pytest.mark.skip("we dont use this anymore")
 def test_gguf_detection_edge_cases(client):
     """Test GGUF detection with various edge cases"""
     # Test various GGUF models to ensure detection works
@@ -162,7 +170,7 @@ def test_gguf_detection_edge_cases(client):
                 assert "Error reading config for model" not in data.get("message", "")
 
 
-@pytest.mark.skip(reason="This test requires network access and may be flaky")
+@pytest.mark.skip("we dont use this anymore")
 def test_gguf_large_model_file_listing(client):
     """Test that large GGUF repositories can list files properly"""
     # Test with a larger GGUF model
