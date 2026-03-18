@@ -82,6 +82,7 @@ export default function ViewJobDatasetsModal({
         targetName: info.groupName,
         mode: info.mode,
         tag: info.tag,
+        versionLabel: info.versionLabel,
         description: info.description,
       });
 
