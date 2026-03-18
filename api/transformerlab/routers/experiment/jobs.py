@@ -1420,22 +1420,21 @@ async def save_dataset_to_registry(
         "new", description="'new' to create a new entry, 'existing' to merge into an existing registry dataset"
     ),
     tag: str = Query("latest", description="Tag to assign to the new version"),
+    version_label: str = Query("v1", description="Version label for this entry (e.g. 'v1', 'march-run')"),
     description: Optional[str] = Query(None, description="Human-readable description for the version"),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
     """Copy a dataset from job's datasets directory to the global datasets registry.
 
-    Supports two modes:
-    - mode='new': Save as a new dataset. Uses target_name if provided, otherwise uses the original dataset_name.
-      If a dataset with that name already exists, a timestamped suffix is added.
-    - mode='existing': Merge into an existing dataset in the registry. target_name must be provided and must
-      refer to an existing dataset. Files from the job dataset are copied into the existing dataset directory.
+    The entire source directory is copied recursively into the global datasets
+    directory.  If the destination already exists, the copy is skipped and the
+    existing directory is reused — no duplicates are created.
 
-    In both modes a new version entry is recorded in the asset_versions table
-    so the asset can be tracked as part of a versioned group.
+    A version entry is then written to the filesystem-based asset_groups
+    directory, storing only a reference (asset_id) to the dataset that now
+    lives in the global datasets directory.
     """
-    from transformerlab.services import asset_version_service
 
     try:
         # Secure the source dataset name
@@ -1460,37 +1459,26 @@ async def save_dataset_to_registry(
             if not await storage.exists(dest_path):
                 raise HTTPException(status_code=404, detail=f"Dataset '{target_name}' not found in registry")
 
-            # Copy files from source into the existing dataset directory (merge)
-            try:
-                await storage.copy_dir(source_path, dest_path)
-            except Exception as copy_err:
-                print(f"Storage.copy_dir failed: {copy_err}")
-
+            # Copy all files recursively from source into the existing dataset directory
+            await storage.copy_dir(source_path, dest_path)
             final_name = target_name_secure
         else:
             # Save as a new dataset
             final_name = secure_filename(target_name) if target_name else dataset_name_secure
             dest_path = storage.join(datasets_registry_dir, final_name)
 
-            # Check if dataset already exists in registry and generate a unique name if needed
-            if await storage.exists(dest_path):
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                final_name = f"{final_name}_{timestamp}"
-                dest_path = storage.join(datasets_registry_dir, final_name)
-
-            # Copy the dataset to the registry
-            try:
+            # Only copy if the destination does not already exist
+            if not await storage.exists(dest_path):
                 await storage.copy_dir(source_path, dest_path)
-            except Exception as copy_err:
-                print(f"Storage.copy_dir failed: {copy_err}")
 
-        # Create a version entry for the dataset
+        # Create a version entry pointing to the dataset in the global registry
         group_name = secure_filename(target_name) if target_name else dataset_name_secure
         version_description = description if description else f"Created from job {job_id}"
         version_entry = await asset_version_service.create_version(
             asset_type="dataset",
             group_name=group_name,
             asset_id=final_name,
+            version_label=version_label,
             job_id=job_id,
             description=version_description,
             tag=tag,
@@ -1521,15 +1509,18 @@ async def save_model_to_registry(
         "new", description="'new' to create a new entry, 'existing' to merge into an existing registry model"
     ),
     tag: str = Query("latest", description="Tag to assign to the new version"),
+    version_label: str = Query("v1", description="Version label for this entry (e.g. 'v1', 'march-run')"),
     description: Optional[str] = Query(None, description="Human-readable description for the version"),
 ):
     """Copy a model from job's models directory to the global models registry.
 
-    Supports two modes:
-    - mode='new': Save as a new model. Uses target_name if provided, otherwise uses the original model_name.
-      If a model with that name already exists, a timestamped suffix is added.
-    - mode='existing': Merge into an existing model in the registry. target_name must be provided and must
-      refer to an existing model. Files from the job model are copied into the existing model directory.
+    The entire source directory is copied recursively into the global models
+    directory.  If the destination already exists, the copy is skipped and the
+    existing directory is reused — no duplicates are created.
+
+    A version entry is then written to the filesystem-based asset_groups
+    directory, storing only a reference (asset_id) to the model that now
+    lives in the global models directory.
     """
 
     try:
@@ -1555,37 +1546,26 @@ async def save_model_to_registry(
             if not await storage.exists(dest_path):
                 raise HTTPException(status_code=404, detail=f"Model '{target_name}' not found in registry")
 
-            # Copy files from source into the existing model directory (merge)
-            try:
-                await storage.copy_dir(source_path, dest_path)
-            except Exception as copy_err:
-                print(f"storage.copy_dir failed: {copy_err}")
-
+            # Copy all files recursively from source into the existing model directory
+            await storage.copy_dir(source_path, dest_path)
             final_name = target_name_secure
         else:
             # Save as a new model
             final_name = secure_filename(target_name) if target_name else model_name_secure
             dest_path = storage.join(models_registry_dir, final_name)
 
-            # Check if model already exists in registry and generate a unique name if needed
-            if await storage.exists(dest_path):
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                final_name = f"{final_name}_{timestamp}"
-                dest_path = storage.join(models_registry_dir, final_name)
-
-            # Copy the model directory to the registry
-            try:
+            # Only copy if the destination does not already exist
+            if not await storage.exists(dest_path):
                 await storage.copy_dir(source_path, dest_path)
-            except Exception as copy_err:
-                print(f"storage.copy_dir failed: {copy_err}")
 
-        # Create a version entry for the model
+        # Create a version entry pointing to the model in the global registry
         group_name = secure_filename(target_name) if target_name else model_name_secure
         version_description = description if description else f"Created from job {job_id}"
         version_entry = await asset_version_service.create_version(
             asset_type="model",
             group_name=group_name,
             asset_id=final_name,
+            version_label=version_label,
             job_id=job_id,
             description=version_description,
             tag=tag,
