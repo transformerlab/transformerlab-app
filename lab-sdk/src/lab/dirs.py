@@ -350,6 +350,16 @@ def get_local_provider_root() -> str:
     return root
 
 
+def get_local_provider_config_path() -> str:
+    """
+    Return the path to the local provider config snapshot JSON file.
+
+    Layout:
+        ~/.transformerlab/local_provider/local_provider_config.json
+    """
+    return os.path.join(get_local_provider_root(), "local_provider_config.json")
+
+
 def _get_local_provider_runs_root() -> str:
     """
     Return the root directory for all local provider runs.

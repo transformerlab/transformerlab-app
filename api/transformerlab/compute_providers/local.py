@@ -1,16 +1,16 @@
 """Local compute provider: runs tasks in a uv venv synced with the base environment."""
 
+import contextlib
 import json
 import os
-import shlex
-import contextlib
 import signal
+import shlex
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Callable
 
-from lab.dirs import HOME_DIR, get_local_provider_root
+from lab.dirs import HOME_DIR, get_local_provider_config_path, get_local_provider_root
 
 from .base import ComputeProvider
 from .models import (
@@ -30,7 +30,7 @@ def _read_local_provider_config() -> Optional[Dict[str, Any]]:
 
     This is the same JSON payload that was previously served by `/server/config`.
     """
-    config_path = Path(get_local_provider_root()) / "local_provider_config.json"
+    config_path = Path(get_local_provider_config_path())
     if not config_path.exists():
         return None
     try:
@@ -567,7 +567,7 @@ class LocalProvider(ComputeProvider):
         """Local provider is available local config exists."""
         from pathlib import Path
 
-        config_path = Path(get_local_provider_root()) / "local_provider_config.json"
+        config_path = Path(get_local_provider_config_path())
         if config_path.exists():
             return True
         # Backward-compat: allow existing installs that still have the file in HOME_DIR.
