@@ -79,7 +79,7 @@ export default function ViewJobModelsModal({
     const jobData =
       typeof saveTaskData.job_data === 'string'
         ? JSON.parse(saveTaskData.job_data || '{}')
-        : saveTaskData.job_data ?? {};
+        : (saveTaskData.job_data ?? {});
 
     if (status === 'COMPLETE') {
       const msg =
