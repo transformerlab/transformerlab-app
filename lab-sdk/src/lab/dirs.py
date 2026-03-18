@@ -331,6 +331,25 @@ async def generation_output_file(experiment_name: str, generation_name: str) -> 
     return storage.join(p, "output.txt")
 
 
+def get_local_provider_root() -> str:
+    """
+    Return the root directory for all local-provider-only artifacts.
+
+    Layout:
+        ~/.transformerlab/local_provider/
+
+    This directory is intentionally local filesystem state (not remote storage) and is used for:
+      - base environment / venvs
+      - cached wheels / uv cache
+      - local provider config snapshots
+      - transient local-provider setup status files
+      - local provider runs (PIDs, logs, etc.)
+    """
+    root = os.path.join(HOME_DIR, "local_provider")
+    os.makedirs(root, exist_ok=True)
+    return root
+
+
 def _get_local_provider_runs_root() -> str:
     """
     Return the root directory for all local provider runs.
@@ -341,9 +360,9 @@ def _get_local_provider_runs_root() -> str:
     even when the main workspace is configured to use remote storage.
 
     Layout:
-        ~/.transformerlab/local_provider_runs/
+        ~/.transformerlab/local_provider/local_provider_runs/
     """
-    root = os.path.join(HOME_DIR, "local_provider_runs")
+    root = os.path.join(get_local_provider_root(), "local_provider_runs")
     os.makedirs(root, exist_ok=True)
     return root
 

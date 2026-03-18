@@ -46,10 +46,16 @@ from transformerlab.services import quota_service
 from transformerlab.services.task_service import task_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
 from transformerlab.services.cache_service import cache
-from lab import HOME_DIR
 from lab import storage
 from lab.storage import STORAGE_PROVIDER
-from lab.dirs import get_workspace_dir, get_local_provider_job_dir, get_job_dir, set_organization_id, get_task_dir
+from lab.dirs import (
+    get_workspace_dir,
+    get_local_provider_job_dir,
+    get_job_dir,
+    set_organization_id,
+    get_task_dir,
+    get_local_provider_root,
+)
 from lab.job_status import JobStatus
 from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
@@ -2788,7 +2794,9 @@ def _get_provider_setup_status_path(team_id: str, provider_id: str) -> Path:
     # Sanitize user-derived identifiers before using them in a file name
     safe_team = secure_filename(str(team_id).replace("/", "_")) or "team"
     safe_provider = secure_filename(str(provider_id).replace("/", "_")) or "provider"
-    return Path(HOME_DIR) / "local_temp" / f"local_provider_setup_status_{safe_team}_{safe_provider}.json"
+    return (
+        Path(get_local_provider_root()) / "local_temp" / f"local_provider_setup_status_{safe_team}_{safe_provider}.json"
+    )
 
 
 async def _run_local_provider_setup_background(
