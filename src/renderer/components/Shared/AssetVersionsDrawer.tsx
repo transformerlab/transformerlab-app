@@ -228,9 +228,7 @@ function VersionDetailPanel({
     setTag(entry.tag);
     setEvals(entry.evals ?? {});
     setMetadataJson(
-      entry.metadata
-        ? JSON.stringify(entry.metadata, null, 2)
-        : '{}',
+      entry.metadata ? JSON.stringify(entry.metadata, null, 2) : '{}',
     );
     setMetadataError(null);
     setSaved(false);
@@ -677,7 +675,11 @@ export default function AssetVersionsDrawer({
     setUpdatingVersion(versionLabel);
     try {
       await fetchWithAuth(
-        chatAPI.Endpoints.AssetVersions.SetTag(assetType, groupName, versionLabel),
+        chatAPI.Endpoints.AssetVersions.SetTag(
+          assetType,
+          groupName,
+          versionLabel,
+        ),
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -696,7 +698,11 @@ export default function AssetVersionsDrawer({
     setUpdatingVersion(versionLabel);
     try {
       await fetchWithAuth(
-        chatAPI.Endpoints.AssetVersions.ClearTag(assetType, groupName, versionLabel),
+        chatAPI.Endpoints.AssetVersions.ClearTag(
+          assetType,
+          groupName,
+          versionLabel,
+        ),
         { method: 'DELETE' },
       );
       mutate();
@@ -890,7 +896,8 @@ export default function AssetVersionsDrawer({
                           placeholder="Set tag…"
                           value={null}
                           onChange={(_e, val) => {
-                            if (val) handleSetTag(v.version_label, val as string);
+                            if (val)
+                              handleSetTag(v.version_label, val as string);
                           }}
                           sx={{ minWidth: 100 }}
                           onClick={(e) => e.stopPropagation()}

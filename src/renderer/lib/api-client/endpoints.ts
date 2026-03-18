@@ -577,7 +577,8 @@ Endpoints.AssetVersions = {
     let url = `${API_URL()}asset_versions/resolve/${assetType}/${groupName}`;
     const params: string[] = [];
     if (tag) params.push(`tag=${tag}`);
-    if (versionLabel !== undefined) params.push(`version_label=${versionLabel}`);
+    if (versionLabel !== undefined)
+      params.push(`version_label=${versionLabel}`);
     if (params.length > 0) url += `?${params.join('&')}`;
     return url;
   },

@@ -595,7 +595,11 @@ function GroupVersionsTable({
     setUpdatingVersion(versionLabel);
     try {
       await fetchWithAuth(
-        chatAPI.Endpoints.AssetVersions.SetTag(assetType, groupName, versionLabel),
+        chatAPI.Endpoints.AssetVersions.SetTag(
+          assetType,
+          groupName,
+          versionLabel,
+        ),
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -615,7 +619,11 @@ function GroupVersionsTable({
     setUpdatingVersion(versionLabel);
     try {
       await fetchWithAuth(
-        chatAPI.Endpoints.AssetVersions.ClearTag(assetType, groupName, versionLabel),
+        chatAPI.Endpoints.AssetVersions.ClearTag(
+          assetType,
+          groupName,
+          versionLabel,
+        ),
         { method: 'DELETE' },
       );
       mutate();
