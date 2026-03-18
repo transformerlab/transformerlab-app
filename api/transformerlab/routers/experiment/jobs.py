@@ -36,7 +36,6 @@ from lab.dirs import (
 )
 from transformerlab.services import asset_version_service
 
-from transformerlab.services.cache_service import cache, cached
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
