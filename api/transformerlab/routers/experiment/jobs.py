@@ -1427,8 +1427,8 @@ async def save_dataset_to_registry(
     """Copy a dataset from job's datasets directory to the global datasets registry.
 
     The entire source directory is copied recursively into the global datasets
-    directory.  If the destination already exists, the copy is skipped and the
-    existing directory is reused — no duplicates are created.
+    directory.  If the destination already exists, a timestamp suffix is appended
+    to the name to avoid overwriting.
 
     A version entry is then written to the filesystem-based asset_groups
     directory, storing only a reference (asset_id) to the dataset that now
@@ -1466,9 +1466,15 @@ async def save_dataset_to_registry(
             final_name = secure_filename(target_name) if target_name else dataset_name_secure
             dest_path = storage.join(datasets_registry_dir, final_name)
 
-            # Only copy if the destination does not already exist
-            if not await storage.exists(dest_path):
-                await storage.copy_dir(source_path, dest_path)
+            # If the destination already exists, add a timestamp suffix to avoid overwriting
+            if await storage.exists(dest_path):
+                from datetime import datetime
+
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                final_name = f"{final_name}_{timestamp}"
+                dest_path = storage.join(datasets_registry_dir, final_name)
+
+            await storage.copy_dir(source_path, dest_path)
 
         # Create a version entry pointing to the dataset in the global registry
         group_name = secure_filename(target_name) if target_name else dataset_name_secure
@@ -1553,9 +1559,15 @@ async def save_model_to_registry(
             final_name = secure_filename(target_name) if target_name else model_name_secure
             dest_path = storage.join(models_registry_dir, final_name)
 
-            # Only copy if the destination does not already exist
-            if not await storage.exists(dest_path):
-                await storage.copy_dir(source_path, dest_path)
+            # If the destination already exists, add a timestamp suffix to avoid overwriting
+            if await storage.exists(dest_path):
+                from datetime import datetime
+
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                final_name = f"{final_name}_{timestamp}"
+                dest_path = storage.join(models_registry_dir, final_name)
+
+            await storage.copy_dir(source_path, dest_path)
 
         # Create a version entry pointing to the model in the global registry
         group_name = secure_filename(target_name) if target_name else model_name_secure
