@@ -20,7 +20,7 @@ type NewTeamTaskModalProps = {
     title: string;
     description?: string;
     setup?: string;
-    command: string;
+    run: string;
     cpus?: string;
     memory?: string;
     supported_accelerators?: string;
@@ -41,7 +41,7 @@ export default function NewTeamTaskModal({
 
   const [title, setTitle] = React.useState('');
   const [description, setDescription] = React.useState('');
-  const [command, setCommand] = React.useState('');
+  const [run, setRun] = React.useState('');
   const [cpus, setCpus] = React.useState('');
   const [memory, setMemory] = React.useState('');
   const [supportedAccelerators, setSupportedAccelerators] = React.useState('');
@@ -59,7 +59,7 @@ export default function NewTeamTaskModal({
     const setupValue =
       setupEditorRef?.current?.getValue?.() ?? (setup || undefined);
     const commandValue =
-      commandEditorRef?.current?.getValue?.() ?? (command || undefined);
+      commandEditorRef?.current?.getValue?.() ?? (run || undefined);
 
     if (!title.trim()) {
       addNotification({ type: 'warning', message: 'Title is required' });
@@ -75,7 +75,7 @@ export default function NewTeamTaskModal({
       title: title.trim(),
       description: description.trim() || undefined,
       setup: setupValue?.trim() || undefined,
-      command: commandValue.trim(),
+      run: commandValue.trim(),
       cpus: cpus.trim() || undefined,
       memory: memory.trim() || undefined,
       supported_accelerators: supportedAccelerators.trim() || undefined,
@@ -87,7 +87,7 @@ export default function NewTeamTaskModal({
     // Reset all form fields
     setTitle('');
     setDescription('');
-    setCommand('');
+    setRun('');
     setCpus('');
     setMemory('');
     setSupportedAccelerators('');
