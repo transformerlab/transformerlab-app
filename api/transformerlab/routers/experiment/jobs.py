@@ -35,17 +35,14 @@ from lab.dirs import (
     get_job_models_dir,
     get_models_dir,
 )
-from transformerlab.services.cache_service import cache, cached
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
-@cached(key="jobs:list:{experimentId}:{type}:{status}:{subtype}", ttl="30s", tags=["jobs", "jobs:list:{experimentId}"])
 async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subtype: str = ""):
     """
     Return the list of jobs for an experiment, optionally filtered by type/status/subtype.
-    Results are cached per provider/remote/org using the shared OrgScopedCache.
     """
     jobs = await job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
 
@@ -69,8 +66,6 @@ async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subt
 @router.get("/delete/{job_id}")
 async def job_delete(job_id: str, experimentId: str):
     await job_service.job_delete(job_id, experiment_id=experimentId)
-    # Invalidate cached job lists for this experiment (best-effort).
-    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
     return {"message": "OK"}
 
 
@@ -82,8 +77,6 @@ async def job_create(
     data: str = "{}",
 ):
     jobid = await job_service.job_create(type=type, status=status, job_data=data, experiment_id=experimentId)
-    # Invalidate cached job lists so new job appears.
-    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
     return jobid
 
 
@@ -105,15 +98,12 @@ async def stop_job(job_id: str, experimentId: str):
     # The way a job is stopped is simply by adding "stop: true" to the job_data
     # This will be checked by the plugin as it runs
     await job_service.job_stop(job_id, experiment_id=experimentId)
-    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
     return {"message": "OK"}
 
 
 @router.get("/delete_all")
 async def job_delete_all(experimentId: str):
     await job_service.job_delete_all(experiment_id=experimentId)
-    # Invalidate cached job lists for this experiment.
-    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
     return {"message": "OK"}
 
 
