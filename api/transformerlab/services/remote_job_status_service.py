@@ -21,7 +21,7 @@ from lab.dirs import set_organization_id as lab_set_org_id
 from lab.job_status import JobStatus
 
 from transformerlab.services import job_service, team_service
-from transformerlab.services.cache_service import cache
+
 
 REMOTE_JOB_STATUS_INTERVAL_SECONDS = int(os.getenv("REMOTE_JOB_STATUS_INTERVAL_SECONDS", "15"))
 
@@ -189,7 +189,6 @@ async def _handle_live_status(job: Dict[str, Any], experiment_id: str) -> bool:
         end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
         await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
         await job_service.job_update_status(job_id, new_status, experiment_id=experiment_id)
-        await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
     except Exception as exc:
         print(f"Remote job status worker: failed updating job {job_id} from live_status={live_status}: {exc}")
     return True
@@ -267,7 +266,6 @@ async def _check_job_via_provider(
                     final_status = JobStatus.COMPLETE.value
 
             await job_service.job_update_status(job_id, final_status, experiment_id=experiment_id)
-            await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
             return True
 
     else:
@@ -300,7 +298,6 @@ async def _check_job_via_provider(
                 final_status = JobStatus.COMPLETE.value
 
             await job_service.job_update_status(job_id, final_status, experiment_id=experiment_id)
-            await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
             return True
 
     return False
