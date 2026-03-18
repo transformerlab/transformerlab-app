@@ -48,7 +48,7 @@ interface AssetVersionEntry {
   id: string;
   asset_type: string;
   group_name: string;
-  version: number;
+  version_label: string;
   asset_id: string;
   tag: string | null;
   job_id: string | null;
@@ -57,7 +57,7 @@ interface AssetVersionEntry {
   long_description: string | null;
   cover_image: string | null;
   evals: Record<string, unknown> | null;
-  extra_metadata: Record<string, unknown> | null;
+  metadata: Record<string, unknown> | null;
   created_at: string | null;
 }
 
@@ -210,7 +210,7 @@ function VersionDetailPanel({
     entry.evals ?? {},
   );
   const [metadataJson, setMetadataJson] = useState(
-    entry.extra_metadata ? JSON.stringify(entry.extra_metadata, null, 2) : '{}',
+    entry.metadata ? JSON.stringify(entry.metadata, null, 2) : '{}',
   );
   const [metadataError, setMetadataError] = useState<string | null>(null);
 
@@ -228,8 +228,8 @@ function VersionDetailPanel({
     setTag(entry.tag);
     setEvals(entry.evals ?? {});
     setMetadataJson(
-      entry.extra_metadata
-        ? JSON.stringify(entry.extra_metadata, null, 2)
+      entry.metadata
+        ? JSON.stringify(entry.metadata, null, 2)
         : '{}',
     );
     setMetadataError(null);
@@ -257,13 +257,13 @@ function VersionDetailPanel({
         long_description: longDescription || null,
         cover_image: coverImage || null,
         evals: Object.keys(evals).length > 0 ? evals : null,
-        extra_metadata: parsedMetadata,
+        metadata: parsedMetadata,
       };
       await fetchWithAuth(
         chatAPI.Endpoints.AssetVersions.UpdateVersion(
           assetType,
           groupName,
-          entry.version,
+          entry.version_label,
         ),
         {
           method: 'PATCH',
@@ -282,7 +282,7 @@ function VersionDetailPanel({
   }, [
     assetType,
     groupName,
-    entry.version,
+    entry.version_label,
     title,
     description,
     longDescription,
@@ -313,7 +313,7 @@ function VersionDetailPanel({
           chatAPI.Endpoints.AssetVersions.SetTag(
             assetType,
             groupName,
-            entry.version,
+            entry.version_label,
           ),
           {
             method: 'PUT',
@@ -326,7 +326,7 @@ function VersionDetailPanel({
           chatAPI.Endpoints.AssetVersions.ClearTag(
             assetType,
             groupName,
-            entry.version,
+            entry.version_label,
           ),
           { method: 'DELETE' },
         );
@@ -361,7 +361,7 @@ function VersionDetailPanel({
             <ChevronLeftIcon size={18} />
           </IconButton>
           <Typography level="title-md" fontFamily="monospace">
-            v{entry.version}
+            {entry.version_label}
           </Typography>
           {tag && (
             <Chip size="sm" color={TAG_COLORS[tag] || 'neutral'} variant="soft">
@@ -654,8 +654,8 @@ export default function AssetVersionsDrawer({
   assetType,
   groupName,
 }: AssetVersionsDrawerProps) {
-  const [updatingVersion, setUpdatingVersion] = useState<number | null>(null);
-  const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
+  const [updatingVersion, setUpdatingVersion] = useState<string | null>(null);
+  const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
 
   const {
     data: versions,
@@ -673,11 +673,11 @@ export default function AssetVersionsDrawer({
     if (!open) setSelectedVersion(null);
   }, [open, groupName]);
 
-  const handleSetTag = async (version: number, tag: string) => {
-    setUpdatingVersion(version);
+  const handleSetTag = async (versionLabel: string, tag: string) => {
+    setUpdatingVersion(versionLabel);
     try {
       await fetchWithAuth(
-        chatAPI.Endpoints.AssetVersions.SetTag(assetType, groupName, version),
+        chatAPI.Endpoints.AssetVersions.SetTag(assetType, groupName, versionLabel),
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -692,11 +692,11 @@ export default function AssetVersionsDrawer({
     }
   };
 
-  const handleClearTag = async (version: number) => {
-    setUpdatingVersion(version);
+  const handleClearTag = async (versionLabel: string) => {
+    setUpdatingVersion(versionLabel);
     try {
       await fetchWithAuth(
-        chatAPI.Endpoints.AssetVersions.ClearTag(assetType, groupName, version),
+        chatAPI.Endpoints.AssetVersions.ClearTag(assetType, groupName, versionLabel),
         { method: 'DELETE' },
       );
       mutate();
@@ -707,25 +707,25 @@ export default function AssetVersionsDrawer({
     }
   };
 
-  const handleDeleteVersion = async (version: number) => {
+  const handleDeleteVersion = async (versionLabel: string) => {
     if (
       !window.confirm(
-        `Delete version ${version} from group "${groupName}"? This will not delete the underlying ${assetType}.`,
+        `Delete version ${versionLabel} from group "${groupName}"? This will not delete the underlying ${assetType}.`,
       )
     ) {
       return;
     }
-    setUpdatingVersion(version);
+    setUpdatingVersion(versionLabel);
     try {
       await fetchWithAuth(
         chatAPI.Endpoints.AssetVersions.DeleteVersion(
           assetType,
           groupName,
-          version,
+          versionLabel,
         ),
         { method: 'DELETE' },
       );
-      if (selectedVersion === version) setSelectedVersion(null);
+      if (selectedVersion === versionLabel) setSelectedVersion(null);
       mutate();
     } catch (error) {
       console.error('Failed to delete version:', error);
@@ -743,7 +743,7 @@ export default function AssetVersionsDrawer({
   // Find the selected entry
   const selectedEntry =
     selectedVersion !== null
-      ? (versionList.find((v) => v.version === selectedVersion) ?? null)
+      ? (versionList.find((v) => v.version_label === selectedVersion) ?? null)
       : null;
 
   return (
@@ -841,11 +841,11 @@ export default function AssetVersionsDrawer({
                   <tr
                     key={v.id}
                     style={{ cursor: 'pointer' }}
-                    onClick={() => setSelectedVersion(v.version)}
+                    onClick={() => setSelectedVersion(v.version_label)}
                   >
                     <td>
                       <Typography level="title-sm" fontFamily="monospace">
-                        v{v.version}
+                        {v.version_label}
                       </Typography>
                     </td>
                     <td>
@@ -860,7 +860,7 @@ export default function AssetVersionsDrawer({
                       </Tooltip>
                     </td>
                     <td>
-                      {updatingVersion === v.version ? (
+                      {updatingVersion === v.version_label ? (
                         <CircularProgress size="sm" />
                       ) : v.tag ? (
                         <Chip
@@ -874,7 +874,7 @@ export default function AssetVersionsDrawer({
                               color="neutral"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleClearTag(v.version);
+                                handleClearTag(v.version_label);
                               }}
                               sx={{ '--IconButton-size': '18px', ml: 0.5 }}
                             >
@@ -890,7 +890,7 @@ export default function AssetVersionsDrawer({
                           placeholder="Set tag…"
                           value={null}
                           onChange={(_e, val) => {
-                            if (val) handleSetTag(v.version, val as string);
+                            if (val) handleSetTag(v.version_label, val as string);
                           }}
                           sx={{ minWidth: 100 }}
                           onClick={(e) => e.stopPropagation()}
@@ -932,7 +932,7 @@ export default function AssetVersionsDrawer({
                             color="primary"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedVersion(v.version);
+                              setSelectedVersion(v.version_label);
                             }}
                           >
                             <PencilIcon size={15} />
@@ -944,9 +944,9 @@ export default function AssetVersionsDrawer({
                           color="danger"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteVersion(v.version);
+                            handleDeleteVersion(v.version_label);
                           }}
-                          disabled={updatingVersion === v.version}
+                          disabled={updatingVersion === v.version_label}
                         >
                           <Trash2Icon size={15} />
                         </IconButton>
