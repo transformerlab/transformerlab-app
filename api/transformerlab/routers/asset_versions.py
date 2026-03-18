@@ -2,6 +2,7 @@
 asset_versions.py
 
 API router for managing versioned groups of models and datasets.
+Groups are stored as JSON files under the ``asset_groups/`` directory.
 """
 
 from typing import Optional
@@ -22,6 +23,7 @@ class CreateVersionRequest(BaseModel):
     asset_type: str  # 'model' or 'dataset'
     group_name: str
     asset_id: str
+    version_label: str = "v1"
     job_id: Optional[str] = None
     description: Optional[str] = None
     title: Optional[str] = None
@@ -33,7 +35,7 @@ class CreateVersionRequest(BaseModel):
 
 
 class SetTagRequest(BaseModel):
-    tag: str  # 'latest', 'production', 'draft'
+    tag: str
 
 
 class UpdateVersionRequest(BaseModel):
@@ -79,6 +81,7 @@ async def create_version(body: CreateVersionRequest):
             asset_type=body.asset_type,
             group_name=body.group_name,
             asset_id=body.asset_id,
+            version_label=body.version_label,
             job_id=body.job_id,
             description=body.description,
             title=body.title,
@@ -105,12 +108,12 @@ async def list_versions(asset_type: str, group_name: str):
 
 
 @router.get(
-    "/versions/{asset_type}/{group_name}/{version}",
-    summary="Get a specific version by number.",
+    "/versions/{asset_type}/{group_name}/{version_label}",
+    summary="Get a specific version by its label.",
 )
-async def get_version(asset_type: str, group_name: str, version: int):
+async def get_version(asset_type: str, group_name: str, version_label: str):
     try:
-        result = await asset_version_service.get_version(asset_type, group_name, version)
+        result = await asset_version_service.get_version(asset_type, group_name, version_label)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if result is None:
@@ -119,12 +122,12 @@ async def get_version(asset_type: str, group_name: str, version: int):
 
 
 @router.delete(
-    "/versions/{asset_type}/{group_name}/{version}",
+    "/versions/{asset_type}/{group_name}/{version_label}",
     summary="Delete a specific version.",
 )
-async def delete_version(asset_type: str, group_name: str, version: int):
+async def delete_version(asset_type: str, group_name: str, version_label: str):
     try:
-        deleted = await asset_version_service.delete_version(asset_type, group_name, version)
+        deleted = await asset_version_service.delete_version(asset_type, group_name, version_label)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if not deleted:
@@ -136,10 +139,10 @@ async def delete_version(asset_type: str, group_name: str, version: int):
 
 
 @router.patch(
-    "/versions/{asset_type}/{group_name}/{version}",
+    "/versions/{asset_type}/{group_name}/{version_label}",
     summary="Update metadata or tag on a specific version.",
 )
-async def update_version(asset_type: str, group_name: str, version: int, body: UpdateVersionRequest):
+async def update_version(asset_type: str, group_name: str, version_label: str, body: UpdateVersionRequest):
     # Build kwargs only for fields the caller actually sent (present in the JSON body).
     # This lets the service layer distinguish "not provided" from "set to null".
     raw = body.model_dump(exclude_unset=True)
@@ -159,7 +162,7 @@ async def update_version(asset_type: str, group_name: str, version: int, body: U
             kwargs[field] = raw[field]
 
     try:
-        result = await asset_version_service.update_version(asset_type, group_name, version, **kwargs)
+        result = await asset_version_service.update_version(asset_type, group_name, version_label, **kwargs)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if result is None:
@@ -171,12 +174,12 @@ async def update_version(asset_type: str, group_name: str, version: int, body: U
 
 
 @router.put(
-    "/versions/{asset_type}/{group_name}/{version}/tag",
+    "/versions/{asset_type}/{group_name}/{version_label}/tag",
     summary="Set a tag on a specific version. Moves the tag from any other version in the group.",
 )
-async def set_tag(asset_type: str, group_name: str, version: int, body: SetTagRequest):
+async def set_tag(asset_type: str, group_name: str, version_label: str, body: SetTagRequest):
     try:
-        result = await asset_version_service.set_tag(asset_type, group_name, version, body.tag)
+        result = await asset_version_service.set_tag(asset_type, group_name, version_label, body.tag)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if result is None:
@@ -185,12 +188,12 @@ async def set_tag(asset_type: str, group_name: str, version: int, body: SetTagRe
 
 
 @router.delete(
-    "/versions/{asset_type}/{group_name}/{version}/tag",
+    "/versions/{asset_type}/{group_name}/{version_label}/tag",
     summary="Clear the tag from a specific version.",
 )
-async def clear_tag(asset_type: str, group_name: str, version: int):
+async def clear_tag(asset_type: str, group_name: str, version_label: str):
     try:
-        result = await asset_version_service.clear_tag(asset_type, group_name, version)
+        result = await asset_version_service.clear_tag(asset_type, group_name, version_label)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if result is None:
@@ -208,11 +211,11 @@ async def clear_tag(asset_type: str, group_name: str, version: int):
 async def resolve(
     asset_type: str,
     group_name: str,
-    tag: Optional[str] = Query(None, description="Tag to resolve: 'latest', 'production', 'draft'"),
-    version: Optional[int] = Query(None, description="Exact version number to resolve"),
+    tag: Optional[str] = Query(None, description="Tag to resolve (any string, e.g. 'latest', 'production')"),
+    version_label: Optional[str] = Query(None, description="Exact version label to resolve"),
 ):
     try:
-        result = await asset_version_service.resolve(asset_type, group_name, tag=tag, version=version)
+        result = await asset_version_service.resolve(asset_type, group_name, tag=tag, version_label=version_label)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if result is None:
