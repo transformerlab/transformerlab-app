@@ -1428,23 +1428,36 @@ async def save_dataset_to_registry(
 
         datasets_registry_dir = await get_datasets_dir()
 
-        # Determine the unique destination folder name (asset_name).
-        # If the caller did not supply one, fall back to target_name or the source dataset name.
-        effective_asset_name = secure_filename(asset_name) if asset_name else None
-        if not effective_asset_name:
-            effective_asset_name = secure_filename(target_name) if target_name else dataset_name_secure
-
-        # Check that a dataset with this name does not already exist in the registry.
-        dest_path = storage.join(datasets_registry_dir, effective_asset_name)
-        if await storage.exists(dest_path):
-            raise HTTPException(
-                status_code=409,
-                detail=f"A dataset named '{effective_asset_name}' already exists in the registry. Please choose a different name.",
-            )
-
         if mode == "existing":
+            # For mode='existing', the asset is merged into the target group folder.
             if not target_name:
                 raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
+            target_name_secure = secure_filename(target_name)
+            dest_path = storage.join(datasets_registry_dir, target_name_secure)
+            if not await storage.exists(dest_path):
+                raise HTTPException(status_code=404, detail=f"Dataset '{target_name}' not found in registry")
+            # When merging into an existing group, asset_name is the target folder itself.
+            effective_asset_name = target_name_secure
+        else:
+            # Determine the unique destination folder name (asset_name).
+            # If the caller explicitly supplied asset_name, enforce uniqueness (409 on conflict).
+            # Otherwise fall back to target_name / source name and auto-suffix on conflict.
+            if asset_name:
+                effective_asset_name = secure_filename(asset_name)
+                dest_path = storage.join(datasets_registry_dir, effective_asset_name)
+                if await storage.exists(dest_path):
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"A dataset named '{effective_asset_name}' already exists in the registry. Please choose a different name.",
+                    )
+            else:
+                effective_asset_name = secure_filename(target_name) if target_name else dataset_name_secure
+                dest_path = storage.join(datasets_registry_dir, effective_asset_name)
+                if await storage.exists(dest_path):
+                    from datetime import datetime
+
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    effective_asset_name = f"{effective_asset_name}_{timestamp}"
 
         asyncio.create_task(
             _save_dataset_to_registry(
@@ -1533,23 +1546,36 @@ async def save_model_to_registry(
 
         models_registry_dir = await get_models_dir()
 
-        # Determine the unique destination folder name (asset_name).
-        # If the caller did not supply one, fall back to target_name or the source model name.
-        effective_asset_name = secure_filename(asset_name) if asset_name else None
-        if not effective_asset_name:
-            effective_asset_name = secure_filename(target_name) if target_name else model_name_secure
-
-        # Check that a model with this name does not already exist in the registry.
-        dest_path = storage.join(models_registry_dir, effective_asset_name)
-        if await storage.exists(dest_path):
-            raise HTTPException(
-                status_code=409,
-                detail=f"A model named '{effective_asset_name}' already exists in the registry. Please choose a different name.",
-            )
-
         if mode == "existing":
+            # For mode='existing', the asset is merged into the target group folder.
             if not target_name:
                 raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
+            target_name_secure = secure_filename(target_name)
+            dest_path = storage.join(models_registry_dir, target_name_secure)
+            if not await storage.exists(dest_path):
+                raise HTTPException(status_code=404, detail=f"Model '{target_name}' not found in registry")
+            # When merging into an existing group, asset_name is the target folder itself.
+            effective_asset_name = target_name_secure
+        else:
+            # Determine the unique destination folder name (asset_name).
+            # If the caller explicitly supplied asset_name, enforce uniqueness (409 on conflict).
+            # Otherwise fall back to target_name / source name and auto-suffix on conflict.
+            if asset_name:
+                effective_asset_name = secure_filename(asset_name)
+                dest_path = storage.join(models_registry_dir, effective_asset_name)
+                if await storage.exists(dest_path):
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"A model named '{effective_asset_name}' already exists in the registry. Please choose a different name.",
+                    )
+            else:
+                effective_asset_name = secure_filename(target_name) if target_name else model_name_secure
+                dest_path = storage.join(models_registry_dir, effective_asset_name)
+                if await storage.exists(dest_path):
+                    from datetime import datetime
+
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    effective_asset_name = f"{effective_asset_name}_{timestamp}"
 
         asyncio.create_task(
             _save_model_to_registry(
