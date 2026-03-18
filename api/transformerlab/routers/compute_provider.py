@@ -2795,7 +2795,9 @@ def _get_provider_setup_status_path(team_id: str, provider_id: str) -> Path:
     safe_team = secure_filename(str(team_id).replace("/", "_")) or "team"
     safe_provider = secure_filename(str(provider_id).replace("/", "_")) or "provider"
     return (
-        Path(get_local_provider_root()) / "local_temp" / f"local_provider_setup_status_{safe_team}_{safe_provider}.json"
+        Path(get_local_provider_root())
+        / "team_setup_logs"
+        / f"local_provider_setup_status_{safe_team}_{safe_provider}.json"
     )
 
 
