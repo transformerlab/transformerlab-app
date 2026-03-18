@@ -112,10 +112,7 @@ async def _best_effort_stop_cluster_for_job(job: Dict[str, Any]) -> None:
     try:
         from transformerlab.db.session import async_session
         from transformerlab.services.provider_service import get_provider_by_id, get_provider_instance
-    except Exception:
-        return
 
-    try:
         job_data = job.get("job_data") or {}
         if not isinstance(job_data, dict):
             return
