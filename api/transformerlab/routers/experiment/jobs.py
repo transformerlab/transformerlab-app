@@ -1467,26 +1467,24 @@ async def save_dataset_to_registry(
             ),
         )
 
-        # Fire-and-forget the heavy copy work
-        asyncio.create_task(
-            _save_dataset_to_registry_background(
-                task_job_id=str(task_job_id),
-                job_id=job_id,
-                dataset_name_secure=dataset_name_secure,
-                source_path=source_path,
-                datasets_registry_dir=datasets_registry_dir,
-                target_name=target_name,
-                mode=mode,
-                tag=tag,
-                version_label=version_label,
-                description=description,
-                experiment_id=experimentId,
-            )
+        # Perform the copy work synchronously so the caller gets the result
+        final_name = await _save_dataset_to_registry_background(
+            task_job_id=str(task_job_id),
+            job_id=job_id,
+            dataset_name_secure=dataset_name_secure,
+            source_path=source_path,
+            datasets_registry_dir=datasets_registry_dir,
+            target_name=target_name,
+            mode=mode,
+            tag=tag,
+            version_label=version_label,
+            description=description,
+            experiment_id=experimentId,
         )
 
         return {
-            "status": "started",
-            "message": "Dataset save to registry started",
+            "status": "success",
+            "message": f"Dataset saved to registry as '{final_name}'",
             "task_job_id": task_job_id,
         }
 
@@ -1558,6 +1556,8 @@ async def _save_dataset_to_registry_background(
         await job_update_status(task_job_id, "COMPLETE", experiment_id=experiment_id)
         await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
 
+        return final_name
+
     except Exception as e:
         print(f"Error saving dataset to registry for job {job_id}: {str(e)}")
         import traceback
@@ -1570,6 +1570,7 @@ async def _save_dataset_to_registry_background(
             pass
         await job_update_status(task_job_id, "FAILED", experiment_id=experiment_id, error_msg=str(e))
         await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
+        raise
 
 
 @router.post("/{job_id}/models/{model_name}/save_to_registry")
@@ -1628,26 +1629,24 @@ async def save_model_to_registry(
             ),
         )
 
-        # Fire-and-forget the heavy copy work
-        asyncio.create_task(
-            _save_model_to_registry_background(
-                task_job_id=str(task_job_id),
-                job_id=job_id,
-                model_name_secure=model_name_secure,
-                source_path=source_path,
-                models_registry_dir=models_registry_dir,
-                target_name=target_name,
-                mode=mode,
-                tag=tag,
-                version_label=version_label,
-                description=description,
-                experiment_id=experimentId,
-            )
+        # Perform the copy work synchronously so the caller gets the result
+        final_name = await _save_model_to_registry_background(
+            task_job_id=str(task_job_id),
+            job_id=job_id,
+            model_name_secure=model_name_secure,
+            source_path=source_path,
+            models_registry_dir=models_registry_dir,
+            target_name=target_name,
+            mode=mode,
+            tag=tag,
+            version_label=version_label,
+            description=description,
+            experiment_id=experimentId,
         )
 
         return {
-            "status": "started",
-            "message": "Model save to registry started",
+            "status": "success",
+            "message": f"Model saved to registry as '{final_name}'",
             "task_job_id": task_job_id,
         }
 
@@ -1719,6 +1718,8 @@ async def _save_model_to_registry_background(
         await job_update_status(task_job_id, "COMPLETE", experiment_id=experiment_id)
         await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
 
+        return final_name
+
     except Exception as e:
         print(f"Error saving model to registry for job {job_id}: {str(e)}")
         import traceback
@@ -1731,6 +1732,7 @@ async def _save_model_to_registry_background(
             pass
         await job_update_status(task_job_id, "FAILED", experiment_id=experiment_id, error_msg=str(e))
         await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
+        raise
 
 
 @router.get("/{job_id}/files")
