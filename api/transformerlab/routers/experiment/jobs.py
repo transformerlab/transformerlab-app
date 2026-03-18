@@ -1458,12 +1458,14 @@ async def save_dataset_to_registry(
             type="TASK",
             status="STARTED",
             experiment_id=experimentId,
-            job_data=json.dumps({
-                "subtype": "save_to_registry",
-                "asset_type": "dataset",
-                "source_name": dataset_name,
-                "target_name": target_name or dataset_name,
-            }),
+            job_data=json.dumps(
+                {
+                    "subtype": "save_to_registry",
+                    "asset_type": "dataset",
+                    "source_name": dataset_name,
+                    "target_name": target_name or dataset_name,
+                }
+            ),
         )
 
         # Fire-and-forget the heavy copy work
@@ -1617,12 +1619,14 @@ async def save_model_to_registry(
             type="TASK",
             status="STARTED",
             experiment_id=experimentId,
-            job_data=json.dumps({
-                "subtype": "save_to_registry",
-                "asset_type": "model",
-                "source_name": model_name,
-                "target_name": target_name or model_name,
-            }),
+            job_data=json.dumps(
+                {
+                    "subtype": "save_to_registry",
+                    "asset_type": "model",
+                    "source_name": model_name,
+                    "target_name": target_name or model_name,
+                }
+            ),
         )
 
         # Fire-and-forget the heavy copy work

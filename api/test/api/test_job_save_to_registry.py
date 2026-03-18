@@ -164,6 +164,7 @@ def test_save_dataset_to_registry_duplicate_gets_timestamped_name(client, tmp_wo
     job_data = task.get("job_data", {})
     if isinstance(job_data, str):
         import json
+
         job_data = json.loads(job_data)
     saved_name = job_data.get("final_name", "")
     assert saved_name.startswith(dataset_name)
@@ -267,6 +268,7 @@ def test_save_model_to_registry_duplicate_gets_timestamped_name(client, tmp_work
     job_data = task.get("job_data", {})
     if isinstance(job_data, str):
         import json
+
         job_data = json.loads(job_data)
     saved_name = job_data.get("final_name", "")
     assert saved_name.startswith(model_name)
@@ -397,6 +399,7 @@ def test_save_dataset_to_registry_custom_name_duplicate_gets_timestamp(client, t
     job_data = task.get("job_data", {})
     if isinstance(job_data, str):
         import json
+
         job_data = json.loads(job_data)
     saved_name = job_data.get("final_name", "")
     assert saved_name.startswith(custom_name)
@@ -518,6 +521,7 @@ def test_save_model_to_registry_custom_name_duplicate_gets_timestamp(client, tmp
     job_data = task.get("job_data", {})
     if isinstance(job_data, str):
         import json
+
         job_data = json.loads(job_data)
     saved_name = job_data.get("final_name", "")
     assert saved_name.startswith(custom_name)
