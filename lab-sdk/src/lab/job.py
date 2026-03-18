@@ -3,7 +3,6 @@ from werkzeug.utils import secure_filename
 
 from . import dirs
 from .labresource import BaseLabResource
-from .dirs import get_workspace_dir
 from . import storage
 from .job_status import JobStatus
 import logging

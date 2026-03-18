@@ -66,7 +66,6 @@ async def test_get_jobs_filters(tmp_path, monkeypatch):
     monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
 
     from lab.experiment import Experiment
-    from lab.job import Job
 
     exp = await Experiment.create("exp2")
 
