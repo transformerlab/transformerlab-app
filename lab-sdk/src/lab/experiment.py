@@ -172,7 +172,7 @@ class Experiment(BaseLabResource):
                     pass
         return experiments
 
-    async def create_job(self):
+    async def create_job(self, type: str = "REMOTE"):
         """
         Creates a new job with a blank template and returns a Job object.
         """
@@ -195,9 +195,13 @@ class Experiment(BaseLabResource):
 
         new_job_id = largest_numeric_subdir + 1
 
-        # Create job with next available job_id and associate the new job with this experiment
+        # Create job and set its experiment fields directly (no rebuild needed)
         new_job = await Job.create(new_job_id)
-        await new_job.set_experiment(self.id)
+        await new_job._update_json_data_field("experiment_id", self.id)
+        await new_job.update_job_data_field("experiment_name", self.id)
+
+        # Add to index incrementally — no filesystem scan
+        await self._add_job(str(new_job.id), type)
 
         return new_job
 
@@ -606,9 +610,57 @@ class Experiment(BaseLabResource):
         async with await storage.open(jobs_json_path, "w") as f:
             await f.write(json.dumps(jobs_data, indent=4))
 
-        # Trigger background cache rebuild
-        workspace = await get_workspace_dir()
-        self._trigger_cache_rebuild(workspace)
+    async def _update_cached_job(self, job_id: str, job_data: dict):
+        """Update a single job's data in cached_jobs without a full filesystem scan."""
+        jobs_json_path = await self._jobs_json_file()
+        try:
+            jobs_data = await self._read_jobs_json_file(jobs_json_path)
+        except FileNotFoundError:
+            jobs_data = {"index": {}, "cached_jobs": {}}
+        except Exception:
+            return
+
+        if "index" not in jobs_data:
+            jobs_data = {"index": jobs_data, "cached_jobs": {}}
+        if "cached_jobs" not in jobs_data:
+            jobs_data["cached_jobs"] = {}
+
+        jobs_data["cached_jobs"][str(job_id)] = job_data
+
+        try:
+            async with await storage.open(jobs_json_path, "w") as f:
+                await f.write(json.dumps(jobs_data, indent=4))
+        except Exception:
+            logger.warning("Error updating cached_jobs for job %s", job_id, exc_info=True)
+
+    async def _remove_job_from_index(self, job_id: str):
+        """Remove a job from the index and cached_jobs without a full filesystem scan."""
+        jobs_json_path = await self._jobs_json_file()
+        try:
+            jobs_data = await self._read_jobs_json_file(jobs_json_path)
+        except FileNotFoundError:
+            return
+        except Exception:
+            return
+
+        if "index" not in jobs_data:
+            jobs_data = {"index": jobs_data, "cached_jobs": {}}
+
+        job_id_str = str(job_id)
+
+        index = jobs_data.get("index", {})
+        for job_type in list(index.keys()):
+            if job_id_str in index[job_type]:
+                index[job_type].remove(job_id_str)
+
+        cached_jobs = jobs_data.get("cached_jobs", {})
+        cached_jobs.pop(job_id_str, None)
+
+        try:
+            async with await storage.open(jobs_json_path, "w") as f:
+                await f.write(json.dumps(jobs_data, indent=4))
+        except Exception:
+            logger.warning("Error removing job %s from jobs.json index", job_id, exc_info=True)
 
     @classmethod
     def _start_background_cache_rebuild(cls):
@@ -685,6 +737,3 @@ class Experiment(BaseLabResource):
                 await job.delete()
             except Exception:
                 pass  # Job might not exist
-
-        workspace = await get_workspace_dir()
-        self._trigger_cache_rebuild(workspace)

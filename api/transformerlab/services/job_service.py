@@ -48,9 +48,8 @@ async def job_create(type, status, experiment_id, job_data="{}"):
     # Create experiment if it doesn't exist
     exp = Experiment(experiment_id)
 
-    # Create job through experiment
-    job = await exp.create_job()
-    await job.set_experiment(experiment_id)  # Set the experiment_id on the job
+    # Create job through experiment — type is passed so the index is correct immediately
+    job = await exp.create_job(type=type)
     await job.set_type(type)
     await job.update_status(status)
     await job.set_job_data(job_data)

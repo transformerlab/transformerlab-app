@@ -70,12 +70,10 @@ async def test_get_jobs_filters(tmp_path, monkeypatch):
 
     exp = await Experiment.create("exp2")
 
-    j1 = await Job.create("21")
-    await j1.set_experiment("exp2", sync_rebuild=True)
+    j1 = await exp.create_job()
     await j1.update_status("RUNNING")
 
-    j2 = await Job.create("22")
-    await j2.set_experiment("exp2", sync_rebuild=True)
+    j2 = await exp.create_job()
     await j2.update_status("NOT_STARTED")
 
     # get all

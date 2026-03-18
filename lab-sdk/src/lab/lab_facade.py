@@ -115,7 +115,6 @@ class Lab:
             self._experiment = _run_async(Experiment.create_or_get(experiment_id, create_new=True))
             self._job = _run_async(self._experiment.create_job())
             _run_async(self._job.update_job_data_field("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))
-            _run_async(self._job.set_experiment(experiment_id))
             logger.info(f"Created new job ID: {self._job.id}")
 
         # Update status to RUNNING for both cases
