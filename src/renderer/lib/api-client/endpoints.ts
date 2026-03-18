@@ -315,6 +315,7 @@ Endpoints.Tools = {
 
 Endpoints.ServerInfo = {
   StreamLog: () => `${API_URL()}server/stream_log`,
+  Version: () => `${API_URL()}server/version`,
 };
 
 Endpoints.Charts = {
