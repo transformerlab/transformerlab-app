@@ -43,10 +43,19 @@ type TaskModeProps = {
   jobId?: never;
 };
 
+type TeamGalleryModeProps = {
+  mode: 'team-gallery';
+  galleryId: string;
+  galleryTitle?: string | null;
+  jobId?: never;
+  taskId?: never;
+  taskName?: never;
+};
+
 type FileBrowserModalProps = {
   open: boolean;
   onClose: () => void;
-} & (JobModeProps | TaskModeProps);
+} & (JobModeProps | TaskModeProps | TeamGalleryModeProps);
 
 type TaskFilesResponse = {
   github_files?: string[] | null;
@@ -60,6 +69,8 @@ export default function FileBrowserModal({
   jobId,
   taskId,
   taskName,
+  galleryId,
+  galleryTitle,
 }: FileBrowserModalProps) {
   const { experimentInfo } = useExperimentInfo();
   const [currentPath, setCurrentPath] = useState('');
@@ -122,6 +133,22 @@ export default function FileBrowserModal({
           }
 
           setFiles(nextFiles);
+        } else if (mode === 'team-gallery' && galleryId) {
+          const url = Endpoints.Task.TeamGalleryListFiles(
+            String(experimentInfo.id),
+            String(galleryId),
+          );
+          const res = await fetchWithAuth(url);
+          const data = await res.json();
+          const filesList: string[] = Array.isArray(data.files)
+            ? data.files
+            : [];
+          const nextFiles: FileEntry[] = filesList.map((p) => ({
+            name: p,
+            is_dir: false,
+            size: 0,
+          }));
+          setFiles(nextFiles);
         } else {
           setFiles([]);
         }
@@ -133,7 +160,7 @@ export default function FileBrowserModal({
         setLoading(false);
       }
     },
-    [experimentInfo?.id, jobId, mode, taskId],
+    [experimentInfo?.id, jobId, mode, taskId, galleryId],
   );
 
   useEffect(() => {
@@ -232,8 +259,9 @@ export default function FileBrowserModal({
       return;
     }
 
-    // Task mode: treat all entries as files. Local entries are fetched from the task
-    // workspace directory; GitHub entries are fetched via the GitHub-backed endpoint.
+    // Task / Team Gallery mode: treat all entries as files. Task-local entries are fetched
+    // from the task workspace directory; GitHub entries are fetched via the GitHub-backed
+    // endpoint. Team gallery entries are fetched from the gallery local_task_dir.
     const filePath = file.name;
     setSelectedFile(filePath);
     setFileLoading(true);
@@ -268,19 +296,27 @@ export default function FileBrowserModal({
 
     try {
       const url =
-        experimentInfo?.id && taskId
-          ? file.source === 'github'
-            ? Endpoints.Task.GetGithubFile(
+        mode === 'team-gallery'
+          ? experimentInfo?.id && galleryId
+            ? Endpoints.Task.TeamGalleryGetFile(
                 String(experimentInfo.id),
-                String(taskId),
+                String(galleryId),
                 filePath,
               )
-            : Endpoints.Task.GetFile(
-                String(experimentInfo.id),
-                String(taskId),
-                filePath,
-              )
-          : null;
+            : null
+          : experimentInfo?.id && taskId
+            ? file.source === 'github'
+              ? Endpoints.Task.GetGithubFile(
+                  String(experimentInfo.id),
+                  String(taskId),
+                  filePath,
+                )
+              : Endpoints.Task.GetFile(
+                  String(experimentInfo.id),
+                  String(taskId),
+                  filePath,
+                )
+            : null;
 
       if (!url) {
         setFileMediaType('text');
@@ -302,7 +338,7 @@ export default function FileBrowserModal({
       }
     } catch (e) {
       // eslint-disable-next-line no-console
-      console.error('Failed to fetch task file content', e);
+      console.error('Failed to fetch file content', e);
       setFileContent('Error loading file');
       setFileMediaType('text');
     } finally {
@@ -319,7 +355,9 @@ export default function FileBrowserModal({
         <Typography level="h4" component="h2">
           {mode === 'job'
             ? `File Browser — Job ${jobId}`
-            : `Files — Task ${taskName || taskId}`}
+            : mode === 'team-gallery'
+              ? `Files — Team Gallery ${galleryTitle || galleryId}`
+              : `Files — Task ${taskName || taskId}`}
         </Typography>
 
         {mode === 'job' && (

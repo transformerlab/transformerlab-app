@@ -287,6 +287,12 @@ export default function QueueTaskModal({
   // Helper to check if a provider supports requested accelerators
   const isProviderCompatible = React.useCallback(
     (provider: any) => {
+      // Only enforce accelerator compatibility heuristics for local providers.
+      // Remote providers (Runpod, Skypilot, SLURM, etc.) validate resources on their side.
+      if (provider?.type !== 'local') {
+        return true;
+      }
+
       if (!effectiveResources || !effectiveResources.accelerators) return true;
 
       const supported = provider.config?.supported_accelerators || [];
