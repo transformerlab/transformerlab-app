@@ -1,6 +1,5 @@
 import asyncio
 import csv
-from datetime import datetime
 from fnmatch import fnmatch
 import json
 import os
