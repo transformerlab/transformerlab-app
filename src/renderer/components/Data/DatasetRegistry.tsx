@@ -57,7 +57,7 @@ interface VersionEntry {
   id: string;
   asset_type: string;
   group_name: string;
-  version: number;
+  version_label: string;
   asset_id: string;
   tag: string | null;
   job_id: string | null;
@@ -66,7 +66,7 @@ interface VersionEntry {
   long_description: string | null;
   cover_image: string | null;
   evals: Record<string, unknown> | null;
-  extra_metadata: Record<string, unknown> | null;
+  metadata: Record<string, unknown> | null;
   created_at: string | null;
 }
 
@@ -74,7 +74,7 @@ interface GroupSummary {
   group_name: string;
   asset_type: string;
   version_count: number;
-  latest_version: number;
+  latest_version_label: string | null;
   latest_tag: string | null;
   latest_created_at: string | null;
 }
@@ -213,7 +213,7 @@ function VersionInfoDrawer({
         >
           <DialogTitle>
             <Typography level="title-lg">
-              Version Details: <b>v{entry.version}</b>
+              Version Details: <b>{entry.version_label}</b>
             </Typography>
           </DialogTitle>
           <ModalClose />
@@ -417,10 +417,10 @@ function VersionRow({
   onInfo,
 }: {
   v: VersionEntry;
-  updatingVersion: number | null;
-  onSetTag: (version: number, tag: string) => void;
-  onClearTag: (version: number) => void;
-  onDelete: (version: number) => void;
+  updatingVersion: string | null;
+  onSetTag: (versionLabel: string, tag: string) => void;
+  onClearTag: (versionLabel: string) => void;
+  onDelete: (versionLabel: string) => void;
   onInfo: (version: VersionEntry) => void;
 }) {
   return (
@@ -447,12 +447,12 @@ function VersionRow({
       {/* Version */}
       <td>
         <Typography level="title-sm" fontFamily="monospace">
-          v{v.version}
+          {v.version_label}
         </Typography>
       </td>
       {/* Tag */}
       <td>
-        {updatingVersion === v.version ? (
+        {updatingVersion === v.version_label ? (
           <CircularProgress size="sm" />
         ) : v.tag ? (
           <Chip
@@ -464,7 +464,7 @@ function VersionRow({
                 size="sm"
                 variant="plain"
                 color="neutral"
-                onClick={() => onClearTag(v.version)}
+                onClick={() => onClearTag(v.version_label)}
                 sx={{ '--IconButton-size': '18px', ml: 0.5 }}
               >
                 <XIcon size={12} />
@@ -479,7 +479,7 @@ function VersionRow({
             placeholder="Set tag…"
             value={null}
             onChange={(_e, val) => {
-              if (val) onSetTag(v.version, val as string);
+              if (val) onSetTag(v.version_label, val as string);
             }}
             sx={{ minWidth: 100 }}
           >
@@ -522,7 +522,7 @@ function VersionRow({
           size={18}
           color="var(--joy-palette-danger-600)"
           style={{ cursor: 'pointer', verticalAlign: 'middle' }}
-          onClick={() => onDelete(v.version)}
+          onClick={() => onDelete(v.version_label)}
         />
       </td>
     </tr>
@@ -540,7 +540,7 @@ function GroupVersionsTable({
   mutateGroups: () => void;
   onOpenInfo: (v: VersionEntry) => void;
 }) {
-  const [updatingVersion, setUpdatingVersion] = useState<number | null>(null);
+  const [updatingVersion, setUpdatingVersion] = useState<string | null>(null);
   const assetType = 'dataset';
 
   const {
@@ -552,11 +552,11 @@ function GroupVersionsTable({
     fetcher,
   );
 
-  const handleSetTag = async (version: number, tag: string) => {
-    setUpdatingVersion(version);
+  const handleSetTag = async (versionLabel: string, tag: string) => {
+    setUpdatingVersion(versionLabel);
     try {
       await fetchWithAuth(
-        chatAPI.Endpoints.AssetVersions.SetTag(assetType, groupName, version),
+        chatAPI.Endpoints.AssetVersions.SetTag(assetType, groupName, versionLabel),
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -572,11 +572,11 @@ function GroupVersionsTable({
     }
   };
 
-  const handleClearTag = async (version: number) => {
-    setUpdatingVersion(version);
+  const handleClearTag = async (versionLabel: string) => {
+    setUpdatingVersion(versionLabel);
     try {
       await fetchWithAuth(
-        chatAPI.Endpoints.AssetVersions.ClearTag(assetType, groupName, version),
+        chatAPI.Endpoints.AssetVersions.ClearTag(assetType, groupName, versionLabel),
         { method: 'DELETE' },
       );
       mutate();
@@ -588,21 +588,21 @@ function GroupVersionsTable({
     }
   };
 
-  const handleDeleteVersion = async (version: number) => {
+  const handleDeleteVersion = async (versionLabel: string) => {
     if (
       !window.confirm(
-        `Delete version ${version} from group "${groupName}"? This will not delete the underlying dataset.`,
+        `Delete version ${versionLabel} from group "${groupName}"? This will not delete the underlying dataset.`,
       )
     ) {
       return;
     }
-    setUpdatingVersion(version);
+    setUpdatingVersion(versionLabel);
     try {
       await fetchWithAuth(
         chatAPI.Endpoints.AssetVersions.DeleteVersion(
           assetType,
           groupName,
-          version,
+          versionLabel,
         ),
         { method: 'DELETE' },
       );
