@@ -30,7 +30,7 @@ interface GroupSummary {
   group_name: string;
   asset_type: string;
   version_count: number;
-  latest_version: number;
+  latest_version_label: string | null;
 }
 
 export interface SaveVersionInfo {
@@ -40,6 +40,8 @@ export interface SaveVersionInfo {
   mode: 'new' | 'existing';
   /** Tag to assign to the new version */
   tag: string;
+  /** User-defined version label (e.g. 'v1', 'march-run') */
+  versionLabel: string;
   /** Human-readable description for the version */
   description: string;
 }
@@ -90,6 +92,7 @@ export default function SaveToRegistryDialog({
   const [newName, setNewName] = useState(sourceName);
   const [existingTarget, setExistingTarget] = useState<string | null>(null);
   const [tag, setTag] = useState<string>('latest');
+  const [versionLabel, setVersionLabel] = useState('v1');
   const [description, setDescription] = useState('');
 
   // Fetch existing groups from asset_versions API
@@ -105,7 +108,7 @@ export default function SaveToRegistryDialog({
     mode === 'existing' && existingTarget
       ? groups.find((g) => g.group_name === existingTarget)
       : null;
-  const nextVersion = selectedGroup ? selectedGroup.latest_version + 1 : 1;
+  const latestVersionLabel = selectedGroup?.latest_version_label ?? null;
 
   // Reset state when opening
   useEffect(() => {
@@ -114,6 +117,7 @@ export default function SaveToRegistryDialog({
       setNewName(sourceName);
       setExistingTarget(null);
       setTag('latest');
+      setVersionLabel('v1');
       setDescription('');
     }
   }, [open, sourceName]);
@@ -132,6 +136,7 @@ export default function SaveToRegistryDialog({
       groupName,
       mode,
       tag,
+      versionLabel: versionLabel.trim() || 'v1',
       description:
         description.trim() || `Created from job ${jobId ?? 'unknown'}`,
     });
@@ -195,8 +200,11 @@ export default function SaveToRegistryDialog({
                 {selectedGroup && (
                   <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
                     Currently has {selectedGroup.version_count} version
-                    {selectedGroup.version_count !== 1 ? 's' : ''}. This will be
-                    version <strong>{nextVersion}</strong>.
+                    {selectedGroup.version_count !== 1 ? 's' : ''}
+                    {latestVersionLabel
+                      ? ` (latest: ${latestVersionLabel})`
+                      : ''}
+                    .
                   </Typography>
                 )}
               </FormControl>
@@ -217,6 +225,20 @@ export default function SaveToRegistryDialog({
         </Typography>
 
         <Stack spacing={2}>
+          {/* Version label */}
+          <FormControl>
+            <FormLabel>Version Label</FormLabel>
+            <Input
+              size="sm"
+              value={versionLabel}
+              onChange={(e) => setVersionLabel(e.target.value)}
+              placeholder="e.g. v1, v1.2.3, march-run"
+            />
+            <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
+              A human-readable label for this version.
+            </Typography>
+          </FormControl>
+
           {/* Tag selector */}
           <FormControl>
             <FormLabel>
@@ -293,7 +315,9 @@ export default function SaveToRegistryDialog({
             loading={saving}
             disabled={!canSave}
           >
-            {mode === 'new' ? 'Publish as v1' : `Publish as v${nextVersion}`}
+            {mode === 'new'
+              ? `Publish as ${versionLabel || 'v1'}`
+              : `Publish as ${versionLabel || 'v1'}`}
           </Button>
         </Stack>
       </ModalDialog>
