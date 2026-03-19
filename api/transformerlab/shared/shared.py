@@ -282,25 +282,3 @@ def kill_sglang_subprocesses():
                 proc.kill()
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
-
-
-def clear_vram_and_kill_sglang():
-    kill_sglang_subprocesses()
-    """Clean up pipeline to free VRAM"""
-    try:
-        import gc
-        import torch
-
-        # Force garbage collection multiple times
-        gc.collect()
-        gc.collect()  # Second call often helps
-
-        if torch.cuda.is_available():
-            # Clear CUDA cache and synchronize multiple times for better cleanup
-            torch.cuda.empty_cache()
-            torch.cuda.synchronize()
-            torch.cuda.ipc_collect()  # Clean up inter-process communication
-            torch.cuda.empty_cache()  # Second empty_cache call
-
-    except Exception as e:
-        print(f"Error clearing torch cache: {e}")
