@@ -2,26 +2,6 @@ import { API_URL, INFERENCE_SERVER_URL, getAPIFullPath } from './urls';
 import * as chatAPI from './endpoints';
 import { authenticatedFetch } from './functions';
 
-async function getMcpServerFile() {
-  const configResp = await authenticatedFetch(
-    getAPIFullPath('config', ['get'], { key: 'MCP_SERVER' }),
-  );
-  const configData = await configResp.json();
-  if (configData) {
-    try {
-      const parsed = JSON.parse(configData);
-      return {
-        mcp_server_file: parsed.serverName || '',
-        mcp_args: parsed.args || '',
-        mcp_env: parsed.env || '',
-      };
-    } catch {
-      return { mcp_server_file: '', mcp_args: '', mcp_env: '' };
-    }
-  }
-  return { mcp_server_file: '', mcp_args: '', mcp_env: '' };
-}
-
 // Global variable that if enabled, will stop the current streaming response
 let stopStreaming = false;
 
@@ -743,47 +723,6 @@ export async function sendBatchedChat(
   return results;
 }
 
-export async function callTool(
-  function_name: String,
-  function_args: Object = {},
-) {
-  const arg_string = JSON.stringify(function_args);
-  const { mcp_server_file, mcp_args, mcp_env } = await getMcpServerFile();
-  let url = chatAPI.Endpoints.Tools.Call(function_name, arg_string);
-
-  // Add query parameters if present
-  const params = [];
-  if (mcp_server_file)
-    params.push(`mcp_server_file=${encodeURIComponent(mcp_server_file)}`);
-  if (mcp_args) params.push(`mcp_args=${encodeURIComponent(mcp_args)}`);
-  if (mcp_env) params.push(`mcp_env=${encodeURIComponent(mcp_env)}`);
-  if (params.length > 0) {
-    url += (url.includes('?') ? '&' : '?') + params.join('&');
-  }
-
-  const response = await authenticatedFetch(url, {});
-  const result = await response.json();
-  return result;
-}
-
-export async function getToolsForCompletions() {
-  const { mcp_server_file, mcp_args, mcp_env } = await getMcpServerFile();
-  let url = chatAPI.Endpoints.Tools.All();
-
-  // Add query parameters if present
-  const params = [];
-  if (mcp_server_file)
-    params.push(`mcp_server_file=${encodeURIComponent(mcp_server_file)}`);
-  if (mcp_args) params.push(`mcp_args=${encodeURIComponent(mcp_args)}`);
-  if (mcp_env) params.push(`mcp_env=${encodeURIComponent(mcp_env)}`);
-  if (params.length > 0) {
-    url += (url.includes('?') ? '&' : '?') + params.join('&');
-  }
-
-  const response = await fetch(url, {});
-  const result = await response.json();
-  return result;
-}
 
 export async function tokenize(model: string, text: string) {
   let shortModelName = model.split('/').slice(-1)[0];

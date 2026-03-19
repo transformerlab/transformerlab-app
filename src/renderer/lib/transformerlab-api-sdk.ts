@@ -12,8 +12,6 @@ export {
   sendCompletionReactWay,
   sendBatchedCompletion,
   sendBatchedChat,
-  callTool,
-  getToolsForCompletions,
   tokenize,
   countTokens,
   countChatTokens,

@@ -12,14 +12,12 @@ import {
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useAnalytics } from './Shared/analytics/AnalyticsContext';
-import SafeJSONParse from './Shared/SafeJSONParse';
 import Data from './Data/Data';
-import Interact from './Experiment/Interact/Interact';
 import Welcome from './Welcome/Welcome';
 import ModelZoo from './ModelZoo/ModelZoo';
 import Compute from './Compute/Compute';
@@ -92,71 +90,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
   const { experimentInfo, experimentInfoMutate, setExperimentId } =
     useExperimentInfo();
   const location = useLocation();
-  const [selectedInteractSubpage, setSelectedInteractSubpage] =
-    useState('chat');
-
   // Use authenticated fetcher from SDK
-
-  // Extract pluginId at the top level
-  const inferenceParams = experimentInfo?.config?.inferenceParams;
-  const pluginId = inferenceParams
-    ? SafeJSONParse(inferenceParams)?.inferenceEngine
-    : null;
-
-  // Use SWR at the top level, not inside useEffect
-  const { data: modelData } = useSWR(
-    experimentInfo?.id && pluginId
-      ? chatAPI.Endpoints.Experiment.ScriptGetFile(
-          experimentInfo.id,
-          pluginId,
-          'index.json',
-        )
-      : null,
-    fetcher,
-  );
-  const [chatHistory, setChatHistory] = useState([]);
-  useEffect(() => {
-    // Clear chat history whenever the model/pluginId changes
-    setChatHistory([]);
-  }, [pluginId]);
-
-  const modelSupports = useMemo(() => {
-    const defaultSupports = [
-      'chat',
-      'completion',
-      'rag',
-      'tools',
-      'template',
-      'embeddings',
-      'tokenize',
-      'batched',
-    ];
-
-    if (
-      modelData &&
-      modelData !== 'null' &&
-      modelData !== 'undefined' &&
-      modelData !== 'FILE NOT FOUND'
-    ) {
-      return SafeJSONParse(modelData)?.supports || defaultSupports;
-    }
-
-    return defaultSupports;
-  }, [modelData]);
-
-  // When navigating to /experiment/chat, set the mode to the first supported mode
-  // If there's no supports array or it's empty, default to 'chat'
-  useEffect(() => {
-    if (location.pathname.match(/^\/experiment\/[^/]+\/chat$/)) {
-      if (Array.isArray(modelSupports) && modelSupports.length > 0) {
-        // Always set mode to the first supported mode when navigating to the route
-        setSelectedInteractSubpage(modelSupports[0]);
-      } else {
-        // Fallback to 'chat' if no supports array
-        setSelectedInteractSubpage('chat');
-      }
-    }
-  }, [location.pathname, modelSupports]);
   const setFoundation = useCallback(
     (model, additionalConfigs = {}) => {
       let model_name = '';
@@ -281,25 +215,6 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
     [experimentInfo, experimentInfoMutate],
   );
 
-  const setRagEngine = useCallback(
-    async (name: string, rag_settings: any = {}) => {
-      await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            rag_engine: name,
-            rag_engine_settings: JSON.stringify(rag_settings),
-          }),
-        },
-      );
-      experimentInfoMutate();
-    },
-    [experimentInfo, experimentInfoMutate],
-  );
 
   if (!experimentInfo) {
     redirect('/');
@@ -316,32 +231,6 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
           element={<ExperimentLayout />}
         >
           <Route path="notes" element={<ExperimentNotes />} />
-          <Route
-            path="chat"
-            element={
-              <Interact
-                setRagEngine={setRagEngine}
-                mode={selectedInteractSubpage}
-                setMode={setSelectedInteractSubpage}
-                supports={modelSupports}
-                chatHistory={chatHistory}
-                setChatHistory={setChatHistory}
-              />
-            }
-          />
-          <Route
-            path="model_architecture_visualization"
-            element={
-              <Interact
-                setRagEngine={setRagEngine}
-                mode="model_layers"
-                setMode={setSelectedInteractSubpage}
-                supports={modelSupports}
-                chatHistory={chatHistory}
-                setChatHistory={setChatHistory}
-              />
-            }
-          />
           <Route path="tasks" element={<Tasks />} />
           <Route path="interactive" element={<Interactive />} />
           <Route path="documents" element={<Documents />} />
