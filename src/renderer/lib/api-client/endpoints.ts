@@ -145,6 +145,8 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/${providerId}/setup`,
   SetupStatus: (providerId: string) =>
     `${API_URL()}compute_provider/${providerId}/setup/status`,
+  DetectLocalAccelerators: () =>
+    `${API_URL()}compute_provider/detect-accelerators`,
   EnsureQuotaRecorded: (experimentId?: string, jobId?: string) => {
     if (jobId) {
       return `${API_URL()}compute_provider/jobs/ensure-quota-recorded?job_id=${jobId}`;
