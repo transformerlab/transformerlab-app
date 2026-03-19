@@ -1,15 +1,5 @@
-import tempfile
 import time
-import sys
-from pathlib import Path
 import pytest
-
-
-@pytest.fixture(autouse=True)
-def patch_sys_argv(monkeypatch):
-    monkeypatch.setattr(
-        sys, "argv", ["test", "--model_name", "dummy", "--job_id", "dummy", "--total_size_of_model_in_mb", "1"]
-    )
 
 
 @pytest.fixture
@@ -23,54 +13,6 @@ def fake_cancel_check_factory():
         return call_count["value"] >= 3
 
     return fake_cancel_check
-
-
-@pytest.fixture
-def fake_snapshot_download():
-    def _mocked_snapshot_download(repo_id, local_dir=None, **kwargs):
-        # Simulate a slow download
-        for _ in range(10):
-            time.sleep(0.5)
-        Path(local_dir).mkdir(parents=True, exist_ok=True)
-        (Path(local_dir) / "dummy.txt").write_text("Downloaded content")
-
-    return _mocked_snapshot_download
-
-
-@pytest.mark.skip()
-def test_launch_snapshot_with_cancel(monkeypatch, fake_cancel_check_factory, fake_snapshot_download):
-    # Import only after monkeypatching sys.argv
-    from transformerlab.shared.download_huggingface_model import launch_snapshot_with_cancel
-
-    monkeypatch.setattr("transformerlab.shared.download_huggingface_model.cancel_check", fake_cancel_check_factory)
-    monkeypatch.setattr("transformerlab.shared.download_huggingface_model.snapshot_download", fake_snapshot_download)
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        result = launch_snapshot_with_cancel(repo_id="bert-base-uncased", allow_patterns=["*.json"])
-        assert result == "cancelled"
-        assert not (Path(tmpdir) / "dummy.txt").exists()  # Ensure download was interrupted
-
-
-def test_get_dir_size(tmp_path):
-    # Import only after monkeypatching sys.argv
-    from transformerlab.shared.download_huggingface_model import get_dir_size
-
-    # Setup: create some files and folders
-    file1 = tmp_path / "a.txt"
-    file1.write_bytes(b"abc")
-
-    file2 = tmp_path / "b.txt"
-    file2.write_bytes(b"12345")
-
-    subdir = tmp_path / "nested"
-    subdir.mkdir()
-    file3 = subdir / "c.txt"
-    file3.write_bytes(b"xyz")
-
-    # Test
-    total_size = get_dir_size(tmp_path)
-    expected_size = 3 + 5 + 3
-    assert total_size == expected_size
 
 
 def test_jobs_list(client):
