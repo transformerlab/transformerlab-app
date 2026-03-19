@@ -1,8 +1,8 @@
 import typer
 import typer.core
-from rich.console import Console
 
 from transformerlab_cli.util.logo import show_header
+from transformerlab_cli.util.ui import console
 from transformerlab_cli.state import cli_state  # Import the CLI state singleton
 
 from transformerlab_cli.commands.version import app as version_app
@@ -22,7 +22,6 @@ class LogoTyperGroup(typer.core.TyperGroup):
         """
         Override the help formatting to print a logo first.
         """
-        console = Console()
         show_header(console)
 
         # Call the parent method to print the standard help text
@@ -41,8 +40,6 @@ app.add_typer(whoami_app)
 app.add_typer(task_app, name="task", help="Task management commands", no_args_is_help=True)
 app.add_typer(job_app, name="job", help="Job management commands", no_args_is_help=True)
 app.add_typer(provider_app, name="provider", help="Compute provider management commands", no_args_is_help=True)
-
-console = Console()
 
 
 # Apply common setup to all commands
