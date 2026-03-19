@@ -20,9 +20,6 @@ export {
 } from './api-client/chat';
 
 export {
-  downloadModelFromHuggingFace,
-  downloadGGUFFile,
-  downloadModelFromGallery,
   GET_EXPERIMENT_UPDATE_CONFIG_URL,
   EXPERIMENT_ADD_EVALUATION,
   TEMPLATE_FOR_MODEL_URL,

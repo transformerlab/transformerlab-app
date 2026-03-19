@@ -78,6 +78,18 @@ Endpoints.Task = {
     `${API_URL()}experiment/${experimentId}/task/gallery/team/add`,
   DeleteFromTeamGallery: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/task/gallery/team/delete`,
+  TeamGalleryListFiles: (experimentId: string, galleryId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/team/${encodeURIComponent(
+      galleryId,
+    )}/files`,
+  TeamGalleryGetFile: (
+    experimentId: string,
+    galleryId: string,
+    filePath: string,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/team/${encodeURIComponent(
+      galleryId,
+    )}/file/${encodeURIComponent(filePath)}`,
   FetchTaskJson: (experimentId: string, url: string) =>
     `${API_URL()}experiment/${experimentId}/task/fetch_task_json?url=${encodeURIComponent(url)}`,
   FromDirectory: (experimentId: string) =>
@@ -133,6 +145,8 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/${providerId}/setup`,
   SetupStatus: (providerId: string) =>
     `${API_URL()}compute_provider/${providerId}/setup/status`,
+  DetectLocalAccelerators: () =>
+    `${API_URL()}compute_provider/detect-accelerators`,
   EnsureQuotaRecorded: (experimentId?: string, jobId?: string) => {
     if (jobId) {
       return `${API_URL()}compute_provider/jobs/ensure-quota-recorded?job_id=${jobId}`;
