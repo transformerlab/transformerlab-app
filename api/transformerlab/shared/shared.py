@@ -12,11 +12,9 @@ import math
 
 from anyio import open_process
 from anyio.streams.text import TextReceiveStream
-from collections import deque
 
 from transformerlab.services.job_service import job_update_status
 import transformerlab.services.job_service as job_service
-from lab.dirs import get_global_log_path
 from lab import dirs as Job
 from lab import storage
 from lab.job_status import JobStatus
