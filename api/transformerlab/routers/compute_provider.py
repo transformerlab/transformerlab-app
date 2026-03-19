@@ -2030,6 +2030,17 @@ async def launch_template_on_provider(
         post_hook=str(post_task_hook) if post_task_hook is not None else None,
     )
 
+    # Apply provider-level setup hooks (pre/post) around the resolved setup script (if any).
+    pre_setup_hook = extra_config_for_hooks.get("pre_setup_hook")
+    post_setup_hook = extra_config_for_hooks.get("post_setup_hook")
+    setup_with_hooks = final_setup
+    if setup_with_hooks and str(setup_with_hooks).strip():
+        setup_with_hooks = build_hooked_command(
+            str(setup_with_hooks),
+            pre_hook=str(pre_setup_hook) if pre_setup_hook is not None else None,
+            post_hook=str(post_setup_hook) if post_setup_hook is not None else None,
+        )
+
     # Wrap the user command with tfl-remote-trap so we can track live_status in job_data.
     # This uses the tfl-remote-trap helper from the transformerlab SDK, which:
     #   - sets job_data.live_status="started" when execution begins
@@ -2042,7 +2053,7 @@ async def launch_template_on_provider(
         provider_name=provider_display_name,
         provider_id=provider.id,
         run=wrapped_run,
-        setup=final_setup,
+        setup=setup_with_hooks,
         env_vars=env_vars,
         cpus=request.cpus,
         memory=request.memory,
