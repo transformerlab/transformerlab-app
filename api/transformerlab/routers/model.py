@@ -14,8 +14,6 @@ from transformerlab.models import model_helper
 from transformerlab.models import basemodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
-import transformerlab.services.job_service as job_service
-from transformerlab.services.job_service import job_update_status
 from transformerlab.services.cache_service import cached
 from lab.dirs import get_workspace_dir
 from lab.model import Model as ModelService
