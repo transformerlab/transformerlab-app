@@ -5,7 +5,6 @@ import time
 from typing import List, Dict, Optional, Any
 
 from lab import Experiment, Job
-from lab import dirs as lab_dirs
 from lab import storage
 
 from lab.job_status import JobStatus, TERMINAL_STATUSES
@@ -549,27 +548,6 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
 
         await job.set_type(type)
         await job.update_status(status)
-    except Exception as e:
-        print(f"Error updating job {job_id}: {e}")
-        pass
-
-
-def job_update_sync(job_id: str, status: str, experiment_id: Optional[str] = None):
-    """
-    Synchronous version of job update.
-
-    Args:
-        job_id: The ID of the job to update
-        status: The new status to set
-        experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
-    """
-    # Update the job in the database using SDK Job class
-    try:
-        job = asyncio.run(Job.get(job_id))
-        exp_id = asyncio.run(job.get_experiment_id())
-        if experiment_id is not None and exp_id != experiment_id:
-            return
-        asyncio.run(job.update_status(status))
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
         pass
