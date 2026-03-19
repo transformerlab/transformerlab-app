@@ -31,7 +31,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ModelDetailsModal from './ModelDetailsModal';
 import DownloadProgressBox from '../Shared/DownloadProgressBox';
-import ImportModelsBar from './ImportModelsBar';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 export type ModelGalleryEntry = {
   uniqueID: string;
@@ -926,16 +925,6 @@ export default function ModelGroups({ experimentInfo }) {
           </>
         </Box>
       </Sheet>
-
-      <Box
-        sx={{
-          borderTop: '1px solid #ccc',
-          padding: 1,
-          background: 'background.body',
-        }}
-      >
-        <ImportModelsBar jobId={jobId} setJobId={setJobId} />
-      </Box>
     </Sheet>
   );
 }
