@@ -23,6 +23,7 @@ from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 import transformerlab.services.job_service as job_service
 from transformerlab.services.job_service import job_update_status
+from transformerlab.services.cache_service import cached
 from lab.dirs import get_workspace_dir
 from lab.job_status import JobStatus
 from lab.model import Model as ModelService
@@ -640,6 +641,7 @@ async def get_model_prompt_template(model: str):
 
 
 @router.get("/model/list")
+@cached(key="models:list:{embedding}", ttl="7d", tags=["models", "models:list"])
 async def model_local_list(embedding=False):
     # the model list is a combination of downloaded hugging face models and locally generated models
     return await model_helper.list_installed_models(embedding)
