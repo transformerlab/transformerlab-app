@@ -29,9 +29,8 @@ load_dotenv()
 # an env var.  Set TLAB_LOG_LEVEL=DEBUG to enable debug output across the
 # entire application (e.g. sweep-status cycle timings).  Defaults to WARNING
 # so debug/info messages are silent unless explicitly requested.
-logging.getLogger("transformerlab").setLevel(
-    getattr(logging, os.getenv("TLAB_LOG_LEVEL", "WARNING").upper(), logging.WARNING)
-)
+TLAB_LOG_LEVEL = os.getenv("TLAB_LOG_LEVEL", "WARNING").upper()
+logging.getLogger("transformerlab").setLevel(getattr(logging, TLAB_LOG_LEVEL, logging.WARNING))
 
 from fastchat.constants import (  # noqa: E402
     ErrorCode,
@@ -406,15 +405,23 @@ def run():
         allow_headers=args.allowed_headers,
     )
 
+    # uvicorn needs a lowercase version of logging level
+    uvicorn_log_level = TLAB_LOG_LEVEL.lower()
+
     if args.https:
         import asyncio
 
         cert_path, key_path = asyncio.run(ensure_persistent_self_signed_cert())
         uvicorn.run(
-            "api:app", host=args.host, port=args.port, log_level="warning", ssl_certfile=cert_path, ssl_keyfile=key_path
+            "api:app",
+            host=args.host,
+            port=args.port,
+            log_level=uvicorn_log_level,
+            ssl_certfile=cert_path,
+            ssl_keyfile=key_path,
         )
     else:
-        uvicorn.run("api:app", host=args.host, port=args.port, log_level="warning")
+        uvicorn.run("api:app", host=args.host, port=args.port, log_level=uvicorn_log_level)
 
 
 if __name__ == "__main__":
