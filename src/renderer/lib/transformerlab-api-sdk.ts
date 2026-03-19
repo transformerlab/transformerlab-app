@@ -5,17 +5,6 @@
 
 export * from './api-client/endpoints';
 
-export {
-  stopStreamingResponse,
-  sendAndReceiveStreaming,
-  sendCompletion,
-  sendCompletionReactWay,
-  sendBatchedCompletion,
-  sendBatchedChat,
-  tokenize,
-  countTokens,
-  countChatTokens,
-} from './api-client/chat';
 
 export {
   GET_EXPERIMENT_UPDATE_CONFIG_URL,

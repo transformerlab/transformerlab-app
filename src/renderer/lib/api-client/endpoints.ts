@@ -289,30 +289,6 @@ Endpoints.Documents = {
     }`,
 };
 
-Endpoints.Rag = {
-  Query: (
-    experimentId: string,
-    model_name: string,
-    query: string,
-    settings: string,
-    ragFolder: string = 'rag',
-  ) =>
-    `${API_URL()}experiment/${experimentId}/rag/query?model=${model_name}&query=${query}&settings=${settings}&rag_folder=${ragFolder}`,
-  Embeddings: (experimentId: string) =>
-    `${API_URL()}experiment/${experimentId}/rag/embed`,
-};
-
-Endpoints.Prompts = {
-  List: () => `${API_URL()}prompts/list`,
-  New: () => `${API_URL()}prompts/new`,
-  Delete: (promptId: string) => `${API_URL()}prompts/delete/${promptId}`,
-};
-
-Endpoints.BatchedPrompts = {
-  List: () => `${API_URL()}batch/list`,
-  New: () => `${API_URL()}batch/new`,
-  Delete: (promptId: string) => `${API_URL()}batch/delete/${promptId}`,
-};
 
 Endpoints.ServerInfo = {
   StreamLog: () => `${API_URL()}server/stream_log`,
@@ -527,9 +503,6 @@ Endpoints.Jobs = {
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
 };
 
-Endpoints.Global = {
-  PromptLog: () => `${API_URL()}prompt_log`,
-};
 
 Endpoints.Quota = {
   GetMyStatus: () => `${API_URL()}quota/me`,
