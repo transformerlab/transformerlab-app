@@ -393,22 +393,6 @@ async def async_run_python_daemon_and_update_status(
     return process
 
 
-async def _get_org_id_for_subprocess():
-    """
-    Helper function to get organization_id from various contexts.
-    Tries request context first, then lab SDK context.
-    Returns None if not found in any context.
-    """
-    # get from lab dirs workspace path
-    from lab.dirs import get_workspace_dir
-
-    workspace_dir = await get_workspace_dir()
-    if "/orgs/" in workspace_dir:
-        return workspace_dir.split("/orgs/")[-1].split("/")[0]
-
-    return None
-
-
 def _get_user_id_for_subprocess(job_details: dict = None):
     """
     Helper function to get user_id from job_details if available.
