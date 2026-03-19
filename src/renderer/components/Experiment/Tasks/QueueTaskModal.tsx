@@ -119,6 +119,9 @@ export default function QueueTaskModal({
   const [minutesRequestedInput, setMinutesRequestedInput] = React.useState('');
   const [showResourceOverrides, setShowResourceOverrides] =
     React.useState(false);
+  const [showParameterOverrides, setShowParameterOverrides] =
+    React.useState(true);
+  const resourceOverridesRef = React.useRef<HTMLDivElement | null>(null);
   const loadingMessages = React.useMemo(
     () => [
       'Contacting compute provider…',
@@ -155,6 +158,18 @@ export default function QueueTaskModal({
       window.clearInterval(interval);
     };
   }, [open, isSubmitting, loadingMessages]);
+
+  React.useEffect(() => {
+    if (!showResourceOverrides) {
+      return;
+    }
+    window.requestAnimationFrame(() => {
+      resourceOverridesRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    });
+  }, [showResourceOverrides]);
 
   // Fetch available models and datasets from the API
   const { data: modelsData } = useSWR(
@@ -1274,48 +1289,69 @@ export default function QueueTaskModal({
 
             {/* Task Parameters Section */}
             <Stack spacing={2}>
-              <Typography level="title-sm">Task Parameters</Typography>
-              {parameters.length === 0 ||
-              (parameters.length === 1 &&
-                !parameters[0].key &&
-                !parameters[0].value) ? (
-                <Typography level="body-sm" color="neutral">
-                  This task has no parameters defined. Click Submit to queue
-                  with default configuration.
-                </Typography>
-              ) : (
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ cursor: 'pointer' }}
+                onClick={() => setShowParameterOverrides((prev) => !prev)}
+              >
+                <Typography level="title-sm">Parameter overrides</Typography>
+                <ChevronDownIcon
+                  size={18}
+                  style={{
+                    transform: showParameterOverrides
+                      ? 'rotate(180deg)'
+                      : 'rotate(0deg)',
+                    transition: 'transform 0.2s ease',
+                  }}
+                />
+              </Stack>
+              {showParameterOverrides && (
                 <Stack spacing={2}>
-                  {parameters.map((param, index) => {
-                    const schema = param.schema;
-                    const label = schema?.title || param.key;
+                  {parameters.length === 0 ||
+                  (parameters.length === 1 &&
+                    !parameters[0].key &&
+                    !parameters[0].value) ? (
+                    <Typography level="body-sm" color="neutral">
+                      This task has no parameters defined. Click Submit to queue
+                      with default configuration.
+                    </Typography>
+                  ) : (
+                    <Stack spacing={2}>
+                      {parameters.map((param, index) => {
+                        const schema = param.schema;
+                        const label = schema?.title || param.key;
 
-                    return (
-                      <FormControl
-                        key={param.key || index}
-                        sx={{ width: '100%' }}
-                      >
-                        <Stack
-                          direction="row"
-                          spacing={2}
-                          alignItems="center"
-                          sx={{ width: '100%' }}
-                        >
-                          <FormLabel
-                            sx={{ alignSelf: 'center', minWidth: 160 }}
+                        return (
+                          <FormControl
+                            key={param.key || index}
+                            sx={{ width: '100%' }}
                           >
-                            {label}:
-                          </FormLabel>
-                          {renderParameterInput(param, index)}
-                        </Stack>
-                      </FormControl>
-                    );
-                  })}
+                            <Stack
+                              direction="row"
+                              spacing={2}
+                              alignItems="center"
+                              sx={{ width: '100%' }}
+                            >
+                              <FormLabel
+                                sx={{ alignSelf: 'center', minWidth: 160 }}
+                              >
+                                {label}:
+                              </FormLabel>
+                              {renderParameterInput(param, index)}
+                            </Stack>
+                          </FormControl>
+                        );
+                      })}
+                    </Stack>
+                  )}
+                  <Typography level="body-sm" color="neutral">
+                    Parameters can be accessed in your task script using{' '}
+                    <code>lab.get_config()</code>
+                  </Typography>
                 </Stack>
               )}
-              <Typography level="body-sm" color="neutral">
-                Parameters can be accessed in your task script using{' '}
-                <code>lab.get_config()</code>
-              </Typography>
             </Stack>
 
             <Divider />
@@ -1381,7 +1417,7 @@ export default function QueueTaskModal({
                 />
               </Stack>
               {showResourceOverrides && (
-                <Stack spacing={2}>
+                <Stack spacing={2} ref={resourceOverridesRef}>
                   <Stack direction="row" spacing={2}>
                     <FormControl sx={{ flex: 1 }}>
                       <FormLabel>CPUs</FormLabel>
