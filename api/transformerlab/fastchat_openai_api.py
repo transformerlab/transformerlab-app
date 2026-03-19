@@ -9,14 +9,14 @@ import os
 import time
 import uuid
 
-from typing import Any, AsyncGenerator, Dict, Generator, List, Optional, Union
+from typing import Any, Dict, Generator, List, Optional, Union
 
 import httpx
 import shortuuid
 import tiktoken
 
 # Using torch to test for CUDA and MPS support.
-from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.security.http import HTTPAuthorizationCredentials, HTTPBearer
 from fastchat.constants import WORKER_API_EMBEDDING_BATCH_SIZE, ErrorCode
@@ -41,7 +41,6 @@ from fastchat.protocol.openai_api_protocol import (
     ErrorResponse,
     UsageInfo,
 )
-from pydantic import BaseModel as PydanticBaseModel
 from lab import Experiment, storage
 
 WORKER_API_TIMEOUT = 3600
@@ -111,7 +110,6 @@ class AudioTranscriptionsRequest(BaseModel):
     audio_path: str
     # format: str
     # output_path: str note: probably we set this by ourself
-
 
 
 class ModifiedCompletionRequest(CompletionRequest):
@@ -1287,5 +1285,3 @@ async def count_chat_tokens(request: ChatCompletionRequest):
         "tokensInHistory": token_num,
         "tokensInCompletion": max_tokens,
     }
-
-

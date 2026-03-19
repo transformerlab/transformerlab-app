@@ -289,7 +289,6 @@ Endpoints.Documents = {
     }`,
 };
 
-
 Endpoints.ServerInfo = {
   StreamLog: () => `${API_URL()}server/stream_log`,
 };
@@ -502,7 +501,6 @@ Endpoints.Jobs = {
   GetEvalImages: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
 };
-
 
 Endpoints.Quota = {
   GetMyStatus: () => `${API_URL()}quota/me`,

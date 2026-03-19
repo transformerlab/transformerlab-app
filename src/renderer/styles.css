@@ -6,7 +6,6 @@ a {
   color: var(--joy-palette-primary-400);
 }
 
-
 td {
   overflow: hidden;
 }
@@ -127,7 +126,6 @@ fieldset {
   border: none;
   padding: 0;
 }
-
 
 textarea {
   background-color: var(--joy-palette-background-level1);
