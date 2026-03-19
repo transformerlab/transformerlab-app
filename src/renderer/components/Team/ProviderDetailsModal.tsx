@@ -245,6 +245,36 @@ export default function ProviderDetailsModal({
 
       // Initialize default supported accelerators per provider type, but keep them
       // out of the raw JSON configuration.
+      if (type === 'local') {
+        // Optimistic defaults while we query the backend for real detection.
+        setSupportedAccelerators(DEFAULT_SUPPORTED_ACCELERATORS['local'] || []);
+
+        let cancelled = false;
+        const detectLocal = async () => {
+          try {
+            const response = await fetchWithAuth(
+              Endpoints.ComputeProvider.DetectLocalAccelerators(),
+              { method: 'GET' },
+            );
+            if (!response.ok) return;
+            const data = await response.json().catch(() => ({}));
+            const detected = data.supported_accelerators;
+            if (!cancelled && Array.isArray(detected)) {
+              setSupportedAccelerators(detected);
+            }
+          } catch (e) {
+            // Best-effort: keep the optimistic defaults if detection fails.
+            // eslint-disable-next-line no-console
+            console.error('Failed to detect local accelerators:', e);
+          }
+        };
+        detectLocal();
+
+        return () => {
+          cancelled = true;
+        };
+      }
+
       if (DEFAULT_SUPPORTED_ACCELERATORS[type]) {
         setSupportedAccelerators(DEFAULT_SUPPORTED_ACCELERATORS[type]);
       } else {
