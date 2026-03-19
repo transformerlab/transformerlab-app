@@ -1,8 +1,6 @@
 import asyncio
-import json
 import os
 import re
-import psutil
 import subprocess
 import sys
 import threading
