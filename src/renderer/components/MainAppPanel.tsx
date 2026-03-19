@@ -215,7 +215,6 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
     [experimentInfo, experimentInfoMutate],
   );
 
-
   if (!experimentInfo) {
     redirect('/');
   }

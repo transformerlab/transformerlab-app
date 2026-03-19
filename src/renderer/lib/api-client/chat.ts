@@ -723,7 +723,6 @@ export async function sendBatchedChat(
   return results;
 }
 
-
 export async function tokenize(model: string, text: string) {
   let shortModelName = model.split('/').slice(-1)[0];
 
