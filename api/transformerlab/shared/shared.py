@@ -203,41 +203,6 @@ async def async_run_python_script_and_update_status(
         raise asyncio.CancelledError()
 
 
-async def read_process_output(process, job_id, log_handle=None):
-    await process.wait()
-    returncode = process.returncode
-    if returncode == 0:
-        print("Worker Process completed successfully")
-    elif returncode == -15:
-        print("Worker Process stopped by user")
-    else:
-        print(f"ERROR: Worker Process ended with exit code {returncode}.")
-
-    # Close the log handle if one was passed (from async_run_python_daemon_and_update_status)
-    if log_handle:
-        try:
-            await log_handle.__aexit__(None, None, None)
-        except Exception:
-            pass
-
-    # Wrap log write in try-except to handle errors gracefully during shutdown
-    try:
-        async with await storage.open(await get_global_log_path(), "a") as log:
-            await log.write(f"Inference Server Terminated with {returncode}.\n")
-            await log.flush()
-    except Exception:
-        # Silently ignore logging errors during shutdown to prevent error bursts
-        pass
-    # so we should delete the pid file:
-    from lab.dirs import get_temp_dir
-
-    pid_file = storage.join(await get_temp_dir(), f"worker_job_{job_id}.pid")
-    if await storage.exists(pid_file):
-        await storage.rm(pid_file)
-    # Clean up resources after process ends
-    clear_vram_and_kill_sglang()
-
-
 async def get_job_output_file_name(job_id: str, plugin_name: str = None, experiment_name: str = None):
     try:
         job_obj = await Job.get(job_id)
