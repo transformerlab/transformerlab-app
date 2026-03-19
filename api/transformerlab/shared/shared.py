@@ -393,37 +393,6 @@ async def async_run_python_daemon_and_update_status(
     return process
 
 
-def _get_user_id_for_subprocess(job_details: dict = None):
-    """
-    Helper function to get user_id from job_details if available.
-    Checks job_data for user_id or user_info.
-    Returns None if not found.
-    """
-    if not job_details:
-        return None
-
-    # Try to get user_id directly from job_data
-    job_data = job_details.get("job_data", {})
-    if isinstance(job_data, str):
-        try:
-            import json
-
-            job_data = json.loads(job_data)
-        except Exception:
-            job_data = {}
-
-    # Check for user_id in job_data
-    if isinstance(job_data, dict):
-        # Some jobs store user_id directly
-        if "user_id" in job_data:
-            return job_data["user_id"]
-        # Some jobs store user_info with email, we'd need to look up user_id
-        # For now, we'll just return None if user_id isn't directly available
-        # This can be enhanced later to look up user_id from email if needed
-
-    return None
-
-
 async def get_job_output_file_name(job_id: str, plugin_name: str = None, experiment_name: str = None):
     try:
         job_obj = await Job.get(job_id)
