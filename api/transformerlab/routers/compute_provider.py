@@ -22,6 +22,7 @@ from transformerlab.services.provider_service import (
     delete_team_provider,
     get_provider_instance,
     _local_providers_disabled,
+    detect_local_supported_accelerators,
 )
 from transformerlab.schemas.compute_providers import (
     ProviderCreate,
@@ -737,6 +738,19 @@ async def delete_user_slurm_ssh_key(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete SSH key: {str(e)}")
+
+
+@router.get("/detect-accelerators")
+async def detect_local_accelerators(user_and_team=Depends(get_user_and_team)) -> Dict[str, Any]:
+    """
+    Detect accelerators available on this server for the local compute provider.
+
+    Returns a list of accelerator type strings (e.g. "cpu", "NVIDIA").
+    """
+    # Best-effort detection may call out to tools like `nvidia-smi` / `rocminfo`.
+    # Run in a thread so we don't block the event loop.
+    supported_accelerators = await asyncio.to_thread(detect_local_supported_accelerators)
+    return {"supported_accelerators": supported_accelerators}
 
 
 @router.get("/{provider_id}", response_model=ProviderRead)
