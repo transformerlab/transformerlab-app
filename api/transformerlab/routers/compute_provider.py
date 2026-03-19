@@ -22,6 +22,7 @@ from transformerlab.services.provider_service import (
     delete_team_provider,
     get_provider_instance,
     _local_providers_disabled,
+    detect_local_supported_accelerators,
 )
 from transformerlab.schemas.compute_providers import (
     ProviderCreate,
@@ -738,6 +739,19 @@ async def delete_user_slurm_ssh_key(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete SSH key: {str(e)}")
+
+
+@router.get("/detect-accelerators")
+async def detect_local_accelerators(user_and_team=Depends(get_user_and_team)) -> Dict[str, Any]:
+    """
+    Detect accelerators available on this server for the local compute provider.
+
+    Returns a list of accelerator type strings (e.g. "cpu", "NVIDIA").
+    """
+    # Best-effort detection may call out to tools like `nvidia-smi` / `rocminfo`.
+    # Run in a thread so we don't block the event loop.
+    supported_accelerators = await asyncio.to_thread(detect_local_supported_accelerators)
+    return {"supported_accelerators": supported_accelerators}
 
 
 @router.get("/{provider_id}", response_model=ProviderRead)
@@ -2007,6 +2021,17 @@ async def launch_template_on_provider(
         post_hook=str(post_task_hook) if post_task_hook is not None else None,
     )
 
+    # Apply provider-level setup hooks (pre/post) around the resolved setup script (if any).
+    pre_setup_hook = extra_config_for_hooks.get("pre_setup_hook")
+    post_setup_hook = extra_config_for_hooks.get("post_setup_hook")
+    setup_with_hooks = final_setup
+    if setup_with_hooks and str(setup_with_hooks).strip():
+        setup_with_hooks = build_hooked_command(
+            str(setup_with_hooks),
+            pre_hook=str(pre_setup_hook) if pre_setup_hook is not None else None,
+            post_hook=str(post_setup_hook) if post_setup_hook is not None else None,
+        )
+
     # Wrap the user command with tfl-remote-trap so we can track live_status in job_data.
     # This uses the tfl-remote-trap helper from the transformerlab SDK, which:
     #   - sets job_data.live_status="started" when execution begins
@@ -2019,7 +2044,7 @@ async def launch_template_on_provider(
         provider_name=provider_display_name,
         provider_id=provider.id,
         run=wrapped_run,
-        setup=final_setup,
+        setup=setup_with_hooks,
         env_vars=env_vars,
         cpus=request.cpus,
         memory=request.memory,
