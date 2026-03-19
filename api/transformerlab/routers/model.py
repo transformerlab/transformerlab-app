@@ -1,27 +1,20 @@
 import json
-import asyncio
 import datetime
-import dateutil.relativedelta
 from typing import Annotated
 from fastapi import APIRouter, Body
 from fastchat.model.model_adapter import get_conversation_template
-from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi
+from huggingface_hub import create_repo, upload_folder, HfApi
 from huggingface_hub import ModelCard, ModelCardData
-from huggingface_hub.utils import HfHubHTTPError, GatedRepoError, EntryNotFoundError
+from huggingface_hub.utils import HfHubHTTPError
 from transformers import AutoTokenizer
 
 
 import os
-from datetime import date
-
-from transformerlab.shared import shared
-from transformerlab.shared import galleries
 
 from transformerlab.models import model_helper
 from transformerlab.models import basemodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
-import transformerlab.services.job_service as job_service
 from lab.dirs import get_workspace_dir
 from lab.model import Model as ModelService
 from lab import storage
@@ -30,21 +23,6 @@ from werkzeug.utils import secure_filename
 
 
 router = APIRouter(tags=["model"])
-
-
-def _today() -> date:
-    return datetime.date.today()
-
-
-def _parse_gallery_added_date(value) -> date:
-    if isinstance(value, date):
-        return value
-    if not value:
-        return date(2024, 2, 1)
-    try:
-        return date.fromisoformat(str(value))
-    except Exception:
-        return date(2024, 2, 1)
 
 
 async def get_model_dir(model_id: str):
@@ -73,143 +51,6 @@ async def get_current_org_id() -> str | None:
     except Exception:
         pass
     return None
-
-
-async def get_model_details_from_gallery(model_id: str):
-    """
-    Given a model ID this returns the associated data from the model gallery file.
-    Returns None if no such value found.
-    """
-    gallery = await galleries.get_models_gallery()
-
-    result = None
-
-    for model in gallery:
-        if model["uniqueID"] == model_id or model["huggingface_repo"] == model_id:
-            result = model
-            break
-
-    return result
-
-
-@router.get("/model/gallery")
-async def model_gallery_list_all():
-    gallery = await galleries.get_models_gallery()
-
-    # Get a list of local models to determine what has been downloaded already
-    local_models = await model_helper.list_installed_models()
-    local_model_names = set(model["model_id"] for model in local_models)
-
-    # Set a date one month in the past to identify "new" models
-    one_month_ago = _today() + dateutil.relativedelta.relativedelta(months=-1)
-    new_model_cutoff_date = one_month_ago
-
-    # Iterate through models and add any values needed in result
-    for model in gallery:
-        # Mark which models have been downloaded already by checking for uniqueID
-        model["downloaded"] = True if model["uniqueID"] in local_model_names else False
-
-        # Application filters on archived flag. If none set then set to false
-        if "archived" not in model:
-            model["archived"] = False
-
-        # If no added date then set to a default
-        if "added" not in model:
-            model["added"] = "2024-02-01"
-
-        # Application uses the new flag to decide whether to display a badge
-        model_added_date = _parse_gallery_added_date(model.get("added"))
-        model["new"] = True if (model_added_date > new_model_cutoff_date) else False
-
-    return gallery
-
-
-@router.get("/model/model_groups_list", summary="Returns the grouped model gallery from model-group-gallery.json.")
-async def model_groups_list_all():
-    gallery = await galleries.get_model_groups_gallery()
-
-    # Get list of locally installed models
-    local_models = await model_helper.list_installed_models()
-    local_model_names = set(model["model_id"] for model in local_models)
-
-    # Define what counts as a “new” model
-    one_month_ago = _today() + dateutil.relativedelta.relativedelta(months=-1)
-    new_model_cutoff_date = one_month_ago
-
-    for group in gallery:
-        if "models" not in group:
-            continue
-
-        # Iterate through models and add any values needed in result
-        for model in group["models"]:
-            # Mark which models have been downloaded already by checking for uniqueID
-            model["downloaded"] = True if model["uniqueID"] in local_model_names else False
-
-            # Application filters on archived flag. If none set then set to false
-            if "archived" not in model:
-                model["archived"] = False
-
-            # If no added date then set to a default
-            if "added" not in model:
-                model["added"] = "2024-02-01"
-
-            # Application uses the new flag to decide whether to display a badge
-            model_added_date = _parse_gallery_added_date(model.get("added"))
-            model["new"] = True if (model_added_date > new_model_cutoff_date) else False
-
-    return gallery
-
-
-@router.get("/model/gallery/sizes")
-async def model_gallery_update_sizes():
-    """
-    TEMP INTERNAL TOOL
-    Calculates updated sizes for all models in the gallery and prints.
-    """
-
-    gallery = await model_gallery_list_all()
-
-    # Iterate through models and calculate updated model size
-    for model in gallery:
-        gallery_size = model.get("size_of_model_in_mb", "unknown")
-        try:
-            default_allow_patterns = [
-                "*.json",
-                "*.safetensors",
-                "*.py",
-                "tokenizer.model",
-                "*.tiktoken",
-                "*.npz",
-                "*.bin",
-            ]
-            download_size = huggingfacemodel.get_huggingface_download_size(
-                model["uniqueID"], model.get("allow_patterns", default_allow_patterns)
-            )
-        except Exception as e:
-            download_size = -1
-            print(e)
-        try:
-            total_size = huggingfacemodel.get_huggingface_download_size(model["uniqueID"], [])
-        except Exception:
-            total_size = -1
-        print(model["uniqueID"])
-        print("Gallery size:", gallery_size)
-        print("Calculated size:", download_size / (1024 * 1024))
-        print("Total size:", total_size / (1024 * 1024))
-        print("--")
-
-        if download_size > 0:
-            model["size_of_model_in_mb"] = download_size / (1024 * 1024)
-
-    return gallery
-
-
-@router.get("/model/gallery/{model_id}")
-async def model_gallery(model_id: str):
-    # convert "~~~"" in string to "/":
-    model_id = model_id.replace("~~~", "/")
-
-    return await get_model_details_from_gallery(model_id)
 
 
 @router.get("/model/upload_to_huggingface", summary="Given a model ID, upload it to Hugging Face.")
@@ -456,158 +297,6 @@ async def model_delete_peft(model_id: str, peft: str):
     await storage.rm_tree(peft_path)
 
     return {"message": "success"}
-
-
-@router.post("/model/install_peft")
-async def install_peft(peft: str, model_id: str, job_id: int | None = None, experiment_id: str = None):
-    api = HfApi()
-
-    try:
-        local_file = snapshot_download(model_id, local_files_only=True)
-        base_config = {}
-        for config_name in ["config.json", "model_index.json"]:
-            config_path = os.path.join(local_file, config_name)
-            if os.path.exists(config_path):
-                with open(config_path, "r") as f:
-                    base_config = json.load(f)
-                break
-    except Exception as e:
-        print(f"Failed to load {model_id} config: {e}")
-        return {
-            "status": "error",
-            "message": "Failed to load local base model config",
-            "adapter_id": peft,
-            "check_status": {"error": "not found"},
-        }
-
-    try:
-        adapter_info = api.model_info(peft)
-        card_data = adapter_info.cardData or {}
-        adapter_config = adapter_info.config or {}
-        adapter_base_model = card_data.get("base_model") or adapter_config.get("base_model") or ""
-
-        model_name_part = model_id.split("/")[-1].lower()
-        adapter_base_model_lower = adapter_base_model.split("/")[-1].lower()
-
-        # Initialize status tracking
-        check_status = {}
-
-        # Base model name check
-        if model_name_part in adapter_base_model_lower:
-            check_status["base_model_name"] = "success"
-        else:
-            check_status["base_model_name"] = "fail"
-
-        # Field checks
-        def compare_field(a_cfg, b_cfg, key, fallback_keys=None):
-            if key in a_cfg and key in b_cfg:
-                return a_cfg[key] == b_cfg[key]
-            if fallback_keys:
-                for fk in fallback_keys:
-                    if fk in a_cfg and fk in b_cfg:
-                        return a_cfg[fk] == b_cfg[fk]
-            return None
-
-        for field in ["architectures", "model_type"]:
-            match = compare_field(adapter_config, base_config, field, fallback_keys=["_class_name"])
-            if match is True:
-                check_status[f"{field}_status"] = "success"
-            elif match is False:
-                check_status[f"{field}_status"] = "fail"
-            else:
-                check_status[f"{field}_status"] = "unknown"
-
-    except Exception as e:
-        print(f"[ERROR] Failed to fetch adapter info for '{peft}: {e}'")
-        return {
-            "status": "error",
-            "message": "adapter not found",
-            "adapter_id": peft,
-            "check_status": {"error": "not found"},
-        }
-
-    try:
-        model_details = await huggingfacemodel.get_model_details_from_huggingface(peft)
-    except EntryNotFoundError:
-        print(f"Adaptor {peft} does not have a config.json. Proceeding without details.")
-        model_details = {}
-    except GatedRepoError:
-        error_msg = f"{peft} is a gated adapter. Please log in and accept the terms on the adapter's Hugging Face page."
-        print(error_msg)
-        return {
-            "status": "unauthorized",
-            "message": "This is a gated adapter. Please log in and accept the terms on the adapter's Hugging Face page.",
-        }
-    except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        print(error_msg)
-        return {"status": "error", "message": "An error has occurred"}
-
-    print(f"Model Details: {model_details}")
-    # Create or update job
-    if job_id is None:
-        job_id = await job_service.job_create(
-            type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id, job_data="{}"
-        )
-    else:
-        await job_service.job_update(
-            job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id
-        )
-
-    model_size = str(model_details.get("size_of_model_in_mb", -1))
-    # Prepare script args
-    from transformerlab.shared import dirs as shared_dirs
-
-    args = [
-        f"{shared_dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
-        "--mode",
-        "adaptor",
-        "--peft",
-        peft,
-        "--local_model_id",
-        model_id,
-        "--job_id",
-        str(job_id),
-        "--total_size_of_model_in_mb",
-        model_size,
-    ]
-
-    # Multitenant: pass workspace_dir explicitly so the script uses the correct org path
-    try:
-        from lab.dirs import get_workspace_dir
-
-        workspace_dir = await get_workspace_dir()
-        args += ["--workspace_dir", workspace_dir]
-    except Exception:
-        pass
-
-    # Start async subprocess without waiting for completion (like download_huggingface_model)
-    asyncio.create_task(
-        shared.async_run_python_script_and_update_status(
-            python_script=args, job_id=job_id, begin_string="Fetching Adapter"
-        )
-    )
-
-    return {"status": "started", "job_id": job_id, "check_status": check_status}
-
-
-@router.get(path="/model/get_local_hfconfig")
-async def get_local_hfconfig(model_id: str):
-    """
-    Returns the config.json file for a model stored in the local filesystem
-    """
-    try:
-        local_file = snapshot_download(model_id, local_files_only=True)
-        config_json = os.path.join(local_file, "config.json")
-        contents = "{}"
-        with open(config_json) as f:
-            contents = f.read()
-        d = json.loads(contents)
-    except Exception:
-        # failed to open config.json so create an empty config
-        d = {}
-
-    return d
 
 
 async def get_model_from_db(model_id: str):
