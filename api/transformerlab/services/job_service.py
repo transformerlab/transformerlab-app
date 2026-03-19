@@ -554,40 +554,6 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
         pass
 
 
-def job_update_status_sync(job_id: str, org_id: str, status: str, error_msg: Optional[str] = None):
-    """
-    Synchronous version of job status update.
-
-    Args:
-        job_id: The ID of the job to update
-        status: The new status to set
-        error_msg: Optional error message to add to job data
-    """
-    # Update the job status using SDK Job class
-    try:
-        # Set org context before accessing the job
-        if org_id:
-            lab_dirs.set_organization_id(org_id)
-
-        try:
-            job = asyncio.run(Job.get(str(job_id)))
-            asyncio.run(job.update_status(status))
-            if error_msg:
-                asyncio.run(job.set_error_message(error_msg))
-        finally:
-            # Clear org context
-            if org_id:
-                lab_dirs.set_organization_id(None)
-    except Exception as e:
-        print(f"Error updating job {job_id}: {e}")
-        # Ensure org context is cleared even on error
-        try:
-            lab_dirs.set_organization_id(None)
-        except Exception:
-            pass
-        pass
-
-
 def job_update_sync(job_id: str, status: str, experiment_id: Optional[str] = None):
     """
     Synchronous version of job update.
