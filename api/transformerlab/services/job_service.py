@@ -631,33 +631,6 @@ def job_update_type_and_status_sync(job_id: str, job_type: str, status: str, exp
         pass
 
 
-def job_mark_as_complete_if_running(job_id: int, org_id: str) -> None:
-    """Service wrapper: mark job as complete if running."""
-    try:
-        # Set org context before accessing the job
-        if org_id:
-            lab_dirs.set_organization_id(org_id)
-
-        try:
-            job = asyncio.run(Job.get(str(job_id)))
-
-            # Only update if currently running
-            status = asyncio.run(job.get_status())
-            if status == JobStatus.RUNNING:
-                asyncio.run(job.update_status(JobStatus.COMPLETE))
-        finally:
-            # Clear org context
-            if org_id:
-                lab_dirs.set_organization_id(None)
-    except Exception as e:
-        print(f"Error marking job {job_id} as complete: {e}")
-        # Ensure org context is cleared even on error
-        try:
-            lab_dirs.set_organization_id(None)
-        except Exception:
-            pass
-
-
 async def format_artifact(file_path: str) -> Optional[Dict[str, any]]:
     """
     Format a single artifact file into the response structure.
