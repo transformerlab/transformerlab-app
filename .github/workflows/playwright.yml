@@ -1,6 +1,6 @@
-# This workflow builds the Docker test container and runs Playwright E2E tests
+# Smoke tests run on every PR; full E2E tests run on merges to main.
 
-name: Playwright E2E Tests
+name: Playwright Tests
 
 on:
   push:
@@ -15,17 +15,60 @@ on:
       - "playwright.config.ts"
   pull_request:
     branches: ["main"]
-    paths:
-      - "src/**"
-      - "api/**"
-      - "lab-sdk/**"
-      - "test/playwright/**"
-      - "test/docker/**"
-      - "docker-compose.test.yml"
-      - "playwright.config.ts"
 
 jobs:
+  smoke:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-browsers-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build and start test container
+        run: docker compose -f docker-compose.test.yml up -d --build --wait
+
+      - name: Wait for app to be ready
+        run: timeout 120 bash -c 'until curl -sf http://localhost:8338; do sleep 5; done'
+
+      - name: Run smoke tests
+        run: npx playwright test --project=smoke
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.test.yml logs --tail=200
+
+      - name: Upload HTML report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-smoke-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.test.yml down
+
   e2e:
+    name: E2E Tests
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -54,7 +97,7 @@ jobs:
       - name: Wait for app to be ready
         run: timeout 120 bash -c 'until curl -sf http://localhost:8338; do sleep 5; done'
 
-      - name: Run Playwright tests
+      - name: Run all Playwright tests
         run: npx playwright test
 
       - name: Dump container logs on failure
@@ -65,7 +108,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-e2e-report
           path: playwright-report/
           retention-days: 14
 
