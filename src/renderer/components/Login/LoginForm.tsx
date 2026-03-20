@@ -207,6 +207,33 @@ export default function LoginForm() {
     >
       <form onSubmit={handleSubmit} style={{ width: '100%' }}>
         <Stack spacing={2} sx={{ width: '100%' }}>
+          <Box
+            sx={{
+              backgroundColor: 'neutral.100',
+              border: '1px solid',
+              borderColor: 'neutral.200',
+              borderRadius: 'md',
+              px: 2,
+              py: 1.25,
+            }}
+          >
+            <Typography
+              level="body-sm"
+              color="neutral"
+              sx={{ textAlign: 'center' }}
+            >
+              If it is your first time and you do not want to create a separate
+              user, you can sign in with:
+              <Box component="span" sx={{ fontFamily: 'monospace' }}>
+                admin@example.com
+              </Box>{' '}
+              and password:{' '}
+              <Box component="span" sx={{ fontFamily: 'monospace' }}>
+                admin123
+              </Box>
+            </Typography>
+          </Box>
+
           <Stack spacing={1.5} sx={{ mt: 1 }}>
             {googleOAuthEnabled && (
               <Button
