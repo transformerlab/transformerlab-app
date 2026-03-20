@@ -16,7 +16,7 @@ on:
       - "lab-sdk/**"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ matrix.os }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
