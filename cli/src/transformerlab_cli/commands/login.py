@@ -72,12 +72,23 @@ def login(
             set_config("user_email", user_email)
             console.print(f"[green]✓[/green] User email: [cyan]{user_email}[/cyan]")
 
-        # Save team info (prefer OWNER role, otherwise first team)
+        # Save team info
         teams = teams_info.get("teams", [])
         if teams:
-            # Look for OWNER role first
-            owner_team = next((t for t in teams if t.get("role") == "OWNER"), None)
-            selected_team = owner_team if owner_team else teams[0]
+            # Prefer the team the API key is scoped to, if provided by the server
+            api_key_team_id = user_info.get("api_key_team_id")
+            selected_team = None
+
+            if api_key_team_id:
+                selected_team = next((t for t in teams if t.get("id") == api_key_team_id), None)
+
+            if not selected_team:
+                # Look for owner role first (case-insensitive)
+                owner_team = next(
+                    (t for t in teams if str(t.get("role", "")).lower() == "owner"),
+                    None,
+                )
+                selected_team = owner_team if owner_team else teams[0]
 
             team_id = selected_team.get("id")
             team_name = selected_team.get("name")
