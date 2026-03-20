@@ -29,11 +29,7 @@
   "ignoreDependencies": [
     "@nivo/core",
     "@playwright/test",
-    "playwright",
-    "electron",
-    "electron-builder",
-    "electron-devtools-installer",
-    "electron-notarize"
+    "playwright"
   ],
   "webpack": {
     "entry": [".erb/configs/webpack.config.*.ts"]
