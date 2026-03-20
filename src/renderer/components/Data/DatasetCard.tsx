@@ -22,6 +22,8 @@ import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import PreviewDatasetModal from './PreviewDatasetModal';
 import DatasetInfoModal from './DatasetInfoModal';
 import EditDatasetModal from './EditDatasetModal';
+import VersionGroupChip from '../Shared/VersionGroupChip';
+import AssetVersionsDrawer from '../Shared/AssetVersionsDrawer';
 
 export default function DatasetCard({
   name,
@@ -33,6 +35,7 @@ export default function DatasetCard({
   parentMutate,
   local,
   friendlyName = null,
+  versionGroups = [],
 }) {
   const [installing, setInstalling] = useState(null);
   const [previewModalState, setPreviewModalState] = useState({
@@ -42,6 +45,10 @@ export default function DatasetCard({
   });
   const [datasetInfoModalOpen, setDatasetInfoModalOpen] = useState(false);
   const [editDatasetModalOpen, setEditDatasetModalOpen] = useState(false);
+  const [versionDrawer, setVersionDrawer] = useState<{
+    open: boolean;
+    groupName: string;
+  }>({ open: false, groupName: '' });
 
   const { data: datasetInfo } = useAPI('datasets', ['info'], {
     datasetId: name,
@@ -89,6 +96,16 @@ export default function DatasetCard({
               {location === 'huggingfacehub' && ' 🤗'}
               {location === 'local' && ' '}
             </Typography>
+            {versionGroups && versionGroups.length > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                <VersionGroupChip
+                  versionGroups={versionGroups}
+                  onClick={(groupName) =>
+                    setVersionDrawer({ open: true, groupName })
+                  }
+                />
+              </div>
+            )}
             <div style={{ overflow: 'hidden' }}>
               <Typography level="body-sm" sx={{ overflow: 'hidden' }}>
                 {description}
@@ -235,6 +252,12 @@ export default function DatasetCard({
           )}
         </CardContent>
       </Card>
+      <AssetVersionsDrawer
+        open={versionDrawer.open}
+        onClose={() => setVersionDrawer({ open: false, groupName: '' })}
+        assetType="dataset"
+        groupName={versionDrawer.groupName}
+      />
     </>
   );
 }

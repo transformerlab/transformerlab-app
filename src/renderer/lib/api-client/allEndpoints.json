@@ -200,11 +200,11 @@
     },
     "saveDatasetToRegistry": {
       "method": "POST",
-      "path": "experiment/{experimentId}/jobs/{jobId}/datasets/{datasetName}/save_to_registry?target_name={targetName}&mode={mode}"
+      "path": "experiment/{experimentId}/jobs/{jobId}/datasets/{datasetName}/save_to_registry?target_name={targetName}&asset_name={assetName}&mode={mode}&tag={tag}&version_label={versionLabel}&description={description}"
     },
     "saveModelToRegistry": {
       "method": "POST",
-      "path": "experiment/{experimentId}/jobs/{jobId}/models/{modelName}/save_to_registry?target_name={targetName}&mode={mode}"
+      "path": "experiment/{experimentId}/jobs/{jobId}/models/{modelName}/save_to_registry?target_name={targetName}&asset_name={assetName}&mode={mode}&tag={tag}&version_label={versionLabel}&description={description}"
     },
     "getJobsOfType": {
       "method": "GET",
@@ -591,6 +591,52 @@
     "deleteTranscriptionFile": {
       "method": "DELETE",
       "path": "experiment/{experimentId}/conversations/delete_transcription?id={id}"
+    }
+  },
+  "assetVersions": {
+    "listGroups": {
+      "method": "GET",
+      "path": "asset_versions/groups?asset_type={assetType}"
+    },
+    "deleteGroup": {
+      "method": "DELETE",
+      "path": "asset_versions/groups/{assetType}/{groupName}"
+    },
+    "createVersion": {
+      "method": "POST",
+      "path": "asset_versions/versions"
+    },
+    "listVersions": {
+      "method": "GET",
+      "path": "asset_versions/versions/{assetType}/{groupName}"
+    },
+    "getVersion": {
+      "method": "GET",
+      "path": "asset_versions/versions/{assetType}/{groupName}/{version}"
+    },
+    "deleteVersion": {
+      "method": "DELETE",
+      "path": "asset_versions/versions/{assetType}/{groupName}/{version}"
+    },
+    "updateVersion": {
+      "method": "PATCH",
+      "path": "asset_versions/versions/{assetType}/{groupName}/{version}"
+    },
+    "setTag": {
+      "method": "PUT",
+      "path": "asset_versions/versions/{assetType}/{groupName}/{version}/tag"
+    },
+    "clearTag": {
+      "method": "DELETE",
+      "path": "asset_versions/versions/{assetType}/{groupName}/{version}/tag"
+    },
+    "resolve": {
+      "method": "GET",
+      "path": "asset_versions/resolve/{assetType}/{groupName}"
+    },
+    "getAssetGroupMap": {
+      "method": "GET",
+      "path": "asset_versions/map/{assetType}"
     }
   }
 }
