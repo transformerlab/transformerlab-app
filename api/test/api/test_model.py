@@ -3,13 +3,6 @@ import pytest
 from unittest.mock import MagicMock
 
 
-@pytest.mark.skip(reason="Skipping test_model_list_local_uninstalled because it is taking 23 seconds to load??!!")
-def test_model_list_local_uninstalled(client):
-    resp = client.get("/model/list_local_uninstalled")
-    assert resp.status_code == 200
-    assert "data" in resp.json() or "status" in resp.json()
-
-
 def make_mock_adapter_info(overrides={}):
     return MagicMock(
         modelId="mock/model",

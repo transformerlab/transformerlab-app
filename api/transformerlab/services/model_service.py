@@ -9,8 +9,7 @@ from transformerlab.models import localmodel
 
 async def list_installed_models(embedding: bool = False) -> list:
     """
-    Check both the DB and the workspace models directory and return a list of models
-    in the format that models are stored in the DB.
+    Legacy function for getting a list of models from all sources.
     """
     return await localmodel.LocalModelStore().list_models(embedding)
 

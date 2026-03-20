@@ -305,64 +305,6 @@ async def get_model_from_db(model_id: str):
     return await model_service.get_metadata()
 
 
-@router.get("/model/list_local_uninstalled")
-async def models_list_local_uninstalled(path: str = ""):
-    # first search and get a list of BaseModel objects
-    found_models = []
-    if path is not None and path != "":
-        if os.path.isfile(path):
-            found_models = []
-        elif os.path.isdir(path):
-            found_models = await filesystemmodel.list_models(path)
-        else:
-            return {"status": "error", "message": "Invalid path"}
-
-    # If a folder wasn't given then search known sources for uninstalled models
-    else:
-        found_models = await models_search_for_local_uninstalled()
-
-    # Then iterate through models and return appropriate details
-    response_models = []
-    for found_model in found_models:
-        # Figure out if this model is supported in Transformer Lab
-        supported = True
-        if found_model.status != "OK":
-            status = f"❌ {found_model.status}"
-            supported = False
-        else:
-            status = "✅"
-            supported = True
-
-        new_model = {
-            "id": found_model.id,
-            "name": found_model.name,
-            "path": found_model.source_id_or_path,
-            "source": found_model.source,
-            "installed": False,
-            "status": status,
-            "supported": supported,
-        }
-        response_models.append(new_model)
-
-    return {"status": "success", "data": response_models}
-
-
-async def models_search_for_local_uninstalled():
-    # iterate through each model source and look for uninstalled models
-    modelsources = model_helper.list_model_sources()
-    models = []
-    for source in modelsources:
-        source_models = await model_helper.list_models_from_source(source)
-
-        # Only add uninstalled models
-        for source_model in source_models:
-            installed = await model_service.is_model_installed(source_model.id)
-            if not installed:
-                models.append(source_model)
-
-    return models
-
-
 @router.get("/model/import_from_source")
 async def model_import_local_source(model_source: str, model_id: str):
     """
