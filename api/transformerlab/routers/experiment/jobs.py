@@ -1692,3 +1692,32 @@ async def get_job_file(job_id: str, file_path: str):
     return StreamingResponse(
         generate(), media_type=media_type, headers={"Content-Disposition": f'inline; filename="{filename}"'}
     )
+
+
+@router.get("/{job_id}/profiling_report")
+async def get_profiling_report(
+    job_id: str,
+    experimentId: str,
+    session: AsyncSession = Depends(get_async_session),
+    user_and_team: dict = Depends(get_user_and_team),
+):
+    """
+    Return the profiling_report.json from the job's profiling folder (written when
+    _TFL_PROFILING=1 and copied on lab.finish/error or when the remote trap exits).
+
+    Returns 404 if profiling was not enabled or the report is not yet available.
+    """
+    from lab.dirs import get_job_profiling_dir
+
+    profiling_dir = await get_job_profiling_dir(job_id)
+    report_path = storage.join(profiling_dir, "profiling_report.json")
+
+    if not await storage.exists(report_path):
+        raise HTTPException(status_code=404, detail="Profiling report not found for this job")
+
+    try:
+        async with await storage.open(report_path, "r", encoding="utf-8") as f:
+            content = await f.read()
+        return json.loads(content)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to read profiling report: {exc}") from exc
