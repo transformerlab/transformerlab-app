@@ -6,23 +6,6 @@
 export * from './api-client/endpoints';
 
 export {
-  stopStreamingResponse,
-  sendAndReceiveStreaming,
-  sendCompletion,
-  sendCompletionReactWay,
-  sendBatchedCompletion,
-  sendBatchedChat,
-  callTool,
-  getToolsForCompletions,
-  tokenize,
-  countTokens,
-  countChatTokens,
-} from './api-client/chat';
-
-export {
-  downloadModelFromHuggingFace,
-  downloadGGUFFile,
-  downloadModelFromGallery,
   GET_EXPERIMENT_UPDATE_CONFIG_URL,
   EXPERIMENT_ADD_EVALUATION,
   TEMPLATE_FOR_MODEL_URL,

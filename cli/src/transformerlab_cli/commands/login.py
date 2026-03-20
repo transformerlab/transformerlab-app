@@ -19,12 +19,10 @@ def login(
     # Load config to set the base URL before attempting login
     config = load_config()
 
-    # Ask for server if not provided and not in config
+    # Prompt for server URL, showing current value as default so user can confirm or change it
     if not server:
-        server = config.get("server")
-
-    if not server:
-        server = typer.prompt("Please enter the server URL", default="http://alpha.lab.cloud:8338")
+        default_server = config.get("server") or "http://alpha.lab.cloud:8338"
+        server = typer.prompt("Server URL", default=default_server)
 
     # Validate and set server URL
     from transformerlab_cli.util.config import _validate_url
@@ -47,6 +45,9 @@ def login(
 
     # Ask for API key if not provided
     if not api_key:
+        console.print(
+            f"\n[yellow]You can create an API key at:[/yellow] [bold]{server.rstrip('/')}/#/user/api-keys[/bold]"
+        )
         api_key = typer.prompt("Please enter your API key", hide_input=True)
 
     # Attempt login
