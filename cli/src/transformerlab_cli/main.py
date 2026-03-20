@@ -14,6 +14,7 @@ from transformerlab_cli.commands.whoami import app as whoami_app
 from transformerlab_cli.commands.task import app as task_app
 from transformerlab_cli.commands.job import app as job_app
 from transformerlab_cli.commands.run_local import command_run_local
+from transformerlab_cli.commands.provider import app as provider_app
 
 
 # Create custom Help screen so we can show the logo
@@ -41,6 +42,7 @@ app.add_typer(whoami_app)
 app.add_typer(task_app, name="task", help="Task management commands", no_args_is_help=True)
 app.add_typer(job_app, name="job", help="Job management commands", no_args_is_help=True)
 app.command("run-local")(command_run_local)
+app.add_typer(provider_app, name="provider", help="Compute provider management commands", no_args_is_help=True)
 
 console = Console()
 
