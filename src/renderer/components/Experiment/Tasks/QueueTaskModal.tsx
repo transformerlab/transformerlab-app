@@ -45,6 +45,7 @@ type QueueTaskModalProps = {
   task: any;
   onSubmit: (config: Record<string, any>) => void;
   isSubmitting?: boolean;
+  experimentId?: string;
 };
 
 // Type definitions for parameter schemas
@@ -93,6 +94,7 @@ export default function QueueTaskModal({
   task,
   onSubmit,
   isSubmitting = false,
+  experimentId = '',
 }: QueueTaskModalProps) {
   const { team } = useAuth();
   const [parameters, setParameters] = React.useState<ProcessedParameter[]>([]);
@@ -111,6 +113,7 @@ export default function QueueTaskModal({
   const [lowerIsBetter, setLowerIsBetter] = React.useState(true);
   const [jobSlurmFlags, setJobSlurmFlags] = React.useState<string[]>(['']);
   const [useTrackio, setUseTrackio] = React.useState(false);
+  const [trackioProjectName, setTrackioProjectName] = React.useState('');
   const [cpusInput, setCpusInput] = React.useState('');
   const [memoryInput, setMemoryInput] = React.useState('');
   const [diskSpaceInput, setDiskSpaceInput] = React.useState('');
@@ -180,6 +183,16 @@ export default function QueueTaskModal({
     open ? chatAPI.Endpoints.Dataset.LocalList() : null,
     fetcher,
   );
+
+  // Fetch existing Trackio project names for this experiment (when Trackio enabled)
+  const trackioProjectsKey =
+    open && useTrackio && experimentId
+      ? `${chatAPI.API_URL()}trackio/projects?experiment_id=${encodeURIComponent(experimentId)}`
+      : null;
+  const { data: trackioProjectsData } = useSWR(trackioProjectsKey, fetcher);
+  const trackioProjects: string[] = Array.isArray(trackioProjectsData?.projects)
+    ? trackioProjectsData.projects
+    : [];
 
   // Fetch available providers
   const {
@@ -743,6 +756,7 @@ export default function QueueTaskModal({
     // in the job environment so Lab can automatically integrate with Trackio.
     if (useTrackio) {
       config.enable_trackio = true;
+      config.trackio_project_name = trackioProjectName.trim() || undefined;
     }
 
     onSubmit(config);
@@ -1372,6 +1386,31 @@ export default function QueueTaskModal({
                   Enable Trackio metrics tracking for this run
                 </FormLabel>
               </FormControl>
+              {useTrackio && (
+                <FormControl>
+                  <FormLabel>Project name</FormLabel>
+                  <Input
+                    placeholder="e.g. my-finetune-project"
+                    value={trackioProjectName}
+                    onChange={(e) => setTrackioProjectName(e.target.value)}
+                    disabled={isSubmitting}
+                    slotProps={{
+                      input: {
+                        list: 'trackio-projects-list',
+                      },
+                    }}
+                  />
+                  <datalist id="trackio-projects-list">
+                    {trackioProjects.map((p) => (
+                      <option key={p} value={p} />
+                    ))}
+                  </datalist>
+                  <FormHelperText>
+                    Pick an existing project to add this run to it, or type a
+                    new name to create one.
+                  </FormHelperText>
+                </FormControl>
+              )}
               <FormHelperText>
                 When enabled, the scripts that use the lab SDK can automatically
                 log metrics to Trackio and expose a Trackio dashboard in the UI.
