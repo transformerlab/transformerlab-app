@@ -1,7 +1,7 @@
 import asyncio
 from werkzeug.utils import secure_filename
 
-from .dirs import get_experiments_dir, get_jobs_dir, get_workspace_dir
+from .dirs import get_experiments_dir, get_jobs_dir
 from .labresource import BaseLabResource
 from .job import Job
 from .job_status import JobStatus
@@ -233,24 +233,15 @@ class Experiment(BaseLabResource):
                         JobStatus.INTERACTIVE,
                         JobStatus.NOT_STARTED,
                     ]:
-                        old_status = job_json.get("status", "")
                         del cached_jobs[job_id]
                         job = await Job.get(job_id)
                         job_json = await job.get_json_data(uncached=True)
-                        # Trigger rebuild cache if old status and new status are different
-                        if old_status != job_json.get("status", ""):
-                            workspace = await get_workspace_dir()
-                            self._trigger_cache_rebuild(workspace)
                         cached_jobs[job_id] = job_json
 
                 else:
                     # Job not in cache
                     job = await Job.get(job_id)
                     job_json = await job.get_json_data(uncached=True)
-                    # Check if job is COMPLETE, STOPPED or FAILED, then update cache
-                    if job_json.get("status", "") in [JobStatus.COMPLETE, JobStatus.STOPPED, JobStatus.FAILED]:
-                        workspace = await get_workspace_dir()
-                        self._trigger_cache_rebuild(workspace)
             except Exception:
                 logger.warning("ERROR getting job %s", job_id, exc_info=True)
                 continue
