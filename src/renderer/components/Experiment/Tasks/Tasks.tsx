@@ -188,18 +188,23 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
   const isInteractivePage = subtype === 'interactive';
 
-  // Define the callback outside the IIFE to ensure it's always available
-  const handleOpenOutputFromInteractive = useCallback(
-    (outputJobId: number) => {
-      // Close the interactive modal first
-      setInteractiveJobForModal(-1);
-      // Wait for modal close animation, then open output modal
-      setTimeout(() => {
-        setViewOutputFromJob(outputJobId);
-      }, 300);
-    },
-    [interactiveJobForModal],
-  );
+  const isInteractiveTemplate = useCallback((task: any): boolean => {
+    const config =
+      typeof task?.config === 'string'
+        ? SafeJSONParse(task.config, {})
+        : (task?.config ?? {});
+    return (
+      (task as any)?.subtype === 'interactive' ||
+      config?.subtype === 'interactive' ||
+      Boolean((task as any)?.interactive_type) ||
+      Boolean(config?.interactive_type)
+    );
+  }, []);
+
+  const isInteractiveJob = useCallback((job: any): boolean => {
+    const jobData = job?.job_data || {};
+    return jobData?.subtype === 'interactive' || job?.status === 'INTERACTIVE';
+  }, []);
 
   const handleOpen = () => {
     if (isInteractivePage) {
@@ -310,6 +315,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         // Otherwise, filter by experiment only
         return template.experiment_id === experimentInfo?.id;
       }) || [];
+
+  const visibleTasks = useMemo(() => {
+    if (subtype) return tasks;
+    return tasks.filter((t: any) => !isInteractiveTemplate(t));
+  }, [isInteractiveTemplate, subtype, tasks]);
 
   // Poll LAUNCHING/WAITING REMOTE jobs for live launch_progress and status transitions.
   // Provider polling and status mutations are handled server-side by the
@@ -426,6 +436,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         const jobData = job.job_data || {};
         return jobData.subtype === subtype;
       });
+    } else {
+      filteredJobs = baseJobs.filter((job: any) => !isInteractiveJob(job));
     }
 
     // Read directly from localStorage to avoid state dependency issues
@@ -454,7 +466,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     // Show newest first consistent with existing ordering if any
     const combined = [...placeholders, ...filteredJobs];
     return combined;
-  }, [jobs, getPendingJobIds, subtype, pendingIdsTrigger]);
+  }, [getPendingJobIds, isInteractiveJob, jobs, pendingIdsTrigger, subtype]);
 
   const handleDeleteTask = (taskId: string, taskName?: string) => {
     setTaskToDelete({ id: taskId, name: taskName });
@@ -464,7 +476,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     async (taskId: string): Promise<boolean> => {
       if (!experimentInfo?.id) return false;
       try {
-        const response = await chatAPI.authenticatedFetch(
+        const response = await fetchWithAuth(
           chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo.id, taskId),
           { method: 'GET' },
         );
@@ -490,7 +502,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         return false;
       }
     },
-    [experimentInfo?.id, addNotification, templatesMutate],
+    [experimentInfo?.id, addNotification, templatesMutate, fetchWithAuth],
   );
 
   const handleDeleteJob = async (jobId: string) => {
@@ -502,7 +514,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     }
 
     try {
-      const response = await chatAPI.authenticatedFetch(
+      const response = await fetchWithAuth(
         chatAPI.Endpoints.Jobs.Delete(experimentInfo.id, jobId),
         {
           method: 'GET',
@@ -533,7 +545,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
   const handleExportToTeamGallery = async (taskId: string) => {
     try {
-      const response = await chatAPI.authenticatedFetch(
+      const response = await fetchWithAuth(
         chatAPI.Endpoints.Task.ExportToTeamGallery(experimentInfo?.id || ''),
         {
           method: 'POST',
@@ -633,7 +645,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         templatePayload.subtype = subtype;
       }
 
-      const response = await chatAPI.authenticatedFetch(
+      const response = await fetchWithAuth(
         chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
         {
           method: 'POST',
@@ -699,7 +711,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       let template: any;
 
       try {
-        const galleryResponse = await chatAPI.authenticatedFetch(
+        const galleryResponse = await fetchWithAuth(
           chatAPI.Endpoints.Task.InteractiveGallery(experimentInfo.id),
           {
             method: 'GET',
@@ -739,7 +751,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       if (template.local_task_dir || template.github_repo_url) {
         // Use the gallery import API which reads task.yaml and copies files,
         // just like the "Upload from Local Directory" or GitHub import flow.
-        response = await chatAPI.authenticatedFetch(
+        response = await fetchWithAuth(
           chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id),
           {
             method: 'POST',
@@ -790,7 +802,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           github_directory: template?.github_repo_dir || undefined,
         };
 
-        response = await chatAPI.authenticatedFetch(
+        response = await fetchWithAuth(
           chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
           {
             method: 'POST',
@@ -974,6 +986,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           undefined,
         enable_trackio:
           typeof enable_trackio === 'boolean' ? enable_trackio : undefined,
+        trackio_project_name:
+          config?.trackio_project_name != null
+            ? config.trackio_project_name
+            : undefined,
       };
 
       const response = await fetchWithAuth(
@@ -1117,7 +1133,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               }
 
               try {
-                const response = await chatAPI.authenticatedFetch(
+                const response = await fetchWithAuth(
                   chatAPI.Endpoints.Task.UpdateTemplate(
                     experimentInfo.id,
                     taskBeingEdited.id,
@@ -1166,6 +1182,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           task={taskBeingQueued}
           onSubmit={handleQueueSubmit}
           isSubmitting={isSubmitting}
+          experimentId={experimentInfo?.id ?? ''}
         />
       )}
       <Stack
@@ -1194,7 +1211,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         }}
       >
         <TaskTemplateList
-          tasksList={tasks}
+          tasksList={visibleTasks}
           onDeleteTask={handleDeleteTask}
           onQueueTask={handleQueue}
           onEditTask={handleEditTask}

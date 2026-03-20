@@ -39,7 +39,8 @@ export default function DeleteTaskConfirmModal({
     try {
       const success = await onConfirm(taskId);
       if (success) {
-        handleClose();
+        setError(null);
+        onClose();
       } else {
         setError('Failed to delete template. Please try again.');
       }
