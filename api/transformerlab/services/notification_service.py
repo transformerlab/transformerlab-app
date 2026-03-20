@@ -15,6 +15,7 @@ notification_sent, so we never double-send.
 
 import asyncio
 import os
+import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -27,6 +28,8 @@ from urllib.parse import urlparse
 
 import transformerlab.db.db as db
 from transformerlab.services import job_service, team_service
+
+logger = logging.getLogger(__name__)
 
 NOTIFICATION_WORKER_INTERVAL_SECONDS = int(os.getenv("NOTIFICATION_WORKER_INTERVAL_SECONDS", "30"))
 
@@ -57,7 +60,7 @@ async def _list_all_org_ids() -> List[str]:
     try:
         return await team_service.get_all_team_ids()
     except Exception as exc:  # noqa: BLE001
-        print(f"Notification worker: failed listing orgs: {exc}")
+        logger.warning(f"Notification worker: failed listing orgs: {exc}")
         return []
 
 
@@ -65,7 +68,7 @@ async def _list_experiment_ids_for_current_org() -> List[str]:
     try:
         experiments_data = await Experiment.get_all()
     except Exception as exc:  # noqa: BLE001
-        print(f"Notification worker: failed getting experiments: {exc}")
+        logger.warning(f"Notification worker: failed getting experiments: {exc}")
         return []
     return [str(exp.get("id")) for exp in experiments_data if exp.get("id")]
 
@@ -225,7 +228,7 @@ async def _process_notification(job: Dict[str, Any], experiment_id: str, org_id:
             response = await client.post(webhook_url, json=request_body)
             response.raise_for_status()
     except Exception as exc:  # noqa: BLE001
-        print(f"Notification worker: webhook delivery failed for job {job_id}: {exc}")
+        logger.error(f"Notification worker: webhook delivery failed for job {job_id}: {exc}")
 
     # 6. Mark as sent — always, even on delivery failure.
     #    This prevents retry spam; users can re-test via the Test button.
@@ -270,7 +273,7 @@ async def process_pending_notifications_once() -> Dict[str, int]:
                     try:
                         job_summaries = await job_service.jobs_get_all(experiment_id, status=status)
                     except Exception as exc:  # noqa: BLE001
-                        print(
+                        logger.warning(
                             f"Notification worker: failed listing jobs for exp {experiment_id} status {status}: {exc}",
                         )
                         stats["errors"] += 1
@@ -305,7 +308,7 @@ async def process_pending_notifications_once() -> Dict[str, int]:
                             processed_job_ids.add(job_id)
                             stats["jobs_notified"] += 1
                         except Exception as exc:  # noqa: BLE001
-                            print(f"Notification worker: error processing job {job_id}: {exc}")
+                            logger.warning(f"Notification worker: error processing job {job_id}: {exc}")
                             stats["errors"] += 1
 
         finally:
@@ -320,13 +323,13 @@ async def process_pending_notifications_once() -> Dict[str, int]:
 
 
 async def _notification_worker_loop() -> None:
-    print("Notification worker: started")
+    logger.info("Notification worker: started")
     try:
         while True:
             try:
                 stats = await process_pending_notifications_once()
                 if stats["jobs_seen"] > 0 or stats["errors"] > 0:
-                    print(
+                    logger.debug(
                         "Notification worker: cycle done — "
                         f"orgs={stats['orgs']} "
                         f"jobs_seen={stats['jobs_seen']} "
@@ -336,10 +339,10 @@ async def _notification_worker_loop() -> None:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:  # noqa: BLE001
-                print(f"Notification worker: unhandled error in cycle, continuing: {exc}")
+                logger.debug(f"Notification worker: unhandled error in cycle, continuing: {exc}")
             await asyncio.sleep(NOTIFICATION_WORKER_INTERVAL_SECONDS)
     except asyncio.CancelledError:
-        print("Notification worker: stopping")
+        logger.info("Notification worker: stopping")
         raise
     finally:
         # Ensure org context is always cleared when the worker stops

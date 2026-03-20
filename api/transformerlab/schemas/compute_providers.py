@@ -170,6 +170,10 @@ class ProviderTemplateLaunchRequest(BaseModel):
         default=False,
         description="When True, set TLAB_TRACKIO_AUTO_INIT=true in the job environment so lab SDK can auto-integrate with Trackio.",
     )
+    trackio_project_name: Optional[str] = Field(
+        default=None,
+        description="TrackIO project name for shared project; used when enable_trackio=True. Omit or empty to use 'default'.",
+    )
 
 
 class ProviderTemplateFileUploadResponse(BaseModel):

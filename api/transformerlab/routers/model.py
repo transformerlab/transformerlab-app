@@ -10,6 +10,7 @@ from transformers import AutoTokenizer
 
 from transformerlab.services import model_service
 from transformerlab.models import huggingfacemodel
+from transformerlab.services.cache_service import cached
 from lab.dirs import get_workspace_dir
 from lab.model import Model as ModelService
 from lab import storage
@@ -113,6 +114,7 @@ async def get_model_prompt_template(model: str):
 
 
 @router.get("/model/list")
+@cached(key="models:list:{embedding}", ttl="7d", tags=["models", "models:list"])
 async def model_local_list(embedding=False):
     # the model list is a combination of downloaded hugging face models and locally generated models
     return await model_service.list_installed_models(embedding)
