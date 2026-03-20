@@ -67,6 +67,7 @@ from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
 from lab import storage  # noqa: E402
 from transformerlab.shared.remote_workspace import validate_cloud_credentials  # noqa: E402
 from transformerlab.services.sweep_status_service import start_sweep_status_worker, stop_sweep_status_worker  # noqa: E402
+from transformerlab.services.group_status_service import start_group_status_worker, stop_group_status_worker  # noqa: E402
 from transformerlab.services.cache_service import setup as setup_cache  # noqa: E402
 
 
@@ -144,6 +145,7 @@ async def lifespan(app: FastAPI):
 
     # Start background sweep status updater after all startup steps succeed.
     await start_sweep_status_worker()
+    await start_group_status_worker()
     # Start background remote job status poller (replaces inline provider polling in check-status).
     from transformerlab.services.remote_job_status_service import (
         start_remote_job_status_worker,
@@ -160,6 +162,7 @@ async def lifespan(app: FastAPI):
     yield
     # Do the following at API Shutdown:
     await stop_sweep_status_worker()
+    await stop_group_status_worker()
     await stop_remote_job_status_worker()
     await stop_notification_worker()
     await db.close()

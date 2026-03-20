@@ -24,6 +24,7 @@ ALLOWED_JOB_TYPES = [
     "DIFFUSION",
     "REMOTE",
     "SWEEP",
+    "GROUP",
 ]
 
 
@@ -331,6 +332,67 @@ async def job_get_sweep_parent(child_job_id, experiment_id=None):
     except Exception as e:
         print(f"Error getting sweep parent for job {child_job_id}: {e}")
         return None
+
+
+async def jobs_get_group_children(parent_job_id: str, experiment_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Get all child jobs that belong to a group parent job."""
+    try:
+        parent_job = await Job.get(parent_job_id)
+        if experiment_id is not None:
+            exp_id = await parent_job.get_experiment_id()
+            if exp_id != experiment_id:
+                return []
+
+        job_data = await parent_job.get_job_data()
+        if not isinstance(job_data, dict):
+            return []
+
+        group_job_ids = job_data.get("group_job_ids", [])
+        if not isinstance(group_job_ids, list):
+            return []
+
+        child_jobs = []
+        for child_job_id in group_job_ids:
+            try:
+                child_job = await Job.get(child_job_id)
+                job_json = await child_job.get_json_data()
+                child_jobs.append(job_json)
+            except Exception:
+                continue
+
+        return child_jobs
+    except Exception as e:
+        print(f"Error getting group children for job {parent_job_id}: {e}")
+        return []
+
+
+async def job_get_group_parent(child_job_id: str, experiment_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Get the parent group job for a child job. Returns None if not a group child."""
+    try:
+        child_job = await Job.get(child_job_id)
+        if experiment_id is not None:
+            exp_id = await child_job.get_experiment_id()
+            if exp_id != experiment_id:
+                return None
+
+        job_data = await child_job.get_job_data()
+        if not isinstance(job_data, dict):
+            return None
+
+        parent_job_id = job_data.get("parent_group_job_id")
+        if not parent_job_id:
+            return None
+
+        parent_job = await Job.get(parent_job_id)
+        return await parent_job.get_json_data()
+    except Exception as e:
+        print(f"Error getting group parent for job {child_job_id}: {e}")
+        return None
+
+
+async def job_update_group_progress(job_id: str, value: int, experiment_id: Optional[str]) -> None:
+    """Update the group_progress field for a GROUP parent job."""
+    await job_update_job_data_insert_key_value(job_id, "group_progress", value, experiment_id)
 
 
 ##################################
