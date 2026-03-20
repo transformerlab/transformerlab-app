@@ -305,23 +305,6 @@ async def get_model_from_db(model_id: str):
     return await model_service.get_metadata()
 
 
-@router.get("/model/import_from_source")
-async def model_import_local_source(model_source: str, model_id: str):
-    """
-    Given a model_source and a model_id within that source,
-    try to import a file into TransformerLab.
-    """
-
-    if model_source not in model_helper.list_model_sources():
-        return {"status": "error", "message": f"Invalid model source {model_source}."}
-
-    model = model_helper.get_model_by_source_id(model_source, model_id)
-    if not model:
-        return {"status": "error", "message": f"{model_id} not found in {model_source}."}
-
-    return await model_import(model)
-
-
 @router.get("/model/import_from_local_path")
 async def model_import_local_path(model_path: str):
     """

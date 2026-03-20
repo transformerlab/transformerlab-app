@@ -45,20 +45,3 @@ def get_model_by_source_id(model_source: str, model_source_id: str):
         print(f"Caught exception getting model {model_source_id} from {model_source}:")
         traceback.print_exc()
     return None
-
-
-async def list_models_from_source(model_source: str):
-    """
-    Get a list of models available at model_source.
-    model_source needs to be one of the strings returned by list_model_sources.
-    """
-    try:
-        match model_source:
-            case "ollama":
-                return await ollamamodel.list_models()
-            case "huggingface":
-                return await huggingfacemodel.list_models()
-    except Exception:
-        print(f"Caught exception listing models from {model_source}:")
-        traceback.print_exc()
-    return []
