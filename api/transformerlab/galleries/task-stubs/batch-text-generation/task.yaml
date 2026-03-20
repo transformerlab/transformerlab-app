@@ -1,0 +1,60 @@
+name: Batch Text Generation
+
+resources:
+  accelerators: GPU:1
+
+setup: |
+  pip install transformerlab-sdk
+
+run: |
+  python generate.py \
+    --generation_model {{generation_model}} \
+    --input_column {{input_column}} \
+    --output_column {{output_column}} \
+    --batch_size {{batch_size}} \
+    --temperature {{temperature}} \
+    --max_tokens {{max_tokens}} \
+    --dataset_split {{dataset_split}} \
+    --output_dataset_name {{output_dataset_name}}
+
+parameters:
+  generation_model:
+    title: Generation Model
+    type: string
+    required: true
+  system_prompt:
+    title: System Prompt
+    type: string
+    default: ""
+  input_column:
+    title: Input Column
+    type: string
+    default: input
+  output_column:
+    title: Output Column
+    type: string
+    default: output
+  batch_size:
+    title: Batch Size
+    type: integer
+    default: 128
+  temperature:
+    title: Temperature
+    type: number
+    default: 0.7
+    minimum: 0.0
+    maximum: 2.0
+  max_tokens:
+    title: Max Tokens
+    type: integer
+    default: 1024
+    minimum: 16
+    maximum: 8192
+  dataset_split:
+    title: Dataset Split
+    type: string
+    default: train
+  output_dataset_name:
+    title: Output Dataset Name
+    type: string
+    default: generated_dataset_batched

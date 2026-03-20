@@ -1,0 +1,45 @@
+name: DPO / ORPO / SimPO Alignment Training
+
+resources:
+  accelerators: GPU:1
+
+envs:
+  HF_TOKEN:
+
+setup: |
+  pip install transformerlab-sdk llama-factory torch
+
+run: |
+  python train.py \
+    --pref_loss {{pref_loss}} \
+    --learning_rate {{learning_rate}} \
+    --num_train_epochs {{num_train_epochs}} \
+    --max_steps {{max_steps}} \
+    --adaptor_name {{adaptor_name}}
+
+parameters:
+  pref_loss:
+    title: Preference Loss Method
+    type: string
+    enum: [dpo, orpo, simpo]
+    default: dpo
+    required: true
+  learning_rate:
+    title: Learning Rate
+    type: number
+    default: 0.001
+    minimum: 0.000001
+  num_train_epochs:
+    title: Number of Training Epochs
+    type: integer
+    default: 1
+    minimum: 1
+  max_steps:
+    title: Max Steps (-1 means no limit)
+    type: integer
+    default: -1
+  adaptor_name:
+    title: Adaptor Name
+    type: string
+    default: dpo
+    required: true

@@ -1,0 +1,48 @@
+name: Synthetic Dataset Generation
+
+resources:
+  accelerators: GPU:1
+
+setup: |
+  pip install transformerlab-sdk synthetic-data-kit
+
+run: |
+  python generate.py \
+    --task_type {{task_type}} \
+    --num_pairs {{num_pairs}} \
+    --curation_threshold {{curation_threshold}} \
+    --output_format {{output_format}} \
+    --output_dataset_name {{output_dataset_name}}
+
+parameters:
+  task_type:
+    title: Generation Type
+    type: string
+    enum: [qa, cot, summary]
+    default: qa
+    required: true
+  num_pairs:
+    title: Number of Pairs to Generate
+    type: integer
+    default: 25
+    minimum: 1
+    maximum: 500
+  curation_threshold:
+    title: Curation Threshold (1-10)
+    type: number
+    default: 7.0
+    minimum: 1.0
+    maximum: 10.0
+  output_format:
+    title: Output Format
+    type: string
+    enum: [jsonl, alpaca, chatml]
+    default: jsonl
+  prompt_template:
+    title: Custom Prompt Template (optional)
+    type: string
+    default: ""
+  output_dataset_name:
+    title: Output Dataset Name
+    type: string
+    default: generated_dataset_synth_data_kit

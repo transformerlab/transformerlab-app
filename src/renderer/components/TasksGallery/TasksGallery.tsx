@@ -29,6 +29,9 @@ import {
   Trash2Icon,
   GraduationCapIcon,
   ChartColumnIncreasingIcon,
+  ScaleIcon,
+  SparklesIcon,
+  PackageIcon,
 } from 'lucide-react';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -90,9 +93,25 @@ function TaskIcon({ category }: { category: string }) {
       icon = <GraduationCapIcon />;
       color = '#388e3c';
       break;
+    case 'finetuning':
+      icon = <GraduationCapIcon />;
+      color = '#388e3c';
+      break;
     case 'eval':
       icon = <ChartColumnIncreasingIcon />;
       color = '#d27d00';
+      break;
+    case 'rlhf':
+      icon = <ScaleIcon />;
+      color = '#7b1fa2';
+      break;
+    case 'generation':
+      icon = <SparklesIcon />;
+      color = '#00897b';
+      break;
+    case 'export':
+      icon = <PackageIcon />;
+      color = '#303f9f';
       break;
     default:
       icon = <ScanTextIcon />;
