@@ -12,31 +12,54 @@ async def experiment_get_all():
     experiments: list[dict] = []
 
     experiments_dir = await lab_dirs.get_experiments_dir()
-    if await storage.exists(experiments_dir):
-        try:
-            exp_dirs = await storage.ls(experiments_dir, detail=False)
-            # Sort the directories
-            exp_dirs = sorted(exp_dirs)
-            for exp_path in exp_dirs:
-                # Skip if this is the experiments directory itself (shouldn't happen but safety check)
-                if exp_path.rstrip("/") == experiments_dir.rstrip("/"):
-                    continue
-                if await storage.isdir(exp_path):
-                    # Check if this directory is actually a valid experiment by checking for index.json
-                    index_file = storage.join(exp_path, "index.json")
-                    if not await storage.exists(index_file):
-                        # Skip directories that don't have index.json (not valid experiments)
-                        continue
-                    # Extract the directory name from the path
-                    exp_dir = exp_path.rstrip("/").split("/")[-1]
-                    # Skip if the extracted name is the experiments directory itself (shouldn't happen but safety check)
-                    if exp_dir == "experiments":
-                        continue
-                    exp_dict = await experiment_get(exp_dir)
-                    if exp_dict:
-                        experiments.append(exp_dict)
-        except Exception:
-            pass
+    if not await storage.exists(experiments_dir):
+        return experiments
+
+    try:
+        base_dir = str(experiments_dir).rstrip("/")
+        exp_paths = sorted(await storage.ls(experiments_dir, detail=False))
+
+        for exp_path in exp_paths:
+            exp_path_norm = str(exp_path).rstrip("/")
+
+            # Defensive: `ls` should not include the base dir itself, but skip if it does.
+            if exp_path_norm == base_dir:
+                continue
+
+            if not await storage.isdir(exp_path_norm):
+                continue
+
+            exp_dir = exp_path_norm.split("/")[-1]
+            if exp_dir == "experiments":
+                continue
+
+            index_file = storage.join(exp_path_norm, "index.json")
+            if not await storage.exists(index_file):
+                continue
+
+            # Avoid calling `Experiment.get_json_data()` for the list view; that can
+            # trigger lab-side index rebuilds (and warnings) when `jobs/` doesn't exist yet.
+            exp_dict: dict | None = None
+            try:
+                async with await storage.open(index_file, "r", encoding="utf-8") as f:
+                    raw = await f.read()
+                parsed = json.loads(raw) if raw else {}
+                if isinstance(parsed, dict):
+                    exp_dict = parsed
+            except Exception:
+                exp_dict = None
+
+            # Ensure dropdown always has `id` + `name`.
+            if not exp_dict or not exp_dict.get("id") or not exp_dict.get("name"):
+                exp_dict = await experiment_get(exp_dir)
+
+            if isinstance(exp_dict, dict) and exp_dict:
+                exp_dict.setdefault("id", exp_dir)
+                exp_dict.setdefault("name", exp_dict.get("id") or exp_dir)
+                experiments.append(exp_dict)
+    except Exception:
+        pass
+
     return experiments
 
 
