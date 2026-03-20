@@ -25,14 +25,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Allow the log level for all transformerlab.* loggers to be controlled via
-# an env var.  Set TLAB_LOG_LEVEL=DEBUG to enable debug output across the
-# entire application (e.g. sweep-status cycle timings).  Defaults to WARNING
-# so debug/info messages are silent unless explicitly requested.
-logging.getLogger("transformerlab").setLevel(
-    getattr(logging, os.getenv("TLAB_LOG_LEVEL", "WARNING").upper(), logging.WARNING)
-)
-
 from fastchat.constants import (  # noqa: E402
     ErrorCode,
 )
@@ -85,6 +77,18 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # used internally to set constants that are shared between separate processes. They are not meant to be
 # to be overriden by the user.
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
+
+
+# Set TLAB_LOG_LEVEL environment variable to DEBUG, INFO, WARNING or ERROR
+# to control the level of Transformer Lab logging output.
+# Defaults to WARNING.
+TLAB_LOG_LEVEL = os.getenv("TLAB_LOG_LEVEL", "WARNING").upper()
+_log_level = getattr(logging, TLAB_LOG_LEVEL, logging.WARNING)
+logging.getLogger("transformerlab").setLevel(_log_level)
+
+# Create a default root config handler
+# Set level=logging.DEBUG here to get full debug output from imported libraries
+logging.basicConfig()
 
 
 @asynccontextmanager
@@ -406,15 +410,23 @@ def run():
         allow_headers=args.allowed_headers,
     )
 
+    # uvicorn needs a lowercase version of logging level
+    uvicorn_log_level = TLAB_LOG_LEVEL.lower()
+
     if args.https:
         import asyncio
 
         cert_path, key_path = asyncio.run(ensure_persistent_self_signed_cert())
         uvicorn.run(
-            "api:app", host=args.host, port=args.port, log_level="warning", ssl_certfile=cert_path, ssl_keyfile=key_path
+            "api:app",
+            host=args.host,
+            port=args.port,
+            log_level=uvicorn_log_level,
+            ssl_certfile=cert_path,
+            ssl_keyfile=key_path,
         )
     else:
-        uvicorn.run("api:app", host=args.host, port=args.port, log_level="warning")
+        uvicorn.run("api:app", host=args.host, port=args.port, log_level=uvicorn_log_level)
 
 
 if __name__ == "__main__":
