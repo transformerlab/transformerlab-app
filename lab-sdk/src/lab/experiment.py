@@ -642,7 +642,8 @@ class Experiment(BaseLabResource):
     async def _update_cached_job(self, job_id: str, job_data: dict):
         """Update a single job's data in cached_jobs without a full filesystem scan."""
         jobs_json_path = await self._jobs_json_file()
-        for attempt in range(3):
+        job_id_str = str(job_id)
+        for attempt in range(5):
             try:
                 async with self._jobs_json_write_lock(jobs_json_path):
                     try:
@@ -650,6 +651,10 @@ class Experiment(BaseLabResource):
                     except FileNotFoundError:
                         jobs_data = {"index": {}, "cached_jobs": {}}
                     except Exception:
+                        if attempt < 4:
+                            await asyncio.sleep(0.05 * (attempt + 1))
+                            continue
+                        logger.warning("Error reading jobs.json while updating cached job %s", job_id, exc_info=True)
                         return
 
                     if "index" not in jobs_data:
@@ -657,13 +662,26 @@ class Experiment(BaseLabResource):
                     if "cached_jobs" not in jobs_data:
                         jobs_data["cached_jobs"] = {}
 
-                    jobs_data["cached_jobs"][str(job_id)] = job_data
+                    jobs_data["cached_jobs"][job_id_str] = job_data
 
                     async with await storage.open(jobs_json_path, "w") as f:
                         await f.write(json.dumps(jobs_data, indent=4))
-                return
+
+                # Verify our write is visible before returning. This protects against
+                # stale-read windows on some storage backends.
+                try:
+                    verify_data = await self._read_jobs_json_file(jobs_json_path, max_retries=2)
+                except Exception:
+                    if attempt < 4:
+                        await asyncio.sleep(0.02 * (attempt + 1))
+                        continue
+                    logger.warning("Error verifying cached job write for %s", job_id, exc_info=True)
+                    return
+                verify_cached_jobs = verify_data.get("cached_jobs", {})
+                if job_id_str in verify_cached_jobs:
+                    return
             except TimeoutError:
-                if attempt < 2:
+                if attempt < 4:
                     await asyncio.sleep(0.05 * (attempt + 1))
                     continue
                 logger.warning("Timeout updating cached_jobs for job %s", job_id, exc_info=True)
@@ -671,6 +689,13 @@ class Experiment(BaseLabResource):
             except Exception:
                 logger.warning("Error updating cached_jobs for job %s", job_id, exc_info=True)
                 return
+
+            # Verification missed our key; retry mutation.
+            if attempt < 4:
+                await asyncio.sleep(0.02 * (attempt + 1))
+                continue
+            logger.warning("Write verification failed for cached job %s after retries", job_id)
+            return
 
     async def _remove_job_from_index(self, job_id: str):
         """Remove a job from the index and cached_jobs without a full filesystem scan."""
