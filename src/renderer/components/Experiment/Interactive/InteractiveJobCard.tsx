@@ -114,20 +114,61 @@ export default function InteractiveJobCard({
   job,
   onDeleteJob,
 }: InteractiveJobCardProps) {
+  type InteractiveGalleryEntry = {
+    id?: string;
+    name?: string;
+    icon?: string;
+    interactive_type?: string;
+  };
+
   const [connectOpen, setConnectOpen] = useState(false);
   const [interactOpen, setInteractOpen] = useState(false);
   const jobData = job.job_data || {};
   const isPlaceholder = !!job.placeholder;
+  const interactiveGalleryId = jobData.interactive_gallery_id;
   const interactiveType =
     jobData.interactive_type ||
     (typeof jobData === 'string'
       ? JSON.parse(jobData || '{}')?.interactive_type
       : null) ||
-    (isPlaceholder ? null : 'vscode');
+    null;
 
   const { experimentInfo } = useExperimentInfo();
   const typeConfig = interactiveType ? getTypeConfig(interactiveType) : null;
   const TypeIcon = typeConfig?.icon;
+
+  // Resolve a richer display name/icon from the interactive gallery entry.
+  // This avoids hard-coding per-interactive-type UI logic and lets new gallery
+  // entries render correctly even if `interactive_type` is missing.
+  const interactiveGalleryUrl =
+    experimentInfo?.id && (interactiveGalleryId || interactiveType)
+      ? chatAPI.Endpoints.Task.InteractiveGallery(experimentInfo.id)
+      : null;
+  const { data: interactiveGalleryResponse } = useSWR(
+    interactiveGalleryUrl,
+    fetcher,
+  );
+  const galleryEntries: InteractiveGalleryEntry[] = Array.isArray(
+    interactiveGalleryResponse?.data,
+  )
+    ? interactiveGalleryResponse.data
+    : [];
+  const galleryEntry =
+    (interactiveGalleryId
+      ? galleryEntries.find((e) => e?.id === interactiveGalleryId)
+      : null) ||
+    (interactiveType
+      ? galleryEntries.find((e) => e?.interactive_type === interactiveType) ||
+        galleryEntries.find((e) => e?.id === interactiveType)
+      : null);
+
+  let boxBg = 'var(--joy-palette-neutral-softBg)';
+  let boxColor = 'var(--joy-palette-neutral-softColor)';
+  if (!galleryEntry && typeConfig) {
+    boxBg = `var(--joy-palette-${typeConfig.color}-softBg)`;
+    boxColor = `var(--joy-palette-${typeConfig.color}-softColor)`;
+  }
+  const chipColor = galleryEntry ? 'neutral' : (typeConfig?.color ?? 'neutral');
   const isInteractive =
     job.status === 'INTERACTIVE' ||
     job.status === 'RUNNING' ||
@@ -175,17 +216,23 @@ export default function InteractiveJobCard({
               width: 36,
               height: 36,
               borderRadius: 'sm',
-              bgcolor: typeConfig
-                ? `var(--joy-palette-${typeConfig.color}-softBg)`
-                : 'var(--joy-palette-neutral-softBg)',
-              color: typeConfig
-                ? `var(--joy-palette-${typeConfig.color}-softColor)`
-                : 'var(--joy-palette-neutral-softColor)',
+              bgcolor: boxBg,
+              color: boxColor,
               flexShrink: 0,
               mt: 0.25,
             }}
           >
-            {TypeIcon && <TypeIcon size={20} />}
+            {galleryEntry?.icon ? (
+              <img
+                src={galleryEntry.icon}
+                alt={galleryEntry.name || 'Interactive'}
+                width={20}
+                height={20}
+                style={{ display: 'block' }}
+              />
+            ) : (
+              TypeIcon && <TypeIcon size={20} />
+            )}
           </Box>
           <Stack sx={{ flex: 1, minWidth: 0 }} spacing={0.25}>
             <Typography
@@ -196,12 +243,11 @@ export default function InteractiveJobCard({
             >
               {title}
             </Typography>
-            <Chip
-              variant="soft"
-              color={typeConfig?.color ?? 'neutral'}
-              size="sm"
-            >
-              {typeConfig?.label ?? '\u00A0'}
+            <Chip variant="soft" color={chipColor} size="sm">
+              {galleryEntry?.name ||
+                jobData.template_name ||
+                typeConfig?.label ||
+                '\u00A0'}
             </Chip>
           </Stack>
           <IconButton
