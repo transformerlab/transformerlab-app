@@ -331,7 +331,7 @@ class Experiment(BaseLabResource):
         return storage.join(exp_dir, "jobs.json")
 
     @contextlib.asynccontextmanager
-    async def _jobs_json_write_lock(self, jobs_json_path: str, timeout_seconds: float = 2.0):
+    async def _jobs_json_write_lock(self, jobs_json_path: str, timeout_seconds: float = 10.0):
         """
         Acquire a cross-caller filesystem lock for jobs.json mutations.
 
@@ -608,85 +608,108 @@ class Experiment(BaseLabResource):
 
     async def _add_job(self, job_id, type):
         jobs_json_path = await self._jobs_json_file()
-        async with self._jobs_json_write_lock(jobs_json_path):
+        for attempt in range(3):
             try:
-                jobs_data = await self._read_jobs_json_file(jobs_json_path)
-            except Exception:
-                jobs_data = {"index": {}, "cached_jobs": {}}
+                async with self._jobs_json_write_lock(jobs_json_path):
+                    try:
+                        jobs_data = await self._read_jobs_json_file(jobs_json_path)
+                    except Exception:
+                        jobs_data = {"index": {}, "cached_jobs": {}}
 
-            # Handle both old and new format
-            if "index" in jobs_data:
-                jobs = jobs_data["index"]
-            else:
-                jobs = jobs_data
-                jobs_data = {"index": jobs, "cached_jobs": {}}
+                    # Handle both old and new format
+                    if "index" in jobs_data:
+                        jobs = jobs_data["index"]
+                    else:
+                        jobs = jobs_data
+                        jobs_data = {"index": jobs, "cached_jobs": {}}
 
-            if type in jobs:
-                jobs[type].append(job_id)
-            else:
-                jobs[type] = [job_id]
+                    if type in jobs:
+                        jobs[type].append(job_id)
+                    else:
+                        jobs[type] = [job_id]
 
-            # Update the file with new structure
-            async with await storage.open(jobs_json_path, "w") as f:
-                await f.write(json.dumps(jobs_data, indent=4))
+                    # Update the file with new structure
+                    async with await storage.open(jobs_json_path, "w") as f:
+                        await f.write(json.dumps(jobs_data, indent=4))
+                return
+            except TimeoutError:
+                if attempt < 2:
+                    await asyncio.sleep(0.05 * (attempt + 1))
+                    continue
+                logger.warning("Timeout adding job %s to jobs.json index", job_id, exc_info=True)
+                return
 
     async def _update_cached_job(self, job_id: str, job_data: dict):
         """Update a single job's data in cached_jobs without a full filesystem scan."""
         jobs_json_path = await self._jobs_json_file()
-        try:
-            async with self._jobs_json_write_lock(jobs_json_path):
-                try:
-                    jobs_data = await self._read_jobs_json_file(jobs_json_path)
-                except FileNotFoundError:
-                    jobs_data = {"index": {}, "cached_jobs": {}}
-                except Exception:
-                    return
+        for attempt in range(3):
+            try:
+                async with self._jobs_json_write_lock(jobs_json_path):
+                    try:
+                        jobs_data = await self._read_jobs_json_file(jobs_json_path)
+                    except FileNotFoundError:
+                        jobs_data = {"index": {}, "cached_jobs": {}}
+                    except Exception:
+                        return
 
-                if "index" not in jobs_data:
-                    jobs_data = {"index": jobs_data, "cached_jobs": {}}
-                if "cached_jobs" not in jobs_data:
-                    jobs_data["cached_jobs"] = {}
+                    if "index" not in jobs_data:
+                        jobs_data = {"index": jobs_data, "cached_jobs": {}}
+                    if "cached_jobs" not in jobs_data:
+                        jobs_data["cached_jobs"] = {}
 
-                jobs_data["cached_jobs"][str(job_id)] = job_data
+                    jobs_data["cached_jobs"][str(job_id)] = job_data
 
-                async with await storage.open(jobs_json_path, "w") as f:
-                    await f.write(json.dumps(jobs_data, indent=4))
-        except TimeoutError:
-            logger.warning("Timeout updating cached_jobs for job %s", job_id, exc_info=True)
-        except Exception:
-            logger.warning("Error updating cached_jobs for job %s", job_id, exc_info=True)
+                    async with await storage.open(jobs_json_path, "w") as f:
+                        await f.write(json.dumps(jobs_data, indent=4))
+                return
+            except TimeoutError:
+                if attempt < 2:
+                    await asyncio.sleep(0.05 * (attempt + 1))
+                    continue
+                logger.warning("Timeout updating cached_jobs for job %s", job_id, exc_info=True)
+                return
+            except Exception:
+                logger.warning("Error updating cached_jobs for job %s", job_id, exc_info=True)
+                return
 
     async def _remove_job_from_index(self, job_id: str):
         """Remove a job from the index and cached_jobs without a full filesystem scan."""
         jobs_json_path = await self._jobs_json_file()
-        try:
-            async with self._jobs_json_write_lock(jobs_json_path):
-                try:
-                    jobs_data = await self._read_jobs_json_file(jobs_json_path)
-                except FileNotFoundError:
-                    return
-                except Exception:
-                    return
+        for attempt in range(3):
+            try:
+                async with self._jobs_json_write_lock(jobs_json_path):
+                    try:
+                        jobs_data = await self._read_jobs_json_file(jobs_json_path)
+                    except FileNotFoundError:
+                        return
+                    except Exception:
+                        return
 
-                if "index" not in jobs_data:
-                    jobs_data = {"index": jobs_data, "cached_jobs": {}}
+                    if "index" not in jobs_data:
+                        jobs_data = {"index": jobs_data, "cached_jobs": {}}
 
-                job_id_str = str(job_id)
+                    job_id_str = str(job_id)
 
-                index = jobs_data.get("index", {})
-                for job_type in list(index.keys()):
-                    if job_id_str in index[job_type]:
-                        index[job_type].remove(job_id_str)
+                    index = jobs_data.get("index", {})
+                    for job_type in list(index.keys()):
+                        if job_id_str in index[job_type]:
+                            index[job_type].remove(job_id_str)
 
-                cached_jobs = jobs_data.get("cached_jobs", {})
-                cached_jobs.pop(job_id_str, None)
+                    cached_jobs = jobs_data.get("cached_jobs", {})
+                    cached_jobs.pop(job_id_str, None)
 
-                async with await storage.open(jobs_json_path, "w") as f:
-                    await f.write(json.dumps(jobs_data, indent=4))
-        except TimeoutError:
-            logger.warning("Timeout removing job %s from jobs.json index", job_id, exc_info=True)
-        except Exception:
-            logger.warning("Error removing job %s from jobs.json index", job_id, exc_info=True)
+                    async with await storage.open(jobs_json_path, "w") as f:
+                        await f.write(json.dumps(jobs_data, indent=4))
+                return
+            except TimeoutError:
+                if attempt < 2:
+                    await asyncio.sleep(0.05 * (attempt + 1))
+                    continue
+                logger.warning("Timeout removing job %s from jobs.json index", job_id, exc_info=True)
+                return
+            except Exception:
+                logger.warning("Error removing job %s from jobs.json index", job_id, exc_info=True)
+                return
 
     # TODO: For experiments, delete the same way as jobs
     async def delete(self):
