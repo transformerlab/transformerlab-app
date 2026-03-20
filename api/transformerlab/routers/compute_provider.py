@@ -22,6 +22,7 @@ from transformerlab.services.provider_service import (
     delete_team_provider,
     get_provider_instance,
     _local_providers_disabled,
+    detect_local_supported_accelerators,
 )
 from transformerlab.schemas.compute_providers import (
     ProviderCreate,
@@ -33,6 +34,7 @@ from transformerlab.schemas.compute_providers import (
     ResumeFromCheckpointRequest,
 )
 from transformerlab.shared.models.models import ProviderType, TeamRole
+from transformerlab.services.cache_service import cache, cached
 from transformerlab.compute_providers.models import (
     ClusterConfig,
     ClusterStatus,
@@ -179,6 +181,11 @@ async def upload_task_file_for_provider(
 
 
 @router.get("/", response_model=List[ProviderRead])
+@cached(
+    key="providers:list:{include_disabled}",
+    ttl="300s",
+    tags=["providers", "providers:list"],
+)
 async def list_providers(
     include_disabled: bool = Query(False, description="Include disabled providers (admin view)"),
     user_and_team=Depends(get_user_and_team),
@@ -264,6 +271,8 @@ async def create_provider(
         config=config_dict,
         created_by_user_id=str(user.id),
     )
+
+    await cache.invalidate("providers")
 
     # For LOCAL providers, kick off background setup immediately so users see progress
     # (via /compute_provider/{id}/setup/status) without blocking provider creation.
@@ -739,6 +748,19 @@ async def delete_user_slurm_ssh_key(
         raise HTTPException(status_code=500, detail=f"Failed to delete SSH key: {str(e)}")
 
 
+@router.get("/detect-accelerators")
+async def detect_local_accelerators(user_and_team=Depends(get_user_and_team)) -> Dict[str, Any]:
+    """
+    Detect accelerators available on this server for the local compute provider.
+
+    Returns a list of accelerator type strings (e.g. "cpu", "NVIDIA").
+    """
+    # Best-effort detection may call out to tools like `nvidia-smi` / `rocminfo`.
+    # Run in a thread so we don't block the event loop.
+    supported_accelerators = await asyncio.to_thread(detect_local_supported_accelerators)
+    return {"supported_accelerators": supported_accelerators}
+
+
 @router.get("/{provider_id}", response_model=ProviderRead)
 async def get_provider(
     provider_id: str,
@@ -815,6 +837,8 @@ async def update_provider(
         session=session, provider=provider, name=update_name, config=update_config, disabled=update_disabled
     )
 
+    await cache.invalidate("providers")
+
     # Return with masked sensitive fields
     masked_config = mask_sensitive_config(provider.config or {}, provider.type)
     return ProviderRead(
@@ -847,6 +871,7 @@ async def delete_provider(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     await delete_team_provider(session, provider)
+    await cache.invalidate("providers")
     return {"message": "Provider deleted successfully"}
 
 
@@ -2005,6 +2030,17 @@ async def launch_template_on_provider(
         post_hook=str(post_task_hook) if post_task_hook is not None else None,
     )
 
+    # Apply provider-level setup hooks (pre/post) around the resolved setup script (if any).
+    pre_setup_hook = extra_config_for_hooks.get("pre_setup_hook")
+    post_setup_hook = extra_config_for_hooks.get("post_setup_hook")
+    setup_with_hooks = final_setup
+    if setup_with_hooks and str(setup_with_hooks).strip():
+        setup_with_hooks = build_hooked_command(
+            str(setup_with_hooks),
+            pre_hook=str(pre_setup_hook) if pre_setup_hook is not None else None,
+            post_hook=str(post_setup_hook) if post_setup_hook is not None else None,
+        )
+
     # Wrap the user command with tfl-remote-trap so we can track live_status in job_data.
     # This uses the tfl-remote-trap helper from the transformerlab SDK, which:
     #   - sets job_data.live_status="started" when execution begins
@@ -2017,7 +2053,7 @@ async def launch_template_on_provider(
         provider_name=provider_display_name,
         provider_id=provider.id,
         run=wrapped_run,
-        setup=final_setup,
+        setup=setup_with_hooks,
         env_vars=env_vars,
         cpus=request.cpus,
         memory=request.memory,
