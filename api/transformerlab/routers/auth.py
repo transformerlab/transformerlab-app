@@ -8,6 +8,7 @@ from transformerlab.models.users import (
     cookie_auth_backend,
     oauth_backend,
     current_active_user,
+    UserManager,
     UserRead,
     UserCreate,
     UserUpdate,
@@ -23,6 +24,8 @@ from transformerlab.models.users import (
     TOKEN_LIFETIME,
     REFRESH_LIFETIME,
 )
+from transformerlab.services.provider_service import initialize_team_local_provider
+from transformerlab.services.experiment_init import migrate_workspace_to_org
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
@@ -52,6 +55,15 @@ router = APIRouter(tags=["users"])
 # Simple Pydantic model for the refresh request body
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+
+# First-user bootstrap (for fresh installs)
+class FirstUserSetupRequest(BaseModel):
+    email: str
+    password: str
+    confirm_password: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 
 # Include Auth and Registration Routers only if EMAIL_AUTH_ENABLED is True
@@ -190,6 +202,96 @@ async def oidc_providers_list():
         "enabled": len(OIDC_PROVIDERS) > 0,
         "providers": [{"id": p["id"], "name": p["name"]} for p in OIDC_PROVIDERS],
     }
+
+
+@router.get("/auth/setup/status")
+async def auth_setup_status(session: AsyncSession = Depends(get_async_session)):
+    """Return whether any users exist yet (fresh install bootstrap)."""
+    stmt = select(User).limit(1)
+    result = await session.execute(stmt)
+    has_users = result.scalar_one_or_none() is not None
+    return {"has_users": has_users}
+
+
+@router.post("/auth/setup/create-first-user")
+async def auth_setup_create_first_user(
+    setup: FirstUserSetupRequest,
+    user_manager: UserManager = Depends(get_user_manager),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Create the very first admin user + team + default provider."""
+    if setup.password != setup.confirm_password:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "SETUP_PASSWORD_MISMATCH",
+                "reason": "Passwords do not match",
+            },
+        )
+
+    # Re-check again right before create to prevent races.
+    stmt = select(User).limit(1)
+    result = await session.execute(stmt)
+    if result.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "SETUP_ALREADY_COMPLETE", "reason": "A user already exists."},
+        )
+
+    user_create = UserCreate(
+        email=setup.email,
+        password=setup.password,
+        is_active=True,
+        is_superuser=True,
+        is_verified=True,  # Bootstrap should be able to log in immediately.
+        first_name=setup.first_name,
+        last_name=setup.last_name,
+    )
+
+    created_user = await user_manager.create(user_create, safe=False, request=None)
+    created_user_id = created_user.id
+
+    # Ensure the instance is attached to our current session and committed.
+    stmt = select(User).where(User.id == created_user_id)
+    result = await session.execute(stmt)
+    created_user = result.unique().scalar_one()
+    created_user.is_verified = True
+    session.add(created_user)
+    await session.commit()
+
+    # Ensure personal team association exists.
+    team_stmt = select(UserTeam).where(UserTeam.user_id == str(created_user_id))
+    team_result = await session.execute(team_stmt)
+    user_team = team_result.scalar_one_or_none()
+
+    if user_team:
+        team_id = user_team.team_id
+    else:
+        personal_team = await create_personal_team(session, created_user)
+        user_team = UserTeam(
+            user_id=str(created_user_id),
+            team_id=personal_team.id,
+            role=TeamRole.OWNER.value,
+        )
+        session.add(user_team)
+        await session.commit()
+        team_id = personal_team.id
+
+    # Ensure a default local provider exists for the team (best-effort).
+    try:
+        await initialize_team_local_provider(
+            session=session,
+            team_id=team_id,
+            created_by_user_id=str(created_user_id),
+        )
+    except Exception:
+        # Non-fatal: local provider setup may be disabled.
+        pass
+
+    # Migrate workspace into org/<team-id>/workspace if needed.
+    await migrate_workspace_to_org(team_id)
+
+    return {"status": "success", "user_id": str(created_user_id)}
 
 
 for _oidc in OIDC_PROVIDERS:

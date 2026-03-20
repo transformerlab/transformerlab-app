@@ -82,7 +82,9 @@ You can use it with `getPath` like this:
 
 ## Creating First User
 
-The app will pre-create a first user called with login "admin@example.com" and password "admin123". You must change this password as soon as possible. In the UI this is under User Settings -> Change Password.
+On a fresh install (when the user database is empty), the login screen will detect that no users exist and prompt you to create the first admin user immediately.
+
+After you create the first user, you will be signed in automatically.
 
 If you need to create additional users you can go to the UI and click on "Don't have an account? Sign up here." and then create a user. If you create a user via email, a registration link will be sent which you must click on in order to validate the email. If you are developing locally and your system does not send emails, you can set your SMTP server to "dev" in the environment variables and the registration link will be output to the console.
 
