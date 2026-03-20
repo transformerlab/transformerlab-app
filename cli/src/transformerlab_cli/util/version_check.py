@@ -23,7 +23,7 @@ def check_for_update(console: Console) -> None:
             Panel(
                 f"[yellow]Update available![/yellow] "
                 f"You are running [bold]v{current}[/bold], but [bold]v{latest}[/bold] is available.\n"
-                f"Visit [link=https://docs.transformerlab.ai/update]https://docs.transformerlab.ai/update[/link] "
+                f"Visit [link=https://lab.cloud/for-teams/update]https://lab.cloud/for-teams/update[/link] "
                 f"for update instructions.",
                 border_style="yellow",
                 expand=False,

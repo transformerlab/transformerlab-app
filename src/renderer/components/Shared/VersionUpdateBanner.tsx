@@ -11,7 +11,7 @@ interface VersionInfo {
   update_available: boolean;
 }
 
-const UPDATE_DOCS_URL = 'https://docs.transformerlab.ai/update';
+const UPDATE_DOCS_URL = 'https://lab.cloud/for-teams/update';
 
 export default function VersionUpdateBanner() {
   const [dismissed, setDismissed] = useState<string | null>(null);
