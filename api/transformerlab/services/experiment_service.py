@@ -4,9 +4,13 @@ from lab import Experiment
 from lab import dirs as lab_dirs
 from lab import storage
 
+from transformerlab.services.cache_service import cache, cached
 
+
+@cached(key="experiments:list", ttl="30s", tags=["experiments"])
 async def experiment_get_all():
-    experiments = []
+    experiments: list[dict] = []
+
     experiments_dir = await lab_dirs.get_experiments_dir()
     if await storage.exists(experiments_dir):
         try:
@@ -38,6 +42,8 @@ async def experiment_get_all():
 
 async def experiment_create(name: str, config: dict) -> str:
     await Experiment.create_with_config(name, config)
+    # Ensure the experiment dropdown refreshes immediately after creation.
+    await cache.invalidate("experiments")
     return name
 
 
@@ -65,6 +71,7 @@ async def experiment_delete(id):
     try:
         exp = await Experiment.get(id)
         await exp.delete()
+        await cache.invalidate("experiments")
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
@@ -75,6 +82,7 @@ async def experiment_update(id, config):
     try:
         exp = await Experiment.get(id)
         await exp.update_config(config)
+        await cache.invalidate("experiments")
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
@@ -85,6 +93,7 @@ async def experiment_update_config(id, key, value):
     try:
         exp = await Experiment.get(id)
         await exp.update_config_field(key, value)
+        await cache.invalidate("experiments")
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
@@ -95,6 +104,7 @@ async def experiment_save_prompt_template(id, template):
     try:
         exp_obj = await Experiment.get(id)
         await exp_obj.update_config_field("prompt_template", template)
+        await cache.invalidate("experiments")
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
@@ -105,6 +115,7 @@ async def experiment_update_configs(id, updates: dict):
     try:
         exp_obj = await Experiment.get(id)
         await exp_obj.update_config(updates)
+        await cache.invalidate("experiments")
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
