@@ -1111,6 +1111,15 @@ async def import_task_from_gallery(
     # a one-time resource compatibility reminder.
     task_data["gallery_import"] = True
 
+    # Carry over any per-provider accelerator suggestions from the gallery entry.
+    # Expected shape (example):
+    # {
+    #   "NVIDIA": { "resources": { "accelerators": "RTX3090:1", "cpus": "2", "memory": "4" } }
+    # }
+    supported_accelerators = gallery_entry.get("supportedAccelerators")
+    if isinstance(supported_accelerators, dict):
+        task_data["supportedAccelerators"] = supported_accelerators
+
     # Always set experiment_id from path so the task belongs to this experiment
     task_data["experiment_id"] = experimentId
 
