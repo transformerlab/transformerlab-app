@@ -11,10 +11,8 @@ from transformers import AutoTokenizer
 import os
 
 from transformerlab.models import model_helper
-from transformerlab.models import basemodel
 from transformerlab.services import model_service
 from transformerlab.models import huggingfacemodel
-from transformerlab.models import filesystemmodel
 from lab.dirs import get_workspace_dir
 from lab.model import Model as ModelService
 from lab import storage
@@ -303,69 +301,6 @@ async def get_model_from_db(model_id: str):
     # Get model from filesystem
     model_service = await ModelService.get(model_id)
     return await model_service.get_metadata()
-
-
-@router.get("/model/import_from_local_path")
-async def model_import_local_path(model_path: str):
-    """
-    Given model_path pointing to a local directory of a file,
-    try to import a model into Transformer Lab.
-    """
-
-    # Restrict to workspace directory only
-    workspace_dir = await get_workspace_dir()
-    # Normalize both workspace and input paths
-    abs_workspace_dir = os.path.abspath(os.path.normpath(workspace_dir))
-    abs_model_path = os.path.abspath(os.path.normpath(model_path))
-    if not abs_model_path.startswith(abs_workspace_dir + os.sep):
-        return {
-            "status": "error",
-            "message": f"Path traversal or invalid path detected: {model_path}. Only paths inside {workspace_dir} are allowed.",
-        }
-
-    if os.path.isdir(abs_model_path):
-        model = filesystemmodel.FilesystemModel(abs_model_path)
-    elif os.path.isfile(abs_model_path):
-        model = filesystemmodel.FilesystemGGUFModel(abs_model_path)
-    else:
-        return {"status": "error", "message": f"Invalid model path {model_path}."}
-
-    return await model_import(model)
-
-
-def import_error(message: str):
-    """
-    Separate function just to factor out printing and returning the same error.
-    """
-    print("Import error: %s", message)
-    return {"status": "error", "message": "An internal error has occurred. Please try again later."}
-
-
-async def model_import(model: basemodel.BaseModel):
-    """
-    Called by model import endpoints.
-    Takes a BaseMOdel object and uses the information contained within to import.
-    """
-
-    print(f"Importing {model.id}...")
-
-    # Get full model details
-    json_data = await model.get_json_data()
-
-    # Only add a row for uninstalled and supported repos
-    architecture = json_data.get("architecture", "unknown")
-    if model.status != "OK":
-        return import_error(model.status)
-    if await model_service.is_model_installed(model.id):
-        return import_error(f"{model.id} is already installed.")
-    if architecture == "unknown" or architecture == "":
-        return import_error("Unable to determine model architecture.")
-
-    await model.install()
-
-    print(f"{model.id} imported successfully.")
-
-    return {"status": "success", "data": model.id}
 
 
 @router.get("/model/chat_template")
