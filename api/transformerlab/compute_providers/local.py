@@ -1,16 +1,16 @@
 """Local compute provider: runs tasks in a uv venv synced with the base environment."""
 
+import contextlib
 import json
 import os
-import shlex
-import contextlib
 import signal
+import shlex
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Callable
 
-from lab.dirs import HOME_DIR
+from lab.dirs import HOME_DIR, get_local_provider_config_path, get_local_provider_root
 
 from .base import ComputeProvider
 from .models import (
@@ -30,7 +30,7 @@ def _read_local_provider_config() -> Optional[Dict[str, Any]]:
 
     This is the same JSON payload that was previously served by `/server/config`.
     """
-    config_path = Path(HOME_DIR) / "local_provider_config.json"
+    config_path = Path(get_local_provider_config_path())
     if not config_path.exists():
         return None
     try:
@@ -310,7 +310,7 @@ class LocalProvider(ComputeProvider):
         env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
         env["VIRTUAL_ENV"] = str(venv_path)
         env["HOME"] = str(workspace_home)
-        env["UV_CACHE_DIR"] = os.path.join(HOME_DIR, "uv_cache")
+        env["UV_CACHE_DIR"] = os.path.join(get_local_provider_root(), "uv_cache")
 
         # Open log files early so setup output is visible to get_job_logs / tunnel_info
         # while packages are still being installed.
@@ -567,8 +567,12 @@ class LocalProvider(ComputeProvider):
         """Local provider is available local config exists."""
         from pathlib import Path
 
-        config_path = Path(HOME_DIR) / "local_provider_config.json"
-        return config_path.exists()
+        config_path = Path(get_local_provider_config_path())
+        if config_path.exists():
+            return True
+        # Backward-compat: allow existing installs that still have the file in HOME_DIR.
+        legacy_config_path = Path(HOME_DIR) / "local_provider_config.json"
+        return legacy_config_path.exists()
 
 
 def ensure_base_venv_and_requirements(
@@ -578,7 +582,7 @@ def ensure_base_venv_and_requirements(
     Ensure the shared base venv under HOME_DIR and its frozen requirements exist and are up to date.
 
     This base venv is common across all teams and is created at:
-        HOME_DIR / "local_provider_base_venv"
+        HOME_DIR / "local_provider" / "local_provider_base_venv"
 
     Returns the path to the base requirements file.
     """
@@ -590,11 +594,11 @@ def ensure_base_venv_and_requirements(
         )
 
     pyproject_path = LocalProvider()._get_source_code_and_pyproject()
-    home_dir_path = Path(HOME_DIR)
-    home_dir_path.mkdir(parents=True, exist_ok=True)
+    local_provider_root = Path(get_local_provider_root())
+    local_provider_root.mkdir(parents=True, exist_ok=True)
 
-    base_venv_path = home_dir_path / "local_provider_base_venv"
-    base_requirements = home_dir_path / "local_provider_base_requirements.txt"
+    base_venv_path = local_provider_root / "local_provider_base_venv"
+    base_requirements = local_provider_root / "local_provider_base_requirements.txt"
 
     source_code_dir = str(pyproject_path.parent)
 
@@ -674,7 +678,7 @@ def ensure_base_venv_and_requirements(
 
     # Always ensure the local provider config snapshot is generated via the base venv.
     # This uses the same logic as /server/info but runs inside the shared base venv and
-    # writes the result to HOME_DIR/local_provider_config.json.
+    # writes the result to HOME_DIR/local_provider/local_provider_config.json.
     python_bin = base_venv_path / "bin" / "python"
     script_path = (
         Path(source_code_dir)
