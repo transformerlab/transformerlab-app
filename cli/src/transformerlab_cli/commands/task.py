@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import zipfile
 from pathlib import Path
@@ -10,6 +11,7 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 
 import transformerlab_cli.util.api as api
+from transformerlab_cli.state import cli_state
 from transformerlab_cli.util.config import require_current_experiment
 from transformerlab_cli.util.ui import render_object, render_table
 
@@ -23,16 +25,20 @@ REQUIRED_TASK_FIELDS = ["name", "type"]
 
 def list_tasks(output_format: str = "pretty", experiment_id: str = "alpha") -> None:
     """List all REMOTE tasks."""
-
-    with console.status("[bold green]Fetching tasks...[/bold green]", spinner="dots"):
+    if output_format != "json":
+        with console.status("[bold green]Fetching tasks...[/bold green]", spinner="dots"):
+            response = api.get(f"/experiment/{experiment_id}/task/list_by_type_in_experiment?type=REMOTE")
+    else:
         response = api.get(f"/experiment/{experiment_id}/task/list_by_type_in_experiment?type=REMOTE")
 
     if response.status_code == 200:
         tasks = response.json()
         table_columns = ["id", "name", "type", "created_at", "updated_at"]
-
         render_table(data=tasks, format_type=output_format, table_columns=table_columns, title="Tasks")
     else:
+        if output_format == "json":
+            print(json.dumps({"error": f"Failed to fetch tasks. Status code: {response.status_code}"}))
+            raise typer.Exit(1)
         console.print(f"[red]Error:[/red] Failed to fetch tasks. Status code: {response.status_code}")
 
 
@@ -128,7 +134,7 @@ def add_task_from_directory(task_directory_path: str, experiment_id: str, dry_ru
         console.print("\n[yellow]Dry run mode:[/yellow] Task would be created but was not submitted.")
         return
 
-    if not typer.confirm("\nProceed with task creation?"):
+    if cli_state.output_format != "json" and not typer.confirm("\nProceed with task creation?"):
         console.print("[yellow]Cancelled.[/yellow]")
         raise typer.Exit(0)
 
@@ -199,7 +205,7 @@ def _format_size(size_bytes: int) -> str:
 def command_task_list():
     """List all tasks."""
     current_experiment = require_current_experiment()
-    list_tasks(experiment_id=current_experiment)
+    list_tasks(output_format=cli_state.output_format, experiment_id=current_experiment)
 
 
 @app.command("add")
@@ -476,6 +482,118 @@ def command_task_queue(
     """Queue a task on a compute provider."""
     current_experiment = require_current_experiment()
     queue_task(task_id, experiment_id=current_experiment, interactive=not no_interactive)
+
+
+def gallery_tasks(output_format: str = "pretty", gallery_type: str = "all", experiment_id: str = "alpha") -> list[dict]:
+    """Fetch and display the task gallery."""
+    if gallery_type == "interactive":
+        endpoint = f"/experiment/{experiment_id}/task/gallery/interactive"
+        table_columns = ["id", "name", "interactive_type", "description"]
+    else:
+        endpoint = f"/experiment/{experiment_id}/task/gallery"
+        # Tasks gallery entries use "title" and "metadata" (category/modality/framework),
+        # so we normalize them into flat fields for display.
+        table_columns = ["index", "title", "category", "modality", "framework", "description"]
+
+    if output_format != "json":
+        with console.status("[bold green]Fetching gallery...[/bold green]", spinner="dots"):
+            response = api.get(endpoint)
+    else:
+        response = api.get(endpoint)
+
+    if response.status_code != 200:
+        if output_format == "json":
+            print(json.dumps({"error": f"Failed to fetch gallery. Status code: {response.status_code}"}))
+            raise typer.Exit(1)
+        console.print(f"[red]Error:[/red] Failed to fetch gallery. Status code: {response.status_code}")
+        raise typer.Exit(1)
+
+    data = response.json()
+    items = data.get("data", data) if isinstance(data, dict) else data
+
+    # For the main tasks gallery ("all"), entries are simple gallery records with
+    # fields like title/description/metadata, not task objects. Normalize them for display.
+    if gallery_type != "interactive" and output_format != "json":
+        normalized: list[dict] = []
+        for idx, item in enumerate(items):
+            metadata = item.get("metadata") or {}
+            frameworks = metadata.get("framework")
+            if isinstance(frameworks, list):
+                frameworks_str = ", ".join(str(f) for f in frameworks)
+            else:
+                frameworks_str = str(frameworks) if frameworks is not None else ""
+
+            normalized.append(
+                {
+                    "index": idx,
+                    "title": item.get("title", item.get("name", "")),
+                    "description": item.get("description", ""),
+                    "category": metadata.get("category", ""),
+                    "modality": metadata.get("modality", ""),
+                    "framework": frameworks_str,
+                }
+            )
+        render_table(data=normalized, format_type=output_format, table_columns=table_columns, title="Task Gallery")
+        return normalized
+
+    # Interactive gallery (or JSON output) – pass through as-is
+    render_table(data=items, format_type=output_format, table_columns=table_columns, title="Task Gallery")
+    return items
+
+
+def import_from_gallery(
+    gallery_id: str, experiment_id: str, is_interactive: bool, output_format: str = "pretty"
+) -> None:
+    """Import a task from the gallery."""
+    payload = {
+        "gallery_id": gallery_id,
+        "experiment_id": experiment_id,
+        "is_interactive": is_interactive,
+    }
+
+    if output_format != "json":
+        with console.status("[bold green]Importing task...[/bold green]", spinner="dots"):
+            response = api.post_json(f"/experiment/{experiment_id}/task/gallery/import", payload)
+    else:
+        response = api.post_json(f"/experiment/{experiment_id}/task/gallery/import", payload)
+
+    if response.status_code == 200:
+        result = response.json()
+        task_id = result.get("id")
+        if output_format == "json":
+            print(json.dumps({"task_id": task_id}))
+        else:
+            console.print(f"[green]✓[/green] Task imported with ID: [bold]{task_id}[/bold]")
+    else:
+        if output_format == "json":
+            print(json.dumps({"error": f"Failed to import task. Status code: {response.status_code}"}))
+            raise typer.Exit(1)
+        console.print(f"[red]Error:[/red] Failed to import task. Status code: {response.status_code}")
+        raise typer.Exit(1)
+
+
+@app.command("gallery")
+def command_task_gallery(
+    gallery_type: str = typer.Option("all", "--type", help="Gallery type: 'all' or 'interactive'"),
+    import_id: str | None = typer.Option(None, "--import", help="Gallery ID to import as a task"),
+):
+    """Browse the task gallery. Use --import <id> to add a task to the current experiment."""
+    current_experiment = require_current_experiment()
+    output_format = cli_state.output_format
+    is_interactive = gallery_type == "interactive"
+
+    if import_id:
+        import_from_gallery(import_id, current_experiment, is_interactive, output_format)
+        return
+
+    gallery_tasks(output_format=output_format, gallery_type=gallery_type, experiment_id=current_experiment)
+
+    if output_format == "json":
+        return
+
+    choice = typer.prompt("\nImport a task? Enter gallery ID or press Enter to skip", default="")
+    if choice.strip():
+        import_from_gallery(choice.strip(), current_experiment, is_interactive, output_format)
 
 
 @app.command("interactive")
