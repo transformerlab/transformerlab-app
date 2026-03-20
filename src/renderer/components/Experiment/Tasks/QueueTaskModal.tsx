@@ -213,6 +213,7 @@ export default function QueueTaskModal({
   );
   const isLocalProvider = selectedProvider?.type === 'local';
   const isSlurmProvider = selectedProvider?.type === 'slurm';
+  const isGalleryImported = Boolean((task as any)?.gallery_import);
 
   // Fetch user-specific provider settings (including default custom SBATCH flags)
   const slurmUserSettingsKey =
@@ -1235,6 +1236,41 @@ export default function QueueTaskModal({
                   Choose which compute provider should run this task.
                 </FormHelperText>
               </FormControl>
+
+              {isGalleryImported && (
+                <Alert
+                  variant="soft"
+                  color="warning"
+                  startDecorator={<AlertTriangleIcon size={18} />}
+                  sx={{ mt: 1 }}
+                >
+                  <Typography level="body-sm">
+                    This task was imported from the gallery. Please make sure
+                    the selected resources for this task match the
+                    provider&apos;s availability.
+                  </Typography>
+                  <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      color="warning"
+                      onClick={() => {
+                        if (!showResourceOverrides) {
+                          setShowResourceOverrides(true);
+                          return;
+                        }
+                        resourceOverridesRef.current?.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'nearest',
+                        });
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      Review resources
+                    </Button>
+                  </Stack>
+                </Alert>
+              )}
 
               {/* SLURM per-job SBATCH flags */}
               {isSlurmProvider && (

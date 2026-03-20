@@ -1107,6 +1107,10 @@ async def import_task_from_gallery(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error parsing YAML: {str(e)}")
 
+    # Mark tasks imported from the *main* gallery so the UI can show
+    # a one-time resource compatibility reminder.
+    task_data["gallery_import"] = True
+
     # Always set experiment_id from path so the task belongs to this experiment
     task_data["experiment_id"] = experimentId
 
