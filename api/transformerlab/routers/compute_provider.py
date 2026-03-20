@@ -1814,9 +1814,27 @@ async def launch_template_on_provider(
 
     # Enable Trackio auto-init for this job if requested. When set, the lab SDK
     # running inside the remote script can automatically initialize Trackio
-    # and capture metrics for visualization in the Tasks UI.
+    # and capture metrics for visualization in the Tasks UI. For shared projects,
+    # pass project name and run name so the SDK can build trackio_runs/{experiment_id}/{project_name}/.
+    trackio_project_name_for_job: Optional[str] = None
+    trackio_run_name_for_job: Optional[str] = None
     if request.enable_trackio:
         env_vars["TLAB_TRACKIO_AUTO_INIT"] = "true"
+        project_name = (request.trackio_project_name or "").strip() or str(request.experiment_id)
+        trackio_run_name = f"{request.task_name or 'task'}-job-{job_id}"
+        trackio_project_name_for_job = project_name
+        trackio_run_name_for_job = trackio_run_name
+        env_vars["TLAB_TRACKIO_PROJECT_NAME"] = project_name
+        env_vars["TLAB_TRACKIO_RUN_NAME"] = trackio_run_name
+        # Create shared project dir so the SDK can sync into it; path is derived by dashboard when needed.
+        workspace_dir = await get_workspace_dir()
+        shared_path = storage.join(
+            workspace_dir,
+            "trackio_runs",
+            secure_filename(str(request.experiment_id)),
+            secure_filename(project_name),
+        )
+        await storage.makedirs(shared_path, exist_ok=True)
 
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
@@ -1984,6 +2002,10 @@ async def launch_template_on_provider(
         job_data["workspace_dir"] = provider_config_dict["workspace_dir"]
     if request.file_mounts is True and request.task_id:
         job_data["task_id"] = request.task_id
+    if trackio_project_name_for_job is not None:
+        job_data["trackio_project_name"] = trackio_project_name_for_job
+    if trackio_run_name_for_job is not None:
+        job_data["trackio_run_name"] = trackio_run_name_for_job
 
     for key, value in job_data.items():
         if value is not None:
