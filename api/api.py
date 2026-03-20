@@ -34,7 +34,6 @@ from fastchat.protocol.openai_api_protocol import (  # noqa: E402
 
 from transformerlab.services.experiment_init import (  # noqa: E402
     seed_default_experiments,
-    seed_default_admin_user,
 )
 import transformerlab.db.session as db  # noqa: E402
 
@@ -115,8 +114,6 @@ async def lifespan(app: FastAPI):
     print("✅ SEED DATA")
     # Initialize experiments
     await seed_default_experiments()
-    # Seed default admin user
-    await seed_default_admin_user()
 
     # Create buckets/folders for all existing teams if cloud or localfs storage is enabled
     tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"

@@ -11,8 +11,6 @@ import {
 import { FcGoogle, FaGithub } from 'renderer/components/Icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/authContext';
-import { useNotification } from '../Shared/NotificationSystem';
-import { API_URL } from '../../lib/api-client/urls';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -27,44 +25,8 @@ export default function LoginForm() {
     Array<{ id: string; name: string }>
   >([]);
 
-  const { login, setIsDefaultPassword } = useAuth();
-  const { addNotification } = useNotification();
+  const { login } = useAuth();
   const navigate = useNavigate();
-
-  // Auto-login for single user mode
-  useEffect(() => {
-    const autoLogin = async () => {
-      // Only attempt auto-login if we have a valid API URL (connection is established)
-      const apiUrl = API_URL();
-      if (!apiUrl) {
-        console.log('Skipping auto-login: no API URL available.');
-        return;
-      }
-
-      // Only auto-login if MULTIUSER is not enabled
-      // Check window.platform first (cloud mode), then fallback to process.env
-      const isMultiUserMode =
-        (window as any).platform?.multiuser === true ||
-        (typeof process !== 'undefined' &&
-          process.env &&
-          process.env.MULTIUSER === 'true');
-      if (isMultiUserMode) {
-        return;
-      }
-
-      try {
-        console.log('Attempting auto-login for single user mode');
-        const result = await login('admin@example.com', 'admin123');
-        if (!(result instanceof Error)) {
-          setIsDefaultPassword(true);
-        }
-      } catch (error) {
-        console.error('Auto-login failed:', error);
-      }
-    };
-
-    autoLogin();
-  }, [login]);
 
   // Check OAuth status on component mount
   useEffect(() => {
@@ -170,9 +132,7 @@ export default function LoginForm() {
             'Login failed. Please check your credentials.',
         );
       } else {
-        if (password === 'admin123') {
-          setIsDefaultPassword(true);
-        }
+        // AuthContext updates user/teams state; no additional handling here.
       }
     } catch (err) {
       setError(
@@ -207,6 +167,8 @@ export default function LoginForm() {
     >
       <form onSubmit={handleSubmit} style={{ width: '100%' }}>
         <Stack spacing={2} sx={{ width: '100%' }}>
+          {/* Note: first-user bootstrap is handled by `LoginPage`, not seeded credentials. */}
+
           <Stack spacing={1.5} sx={{ mt: 1 }}>
             {googleOAuthEnabled && (
               <Button
