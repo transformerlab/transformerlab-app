@@ -13,11 +13,13 @@ interface VersionInfo {
 
 const UPDATE_DOCS_URL = 'https://lab.cloud/for-teams/update';
 
+const updateCheckDisabled = process.env.TL_DISABLE_UPDATE_CHECK === 'true';
+
 export default function VersionUpdateBanner() {
   const [dismissed, setDismissed] = useState<string | null>(null);
 
   const { data } = useSWR<VersionInfo>(
-    chatAPI.Endpoints.ServerInfo.Version(),
+    updateCheckDisabled ? null : chatAPI.Endpoints.ServerInfo.Version(),
     fetcher,
     {
       refreshInterval: 1_800_000, // 30 minutes
@@ -26,6 +28,7 @@ export default function VersionUpdateBanner() {
     },
   );
 
+  if (updateCheckDisabled) return null;
   if (!data?.update_available) return null;
   if (dismissed === data.latest_version) return null;
 
