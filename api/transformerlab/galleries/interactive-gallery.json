@@ -276,6 +276,56 @@
     ]
   },
   {
+    "id": "comfy_ui",
+    "name": "ComfyUI",
+    "description": "ComfyUI server via ngrok tunnel",
+    "setup": "detect_accel(){ if [ $(uname -s) = 'Darwin' ]; then echo 'm-series'; return; fi; if command -v nvidia-smi >/dev/null 2>&1; then echo 'nvidia'; return; fi; if command -v rocminfo >/dev/null 2>&1; then echo 'amd'; return; fi; echo 'cpu'; }; ACCEL=$(detect_accel); pip install -q --upgrade pip; if [ $ACCEL = 'nvidia' ]; then pip install torch torchvision torchaudio; elif [ $ACCEL = 'amd' ]; then pip install -q --index-url https://download.pytorch.org/whl/rocm6.4 torch torchvision torchaudio; else pip install -q torch torchvision torchaudio; fi; pip install comfy-cli; yes | comfy install --$ACCEL",
+    "run": "true",
+    "env_parameters": [
+      {
+        "field_name": "ngrok Auth Token",
+        "env_var": "NGROK_AUTH_TOKEN",
+        "field_type": "str",
+        "required": true,
+        "placeholder": "ngrok_...",
+        "help_text": "Your ngrok authentication token. You can get your token from https://dashboard.ngrok.com/get-started/your-authtoken.",
+        "password": true
+      }
+    ],
+    "icon": "https://lab.cloud/img/icons/comfyui.png",
+    "supported_accelerators": ["cpu", "NVIDIA", "AMD", "AppleSilicon"],
+    "logic": {
+      "core": "comfy launch -- --listen 0.0.0.0 --enable-manager > /tmp/comfy-ui.log 2>&1 & sleep 5",
+      "tunnel": "ngrok",
+      "tail_logs": "tail -f /tmp/comfy-ui.log /tmp/ngrok.log"
+    },
+    "ports": [
+      {
+        "port": 8188,
+        "label": "ComfyUI",
+        "protocol": "http"
+      }
+    ],
+    "url_patterns": [
+      {
+        "value_key": "comfy_url",
+        "regex": "(https://[a-zA-Z0-9-]+\\.(?:trycloudflare\\.com|ngrok-free\\.app|ngrok-free\\.dev|ngrok\\.io))",
+        "group": 1
+      }
+    ],
+    "modal_title": "ComfyUI Interactive Session",
+    "modal_subtitle": "Access your ComfyUI server through the URL below.",
+    "instructions": [
+      {
+        "kind": "url",
+        "title": "Access ComfyUI",
+        "description": "Once ready, click the link below to open ComfyUI in your browser.",
+        "value_key": "comfy_url",
+        "placeholder": "Waiting for ngrok to start. The URL will appear here once available..."
+      }
+    ]
+  },
+  {
     "id": "ssh",
     "interactive_type": "ssh",
     "name": "SSH",
