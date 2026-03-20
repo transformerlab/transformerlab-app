@@ -108,49 +108,6 @@ async def upload_model_to_huggingface(
     return {"status": "success", "message": "Model uploaded to Hugging Face: {model_name}"}
 
 
-@router.get("/model/local/{model_id}")
-async def model_details_from_source(model_id: str):
-    # convert "~~~"" in string to "/":
-    model_id = model_id.replace("~~~", "/")
-
-    # Try to get from huggingface first
-    model = model_helper.get_model_by_source_id("huggingface", model_id)
-
-    # If there is no model then try looking in the filesystem
-    if not model:
-        model = model_details_from_filesystem(model_id)
-
-    return model
-
-
-@router.get("/model/details/{model_id}")
-async def model_details_from_filesystem(model_id: str):
-    # convert "~~~"" in string to "/":
-    model_id = model_id.replace("~~~", "/")
-
-    # TODO: Refactor this code with models/list function
-    # see if the model exists locally
-    model_path = await get_model_dir(model_id)
-    if await storage.isdir(model_path):
-        # Look for model information using SDK methods
-        try:
-            from lab.model import Model as ModelService
-
-            model_service = ModelService(model_id)
-            filedata = await model_service.get_metadata()
-
-            # Some models are a single file (possibly of many in a directory, e.g. GGUF)
-            # For models that have model_filename set we should link directly to that specific file
-            if "json_data" in filedata and filedata["json_data"]:
-                return filedata["json_data"]
-
-        except FileNotFoundError:
-            # do nothing: file doesn't exist
-            pass
-
-    return {}
-
-
 @router.get("/model/get_conversation_template")
 async def get_model_prompt_template(model: str):
     # Below we grab the conversation template from FastChat's model adapter
