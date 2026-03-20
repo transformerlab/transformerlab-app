@@ -277,7 +277,8 @@ const JobsList: React.FC<JobsListProps> = ({
                     </Button>
                   )}
 
-                  {job?.job_data?.trackio_db_artifact_path && (
+                  {(job?.job_data?.trackio_db_artifact_path ||
+                    job?.job_data?.trackio_project_name) && (
                     <Button
                       size="sm"
                       variant="plain"

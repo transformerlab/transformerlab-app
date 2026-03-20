@@ -24,6 +24,7 @@ import { useAPI, useAuth } from 'renderer/lib/authContext';
 import { getPath } from 'renderer/lib/api-client/urls';
 import { Endpoints } from 'renderer/lib/api-client/endpoints';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react';
 
 interface ProviderDetailsModalProps {
   open: boolean;
@@ -84,6 +85,11 @@ export default function ProviderDetailsModal({
   const [supportedAccelerators, setSupportedAccelerators] = useState<string[]>(
     [],
   );
+  const [preTaskHook, setPreTaskHook] = useState<string>('');
+  const [postTaskHook, setPostTaskHook] = useState<string>('');
+  const [preSetupHook, setPreSetupHook] = useState<string>('');
+  const [postSetupHook, setPostSetupHook] = useState<string>('');
+  const [hooksExpanded, setHooksExpanded] = useState(false);
 
   // SLURM-specific form fields
   const [slurmMode, setSlurmMode] = useState<'ssh' | 'rest'>('ssh');
@@ -174,6 +180,22 @@ export default function ProviderDetailsModal({
           ? JSON.parse(providerData.config || '{}')
           : providerData.config || {};
 
+      const extraConfig =
+        rawConfigObj && typeof rawConfigObj === 'object'
+          ? rawConfigObj.extra_config || {}
+          : {};
+      if (extraConfig && typeof extraConfig === 'object') {
+        setPreTaskHook(extraConfig.pre_task_hook || '');
+        setPostTaskHook(extraConfig.post_task_hook || '');
+        setPreSetupHook(extraConfig.pre_setup_hook || '');
+        setPostSetupHook(extraConfig.post_setup_hook || '');
+      } else {
+        setPreTaskHook('');
+        setPostTaskHook('');
+        setPreSetupHook('');
+        setPostSetupHook('');
+      }
+
       // Extract supported_accelerators into dedicated state, but do not show it in raw JSON.
       if (rawConfigObj.supported_accelerators) {
         setSupportedAccelerators(rawConfigObj.supported_accelerators);
@@ -191,6 +213,10 @@ export default function ProviderDetailsModal({
       setType('');
       setConfig('');
       setSupportedAccelerators([]);
+      setPreTaskHook('');
+      setPostTaskHook('');
+      setPreSetupHook('');
+      setPostSetupHook('');
       setSlurmMode('ssh');
       setSlurmSshHost('');
       setSlurmSshUser('');
@@ -208,6 +234,10 @@ export default function ProviderDetailsModal({
       setType('');
       setConfig('');
       setSupportedAccelerators([]);
+      setPreTaskHook('');
+      setPostTaskHook('');
+      setPreSetupHook('');
+      setPostSetupHook('');
       setSlurmMode('ssh');
       setSlurmSshHost('');
       setSlurmSshUser('');
@@ -227,6 +257,36 @@ export default function ProviderDetailsModal({
 
       // Initialize default supported accelerators per provider type, but keep them
       // out of the raw JSON configuration.
+      if (type === 'local') {
+        // Optimistic defaults while we query the backend for real detection.
+        setSupportedAccelerators(DEFAULT_SUPPORTED_ACCELERATORS['local'] || []);
+
+        let cancelled = false;
+        const detectLocal = async () => {
+          try {
+            const response = await fetchWithAuth(
+              Endpoints.ComputeProvider.DetectLocalAccelerators(),
+              { method: 'GET' },
+            );
+            if (!response.ok) return;
+            const data = await response.json().catch(() => ({}));
+            const detected = data.supported_accelerators;
+            if (!cancelled && Array.isArray(detected)) {
+              setSupportedAccelerators(detected);
+            }
+          } catch (e) {
+            // Best-effort: keep the optimistic defaults if detection fails.
+            // eslint-disable-next-line no-console
+            console.error('Failed to detect local accelerators:', e);
+          }
+        };
+        detectLocal();
+
+        return () => {
+          cancelled = true;
+        };
+      }
+
       if (DEFAULT_SUPPORTED_ACCELERATORS[type]) {
         setSupportedAccelerators(DEFAULT_SUPPORTED_ACCELERATORS[type]);
       } else {
@@ -377,6 +437,36 @@ export default function ProviderDetailsModal({
         }
       }
 
+      if (
+        !parsedConfig.extra_config ||
+        typeof parsedConfig.extra_config !== 'object'
+      ) {
+        parsedConfig.extra_config = {};
+      }
+      if (preTaskHook.trim()) {
+        parsedConfig.extra_config.pre_task_hook = preTaskHook;
+      } else {
+        delete parsedConfig.extra_config.pre_task_hook;
+      }
+      if (postTaskHook.trim()) {
+        parsedConfig.extra_config.post_task_hook = postTaskHook;
+      } else {
+        delete parsedConfig.extra_config.post_task_hook;
+      }
+      if (preSetupHook.trim()) {
+        parsedConfig.extra_config.pre_setup_hook = preSetupHook;
+      } else {
+        delete parsedConfig.extra_config.pre_setup_hook;
+      }
+      if (postSetupHook.trim()) {
+        parsedConfig.extra_config.post_setup_hook = postSetupHook;
+      } else {
+        delete parsedConfig.extra_config.post_setup_hook;
+      }
+      if (Object.keys(parsedConfig.extra_config).length === 0) {
+        delete parsedConfig.extra_config;
+      }
+
       const response = providerId
         ? await updateProvider(providerId, name, parsedConfig)
         : await createProvider(name, type, parsedConfig);
@@ -448,7 +538,7 @@ export default function ProviderDetailsModal({
                 >
                   <Option value="skypilot">Skypilot</Option>
                   <Option value="slurm">SLURM</Option>
-                  <Option value="runpod">Runpod (beta)</Option>
+                  <Option value="runpod">Runpod</Option>
                   {!hasLocalProvider && !providerId && (
                     <Option value="local">Local (beta)</Option>
                   )}
@@ -640,6 +730,102 @@ export default function ProviderDetailsModal({
                   )}
                 </>
               )}
+
+              <Box
+                sx={{
+                  mt: 2,
+                  border: '1px solid',
+                  borderColor: 'neutral.outlinedBorder',
+                  borderRadius: 'sm',
+                }}
+              >
+                <Button
+                  variant="plain"
+                  color="neutral"
+                  onClick={() => setHooksExpanded((v) => !v)}
+                  sx={{
+                    width: '100%',
+                    justifyContent: 'space-between',
+                    borderRadius: 'sm',
+                    p: 1,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    <Typography level="title-sm">
+                      Advanced: Harness hooks (optional)
+                    </Typography>
+                    <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
+                      Add hooks to run before and after the provider setup and
+                      run scripts.
+                    </Typography>
+                  </Box>
+                  {hooksExpanded ? (
+                    <ChevronDownIcon size={18} />
+                  ) : (
+                    <ChevronRightIcon size={18} />
+                  )}
+                </Button>
+
+                {hooksExpanded && (
+                  <FormControl sx={{ px: 1, pb: 1 }}>
+                    <FormLabel sx={{ mt: 1 }}>
+                      Setup pre hook (optional)
+                    </FormLabel>
+                    <Textarea
+                      value={preSetupHook}
+                      onChange={(event) =>
+                        setPreSetupHook(event.currentTarget.value)
+                      }
+                      placeholder="Commands to run before the provider setup script"
+                      minRows={2}
+                      maxRows={6}
+                    />
+                    <FormLabel sx={{ mt: 1 }}>
+                      Setup post hook (optional)
+                    </FormLabel>
+                    <Textarea
+                      value={postSetupHook}
+                      onChange={(event) =>
+                        setPostSetupHook(event.currentTarget.value)
+                      }
+                      placeholder="Commands to run after the provider setup script"
+                      minRows={2}
+                      maxRows={6}
+                    />
+
+                    <FormLabel sx={{ mt: 2 }}>
+                      Run pre hook (optional)
+                    </FormLabel>
+                    <Textarea
+                      value={preTaskHook}
+                      onChange={(event) =>
+                        setPreTaskHook(event.currentTarget.value)
+                      }
+                      placeholder="Commands to run before the run script in every task"
+                      minRows={2}
+                      maxRows={6}
+                    />
+                    <FormLabel sx={{ mt: 1 }}>
+                      Run post hook (optional)
+                    </FormLabel>
+                    <Textarea
+                      value={postTaskHook}
+                      onChange={(event) =>
+                        setPostTaskHook(event.currentTarget.value)
+                      }
+                      placeholder="Commands to run after the run script in every task"
+                      minRows={2}
+                      maxRows={6}
+                    />
+                  </FormControl>
+                )}
+              </Box>
 
               {/* Generic JSON config for non-SLURM providers or advanced editing */}
               {type !== 'slurm' && type !== 'local' && (

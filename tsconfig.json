@@ -18,7 +18,7 @@
   },
   "exclude": ["test", "resources/build", "resources/app/dist",
               ".erb/dll", "node_modules",
-              "release/app/dist", "release/build",
+              "release/build",
               "*.css.d.ts",
               "*.sass.d.ts",
               "*.scss.d.ts",
