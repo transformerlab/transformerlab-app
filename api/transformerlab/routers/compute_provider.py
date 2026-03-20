@@ -34,6 +34,7 @@ from transformerlab.schemas.compute_providers import (
     ResumeFromCheckpointRequest,
 )
 from transformerlab.shared.models.models import ProviderType, TeamRole
+from transformerlab.services.cache_service import cache, cached
 from transformerlab.compute_providers.models import (
     ClusterConfig,
     ClusterStatus,
@@ -181,6 +182,11 @@ async def upload_task_file_for_provider(
 
 
 @router.get("/", response_model=List[ProviderRead])
+@cached(
+    key="providers:list:{include_disabled}",
+    ttl="300s",
+    tags=["providers", "providers:list"],
+)
 async def list_providers(
     include_disabled: bool = Query(False, description="Include disabled providers (admin view)"),
     user_and_team=Depends(get_user_and_team),
@@ -266,6 +272,8 @@ async def create_provider(
         config=config_dict,
         created_by_user_id=str(user.id),
     )
+
+    await cache.invalidate("providers")
 
     # For LOCAL providers, kick off background setup immediately so users see progress
     # (via /compute_provider/{id}/setup/status) without blocking provider creation.
@@ -830,6 +838,8 @@ async def update_provider(
         session=session, provider=provider, name=update_name, config=update_config, disabled=update_disabled
     )
 
+    await cache.invalidate("providers")
+
     # Return with masked sensitive fields
     masked_config = mask_sensitive_config(provider.config or {}, provider.type)
     return ProviderRead(
@@ -862,6 +872,7 @@ async def delete_provider(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     await delete_team_provider(session, provider)
+    await cache.invalidate("providers")
     return {"message": "Provider deleted successfully"}
 
 

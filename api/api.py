@@ -53,7 +53,6 @@ from transformerlab.routers import (  # noqa: E402
     serverinfo,
     plugins,
     config,
-    tools,
     teams,
     compute_provider,
     auth,
@@ -306,7 +305,6 @@ app.include_router(experiment.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(plugins.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(jobs.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(config.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(tools.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(fastchat_openai_api.router)
 app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(compute_provider.router)
