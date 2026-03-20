@@ -8,9 +8,6 @@ from huggingface_hub.utils import HfHubHTTPError
 from transformers import AutoTokenizer
 
 
-import os
-
-from transformerlab.models import model_helper
 from transformerlab.services import model_service
 from transformerlab.models import huggingfacemodel
 from lab.dirs import get_workspace_dir
