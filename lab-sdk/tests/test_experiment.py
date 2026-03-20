@@ -21,7 +21,6 @@ async def test_experiment_dir_and_jobs_index(tmp_path, monkeypatch):
     monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
 
     from lab.experiment import Experiment
-    from lab.job import Job
 
     exp = await Experiment.create("exp1")
     exp_dir = await exp.get_dir()
@@ -36,23 +35,14 @@ async def test_experiment_dir_and_jobs_index(tmp_path, monkeypatch):
     assert "index" in data
     assert "TRAIN" in data["index"]
 
-    # Create two jobs and assign to experiment
-    j1 = await Job.create("10")
-    await j1.set_experiment("exp1", sync_rebuild=True)
-    j2 = await Job.create("11")
-    await j2.set_experiment("exp1", sync_rebuild=True)
-
-    # Manually trigger rebuild to ensure jobs are in the index
-    from lab.dirs import get_workspace_dir
-
-    workspace = await get_workspace_dir()
-    await exp.rebuild_jobs_index(workspace_dir=workspace)
+    # Create two jobs via experiment API and ensure they are indexed immediately.
+    j1 = await exp.create_job()
+    j2 = await exp.create_job()
 
     all_jobs = await exp._get_all_jobs()
-    # Jobs should now be visible after rebuild
     job_ids = set(all_jobs)
-    assert "10" in job_ids
-    assert "11" in job_ids
+    assert str(j1.id) in job_ids
+    assert str(j2.id) in job_ids
 
 
 @pytest.mark.asyncio

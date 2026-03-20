@@ -68,10 +68,6 @@ class Job(BaseLabResource):
             "progress": 0,
         }
 
-    async def set_experiment(self, experiment_id: str, sync_rebuild: bool = False):
-        await self._update_json_data_field("experiment_id", experiment_id)
-        await self.update_job_data_field("experiment_name", experiment_id)
-
     async def update_progress(self, progress: int):
         """
         Update the percent complete for this job.
