@@ -1,10 +1,19 @@
+import logging
 import json
+import os
 
 from lab import Experiment
 from lab import dirs as lab_dirs
 from lab import storage
 
 from transformerlab.services.cache_service import cache, cached
+
+logger = logging.getLogger(__name__)
+_tlab_log_level = os.getenv("TLAB_LOG_LEVEL", "").upper()
+if _tlab_log_level:
+    _parsed_level = getattr(logging, _tlab_log_level, None)
+    if isinstance(_parsed_level, int):
+        logger.setLevel(_parsed_level)
 
 
 @cached(key="experiments:list", ttl="30s", tags=["experiments"])
@@ -13,6 +22,7 @@ async def experiment_get_all():
 
     experiments_dir = await lab_dirs.get_experiments_dir()
     if not await storage.exists(experiments_dir):
+        logger.debug("Experiments directory does not exist: %s", experiments_dir)
         return experiments
 
     try:
@@ -24,17 +34,21 @@ async def experiment_get_all():
 
             # Defensive: `ls` should not include the base dir itself, but skip if it does.
             if exp_path_norm == base_dir:
+                logger.debug("Skipping base experiments directory entry: %s", exp_path_norm)
                 continue
 
             if not await storage.isdir(exp_path_norm):
+                logger.debug("Skipping non-directory experiment path: %s", exp_path_norm)
                 continue
 
             exp_dir = exp_path_norm.split("/")[-1]
             if exp_dir == "experiments":
+                logger.debug("Skipping nested experiments directory entry: %s", exp_path_norm)
                 continue
 
             index_file = storage.join(exp_path_norm, "index.json")
             if not await storage.exists(index_file):
+                logger.debug("Skipping experiment without index.json: %s", exp_path_norm)
                 continue
 
             # Avoid calling `Experiment.get_json_data()` for the list view; that can
@@ -46,19 +60,26 @@ async def experiment_get_all():
                 parsed = json.loads(raw) if raw else {}
                 if isinstance(parsed, dict):
                     exp_dict = parsed
-            except Exception:
+            except Exception as e:
+                logger.debug("Failed reading experiment index file %s: %s", index_file, e)
                 exp_dict = None
 
             # Ensure dropdown always has `id` + `name`.
             if not exp_dict or not exp_dict.get("id") or not exp_dict.get("name"):
+                logger.debug(
+                    "Experiment index missing id/name, falling back to experiment_get for: %s",
+                    exp_dir,
+                )
                 exp_dict = await experiment_get(exp_dir)
 
             if isinstance(exp_dict, dict) and exp_dict:
                 exp_dict.setdefault("id", exp_dir)
                 exp_dict.setdefault("name", exp_dict.get("id") or exp_dir)
                 experiments.append(exp_dict)
-    except Exception:
-        pass
+            else:
+                logger.debug("Skipping experiment after fallback returned no data: %s", exp_dir)
+    except Exception as e:
+        logger.debug("Failed to list experiments from %s: %s", experiments_dir, e)
 
     return experiments
 
