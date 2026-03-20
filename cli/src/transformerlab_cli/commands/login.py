@@ -45,6 +45,9 @@ def login(
 
     # Ask for API key if not provided
     if not api_key:
+        console.print(
+            f"\n[yellow]You can create an API key at:[/yellow] [bold]{server.rstrip('/')}/#/user/api-keys[/bold]"
+        )
         api_key = typer.prompt("Please enter your API key", hide_input=True)
 
     # Attempt login
