@@ -21,7 +21,7 @@ from lab.dirs import set_organization_id as lab_set_org_id
 from lab.job_status import JobStatus
 
 from transformerlab.services import job_service, team_service
-from transformerlab.services.cache_service import cache
+
 
 REMOTE_JOB_STATUS_INTERVAL_SECONDS = int(os.getenv("REMOTE_JOB_STATUS_INTERVAL_SECONDS", "15"))
 
@@ -103,6 +103,54 @@ def _record_provider_failure(provider_id: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+async def _best_effort_stop_cluster_for_job(job: Dict[str, Any]) -> None:
+    """Try to stop the underlying provider cluster for a job (best-effort).
+
+    Used when we detect a remote wrapper crash so we don't leak resources.
+    This function must never raise.
+    """
+    try:
+        from transformerlab.db.session import async_session
+        from transformerlab.services.provider_service import get_provider_by_id, get_provider_instance
+
+        job_data = job.get("job_data") or {}
+        if not isinstance(job_data, dict):
+            return
+
+        provider_id = job_data.get("provider_id")
+        cluster_name = job_data.get("cluster_name")
+        if not provider_id or not cluster_name:
+            return
+
+        async with async_session() as session:
+            provider_record = await get_provider_by_id(session, provider_id)
+        if not provider_record:
+            return
+
+        provider_instance = await get_provider_instance(provider_record)
+        if not provider_instance or not hasattr(provider_instance, "stop_cluster"):
+            return
+
+        await asyncio.to_thread(provider_instance.stop_cluster, cluster_name)
+    except Exception:
+        print(f"Remote job status worker: failed stopping cluster for job {job.get('id', '')}")
+        return
+
+
+def _is_interactive_subtype_job(job: Dict[str, Any]) -> bool:
+    """Return True for jobs representing interactive sessions.
+
+    We treat either:
+    - status == INTERACTIVE, or
+    - job_data.subtype == "interactive"
+    as interactive sessions for the purposes of this worker.
+    """
+    job_data = job.get("job_data") or {}
+    if isinstance(job_data, dict) and job_data.get("subtype") == "interactive":
+        return True
+    return job.get("status") == JobStatus.INTERACTIVE.value
+
+
 async def _handle_live_status(job: Dict[str, Any], experiment_id: str) -> bool:
     """Check job_data.live_status written by tfl-remote-trap (pure filesystem read).
 
@@ -115,12 +163,32 @@ async def _handle_live_status(job: Dict[str, Any], experiment_id: str) -> bool:
         return False
 
     job_id = str(job.get("id", ""))
-    new_status = JobStatus.COMPLETE.value if live_status == "finished" else JobStatus.FAILED.value
+    job_status = job.get("status", "")
+
+    # Interactive sessions:
+    # - allow FAILED only when live_status == "crashed"
+    # - allow STOPPED when STOPPING (user requested stop)
+    # - never auto-mark COMPLETE
+    if _is_interactive_subtype_job(job):
+        if live_status == "crashed":
+            await _best_effort_stop_cluster_for_job(job)
+            new_status = JobStatus.FAILED.value
+        elif job_status == JobStatus.STOPPING.value:
+            new_status = JobStatus.STOPPED.value if live_status == "finished" else JobStatus.FAILED.value
+        else:
+            return False
+    elif job_status == JobStatus.STOPPING.value:
+        # If the user asked to stop, prefer STOPPED even if the wrapper reports "finished".
+        new_status = JobStatus.STOPPED.value if live_status == "finished" else JobStatus.FAILED.value
+    else:
+        if live_status == "crashed":
+            await _best_effort_stop_cluster_for_job(job)
+        new_status = JobStatus.COMPLETE.value if live_status == "finished" else JobStatus.FAILED.value
+
     try:
         end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
         await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
         await job_service.job_update_status(job_id, new_status, experiment_id=experiment_id)
-        await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
     except Exception as exc:
         print(f"Remote job status worker: failed updating job {job_id} from live_status={live_status}: {exc}")
     return True
@@ -145,6 +213,10 @@ async def _check_job_via_provider(
     cluster_name = job_data.get("cluster_name", "")
     provider_type = provider_record.type
     job_status = job.get("status", "")
+
+    # Never auto-transition interactive sessions unless they are already STOPPING.
+    if _is_interactive_subtype_job(job) and job_status != JobStatus.STOPPING.value:
+        return False
 
     if provider_type in (ProviderType.LOCAL.value, ProviderType.RUNPOD.value):
         # LOCAL and RUNPOD: the pod/process itself is the job — check cluster state.
@@ -194,7 +266,6 @@ async def _check_job_via_provider(
                     final_status = JobStatus.COMPLETE.value
 
             await job_service.job_update_status(job_id, final_status, experiment_id=experiment_id)
-            await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
             return True
 
     else:
@@ -227,7 +298,6 @@ async def _check_job_via_provider(
                 final_status = JobStatus.COMPLETE.value
 
             await job_service.job_update_status(job_id, final_status, experiment_id=experiment_id)
-            await cache.invalidate("jobs", f"jobs:list:{experiment_id}")
             return True
 
     return False

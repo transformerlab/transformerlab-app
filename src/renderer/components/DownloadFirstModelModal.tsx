@@ -181,18 +181,11 @@ export default function DownloadFirstModelModal({
               const newJobId = await job_response.json();
               setJobId(newJobId);
 
-              // Try downloading the model
-              const response = await chatAPI.downloadModelFromGallery(
-                selectedModel,
-                newJobId,
+              // Model download from gallery is no longer supported.
+              alert(
+                'Downloading recommended models from the gallery has been disabled in this build.',
               );
-              if (response?.status == 'error') {
-                alert('Download failed!\n' + response.message);
-              }
-
-              // download complete
               setCurrentlyDownloading(null);
-              setOpen(false);
             }}
           >
             {currentlyDownloading ? 'Downloading' : 'Download selected model'}

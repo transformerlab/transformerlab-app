@@ -35,6 +35,15 @@
 - **Database**: SQLite with Alembic migrations in `api/alembic/`
 - **CLI**: Typer-based Python CLI in `cli/`
 
+## Documentation
+
+Detailed internal documentation lives in `docs/` — read these before working on related subsystems:
+
+- **[Task Execution](docs/task-execution/README.md)** — How tasks are created, queued, dispatched to compute providers, and monitored through their lifecycle (5-part guide).
+- **[Authentication](docs/Auth.md)** — JWT auth, sliding-window refresh, registration/invite model, route protection, team access, and OIDC configuration.
+
+Agent skills and browser automation references live in `.agents/skills/`.
+
 ## Code Style
 
 - **Imports**: Use existing patterns in neighboring files; check package.json/pyproject.toml before adding deps
