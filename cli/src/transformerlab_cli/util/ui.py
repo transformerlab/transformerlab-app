@@ -89,7 +89,7 @@ def render_table(data, format_type: str, table_columns: list, title: str | None)
         console.print(table)
 
     elif format_type == "json":
-        console.print_json(json.dumps(data))
+        print(json.dumps(data))
 
     elif format_type == "csv":
         writer = csv.writer(sys.stdout)
@@ -107,7 +107,7 @@ def render_table(data, format_type: str, table_columns: list, title: str | None)
 def render_object(data: dict, format_type: str = "pretty") -> None:
     """Render a dictionary object in a readable format."""
     if format_type == "json":
-        console.print_json(json.dumps(data))
+        print(json.dumps(data))
     else:
         content = Text()
         for key, value in data.items():
@@ -124,3 +124,13 @@ def render_object(data: dict, format_type: str = "pretty") -> None:
             expand=True,
         )
         console.print(panel)
+
+
+def exit_with_no_results(format_type: str = "pretty", message: str = "No results found") -> None:
+    """Exit with code 2, emitting an appropriate message for the output format."""
+    if format_type == "json":
+        print(json.dumps({"error": message}))
+    else:
+        # Use [yellow] directly — the theme's 'warning' key maps to magenta, not yellow
+        console.print(f"[yellow]{message}[/yellow]")
+    raise SystemExit(2)
