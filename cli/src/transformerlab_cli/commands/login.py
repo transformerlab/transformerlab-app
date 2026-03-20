@@ -19,12 +19,10 @@ def login(
     # Load config to set the base URL before attempting login
     config = load_config()
 
-    # Ask for server if not provided and not in config
+    # Prompt for server URL, showing current value as default so user can confirm or change it
     if not server:
-        server = config.get("server")
-
-    if not server:
-        server = typer.prompt("Please enter the server URL", default="http://alpha.lab.cloud:8338")
+        default_server = config.get("server") or "http://alpha.lab.cloud:8338"
+        server = typer.prompt("Server URL", default=default_server)
 
     # Validate and set server URL
     from transformerlab_cli.util.config import _validate_url
@@ -47,6 +45,9 @@ def login(
 
     # Ask for API key if not provided
     if not api_key:
+        console.print(
+            f"\n[yellow]You can create an API key at:[/yellow] [bold]{server.rstrip('/')}/#/user/api-keys[/bold]"
+        )
         api_key = typer.prompt("Please enter your API key", hide_input=True)
 
     # Attempt login
@@ -71,12 +72,23 @@ def login(
             set_config("user_email", user_email)
             console.print(f"[green]✓[/green] User email: [cyan]{user_email}[/cyan]")
 
-        # Save team info (prefer OWNER role, otherwise first team)
+        # Save team info
         teams = teams_info.get("teams", [])
         if teams:
-            # Look for OWNER role first
-            owner_team = next((t for t in teams if t.get("role") == "OWNER"), None)
-            selected_team = owner_team if owner_team else teams[0]
+            # Prefer the team the API key is scoped to, if provided by the server
+            api_key_team_id = user_info.get("api_key_team_id")
+            selected_team = None
+
+            if api_key_team_id:
+                selected_team = next((t for t in teams if t.get("id") == api_key_team_id), None)
+
+            if not selected_team:
+                # Look for owner role first (case-insensitive)
+                owner_team = next(
+                    (t for t in teams if str(t.get("role", "")).lower() == "owner"),
+                    None,
+                )
+                selected_team = owner_team if owner_team else teams[0]
 
             team_id = selected_team.get("id")
             team_name = selected_team.get("name")

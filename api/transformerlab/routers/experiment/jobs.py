@@ -20,6 +20,7 @@ from transformerlab.routers.auth import get_user_and_team
 from transformerlab.routers.serverinfo import watch_file
 from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
 import transformerlab.services.job_service as job_service
+from transformerlab.services.cache_service import cache
 from transformerlab.services.provider_service import get_team_provider, get_provider_instance
 from transformerlab.shared import shared, zip_utils
 from transformerlab.shared.models.models import ProviderType
@@ -1527,6 +1528,8 @@ async def save_model_to_registry(
             except Exception as copy_err:
                 print(f"storage.copy_dir failed: {copy_err}")
 
+            await cache.invalidate("models", "models:list")
+
             return {"status": "success", "message": f"Model merged into existing registry entry '{target_name_secure}'"}
         else:
             # Save as a new model
@@ -1544,6 +1547,8 @@ async def save_model_to_registry(
                 await storage.copy_dir(source_path, dest_path)
             except Exception as copy_err:
                 print(f"storage.copy_dir failed: {copy_err}")
+
+            await cache.invalidate("models", "models:list")
 
             return {"status": "success", "message": f"Model saved to registry as '{final_name}'"}
 
