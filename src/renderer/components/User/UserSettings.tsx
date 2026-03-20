@@ -30,6 +30,7 @@ import {
   TabPanel,
 } from '@mui/joy';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import { useNotificationsSummary } from 'renderer/lib/useNotificationsSummary';
 import { CopyIcon, TrashIcon, PlusIcon } from 'lucide-react';
@@ -179,7 +180,22 @@ function UserNameChangeForm({
   );
 }
 
-export default function UserSettings(): JSX.Element {
+const TAB_NAMES = [
+  'profile',
+  'secrets',
+  'api-keys',
+  'invitations',
+  'compute-providers',
+  'quota',
+  'notifications',
+] as const;
+
+export default function UserSettings({
+  tab = 'profile',
+}: {
+  tab?: string;
+}): JSX.Element {
+  const navigate = useNavigate();
   const authContext = useAuth();
   const [isNameChangeOpen, setIsNameChangeOpen] = useState(false);
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
@@ -191,7 +207,10 @@ export default function UserSettings(): JSX.Element {
     {},
   );
   const notificationsSummary = useNotificationsSummary(null);
-  const [activeTab, setActiveTab] = useState<number>(0);
+  const activeTab = Math.max(
+    0,
+    TAB_NAMES.indexOf(tab as (typeof TAB_NAMES)[number]),
+  );
 
   return (
     <Sheet sx={{ overflowY: 'auto', p: 2 }}>
@@ -202,7 +221,9 @@ export default function UserSettings(): JSX.Element {
       <Tabs
         aria-label="User settings tabs"
         value={activeTab}
-        onChange={(event, value) => setActiveTab(value as number)}
+        onChange={(event, value) => {
+          navigate(`/user/${TAB_NAMES[value as number]}`);
+        }}
         sx={{
           mt: 2,
           overflow: 'hidden',
