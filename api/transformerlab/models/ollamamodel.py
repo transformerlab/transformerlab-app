@@ -8,7 +8,6 @@ from transformerlab.models import basemodel
 import os
 import json
 import errno
-from lab import storage
 
 
 async def list_models():
