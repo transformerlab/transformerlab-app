@@ -113,21 +113,18 @@ fi
 # Temporary: Turn off python buffering or debug output made by print() may not show up in logs
 export PYTHONUNBUFFERED=1
 
-# Keep uvicorn CLI logging consistent with TLAB_LOG_LEVEL.
-UVICORN_LOG_LEVEL=$(echo "${TLAB_LOG_LEVEL:-WARNING}" | tr '[:upper:]' '[:lower:]')
-
 echo "▶️ Starting the API server:"
 if [ "$RELOAD" = true ]; then
     echo "🔁 Reload the server on file changes"
     if [ "$HTTPS" = true ]; then
         python api.py --https --reload --port ${PORT} --host ${TLABHOST} --timeout-graceful-shutdown 1
     else
-        uvicorn api:app --reload --port ${PORT} --host ${TLABHOST} --timeout-graceful-shutdown 1 --log-level ${UVICORN_LOG_LEVEL}
+        uvicorn api:app --reload --port ${PORT} --host ${TLABHOST} --timeout-graceful-shutdown 1
     fi
 else
     if [ "$HTTPS" = true ]; then
         python api.py --https --port ${PORT} --host ${TLABHOST}
     else
-        uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log --log-level ${UVICORN_LOG_LEVEL}
+        uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log
     fi
 fi
