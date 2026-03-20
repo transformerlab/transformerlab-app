@@ -41,7 +41,7 @@ app.add_typer(logout_app)
 app.add_typer(whoami_app)
 app.add_typer(task_app, name="task", help="Task management commands", no_args_is_help=True)
 app.add_typer(job_app, name="job", help="Job management commands", no_args_is_help=True)
-app.command("run-local")(command_run_local)
+app.command("run-local", hidden=True)(command_run_local)
 app.add_typer(provider_app, name="provider", help="Compute provider management commands", no_args_is_help=True)
 
 console = Console()
