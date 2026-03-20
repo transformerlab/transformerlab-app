@@ -12,6 +12,7 @@ import os
 
 from transformerlab.models import model_helper
 from transformerlab.models import basemodel
+from transformerlab.services import model_service
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 from lab.dirs import get_workspace_dir
@@ -162,7 +163,7 @@ async def get_model_prompt_template(model: str):
 @router.get("/model/list")
 async def model_local_list(embedding=False):
     # the model list is a combination of downloaded hugging face models and locally generated models
-    return await model_helper.list_installed_models(embedding)
+    return await model_service.list_installed_models(embedding)
 
 
 @router.get("/model/provenance/{model_id}")
@@ -171,7 +172,7 @@ async def model_provenance(model_id: str):
 
     model_id = model_id.replace("~~~", "/")
 
-    return await model_helper.list_model_provenance(model_id)
+    return await model_service.list_model_provenance(model_id)
 
 
 @router.get("/model/count_downloaded")
@@ -355,7 +356,7 @@ async def models_search_for_local_uninstalled():
 
         # Only add uninstalled models
         for source_model in source_models:
-            installed = await model_helper.is_model_installed(source_model.id)
+            installed = await model_service.is_model_installed(source_model.id)
             if not installed:
                 models.append(source_model)
 
@@ -430,7 +431,7 @@ async def model_import(model: basemodel.BaseModel):
     architecture = json_data.get("architecture", "unknown")
     if model.status != "OK":
         return import_error(model.status)
-    if await model_helper.is_model_installed(model.id):
+    if await model_service.is_model_installed(model.id):
         return import_error(f"{model.id} is already installed.")
     if architecture == "unknown" or architecture == "":
         return import_error("Unable to determine model architecture.")

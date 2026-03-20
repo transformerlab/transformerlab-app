@@ -9,32 +9,8 @@ don't have to interact directly with the source and model classes.
 
 from transformerlab.models import ollamamodel
 from transformerlab.models import huggingfacemodel
-from transformerlab.models import localmodel
 
 import traceback
-
-
-async def list_installed_models(embedding=False):
-    """
-    This function checks both the DB and the workspace models directory
-    and returns a list of models in the format that models are stored in the DB.
-    """
-    return await localmodel.LocalModelStore().list_models(embedding)
-
-
-async def is_model_installed(model_id: str):
-    """
-    Return true is a model with the unique ID model_id
-    is downloaded to the DB or Transfomrmer Lab workspace.
-    """
-    return await localmodel.LocalModelStore().has_model(model_id)
-
-
-async def list_model_provenance(model_id: str):
-    """
-    Return a list of the provenance of a model with the unique ID model_id.
-    """
-    return await localmodel.LocalModelStore().list_model_provenance(model_id)
 
 
 ###
