@@ -25,13 +25,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Allow the log level for all transformerlab.* loggers to be controlled via
-# an env var.  Set TLAB_LOG_LEVEL=DEBUG to enable debug output across the
-# entire application (e.g. sweep-status cycle timings).  Defaults to WARNING
-# so debug/info messages are silent unless explicitly requested.
-TLAB_LOG_LEVEL = os.getenv("TLAB_LOG_LEVEL", "WARNING").upper()
-logging.getLogger("transformerlab").setLevel(getattr(logging, TLAB_LOG_LEVEL, logging.WARNING))
-
 from fastchat.constants import (  # noqa: E402
     ErrorCode,
 )
@@ -84,6 +77,18 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # used internally to set constants that are shared between separate processes. They are not meant to be
 # to be overriden by the user.
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
+
+
+# Set TLAB_LOG_LEVEL environment variable to DEBUG, INFO, WARNING or ERROR
+# to control the level of Transformer Lab logging output.
+# Defaults to WARNING.
+TLAB_LOG_LEVEL = os.getenv("TLAB_LOG_LEVEL", "WARNING").upper()
+_log_level = getattr(logging, TLAB_LOG_LEVEL, logging.WARNING)
+logging.getLogger("transformerlab").setLevel(_log_level)
+
+# Create a default root config handler
+# Set level=logging.DEBUG here to get full debug output from imported libraries
+logging.basicConfig()
 
 
 @asynccontextmanager
