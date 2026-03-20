@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
@@ -109,3 +110,26 @@ def test_job_list_running_no_matches(mock_check, mock_get_config, mock_api):
     # Neither completed nor failed jobs should appear
     assert "eval" not in result.output
     assert "export" not in result.output
+
+
+@patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
+@patch("transformerlab_cli.commands.job.get_config", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_list_json_output(mock_check, mock_get_config, mock_api):
+    """job list --format json emits valid JSON array."""
+    result = runner.invoke(app, ["--format", "json", "job", "list"])
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip())
+    assert isinstance(data, list)
+    assert len(data) == 5
+    assert all("id" in job for job in data)
+
+
+@patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
+@patch("transformerlab_cli.commands.job.get_config", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_list_json_no_spinner_text(mock_check, mock_get_config, mock_api):
+    """job list --format json does not emit spinner/decoration text."""
+    result = runner.invoke(app, ["--format", "json", "job", "list"])
+    assert result.exit_code == 0
+    json.loads(result.output.strip())

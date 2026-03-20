@@ -13,7 +13,7 @@ from anyio.streams.text import TextReceiveStream
 
 from transformerlab.services.job_service import job_update_status
 import transformerlab.services.job_service as job_service
-from lab import dirs as Job
+from lab import Job
 from lab import storage
 from lab.job_status import JobStatus
 
