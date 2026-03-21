@@ -94,16 +94,6 @@ class BaseModel:
             "transformers_version": "",
         }
 
-    async def install(self):
-        json_data = await self.get_json_data()
-        from lab.model import Model as ModelService
-
-        try:
-            model_service = await ModelService.create(self.id)
-        except FileExistsError:
-            model_service = await ModelService.get(self.id)
-        await model_service.set_metadata(model_id=self.id, name=self.name, json_data=json_data)
-
 
 # MODEL UTILITY FUNCTIONS
 

@@ -8,12 +8,8 @@ from huggingface_hub.utils import HfHubHTTPError
 from transformers import AutoTokenizer
 
 
-import os
-
-from transformerlab.models import model_helper
-from transformerlab.models import basemodel
+from transformerlab.services import model_service
 from transformerlab.models import huggingfacemodel
-from transformerlab.models import filesystemmodel
 from transformerlab.services.cache_service import cached
 from lab.dirs import get_workspace_dir
 from lab.model import Model as ModelService
@@ -110,49 +106,6 @@ async def upload_model_to_huggingface(
     return {"status": "success", "message": "Model uploaded to Hugging Face: {model_name}"}
 
 
-@router.get("/model/local/{model_id}")
-async def model_details_from_source(model_id: str):
-    # convert "~~~"" in string to "/":
-    model_id = model_id.replace("~~~", "/")
-
-    # Try to get from huggingface first
-    model = model_helper.get_model_by_source_id("huggingface", model_id)
-
-    # If there is no model then try looking in the filesystem
-    if not model:
-        model = model_details_from_filesystem(model_id)
-
-    return model
-
-
-@router.get("/model/details/{model_id}")
-async def model_details_from_filesystem(model_id: str):
-    # convert "~~~"" in string to "/":
-    model_id = model_id.replace("~~~", "/")
-
-    # TODO: Refactor this code with models/list function
-    # see if the model exists locally
-    model_path = await get_model_dir(model_id)
-    if await storage.isdir(model_path):
-        # Look for model information using SDK methods
-        try:
-            from lab.model import Model as ModelService
-
-            model_service = ModelService(model_id)
-            filedata = await model_service.get_metadata()
-
-            # Some models are a single file (possibly of many in a directory, e.g. GGUF)
-            # For models that have model_filename set we should link directly to that specific file
-            if "json_data" in filedata and filedata["json_data"]:
-                return filedata["json_data"]
-
-        except FileNotFoundError:
-            # do nothing: file doesn't exist
-            pass
-
-    return {}
-
-
 @router.get("/model/get_conversation_template")
 async def get_model_prompt_template(model: str):
     # Below we grab the conversation template from FastChat's model adapter
@@ -164,7 +117,7 @@ async def get_model_prompt_template(model: str):
 @cached(key="models:list:{embedding}", ttl="7d", tags=["models", "models:list"])
 async def model_local_list(embedding=False):
     # the model list is a combination of downloaded hugging face models and locally generated models
-    return await model_helper.list_installed_models(embedding)
+    return await model_service.list_installed_models(embedding)
 
 
 @router.get("/model/provenance/{model_id}")
@@ -173,7 +126,7 @@ async def model_provenance(model_id: str):
 
     model_id = model_id.replace("~~~", "/")
 
-    return await model_helper.list_model_provenance(model_id)
+    return await model_service.list_model_provenance(model_id)
 
 
 @router.get("/model/count_downloaded")
@@ -304,144 +257,6 @@ async def get_model_from_db(model_id: str):
     # Get model from filesystem
     model_service = await ModelService.get(model_id)
     return await model_service.get_metadata()
-
-
-@router.get("/model/list_local_uninstalled")
-async def models_list_local_uninstalled(path: str = ""):
-    # first search and get a list of BaseModel objects
-    found_models = []
-    if path is not None and path != "":
-        if os.path.isfile(path):
-            found_models = []
-        elif os.path.isdir(path):
-            found_models = await filesystemmodel.list_models(path)
-        else:
-            return {"status": "error", "message": "Invalid path"}
-
-    # If a folder wasn't given then search known sources for uninstalled models
-    else:
-        found_models = await models_search_for_local_uninstalled()
-
-    # Then iterate through models and return appropriate details
-    response_models = []
-    for found_model in found_models:
-        # Figure out if this model is supported in Transformer Lab
-        supported = True
-        if found_model.status != "OK":
-            status = f"❌ {found_model.status}"
-            supported = False
-        else:
-            status = "✅"
-            supported = True
-
-        new_model = {
-            "id": found_model.id,
-            "name": found_model.name,
-            "path": found_model.source_id_or_path,
-            "source": found_model.source,
-            "installed": False,
-            "status": status,
-            "supported": supported,
-        }
-        response_models.append(new_model)
-
-    return {"status": "success", "data": response_models}
-
-
-async def models_search_for_local_uninstalled():
-    # iterate through each model source and look for uninstalled models
-    modelsources = model_helper.list_model_sources()
-    models = []
-    for source in modelsources:
-        source_models = await model_helper.list_models_from_source(source)
-
-        # Only add uninstalled models
-        for source_model in source_models:
-            installed = await model_helper.is_model_installed(source_model.id)
-            if not installed:
-                models.append(source_model)
-
-    return models
-
-
-@router.get("/model/import_from_source")
-async def model_import_local_source(model_source: str, model_id: str):
-    """
-    Given a model_source and a model_id within that source,
-    try to import a file into TransformerLab.
-    """
-
-    if model_source not in model_helper.list_model_sources():
-        return {"status": "error", "message": f"Invalid model source {model_source}."}
-
-    model = model_helper.get_model_by_source_id(model_source, model_id)
-    if not model:
-        return {"status": "error", "message": f"{model_id} not found in {model_source}."}
-
-    return await model_import(model)
-
-
-@router.get("/model/import_from_local_path")
-async def model_import_local_path(model_path: str):
-    """
-    Given model_path pointing to a local directory of a file,
-    try to import a model into Transformer Lab.
-    """
-
-    # Restrict to workspace directory only
-    workspace_dir = await get_workspace_dir()
-    # Normalize both workspace and input paths
-    abs_workspace_dir = os.path.abspath(os.path.normpath(workspace_dir))
-    abs_model_path = os.path.abspath(os.path.normpath(model_path))
-    if not abs_model_path.startswith(abs_workspace_dir + os.sep):
-        return {
-            "status": "error",
-            "message": f"Path traversal or invalid path detected: {model_path}. Only paths inside {workspace_dir} are allowed.",
-        }
-
-    if os.path.isdir(abs_model_path):
-        model = filesystemmodel.FilesystemModel(abs_model_path)
-    elif os.path.isfile(abs_model_path):
-        model = filesystemmodel.FilesystemGGUFModel(abs_model_path)
-    else:
-        return {"status": "error", "message": f"Invalid model path {model_path}."}
-
-    return await model_import(model)
-
-
-def import_error(message: str):
-    """
-    Separate function just to factor out printing and returning the same error.
-    """
-    print("Import error: %s", message)
-    return {"status": "error", "message": "An internal error has occurred. Please try again later."}
-
-
-async def model_import(model: basemodel.BaseModel):
-    """
-    Called by model import endpoints.
-    Takes a BaseMOdel object and uses the information contained within to import.
-    """
-
-    print(f"Importing {model.id}...")
-
-    # Get full model details
-    json_data = await model.get_json_data()
-
-    # Only add a row for uninstalled and supported repos
-    architecture = json_data.get("architecture", "unknown")
-    if model.status != "OK":
-        return import_error(model.status)
-    if await model_helper.is_model_installed(model.id):
-        return import_error(f"{model.id} is already installed.")
-    if architecture == "unknown" or architecture == "":
-        return import_error("Unable to determine model architecture.")
-
-    await model.install()
-
-    print(f"{model.id} imported successfully.")
-
-    return {"status": "success", "data": model.id}
 
 
 @router.get("/model/chat_template")
