@@ -3,6 +3,7 @@ import typer.core
 from rich.console import Console
 
 from transformerlab_cli.util.logo import show_header
+from transformerlab_cli.util.version_check import check_for_update
 from transformerlab_cli.state import cli_state  # Import the CLI state singleton
 
 from transformerlab_cli.commands.version import app as version_app
@@ -54,6 +55,8 @@ def common_setup(
     cli_state.output_format = format
     if not ctx.invoked_subcommand:
         show_header(console)  # Display the logo when no command is provided
+    elif ctx.invoked_subcommand != "version":
+        check_for_update(console)
 
 
 if __name__ == "__main__":
