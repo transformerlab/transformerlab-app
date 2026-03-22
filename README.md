@@ -32,6 +32,9 @@
   <a href="https://future.mozilla.org/builders/">
     <img src="https://img.shields.io/badge/Backed_by-Mozilla_Builders-black?style=flat&logo=mozilla" alt="Mozilla Builders">
   </a>
+  <a href="https://gitcgr.com/transformerlab/transformerlab-app">
+    <img src="https://gitcgr.com/badge/transformerlab/transformerlab-app.svg" alt="gitcgr" />
+  </a>
 </div>
 
 <br/>
