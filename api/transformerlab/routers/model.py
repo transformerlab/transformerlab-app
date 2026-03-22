@@ -120,15 +120,6 @@ async def model_local_list(embedding=False):
     return await model_service.list_installed_models(embedding)
 
 
-@router.get("/model/provenance/{model_id}")
-async def model_provenance(model_id: str):
-    # Get the provenance of a model along with the jobs that created it and evals that were done on each model
-
-    model_id = model_id.replace("~~~", "/")
-
-    return await model_service.list_model_provenance(model_id)
-
-
 @router.get("/model/count_downloaded")
 async def model_count_downloaded():
     # Currently used to determine if user has any downloaded models
