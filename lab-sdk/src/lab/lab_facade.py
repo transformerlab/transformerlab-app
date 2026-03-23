@@ -564,7 +564,13 @@ class Lab:
             if profiling_temp and self._job:
                 from lab.profiling import copy_profiling_to_job
 
-                _run_async(copy_profiling_to_job(profiling_temp, str(self._job.id)))  # type: ignore[union-attr]
+                _run_async(
+                    copy_profiling_to_job(
+                        profiling_temp,
+                        str(self._job.id),
+                        experiment_id=str(self._experiment.id),
+                    ),  # type: ignore[union-attr]
+                )
         except Exception:
             pass
         _run_async(self._job.update_progress(100))  # type: ignore[union-attr]
@@ -1479,7 +1485,13 @@ class Lab:
             if profiling_temp and self._job:
                 from lab.profiling import copy_profiling_to_job
 
-                _run_async(copy_profiling_to_job(profiling_temp, str(self._job.id)))  # type: ignore[union-attr]
+                _run_async(
+                    copy_profiling_to_job(
+                        profiling_temp,
+                        str(self._job.id),
+                        experiment_id=str(self._experiment.id),
+                    ),  # type: ignore[union-attr]
+                )
         except Exception:
             pass
         _run_async(self._job.update_job_data_field("completion_status", "failed"))  # type: ignore[union-attr]

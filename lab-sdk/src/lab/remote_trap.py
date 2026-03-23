@@ -242,7 +242,8 @@ def main(argv: List[str] | None = None) -> int:
     # Copy profiling output from temp dir into job's profiling folder (same as lab.finish/error).
     if profiling_temp_dir and job_id:
         try:
-            asyncio.run(copy_profiling_to_job(profiling_temp_dir, job_id))
+            experiment_id = os.environ.get("_TFL_EXPERIMENT_ID")
+            asyncio.run(copy_profiling_to_job(profiling_temp_dir, job_id, experiment_id=experiment_id))
         except Exception:
             pass
         try:

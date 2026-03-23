@@ -1738,7 +1738,7 @@ async def get_profiling_report(
     """
     from lab.dirs import get_job_profiling_dir
 
-    profiling_dir = await get_job_profiling_dir(job_id)
+    profiling_dir = await get_job_profiling_dir(job_id, experimentId)
     report_path = storage.join(profiling_dir, "profiling_report.json")
 
     if not await storage.exists(report_path):

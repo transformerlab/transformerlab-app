@@ -334,7 +334,7 @@ class Job(BaseLabResource):
         """
         Get the profiling directory path for this job.
         """
-        return await dirs.get_job_profiling_dir(self.id)
+        return await dirs.get_job_profiling_dir(self.id, self.experiment_id)
 
     async def get_checkpoint_paths(self):
         """

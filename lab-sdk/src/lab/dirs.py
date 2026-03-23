@@ -275,12 +275,22 @@ async def get_job_artifacts_dir(job_id: str | int, experiment_id: str) -> str:
     return path
 
 
-async def get_job_profiling_dir(job_id: str | int) -> str:
+async def get_job_profiling_dir(job_id: str | int, experiment_id: str | None = None) -> str:
     """
     Return the profiling directory for a specific job, creating it if needed.
-    Example: ~/.transformerlab/workspace/jobs/<job_id>/profiling
+
+    Layout:
+        {workspace}/experiments/{experiment_id}/jobs/{job_id}/profiling
+
+    If `experiment_id` is not provided, this function will attempt to resolve it from
+    the `_TFL_EXPERIMENT_ID` environment variable (used by the remote-trap wrapper).
     """
-    job_dir = await get_job_dir(job_id)
+    if experiment_id is None:
+        experiment_id = os.environ.get("_TFL_EXPERIMENT_ID")
+    if not experiment_id:
+        raise ValueError(f"experiment_id is required for profiling dir (job_id={job_id})")
+
+    job_dir = await get_job_dir(job_id, experiment_id)
     path = storage.join(job_dir, "profiling")
     await storage.makedirs(path, exist_ok=True)
     return path
