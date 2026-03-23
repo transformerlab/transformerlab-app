@@ -95,15 +95,15 @@ def generate_github_clone_setup(
 
     if directory:
         setup_script = (
-            f"git clone --depth 1 --sparse --filter=blob:none -q {branch_flag}{repo_url_with_auth} {clone_dir}; "
-            f"cd {clone_dir}; "
-            f"git sparse-checkout set '{escaped_directory}'; "
+            f"git clone --depth 1 --sparse --filter=blob:none -q {branch_flag}{repo_url_with_auth} {clone_dir} && "
+            f"cd {clone_dir} && "
+            f"git sparse-checkout set '{escaped_directory}' && "
             f"if [ -d '{escaped_directory}' ]; then "
-            f"cp -r '{escaped_directory}' $HOME/; cd $HOME; rm -rf {clone_dir}; "
-            f"else echo 'Warning: Directory {escaped_directory} not found in repository'; cd $HOME; rm -rf {clone_dir}; fi"
+            f"cp -r '{escaped_directory}' $HOME/ && cd $HOME && rm -rf {clone_dir}; "
+            f"else echo 'Warning: Directory {escaped_directory} not found in repository'; cd $HOME; rm -rf {clone_dir}; exit 1; fi"
         )
     else:
-        setup_script = f"git clone --depth 1 -q {branch_flag}{repo_url_with_auth} {clone_dir}; cp -r {clone_dir}/* .; rm -rf {clone_dir}"
+        setup_script = f"git clone --depth 1 -q {branch_flag}{repo_url_with_auth} {clone_dir} && cp -r {clone_dir}/* . && rm -rf {clone_dir}"
 
     return setup_script
 
