@@ -11,12 +11,25 @@ export async function login(page: Page) {
   await page.goto('/');
 
   // Fresh installs show a first-user bootstrap form instead of seeded admin credentials.
-  const baseUrl = page.url().replace(/\/$/, '');
+  const createFirstUserButton = page.getByRole('button', {
+    name: 'Create First User',
+  });
+  if ((await createFirstUserButton.count()) > 0) {
+    await page.getByPlaceholder('First Name').fill('Admin');
+    await page.getByPlaceholder('Last Name').fill('User');
+    await page.getByPlaceholder('Email Address').fill('admin@example.com');
+    await page.getByPlaceholder('Password').fill('admin123');
+    await page.getByPlaceholder('Confirm Password').fill('admin123');
+    await createFirstUserButton.click();
+    await expect(page.locator('.Sidebar')).toBeVisible({
+      timeout: 15000,
+    });
+    return;
+  }
+
   try {
-    const setupStatusRes = await page.request.get(
-      `${baseUrl}/auth/setup/status`,
-    );
-    if (setupStatusRes.ok) {
+    const setupStatusRes = await page.request.get('/auth/setup/status');
+    if (setupStatusRes.ok()) {
       const setupData = await setupStatusRes.json();
       if (setupData && setupData.has_users === false) {
         await page.getByPlaceholder('First Name').fill('Admin');
