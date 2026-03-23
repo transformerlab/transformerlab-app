@@ -27,6 +27,8 @@ from transformerlab_cli.util.ui import console, exit_with_no_results
 
 app = typer.Typer()
 
+ACTIVE_JOB_STATUSES = {"RUNNING", "LAUNCHING", "INTERACTIVE", "WAITING"}
+
 
 def _fetch_all_jobs(experiment_id: str) -> list[dict]:
     """Fetch all jobs from the API for a specific experiment."""
@@ -140,7 +142,7 @@ def list_jobs(experiment_id: str, running_only: bool = False):
         jobs = _fetch_all_jobs(experiment_id)
 
     if running_only:
-        jobs = [j for j in jobs if j.get("status") in ("RUNNING", "LAUNCHING", "INTERACTIVE")]
+        jobs = [j for j in jobs if j.get("status") in ACTIVE_JOB_STATUSES]
 
     if output_format == "json":
         print(json.dumps(jobs))
@@ -364,9 +366,6 @@ def download_single_artifact(job_id: str, filename: str, output_dir: str) -> str
     return None
 
 
-ACTIVE_JOB_STATUSES = {"RUNNING", "LAUNCHING", "INTERACTIVE", "WAITING"}
-
-
 def fetch_logs(experiment_id: str, job_id: str):
     """Fetch current provider logs for a job."""
     return api.get(f"/experiment/{experiment_id}/jobs/{job_id}/provider_logs", timeout=15.0)
@@ -472,7 +471,9 @@ def command_job_logs(
 
 @app.command("list")
 def command_job_list(
-    running: bool = typer.Option(False, "--running", help="Show only currently running jobs"),
+    running: bool = typer.Option(
+        False, "--running", help="Show only active jobs (WAITING, LAUNCHING, RUNNING, INTERACTIVE)"
+    ),
 ):
     """List all jobs."""
     check_configs()
