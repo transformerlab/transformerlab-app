@@ -118,11 +118,11 @@ async def lifespan(app: FastAPI):
     # Seed default admin user
     await seed_default_admin_user()
 
-    # # One-time migration: legacy workspace/jobs -> workspace/experiments/<exp_id>/jobs
-    # # Runs in the background so it doesn't delay the API startup.
-    # from transformerlab.services.migrate_jobs_to_experiment_dirs import start_jobs_migration_worker
+    # One-time migration: legacy workspace/jobs -> workspace/experiments/<exp_id>/jobs
+    # Runs in the background so it doesn't delay the API startup.
+    from transformerlab.services.migrate_jobs_to_experiment_dirs import start_jobs_migration_worker
 
-    # await start_jobs_migration_worker()
+    await start_jobs_migration_worker()
 
     # Create buckets/folders for all existing teams if cloud or localfs storage is enabled
     tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
@@ -168,9 +168,9 @@ async def lifespan(app: FastAPI):
     await stop_sweep_status_worker()
     await stop_remote_job_status_worker()
     await stop_notification_worker()
-    # from transformerlab.services.migrate_jobs_to_experiment_dirs import stop_jobs_migration_worker
+    from transformerlab.services.migrate_jobs_to_experiment_dirs import stop_jobs_migration_worker
 
-    # await stop_jobs_migration_worker()
+    await stop_jobs_migration_worker()
     await db.close()
     # Run the clean up function
     cleanup_at_exit()
