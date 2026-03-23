@@ -8,7 +8,7 @@ from transformerlab_cli.util.config import VALID_CONFIG_KEYS, get_config, list_c
 from transformerlab_cli.util.ui import console
 
 
-def _print_get_error(message: str, output_format: str) -> None:
+def _print_error_and_exit(message: str, output_format: str) -> None:
     if output_format == "json":
         print(json.dumps({"error": message}))
     else:
@@ -32,7 +32,7 @@ def command_config(
 
     if parsed_args[0] == "set":
         if len(parsed_args) != 3:
-            _print_get_error("Usage: lab config set <key> <value>", output_format)
+            _print_error_and_exit("Usage: lab config set <key> <value>", output_format)
         key = parsed_args[1]
         value = parsed_args[2]
         if key not in VALID_CONFIG_KEYS:
@@ -42,17 +42,17 @@ def command_config(
             else:
                 console.print(f"[error]Error:[/error] Invalid config key '{key}'")
                 console.print(f"[warning]Valid keys:[/warning] {keys_list}")
-            return
+            raise typer.Exit(1)
         set_config(key, value, output_format=output_format)
         return
 
     if parsed_args[0] == "get":
         if len(parsed_args) != 2:
-            _print_get_error("Usage: lab config get <key>", output_format)
+            _print_error_and_exit("Usage: lab config get <key>", output_format)
         key = parsed_args[1]
     else:
         if len(parsed_args) != 1:
-            _print_get_error("To set config, use: lab config set <key> <value>", output_format)
+            _print_error_and_exit("To set config, use: lab config set <key> <value>", output_format)
         key = parsed_args[0]
 
     if key not in VALID_CONFIG_KEYS:
@@ -66,7 +66,7 @@ def command_config(
 
     value = get_config(key)
     if value is None:
-        _print_get_error(f"Config key '{key}' is not set", output_format)
+        _print_error_and_exit(f"Config key '{key}' is not set", output_format)
 
     if output_format == "json":
         print(json.dumps({"key": key, "value": value}))

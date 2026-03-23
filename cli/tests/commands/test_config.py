@@ -33,6 +33,14 @@ def test_config_with_key_fetches_value(tmp_config_dir):
         assert "http://localhost:8338" in result.output
 
 
+def test_config_error_helper_uses_generic_name():
+    """Ensure helper name reflects both get/set error handling."""
+    import transformerlab_cli.commands.config as config_cmd
+
+    assert hasattr(config_cmd, "_print_error_and_exit")
+    assert not hasattr(config_cmd, "_print_get_error")
+
+
 # --- URL validation ---
 
 
@@ -95,7 +103,9 @@ def test_set_and_get_config(tmp_config_dir):
 def test_set_config_invalid_key(tmp_config_dir):
     config_dir, config_file = tmp_config_dir
     with _patch_config_paths(config_dir, config_file):
-        assert set_config("invalid_key", "value") is False
+        result = runner.invoke(app, ["config", "set", "invalid_key", "value"])
+        assert result.exit_code == 1
+        assert "Invalid config key 'invalid_key'" in result.output
 
 
 def test_delete_config(tmp_config_dir):
@@ -176,7 +186,7 @@ def test_config_set_invalid_key_json_format(tmp_config_dir):
     config_dir, config_file = tmp_config_dir
     with _patch_config_paths(config_dir, config_file):
         result = runner.invoke(app, ["--format=json", "config", "set", "bad_key", "value"])
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         output = json.loads(result.output.strip())
         assert "error" in output
 
