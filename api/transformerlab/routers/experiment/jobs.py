@@ -117,13 +117,13 @@ async def get_training_job(job_id: str, experimentId: str):
 
 
 @router.get("/{job_id}/tasks_output")
-async def get_tasks_job_output(job_id: str, sweeps: bool = False):
+async def get_tasks_job_output(job_id: str, experimentId: str, sweeps: bool = False):
     """
     Get Tasks job output with robust error handling.
     Uses the same logic as stream_job_output but returns content directly.
     """
     try:
-        job = await job_service.job_get_cached(job_id)
+        job = await job_service.job_get_cached(job_id, experiment_id=experimentId)
         if job is None:
             return "Job not found"
 
@@ -144,10 +144,10 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                 output_file_name = output_file
             else:
                 # Fall back to regular output file logic
-                output_file_name = await shared.get_job_output_file_name(job_id)
+                output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experimentId)
         else:
             # Try to get output file name with fallback logic
-            output_file_name = await shared.get_job_output_file_name(job_id)
+            output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experimentId)
 
         # Read and return the file content as JSON array of lines
         if await storage.exists(output_file_name):
@@ -164,7 +164,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
             print(f"Output file not found for job {job_id}, retrying in 4 seconds...")
             await asyncio.sleep(4)
             try:
-                output_file_name = await shared.get_job_output_file_name(job_id)
+                output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experimentId)
                 if await storage.exists(output_file_name):
                     async with await storage.open(output_file_name, "r") as f:
                         content = await f.read()
@@ -175,7 +175,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                 # If still no file after retry, create an empty one in the jobs directory
                 print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
                 # Use the Job class to get the proper directory and create the file
-                job_dict = await job_service.job_get_cached(job_id)
+                job_dict = await job_service.job_get_cached(job_id, experiment_id=experimentId)
                 experiment_id = job_dict.get("experiment_id") if job_dict else None
                 if not experiment_id:
                     return []
@@ -219,7 +219,7 @@ async def get_provider_job_logs(
       2. Otherwise, fall back to provider-native log retrieval (existing behavior).
     """
 
-    job = await job_service.job_get_cached(job_id)
+    job = await job_service.job_get_cached(job_id, experiment_id=experimentId)
     if not job or str(job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -387,7 +387,7 @@ async def get_tunnel_info_for_job(
     choose the parser. Supports: 'vscode', 'jupyter', 'vllm', 'ollama', 'ssh'.
     """
 
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if not job or str(job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -570,13 +570,13 @@ async def get_tunnel_info_for_job(
 
 
 @router.get("/{job_id}/stream_output")
-async def stream_job_output(job_id: str, sweeps: bool = False):
+async def stream_job_output(job_id: str, experimentId: str, sweeps: bool = False):
     """
     Stream job output with robust error handling and retry logic.
     Enhanced version combining the best of both train and jobs routers.
     """
     try:
-        job = await job_service.job_get(job_id)
+        job = await job_service.job_get(job_id, experiment_id=experimentId)
 
         job_data = job.get("job_data", {})
 
@@ -595,10 +595,10 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 output_file_name = output_file
             else:
                 # Fall back to regular output file logic
-                output_file_name = await shared.get_job_output_file_name(job_id)
+                output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experimentId)
         else:
             # Try to get output file name with fallback logic
-            output_file_name = await shared.get_job_output_file_name(job_id)
+            output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experimentId)
 
     except ValueError as e:
         # If the value error starts with "No output file found for job" then wait 4 seconds and try again
@@ -607,12 +607,12 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
             print(f"Output file not found for job {job_id}, retrying in 4 seconds...")
             await asyncio.sleep(4)
             try:
-                output_file_name = await shared.get_job_output_file_name(job_id)
+                output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experimentId)
             except Exception as retry_e:
                 # If still no file after retry, create an empty one in the jobs directory
                 print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
                 # Use the Job class to get the proper directory and create the file
-                job_dict = await job_service.job_get_cached(job_id)
+                job_dict = await job_service.job_get_cached(job_id, experiment_id=experimentId)
                 experiment_id = job_dict.get("experiment_id") if job_dict else None
                 if not experiment_id:
                     return StreamingResponse(
@@ -767,9 +767,9 @@ async def get_generated_dataset(job_id: str, experimentId: str):
 
 
 @router.get("/{job_id}/get_eval_results")
-async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0):
+async def get_eval_results(job_id: str, experimentId: str, task: str = "view", file_index: int = 0):
     """Get evaluation results for a job"""
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -993,12 +993,12 @@ async def get_eval_image(job_id: str, filename: str, experimentId: str):
 
 
 @router.get("/{job_id}/checkpoints")
-async def get_checkpoints(job_id: str, request: Request):
+async def get_checkpoints(job_id: str, experimentId: str, request: Request):
     if job_id is None or job_id == "" or job_id == "-1":
         return {"checkpoints": []}
 
     """Get list of checkpoints for a job"""
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return {"checkpoints": []}
 
@@ -1107,7 +1107,7 @@ async def get_checkpoints(job_id: str, request: Request):
 
 
 @router.get("/{job_id}/artifacts")
-async def get_artifacts(job_id: str, request: Request):
+async def get_artifacts(job_id: str, experimentId: str, request: Request):
     """Get list of artifacts for a job"""
 
     # Validate job_id
@@ -1120,7 +1120,7 @@ async def get_artifacts(job_id: str, request: Request):
     try:
         from lab.dirs import get_job_artifacts_dir
 
-        job_dict = await job_service.job_get_cached(job_id)
+        job_dict = await job_service.job_get_cached(job_id, experiment_id=experimentId)
         experiment_id = job_dict.get("experiment_id") if job_dict else None
         if not experiment_id:
             return {"artifacts": []}
@@ -1166,7 +1166,7 @@ async def download_all_artifacts(job_id: str):
 
 
 @router.get("/{job_id}/artifact/{filename}")
-async def get_artifact(job_id: str, filename: str, task: str = "view"):
+async def get_artifact(job_id: str, experimentId: str, filename: str, task: str = "view"):
     """
     Serve individual artifact files for viewing or downloading.
 
@@ -1175,7 +1175,7 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
         filename: The artifact filename
         task: Either "view" or "download" (default: "view")
     """
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
 
@@ -1296,14 +1296,14 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
 
 
 @router.get("/{job_id}")
-async def get_training_job_by_path(job_id: str):
-    return await job_service.job_get(job_id)
+async def get_training_job_by_path(job_id: str, experimentId: str):
+    return await job_service.job_get(job_id, experiment_id=experimentId)
 
 
 @router.get("/{job_id}/output")
-async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
+async def get_training_job_output_jobpath(job_id: str, experimentId: str, sweeps: bool = False):
     try:
-        job = await job_service.job_get(job_id)
+        job = await job_service.job_get(job_id, experiment_id=experimentId)
         if job is None:
             return "Job not found"
 
@@ -1349,9 +1349,9 @@ async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
 
 
 @router.get("/{job_id}/sweep_results")
-async def sweep_results(job_id: str):
+async def sweep_results(job_id: str, experimentId: str):
     try:
-        job = await job_service.job_get(job_id)
+        job = await job_service.job_get(job_id, experiment_id=experimentId)
         if job is None:
             return {"status": "error", "message": "Job not found."}
 

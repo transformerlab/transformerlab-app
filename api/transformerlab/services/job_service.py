@@ -26,6 +26,54 @@ ALLOWED_JOB_TYPES = [
     "SWEEP",
 ]
 
+SHORT_JOB_ID_LEN = 8
+
+
+def get_short_job_id(job_id: str | int, length: int = SHORT_JOB_ID_LEN) -> str:
+    return str(job_id)[:length]
+
+
+async def _resolve_full_job_id(job_id: str, experiment_id: str) -> Optional[str]:
+    """
+    Resolve an incoming job identifier within an experiment.
+
+    - If exact job dir exists, return as-is.
+    - Otherwise treat it as a prefix and return the unique match.
+    - If none or ambiguous, return None.
+    """
+    from lab.dirs import get_jobs_dir
+
+    jobs_dir = await get_jobs_dir(experiment_id)
+    exact_path = storage.join(jobs_dir, str(job_id))
+    if await storage.exists(exact_path):
+        return str(job_id)
+
+    try:
+        entries = await storage.ls(jobs_dir, detail=False)
+    except Exception:
+        return None
+
+    matches: list[str] = []
+    prefix = str(job_id)
+    for entry in entries:
+        entry_path = entry if isinstance(entry, str) else str(entry)
+        entry_id = entry_path.rstrip("/").split("/")[-1]
+        if entry_id.startswith(prefix):
+            matches.append(entry_id)
+
+    if len(matches) == 1:
+        return matches[0]
+    return None
+
+
+def _add_short_id(job_dict: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not job_dict:
+        return job_dict
+    job_id = job_dict.get("id")
+    if job_id is not None:
+        job_dict["short_id"] = get_short_job_id(str(job_id))
+    return job_dict
+
 
 async def job_create(type, status, experiment_id, job_data="{}"):
     # check if type is allowed
@@ -58,7 +106,8 @@ async def job_create(type, status, experiment_id, job_data="{}"):
 
 async def jobs_get_all(experiment_id, type="", status=""):
     exp_obj = Experiment(experiment_id)
-    return await exp_obj.get_jobs(type, status)
+    jobs = await exp_obj.get_jobs(type, status)
+    return [_add_short_id(job) for job in jobs]
 
 
 async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
@@ -95,8 +144,11 @@ async def _job_get_live(job_id: str, experiment_id: Optional[str]) -> Optional[D
     if not experiment_id:
         raise ValueError(f"experiment_id is required for job lookup (job_id={job_id})")
     try:
-        job = await Job.get(job_id, experiment_id)
-        return await job.get_json_data(uncached=True)
+        resolved_job_id = await _resolve_full_job_id(str(job_id), str(experiment_id))
+        if not resolved_job_id:
+            return None
+        job = await Job.get(resolved_job_id, experiment_id)
+        return _add_short_id(await job.get_json_data(uncached=True))
     except Exception as e:
         print("Error getting job data", e)
         return None
@@ -118,7 +170,14 @@ async def job_get_cached(job_id: str, experiment_id: Optional[str] = None) -> Op
       2. Fallback to live Job.get(...).get_json_data(uncached=True).
       3. If live status is terminal, persist to cache for future reads.
     """
-    key = _job_cache_key(job_id)
+    if not experiment_id:
+        raise ValueError(f"experiment_id is required for job lookup (job_id={job_id})")
+
+    resolved_job_id = await _resolve_full_job_id(str(job_id), str(experiment_id))
+    if not resolved_job_id:
+        return None
+
+    key = _job_cache_key(resolved_job_id)
 
     # 1) Try cache first
     cached = await cache.get(key)
@@ -126,7 +185,7 @@ async def job_get_cached(job_id: str, experiment_id: Optional[str] = None) -> Op
         return cached
 
     # 2) Fallback to live
-    job_dict = await _job_get_live(job_id, experiment_id)
+    job_dict = await _job_get_live(resolved_job_id, experiment_id)
     if not job_dict:
         return None
 
@@ -134,7 +193,7 @@ async def job_get_cached(job_id: str, experiment_id: Optional[str] = None) -> Op
     status = job_dict.get("status")
     if is_terminal_state(status):
         try:
-            await cache.set(key, job_dict, ttl="7d", tags=["jobs", f"job:{job_id}"])
+            await cache.set(key, job_dict, ttl="7d", tags=["jobs", f"job:{resolved_job_id}"])
         except Exception:
             # Best-effort – ignore cache errors.
             pass

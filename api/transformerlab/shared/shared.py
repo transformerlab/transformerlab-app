@@ -155,6 +155,7 @@ async def async_run_python_script_and_update_status(
     if env:
         process_env.update(env)
 
+    experiment_id = process_env.get("_TFL_EXPERIMENT_ID")
     process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, env=process_env)
 
     # read stderr and print:
@@ -163,13 +164,11 @@ async def async_run_python_script_and_update_status(
             print(">> " + text)
             if begin_string in text:
                 print(f"Job {job_id} now in progress!")
-                job = await job_service.job_get(job_id)
-                experiment_id = job.get("experiment_id") if job else None
                 await job_update_status(job_id=job_id, status=JobStatus.RUNNING, experiment_id=experiment_id)
 
             # Check the job_data column for the stop flag:
-            job_row = await job_service.job_get(job_id)
-            job_data = job_row.get("job_data", None)
+            job_row = await job_service.job_get(job_id, experiment_id=experiment_id) if experiment_id else None
+            job_data = job_row.get("job_data", None) if job_row else None
             if job_data and job_data.get("stop", False):
                 print(f"Job {job_id}: 'stop' flag detected. Cancelling job.")
                 raise asyncio.CancelledError()
@@ -179,13 +178,9 @@ async def async_run_python_script_and_update_status(
 
         if process.returncode == 0:
             print(f"Job {job_id} completed successfully")
-            job = await job_service.job_get(job_id)
-            experiment_id = job.get("experiment_id") if job else None
             await job_update_status(job_id=job_id, status=JobStatus.COMPLETE, experiment_id=experiment_id)
         else:
             print(f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
-            job = await job_service.job_get(job_id)
-            experiment_id = job.get("experiment_id") if job else None
             await job_update_status(job_id=job_id, status=JobStatus.FAILED, experiment_id=experiment_id)
 
         return process
@@ -201,10 +196,7 @@ async def async_run_python_script_and_update_status(
 
 async def get_job_output_file_name(job_id: str, plugin_name: str = None, experiment_name: str = None):
     try:
-        experiment_id = experiment_name
-        if not experiment_id:
-            job_row = await job_service.job_get(job_id)
-            experiment_id = job_row.get("experiment_id") if job_row else None
+        experiment_id = experiment_name or os.environ.get("_TFL_EXPERIMENT_ID")
 
         if not experiment_id:
             raise FileNotFoundError(f"Job '{job_id}' not found in any experiment directory")
