@@ -83,16 +83,35 @@ export async function selectFirstExperiment(page: Page) {
     .locator('.Sidebar button[aria-haspopup="menu"]')
     .first();
   await menuTrigger.click();
-  const dropdown = page.locator('.select-experiment-menu').first();
+  const dropdown = page.locator('.select-experiment-menu:visible').first();
   await dropdown.waitFor({ state: 'visible', timeout: 10000 });
-  // Wait for experiments to load — skip "Loading..." and the "New" item at the end
-  // by waiting for a menuitem that is NOT "Loading..." and NOT "New"
-  const experimentItem = dropdown
+
+  // Wait until the loading sentinel is gone before counting items.
+  const loadingItem = dropdown.getByRole('menuitem', { name: 'Loading...' });
+  if ((await loadingItem.count()) > 0) {
+    await expect(loadingItem).toBeHidden({ timeout: 10000 });
+  }
+
+  // Existing experiments are every menuitem except "New".
+  const experimentItems = dropdown
     .getByRole('menuitem')
-    .filter({ hasNotText: /^(Loading\.\.\.|New)$/ })
-    .first();
-  await expect(experimentItem).toBeVisible({ timeout: 10000 });
-  await experimentItem.click();
+    .filter({ hasNotText: /^New$/ });
+
+  if ((await experimentItems.count()) > 0) {
+    await experimentItems.first().click();
+  } else {
+    // Fresh installs can start with zero experiments; create one on demand.
+    await dropdown.getByRole('menuitem', { name: 'New' }).click();
+    const newExperimentDialog = page.getByRole('dialog', {
+      name: 'New Experiment',
+    });
+    await expect(newExperimentDialog).toBeVisible({ timeout: 10000 });
+    await newExperimentDialog
+      .getByPlaceholder('Experiment Name')
+      .fill(`smoke-${Date.now()}`);
+    await newExperimentDialog.getByRole('button', { name: 'Create' }).click();
+  }
+
   // Wait for dropdown to close and menu trigger to no longer say "Select"
   await expect(dropdown).toBeHidden({ timeout: 10000 });
   await expect(menuTrigger).not.toHaveText(/^Select\s*$/, { timeout: 15000 });
