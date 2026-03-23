@@ -1482,14 +1482,11 @@ class Lab:
                 _run_async(copy_profiling_to_job(profiling_temp, str(self._job.id)))  # type: ignore[union-attr]
         except Exception:
             pass
-        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_status", "failed"))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_details", message))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("status", JobStatus.FAILED))  # type: ignore[union-attr]
 
-        # Important: update cached_jobs after the job_data fields are written.
-        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
 
     def _detect_and_capture_wandb_url(self) -> None:
         """
