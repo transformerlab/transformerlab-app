@@ -16,13 +16,25 @@ import json
 import subprocess
 import sys
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 COLORS = [
-    "#58a6ff", "#f78166", "#7ee787", "#d2a8ff", "#f0e68c",
-    "#ff9bce", "#76e4f7", "#ffa657", "#a5d6ff", "#cea5fb",
-    "#f69d50", "#56d364", "#e2c5ff", "#ffc680", "#8bd5ca",
+    "#58a6ff",
+    "#f78166",
+    "#7ee787",
+    "#d2a8ff",
+    "#f0e68c",
+    "#ff9bce",
+    "#76e4f7",
+    "#ffa657",
+    "#a5d6ff",
+    "#cea5fb",
+    "#f69d50",
+    "#56d364",
+    "#e2c5ff",
+    "#ffc680",
+    "#8bd5ca",
 ]
 
 HTML_TEMPLATE = """\
@@ -307,9 +319,10 @@ rebuildAll();
 def fetch_prs(limit: int) -> list[dict]:
     """Fetch PRs using the gh CLI."""
     result = subprocess.run(
-        ["gh", "pr", "list", "--state", "all", "--limit", str(limit),
-         "--json", "author,createdAt"],
-        capture_output=True, text=True, check=True,
+        ["gh", "pr", "list", "--state", "all", "--limit", str(limit), "--json", "author,createdAt"],
+        capture_output=True,
+        text=True,
+        check=True,
     )
     return json.loads(result.stdout)
 
@@ -388,6 +401,7 @@ def main() -> None:
 
     if args.open:
         import webbrowser
+
         webbrowser.open(f"file://{out_path.resolve()}")
 
 
