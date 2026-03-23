@@ -1434,10 +1434,12 @@ async def save_dataset_to_registry(
                 raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
             target_name_secure = secure_filename(target_name)
 
-            # Verify the group exists in the asset versioning system.
+            # Verify the group exists — either in the asset versioning system
+            # or as a physical folder in the registry directory (legacy entries).
             existing_groups = await asset_version_service.list_groups("dataset")
-            group_exists = any(g["group_name"] == target_name_secure for g in existing_groups)
-            if not group_exists:
+            group_in_versions = any(g["group_name"] == target_name_secure for g in existing_groups)
+            group_on_disk = await storage.exists(storage.join(datasets_registry_dir, target_name_secure))
+            if not group_in_versions and not group_on_disk:
                 raise HTTPException(status_code=404, detail=f"Dataset group '{target_name}' not found in registry")
 
             # Determine the unique folder name for this new version's files.
@@ -1565,10 +1567,12 @@ async def save_model_to_registry(
                 raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
             target_name_secure = secure_filename(target_name)
 
-            # Verify the group exists in the asset versioning system.
+            # Verify the group exists — either in the asset versioning system
+            # or as a physical folder in the registry directory (legacy entries).
             existing_groups = await asset_version_service.list_groups("model")
-            group_exists = any(g["group_name"] == target_name_secure for g in existing_groups)
-            if not group_exists:
+            group_in_versions = any(g["group_name"] == target_name_secure for g in existing_groups)
+            group_on_disk = await storage.exists(storage.join(models_registry_dir, target_name_secure))
+            if not group_in_versions and not group_on_disk:
                 raise HTTPException(status_code=404, detail=f"Model group '{target_name}' not found in registry")
 
             # Determine the unique folder name for this new version's files.
