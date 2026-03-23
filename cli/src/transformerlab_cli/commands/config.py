@@ -7,6 +7,7 @@ from transformerlab_cli.state import cli_state
 from transformerlab_cli.util.config import VALID_CONFIG_KEYS, get_config, list_config, set_config
 from transformerlab_cli.util.ui import console
 
+
 def _print_get_error(message: str, output_format: str) -> None:
     if output_format == "json":
         print(json.dumps({"error": message}))
