@@ -5,7 +5,6 @@ from transformerlab.services.group_status_service import (
     compute_parent_group_counts,
     apply_parent_group_updates,
     refresh_group_parent,
-    FAILED_TERMINAL_STATUSES,
 )
 
 
