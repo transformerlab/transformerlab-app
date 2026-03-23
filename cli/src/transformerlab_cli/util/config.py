@@ -44,7 +44,6 @@ def _save_config(config: dict[str, Any]) -> bool:
         cached_config = config
         return True
     except OSError as e:
-        # THEME: [red] -> [error]
         console.print(f"[error]Error:[/error] Failed to save config: {e}")
         return False
 
@@ -54,7 +53,6 @@ def list_config() -> None:
     config = load_config()
 
     if not config:
-        # THEME: [yellow] -> [warning]
         console.print("[warning]No configuration values set[/warning]")
         return
 
@@ -84,7 +82,7 @@ def _validate_url(url: str) -> str | None:
             return None
         normalized = url.rstrip("/")
         return normalized
-    except Exception:
+    except ValueError:
         return None
 
 
@@ -115,7 +113,6 @@ def set_config(key: str, value: str) -> bool:
     config[key] = value
 
     if _save_config(config):
-        # THEME: [green] -> [success], [cyan] -> [label], [green] -> [value]
         console.print(f"[success]✓[/success] Set [label]{key}[/label] = [value]{value}[/value]")
         return True
     return False
@@ -126,14 +123,12 @@ def delete_config(key: str) -> bool:
     config = load_config()
 
     if key not in config:
-        # THEME: [yellow] -> [warning]
         console.print(f"[warning]Key '{key}' not found[/warning]")
         return False
 
     del config[key]
 
     if _save_config(config):
-        # THEME: [green] -> [success], [cyan] -> [label]
         console.print(f"[success]✓[/success] Deleted [label]{key}[/label]")
         return True
     return False
@@ -163,11 +158,8 @@ def check_configs(output_format: str = "pretty") -> None:
     server = config.get("server", "N/A")
     experiment = config.get("current_experiment", "N/A")
 
-    # THEME: Use "header" for table headers
     table = Table(show_header=True, header_style="header", box=None, title_justify="left")
 
-    # THEME: Use "value" for the actual data columns (previously cyan)
-    # This keeps it consistent with 'whoami' where values are green (or whatever 'value' is mapped to)
     table.add_column("User Email", style="value")
     table.add_column("Team ID", style="value")
     table.add_column("Server", style="value")
@@ -192,7 +184,7 @@ def require_current_experiment() -> str:
     current_experiment = get_config("current_experiment")
     if not current_experiment or not str(current_experiment).strip():
         console.print(
-            "[yellow]current_experiment is not set in config. Set it with:[/yellow]"
+            "[warning]current_experiment is not set in config. Set it with:[/warning]"
             " [bold]lab config current_experiment <experiment_name>[/bold]"
         )
         raise typer.Exit(1)
