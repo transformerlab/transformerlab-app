@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 async def test_job_create_group_type_allowed():
     """GROUP is a valid job type."""
     from transformerlab.services import job_service
+
     mock_job = AsyncMock()
     mock_job.id = "job-1"
     mock_exp = AsyncMock()
@@ -33,10 +34,9 @@ async def test_jobs_get_group_children_returns_children():
     child2.get_json_data = AsyncMock(return_value={"id": "c2", "status": "RUNNING"})
 
     with patch("transformerlab.services.job_service.Job") as MockJob:
-        MockJob.get = AsyncMock(side_effect=lambda jid: (
-            parent_job_mock if jid == "parent-1"
-            else (child1 if jid == "c1" else child2)
-        ))
+        MockJob.get = AsyncMock(
+            side_effect=lambda jid: parent_job_mock if jid == "parent-1" else (child1 if jid == "c1" else child2)
+        )
         children = await job_service.jobs_get_group_children("parent-1", experiment_id="exp-1")
 
     assert len(children) == 2
@@ -55,9 +55,7 @@ async def test_job_get_group_parent_returns_parent():
     parent_mock.get_json_data = AsyncMock(return_value={"id": "parent-1", "type": "GROUP"})
 
     with patch("transformerlab.services.job_service.Job") as MockJob:
-        MockJob.get = AsyncMock(side_effect=lambda jid: (
-            child_mock if jid == "child-1" else parent_mock
-        ))
+        MockJob.get = AsyncMock(side_effect=lambda jid: child_mock if jid == "child-1" else parent_mock)
         result = await job_service.job_get_group_parent("child-1", experiment_id="exp-1")
 
     assert result["id"] == "parent-1"
