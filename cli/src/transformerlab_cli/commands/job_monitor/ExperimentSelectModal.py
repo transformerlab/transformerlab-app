@@ -1,3 +1,4 @@
+import httpx
 from textual.app import ComposeResult
 from textual.widgets import (
     Static,
@@ -82,7 +83,7 @@ class ExperimentSelectModal(ModalScreen):
                 data = response.json()
             else:
                 data = []
-        except Exception:
+        except httpx.HTTPError:
             data = []
 
         options = [(str(exp.get("id")), exp.get("name")) for exp in data]
@@ -106,9 +107,6 @@ class ExperimentSelectModal(ModalScreen):
 
     @on(Select.Changed, "#experiment-select")
     def select_changed(self, event: Select.Changed) -> None:
-        print(event)
-        print("Experiment selected:", event.value)
-
         if event.value != Select.BLANK:
             set_config("current_experiment", event.value)
             self.app.on_experiment_changed()

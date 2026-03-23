@@ -1,16 +1,13 @@
 import json
 
 import typer
-from rich.console import Console
 
 import transformerlab_cli.util.api as api
 from transformerlab_cli.util.config import check_configs
-from transformerlab_cli.util.ui import render_object, render_table
+from transformerlab_cli.util.ui import console, render_object, render_table
 from transformerlab_cli.state import cli_state
 
 app = typer.Typer()
-
-console = Console()
 
 PROVIDER_TYPES = ["slurm", "skypilot", "runpod", "local"]
 
@@ -42,7 +39,7 @@ PROVIDER_CONFIG_FIELDS: dict[str, list[tuple[str, str]]] = {
 
 def _prompt_provider_type() -> str:
     """Prompt user to select a provider type from a numbered list."""
-    console.print("\n[bold cyan]Provider Types:[/bold cyan]")
+    console.print("\n[bold label]Provider Types:[/bold label]")
     for i, pt in enumerate(PROVIDER_TYPES, 1):
         console.print(f"  [bold]{i}[/bold]. {pt}")
 
@@ -52,9 +49,9 @@ def _prompt_provider_type() -> str:
             idx = int(choice) - 1
             if 0 <= idx < len(PROVIDER_TYPES):
                 return PROVIDER_TYPES[idx]
-            console.print(f"[red]Please enter a number between 1 and {len(PROVIDER_TYPES)}[/red]")
+            console.print(f"[error]Please enter a number between 1 and {len(PROVIDER_TYPES)}[/error]")
         except ValueError:
-            console.print("[red]Please enter a valid number[/red]")
+            console.print("[error]Please enter a valid number[/error]")
 
 
 def _prompt_config_fields(provider_type: str) -> dict:
@@ -63,7 +60,7 @@ def _prompt_config_fields(provider_type: str) -> dict:
     if not fields:
         return {}
 
-    console.print(f"\n[bold cyan]Configuration for {provider_type}:[/bold cyan]")
+    console.print(f"\n[bold label]Configuration for {provider_type}:[/bold label]")
     config: dict = {}
     for field_name, description in fields:
         value = typer.prompt(f"  {description} ({field_name})", default="", show_default=False)
@@ -77,7 +74,7 @@ def _extract_error_detail(response) -> str:
     """Extract error detail from an API response."""
     try:
         return response.json().get("detail", response.text)
-    except Exception:
+    except (ValueError, KeyError):
         return response.text
 
 
@@ -91,7 +88,7 @@ def command_provider_list(
     """List all compute providers."""
     check_configs()
 
-    with console.status("[bold green]Fetching providers...[/bold green]", spinner="dots"):
+    with console.status("[bold success]Fetching providers...[/bold success]", spinner="dots"):
         response = api.get(f"/compute_provider/?include_disabled={str(include_disabled).lower()}")
 
     if response.status_code == 200:
@@ -101,7 +98,7 @@ def command_provider_list(
             data=providers, format_type=cli_state.output_format, table_columns=table_columns, title="Providers"
         )
     else:
-        console.print(f"[red]Error:[/red] Failed to fetch providers. {_extract_error_detail(response)}")
+        console.print(f"[error]Error:[/error] Failed to fetch providers. {_extract_error_detail(response)}")
         raise typer.Exit(1)
 
 
@@ -117,17 +114,17 @@ def command_provider_add(
 
     if not interactive:
         if not name or not provider_type or config is None:
-            console.print("[red]Error:[/red] --name, --type, and --config are required with --no-interactive")
+            console.print("[error]Error:[/error] --name, --type, and --config are required with --no-interactive")
             raise typer.Exit(1)
         if provider_type not in PROVIDER_TYPES:
             console.print(
-                f"[red]Error:[/red] Invalid type '{provider_type}'. Must be one of: {', '.join(PROVIDER_TYPES)}"
+                f"[error]Error:[/error] Invalid type '{provider_type}'. Must be one of: {', '.join(PROVIDER_TYPES)}"
             )
             raise typer.Exit(1)
         try:
             config_dict = json.loads(config)
         except json.JSONDecodeError as e:
-            console.print(f"[red]Error:[/red] Invalid JSON in --config: {e}")
+            console.print(f"[error]Error:[/error] Invalid JSON in --config: {e}")
             raise typer.Exit(1)
     else:
         if not name:
@@ -136,29 +133,29 @@ def command_provider_add(
             provider_type = _prompt_provider_type()
         elif provider_type not in PROVIDER_TYPES:
             console.print(
-                f"[red]Error:[/red] Invalid type '{provider_type}'. Must be one of: {', '.join(PROVIDER_TYPES)}"
+                f"[error]Error:[/error] Invalid type '{provider_type}'. Must be one of: {', '.join(PROVIDER_TYPES)}"
             )
             raise typer.Exit(1)
         if config is not None:
             try:
                 config_dict = json.loads(config)
             except json.JSONDecodeError as e:
-                console.print(f"[red]Error:[/red] Invalid JSON in --config: {e}")
+                console.print(f"[error]Error:[/error] Invalid JSON in --config: {e}")
                 raise typer.Exit(1)
         else:
             config_dict = _prompt_config_fields(provider_type)
 
     payload = {"name": name, "type": provider_type, "config": config_dict}
 
-    with console.status("[bold green]Creating provider...[/bold green]", spinner="dots"):
+    with console.status("[bold success]Creating provider...[/bold success]", spinner="dots"):
         response = api.post_json("/compute_provider/", json_data=payload)
 
     if response.status_code == 200:
         result = response.json()
         provider_id = result.get("id", "unknown")
-        console.print(f"[green]✓[/green] Provider created with ID: [bold]{provider_id}[/bold]")
+        console.print(f"[success]✓[/success] Provider created with ID: [bold]{provider_id}[/bold]")
     else:
-        console.print(f"[red]Error:[/red] Failed to create provider. {_extract_error_detail(response)}")
+        console.print(f"[error]Error:[/error] Failed to create provider. {_extract_error_detail(response)}")
         raise typer.Exit(1)
 
 
@@ -169,16 +166,16 @@ def command_provider_info(
     """Show details for a compute provider."""
     check_configs()
 
-    with console.status(f"[bold green]Fetching provider {provider_id}...[/bold green]", spinner="dots"):
+    with console.status(f"[bold success]Fetching provider {provider_id}...[/bold success]", spinner="dots"):
         response = api.get(f"/compute_provider/{provider_id}")
 
     if response.status_code == 200:
         render_object(response.json(), format_type=cli_state.output_format)
     elif response.status_code == 404:
-        console.print(f"[red]Error:[/red] Provider {provider_id} not found.")
+        console.print(f"[error]Error:[/error] Provider {provider_id} not found.")
         raise typer.Exit(1)
     else:
-        console.print(f"[red]Error:[/red] Failed to fetch provider. {_extract_error_detail(response)}")
+        console.print(f"[error]Error:[/error] Failed to fetch provider. {_extract_error_detail(response)}")
         raise typer.Exit(1)
 
 
@@ -199,27 +196,27 @@ def command_provider_update(
         try:
             payload["config"] = json.loads(config)
         except json.JSONDecodeError as e:
-            console.print(f"[red]Error:[/red] Invalid JSON in --config: {e}")
+            console.print(f"[error]Error:[/error] Invalid JSON in --config: {e}")
             raise typer.Exit(1)
     if disabled is not None:
         payload["disabled"] = disabled
 
     if not payload:
         console.print(
-            "[yellow]Nothing to update.[/yellow] Provide at least one of --name, --config, --disabled/--enabled."
+            "[warning]Nothing to update.[/warning] Provide at least one of --name, --config, --disabled/--enabled."
         )
         raise typer.Exit(0)
 
-    with console.status(f"[bold green]Updating provider {provider_id}...[/bold green]", spinner="dots"):
+    with console.status(f"[bold success]Updating provider {provider_id}...[/bold success]", spinner="dots"):
         response = api.patch(f"/compute_provider/{provider_id}", json_data=payload)
 
     if response.status_code == 200:
-        console.print(f"[green]✓[/green] Provider [bold]{provider_id}[/bold] updated.")
+        console.print(f"[success]✓[/success] Provider [bold]{provider_id}[/bold] updated.")
     elif response.status_code == 404:
-        console.print(f"[red]Error:[/red] Provider {provider_id} not found.")
+        console.print(f"[error]Error:[/error] Provider {provider_id} not found.")
         raise typer.Exit(1)
     else:
-        console.print(f"[red]Error:[/red] Failed to update provider. {_extract_error_detail(response)}")
+        console.print(f"[error]Error:[/error] Failed to update provider. {_extract_error_detail(response)}")
         raise typer.Exit(1)
 
 
@@ -234,16 +231,16 @@ def command_provider_delete(
     if not yes:
         typer.confirm(f"Delete provider {provider_id}?", abort=True)
 
-    with console.status(f"[bold green]Deleting provider {provider_id}...[/bold green]", spinner="dots"):
+    with console.status(f"[bold success]Deleting provider {provider_id}...[/bold success]", spinner="dots"):
         response = api.delete(f"/compute_provider/{provider_id}")
 
     if response.status_code == 200:
-        console.print(f"[green]✓[/green] Provider [bold]{provider_id}[/bold] deleted.")
+        console.print(f"[success]✓[/success] Provider [bold]{provider_id}[/bold] deleted.")
     elif response.status_code == 404:
-        console.print(f"[red]Error:[/red] Provider {provider_id} not found.")
+        console.print(f"[error]Error:[/error] Provider {provider_id} not found.")
         raise typer.Exit(1)
     else:
-        console.print(f"[red]Error:[/red] Failed to delete provider. {_extract_error_detail(response)}")
+        console.print(f"[error]Error:[/error] Failed to delete provider. {_extract_error_detail(response)}")
         raise typer.Exit(1)
 
 
@@ -254,17 +251,17 @@ def command_provider_check(
     """Check connectivity and health of a compute provider."""
     check_configs()
 
-    with console.status(f"[bold green]Checking provider {provider_id}...[/bold green]", spinner="dots"):
+    with console.status(f"[bold success]Checking provider {provider_id}...[/bold success]", spinner="dots"):
         response = api.get(f"/compute_provider/{provider_id}/check", timeout=60.0)
 
     if response.status_code == 200:
         result = response.json()
         render_object(result, format_type=cli_state.output_format)
     elif response.status_code == 404:
-        console.print(f"[red]Error:[/red] Provider {provider_id} not found.")
+        console.print(f"[error]Error:[/error] Provider {provider_id} not found.")
         raise typer.Exit(1)
     else:
-        console.print(f"[red]Error:[/red] Health check failed. {_extract_error_detail(response)}")
+        console.print(f"[error]Error:[/error] Health check failed. {_extract_error_detail(response)}")
         raise typer.Exit(1)
 
 
@@ -275,16 +272,16 @@ def command_provider_enable(
     """Enable a compute provider."""
     check_configs()
 
-    with console.status(f"[bold green]Enabling provider {provider_id}...[/bold green]", spinner="dots"):
+    with console.status(f"[bold success]Enabling provider {provider_id}...[/bold success]", spinner="dots"):
         response = api.patch(f"/compute_provider/{provider_id}", json_data={"disabled": False})
 
     if response.status_code == 200:
-        console.print(f"[green]✓[/green] Provider [bold]{provider_id}[/bold] enabled.")
+        console.print(f"[success]✓[/success] Provider [bold]{provider_id}[/bold] enabled.")
     elif response.status_code == 404:
-        console.print(f"[red]Error:[/red] Provider {provider_id} not found.")
+        console.print(f"[error]Error:[/error] Provider {provider_id} not found.")
         raise typer.Exit(1)
     else:
-        console.print(f"[red]Error:[/red] Failed to enable provider. {_extract_error_detail(response)}")
+        console.print(f"[error]Error:[/error] Failed to enable provider. {_extract_error_detail(response)}")
         raise typer.Exit(1)
 
 
@@ -295,14 +292,14 @@ def command_provider_disable(
     """Disable a compute provider."""
     check_configs()
 
-    with console.status(f"[bold green]Disabling provider {provider_id}...[/bold green]", spinner="dots"):
+    with console.status(f"[bold success]Disabling provider {provider_id}...[/bold success]", spinner="dots"):
         response = api.patch(f"/compute_provider/{provider_id}", json_data={"disabled": True})
 
     if response.status_code == 200:
-        console.print(f"[green]✓[/green] Provider [bold]{provider_id}[/bold] disabled.")
+        console.print(f"[success]✓[/success] Provider [bold]{provider_id}[/bold] disabled.")
     elif response.status_code == 404:
-        console.print(f"[red]Error:[/red] Provider {provider_id} not found.")
+        console.print(f"[error]Error:[/error] Provider {provider_id} not found.")
         raise typer.Exit(1)
     else:
-        console.print(f"[red]Error:[/red] Failed to disable provider. {_extract_error_detail(response)}")
+        console.print(f"[error]Error:[/error] Failed to disable provider. {_extract_error_detail(response)}")
         raise typer.Exit(1)

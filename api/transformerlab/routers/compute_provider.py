@@ -1731,6 +1731,9 @@ async def launch_template_on_provider(
     if provider.type != ProviderType.LOCAL.value:
         setup_commands.append("pip install -q transformerlab")
 
+        # Install torch as well if torch profiler is enabled
+        if request.enable_profiling_torch:
+            setup_commands.append("pip install -q torch")
     # For RunPod providers, ensure uv is available and configured to use the
     # system Python. This allows user commands to invoke `uv` directly.
     if provider.type == ProviderType.RUNPOD.value:
@@ -1837,6 +1840,11 @@ async def launch_template_on_provider(
             secure_filename(project_name),
         )
         await storage.makedirs(shared_path, exist_ok=True)
+
+    if request.enable_profiling:
+        env_vars["_TFL_PROFILING"] = "1"
+        if request.enable_profiling_torch:
+            env_vars["_TFL_PROFILING_TORCH"] = "1"
 
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None

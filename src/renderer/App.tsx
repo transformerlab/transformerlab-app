@@ -18,6 +18,7 @@ import OutputTerminal from './components/OutputTerminal';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
 import AnnouncementBanner from './components/Shared/AnnouncementBanner';
 import InsecurePasswordBanner from './components/Shared/InsecurePasswordBanner';
+import VersionUpdateBanner from './components/Shared/VersionUpdateBanner';
 import { NotificationProvider } from './components/Shared/NotificationSystem';
 import {
   ExperimentInfoProvider,
@@ -154,6 +155,7 @@ function AppContent({
           id="main-app-panel"
         >
           <AnnouncementBanner />
+          <VersionUpdateBanner />
           <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
         </Box>
         {showConnectionLostModal && (
