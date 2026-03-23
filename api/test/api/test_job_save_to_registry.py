@@ -19,7 +19,7 @@ def tmp_workspace(monkeypatch, tmp_path):
     async def mock_get_workspace_dir():
         return str(workspace)
 
-    async def mock_get_jobs_dir():
+    async def mock_get_jobs_dir(experiment_id: str):
         return str(jobs_dir)
 
     async def mock_get_datasets_dir():
