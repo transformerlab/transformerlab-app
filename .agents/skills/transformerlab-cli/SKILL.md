@@ -95,7 +95,7 @@ See `references/commands.md` for full details on every option.
 | `version` | Show CLI version |
 | `task list` | List tasks in current experiment |
 | `task info <id>` | Get task details |
-| `task add <dir>` | Add task from local directory or `--from-git` URL |
+| `task add [dir]` | Add task from local directory or `--from-git` URL |
 | `task delete <id>` | Delete a task |
 | `task queue <id>` | Queue task on a compute provider |
 | `task gallery` | Browse and import from task gallery |

@@ -171,7 +171,7 @@ Add a new compute provider. Interactive prompts by default.
 | `--name <name>` | Provider name |
 | `--type <type>` | Provider type: `slurm`, `skypilot`, `runpod`, `local`. Note: `local` has no config fields. |
 | `--config <json>` | Config as JSON string |
-| `--interactive` / `--no-interactive` | Toggle interactive prompts (default: interactive). Non-interactive requires `--name`, `--type`, and `--config`. |
+| `--interactive` / `--no-interactive` | Toggle interactive prompts (default: interactive). Non-interactive requires `--name` and `--type`; `--config` is also required unless `--type local` (which has no config fields). |
 
 ### `provider update <provider_id>`
 
