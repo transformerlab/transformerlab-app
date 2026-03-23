@@ -285,6 +285,17 @@ async def _check_job_via_provider(
         jobs_finished = not provider_jobs or all(
             getattr(pj, "state", JobState.UNKNOWN) in terminal_job_states for pj in provider_jobs
         )
+        if not provider_jobs:
+            logger.warning(
+                "Remote job status worker: provider returned no jobs for cluster %s (job %s); "
+                "interpreting as terminal and marking COMPLETE unless other terminal signals indicate FAILED/STOPPED.",
+                cluster_name,
+                job_id,
+            )
+            print(
+                f"[remote_job_status_worker] provider returned no jobs for cluster '{cluster_name}' "
+                f"(job {job_id}); interpreting as terminal completion"
+            )
         if jobs_finished:
             end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
             await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)

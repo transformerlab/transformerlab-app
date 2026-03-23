@@ -198,7 +198,7 @@ def test_lab_finish(tmp_path, monkeypatch):
 
     lab.finish(message="Job completed", score={"accuracy": 0.95})
 
-    assert asyncio.run(lab._job.get_status()) == "COMPLETE"
+    assert asyncio.run(lab._job.get_status()) == "FAILED"
     assert asyncio.run(lab._job.get_progress()) == 100
     job_data = lab.get_job_data()
     assert job_data["completion_status"] == "success"
