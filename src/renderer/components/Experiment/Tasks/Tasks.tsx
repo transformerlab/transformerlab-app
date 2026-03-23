@@ -4,16 +4,20 @@ import Sheet from '@mui/joy/Sheet';
 import { Button, LinearProgress, Skeleton, Stack, Typography } from '@mui/joy';
 
 import { PlusIcon, TerminalIcon } from 'lucide-react';
-import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
+import {
+  useSWRWithAuth as useSWR,
+  useAPI,
+  useAuth,
+} from 'renderer/lib/authContext';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
-import { useAuth } from 'renderer/lib/authContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import { analytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
+import GroupParentsList from './GroupParentsList';
 import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveModal from './InteractiveModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
@@ -29,6 +33,7 @@ import ViewSweepResultsModal from './ViewSweepResultsModal';
 import ViewJobDatasetsModal from './ViewJobDatasetsModal';
 import ViewJobModelsModal from './ViewJobModelsModal';
 import FileBrowserModal from './FileBrowserModal';
+import ViewGroupJobsModal from './ViewGroupJobsModal';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
@@ -69,6 +74,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [compareEvalJobIds, setCompareEvalJobIds] = useState<number[]>([]);
   const [isCompareSelectMode, setIsCompareSelectMode] = useState(false);
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
+  const [runsMode, setRunsMode] = useState<'jobs' | 'groups'>('jobs');
+  const [groupModalParentJobId, setGroupModalParentJobId] = useState<
+    string | null
+  >(null);
   const [viewFileBrowserFromJob, setViewFileBrowserFromJob] = useState(-1);
   const [viewTaskFilesFromTask, setViewTaskFilesFromTask] = useState<{
     id: string | null;
@@ -272,6 +281,25 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     return [];
   }, [sweepStatusData]);
 
+  // Fetch GROUP parent jobs (child jobs are still tracked as REMOTE jobs in default mode)
+  const { data: groupStatusData, isLoading: groupsIsLoading } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.ComputeProvider.CheckGroupStatusAll(experimentInfo.id)
+      : null,
+    fetcher,
+    {
+      refreshInterval: 5000, // Poll until group children have updated
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      refreshWhenHidden: true,
+      refreshWhenOffline: false,
+    },
+  );
+
+  const groupParents = useMemo(() => {
+    return Array.isArray(groupStatusData?.jobs) ? groupStatusData.jobs : [];
+  }, [groupStatusData]);
+
   // Combine REMOTE and SWEEP jobs (SWEEP jobs first)
   const jobs = useMemo(() => {
     const remoteJobs = Array.isArray(jobsRemote) ? jobsRemote : [];
@@ -467,6 +495,42 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     const combined = [...placeholders, ...filteredJobs];
     return combined;
   }, [getPendingJobIds, isInteractiveJob, jobs, pendingIdsTrigger, subtype]);
+
+  const activeGroupParentJob = useMemo(() => {
+    if (!groupModalParentJobId) return null;
+    return (
+      groupParents.find((j: any) => String(j.id) === groupModalParentJobId) ||
+      null
+    );
+  }, [groupModalParentJobId, groupParents]);
+
+  const groupChildJobsForModal = useMemo(() => {
+    const parentJobData = activeGroupParentJob?.job_data || {};
+    const childIds = parentJobData.group_job_ids;
+    if (!Array.isArray(childIds) || childIds.length === 0) return [];
+
+    const jobsById = new Map(
+      (Array.isArray(jobs) ? (jobs as any[]) : []).map((j) => [
+        String(j.id),
+        j,
+      ]),
+    );
+
+    // Keep the same order as stored in group_job_ids.
+    return childIds.map((cid) => {
+      const id = String(cid);
+      return (
+        jobsById.get(id) || {
+          id,
+          type: 'REMOTE',
+          status: 'CREATED',
+          progress: 0,
+          job_data: {},
+          placeholder: true,
+        }
+      );
+    });
+  }, [activeGroupParentJob, jobs]);
 
   const handleDeleteTask = (taskId: string, taskName?: string) => {
     setTaskToDelete({ id: taskId, name: taskName });
@@ -1232,100 +1296,182 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         gap={2}
         sx={{ mt: 1 }}
       >
-        <Typography level="title-md">Runs</Typography>
-        <Stack direction="row" gap={1}>
-          <Button
-            size="sm"
-            variant={isCompareSelectMode ? 'solid' : 'outlined'}
-            onClick={() => {
-              setIsCompareSelectMode((prev) => {
-                const next = !prev;
-                if (!next) {
+        <Stack direction="row" alignItems="center" gap={2}>
+          <Typography level="title-md">Runs</Typography>
+          <Stack direction="row" gap={1}>
+            <Button
+              size="sm"
+              variant={runsMode === 'jobs' ? 'solid' : 'outlined'}
+              onClick={() => {
+                setRunsMode('jobs');
+              }}
+            >
+              Jobs
+            </Button>
+            <Button
+              size="sm"
+              variant={runsMode === 'groups' ? 'solid' : 'outlined'}
+              onClick={() => {
+                setRunsMode('groups');
+                if (isCompareSelectMode) {
+                  setIsCompareSelectMode(false);
                   setCompareEvalJobIds([]);
                   setCompareEvalModalOpen(false);
                 }
-                return next;
-              });
-            }}
-          >
-            {isCompareSelectMode ? 'Cancel' : 'Select'}
-          </Button>
-          {isCompareSelectMode && (
-            <Button
-              size="sm"
-              variant="solid"
-              disabled={compareEvalJobIds.length !== 2}
-              onClick={() => {
-                if (compareEvalJobIds.length === 2) {
-                  setCompareEvalModalOpen(true);
-                }
               }}
             >
-              Compare selected evals
+              Groups
             </Button>
-          )}
+          </Stack>
         </Stack>
+        {runsMode === 'jobs' ? (
+          <Stack direction="row" gap={1}>
+            <Button
+              size="sm"
+              variant={isCompareSelectMode ? 'solid' : 'outlined'}
+              onClick={() => {
+                setIsCompareSelectMode((prev) => {
+                  const next = !prev;
+                  if (!next) {
+                    setCompareEvalJobIds([]);
+                    setCompareEvalModalOpen(false);
+                  }
+                  return next;
+                });
+              }}
+            >
+              {isCompareSelectMode ? 'Cancel' : 'Select'}
+            </Button>
+            {isCompareSelectMode && (
+              <Button
+                size="sm"
+                variant="solid"
+                disabled={compareEvalJobIds.length !== 2}
+                onClick={() => {
+                  if (compareEvalJobIds.length === 2) {
+                    setCompareEvalModalOpen(true);
+                  }
+                }}
+              >
+                Compare selected evals
+              </Button>
+            )}
+          </Stack>
+        ) : null}
       </Stack>
       <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
-        <JobsList
-          jobs={jobsWithPlaceholders as any}
-          launchProgressByJobId={launchProgressByJobId}
-          onDeleteJob={handleDeleteJob}
-          onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
-          onViewTensorboard={(jobId) =>
-            setCurrentTensorboardForModal(parseInt(jobId))
-          }
-          onViewCheckpoints={(jobId) =>
-            setViewCheckpointsFromJob(parseInt(jobId))
-          }
-          onViewArtifacts={(jobId) => setViewArtifactsFromJob(parseInt(jobId))}
-          onViewEvalImages={(jobId) =>
-            setViewEvalImagesFromJob(parseInt(jobId))
-          }
-          onViewEvalResults={(jobId) =>
-            setViewEvalResultsFromJob(parseInt(jobId))
-          }
-          onViewGeneratedDataset={(jobId, datasetId) => {
-            setPreviewDatasetModal({ open: true, datasetId });
-          }}
-          onViewJobDatasets={(jobId) =>
-            setViewJobDatasetsFromJob(parseInt(jobId))
-          }
-          onViewJobModels={(jobId) => setViewJobModelsFromJob(parseInt(jobId))}
-          onViewFileBrowser={(jobId) =>
-            setViewFileBrowserFromJob(parseInt(jobId))
-          }
-          onViewSweepOutput={(jobId) => {
-            setViewOutputFromSweepJob(true);
-            setViewOutputFromJob(parseInt(jobId));
-          }}
-          onViewSweepResults={(jobId) => {
-            setViewSweepResultsFromJob(parseInt(jobId));
-          }}
-          onViewInteractive={(jobId) =>
-            setInteractiveJobForModal(parseInt(jobId))
-          }
-          onViewTrackio={(jobId) =>
-            setTrackioJobIdForModal(parseInt(jobId, 10))
-          }
-          loading={jobsIsLoading}
-          selectMode={isCompareSelectMode}
-          selectedJobIds={compareEvalJobIds.map((id) => String(id))}
-          onToggleJobSelected={(jobId) => {
-            setCompareEvalJobIds((prev) => {
-              const id = parseInt(jobId, 10);
-              if (Number.isNaN(id)) return prev;
-              if (prev.includes(id)) {
-                return prev.filter((existing) => existing !== id);
-              }
-              if (prev.length === 0) return [id];
-              if (prev.length === 1) return [...prev, id];
-              // If already two selected, replace the oldest with the new one
-              return [prev[1], id];
-            });
-          }}
-        />
+        {runsMode === 'jobs' ? (
+          <JobsList
+            jobs={jobsWithPlaceholders as any}
+            launchProgressByJobId={launchProgressByJobId}
+            onDeleteJob={handleDeleteJob}
+            onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
+            onViewTensorboard={(jobId) =>
+              setCurrentTensorboardForModal(parseInt(jobId))
+            }
+            onViewCheckpoints={(jobId) =>
+              setViewCheckpointsFromJob(parseInt(jobId))
+            }
+            onViewArtifacts={(jobId) =>
+              setViewArtifactsFromJob(parseInt(jobId))
+            }
+            onViewEvalImages={(jobId) =>
+              setViewEvalImagesFromJob(parseInt(jobId))
+            }
+            onViewEvalResults={(jobId) =>
+              setViewEvalResultsFromJob(parseInt(jobId))
+            }
+            onViewGeneratedDataset={(jobId, datasetId) => {
+              setPreviewDatasetModal({ open: true, datasetId });
+            }}
+            onViewJobDatasets={(jobId) =>
+              setViewJobDatasetsFromJob(parseInt(jobId))
+            }
+            onViewJobModels={(jobId) =>
+              setViewJobModelsFromJob(parseInt(jobId))
+            }
+            onViewFileBrowser={(jobId) =>
+              setViewFileBrowserFromJob(parseInt(jobId))
+            }
+            onViewSweepOutput={(jobId) => {
+              setViewOutputFromSweepJob(true);
+              setViewOutputFromJob(parseInt(jobId));
+            }}
+            onViewSweepResults={(jobId) => {
+              setViewSweepResultsFromJob(parseInt(jobId));
+            }}
+            onViewInteractive={(jobId) =>
+              setInteractiveJobForModal(parseInt(jobId))
+            }
+            onViewTrackio={(jobId) =>
+              setTrackioJobIdForModal(parseInt(jobId, 10))
+            }
+            loading={jobsIsLoading}
+            selectMode={isCompareSelectMode}
+            selectedJobIds={compareEvalJobIds.map((id) => String(id))}
+            onToggleJobSelected={(jobId) => {
+              setCompareEvalJobIds((prev) => {
+                const id = parseInt(jobId, 10);
+                if (Number.isNaN(id)) return prev;
+                if (prev.includes(id)) {
+                  return prev.filter((existing) => existing !== id);
+                }
+                if (prev.length === 0) return [id];
+                if (prev.length === 1) return [...prev, id];
+                // If already two selected, replace the oldest with the new one
+                return [prev[1], id];
+              });
+            }}
+          />
+        ) : (
+          <GroupParentsList
+            groups={groupParents as any}
+            loading={groupsIsLoading}
+            onOpenGroup={setGroupModalParentJobId}
+          />
+        )}
       </Sheet>
+      <ViewGroupJobsModal
+        open={groupModalParentJobId !== null}
+        onClose={() => setGroupModalParentJobId(null)}
+        parentJob={activeGroupParentJob}
+        childJobs={groupChildJobsForModal}
+        loading={jobsIsLoading}
+        onDeleteJob={handleDeleteJob}
+        onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
+        onViewTensorboard={(jobId) =>
+          setCurrentTensorboardForModal(parseInt(jobId))
+        }
+        onViewCheckpoints={(jobId) =>
+          setViewCheckpointsFromJob(parseInt(jobId))
+        }
+        onViewArtifacts={(jobId) => setViewArtifactsFromJob(parseInt(jobId))}
+        onViewEvalImages={(jobId) => setViewEvalImagesFromJob(parseInt(jobId))}
+        onViewEvalResults={(jobId) =>
+          setViewEvalResultsFromJob(parseInt(jobId))
+        }
+        onViewGeneratedDataset={(jobId, datasetId) => {
+          setPreviewDatasetModal({ open: true, datasetId });
+        }}
+        onViewInteractive={(jobId) =>
+          setInteractiveJobForModal(parseInt(jobId))
+        }
+        onViewJobDatasets={(jobId) =>
+          setViewJobDatasetsFromJob(parseInt(jobId))
+        }
+        onViewJobModels={(jobId) => setViewJobModelsFromJob(parseInt(jobId))}
+        onViewFileBrowser={(jobId) =>
+          setViewFileBrowserFromJob(parseInt(jobId))
+        }
+        onViewSweepOutput={(jobId) => {
+          setViewOutputFromSweepJob(true);
+          setViewOutputFromJob(parseInt(jobId));
+        }}
+        onViewSweepResults={(jobId) => {
+          setViewSweepResultsFromJob(parseInt(jobId));
+        }}
+        onViewTrackio={(jobId) => setTrackioJobIdForModal(parseInt(jobId, 10))}
+      />
       <ViewSweepResultsModal
         jobId={viewSweepResultsFromJob}
         setJobId={(jobId: number) => setViewSweepResultsFromJob(jobId)}
