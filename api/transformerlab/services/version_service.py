@@ -30,7 +30,7 @@ async def get_current_version() -> str:
     try:
         version = (await asyncio.to_thread(latest_version_file.read_text, encoding="utf-8")).strip()
         if version:
-            return version
+            return version.lstrip("v")
     except Exception as e:
         logger.warning("Failed to read current version from %s: %s", latest_version_file, e)
 
