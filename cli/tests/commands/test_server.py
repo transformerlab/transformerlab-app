@@ -115,6 +115,7 @@ def test_server_install_writes_file(tmp_path: Path):
             "n",  # skip compute
             "n",  # skip email
             "n",  # skip auth
+            "n",  # skip running install script
         ]
     )
 

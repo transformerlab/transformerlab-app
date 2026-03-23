@@ -1,4 +1,6 @@
 import secrets
+import subprocess
+import sys
 from pathlib import Path
 
 import typer
@@ -275,6 +277,38 @@ def _prompt_auth(existing: dict[str, str]) -> dict[str, str]:
 
 
 # ---------------------------------------------------------------------------
+# Install script runner
+# ---------------------------------------------------------------------------
+
+INSTALL_COMMAND = "curl -fsSL https://lab.cloud/install.sh | bash -s -- multiuser_setup"
+
+
+def _offer_install_script() -> None:
+    """Prompt the user to run the install script and stream output in real time."""
+    console.print(f"\n[info]Install command:[/info] [bold]{INSTALL_COMMAND}[/bold]")
+
+    if not typer.confirm("\nRun the install script now?", default=True):
+        console.print("[dim]Skipped. You can run it manually later.[/dim]")
+        return
+
+    console.print("\n[info]Running install script...[/info]\n")
+    try:
+        process = subprocess.run(
+            ["bash", "-c", INSTALL_COMMAND],
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+        )
+        if process.returncode == 0:
+            console.print("\n[success]Install script completed successfully.[/success]")
+        else:
+            console.print(f"\n[error]Install script exited with code {process.returncode}.[/error]")
+    except KeyboardInterrupt:
+        console.print("\n[warning]Install script interrupted.[/warning]")
+    except OSError as e:
+        console.print(f"\n[error]Failed to run install script: {e}[/error]")
+
+
+# ---------------------------------------------------------------------------
 # .env file builder
 # ---------------------------------------------------------------------------
 
@@ -429,12 +463,14 @@ def server_install(
     _write_env_file(ENV_FILE, env_vars)
     console.print(f"\n[success]Configuration written to {ENV_FILE}[/success]")
 
+    # Run install script
+    _offer_install_script()
+
     # Next steps
+    frontend_url = env_vars.get("FRONTEND_URL", "http://localhost:8338")
     console.print("\n[bold header]Next Steps[/bold header]")
-    console.print("  1. Install or update the Transformer Lab server:")
-    console.print("     [bold]curl -fsSL https://lab.cloud/install.sh | bash -s -- multiuser_setup[/bold]")
-    console.print("  2. Start the server:")
+    console.print("  1. Start the server:")
     console.print("     [bold]cd ~/.transformerlab/src && ./run.sh[/bold]")
-    console.print(f"  3. Open {env_vars.get('FRONTEND_URL', 'http://localhost:8338')} in your browser")
-    console.print(f"  4. Log in with [bold]{env_vars.get('ADMIN_EMAIL', 'admin@example.com')}[/bold]")
+    console.print(f"  2. Open {frontend_url} in your browser")
+    console.print("  3. Log in with [bold]admin@example.com[/bold] / [bold]admin123[/bold]")
     console.print("     [warning]Change the default password immediately![/warning]")
