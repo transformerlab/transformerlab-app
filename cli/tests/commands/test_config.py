@@ -122,3 +122,65 @@ def test_load_config_with_data(tmp_config_dir):
     with _patch_config_paths(config_dir, config_file):
         config = load_config()
         assert config["server"] == "http://test:8338"
+
+
+# --- JSON format output ---
+
+
+def test_config_list_json_format(tmp_config_dir):
+    """Test that --format=json outputs all config keys as JSON."""
+    config_dir, config_file = tmp_config_dir
+    config_data = {
+        "server": "http://localhost:8338",
+        "team_id": "abc-123",
+        "user_email": "user@example.com",
+        "current_experiment": "alpha",
+        "team_name": "Test Team",
+    }
+    config_file.write_text(json.dumps(config_data))
+    with _patch_config_paths(config_dir, config_file):
+        result = runner.invoke(app, ["--format=json", "config"])
+        assert result.exit_code == 0
+        output = json.loads(result.output.strip())
+        assert len(output) == 5
+        keys = {item["Key"] for item in output}
+        assert keys == {"server", "team_id", "user_email", "current_experiment", "team_name"}
+
+
+def test_config_list_json_format_empty(tmp_config_dir):
+    """Test that --format=json outputs empty list when no config exists."""
+    config_dir, config_file = tmp_config_dir
+    with _patch_config_paths(config_dir, config_file):
+        result = runner.invoke(app, ["--format=json", "config"])
+        assert result.exit_code == 0
+        output = json.loads(result.output.strip())
+        assert output == []
+
+
+def test_config_set_json_format(tmp_config_dir):
+    """Test that setting a config key with --format=json outputs JSON."""
+    config_dir, config_file = tmp_config_dir
+    with _patch_config_paths(config_dir, config_file):
+        result = runner.invoke(app, ["--format=json", "config", "server", "http://localhost:8338"])
+        assert result.exit_code == 0
+        output = json.loads(result.output.strip())
+        assert output["key"] == "server"
+        assert output["value"] == "http://localhost:8338"
+
+
+def test_config_set_invalid_key_json_format(tmp_config_dir):
+    """Test that setting an invalid key with --format=json outputs JSON error."""
+    config_dir, config_file = tmp_config_dir
+    with _patch_config_paths(config_dir, config_file):
+        result = runner.invoke(app, ["--format=json", "config", "bad_key", "value"])
+        assert result.exit_code == 0
+        output = json.loads(result.output.strip())
+        assert "error" in output
+
+
+def test_config_key_without_value_json_format():
+    """Test that providing only a key with --format=json outputs JSON error."""
+    result = runner.invoke(app, ["--format=json", "config", "server"])
+    assert result.exit_code == 1
+    output = json.loads(result.output.strip())
+    assert "error" in output
