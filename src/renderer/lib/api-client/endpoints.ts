@@ -446,6 +446,8 @@ Endpoints.Experiment = {
     tailLines: number = 1000,
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/tunnel_info?tail_lines=${tailLines}`,
+  GetProfilingReport: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/profiling_report`,
   GetAdditionalDetails: (
     experimentId: string,
     jobId: string,
