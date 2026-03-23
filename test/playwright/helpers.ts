@@ -18,7 +18,9 @@ export async function login(page: Page) {
     await page.getByPlaceholder('First Name').fill('Admin');
     await page.getByPlaceholder('Last Name').fill('User');
     await page.getByPlaceholder('Email Address').fill('admin@example.com');
-    await page.getByPlaceholder('Password').fill('admin123');
+    await page
+      .getByRole('textbox', { name: 'Password', exact: true })
+      .fill('admin123');
     await page.getByPlaceholder('Confirm Password').fill('admin123');
     await createFirstUserButton.click();
     await expect(page.locator('.Sidebar')).toBeVisible({
@@ -35,7 +37,9 @@ export async function login(page: Page) {
         await page.getByPlaceholder('First Name').fill('Admin');
         await page.getByPlaceholder('Last Name').fill('User');
         await page.getByPlaceholder('Email Address').fill('admin@example.com');
-        await page.getByPlaceholder('Password').fill('admin123');
+        await page
+          .getByRole('textbox', { name: 'Password', exact: true })
+          .fill('admin123');
         await page.getByPlaceholder('Confirm Password').fill('admin123');
         await page.getByRole('button', { name: 'Create First User' }).click();
         await expect(page.locator('.Sidebar')).toBeVisible({
@@ -48,8 +52,26 @@ export async function login(page: Page) {
     // Fall back to the normal login flow below.
   }
 
+  // If setup status check failed or returned stale data, trust the visible UI.
+  if ((await createFirstUserButton.count()) > 0) {
+    await page.getByPlaceholder('First Name').fill('Admin');
+    await page.getByPlaceholder('Last Name').fill('User');
+    await page.getByPlaceholder('Email Address').fill('admin@example.com');
+    await page
+      .getByRole('textbox', { name: 'Password', exact: true })
+      .fill('admin123');
+    await page.getByPlaceholder('Confirm Password').fill('admin123');
+    await createFirstUserButton.click();
+    await expect(page.locator('.Sidebar')).toBeVisible({
+      timeout: 15000,
+    });
+    return;
+  }
+
   await page.getByPlaceholder('Email Address').fill('admin@example.com');
-  await page.getByPlaceholder('Password').fill('admin123');
+  await page
+    .getByRole('textbox', { name: 'Password', exact: true })
+    .fill('admin123');
   await page.getByRole('button', { name: 'Sign In' }).click();
   await expect(page.locator('.Sidebar')).toBeVisible({
     timeout: 15000,
