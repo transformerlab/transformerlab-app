@@ -5,7 +5,6 @@ LocalModelStore manages models in both the database and
 There are functions in model_helper to make it easier to work with.
 """
 
-import json
 import posixpath
 from huggingface_hub import hf_hub_download
 from transformerlab.models import modelstore
